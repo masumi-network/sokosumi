@@ -4,23 +4,31 @@ import type { ChatRoom, ChatSavedMessageListItem } from "@sokosumi/core-client";
 import { Bookmark, BookmarkX } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   listSavedMessagesAction,
   unsaveRoomMessageAction,
 } from "@/app/chat/actions";
-import { ChatUnreadViewHeader } from "@/app/chat/components/chat-unread-view-header";
+import {
+  ChatEmptyState,
+  ChatUnreadViewHeader,
+} from "@/app/chat/components/chat-unread-view-header";
 import { messageSender } from "@/app/chat/components/room-helpers";
 import { useRoomDisplayName } from "@/app/chat/components/use-room-display-name";
 import { roomMentionNames } from "@/app/chat/utils/room-mention-names";
 import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
 import { useLiveChatRooms } from "@/components/chat/use-live-chat-rooms";
+import {
+  usePageListSearch,
+  usePageSearchPagination,
+} from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
@@ -69,10 +77,7 @@ export function SavedMessagesView({
     setItems(initialPage?.items ?? []);
     setNextCursor(initialPage?.nextCursor ?? null);
   }
-  const currentPage = useRef(initialPage);
-  useEffect(() => {
-    currentPage.current = initialPage;
-  }, [initialPage]);
+  const currentPage = useLatestRef(initialPage);
 
   const [loadingOlder, setLoadingOlder] = useState(false);
   // Saves with an unsave on its way to Core. They are off the list at once
@@ -85,6 +90,22 @@ export function SavedMessagesView({
       !removing.has(item.messageId) &&
       (!sawLiveRooms.current || roomsById.has(item.message.roomId)),
   );
+
+  const matching = usePageListSearch(visibleItems, ({ message }) => {
+    const room = roomsById.get(message.roomId);
+    return {
+      primary: [
+        formatUnreadThreadsPreview(
+          message.content,
+          roomMentionNames(room, tChannels("MentionAll.label")),
+        ),
+      ],
+      secondary: [
+        messageSender(message).name,
+        room && roomDisplayName(room, currentUserId),
+      ],
+    };
+  });
 
   async function handleRemove(messageId: string) {
     setRemoving((current) => new Set(current).add(messageId));
@@ -105,6 +126,8 @@ export function SavedMessagesView({
       return next;
     });
   }
+
+  usePageSearchPagination(nextCursor, loadingOlder, handleLoadOlder);
 
   async function handleLoadOlder() {
     if (!nextCursor) return;
@@ -135,21 +158,15 @@ export function SavedMessagesView({
               {t("error")}
             </p>
           ) : visibleItems.length === 0 ? (
-            <div
-              className="flex flex-col items-center gap-1.5 px-4 py-6 text-center"
-              data-testid="saved-messages-empty"
-            >
-              <span className="bg-quinary text-foreground grid size-8 place-items-center rounded-full">
-                <Bookmark className="size-4" aria-hidden />
-              </span>
-              <p className="text-sm font-medium">{t("empty")}</p>
-              <p className="text-muted-foreground max-w-xs text-sm text-pretty">
-                {t("emptyHint")}
-              </p>
-            </div>
+            <ChatEmptyState
+              icon={Bookmark}
+              title={t("empty")}
+              description={t("emptyHint")}
+              testId="saved-messages-empty"
+            />
           ) : (
             <ul className="flex flex-col gap-0.5" data-testid="saved-messages">
-              {visibleItems.map(({ messageId, savedAt, message }) => {
+              {matching.map(({ messageId, savedAt, message }) => {
                 const room = roomsById.get(message.roomId);
                 const roomName = room
                   ? room.kind === "channel"

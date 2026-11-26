@@ -9,6 +9,7 @@ import {
   CONTACT_REPLY_STATES,
   CONTACT_SORT_FIELDS,
   CONTACT_STAGES,
+  CONTACT_X_FOLLOWS,
   calendarDateSchema,
   contactFilterSchema,
 } from "@sokosumi/utils";
@@ -29,7 +30,7 @@ const contactListColorSchema = z
   .enum(CONTACT_LIST_COLORS)
   .openapi("ContactListColor");
 
-const personSchema = z
+export const contactPersonSchema = z
   .object({ id: z.string(), name: z.string(), image: z.string().nullable() })
   .openapi("ContactPerson");
 
@@ -59,10 +60,14 @@ const contactListRefSchema = z
   })
   .openapi("ContactListRef");
 
-export const contactKnownBySchema = personSchema
+export const contactKnownBySchema = contactPersonSchema
   .extend({
     interactionCount: z.int(),
     lastInteractionAt: dateTimeSchema.nullable(),
+    /** They follow this teammate on X. */
+    followsOnX: z.boolean(),
+    /** This teammate follows them on X. */
+    followedOnX: z.boolean(),
   })
   .openapi("ContactKnownBy");
 
@@ -122,6 +127,8 @@ export const contactSchema = z
     channels: z.array(contactChannelSchema),
     lists: z.array(contactListRefSchema),
     knownBy: z.array(contactKnownBySchema),
+    /** The workspace member this contact is, e.g. the reader themselves. */
+    user: z.union([contactPersonSchema, z.null()]),
   })
   .openapi("Contact");
 
@@ -142,7 +149,7 @@ export const contactInteractionSchema = z
     summary: z.string(),
     sourceRef: z.string().nullable(),
     sourceUrl: z.string().nullable(),
-    user: z.union([personSchema, z.null()]),
+    user: z.union([contactPersonSchema, z.null()]),
     sokoBot: z.union([
       z
         .object({ id: z.uuid(), name: z.string().nullable() })
@@ -168,7 +175,7 @@ export const contactActivitySchema = z
       ])
       .openapi("ContactActivityKind"),
     changes: z.record(z.string(), z.unknown()),
-    user: z.union([personSchema, z.null()]),
+    user: z.union([contactPersonSchema, z.null()]),
     sokoBot: z.union([
       z.object({ id: z.uuid(), name: z.string().nullable() }),
       z.null(),
@@ -302,6 +309,10 @@ export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
   }),
   knownByUserId: z.string().min(1).max(200).optional(),
   knownByMe: booleanQuery,
+  xFollow: z.enum(CONTACT_X_FOLLOWS).optional().openapi("ContactXFollowState", {
+    description:
+      "How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.",
+  }),
   lastContactAfter: z.iso.datetime({ offset: true }).optional(),
   lastContactBefore: z.iso.datetime({ offset: true }).optional(),
   lastContactOlderThanDays: positiveDays,
@@ -480,3 +491,21 @@ export const contactCompanyDetailSchema = z
     ),
   })
   .openapi("ContactCompanyDetail");
+
+export const contactLinkedInImportInputSchema = z
+  .object({
+    /** The text of LinkedIn's Connections.csv export, at most 5 MB. */
+    csv: z.string().min(1).max(5_000_000),
+  })
+  .openapi("ContactLinkedInImportInput");
+
+export const contactLinkedInImportResultSchema = z
+  .object({
+    /** Rows that named a LinkedIn profile. */
+    connections: z.int(),
+    created: z.int(),
+    updated: z.int(),
+    /** The "LinkedIn connections" list every imported person is on. */
+    listId: z.uuid(),
+  })
+  .openapi("ContactLinkedInImportResult");

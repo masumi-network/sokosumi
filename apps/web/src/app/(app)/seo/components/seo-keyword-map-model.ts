@@ -23,6 +23,15 @@ export interface SeoKeywordPoint {
   y: number;
 }
 
+export function seoClickGain(clicks: SeoKeywordGroup["clicks"]) {
+  return (
+    clicks && {
+      top10: Math.max(clicks.top10 - clicks.now, 0),
+      top3: Math.max(clicks.top3 - clicks.now, 0),
+    }
+  );
+}
+
 /**
  * Searches a month against keyword difficulty, one dot per keyword with both numbers. Searches use a log
  * scale: 50 and 50,000 searches both stay readable. The extra clicks a better place brings are in the card
@@ -32,9 +41,12 @@ export function seoKeywordMap(groups: {
   checked: SeoKeywordGroup[];
   ideas: SeoKeywordGroup[];
 }) {
+  const checkedIds = new Set(groups.checked.map((group) => group.lead.id));
   const rows = [
     ...groups.checked.map((group) => ({ group, checked: true })),
-    ...groups.ideas.map((group) => ({ group, checked: false })),
+    ...groups.ideas
+      .filter((group) => !checkedIds.has(group.lead.id))
+      .map((group) => ({ group, checked: false })),
   ].flatMap(({ group, checked }) =>
     group.volume !== null && group.volume > 0 && group.difficulty !== null
       ? [{ group, checked, volume: group.volume, difficulty: group.difficulty }]
@@ -45,14 +57,9 @@ export function seoKeywordMap(groups: {
   const low = Math.floor(Math.min(...decades));
   // One decade at least: equal volumes still get an axis.
   const high = Math.max(Math.ceil(Math.max(...decades)), low + 1);
-  const gainOf = (clicks: SeoKeywordGroup["clicks"]) =>
-    clicks && {
-      top10: Math.max(clicks.top10 - clicks.now, 0),
-      top3: Math.max(clicks.top3 - clicks.now, 0),
-    };
   const points: SeoKeywordPoint[] = rows.map((row) => ({
     ...row,
-    gain: gainOf(row.group.clicks),
+    gain: seoClickGain(row.group.clicks),
     x: row.difficulty,
     y: 100 - ((Math.log10(row.volume) - low) / (high - low)) * 100,
   }));

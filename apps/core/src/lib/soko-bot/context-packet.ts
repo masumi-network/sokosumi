@@ -8,7 +8,7 @@ import {
   redactSokoBotSensitiveText,
   sanitizeSokoBotMemoryMarkdown,
 } from "@sokosumi/soko-bot";
-import { convertCentsToCredits } from "@sokosumi/utils";
+import { convertCentsToCredits, hideSeoAuditRequest } from "@sokosumi/utils";
 import { DAY_MS } from "@/config/constants";
 import { taskOwnerLabel } from "@/helpers/soko-bot-owner";
 import { buildCreditsPayload } from "@/helpers/subscription";
@@ -116,6 +116,10 @@ export interface BuildContextPacketInput extends ContextPacketReaderInput {
   personAsked?: boolean;
   /** The lasting preference saved from this message before the turn. */
   capturedPreference?: string | null;
+  /** The message as the classifier read it: Cuso's organizer picks from it. */
+  turnMessage?: string;
+  /** The bot's own last reply here, for a message that only answers it. */
+  previousReply?: string | null;
 }
 
 /** A signal at or above this becomes a hint. */
@@ -192,10 +196,7 @@ function truncateUtf8(value: string, maxBytes: number): string {
 }
 
 function sanitizeMemory(value: string): string {
-  const normalized = sanitizeSokoBotMemoryMarkdown(value)
-    .replaceAll(/\r\n?/g, "\n")
-    .trim();
-  return truncateUtf8(normalized, TEXT_LIMITS.memoryBytes);
+  return sanitizeSokoBotMemoryMarkdown(value).replaceAll(/\r\n?/g, "\n").trim();
 }
 
 function boundedIdentifier(value: string | null): string | null {
@@ -330,16 +331,29 @@ function finiteNonNegative(value: number | null | undefined): number | null {
     : null;
 }
 
+/**
+ * `memory` counts the bytes of stored memory the packet leaves out. A turn
+ * that sees part of its memory must read the rest before it rewrites it:
+ * update_memory replaces the whole document.
+ */
 function calculateOmissions(
   counts: Record<string, number>,
   packet: ContextPacketWithoutHash,
+  memoryBytes: number,
 ): Record<string, number> {
-  return Object.fromEntries(
-    Object.entries(counts).map(([key, count]) => {
-      const collection = packet[key as PacketCollectionKey];
-      return [key, Math.max(0, count - collection.length)];
-    }),
+  const memory = Math.max(
+    0,
+    memoryBytes - Buffer.byteLength(packet.memory.markdown, "utf8"),
   );
+  return {
+    ...Object.fromEntries(
+      Object.entries(counts).map(([key, count]) => {
+        const collection = packet[key as PacketCollectionKey];
+        return [key, Math.max(0, count - collection.length)];
+      }),
+    ),
+    ...(memory > 0 ? { memory } : {}),
+  };
 }
 
 function serializePacket(packetWithoutHash: ContextPacketWithoutHash) {
@@ -435,9 +449,14 @@ function trimOne(
 function fitPacketToBudget(
   initial: ContextPacketWithoutHash,
   counts: Record<string, number>,
+  memoryBytes: number,
 ) {
   let packetWithoutHash = initial;
-  packetWithoutHash.omissions = calculateOmissions(counts, packetWithoutHash);
+  packetWithoutHash.omissions = calculateOmissions(
+    counts,
+    packetWithoutHash,
+    memoryBytes,
+  );
   let serialized = serializePacket(packetWithoutHash);
 
   while (serialized.byteSize > SOKO_BOT_CONTEXT_PACKET_MAX_BYTES) {
@@ -475,7 +494,11 @@ function fitPacketToBudget(
       throw new Error("Soko Bot context packet cannot fit hard byte limit");
     }
 
-    packetWithoutHash.omissions = calculateOmissions(counts, packetWithoutHash);
+    packetWithoutHash.omissions = calculateOmissions(
+      counts,
+      packetWithoutHash,
+      memoryBytes,
+    );
     serialized = serializePacket(packetWithoutHash);
   }
 
@@ -512,7 +535,7 @@ export class ContextPacketBuilder {
           select: {
             name: true,
             members: {
-              where: { userId: input.userId ?? undefined },
+              ...(input.userId !== null && { where: { userId: input.userId } }),
               select: { role: true },
               take: 1,
             },
@@ -539,6 +562,12 @@ export class ContextPacketBuilder {
                   source: input.source,
                   clientTurnId: input.clientTurnId ?? null,
                 }),
+                turn: {
+                  source: input.source,
+                  clientTurnId: input.clientTurnId ?? null,
+                  message: input.turnMessage ?? "",
+                  previousReply: input.previousReply ?? null,
+                },
               }),
             )
             .catch(() => null);
@@ -891,8 +920,12 @@ export class ContextPacketBuilder {
       recentTurns: recentTurnCount,
     };
     const generatedAt = new Date().toISOString();
-    const safeMemoryMarkdown = sanitizeMemory(
+    const storedMemory = sanitizeMemory(
       memoryRevision?.markdown ?? "# Soko Bot memory",
+    );
+    const safeMemoryMarkdown = truncateUtf8(
+      storedMemory,
+      TEXT_LIMITS.memoryBytes,
     );
     const hints = triggerHints(input);
     const packetWithoutHash: ContextPacketWithoutHash = {
@@ -1006,7 +1039,10 @@ export class ContextPacketBuilder {
         requiredReference: input.referencedTaskIds?.includes(task.id) ?? false,
         id: boundedIdentifier(task.id),
         name: sanitizeText(task.name, TEXT_LIMITS.name),
-        summary: sanitizeText(task.description, TEXT_LIMITS.summary),
+        summary: sanitizeText(
+          hideSeoAuditRequest(task.description),
+          TEXT_LIMITS.summary,
+        ),
         status: task.status,
         owner: taskOwnerLabel(task, input.userId),
         priority: null,
@@ -1139,7 +1175,11 @@ export class ContextPacketBuilder {
       counts,
       omissions: {},
     };
-    const fitted = fitPacketToBudget(packetWithoutHash, counts);
+    const fitted = fitPacketToBudget(
+      packetWithoutHash,
+      counts,
+      Buffer.byteLength(storedMemory, "utf8"),
+    );
 
     return {
       packet: fitted.packet,

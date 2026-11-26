@@ -6,11 +6,11 @@ import {
   type ReactNode,
   useCallback,
   useContext,
-  useEffect,
   useRef,
   useState,
 } from "react";
 import { HistorySearchDialog } from "@/app/components/history-search-dialog";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 
@@ -85,26 +85,18 @@ export function HistorySearchDialogProvider({
     }
   }, []);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (isEditableKeyboardTarget(event.target)) {
-        return;
-      }
+  useEventListener("window", "keydown", (event) => {
+    if (isEditableKeyboardTarget(event.target)) {
+      return;
+    }
 
-      if (
-        event.key?.toLowerCase() !== "k" ||
-        !(event.metaKey || event.ctrlKey)
-      ) {
-        return;
-      }
+    if (event.key?.toLowerCase() !== "k" || !(event.metaKey || event.ctrlKey)) {
+      return;
+    }
 
-      event.preventDefault();
-      openHistorySearch();
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [openHistorySearch]);
+    event.preventDefault();
+    openHistorySearch();
+  });
 
   return (
     <HistorySearchContext.Provider
@@ -126,11 +118,22 @@ export function HistorySearchDialogProvider({
           created: tSearch("created"),
           filesGroup: tSearch("filesGroup"),
           filesSeeAll: tSearch("filesSeeAll"),
+          tasksSeeAll: (query) => tSearch("tasksSeeAll", { query }),
           filesFilenameMatch: tSearch("filesFilenameMatch"),
+          peopleGroup: tSearch("peopleGroup"),
+          copyEmail: (email) => tSearch("copyEmail", { email }),
+          emailCopied: tSearch("emailCopied"),
+          emailCopyFailed: tSearch("emailCopyFailed"),
+          mentionInTask: (name) => tSearch("mentionInTask", { name }),
           tagsGroup: tSearch("tagsGroup"),
           tagTasksGroup: (tag) => tSearch("tagTasksGroup", { tag }),
           tagsError: tSearch("tagsError"),
           tagTasksError: tSearch("tagTasksError"),
+          projectsGroup: tSearch("projectsGroup"),
+          channelsGroup: tSearch("channelsGroup"),
+          schedulesGroup: tSearch("schedulesGroup"),
+          coworkersGroup: tSearch("coworkersGroup"),
+          newTask: tSearch("newTask"),
         }}
       />
     </HistorySearchContext.Provider>

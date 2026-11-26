@@ -9,7 +9,8 @@ const { db, startTurnMock } = vi.hoisted(() => ({
       findFirst: vi.fn(),
       findMany: vi.fn(),
     },
-    chatRoomMessage: { findMany: vi.fn() },
+    chatRoomMessage: { findMany: vi.fn(), findFirst: vi.fn() },
+    chatRoomMention: { findMany: vi.fn() },
     chatRoomSokoBotMember: { findUnique: vi.fn() },
     sokoBotIntegration: { findUnique: vi.fn() },
     sokoBotWatch: {
@@ -90,6 +91,8 @@ beforeEach(() => {
     chainDepth: 0,
   });
   db.sokoBotWatch.count.mockResolvedValue(0);
+  db.chatRoomMessage.findFirst.mockResolvedValue(null);
+  db.chatRoomMention.findMany.mockResolvedValue([]);
   db.projectImageJob.findFirst.mockResolvedValue({ id: "job-1" });
   db.sokoBotWatch.create.mockImplementation(async ({ data }) => ({
     id: "watch-1",
@@ -132,38 +135,134 @@ describe("watchOutcome", () => {
     );
   });
 
-  it("counts only replies from others after the wait began", async () => {
-    const chat = { ...studio, kind: "chat_reply", targetId: "room-1" };
+  const chat = { ...studio, kind: "chat_reply", targetId: "room-1" };
+  const from = (name: string, content: string, extra = {}) => ({
+    content,
+    metadata: {},
+    createdAt: new Date(NOW.getTime() - 5 * 60_000),
+    senderUserId: null,
+    senderUser: null,
+    senderCoworker: { name },
+    senderSokoBot: null,
+    ...extra,
+  });
+
+  it("counts only replies from others since the bot's question", async () => {
+    const asked = new Date(NOW.getTime() - 30_000);
+    db.chatRoomMessage.findFirst.mockResolvedValue({ createdAt: asked });
     db.chatRoomMessage.findMany.mockResolvedValueOnce([]);
     expect(await watchOutcome(chat)).toBeNull();
     expect(db.chatRoomMessage.findMany.mock.calls[0][0].where).toMatchObject({
       roomId: "room-1",
-      createdAt: { gt: NOW },
+      createdAt: { gt: asked },
       OR: [{ senderSokoBotId: null }, { senderSokoBotId: { not: "bot-1" } }],
     });
     db.chatRoomMessage.findMany.mockResolvedValueOnce([
+      from("Mira", "Yes, about 200 credits."),
+    ]);
+    const outcome = await watchOutcome(chat);
+    expect(outcome).toContain("- Mira: Yes, about 200 credits.");
+    expect(outcome).toContain("nothing was cut");
+  });
+
+  it("waits until everyone it mentioned has finished, not their first message", async () => {
+    db.chatRoomMention.findMany.mockResolvedValue([
       {
-        content: "Yes, about 200 credits.",
-        senderUser: null,
-        senderCoworker: { name: "Hannah" },
-        senderSokoBot: null,
+        status: "responded",
+        error: null,
+        coworker: null,
+        sokoBot: { name: "Juno" },
+      },
+      {
+        status: "sent",
+        error: null,
+        coworker: { name: "Mira" },
+        sokoBot: null,
       },
     ]);
-    expect(await watchOutcome(chat)).toContain(
-      "- Hannah: Yes, about 200 credits.",
+    db.chatRoomMessage.findMany.mockResolvedValue([
+      from("Juno", "Hannah is on the pricing research."),
+    ]);
+    expect(await watchOutcome(chat)).toBeNull();
+
+    db.chatRoomMention.findMany.mockResolvedValue([
+      {
+        status: "responded",
+        error: null,
+        coworker: null,
+        sokoBot: { name: "Juno" },
+      },
+      {
+        status: "failed",
+        error: "Coworker returned an empty response",
+        coworker: { name: "Mira" },
+        sokoBot: null,
+      },
+    ]);
+    const outcome = await watchOutcome(chat);
+    expect(outcome).toContain("- Juno: Hannah is on the pricing research.");
+    expect(outcome).toContain(
+      "Mira did not answer (Coworker returned an empty response).",
     );
   });
 
-  it("waits while a Coworker's reply is still being written", async () => {
-    const chat = { ...studio, kind: "chat_reply", targetId: "room-1" };
-    const reply = {
-      content: "Yes, abo",
-      senderUser: null,
-      senderCoworker: { name: "Hannah" },
-      senderSokoBot: null,
-    };
+  it("ends at once when nobody it asked could answer", async () => {
+    db.chatRoomMention.findMany.mockResolvedValue([
+      {
+        status: "failed",
+        error: null,
+        coworker: { name: "Mira" },
+        sokoBot: null,
+      },
+    ]);
+    db.chatRoomMessage.findMany.mockResolvedValue([]);
+    const outcome = await watchOutcome(chat);
+    expect(outcome).toContain("No answer in the chat");
+    expect(outcome).toContain("Mira did not answer.");
+  });
+
+  it("lets a person finish typing: their answer counts after a pause", async () => {
+    const hannah = (content: string, secondsAgo: number) =>
+      from("", content, {
+        senderUserId: "hannah",
+        senderUser: { name: "Hannah" },
+        senderCoworker: null,
+        createdAt: new Date(NOW.getTime() - secondsAgo * 1_000),
+      });
+    db.chatRoomMessage.findMany.mockResolvedValue([
+      hannah("Two of the five are done.", 40),
+      hannah("The rest by Thursday afternoon.", 10),
+    ]);
+    expect(await watchOutcome(chat)).toBeNull();
+    db.chatRoomMessage.findMany.mockResolvedValue([
+      hannah("Two of the five are done.", 150),
+      hannah("The rest by Thursday afternoon.", 120),
+    ]);
+    const outcome = await watchOutcome(chat);
+    expect(outcome).toContain("- Hannah: Two of the five are done.");
+    expect(outcome).toContain("- Hannah: The rest by Thursday afternoon.");
+  });
+
+  it("hands over a long reply whole, and says plainly when even that was cut", async () => {
+    // A 6,000-character comparison lost its bottom line at 4,000.
+    const long = `${"Six marketplaces compared. ".repeat(230)}Bottom line: a DACH pilot in March 2027.`;
+    expect(long.length).toBeGreaterThan(6_000);
+    db.chatRoomMessage.findMany.mockResolvedValueOnce([from("Mira", long)]);
+    const whole = await watchOutcome(chat);
+    expect(whole).toContain("Bottom line: a DACH pilot in March 2027.");
+    expect(whole).toContain("nothing was cut");
+
     db.chatRoomMessage.findMany.mockResolvedValueOnce([
-      { ...reply, metadata: { streaming: true } },
+      from("Mira", "a".repeat(30_000)),
+    ]);
+    const cut = await watchOutcome(chat);
+    expect(cut).toContain("[cut here: 24,000 of 30,000 characters shown]");
+    expect(cut).toContain("Not all of it fit");
+  });
+
+  it("waits while a Coworker's reply is still being written", async () => {
+    db.chatRoomMessage.findMany.mockResolvedValueOnce([
+      from("Mira", "Yes, abo", { metadata: { streaming: true } }),
     ]);
     expect(await watchOutcome(chat)).toBeNull();
     // An empty placeholder is never read at all.
@@ -172,10 +271,10 @@ describe("watchOutcome", () => {
     });
 
     db.chatRoomMessage.findMany.mockResolvedValueOnce([
-      { ...reply, content: "Yes, about 200 credits.", metadata: {} },
+      from("Mira", "Yes, about 200 credits."),
     ]);
     expect(await watchOutcome(chat)).toContain(
-      "- Hannah: Yes, about 200 credits.",
+      "- Mira: Yes, about 200 credits.",
     );
   });
 });
@@ -424,6 +523,37 @@ describe("syncSokoBotWatches", () => {
     expect(startTurnMock.mock.calls[0][0].message).toContain(
       "did not finish in time",
     );
+  });
+
+  it("hands over what was said so far when a chat wait runs out mid-answer", async () => {
+    vi.setSystemTime(new Date("2026-11-01T11:00:00.000Z"));
+    db.sokoBotWatch.findMany.mockResolvedValue([
+      waiting({ kind: "chat_reply", targetId: "room-1" }),
+    ]);
+    db.chatRoomMention.findMany.mockResolvedValue([
+      {
+        status: "sent",
+        error: null,
+        coworker: { name: "Mira" },
+        sokoBot: null,
+      },
+    ]);
+    db.chatRoomMessage.findMany.mockResolvedValue([
+      {
+        content: "First half of the list.",
+        metadata: {},
+        createdAt: new Date("2026-11-01T10:30:00.000Z"),
+        senderUserId: null,
+        senderUser: null,
+        senderCoworker: { name: "Alex's bot" },
+        senderSokoBot: null,
+      },
+    ]);
+    expect(await sync()).toMatchObject({ fired: 1 });
+    const message = startTurnMock.mock.calls[0][0].message;
+    expect(message).toContain("did not finish in time");
+    expect(message).toContain("First half of the list.");
+    expect(message).toContain("Mira is still answering.");
   });
 
   it("starts nothing when another tick already claimed it", async () => {

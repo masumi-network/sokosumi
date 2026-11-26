@@ -510,7 +510,13 @@ export async function markTaskArchivedRead(task: {
   assigneeUserId: string | null;
 }): Promise<void> {
   // Its sub-tasks were archived with it and can no longer be opened either.
-  for (const archived of [task, ...(await subtasksArchivedWith(task.id))]) {
+  const subtasks = await subtasksArchivedWith(task.id).catch((error) => {
+    Sentry.captureException(error, {
+      extra: { taskId: task.id, notificationType: "task-archived-read" },
+    });
+    return [];
+  });
+  for (const archived of [task, ...subtasks]) {
     for (const readerId of taskReaderIds(archived)) {
       await markAttentionRead(
         readerId,

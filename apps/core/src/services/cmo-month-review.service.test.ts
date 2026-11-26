@@ -7,7 +7,11 @@ const {
   readPieceText,
   recordUsage,
   notifyCusoLowCredits,
+  otherClaimArgued,
+  referenceFindMany,
 } = vi.hoisted(() => ({
+  otherClaimArgued: vi.fn(),
+  referenceFindMany: vi.fn(),
   evaluateWithJev: vi.fn(),
   updateMany: vi.fn(),
   readPieceText: vi.fn(),
@@ -15,10 +19,17 @@ const {
   notifyCusoLowCredits: vi.fn(),
 }));
 
-vi.mock("@/lib/soko-bot/jev", () => ({ evaluateWithJev }));
-vi.mock("@/lib/db/prisma", () => ({
-  default: { marketingStrategy: { updateMany } },
+vi.mock("@/lib/soko-bot/jev", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/soko-bot/jev")>()),
+  evaluateWithJev,
 }));
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    marketingStrategy: { updateMany },
+    referenceImage: { findMany: referenceFindMany },
+  },
+}));
+vi.mock("@/services/social-posts.service", () => ({ otherClaimArgued }));
 vi.mock("@/services/marketing-strategy-files.service", () => ({
   readMarketingPieceText: readPieceText,
 }));
@@ -610,6 +621,68 @@ describe("advanceCmoMonthReview", () => {
       key: "cmo-review:v1:1",
       costUsd: 0.002,
     });
+  });
+
+  // cmo-v8: posts with other words and one point passed the word compare.
+  it("rewrites a piece whose words argue another piece's claim", async () => {
+    otherClaimArgued.mockImplementation(async (text: string) => ({
+      problem:
+        text === "Words of b"
+          ? 'Rewrite the post: it argues another piece\'s claim ("Routing books the right rep"), not its own ("Setup takes minutes"). Make the post argue its own claim.'
+          : null,
+      costUsd: 0.000_1,
+    }));
+    jevReads({ pillar: "p0" }, { pillar: "p0" });
+    await advanceCmoMonthReview({
+      ...base,
+      strategy: {
+        pillars: PILLARS,
+        calendar: [
+          entry("a", { claim: "Routing books the right rep" }),
+          entry("b", { claim: "Setup takes minutes" }),
+        ],
+      },
+      version: { id: "v1", monthReview: null },
+      runs: [],
+    });
+    const [message] = startRewrite.mock.calls[0] ?? [];
+    expect(message).toContain(
+      '- b · linkedin/post · "Piece b" · argues another piece\'s claim ("Routing books the right rep")',
+    );
+    expect(message).not.toContain("- a ·");
+    expect(otherClaimArgued).toHaveBeenCalledWith(
+      "Words of a",
+      "Routing books the right rep",
+      ["Routing books the right rep", "Setup takes minutes"],
+    );
+  });
+
+  it("records how many pictures took each kind of print", async () => {
+    referenceFindMany.mockResolvedValue([
+      { id: "ref-1", kind: "poster" },
+      { id: "ref-2", kind: "infographic" },
+      { id: "ref-3", kind: "poster" },
+    ]);
+    jevReads({ pillar: "p0" }, { pillar: "p0" }, { pillar: "p1" });
+    await advanceCmoMonthReview({
+      ...base,
+      strategy: {
+        pillars: PILLARS,
+        calendar: [
+          entry("a", { styleReferenceId: "ref-1" }),
+          entry("b", { styleReferenceId: "ref-2" }),
+          entry("c", { styleReferenceId: "ref-3", pillar: "Setup in minutes" }),
+        ],
+      },
+      version: { id: "v1", monthReview: null },
+      runs: [],
+    });
+    expect(updateMany.mock.calls[0]?.[0].data.monthReview.pictureKinds).toEqual(
+      {
+        poster: 2,
+        infographic: 1,
+      },
+    );
   });
 
   it("checks Cuso's Project credits for a low balance after the read was charged", async () => {

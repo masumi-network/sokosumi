@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceSwitcherProvider } from "@/app/components/workspace-switcher/workspace-switcher.client";
 import WorkspaceSwitcherMenu from "@/app/components/workspace-switcher/workspace-switcher-menu.client";
+import { useContactLinkWorkspaces } from "@/app/contacts/components/contact-link-workspace";
 
 const mocks = vi.hoisted(() => ({
   useSession: vi.fn(),
@@ -83,6 +84,9 @@ function renderChrome(activeOrganizationId: string | null = "org-a") {
       <aside data-testid="sidebar">
         <WorkspaceSwitcherMenu placement="sidebar" />
       </aside>
+      <aside data-testid="drawer">
+        <WorkspaceSwitcherMenu placement="drawer" />
+      </aside>
       <header data-testid="top-bar">
         <WorkspaceSwitcherMenu placement="topBar" />
       </header>
@@ -90,7 +94,7 @@ function renderChrome(activeOrganizationId: string | null = "org-a") {
   );
 }
 
-function trigger(placement: "sidebar" | "top-bar") {
+function trigger(placement: "sidebar" | "drawer" | "top-bar") {
   return within(screen.getByTestId(placement)).getByRole("button");
 }
 
@@ -168,7 +172,18 @@ describe("WorkspaceSwitcherProvider", () => {
     expect(screen.getByRole("menu")).toHaveAttribute("data-align", align);
   });
 
-  it("shows the name in the sidebar, and only reads it out in the top bar", () => {
+  it("opens only the drawer workspace menu", async () => {
+    const user = userEvent.setup();
+    renderChrome();
+    const drawer = trigger("drawer");
+    const sidebar = trigger("sidebar");
+    await user.click(drawer);
+    expect(drawer).toHaveAttribute("aria-expanded", "true");
+    expect(sidebar).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getAllByRole("menu")).toHaveLength(1);
+  });
+
+  it("shows the workspace name in both placements", () => {
     renderChrome();
 
     const sidebarName = within(trigger("sidebar")).getByText("Org A");
@@ -177,13 +192,13 @@ describe("WorkspaceSwitcherProvider", () => {
     expect(sidebarName.className.split(/\s+/)).not.toContain("sr-only");
     // The phone/desktop split is md (MOBILE_BREAKPOINT 768): the top bar
     // shows the avatar alone up to it.
-    expect(topBarName.className.split(/\s+/)).toContain("max-md:sr-only");
+    expect(topBarName.className.split(/\s+/)).not.toContain("max-md:sr-only");
   });
 
   // As in Linear: the sidebar's switcher is a pill as wide as its content.
   // Both placements carry the switch arrows the project title uses, so the
   // two pickers read alike.
-  it("gives the sidebar trigger the switch arrows and its content's width", () => {
+  it("keeps the desktop trigger compact and the drawer trigger full width", () => {
     renderChrome();
 
     expect(
@@ -192,6 +207,7 @@ describe("WorkspaceSwitcherProvider", () => {
     expect(trigger("sidebar").className.split(/\s+/)).not.toEqual(
       expect.arrayContaining([expect.stringMatching(/(^|:)w-full$/)]),
     );
+    expect(trigger("drawer")).toHaveClass("w-full");
     expect(
       trigger("top-bar").querySelector("svg.lucide-chevrons-up-down"),
     ).not.toBeNull();
@@ -213,6 +229,38 @@ describe("WorkspaceSwitcherProvider", () => {
     renderChrome("org-b");
 
     expect(trigger("sidebar")).toHaveAccessibleName("Org B");
+  });
+
+  it("withdraws contact card access when the live session signs out", () => {
+    function ContactAccess() {
+      const scope = useContactLinkWorkspaces();
+      return (
+        <output>
+          {[scope?.active, ...(scope?.available ?? [])]
+            .filter(Boolean)
+            .join(",")}
+        </output>
+      );
+    }
+    const frame = () => (
+      <WorkspaceSwitcherProvider
+        sessionUser={sessionUser}
+        workspaces={workspaces}
+        activeOrganizationId="org-a"
+      >
+        <ContactAccess />
+      </WorkspaceSwitcherProvider>
+    );
+    mocks.useSession.mockReturnValue({
+      data: { user: sessionUser, session: { activeOrganizationId: "org-a" } },
+    });
+    const { rerender } = render(frame());
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "ws-org-a,ws-org-a,ws-org-b",
+    );
+    mocks.useSession.mockReturnValue({ data: null });
+    rerender(frame());
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
   });
 
   it("keeps the server's active organization while a switch is pending", () => {

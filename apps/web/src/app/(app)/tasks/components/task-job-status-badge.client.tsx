@@ -2,7 +2,7 @@
 
 import { SokosumiJobStatus } from "@sokosumi/core-client";
 import { useChannel } from "ably/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { jobStatusDataSchema } from "@/lib/ably/schema";
 
@@ -19,11 +19,13 @@ export function TaskJobStatusBadge({
   initialStatus,
   className,
 }: TaskJobStatusBadgeProps) {
+  const [prevInitialStatus, setPrevInitialStatus] = useState(initialStatus);
   const [status, setStatus] = useState(initialStatus);
 
-  useEffect(() => {
+  if (prevInitialStatus !== initialStatus) {
+    setPrevInitialStatus(initialStatus);
     setStatus(initialStatus);
-  }, [initialStatus]);
+  }
 
   useChannel(channelName, (message) => {
     const parsedResult = jobStatusDataSchema.safeParse(message.data);

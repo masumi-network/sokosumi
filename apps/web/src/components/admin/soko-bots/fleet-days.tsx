@@ -63,9 +63,10 @@ interface FleetDaysProps {
 }
 
 /**
- * The fleet per UTC day: people who wrote to a Soko Bot, and what every turn
- * cost in model tokens, with CMO.xyz bots on their own. One chart per measure,
- * never one with two scales.
+ * The fleet per UTC day: people who wrote to a Soko Bot, and what turns cost
+ * in model tokens: customers' Soko Bots, customers' Cusos, and our own eval
+ * and lab runs, each on its own. One chart per measure, never one with two
+ * scales.
  */
 export async function FleetDays({ fleet }: FleetDaysProps) {
   const [t, format] = await Promise.all([
@@ -89,6 +90,7 @@ export async function FleetDays({ fleet }: FleetDaysProps) {
     });
   const totalCost = days.reduce((sum, day) => sum + day.costUsd, 0);
   const totalCmoCost = days.reduce((sum, day) => sum + day.cmoCostUsd, 0);
+  const totalEvalCost = days.reduce((sum, day) => sum + day.evalCostUsd, 0);
   const peakUsers = Math.max(...days.map((day) => day.users));
 
   const panels = [
@@ -123,16 +125,28 @@ export async function FleetDays({ fleet }: FleetDaysProps) {
       label: (day: FleetDay) =>
         t("costBar", { day: dayName(day), cost: usd(day.cmoCostUsd) }),
     },
+    {
+      key: "evalCost",
+      title: t("evalCostTitle"),
+      headline: usd(today.evalCostUsd),
+      sub: t("costSub", { total: usd(totalEvalCost), days: days.length }),
+      value: (day: FleetDay) => day.evalCostUsd,
+      label: (day: FleetDay) =>
+        t("costBar", { day: dayName(day), cost: usd(day.evalCostUsd) }),
+    },
   ];
 
   return (
-    <section aria-labelledby="fleet-days" className="rounded-md border">
+    <section
+      aria-labelledby="fleet-days"
+      className="overflow-hidden rounded-md border"
+    >
       <h2 id="fleet-days" className="border-b px-4 py-2 text-sm font-medium">
         {t("title", { days: days.length })}
       </h2>
-      <div className="grid divide-y lg:grid-cols-3 lg:divide-x lg:divide-y-0">
+      <div className="bg-border grid gap-px sm:grid-cols-2 lg:grid-cols-4">
         {panels.map((panel) => (
-          <div key={panel.key} className="space-y-2 px-4 py-3">
+          <div key={panel.key} className="bg-background space-y-2 px-4 py-3">
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="text-muted-foreground text-xs">{panel.title}</h3>
               <span className="text-muted-foreground text-xs">{panel.sub}</span>
@@ -156,6 +170,9 @@ export async function FleetDays({ fleet }: FleetDaysProps) {
           </div>
         ))}
       </div>
+      <p className="text-muted-foreground border-t px-4 py-2 text-xs">
+        {t("costScope")}
+      </p>
       <details className="border-t">
         <summary className="hover:bg-accent text-muted-foreground cursor-pointer px-4 py-2 text-xs transition-colors">
           {t("table")}
@@ -185,6 +202,9 @@ export async function FleetDays({ fleet }: FleetDaysProps) {
                 <th className="px-4 py-1.5 text-end font-normal">
                   {t("cmoCost")}
                 </th>
+                <th className="px-4 py-1.5 text-end font-normal">
+                  {t("evalCost")}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -200,6 +220,9 @@ export async function FleetDays({ fleet }: FleetDaysProps) {
                   <td className="px-4 py-1.5 text-end">{usd(day.costUsd)}</td>
                   <td className="px-4 py-1.5 text-end">
                     {usd(day.cmoCostUsd)}
+                  </td>
+                  <td className="px-4 py-1.5 text-end">
+                    {usd(day.evalCostUsd)}
                   </td>
                 </tr>
               ))}

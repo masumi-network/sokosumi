@@ -9,6 +9,15 @@ const { getHistoryMock, pushMock } = vi.hoisted(() => ({
   pushMock: vi.fn(),
 }));
 
+// Projects and Channels read the session and rooms; covered in go-to tests.
+// Here they answer at once with nothing, so only this file's groups count.
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  useScopeProjects: () => ({ rows: [] }),
+}));
+vi.mock("@/components/chat/use-live-chat-rooms", () => ({
+  useLiveChatRoomsRead: () => ({ rooms: [], failed: false }),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: pushMock,
@@ -18,6 +27,10 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
     getHistory: getHistoryMock,
+    listTaskSchedules: async () => ({ data: [] }),
+    getTaskScheduleAssignees: async () => ({
+      data: { coworkers: [], sokoBot: null },
+    }),
   },
 }));
 
@@ -57,11 +70,22 @@ const labels = {
   created: "Created",
   filesGroup: "Files",
   filesSeeAll: "See all files",
+  tasksSeeAll: (query: string) => `Search tasks and results for ${query}`,
   filesFilenameMatch: "Filename match",
+  peopleGroup: "People",
+  copyEmail: (email: string) => `Copy ${email}`,
+  emailCopied: "Email copied",
+  emailCopyFailed: "Failed to copy email",
+  mentionInTask: (name: string) => `Mention ${name} in a new task`,
   tagsGroup: "Tags",
   tagTasksGroup: (tag: string) => `Tasks tagged ${tag}`,
   tagsError: "Couldn't load tags",
   tagTasksError: "Couldn't load these tasks",
+  projectsGroup: "Projects",
+  channelsGroup: "Channels",
+  schedulesGroup: "Schedules",
+  coworkersGroup: "Coworkers",
+  newTask: "New task",
 };
 
 function createTaskItem(id: string, title: string): HistoryItem {
@@ -105,7 +129,9 @@ function renderWithQuery(ui: ReactNode) {
     defaultOptions: {
       queries: {
         retry: false,
+        gcTime: Number.POSITIVE_INFINITY,
       },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
     },
   });
 
@@ -253,13 +279,15 @@ describe("HistorySearchDialog", () => {
   });
 
   it("requests owned scope for organization users", async () => {
-    renderWithQuery(
-      <HistorySearchDialog
-        open
-        onOpenChange={vi.fn()}
-        activeOrganizationId="org-1"
-        labels={labels}
-      />,
+    await act(async () =>
+      renderWithQuery(
+        <HistorySearchDialog
+          open
+          onOpenChange={vi.fn()}
+          activeOrganizationId="org-1"
+          labels={labels}
+        />,
+      ),
     );
 
     await waitFor(() => {
@@ -273,13 +301,15 @@ describe("HistorySearchDialog", () => {
   });
 
   it("requests owned scope for personal workspace users", async () => {
-    renderWithQuery(
-      <HistorySearchDialog
-        open
-        onOpenChange={vi.fn()}
-        activeOrganizationId={null}
-        labels={labels}
-      />,
+    await act(async () =>
+      renderWithQuery(
+        <HistorySearchDialog
+          open
+          onOpenChange={vi.fn()}
+          activeOrganizationId={null}
+          labels={labels}
+        />,
+      ),
     );
 
     await waitFor(() => {
@@ -342,6 +372,34 @@ describe("HistorySearchDialog", () => {
     await waitFor(() => {
       expect(screen.getByText("New query result")).toBeInTheDocument();
     });
+  });
+
+  it("opens the Tasks search, results included, for what was typed", async () => {
+    getHistoryMock.mockResolvedValue({ data: [] });
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
+    renderWithQuery(
+      <HistorySearchDialog
+        open
+        onOpenChange={vi.fn()}
+        activeOrganizationId={null}
+        labels={labels}
+      />,
+    );
+
+    expect(
+      screen.queryByText(/Search tasks and results/),
+    ).not.toBeInTheDocument();
+    await user.type(
+      screen.getByPlaceholderText("Search history..."),
+      "50% plan",
+    );
+    await user.click(
+      await screen.findByText("Search tasks and results for 50% plan"),
+    );
+
+    expect(pushMock).toHaveBeenCalledWith("/tasks?q=50%25%20plan");
   });
 
   it("passes every history kind when searching", async () => {

@@ -1,0 +1,50 @@
+{
+  "operations": {
+    "GET /workspaces/{id}": {
+      "cli": "workspaces get",
+      "mcp": "workspaces_get"
+    },
+    "GET /workspaces/{id}/ad-data-consent": {
+      "cli": "workspaces ad-data-consent",
+      "mcp": "workspaces_ad_data_consent"
+    },
+    "PUT /workspaces/{id}/ad-data-consent": {
+      "cli": "workspaces set-ad-data-consent",
+      "mcp": false,
+      "reason": "Consent to ad data use is the person's own choice."
+    },
+    "GET /workspaces/design-md": {
+      "cli": "workspaces design-md",
+      "mcp": "workspaces_design_md"
+    },
+    "POST /workspaces/design-md/adhoc": {
+      "cli": "workspaces adhoc-design-md",
+      "mcp": "workspaces_adhoc_design_md"
+    },
+    "GET /workspaces/calendar": {
+      "cli": "workspaces calendar",
+      "mcp": "workspaces_calendar"
+    },
+    "GET /workspaces/calendar/sources": {
+      "cli": "workspaces calendar-sources",
+      "mcp": "workspaces_calendar_sources"
+    },
+    "POST /workspaces/{id}/calendar/identity-labels": {
+      "cli": "workspaces calendar-labels",
+      "mcp": "workspaces_calendar_labels"
+    },
+    "GET /workspaces/social-posts": {
+      "cli": "workspaces social-posts",
+      "mcp": "workspaces_social_posts"
+    },
+    "GET /workspaces/{id}/social-connections/statistics": {
+      "cli": "workspaces social-statistics",
+      "mcp": "workspaces_social_statistics"
+    },
+    "GET /workspaces/{id}/social-connections/statistics/export": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Returns file bytes; the CLI and MCP carry JSON. An API key can GET it directly."
+    }
+  }
+}

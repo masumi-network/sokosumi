@@ -4,16 +4,12 @@ import { AnnouncedFeature, SokoBotStatus } from "@sokosumi/core-client";
 import { avatarStateOf } from "@sokosumi/soko-bot";
 import { Bot, Users } from "lucide-react";
 import Link from "next/link";
-import { useFormatter, useNow, useTranslations } from "next-intl";
-import type { ReactNode } from "react";
-import { publishPersonalAssistantChromeVisible } from "@/components/chat/personal-assistant-chrome-store";
+import { useTranslations } from "next-intl";
 import { useNavPathname } from "@/components/navigation-progress.client";
 import { BotFace } from "@/components/soko-bot/bot-face";
 import { SOKO_BOT_STATUS_TONE } from "@/components/soko-bot/soko-bot-badges";
-import {
-  STATUS_TONE_DOT_CLASS,
-  statusToneTextClass,
-} from "@/components/soko-bot/status-badge";
+import { SokoBotStatusLine } from "@/components/soko-bot/soko-bot-status-line";
+import { STATUS_TONE_DOT_CLASS } from "@/components/soko-bot/status-badge";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
@@ -29,8 +25,8 @@ import {
   SIDEBAR_ROW_LABEL_CLASS,
   SIDEBAR_ROW_LINK_CLASS,
 } from "@/components/ui/sidebar-classes";
-import { useMountEffect } from "@/hooks/use-mount-effect";
-import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
+import { usePersonalAssistantChromeVisible } from "@/hooks/effects/use-personal-assistant-chrome-visible";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 import { isPathActive } from "@/lib/utils/is-path-active";
 
@@ -38,6 +34,7 @@ import {
   SIDEBAR_FEATURE_LABEL_CLASS,
   SidebarFeatureLabel,
 } from "./sidebar-feature-label";
+import { AGENTS_ROUTE } from "./sidebar-sections";
 import { useLiveSokoBot } from "./use-live-soko-bot";
 
 /**
@@ -68,10 +65,8 @@ export default function PersonalAssistantNav({
 }: {
   bot?: SidebarSokoBotLive | null;
 }) {
-  useMountEffect(() => {
-    // Session memory for Instant `/chat` (SOK-903): mount means the row is shown.
-    publishPersonalAssistantChromeVisible(true);
-  });
+  // Session memory for Instant `/chat` (SOK-903): mount means the row is shown.
+  usePersonalAssistantChromeVisible();
 
   return (
     <SidebarGroup className="w-full">
@@ -87,7 +82,7 @@ export default function PersonalAssistantNav({
 function StaticSokoBotsRow() {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = useNavPathname();
-  const isActive = [SOKO_BOTS_ROUTE, SOKO_BOT_ROUTE].some((route) =>
+  const isActive = [AGENTS_ROUTE, SOKO_BOT_ROUTE].some((route) =>
     isPathActive(pathname, route),
   );
 
@@ -96,7 +91,7 @@ function StaticSokoBotsRow() {
       <SidebarMenuButton asChild isActive={isActive}>
         <SheetClose asChild>
           <Link
-            href={SOKO_BOTS_ROUTE}
+            href={AGENTS_ROUTE}
             aria-current={isActive ? "page" : undefined}
             className={cn(
               isActive
@@ -128,14 +123,14 @@ function StaticSokoBotsRow() {
 
 /**
  * Face with a status dot, the bot's name, and what it is doing. Opens your
- * bot; the people icon at the end opens the team's Soko Bots.
+ * bot; the people icon at the end opens the Agents page for the team's bots.
  */
 function LiveSokoBotRow({ bot: rendered }: { bot: SidebarSokoBotLive }) {
   const bot = useLiveSokoBot(rendered);
   const t = useTranslations("App.Sidebar.Content.SokoBot");
   const pathname = useNavPathname();
   const isActive = isPathActive(pathname, SOKO_BOT_ROUTE);
-  const isTeamActive = !isActive && isPathActive(pathname, SOKO_BOTS_ROUTE);
+  const isTeamActive = !isActive && isPathActive(pathname, AGENTS_ROUTE);
 
   return (
     <SidebarMenuItem className="relative">
@@ -167,7 +162,7 @@ function LiveSokoBotRow({ bot: rendered }: { bot: SidebarSokoBotLive }) {
                 />
               </span>
               <span className="sr-only">, </span>
-              <StatusLine bot={bot} />
+              <SokoBotStatusLine bot={bot} />
             </span>
             {/* Holds the label clear of the team link drawn over the end. */}
             <span aria-hidden className="w-7 shrink-0" />
@@ -182,7 +177,7 @@ function LiveSokoBotRow({ bot: rendered }: { bot: SidebarSokoBotLive }) {
       >
         <SheetClose asChild>
           <Link
-            href={SOKO_BOTS_ROUTE}
+            href={AGENTS_ROUTE}
             aria-label={t("team")}
             aria-current={isTeamActive ? "page" : undefined}
             title={t("team")}
@@ -194,51 +189,6 @@ function LiveSokoBotRow({ bot: rendered }: { bot: SidebarSokoBotLive }) {
       </div>
     </SidebarMenuItem>
   );
-}
-
-/**
- * What the bot is doing, in the tone the Soko Bot status badge paints it.
- * The words are the sidebar's where a row says more than the badge's one
- * word ("Working now", when an idle bot was last active), and the badge's
- * own where they agree ("Paused", "Couldn't reply"): a failed reply reads the
- * same here, on the bot's page and on its Direct in the chat list.
- */
-function StatusLine({ bot }: { bot: SidebarSokoBotLive }) {
-  const t = useTranslations("App.Sidebar.Content.SokoBot");
-  const tStatus = useTranslations("Components.SokoBot.BotStatus");
-  const text: Record<SokoBotStatus, ReactNode> = {
-    [SokoBotStatus.RUNNING]: t("workingNow"),
-    [SokoBotStatus.PAUSED]: tStatus(SokoBotStatus.PAUSED),
-    [SokoBotStatus.ERROR]: tStatus(SokoBotStatus.ERROR),
-    [SokoBotStatus.IDLE]: bot.lastActivityAt ? (
-      <LastActive at={bot.lastActivityAt} />
-    ) : (
-      t("ready")
-    ),
-  };
-
-  return (
-    <span
-      data-slot="soko-bot-status-line"
-      className={cn(
-        "truncate text-xs leading-tight",
-        statusToneTextClass(SOKO_BOT_STATUS_TONE[bot.status]),
-      )}
-    >
-      {text[bot.status]}
-    </span>
-  );
-}
-
-/** "Active 2h ago", narrow, in the reader's locale; ticks once a minute. */
-function LastActive({ at }: { at: Date }) {
-  const t = useTranslations("App.Sidebar.Content.SokoBot");
-  const formatter = useFormatter();
-  const now = useNow({ updateInterval: 60_000 });
-
-  return t("activeAgo", {
-    time: formatter.relativeTime(at, { now, style: "narrow" }),
-  });
 }
 
 /**

@@ -327,6 +327,7 @@ describe("Soko Bot billing", () => {
         { projectId: null },
       );
       expect(prepareConsumptionMock).toHaveBeenCalledWith(
+        "mainnet",
         "user_1",
         "org_1",
         expected,
@@ -536,6 +537,7 @@ describe("Soko Bot billing", () => {
 
       await recordSokoBotTurnUsage(input, transactionClient() as never);
       expect(prepareConsumptionMock).toHaveBeenCalledWith(
+        "mainnet",
         "user_2",
         "org_1",
         expected,
@@ -610,6 +612,7 @@ describe("Soko Bot billing", () => {
         scope,
       );
       expect(prepareConsumptionMock).toHaveBeenCalledWith(
+        "mainnet",
         null,
         "org_1",
         balance,
@@ -635,6 +638,7 @@ describe("Soko Bot billing", () => {
         scope,
       );
       expect(prepareConsumptionMock).toHaveBeenCalledWith(
+        "mainnet",
         null,
         "org_1",
         convertCreditsToCents(1),

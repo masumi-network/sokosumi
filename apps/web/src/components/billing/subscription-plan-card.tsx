@@ -2,6 +2,7 @@
 
 import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
 import { useFormatter, useTranslations } from "next-intl";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -10,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import {
   formatPlanPrice,
   resolvePlanFeatureItems,
@@ -66,19 +66,15 @@ export function SubscriptionPlanCard({
     });
 
   return (
-    <Card
-      className={cn(
-        "flex h-full flex-col",
-        plan.isCurrent ? "border-foreground" : undefined,
-      )}
-    >
-      <CardHeader className="space-y-2">
+    <Card className="flex h-full flex-col">
+      {/* `content-start`: on Billing the header can be taller than its own
+          rows (it shares a row with its neighbours), and the extra height
+          stays under the description instead of opening a gap above it. */}
+      <CardHeader className="content-start space-y-2">
         <CardTitle className="flex items-center justify-between">
           <span>{t(`Plans.${translationKey}.name`)}</span>
           {plan.isCurrent ? (
-            <span className="text-foreground text-xs font-medium">
-              {t("currentPlanBadge")}
-            </span>
+            <Badge variant="muted">{t("currentPlanBadge")}</Badge>
           ) : null}
         </CardTitle>
         <CardDescription>

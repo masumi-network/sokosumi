@@ -24,7 +24,6 @@ import {
   applyGuardedTaskStatusUpdate,
   chargeTaskCreditsOrMarkOutOfCredits,
 } from "@/helpers/task-event-charge";
-import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
 import { buildX402AgentPricingListing } from "@/helpers/x402-agent-listing";
 import { verifyX402DemandAgainstAgentSources } from "@/helpers/x402-payment-verify";
 import { calculateCentsFromX402Amount } from "@/helpers/x402-pricing";
@@ -32,9 +31,10 @@ import {
   findX402ReadySource,
   getX402ReadySources,
 } from "@/helpers/x402-readiness";
-import { publishTaskEventData } from "@/lib/ably/publish";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { requireSeparateAuditPurchaseAllowed } from "@/lib/seo/audit-settlement";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
@@ -44,6 +44,7 @@ import type { TaskX402PaymentSigned } from "@/schemas/x402-payment.schema";
 import {
   finalizeVerifiedTaskX402Payment,
   heldPendingSignOutcome,
+  schedulePostCommitFanout,
 } from "@/services/task-x402-payment.finalize";
 import {
   classifyNodeRefusal,
@@ -80,6 +81,8 @@ export interface PayTaskX402Input {
   paymentRequired: unknown;
   /** Caller's pre-charge ceiling in credits — see the request schema. */
   maxCredits?: number;
+  /** The Network whose credits the payment spends. */
+  networkScope: NetworkScope;
 }
 
 export type PayTaskX402Result =
@@ -225,6 +228,8 @@ async function runX402ChargePhase(
         );
       }
 
+      await requireSeparateAuditPurchaseAllowed(tx, taskId);
+
       if (!readySources || !creditCosts) {
         throw internalServerError(
           "Fresh x402 payment is missing buy-side configuration",
@@ -341,6 +346,7 @@ async function runX402ChargePhase(
         projectId: task.projectId,
         cents,
         currentStatus: task.status,
+        scope: input.networkScope,
         tx,
       });
 
@@ -470,36 +476,6 @@ async function runX402ChargePhase(
   }
 
   return outcome;
-}
-
-function schedulePostCommitFanout(
-  taskId: string,
-  taskOwnerId: string | null,
-  outOfCreditsEventId?: string,
-): void {
-  if (taskOwnerId) {
-    waitUntil(
-      (async () => {
-        try {
-          await publishTaskEventData({
-            userId: taskOwnerId,
-            taskId,
-            eventType: "task_event",
-          });
-        } catch (error) {
-          Sentry.captureException(error, {
-            tags: { error_type: "publish_task_event" },
-            extra: { taskId, userId: taskOwnerId },
-          });
-        }
-      })(),
-    );
-  }
-  if (outOfCreditsEventId) {
-    waitUntil(
-      notifyTaskStatusEvent(taskId, outOfCreditsEventId, "OUT_OF_CREDITS"),
-    );
-  }
 }
 
 /**

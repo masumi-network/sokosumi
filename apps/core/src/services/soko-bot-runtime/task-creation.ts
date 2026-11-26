@@ -142,7 +142,7 @@ export async function createDecision(
     }
     const decision = await tx.sokoBotPendingDecision.create({
       data: {
-        intentId: intentTurn?.intentId,
+        ...(intentTurn ? { intentId: intentTurn.intentId } : {}),
         sokoBotId: authorized.turn.sokoBotId,
         turnId: authorized.turn.id,
         requestedByUserId: authorized.turn.requestedByUserId,
@@ -294,7 +294,10 @@ export async function createTask(
         outcome: result.status,
         lastSeenStatus: result.status,
         taskId: result.id,
-        followUp: input.followUp,
+        ...(input.followUp !== undefined ? { followUp: input.followUp } : {}),
+        ...(input.followUpAllows
+          ? { followUpAllows: input.followUpAllows }
+          : {}),
       },
     });
     {

@@ -8,10 +8,17 @@ import { seoIndexReviewState } from "@sokosumi/utils";
 import { CircleAlert, CircleCheck, CircleHelp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { SeoIndexNote } from "./seo-index-triage";
 import { seoIndexEvidence, seoIndexStatusView } from "./seo-index-triage-model";
-import { SeoDate, SeoPageLink, SeoSection, SeoState } from "./seo-shared";
+import {
+  SeoDate,
+  SeoFoldSummary,
+  SeoPageLink,
+  SeoSection,
+  SeoState,
+} from "./seo-shared";
 
 type Verdict = ProjectSeoIndexedPage["verdict"];
 /** Google's verdicts, as one plain state each. NEUTRAL means Google left the page out. */
@@ -49,6 +56,7 @@ export function SeoIndexStatus({
   workspace: ProjectSeoWorkspace;
 }) {
   const t = useTranslations("App.Seo");
+  const result = useSeoResultTranslations("App.Seo");
   const { inView, pages, notes, alone, unanswered } =
     seoIndexStatusView(workspace);
   const notesOf = (pageUrl: string) =>
@@ -58,7 +66,9 @@ export function SeoIndexStatus({
     <SeoSection
       title={t("index.title")}
       description={
-        unanswered > 0 ? t("index.unanswered", { count: unanswered }) : null
+        unanswered > 0
+          ? result("index.unanswered", { count: unanswered })
+          : null
       }
     >
       <ul className={cn(HOLDER_ITEM_CLASS, "divide-y")}>
@@ -86,8 +96,9 @@ export function SeoIndexStatus({
             ...new Set(pageNotes.map((note) => seoIndexReviewState(note))),
           ];
           const shared = noteStates.length === 1;
+          const hasUnavailableInspection = noteStates.includes("unavailable");
           return (
-            <li key={page.pageUrl} className="space-y-1 p-4">
+            <li key={page.pageUrl} className="space-y-2 p-4 sm:p-5">
               <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="flex items-center gap-2 font-medium">
                   <Icon
@@ -98,7 +109,7 @@ export function SeoIndexStatus({
                       !fine && "text-muted-foreground",
                     )}
                   />
-                  {t(`index.state.${state}`)}
+                  {result(`index.state.${state}`)}
                 </span>
                 {page.coverageState ? (
                   <>
@@ -107,32 +118,40 @@ export function SeoIndexStatus({
                       ·
                     </span>
                     <span className="text-muted-foreground">
-                      {t("indexReview.googleReason", {
+                      {result("indexReview.googleReason", {
                         reason: page.coverageState,
                       })}
                     </span>
                   </>
                 ) : null}
                 {shared &&
+                noteStates[0] !== "unavailable" &&
                 !(state === "unknown" && noteStates[0] === "unknown") ? (
                   <SeoState>
                     {noteStates[0] === "unknown"
-                      ? t("index.state.unknown")
-                      : t(`indexReview.state.${noteStates[0]}`)}
+                      ? result("index.state.unknown")
+                      : result(`indexReview.state.${noteStates[0]}`)}
                   </SeoState>
                 ) : null}
               </p>
+              {hasUnavailableInspection && (
+                <p className="text-xs text-muted-foreground">
+                  {result("index.resultDate")}{" "}
+                  <SeoDate report day value={page.checkedAt} />
+                </p>
+              )}
               {/* Beside a note row that names its URL, every row names its own. */}
-              {inView.size > 1 || alone.length ? (
+              {inView.size > 1 || alone.length || hasUnavailableInspection ? (
                 <SeoPageLink url={page.pageUrl} />
               ) : null}
               <p className="text-muted-foreground text-sm">
-                {t("index.lastCrawl")}{" "}
-                <SeoDate value={page.lastCrawlTime} day />
+                {result("index.lastCrawl")}{" "}
+                <SeoDate report value={page.lastCrawlTime} day />
               </p>
               {canonical ? (
                 <p className="text-sm">
-                  {t("index.otherCanonical")} <SeoPageLink url={canonical} />
+                  {result("index.otherCanonical")}{" "}
+                  <SeoPageLink url={canonical} />
                 </p>
               ) : null}
               {/* Notes of one page can come from different audited URLs: a line parts them. */}
@@ -146,12 +165,25 @@ export function SeoIndexStatus({
                     index > 0 && "border-border mt-3 border-t pt-3",
                   )}
                 >
-                  <SeoIndexNote
-                    assessment={note}
-                    alone={false}
-                    badge={!shared}
-                    statusReadAt={page.checkedAt}
-                  />
+                  {state !== "unknown" &&
+                  seoIndexReviewState(note) === "unavailable" ? (
+                    <details>
+                      <SeoFoldSummary className="min-h-9 text-xs text-muted-foreground">
+                        {result("planning.inspectionHistory")} ·{" "}
+                        <SeoDate report day value={note.checkedAt} />
+                      </SeoFoldSummary>
+                      <div className="mt-2">
+                        <SeoIndexNote assessment={note} alone={false} />
+                      </div>
+                    </details>
+                  ) : (
+                    <SeoIndexNote
+                      assessment={note}
+                      alone={false}
+                      badge={!shared && note.status !== "unavailable"}
+                      statusReadAt={page.checkedAt}
+                    />
+                  )}
                 </div>
               ))}
             </li>

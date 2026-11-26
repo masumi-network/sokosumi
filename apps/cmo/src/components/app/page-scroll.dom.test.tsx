@@ -34,13 +34,15 @@ const scroller = () => {
 it("opens every page at its top, wherever the last one was scrolled to", async () => {
   await act(async () => root.render(<FixtureApp view="strategy" />));
   scroller().scrollTop = 900;
-  for (const page of ["Calendar", "Brand Brain", "Channels"]) {
+  for (const page of ["Calendar", "Results"]) {
     await act(async () => {
       [...container.querySelectorAll<HTMLElement>(".nav a")]
         .find((link) => link.textContent === page)
         ?.click();
     });
-    expect(container.querySelector(".vhead h2")?.textContent).toBe(page);
+    expect(
+      container.querySelector(".nav [aria-current=page]")?.textContent,
+    ).toBe(page);
     expect(scroller().scrollTop).toBe(0);
     scroller().scrollTop = 900;
   }

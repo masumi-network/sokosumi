@@ -3,16 +3,22 @@
 import "./onboarding/onboarding.css";
 
 import { ArrowRight, Loader2 } from "lucide-react";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useSyncExternalStore } from "react";
 import { useFormStatus } from "react-dom";
 
 import type { OnboardFormState } from "../app/cmo-actions";
+import { useFocusFirstInvalid } from "../hooks/effects/use-focus-first-invalid";
 import { AGENT_NAME } from "../lib/agent";
+import { track } from "../lib/analytics";
 import { AccountMenu } from "./account-menu";
 import { cusoArt } from "./cuso";
-import { useFocusFirstInvalid } from "./form-field";
 import { Logo } from "./logo";
 import { StepMarkers } from "./onboarding/step-markers";
+
+const subscribeNoop = () => () => {};
+const getBrowserTimeZone = () =>
+  Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
+const getServerTimeZone = () => "";
 
 interface OnboardingProps {
   /** The website a CMO sign-up link carried, to start the field with. */
@@ -52,10 +58,11 @@ export function Onboarding({
   const formRef = useFocusFirstInvalid(state.attempt);
   // The owner's time zone, so Cuso's routines run at their local times. Read
   // after mount: the server does not know it.
-  const [timeZone, setTimeZone] = useState("");
-  useEffect(() => {
-    setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone ?? "");
-  }, []);
+  const timeZone = useSyncExternalStore(
+    subscribeNoop,
+    getBrowserTimeZone,
+    getServerTimeZone,
+  );
   const websiteErrorId = errors.websiteUrl ? "ob-website-error" : undefined;
   return (
     <div className="ob">
@@ -78,6 +85,7 @@ export function Onboarding({
           key={state.attempt}
           ref={formRef}
           action={formAction}
+          onSubmit={() => track("website_entered")}
           className="ob-hire"
         >
           <input type="hidden" name="timeZone" value={timeZone} />
@@ -95,11 +103,11 @@ export function Onboarding({
             <span className="ob-tilt ob-tilt-a">Reads your site</span>
             <span className="ob-tilt ob-tilt-b">Spots your competitors</span>
             <span className="ob-tilt ob-tilt-c ob-tilt-ink">
-              Drafts your first month
+              Drafts your first posts
             </span>
           </div>
           <h1 className="ob-display">
-            Give me your website. I'll show you a month of posts.
+            Give me your website. I'll show you a plan and the first posts.
           </h1>
           <p className="muted">
             {AGENT_NAME} is your AI CMO. He reads your site, plans your month

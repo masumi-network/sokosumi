@@ -18,6 +18,7 @@ import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
+import { escapeLikeText } from "@/helpers/query-params";
 import {
   buildCoworkerPrivateTaskVisibilityWhere,
   buildHumanTaskVisibilityWhere,
@@ -46,20 +47,48 @@ import type {
   TaskScheduleListQuery,
   TaskScheduleRunListQuery,
 } from "@/schemas/task-schedule.schema";
+import type { TaskDomainActor } from "./task-domain.service";
 
 /**
  * Who reads or changes a schedule: a person, or a Coworker with a GRANTED
- * workspace grant acting for the member `userId`.
+ * workspace grant acting for the member `userId`. A personal Soko Bot acts
+ * as its owner (`sokoBotId` set): the owner's rights, the bot as Creator.
  */
 export type TaskScheduleReader =
-  | { kind: "user"; userId: string }
+  | { kind: "user"; userId: string; sokoBotId?: string }
   | { kind: "coworker"; coworkerId: string; vendorId: string; userId: string };
 
 export type ScheduleActor = TaskScheduleReader & {
   workspace: WorkspaceContext;
 };
 
+export function toScheduleDomainActor(actor: ScheduleActor): TaskDomainActor {
+  if (actor.kind === "user")
+    return actor.sokoBotId
+      ? { kind: "soko_bot", sokoBotId: actor.sokoBotId }
+      : { kind: "user", userId: actor.userId };
+  return {
+    kind: "coworker",
+    coworkerId: actor.coworkerId,
+    vendorId: actor.vendorId,
+    enforceWorkspaceGrant: true,
+  };
+}
+
 export type RouteVars = EnvVariables["Variables"];
+
+/**
+ * Routes pass their vars and are checked here; a Soko Bot's tools pass the
+ * actor they resolved (`soko-bot-runtime/task-schedules.ts`). The REST routes
+ * keep refusing a bot's key, so the owner's-OK check cannot be skipped.
+ */
+export async function scheduleActorOf(
+  source: RouteVars | ScheduleActor,
+): Promise<ScheduleActor> {
+  return "kind" in source && "workspace" in source
+    ? source
+    : resolveScheduleActor(source as RouteVars);
+}
 
 export async function resolveScheduleActor(
   vars: RouteVars,
@@ -182,24 +211,29 @@ export async function getTaskSchedule(
   return toTaskScheduleView(actor, await findReadableSchedule(actor, id));
 }
 
+/** Name contains `q` as typed: `%`, `_` and `\\` are literal, not wildcards. */
+export function taskScheduleNameFilter(q: string) {
+  return { contains: escapeLikeText(q), mode: "insensitive" as const };
+}
+
 export async function listTaskSchedules(
   vars: RouteVars,
   query: TaskScheduleListQuery,
 ) {
   const actor = await resolveScheduleActor(vars);
-  const { cursor, take, skip } = parseCursorPagination(query);
+  const { cursor, take } = parseCursorPagination(query);
   const where: Prisma.TaskScheduleWhereInput = {
     ...readableWhere(actor),
     ...(query.projectId ? { projectId: query.projectId } : {}),
     ...(query.state ? { state: query.state } : {}),
+    ...(query.q ? { name: taskScheduleNameFilter(query.q) } : {}),
   };
   const [rows, total] = await Promise.all([
     prisma.taskSchedule.findMany({
       where,
       include: SCHEDULE_ASSIGNEE_VENDOR,
       take: take + 1,
-      skip,
-      cursor: cursor ? { id: cursor } : undefined,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     }),
     prisma.taskSchedule.count({ where }),
@@ -221,21 +255,24 @@ export async function listTaskScheduleRuns(
 ) {
   const actor = await resolveScheduleActor(vars);
   await findReadableSchedule(actor, id);
-  const { cursor, take, skip } = parseCursorPagination(query);
+  const { cursor, take } = parseCursorPagination(query);
   const where: Prisma.TaskScheduleRunWhereInput = {
     scheduleId: id,
-    effectiveScheduledAt: {
-      gte: query.from ? new Date(query.from) : undefined,
-      lt: query.to ? new Date(query.to) : undefined,
-    },
-    manual: query.manual === undefined ? undefined : query.manual === "true",
+    ...(query.from || query.to
+      ? {
+          effectiveScheduledAt: {
+            ...(query.from ? { gte: new Date(query.from) } : {}),
+            ...(query.to ? { lt: new Date(query.to) } : {}),
+          },
+        }
+      : {}),
+    ...(query.manual === undefined ? {} : { manual: query.manual === "true" }),
   };
   const [rows, total] = await Promise.all([
     prisma.taskScheduleRun.findMany({
       where,
       take: take + 1,
-      skip,
-      cursor: cursor ? { id: cursor } : undefined,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
     }),
     prisma.taskScheduleRun.count({ where }),
@@ -357,7 +394,7 @@ export function mapTaskSchedule(schedule: TaskScheduleView) {
       schedule.canWrite &&
       schedule.state !== TaskScheduleState.ENDED &&
       !isSeoMonitorDescription(schedule.description),
-    seoMonitor: seoMonitorSummary(schedule.description),
+    seoMonitor: seoMonitorSummary(schedule.description, schedule.readerIsOwner),
   };
 }
 

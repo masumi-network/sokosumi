@@ -1,8 +1,8 @@
 "use client";
 
-import { TaskStatus } from "@sokosumi/core-client";
+import { TaskPriority, TaskStatus } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 import {
   isOtherHumanAssignee,
@@ -11,9 +11,10 @@ import {
 import { getPendingTaskName } from "@/app/tasks/utils/pending-created-task";
 import { isAgentAssigneeFields } from "@/app/tasks/utils/task-form-status";
 import { taskHref } from "@/app/tasks/utils/task-href";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { withBoardPreview } from "@/hooks/effects/use-pending-created-tasks";
 import { updateTask } from "@/lib/actions/task/action";
 import { toTaskContextSelectionInput } from "./task-context-attachments";
-import { withBoardPreview } from "./use-pending-created-tasks";
 
 import type { useTaskFormModel } from "./use-task-form-model";
 export function useTaskFormSubmission(
@@ -55,10 +56,12 @@ export function useTaskFormSubmission(
     setCreatedTask,
     runAtLabel,
     isSaveDisabled,
-    useWizard,
-    step,
     canUseSubmitShortcut,
     draftTags,
+    priority,
+    dueOn,
+    createMore,
+    onCreateMore,
   } = model;
   const {
     workspaceTagIds,
@@ -68,7 +71,7 @@ export function useTaskFormSubmission(
     reportConflict,
   } = workspaceSelection;
   const handleSave = useCallback(async () => {
-    if (isSaveDisabled || (useWizard && step === 1)) return;
+    if (isSaveDisabled) return;
     if (
       shouldShowProjectSelect &&
       projectId === undefined &&
@@ -129,7 +132,7 @@ export function useTaskFormSubmission(
           ...(tagSuggestionReceipt ? { tagSuggestionReceipt } : {}),
           ...(copyOfTaskId ? { copyOfTaskId } : {}),
           ...(trimmedName ? { name: trimmedName } : {}),
-          description: trimmedDescription,
+          description: trimmedDescription || trimmedName,
           ...assigneeFields,
           ...(sendsPrivate
             ? {
@@ -141,6 +144,8 @@ export function useTaskFormSubmission(
           ...(hasProjectSelection ? { projectId } : {}),
           status,
           ...(runAt ? { runAt } : {}),
+          ...(priority !== TaskPriority.NONE ? { priority } : {}),
+          ...(dueOn ? { dueOn } : {}),
         });
         if (!result.ok) {
           toast.error(createFailedMessage);
@@ -155,6 +160,20 @@ export function useTaskFormSubmission(
         });
         // Confirm success in place and let the user choose when to navigate;
         // the redirect target is prefetched so it lands fast.
+        onCreated?.(createdTask.taskId);
+        if (createMore) {
+          toast.success(labels.taskCreated ?? createdTask.name, {
+            description: createdTask.name.trim() || labels.untitledTask,
+            action: labels.goToTask
+              ? {
+                  label: labels.goToTask,
+                  onClick: () => router.push(createdHref),
+                }
+              : undefined,
+          });
+          onCreateMore();
+          return;
+        }
         router.prefetch(createdHref);
         setCreatedTask({
           id: createdTask.taskId,
@@ -169,7 +188,6 @@ export function useTaskFormSubmission(
                 : labels.statusReady,
           scheduleLabel: runAtLabel ?? undefined,
         });
-        onCreated?.(createdTask.taskId);
         return;
       }
 
@@ -230,9 +248,13 @@ export function useTaskFormSubmission(
     description,
     isSaveDisabled,
     mode,
-    step,
-    useWizard,
     name,
+    priority,
+    dueOn,
+    createMore,
+    onCreateMore,
+    labels.taskCreated,
+    labels.goToTask,
     assigneeId,
     coworkerOptions,
     knownSokoBotId,
@@ -264,22 +286,17 @@ export function useTaskFormSubmission(
     tRunAt,
   ]);
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.defaultPrevented) return;
-      if (
-        (event.metaKey || event.ctrlKey) &&
-        event.key === "Enter" &&
-        canUseSubmitShortcut
-      ) {
-        event.preventDefault();
-        void handleSave();
-      }
+  useEventListener("window", "keydown", (event) => {
+    if (event.defaultPrevented) return;
+    if (
+      (event.metaKey || event.ctrlKey) &&
+      event.key === "Enter" &&
+      canUseSubmitShortcut
+    ) {
+      event.preventDefault();
+      void handleSave();
     }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [canUseSubmitShortcut, handleSave, mode]);
+  });
 
   return handleSave;
 }

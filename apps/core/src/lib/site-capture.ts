@@ -1,5 +1,5 @@
 import { ssrfSafeFetch, ssrfSafeStreamFetch } from "@sokosumi/net";
-import type { Browser, HTTPRequest, Page } from "puppeteer-core";
+import type { Browser, HTTPRequest, HTTPResponse, Page } from "puppeteer-core";
 
 import { getEnv } from "@/config/env";
 
@@ -18,6 +18,12 @@ export interface PageCapture {
   fullPage?: Buffer;
   /** The page cut into its sections, top to bottom, when `sections` asked. */
   sections: SiteSection[];
+  /** What a visitor reads on the page, when `read` asked. */
+  text?: string;
+  /** The page's own description of itself (its meta description), when `read` asked. */
+  description?: string;
+  /** Every address on the page's own site it links to, when `read` asked. */
+  onSiteLinks?: string[];
 }
 
 export interface SiteLink {
@@ -68,9 +74,12 @@ export interface CaptureViewport {
   fullScreens?: number;
   /** Also cut the page into its sections, this many at most. */
   sections?: number;
+  /** Also read the page's words and every link to its own site. */
+  read?: boolean;
 }
 
 const NAVIGATION_TIMEOUT_MS = 20_000;
+const NETWORK_IDLE_TIMEOUT_MS = 8_000;
 const SETTLE_MS = 1_500;
 const MAX_RESOURCE_BYTES = 8_000_000;
 const JPEG_QUALITY = 72;
@@ -132,6 +141,26 @@ export async function withBrowser<T>(
 }
 
 /**
+ * Opens the address and waits for a quiet network as far as it comes. Not
+ * Chrome's own network-idle signal: with requests intercepted it never came
+ * for entry.fyi at desktop width, though every request had finished.
+ */
+async function loadPage(page: Page, url: string): Promise<HTTPResponse | null> {
+  const response = await page
+    .goto(url, { waitUntil: "load", timeout: NAVIGATION_TIMEOUT_MS })
+    .catch(() => null);
+  if (response)
+    await page
+      .waitForNetworkIdle({
+        idleTime: 500,
+        concurrency: 2,
+        timeout: NETWORK_IDLE_TIMEOUT_MS,
+      })
+      .catch(() => undefined);
+  return response;
+}
+
+/**
  * Opens a public page and captures its first screen and its large pictures.
  * Every request goes through the SSRF-safe fetch, so a page cannot reach a
  * private address. Cookie banners are declined, or hidden when there is no
@@ -170,13 +199,7 @@ async function capture(
     page.on("request", (request) => {
       void guardRequest(request, abort.signal);
     });
-    const load = () =>
-      page
-        .goto(target, {
-          waitUntil: "networkidle2",
-          timeout: NAVIGATION_TIMEOUT_MS,
-        })
-        .catch(() => null);
+    const load = () => loadPage(page, target);
     let response = await load();
     if (response && (await missingStyles(page))) response = await load();
     if (!response || response.status() >= 400 || (await missingStyles(page)))
@@ -230,6 +253,7 @@ async function capture(
       sections: viewport.sections
         ? await pageSections(page, viewport.sections)
         : [],
+      ...(viewport.read ? await pageWords(page) : {}),
     };
   } catch {
     return null;
@@ -257,12 +281,7 @@ export async function readPageText(
     page.on("request", (request) => {
       void guardRequest(request, abort.signal);
     });
-    const response = await page
-      .goto(await finalUrl(url), {
-        waitUntil: "networkidle2",
-        timeout: NAVIGATION_TIMEOUT_MS,
-      })
-      .catch(() => null);
+    const response = await loadPage(page, await finalUrl(url));
     if (!response || response.status() >= 400) return null;
     await declineCookies(page);
     await page
@@ -504,6 +523,44 @@ async function siteLinks(page: Page): Promise<SiteLink[]> {
     .slice(0, MAX_LINKS);
 }
 
+const MAX_PAGE_TEXT = 12_000;
+const MAX_ON_SITE_LINKS = 300;
+
+/** The page's words and the addresses on its own site it links to. */
+async function pageWords(
+  page: Page,
+): Promise<{ text: string; description: string; onSiteLinks: string[] }> {
+  const read = await page
+    .evaluate(() => {
+      const host = (name: string) => name.replace(/^www\./, "");
+      return {
+        text: document.body.innerText,
+        description:
+          document
+            .querySelector<HTMLMetaElement>(
+              'meta[name="description"], meta[property="og:description"]',
+            )
+            ?.content.trim() ?? "",
+        links: [...document.querySelectorAll<HTMLAnchorElement>("a[href]")]
+          .filter(
+            (anchor) =>
+              /^https?:$/.test(anchor.protocol) &&
+              host(anchor.hostname) === host(location.hostname),
+          )
+          .map((anchor) => `${anchor.origin}${anchor.pathname}`),
+      };
+    })
+    .catch(() => ({ text: "", description: "", links: [] as string[] }));
+  return {
+    text: read.text
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+      .slice(0, MAX_PAGE_TEXT),
+    description: read.description.slice(0, 300),
+    onSiteLinks: [...new Set(read.links)].slice(0, MAX_ON_SITE_LINKS),
+  };
+}
+
 interface SectionBox {
   kind: SiteSectionKind;
   title: string;
@@ -578,7 +635,7 @@ async function pageSections(page: Page, limit: number): Promise<SiteSection[]> {
  * Runs in the page. Walks down from the body: a wide block of about a
  * screen is a section, a taller one is opened for the sections inside it.
  */
-function findSections(minHeight: number, limit: number): SectionBox[] {
+export function findSections(minHeight: number, limit: number): SectionBox[] {
   const screen = window.innerHeight;
   const maxHeight = screen * 1.6;
   const pageWidth = document.documentElement.clientWidth;
@@ -602,9 +659,12 @@ function findSections(minHeight: number, limit: number): SectionBox[] {
       )
         continue;
       const rect = child.getBoundingClientRect();
-      if (rect.width < pageWidth * 0.6 || rect.height < minHeight) continue;
+      // A screen-high wrapper (`h-full`) whose content runs past it holds
+      // the whole page: its scroll height says so, its box does not.
+      const tall = Math.max(rect.height, child.scrollHeight);
+      if (rect.width < pageWidth * 0.6 || tall < minHeight) continue;
       const before = found.length;
-      if (rect.height > maxHeight && depth < 6) visit(child, depth + 1);
+      if (tall > maxHeight && depth < 6) visit(child, depth + 1);
       if (found.length > before) continue;
       found.push({
         element: child,

@@ -61,6 +61,7 @@ export const APP_SHELL_MESSAGE_PATHS = [
   "WorkspaceGate",
   "App.Sidebar",
   "App.Header",
+  "App.PageSearch",
   "App.Error",
   "App.EmailVerificationNotice",
   "App.LowCreditsNotice",
@@ -69,6 +70,7 @@ export const APP_SHELL_MESSAGE_PATHS = [
   "App.TransactionHistory",
   // SOK-1202 project scope switcher lives in the sidebar and header.
   "App.ProjectScope",
+  "App.Projects.column.activity",
   "App.Metadata",
   "App.enabled",
   "App.disabled",
@@ -112,6 +114,10 @@ export const APP_MESSAGE_PATHS = [
 export const SOKO_BOT_MESSAGE_PATHS = [
   ...APP_SHELL_MESSAGE_PATHS,
   "App.SokoBot",
+  // An archived shared bot's page (`/soko-bots/[id]`) offers Restore.
+  "App.SokoBots.Shared.Archived",
+  // The console's Archive shares its dialog with the Soko Bots list.
+  "App.SokoBots.Archive",
   "App.Projects.SocialPosts.preview",
   // The console's New schedule form reuses the Task schedule "When" picker.
   "App.Tasks.Schedules.Dialog.When",
@@ -120,6 +126,8 @@ export const SOKO_BOT_MESSAGE_PATHS = [
 export const ADMIN_MESSAGE_PATHS = [
   ...APP_SHELL_MESSAGE_PATHS,
   "App.Admin",
+  // A turn's "How I got this" dialog is the chat's.
+  "App.Chat.SokoBot.Conversation",
 ] as const;
 
 export const SHARE_MESSAGE_PATHS = [

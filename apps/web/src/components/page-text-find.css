@@ -1,0 +1,9 @@
+::highlight(sokosumi-page-matches) {
+  background-color: var(--secondary);
+  color: var(--secondary-foreground);
+  text-decoration: underline;
+}
+::highlight(sokosumi-page-current) {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}

@@ -44,7 +44,10 @@ function renderWorkspace(workspace: ProjectSeoWorkspace) {
       vi.fn(async () => Response.json(workspace)),
     );
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   clients.push(client);
   render(
@@ -373,7 +376,7 @@ describe("SEO competitor baselines", () => {
     );
     renderWorkspace(workspace);
     const row = screen
-      .getByRole("link", { name: "https://competitor.example/" })
+      .getByRole("link", { name: "competitor.example" })
       .closest("tr");
     // An empty cell is hidden on a phone; a wrapper would add a blank row.
     expect(row?.lastElementChild).toBeEmptyDOMElement();

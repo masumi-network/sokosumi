@@ -10,12 +10,18 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import { useRef, useState, useTransition } from "react";
+import { useDebouncedCallback } from "use-debounce";
 import { EmptyState } from "@/components/common/empty-state";
+import { PageSearchActions } from "@/components/page-search-actions";
+import { PageSearchField } from "@/components/page-search-field";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
+import { getEnvPublicConfig } from "@/config/env.public";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useNewsletterSearchCancel } from "@/hooks/effects/use-newsletter-search-cancel";
 import { cn } from "@/lib/utils";
 import { newsletterHref } from "../newsletter-tabs";
 import { DraftIssueButton } from "./draft-issue-dialog";
@@ -26,7 +32,7 @@ import {
   IssueWhen,
 } from "./issue-delivery-status";
 import { NewIssueDialog } from "./new-issue-dialog";
-import { issueSearchParams } from "./search-params";
+import { ISSUE_SEARCH_MAX_LENGTH, issueSearchParams } from "./search-params";
 
 export function Issues({
   projectId,
@@ -43,14 +49,32 @@ export function Issues({
   readOnly?: boolean;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
+  const tSearch = useTranslations("App.PageSearch");
   const [dialogOpen, setDialogOpen] = useState(false);
   const newButton = useRef<HTMLButtonElement>(null);
   const [pending, startTransition] = useTransition();
   const [pendingPage, setPendingPage] = useState<"first" | "next" | null>(null);
-  const [, setQuery] = useQueryStates(issueSearchParams, {
+  const [query, setQuery] = useQueryStates(issueSearchParams, {
     shallow: false,
     startTransition,
   });
+  const debouncedSearch = useDebouncedCallback((q: string) => {
+    setPendingPage(null);
+    void setQuery({ q, cursor: null });
+  }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
+  const navKey = `${projectId}\0${query.q}\0${query.cursor ?? ""}`;
+  const [prevNavKey, setPrevNavKey] = useState(navKey);
+  const [searchValue, setSearchValue] = useState(query.q);
+  if (prevNavKey !== navKey) {
+    setPrevNavKey(navKey);
+    setSearchValue(query.q);
+  }
+  useNewsletterSearchCancel({ navKey, debouncedSearch });
+  useEventListener("window", "popstate", () => {
+    debouncedSearch.cancel();
+    setSearchValue(query.q);
+  });
+  const searching = Boolean(searchValue.trim());
   const newIssue = readOnly ? null : (
     <div className="flex flex-wrap justify-center gap-2">
       <DraftIssueButton projectId={projectId} />
@@ -66,8 +90,8 @@ export function Issues({
   );
   return (
     <section className="min-w-0 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="space-y-1">
+      <div className="@container/page-toolbar flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-1 sm:flex-1">
           <h3 className="text-base font-semibold">{t("title")}</h3>
           <Link
             className="text-muted-foreground inline-block py-1 text-sm underline underline-offset-4"
@@ -76,15 +100,35 @@ export function Issues({
             {t("Readiness.audienceCount", { count: activeSubscribers })}
           </Link>
         </div>
-        {issues.length ? newIssue : null}
+        <PageSearchActions>
+          <PageSearchField
+            inHeader
+            value={searchValue}
+            placeholder={tSearch("issues")}
+            maxLength={ISSUE_SEARCH_MAX_LENGTH}
+            onValueChange={(q) => {
+              setSearchValue(q);
+              if (!q) {
+                debouncedSearch.cancel();
+                setPendingPage(null);
+                void setQuery({ q: "", cursor: null });
+                return;
+              }
+              debouncedSearch(q);
+            }}
+          />
+          {issues.length || searching ? newIssue : null}
+        </PageSearchActions>
       </div>
       {!issues.length ? (
         <div className={HOLDER_CLASS}>
           <EmptyState
             icon={Mail}
-            title={t("emptyTitle")}
-            description={t("emptyDescription")}
-            action={newIssue}
+            title={searching ? undefined : t("emptyTitle")}
+            description={
+              searching ? tSearch("noMatches") : t("emptyDescription")
+            }
+            action={searching ? undefined : newIssue}
           />
         </div>
       ) : (
@@ -159,6 +203,8 @@ export function Issues({
               disabled={!pagination.cursor || pending}
               loading={pending && pendingPage === "first"}
               onClick={() => {
+                debouncedSearch.cancel();
+                setSearchValue(query.q);
                 setPendingPage("first");
                 void setQuery({ cursor: null });
               }}
@@ -170,6 +216,8 @@ export function Issues({
               disabled={!pagination.nextCursor || pending}
               loading={pending && pendingPage === "next"}
               onClick={() => {
+                debouncedSearch.cancel();
+                setSearchValue(query.q);
                 setPendingPage("next");
                 void setQuery({ cursor: pagination.nextCursor });
               }}

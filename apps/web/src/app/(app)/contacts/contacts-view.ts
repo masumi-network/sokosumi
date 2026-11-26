@@ -6,6 +6,7 @@ import type {
   ContactListColor,
   ContactReplyState,
   ContactStage,
+  ContactXFollowState,
 } from "@sokosumi/core-client";
 import type { ContactQuery } from "@/lib/services/contacts.client";
 import { isUuidString } from "@/lib/utils/uuid";
@@ -60,6 +61,8 @@ export interface ContactView {
   knownBy: string | null;
   /** Where they came from: a channel found there (X for X followers). */
   source: ContactChannelSource | null;
+  /** How they and the reader follow each other on X. */
+  xFollow: ContactXFollowState | null;
   sort: ContactSort;
   direction: "asc" | "desc";
 }
@@ -84,6 +87,7 @@ export function contactQuery(view: ContactView): ContactQuery {
   if (view.knownBy === "me") query.knownByMe = "true";
   else if (view.knownBy) query.knownByUserId = view.knownBy;
   if (view.source) query.channelSource = view.source;
+  if (view.xFollow) query.xFollow = view.xFollow;
   return query;
 }
 
@@ -136,12 +140,14 @@ export function searchMatchRange(
   return [start, end];
 }
 
-/** The rows Core's `search` would keep, judged on the client: name, organization, any channel value, or location without accents. */
+/** The rows Core's `search` would keep, judged on the client: name, organization, any channel value, or location without accents. Roles and summaries also match. */
 export function matchesContactSearch(
   contact: {
     name: string;
     organization: string | null;
     location: string | null;
+    role?: string | null;
+    summary?: string | null;
     channels: ContactChannel[];
   },
   search: string,
@@ -151,10 +157,22 @@ export function matchesContactSearch(
     [
       contact.name,
       contact.organization,
+      contact.role,
+      contact.summary,
       ...contact.channels.map((channel) => channel.value),
     ].some((value) => value?.toLowerCase().includes(needle)) ||
     (!!contact.location && !!searchMatchRange(contact.location, search))
   );
+}
+
+/** Update the visible checkboxes while remembering rows outside the current search. */
+export function replaceVisibleSelection(
+  previous: readonly string[],
+  visible: readonly string[],
+  next: string[],
+): string[] {
+  const visibleIds = new Set(visible);
+  return [...previous.filter((id) => !visibleIds.has(id)), ...next];
 }
 
 /**
@@ -237,6 +255,12 @@ export const STAGE_DOT: Record<ContactStage, string> = {
   PRESS: "bg-semantic-warning",
   DORMANT: "bg-quaternary",
 };
+
+export const CONTACT_X_FOLLOWS: ContactXFollowState[] = [
+  "FOLLOWS_YOU",
+  "YOU_FOLLOW",
+  "MUTUAL",
+];
 
 export const CONTACT_REPLY_STATES: ContactReplyState[] = [
   "NO_REPLY",
@@ -500,6 +524,7 @@ export function smartFilterOf(
         ? { knownByUserId: view.knownBy }
         : {}),
     ...(view.source ? { channelSource: view.source } : {}),
+    ...(view.xFollow ? { xFollow: view.xFollow } : {}),
   };
   // Only a list alone is just that list again.
   const keys = Object.keys(filter);

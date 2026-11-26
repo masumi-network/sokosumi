@@ -1,3 +1,4 @@
+import { reportAiGatewayBudgetResponse } from "@/lib/ai-gateway-budget";
 import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
@@ -56,6 +57,8 @@ export async function listGatewayModels(): Promise<GatewayModel[]> {
       signal: AbortSignal.timeout(MODELS_TIMEOUT_MS),
     });
     if (!response.ok) {
+      if (await reportAiGatewayBudgetResponse(response, apiKey))
+        return cache?.models ?? [];
       recordCoreWarning(
         { operation: "ai_gateway_list_models" },
         {

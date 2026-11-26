@@ -9,6 +9,7 @@ import {
   NEEDS_PERSON_COLUMN_ID,
   WAITING_TASK_STATUSES,
 } from "@/app/tasks/utils/task-column";
+import type { TasksSort } from "@/app/tasks/utils/task-sort";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
 import {
   getTaskTagQuery,
@@ -31,10 +32,12 @@ interface GetTasksListPageParams {
   status: TaskStatus | null;
   projectId: string | null;
   visibility: TasksVisibilityFilter;
+  search?: string;
   tag?: string;
   stuck?: boolean;
   needsMe?: boolean;
   mentions?: boolean;
+  sort?: TasksSort;
   coworkersById: Map<string, Coworker>;
   personalAssistantFallback: string;
 }
@@ -42,6 +45,8 @@ interface GetTasksListPageParams {
 interface GetTasksListPageResult {
   tasks: TaskWithCoworker[];
   nextCursor: ListCursor;
+  /** How many Tasks match these filters across all pages. */
+  total: number;
 }
 
 export async function getTasksListPage({
@@ -54,10 +59,12 @@ export async function getTasksListPage({
   status,
   projectId,
   visibility,
+  search,
   tag,
   stuck = false,
   needsMe = false,
   mentions = false,
+  sort,
   coworkersById,
   personalAssistantFallback,
 }: GetTasksListPageParams): Promise<GetTasksListPageResult> {
@@ -75,12 +82,14 @@ export async function getTasksListPage({
       : status;
   // A status that cannot wait, under Stuck: nothing to list.
   if (Array.isArray(statuses) && statuses.length === 0) {
-    return { tasks: [], nextCursor: null };
+    return { tasks: [], nextCursor: null, total: 0 };
   }
   const result = await taskService.listTasks({
+    search,
     status: statuses ?? undefined,
     scope: tasksQueryScope(scope, { needsMe, mentions }),
     ...(mentions ? { unansweredMention: true } : {}),
+    ...(sort ? { sort } : {}),
     assigneeId: assigneeId ?? undefined,
     assigneeSokoBotId: assigneeSokoBotId ?? undefined,
     assigneeUserId: assigneeUserId ?? undefined,
@@ -106,5 +115,6 @@ export async function getTasksListPage({
   return {
     tasks,
     nextCursor: result.pagination?.nextCursor ?? null,
+    total: result.pagination?.total ?? tasks.length,
   };
 }

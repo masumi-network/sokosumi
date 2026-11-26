@@ -22,6 +22,7 @@ export const SCREENS = [
   "brand",
   "plan",
   "plan-unfitted",
+  "plan-short",
   "planning",
   "launch",
   "launch-connected",
@@ -36,74 +37,50 @@ type Strategy = NonNullable<CmoOverview["strategy"]>;
 const fixtureDay = (index: number) =>
   new Date(Date.UTC(2026, 9, 5 + index)).toISOString().slice(0, 10);
 
+/** `perDay` pieces of one format on one network, every day for 28 days. */
+function daily(
+  channel: string,
+  format: string,
+  perDay: number,
+  pillar: string,
+  alsoOn?: string[],
+): Strategy["calendar"] {
+  return Array.from({ length: 28 }, (_, day) =>
+    Array.from({ length: perDay }, (_, slot) => ({
+      id: `${channel}-${format}-${day}-${slot}`,
+      date: fixtureDay(day),
+      channel,
+      format,
+      title: `${pillar} ${day + 1}.${slot + 1}`,
+      status: "idea" as const,
+      pillar,
+      ...(alsoOn ? { alsoOn } : {}),
+    })),
+  ).flat();
+}
+
 /**
- * A month as cmo-v5 writes it, at the top volume: three X posts a day (every
- * third with a picture), LinkedIn and Instagram three times a week, and a
- * talking video a week shown on YouTube too. Each plan makes its share.
+ * A month as cmo-v14 writes it, at the top plan's rates: six X posts a day,
+ * one on LinkedIn, two picture posts on Instagram, and seven short videos a
+ * day, each one file on TikTok, Reels and Shorts. Each plan makes its share.
  */
 const fullMonth: Strategy = {
   ...richPlan,
   channels: [
-    { channel: "x", cadence: "3 a day", role: "main" },
-    {
-      channel: "linkedin",
-      cadence: "3 a week",
-      role: "side",
-      buyer: "Founders",
-    },
-    {
-      channel: "instagram",
-      cadence: "3 a week",
-      role: "side",
-      buyer: "Founders",
-    },
-    {
-      channel: "youtube",
-      cadence: "1 a week",
-      role: "side",
-      buyer: "Founders",
-    },
+    { channel: "x", cadence: "6 a day", role: "main" },
+    { channel: "linkedin", cadence: "1 a day", role: "main" },
+    { channel: "instagram", cadence: "9 a day", role: "main" },
+    { channel: "tiktok", cadence: "7 a day", role: "main" },
+    { channel: "youtube", cadence: "7 a day", role: "main" },
   ],
   calendar: [
-    ...Array.from({ length: 28 }, (_, day) =>
-      ["a", "b", "c"].map((slot, place) => ({
-        id: `x-${day}-${slot}`,
-        date: fixtureDay(day),
-        channel: "x",
-        format: place === 2 ? "image" : "post",
-        title: `Launch lesson ${day + 1}${slot}`,
-        status: "idea" as const,
-      })),
-    ).flat(),
-    ...[0, 1, 2, 3].flatMap((week) =>
-      [0, 2, 4].flatMap((offset) => [
-        {
-          id: `li-${week}-${offset}`,
-          date: fixtureDay(week * 7 + offset),
-          channel: "linkedin",
-          format: "post",
-          title: `Launch story ${week}-${offset}`,
-          status: "idea" as const,
-        },
-        {
-          id: `ig-${week}-${offset}`,
-          date: fixtureDay(week * 7 + offset + 1),
-          channel: "instagram",
-          format: "image",
-          title: `Behind the build ${week}-${offset}`,
-          status: "idea" as const,
-        },
-      ]),
-    ),
-    ...[0, 1, 2, 3].map((week) => ({
-      id: `talk-${week}`,
-      date: fixtureDay(week * 7 + 6),
-      channel: "instagram",
-      format: "talking_video",
-      title: `Why launches slip, part ${week + 1}`,
-      status: "idea" as const,
-      alsoOn: ["youtube"],
-    })),
+    ...daily("x", "post", 3, "How we build"),
+    ...daily("x", "image", 3, "Launch stories"),
+    ...daily("linkedin", "image", 1, "Launch stories"),
+    ...daily("instagram", "carousel", 2, "How we build"),
+    ...daily("tiktok", "video", 4, "How we build", ["instagram", "youtube"]),
+    ...daily("instagram", "reel", 2, "Launch stories", ["tiktok", "youtube"]),
+    ...daily("youtube", "short", 1, "Launch stories", ["tiktok", "instagram"]),
   ],
 };
 
@@ -250,6 +227,16 @@ export function screenOverview(screen: Screen): CmoOverview {
           ),
         },
       });
+    // Cuso's finish turns could not fill the month: Core refuses to approve it.
+    case "plan-short":
+      return draft({
+        brandBrain: richBrain,
+        strategy: richPlan,
+        strategyShort: { planned: 64, promised: 172 },
+      });
+    // The whole month at the top volume, before a plan is picked.
+    case "plan":
+      return draft({ brandBrain: richBrain, strategy: fullMonth });
     default:
       return draft({ brandBrain: richBrain, strategy: richPlan });
   }

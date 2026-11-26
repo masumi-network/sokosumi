@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-token
-version: 0.49.0
+version: 0.50.0
 description: Manage org auth tokens
 requires:
   bins: ["sentry"]
@@ -17,22 +17,22 @@ List org auth tokens
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument  | Description                                  |
+| --------- | -------------------------------------------- |
 | `[<org>]` | Organization slug (auto-detected if omitted) |
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Token ID |
-| `name` | string | Token name |
-| `scopes` | array | Scopes granted to the token |
-| `tokenLastCharacters` | string \| null | Last 4 characters of the token |
-| `dateCreated` | string | Creation timestamp |
-| `dateLastUsed` | string \| null | Last time the token was used, if ever |
-| `projectLastUsedId` | string \| null | ID of the project the token was last used for |
-| `token` | string | Full token value (create response only) |
+| Field                 | Type           | Description                                   |
+| --------------------- | -------------- | --------------------------------------------- |
+| `id`                  | string         | Token ID                                      |
+| `name`                | string         | Token name                                    |
+| `scopes`              | array          | Scopes granted to the token                   |
+| `tokenLastCharacters` | string \| null | Last 4 characters of the token                |
+| `dateCreated`         | string         | Creation timestamp                            |
+| `dateLastUsed`        | string \| null | Last time the token was used, if ever         |
+| `projectLastUsedId`   | string \| null | ID of the project the token was last used for |
+| `token`               | string         | Full token value (create response only)       |
 
 **Examples:**
 
@@ -53,11 +53,12 @@ Create an org auth token
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument     | Description                                        |
+| ------------ | -------------------------------------------------- |
 | `<org/name>` | [&lt;org&gt;/]&lt;name&gt; - Name of the new token |
 
 **Flags:**
+
 - `-n, --dry-run - Show what would happen without making changes`
 
 **Examples:**
@@ -81,11 +82,12 @@ Revoke an org auth token
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                     | Description                                                                                      |
+| ---------------------------- | ------------------------------------------------------------------------------------------------ |
 | `[<org>/]<token-id-or-name>` | [&lt;org&gt;/]&lt;token-id-or-name&gt; - ID or name from sentry token list (not the token value) |
 
 **Flags:**
+
 - `-y, --yes - Skip confirmation prompt`
 - `-f, --force - Force the operation without confirmation`
 - `-n, --dry-run - Show what would happen without making changes`

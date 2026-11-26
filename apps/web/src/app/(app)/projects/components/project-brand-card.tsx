@@ -12,26 +12,29 @@ import {
   Upload,
 } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import {
   createContext,
   type FormEvent,
   type ReactNode,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   useTransition,
 } from "react";
 import { toast } from "sonner";
 import {
-  clearPendingProjectBrandJob,
-  hasProjectBrandAutoStartAttempted,
+  type FailedProjectBrandGeneration,
+  getProjectBrandStorageVersion,
   markProjectBrandAutoStartAttempted,
-  readPendingProjectBrandJob,
-  savePendingProjectBrandJob,
+  onProjectBrandStorageChange,
+  parseFailedProjectBrandGeneration,
+  projectBrandJobCallbacks,
+  projectBrandWebsite,
+  readFailedProjectBrandGenerationJson,
 } from "@/app/projects/project-brand-job";
 import { DesignMdUploadTrigger } from "@/components/design-md/design-md-upload-trigger";
 import { DESIGN_MD_TRANSLATION_NAMESPACE } from "@/components/design-md/types";
@@ -55,10 +58,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { useProjectBrandAutoSetup } from "@/hooks/effects/use-project-brand-auto-setup";
 import {
   removeProjectDesignMd,
   updateProject,
 } from "@/lib/actions/project/action";
+import { useSession } from "@/lib/auth/auth.client";
+import { cn } from "@/lib/utils";
 
 interface ProjectBrandProviderProps {
   autoStart?: boolean;
@@ -68,8 +74,13 @@ interface ProjectBrandProviderProps {
   websiteUrl?: string | null;
 }
 
+/** `live`: it failed while this page was open, so it is announced. */
+type BrandFailure = FailedProjectBrandGeneration & { live?: boolean };
+
 interface ProjectBrandDashboardValue {
   designMd: ProjectDesignMd | null;
+  /** The latest failed generation, until a new attempt starts. */
+  failure: BrandFailure | null;
   generation: ReturnType<typeof useDesignMdGeneration>;
   setDesignMd: (designMd: ProjectDesignMd | null) => void;
 }
@@ -79,6 +90,8 @@ interface ProjectBrandCardProps {
   websiteUrl?: string | null;
   /** A CMO Project: CMO writes its DESIGN.md, so the card only opens it. */
   readOnly?: boolean;
+  /** A page's own action on the whole brand, shown beside the menu once a DESIGN.md exists. */
+  headerAction?: ReactNode;
 }
 
 const ProjectBrandDashboardContext =
@@ -103,6 +116,8 @@ export function ProjectBrandProvider({
   const [designMd, setDesignMd] = useState<ProjectDesignMd | null>(
     initialDesignMd,
   );
+  const viewerId = useSession().data?.user.id;
+  const [liveFailure, setLiveFailure] = useState<BrandFailure | null>(null);
   const backgroundGenerationAttempted = useRef(false);
   const owner = useMemo(
     () => ({ type: "project" as const, projectId }),
@@ -130,42 +145,71 @@ export function ProjectBrandProvider({
     onCompleted: handleCompleted,
     // The job's own URL: a website just saved in the card is not in the
     // props yet when its generation starts.
-    onJobStarted: (job) => savePendingProjectBrandJob(projectId, job),
-    onSettled: () => clearPendingProjectBrandJob(projectId),
+    ...projectBrandJobCallbacks(projectId, viewerId, (nextFailure) =>
+      setLiveFailure(nextFailure && { ...nextFailure, live: true }),
+    ),
     owner,
   });
 
-  // Background brand setup: the wizard may have closed mid-generation, so pick
-  // up its pending job here; if there is none but the project has a website
-  // and no DESIGN.md yet, kick generation off once so it lands on its own.
+  // Bumped when another surface in this tab writes the project's brand
+  // state, such as a wizard that closed before its job or failure came back.
+  const subscribeToStorage = useCallback(
+    (onChange: () => void) => onProjectBrandStorageChange(projectId, onChange),
+    [projectId],
+  );
+  const storageVersion = useSyncExternalStore(
+    subscribeToStorage,
+    getProjectBrandStorageVersion,
+    () => 0,
+  );
+
+  // Browser storage exists only after hydration and the viewer once the
+  // session loads, so a remembered failure comes in after the first render.
+  const storedFailureJson = useSyncExternalStore(
+    subscribeToStorage,
+    () =>
+      viewerId
+        ? readFailedProjectBrandGenerationJson(projectId, viewerId)
+        : null,
+    () => null,
+  );
+  const storedFailure = useMemo(
+    () => parseFailedProjectBrandGeneration(storedFailureJson),
+    [storedFailureJson],
+  );
+  // The failure this page just saw keeps its `live` flag, and stays when
+  // storage could not keep it; a retry here clears it. A later failure stored
+  // by another surface replaces it for good.
+  if (
+    liveFailure &&
+    storedFailure &&
+    liveFailure.failedAt !== storedFailure.failedAt
+  ) {
+    setLiveFailure(null);
+  }
+  const failure =
+    liveFailure &&
+    (!storedFailure || liveFailure.failedAt === storedFailure.failedAt)
+      ? liveFailure
+      : storedFailure;
+
   const { resume, generate, isRunning } = generation;
-  useEffect(() => {
-    if (designMd) {
-      // Prevent an explicit remove from immediately recreating a brand when
-      // a server re-render remounts this provider in the same browser session.
-      backgroundGenerationAttempted.current = true;
-      markProjectBrandAutoStartAttempted(projectId);
-      return;
-    }
-    if (isRunning) return;
-    const pending = readPendingProjectBrandJob(projectId);
-    if (pending) {
-      if (backgroundGenerationAttempted.current) return;
-      backgroundGenerationAttempted.current = true;
-      resume(pending);
-      return;
-    }
-    if (!autoStart || !websiteUrl) return;
-    if (backgroundGenerationAttempted.current) return;
-    if (hasProjectBrandAutoStartAttempted(projectId)) return;
-    backgroundGenerationAttempted.current = true;
-    markProjectBrandAutoStartAttempted(projectId);
-    void generate({ url: websiteUrl });
-  }, [autoStart, designMd, generate, isRunning, projectId, resume, websiteUrl]);
+  useProjectBrandAutoSetup({
+    autoStart,
+    backgroundGenerationAttempted,
+    designMd,
+    generate,
+    isRunning,
+    projectId,
+    resume,
+    storageVersion,
+    viewerId,
+    websiteUrl,
+  });
 
   const value = useMemo(
-    () => ({ designMd, generation, setDesignMd }),
-    [designMd, generation],
+    () => ({ designMd, failure, generation, setDesignMd }),
+    [designMd, failure, generation],
   );
 
   return (
@@ -179,9 +223,12 @@ export function ProjectBrandCard({
   projectId,
   websiteUrl,
   readOnly = false,
+  headerAction,
 }: ProjectBrandCardProps) {
   const t = useTranslations("App.Projects.Detail");
-  const { designMd, generation, setDesignMd } = useProjectBrandDashboard();
+  const { designMd, failure, generation, setDesignMd } =
+    useProjectBrandDashboard();
+  const format = useFormatter();
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -192,11 +239,34 @@ export function ProjectBrandCard({
   );
   const hasWebsite = Boolean(websiteUrl);
   const tWebsite = useTranslations("App.Projects.Wizard.name");
-  const [website, setWebsite] = useState("");
+  // Shows the saved website until someone types, so a website generation
+  // could not use can be corrected right here instead of in Edit. Without a
+  // draft the field follows the prop, so a refresh never leaves a stale URL.
+  const [websiteDraft, setWebsiteDraft] = useState<string | null>(null);
+  const website = websiteDraft ?? websiteUrl ?? "";
   const [websiteError, setWebsiteError] = useState<string | null>(null);
   const [isSavingWebsite, startSaveWebsite] = useTransition();
   const menuBusy =
     generation.isRunning || isRemoving || isUploading || isSavingWebsite;
+  // The card's form explains a failure, so read-only cards keep the plain
+  // message. A failure on another website than the saved one no longer
+  // applies.
+  const shownFailure =
+    failure &&
+    !readOnly &&
+    !designMd &&
+    !generation.isRunning &&
+    websiteUrl &&
+    failure.website === projectBrandWebsite(websiteUrl)
+      ? { ...failure, host: new URL(failure.website).host }
+      : null;
+  const websiteDescription =
+    [
+      websiteError ? "project-brand-website-error" : null,
+      shownFailure ? "project-brand-failure" : null,
+    ]
+      .filter(Boolean)
+      .join(" ") || undefined;
 
   function handleGenerate() {
     if (!websiteUrl) return;
@@ -206,7 +276,8 @@ export function ProjectBrandCard({
   // An explicit Generate: save only the website (a name from this render
   // could undo someone's rename), then start generation here. Marking the
   // auto-start as used keeps the provider from starting a second one when
-  // the revalidated page passes the website in.
+  // the revalidated page passes the website in. The saved website unchanged
+  // is a plain retry.
   function handleSaveWebsite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const url = normalizeWebsiteUrl(website);
@@ -215,6 +286,11 @@ export function ProjectBrandCard({
       return;
     }
     setWebsiteError(null);
+    if (websiteUrl && url === normalizeWebsiteUrl(websiteUrl)) {
+      setWebsiteDraft(null);
+      handleGenerate();
+      return;
+    }
     startSaveWebsite(async () => {
       try {
         const result = await updateProject({ projectId, websiteUrl: url });
@@ -222,6 +298,9 @@ export function ProjectBrandCard({
           setWebsiteError(t("errors.update"));
           return;
         }
+        // Saved: the prop is the truth again, so a later refresh wins. A
+        // failed save keeps the draft for another try.
+        setWebsiteDraft(null);
         markProjectBrandAutoStartAttempted(projectId);
         void generation.generate({ force: true, url });
       } catch {
@@ -257,73 +336,78 @@ export function ProjectBrandCard({
           </h2>
           {/* Without a DESIGN.md the actions are buttons below, not a menu. */}
           {designMd ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  // Negative margin: the 32px button must not make this row
-                  // taller than its heading, or the heading sits lower than
-                  // every other section heading on the page.
-                  className="hit-area -my-2 size-8"
-                  aria-label={t("brandCard.moreActions")}
-                >
-                  <MoreHorizontal className="size-4" aria-hidden />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {readOnly ? null : (
-                  <DropdownMenuItem
-                    disabled={!hasWebsite || menuBusy}
-                    onSelect={() => {
-                      handleGenerate();
-                    }}
+            // Half the menu button's negative margin: the row grows 4px, so a
+            // 32px action keeps a gap above the status badge below it.
+            <div className="-my-1 flex items-center gap-2">
+              {headerAction}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    // Negative margin: the 32px button must not make this row
+                    // taller than its heading, or the heading sits lower than
+                    // every other section heading on the page.
+                    className="hit-area -my-2 size-8"
+                    aria-label={t("brandCard.moreActions")}
                   >
-                    {generation.isRunning ? (
-                      <Loader2
-                        className="size-4 animate-spin motion-reduce:animate-pulse"
-                        aria-hidden
-                      />
-                    ) : (
-                      <RefreshCw className="size-4" aria-hidden />
-                    )}
-                    {t("brandCard.generate")}
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem asChild>
-                  <a
-                    href={designMd.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink className="size-4" aria-hidden />
-                    {t("brandCard.open")}
-                  </a>
-                </DropdownMenuItem>
-                {readOnly ? null : (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <Link href={`/projects/${projectId}/design-md/edit`}>
-                        <FileText className="size-4" aria-hidden />
-                        {t("brandCard.edit")}
-                      </Link>
-                    </DropdownMenuItem>
+                    <MoreHorizontal className="size-4" aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {readOnly ? null : (
                     <DropdownMenuItem
-                      variant="destructive"
-                      disabled={menuBusy}
-                      onSelect={(event) => {
-                        event.preventDefault();
-                        setIsRemoveDialogOpen(true);
+                      disabled={!hasWebsite || menuBusy}
+                      onSelect={() => {
+                        handleGenerate();
                       }}
                     >
-                      <Trash2 className="size-4" aria-hidden />
-                      {t("brandCard.remove")}
+                      {generation.isRunning ? (
+                        <Loader2
+                          className="size-4 animate-spin motion-reduce:animate-pulse"
+                          aria-hidden
+                        />
+                      ) : (
+                        <RefreshCw className="size-4" aria-hidden />
+                      )}
+                      {t("brandCard.generate")}
                     </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  )}
+                  <DropdownMenuItem asChild>
+                    <a
+                      href={designMd.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="size-4" aria-hidden />
+                      {t("brandCard.open")}
+                    </a>
+                  </DropdownMenuItem>
+                  {readOnly ? null : (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/projects/${projectId}/design-md/edit`}>
+                          <FileText className="size-4" aria-hidden />
+                          {t("brandCard.edit")}
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        disabled={menuBusy}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          setIsRemoveDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="size-4" aria-hidden />
+                        {t("brandCard.remove")}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           ) : null}
         </div>
 
@@ -336,7 +420,13 @@ export function ProjectBrandCard({
             />
             <span className="truncate">DESIGN.md</span>
           </p>
-          <Badge variant="outline" className="shrink-0 gap-1.5 text-xs">
+          <Badge
+            variant="outline"
+            className={cn(
+              "shrink-0 gap-1.5 text-xs",
+              shownFailure && "text-destructive border-destructive",
+            )}
+          >
             {generation.isRunning ? (
               <Loader2
                 className="size-3 animate-spin motion-reduce:animate-pulse"
@@ -347,24 +437,37 @@ export function ProjectBrandCard({
                 className="bg-semantic-success size-1.5 rounded-full"
                 aria-hidden
               />
+            ) : shownFailure ? (
+              <span
+                className="bg-semantic-destructive size-1.5 rounded-full"
+                aria-hidden
+              />
             ) : null}
             {generation.isRunning
               ? t("brandCard.generating")
               : designMd
                 ? t("brandCard.ready")
-                : t("brandCard.notSet")}
+                : shownFailure
+                  ? t("brandCard.failed")
+                  : t("brandCard.notSet")}
           </Badge>
         </div>
 
-        {!hasWebsite && !readOnly && !designMd && !generation.isRunning ? (
+        {!readOnly && !designMd && !generation.isRunning ? (
           <form noValidate onSubmit={handleSaveWebsite} className="space-y-2">
             <label
               htmlFor="project-brand-website"
               className="text-muted-foreground block text-xs"
             >
-              {t("brandCard.missingWebsite")}
+              {hasWebsite
+                ? t("brandCard.websiteLabel")
+                : t("brandCard.missingWebsite")}
             </label>
-            <div className="flex flex-col gap-2 sm:flex-row">
+            {/* Field, Generate and Upload read as one tool: one row where
+                they fit; on a phone the field takes its own row and the
+                actions share the next. Long labels wrap a button down
+                instead of overflowing. */}
+            <div className="flex flex-wrap gap-2">
               <Input
                 id="project-brand-website"
                 inputMode="url"
@@ -372,27 +475,45 @@ export function ProjectBrandCard({
                 placeholder={tWebsite("websitePlaceholder")}
                 value={website}
                 onChange={(event) => {
-                  setWebsite(event.target.value);
+                  setWebsiteDraft(event.target.value);
                   setWebsiteError(null);
                 }}
                 disabled={isSavingWebsite}
-                aria-invalid={Boolean(websiteError)}
-                aria-describedby={
-                  websiteError ? "project-brand-website-error" : undefined
+                // Marked while the field holds the website that failed.
+                aria-invalid={
+                  Boolean(websiteError) ||
+                  shownFailure?.website === projectBrandWebsite(website)
                 }
-                className="min-w-0 sm:h-8 sm:flex-1"
+                aria-describedby={websiteDescription}
+                className="min-w-0 basis-full sm:h-8 sm:min-w-48 sm:flex-1 sm:basis-0"
               />
-              <Button
-                type="submit"
-                variant="outline"
-                size="sm"
-                loading={isSavingWebsite}
-                disabled={menuBusy}
-                className="h-10 sm:h-8"
-              >
-                <RefreshCw aria-hidden />
-                {t("brandCard.generate")}
-              </Button>
+              <div className="flex grow flex-wrap gap-2 sm:grow-0">
+                <Button
+                  type="submit"
+                  variant="outline"
+                  size="sm"
+                  loading={isSavingWebsite}
+                  disabled={menuBusy}
+                  className="h-10 grow sm:h-8"
+                >
+                  <RefreshCw aria-hidden />
+                  {t("brandCard.generate")}
+                </Button>
+                {!showUpload ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={menuBusy}
+                    onClick={() => setShowUpload(true)}
+                    // Matches Generate beside it: 40px on a phone, 32px up.
+                    className="h-10 grow sm:h-8"
+                  >
+                    <Upload aria-hidden />
+                    {t("brandCard.upload")}
+                  </Button>
+                ) : null}
+              </div>
             </div>
             {websiteError ? (
               <p
@@ -403,48 +524,35 @@ export function ProjectBrandCard({
                 {websiteError}
               </p>
             ) : null}
+            {shownFailure ? (
+              <div id="project-brand-failure" className="space-y-1 text-xs">
+                <p
+                  className="text-destructive"
+                  // Announced when it happens, not again on every visit.
+                  role={shownFailure.live ? "alert" : undefined}
+                >
+                  {t("brandCard.failedReason", { host: shownFailure.host })}
+                </p>
+                <p className="text-muted-foreground">
+                  {t("brandCard.lastTried", {
+                    when: format.dateTime(
+                      new Date(shownFailure.failedAt),
+                      "dateTimeMedium",
+                    ),
+                  })}
+                </p>
+              </div>
+            ) : null}
           </form>
         ) : !hasWebsite && !readOnly ? (
           <p className="text-muted-foreground text-xs">
             {t("brandCard.missingWebsite")}
           </p>
         ) : null}
-        {generation.errorMessage ? (
+        {generation.errorMessage && !shownFailure ? (
           <p className="text-destructive text-xs" role="alert">
             {generation.errorMessage}
           </p>
-        ) : null}
-
-        {!readOnly &&
-        !designMd &&
-        !generation.isRunning &&
-        (hasWebsite || !showUpload) ? (
-          <div className="flex flex-wrap gap-2">
-            {hasWebsite ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={menuBusy}
-                onClick={handleGenerate}
-              >
-                <RefreshCw aria-hidden />
-                {t("brandCard.generate")}
-              </Button>
-            ) : null}
-            {showUpload ? null : (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={menuBusy}
-                onClick={() => setShowUpload(true)}
-              >
-                <Upload aria-hidden />
-                {t("brandCard.upload")}
-              </Button>
-            )}
-          </div>
         ) : null}
 
         {!readOnly && !designMd && showUpload ? (

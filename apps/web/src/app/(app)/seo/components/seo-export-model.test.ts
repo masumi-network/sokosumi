@@ -2,6 +2,7 @@ import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 import messages from "../../../../../messages/en.json";
 import {
+  seoActionsExport,
   seoKeywordsExport,
   seoKeywordsTableExport,
   seoTablePlan,
@@ -183,4 +184,48 @@ describe("seoKeywordsExport", () => {
     expect(csv.rows[0]).toHaveLength(8);
     expect(csv.rows[0][4]).toBe(1200);
   });
+});
+
+it("exports public strategy alternatives and evidence without transferring unrelated private query rows", () => {
+  const suggestion = {
+    id: "sample",
+    observationId: "962a86bb-5702-4d64-a6c4-15be5bf8ed80",
+    pageUrl: "https://shop.example/guide",
+    title: "Update the guide",
+    why: "The guide describes old offers.",
+    effort: "unknown",
+    expectedEffect: "Check availability",
+    edit: null,
+    kind: "opportunity",
+    status: "recommended",
+    taskId: null,
+  } as const;
+  const decision = {
+    kind: "offer_availability",
+    alternative: "Link another stocked offer.",
+    nextCheck: "Check availability.",
+  } as const;
+  const exported = seoActionsExport(
+    [
+      {
+        ...suggestion,
+        findingIds: [],
+        decision,
+        evidence: ["Public catalog capture"],
+      },
+      {
+        ...suggestion,
+        id: "private",
+        findingIds: [],
+        evidence: ["Private query row"],
+      },
+    ],
+    t,
+  );
+  expect(exported.rows[0]?.slice(-3)).toEqual([
+    decision.alternative,
+    decision.nextCheck,
+    "Public catalog capture",
+  ]);
+  expect(exported.rows[1]?.at(-1)).toBeNull();
 });

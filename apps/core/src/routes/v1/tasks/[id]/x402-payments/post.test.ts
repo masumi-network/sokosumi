@@ -136,6 +136,8 @@ vi.mock("@vercel/functions", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
+  // The request's scope is compared below; its Network client is never used.
+  networkPrisma: () => ({}),
   default: {
     $transaction: prismaTransactionMock,
     taskX402Payment: {
@@ -194,6 +196,7 @@ const SOKO_BOT_CONTEXT: AuthenticationContext = {
 };
 
 interface TxMock {
+  projectSeoAnalysis: { findFirst: ReturnType<typeof vi.fn> };
   $queryRaw: ReturnType<typeof vi.fn>;
   taskX402Payment: {
     findUnique: ReturnType<typeof vi.fn>;
@@ -490,6 +493,7 @@ function createTxMock(): TxMock {
   return {
     // VERIFIED replay takes FOR UPDATE before returning the stored header.
     $queryRaw: vi.fn().mockResolvedValue([{ "?column?": 1 }]),
+    projectSeoAnalysis: { findFirst: vi.fn().mockResolvedValue(null) },
     taskX402Payment: {
       findUnique: vi
         .fn()
@@ -1732,6 +1736,17 @@ describe("POST /{id}/x402-payments", () => {
       expect(body.message).toContain("trusted EIP-712 domain");
     });
 
+    it("rejects a separate x402 purchase on a full audit that pays only at completion", async () => {
+      tx.projectSeoAnalysis.findFirst.mockResolvedValue({ id: TASK_ID });
+      const response = await postPayment(
+        createApp(COWORKER_AGENT_CONTEXT),
+        validBody(),
+      );
+      expect(response.status).toBe(422);
+      expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+      expect(payX402Mock).not.toHaveBeenCalled();
+    });
+
     it("charges a demand priced exactly at maxCredits", async () => {
       // The fence is a ceiling, not a strict inequality: the demand this test
       // sends prices at exactly 0.5 credits.
@@ -1977,6 +1992,7 @@ describe("POST /{id}/x402-payments", () => {
         organizationId: null,
         projectId: PROJECT_ID,
         cents: CENTS_FOR_DEMAND,
+        scope: expect.objectContaining({ network: "mainnet" }),
         tx,
       });
       // Credit-bearing task event, like the masumiPayment charge.

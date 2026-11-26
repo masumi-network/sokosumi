@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-
 import {
   FileSourceKind,
   FileSourceScope,
@@ -8,6 +7,7 @@ import {
   TaskVisibility,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable, sharedType } from "@sokosumi/database/sql-tables";
 import { buildOrganizationDriveFilePrefix } from "@sokosumi/utils";
 
 import { DATA_ROOM_PEOPLE_KINDS } from "@/lib/data-room-visibility";
@@ -149,19 +149,19 @@ function hiddenDataRoomSql(
     ? PrismaRaw.sql`
         AND dr."createdByUserId" <> ${actor.userId}
         AND NOT EXISTS (
-          SELECT 1 FROM data_room_colleague c
+          SELECT 1 FROM ${sharedTable("data_room_colleague")} c
           WHERE c."roomId" = dr.id AND c."userId" = ${actor.userId}
         )
         AND NOT EXISTS (
-          SELECT 1 FROM member a
+          SELECT 1 FROM ${sharedTable("member")} a
           WHERE a."organizationId" = ${organizationId}
             AND a."userId" = ${actor.userId}
             AND a.role IN (${MemberRole.OWNER}, ${MemberRole.ADMIN})
         )`
     : PrismaRaw.empty;
   return PrismaRaw.sql`EXISTS (
-    SELECT 1 FROM data_room dr
-    WHERE dr."sourceScope" = ${FileSourceScope.ORGANIZATION}::"FileSourceScope"
+    SELECT 1 FROM ${sharedTable("data_room")} dr
+    WHERE dr."sourceScope" = ${FileSourceScope.ORGANIZATION}::${sharedType("FileSourceScope")}
       AND dr."ownerId" = ${organizationId}
       AND starts_with(
         fr."sourceId",
@@ -193,8 +193,8 @@ export function buildAuthorizedResourceSql(input: {
     sharedScope === null
   ) {
     arms.push(PrismaRaw.sql`(
-      fr."sourceKind" = ${FileSourceKind.DRIVE_UPLOAD}::"FileSourceKind"
-      AND fr."sourceScope" = ${FileSourceScope.USER}::"FileSourceScope"
+      fr."sourceKind" = ${FileSourceKind.DRIVE_UPLOAD}::${sharedType("FileSourceKind")}
+      AND fr."sourceScope" = ${FileSourceScope.USER}::${sharedType("FileSourceScope")}
       AND fr."ownerUserId" = ${actor.userId}
     )`);
   }
@@ -204,11 +204,11 @@ export function buildAuthorizedResourceSql(input: {
     actor.organizationId !== null
   ) {
     arms.push(PrismaRaw.sql`(
-      fr."sourceKind" = ${FileSourceKind.DRIVE_UPLOAD}::"FileSourceKind"
-      AND fr."sourceScope" = ${FileSourceScope.ORGANIZATION}::"FileSourceScope"
+      fr."sourceKind" = ${FileSourceKind.DRIVE_UPLOAD}::${sharedType("FileSourceKind")}
+      AND fr."sourceScope" = ${FileSourceScope.ORGANIZATION}::${sharedType("FileSourceScope")}
       AND fr."ownerOrganizationId" = ${actor.organizationId}
       AND EXISTS (
-        SELECT 1 FROM member m
+        SELECT 1 FROM ${sharedTable("member")} m
         WHERE m."organizationId" = ${actor.organizationId}
           AND m."userId" = ${actor.userId}
       )
@@ -221,7 +221,7 @@ export function buildAuthorizedResourceSql(input: {
     // public, in its workspace, in its Project when it has one.
     const taskVisible = sharedScope
       ? PrismaRaw.sql`(
-          t.visibility = ${TaskVisibility.PUBLIC}::"TaskVisibility"
+          t.visibility = ${TaskVisibility.PUBLIC}::${sharedType("TaskVisibility")}
           AND t."workspaceId" = ${sharedScope.workspaceId}::uuid
           ${
             sharedScope.projectId === null
@@ -230,16 +230,16 @@ export function buildAuthorizedResourceSql(input: {
           }
         )`
       : PrismaRaw.sql`(
-          t.visibility = ${TaskVisibility.PUBLIC}::"TaskVisibility"
+          t.visibility = ${TaskVisibility.PUBLIC}::${sharedType("TaskVisibility")}
           OR (
-            t.visibility = ${TaskVisibility.PRIVATE}::"TaskVisibility"
+            t.visibility = ${TaskVisibility.PRIVATE}::${sharedType("TaskVisibility")}
             AND t."ownerId" = ${actor.userId}
           )
         )`;
     arms.push(PrismaRaw.sql`(
-      fr."sourceKind" = ${FileSourceKind.TASK_OUTPUT}::"FileSourceKind"
+      fr."sourceKind" = ${FileSourceKind.TASK_OUTPUT}::${sharedType("FileSourceKind")}
       AND EXISTS (
-        SELECT 1 FROM task t
+        SELECT 1 FROM ${sharedTable("task")} t
         WHERE t.id = fr."sourceTaskId"
           AND t."workspaceId" = fr."workspaceId"
           AND t."archivedAt" IS NULL
@@ -264,9 +264,9 @@ export function buildAuthorizedResourceSql(input: {
     // radius to the one row: it evaluates its branches in order, so a
     // sourceId that is not a uuid yields NULL and simply matches no table.
     arms.push(PrismaRaw.sql`(
-      fr."sourceKind" = ${FileSourceKind.NATIVE_TABLE}::"FileSourceKind"
+      fr."sourceKind" = ${FileSourceKind.NATIVE_TABLE}::${sharedType("FileSourceKind")}
       AND EXISTS (
-        SELECT 1 FROM data_table dt
+        SELECT 1 FROM ${sharedTable("data_table")} dt
         WHERE dt.id = CASE
             WHEN fr."sourceId" ~ ${UUID_TEXT_PATTERN}
               THEN fr."sourceId"::uuid
@@ -283,7 +283,7 @@ export function buildAuthorizedResourceSql(input: {
 
   return PrismaRaw.sql`(
     fr."workspaceId" = ${workspaceId}::uuid
-    AND fr.lifecycle = 'ACTIVE'::"FileResourceLifecycle"
+    AND fr.lifecycle = 'ACTIVE'::${sharedType("FileResourceLifecycle")}
     AND fr."tombstonedAt" IS NULL
     AND (${PrismaRaw.join(arms, " OR ")})
   )`;

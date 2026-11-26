@@ -3,11 +3,17 @@ import { createRoute } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { getImageCatalog } from "@/lib/image-studio/catalog";
+import {
+  getImageCatalog,
+  studioImageModelId,
+} from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
 import { getTalkingVideoCatalog } from "@/lib/image-studio/talking-video";
-import { getVideoCatalog } from "@/lib/image-studio/video-catalog";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import {
+  getVideoCatalog,
+  studioVideoModelId,
+} from "@/lib/image-studio/video-catalog";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { imageStudioCatalogSchema } from "@/schemas/project-image-studio.schema";
 
 /**
@@ -39,11 +45,11 @@ const route = createRoute({
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    // Any interactive session may read it. There is nothing here about a project
+    // Any person may read it. There is nothing here about a project
     // or an account — it is the provider's own published capability and price
     // list — but it is not public either, and an unauthenticated crawler should
     // not be able to make this instance talk to fal.
-    requireInteractiveUserAuthContext(c.var.authContext);
+    requireUserAuthContext(c.var.authContext);
 
     // Cheap and non-blocking: adopts a catalog a sibling instance already
     // refreshed, and otherwise starts a refresh without waiting for it. The
@@ -56,8 +62,9 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       c,
       imageStudioCatalogSchema.parse({
         ...getImageCatalog(),
-        defaultVideoModelId: video.defaultModelId,
-        defaultAnimateModelId: video.defaultAnimateModelId,
+        defaultModelId: studioImageModelId(),
+        defaultVideoModelId: studioVideoModelId("text"),
+        defaultAnimateModelId: studioVideoModelId("image"),
         videoModels: video.models,
         talkingVideo: getTalkingVideoCatalog(),
       }),

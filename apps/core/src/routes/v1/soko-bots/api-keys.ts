@@ -217,13 +217,11 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
       const updated = await tx.coworkerApiKey.updateMany({
         where: { id: keyId, sokoBotId: id, sokoBot: liveBot },
         data: {
-          name: body.name,
-          expiresAt:
-            body.expiresAt === undefined
-              ? undefined
-              : body.expiresAt === null
-                ? null
-                : new Date(body.expiresAt),
+          ...(body.name !== undefined && { name: body.name }),
+          ...(body.expiresAt !== undefined && {
+            expiresAt:
+              body.expiresAt === null ? null : new Date(body.expiresAt),
+          }),
         },
       });
       if (updated.count === 0) {

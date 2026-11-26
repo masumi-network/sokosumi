@@ -4,10 +4,12 @@ import {
   isEvalWorkspace,
   simulatedEvalTool,
 } from "@/lib/evals/eval-guard";
+import { withModelCallTurn } from "@/lib/soko-bot/model-calls";
 import {
   type ExecuteSokoBotToolInput,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
+import { executeCmoRead } from "./cmo-reads";
 import { executeCmoSeoTool } from "./cmo-seo";
 import { dispatchAnnouncementTools } from "./dispatch-announcements";
 import { dispatchChatTools } from "./dispatch-chat";
@@ -22,13 +24,24 @@ import { dispatchTablesTools } from "./dispatch-tables";
 import { dispatchTaskInterestTools } from "./dispatch-task-interest";
 import { dispatchTasksTools } from "./dispatch-tasks";
 import { type RuntimeOperations } from "./operations";
+import { readSkill } from "./read-skill";
 
 export async function executeAuthorizedTool(
   runtime: RuntimeOperations,
   raw: ExecuteSokoBotToolInput,
 ): Promise<unknown> {
   const authorized = await runtime.authorize(raw);
+  // Check models and Jev calls a tool makes are recorded on this turn.
+  return withModelCallTurn(authorized.turn.id, () =>
+    executeTool(runtime, raw, authorized),
+  );
+}
 
+async function executeTool(
+  runtime: RuntimeOperations,
+  raw: ExecuteSokoBotToolInput,
+  authorized: Awaited<ReturnType<RuntimeOperations["authorize"]>>,
+): Promise<unknown> {
   const input = {
     ...raw,
     input: await runtime.resolveTaskIds(authorized, raw.input),
@@ -80,6 +93,7 @@ export async function executeAuthorizedTool(
     case "get_social_post":
     case "create_social_post":
     case "update_social_post":
+    case "update_social_posts":
     case "schedule_social_post":
     case "cancel_social_post":
     case "publish_social_post":
@@ -105,6 +119,8 @@ export async function executeAuthorizedTool(
     case "stop_background_run":
     case "manage_reminder":
     case "list_schedules":
+    case "save_task_schedule":
+    case "delete_task_schedule":
     case "create_schedule":
     case "update_schedule":
     case "delete_schedule":
@@ -126,6 +142,9 @@ export async function executeAuthorizedTool(
     case "find_people":
     case "enrich_contact":
     case "export_contacts_to_table":
+    case "fundraising_pipeline":
+    case "investor_warm_paths":
+    case "find_investors":
     case "create_project":
     case "update_project":
     case "refresh_context":
@@ -134,11 +153,21 @@ export async function executeAuthorizedTool(
     case "save_brand_brain":
     case "save_strategy":
     case "report_update":
+    case "write_month_pieces":
+    case "write_strategy":
     case "evaluate_with_jev":
     case "search_exa":
     case "check_competitors":
     case "save_competitor_feed":
       return dispatchOtherTools(runtime, input, authorized);
+    case "read_skill":
+      return readSkill(authorized, input.input);
+    case "read_calendar":
+    case "read_strategy":
+    case "read_brand_brain":
+    case "read_report":
+    case "read_competitor_moves":
+      return executeCmoRead(input, authorized);
     case "read_seo":
     case "research_keywords":
     case "research_competitor_keywords":
@@ -174,6 +203,8 @@ export async function executeAuthorizedTool(
     case "read_chat":
     case "open_direct_chat":
     case "ask_coworker":
+    case "send_message":
+    case "list_recipients":
     case "preview_result":
     case "post_chat":
       return dispatchChatTools(runtime, input, authorized);
@@ -210,4 +241,7 @@ export async function executeAuthorizedTool(
     case "run_mcp_tool":
       return dispatchMcpTools(input, authorized);
   }
+  throw new SokoBotRuntimeValidationError(
+    `No Core handler for tool: ${input.capability}`,
+  );
 }

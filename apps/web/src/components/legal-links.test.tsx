@@ -31,9 +31,20 @@ describe("LegalLinks", () => {
   it("gives each link a target at least 24px tall", () => {
     render(<LegalLinks />);
 
-    // WCAG 2.5.8: a bare text-sm link is 20px tall on a phone.
+    // WCAG 2.5.8: a bare text-xs link is 16px tall on a phone.
     for (const link of screen.getAllByRole("link")) {
       expect(link).toHaveClass("min-h-6");
     }
+  });
+  it("keeps CMO's policies with CMO on its branded auth pages", () => {
+    render(<LegalLinks brand="cmo" />);
+    expect(
+      screen.getAllByRole("link").map((link) => link.getAttribute("href")),
+    ).toEqual([
+      "https://www.cmo.xyz/terms",
+      "https://www.cmo.xyz/privacy",
+      "https://www.cmo.xyz/imprint",
+      "https://www.cmo.xyz/terms#acceptable-use",
+    ]);
   });
 });

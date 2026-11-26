@@ -13,14 +13,17 @@ import {
 } from "@/schemas/social-post.schema";
 import { duplicateSocialPost } from "@/services/social-posts.service";
 
-import { mapSocialPostServiceError } from "../../route-helpers.js";
+import {
+  mapSocialPostServiceError,
+  presentSocialPost,
+} from "../../route-helpers.js";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "post",
     path: "/{id}/social-posts/{postId}/duplicate",
     description:
-      "Copy a published, failed, or missed Social post into a new draft (Needs approval for a Coworker). Copies text, media, first comment, thread parts, the quote reference and its attention reason, provider, and the linked account when it is still connected. Does not copy publish results, schedule, or statistics. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace.",
+      "Copy a published, failed, or missed Social post into a new draft (Needs approval for an agent: API key, OAuth or MCP token, Coworker). Copies text, media, first comment, thread parts, the quote reference and its attention reason, provider, and the linked account when it is still connected. Does not copy publish results, schedule, or statistics. Requires a person (any sign-in: session, API key, OAuth or MCP token) or an authorized task-capable Coworker with user context in the Project's Workspace.",
     tags: ["Projects"],
     request: { params: socialPostParamsSchema },
     responses: {
@@ -49,15 +52,13 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         workspaceId: workspaceContext.workspaceId,
         userId: userContext.userId,
         coworkerId: userContext.coworkerId,
+        agent: userContext.agent,
         organizationId: workspaceContext.organizationId,
         postId,
       });
       return created(
         c,
-        socialPostSchema.parse({
-          ...post,
-          canPublishNow: post.canPublishNow && !userContext.coworkerId,
-        }),
+        socialPostSchema.parse(presentSocialPost(post, userContext)),
       );
     } catch (error) {
       return mapSocialPostServiceError(error);

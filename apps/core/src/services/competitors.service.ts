@@ -1,4 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
@@ -56,7 +58,7 @@ async function lockCompetitors(
   tx: Prisma.TransactionClient,
   projectId: string,
 ): Promise<void> {
-  await tx.$executeRaw`SELECT 1 FROM project WHERE id = ${projectId}::uuid FOR NO KEY UPDATE`;
+  await tx.$executeRaw`SELECT 1 FROM ${sharedTable("project")} WHERE id = ${projectId}::uuid FOR NO KEY UPDATE`;
 }
 
 /** A write that lost a name race to another: the same answer as the check. */
@@ -70,10 +72,27 @@ export async function inLockedCompetitorList(
       await write(tx);
     });
   } catch (error) {
-    if (isPrismaUniqueViolation(error))
-      throw conflict("You already track this competitor");
+    if (isPrismaUniqueViolation(error)) throw nameTaken();
     throw error;
   }
+}
+
+function nameTaken() {
+  return conflict("You already track this competitor", {
+    kind: CORE_API_ERROR_KINDS.COMPETITOR_NAME_TAKEN,
+  });
+}
+
+/** Refuses a write that would take the list past the cap. */
+async function requireRoom(tx: Prisma.TransactionClient, projectId: string) {
+  const live = await tx.trackedCompetitor.count({
+    where: { projectId, removedAt: null },
+  });
+  if (live >= MAX_TRACKED_COMPETITORS)
+    throw conflict(
+      `You can track ${MAX_TRACKED_COMPETITORS} competitors. Remove one first.`,
+      { kind: CORE_API_ERROR_KINDS.COMPETITOR_LIMIT_REACHED },
+    );
 }
 
 /** What a member may set on a competitor; null clears a field. */
@@ -119,15 +138,19 @@ function handle(
 }
 
 function memberFields(input: TrackedCompetitorInput) {
+  const websiteUrl = webAddress(input.websiteUrl, "The website");
+  const pricingUrl = webAddress(input.pricingUrl, "The pricing page");
+  const instagram = handle(
+    input.instagramHandle,
+    instagramHandle,
+    "an Instagram",
+  );
+  const facebook = handle(input.facebookHandle, facebookHandle, "a Facebook");
   return {
-    websiteUrl: webAddress(input.websiteUrl, "The website"),
-    pricingUrl: webAddress(input.pricingUrl, "The pricing page"),
-    instagramHandle: handle(
-      input.instagramHandle,
-      instagramHandle,
-      "an Instagram",
-    ),
-    facebookHandle: handle(input.facebookHandle, facebookHandle, "a Facebook"),
+    ...(websiteUrl !== undefined ? { websiteUrl } : {}),
+    ...(pricingUrl !== undefined ? { pricingUrl } : {}),
+    ...(instagram !== undefined ? { instagramHandle: instagram } : {}),
+    ...(facebook !== undefined ? { facebookHandle: facebook } : {}),
   };
 }
 
@@ -141,8 +164,7 @@ async function requireFreeName(
     where: { projectId_nameKey: { projectId, nameKey } },
     select: { id: true, removedAt: true },
   });
-  if (taken && !taken.removedAt)
-    throw conflict("You already track this competitor");
+  if (taken && !taken.removedAt) throw nameTaken();
   return taken;
 }
 
@@ -161,13 +183,7 @@ export async function addTrackedCompetitor(
   if (!nameKey) throw unprocessableEntity("Give the competitor a name");
   const fields = memberFields(input);
   await inLockedCompetitorList(projectId, async (tx) => {
-    const live = await tx.trackedCompetitor.count({
-      where: { projectId, removedAt: null },
-    });
-    if (live >= MAX_TRACKED_COMPETITORS)
-      throw conflict(
-        `You can track ${MAX_TRACKED_COMPETITORS} competitors. Remove one first.`,
-      );
+    await requireRoom(tx, projectId);
     const removed = await requireFreeName(tx, projectId, nameKey);
     const data = {
       name,
@@ -230,17 +246,54 @@ export async function updateTrackedCompetitor(
   });
 }
 
-/** A member stops tracking a competitor; research does not add it back. */
+/**
+ * A member stops tracking a competitor; research does not add it back. The
+ * answer is this removal's number, counted under the list lock, which names
+ * it for `restoreTrackedCompetitor`. Whether a member touched it stays as it
+ * was, for an Undo to keep.
+ */
 export async function removeTrackedCompetitor(
   projectId: string,
   id: string,
-): Promise<void> {
+): Promise<number> {
+  let removal = 0;
   await inLockedCompetitorList(projectId, async (tx) => {
     await requireTracked(tx, projectId, id);
-    const now = new Date();
+    ({ removals: removal } = await tx.trackedCompetitor.update({
+      where: { id },
+      data: { removedAt: new Date(), removals: { increment: 1 } },
+      select: { removals: true },
+    }));
+  });
+  return removal;
+}
+
+/**
+ * Undoes one removal: the competitor comes back as it was stored, with its
+ * signals and whether a member touched it. Refused once that removal is no
+ * longer its latest change (brought back, added again or removed again
+ * since), once another competitor holds its name, and at the cap.
+ */
+export async function restoreTrackedCompetitor(
+  projectId: string,
+  id: string,
+  removal: number,
+): Promise<void> {
+  await inLockedCompetitorList(projectId, async (tx) => {
+    const removed = await tx.trackedCompetitor.findFirst({
+      where: { id, projectId, removedAt: { not: null }, removals: removal },
+      select: { name: true, nameKey: true },
+    });
+    if (!removed)
+      throw conflict("That removal can no longer be undone", {
+        kind: CORE_API_ERROR_KINDS.COMPETITOR_REMOVAL_STALE,
+      });
+    // A rename that took the name moved this row's key aside.
+    if (removed.nameKey !== competitorNameKey(removed.name)) throw nameTaken();
+    await requireRoom(tx, projectId);
     await tx.trackedCompetitor.update({
       where: { id },
-      data: { removedAt: now, memberEditedAt: now },
+      data: { removedAt: null },
     });
   });
 }

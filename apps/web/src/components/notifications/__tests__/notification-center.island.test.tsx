@@ -63,7 +63,7 @@ vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
   },
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   MOBILE_BREAKPOINT: 768,
   useIsMobile: () => isMobileMock(),
   useIsMobileMedia: () => isMobileMock(),
@@ -135,11 +135,11 @@ vi.mock("@/lib/utils/notification-message", () => ({
 vi.mock("@/lib/utils/notification-time", () => ({
   useNotificationTimeFormatter: () => () => "today",
 }));
-vi.mock("@/lib/ably/use-notification-front-presence", () => ({
+vi.mock("@/hooks/effects/use-notification-front-presence", () => ({
   useNotificationFrontPresence: () => undefined,
 }));
 
-vi.mock("@/lib/ably/use-notification-realtime", () => ({
+vi.mock("@/hooks/effects/use-notification-realtime", () => ({
   useNotificationRealtime: ({
     onNotification,
   }: {
@@ -1128,7 +1128,7 @@ describe("Notification Center view filter", () => {
     await user.unhover(screen.getByRole("tab", { name: /^filterUnread/ }));
 
     const toggle = screen.getByRole("button", { name: "markRead: mine" });
-    toggle.focus();
+    act(() => toggle.focus());
     await user.keyboard("{Enter}");
     await settle();
     // Focus is still on the row's control, so the row waits.
@@ -1617,13 +1617,16 @@ describe("Notification Center Needs you view", () => {
       const links = within(tasks).getAllByRole("link");
       // Three wait and two are listed, so the rest are one click away.
       expect(links.map((link) => link.getAttribute("href"))).toEqual([
-        "/tasks",
+        "/tasks?scope=workspace",
         "/tasks/task-brief",
         "/tasks/task-newsletter",
       ]);
       expect(links[1]?.textContent).toContain("Q4 launch brief");
       expect(links[1]?.textContent).toContain("ask.INPUT_REQUIRED");
-      expect(links[1]?.textContent).toContain("action.INPUT_REQUIRED");
+      // Input is answered in place, so its move is a button beside the link.
+      expect(
+        within(tasks).getByRole("button", { name: "action.INPUT_REQUIRED" }),
+      ).toBeTruthy();
       expect(links[2]?.textContent).toContain("status.APPROVAL_REQUIRED");
       expect(links[2]?.textContent).toContain("action.APPROVAL_REQUIRED");
       expect(screen.getByText("job-ask")).toBeTruthy();
@@ -1948,7 +1951,14 @@ describe("Notification Center Needs you view", () => {
     window.localStorage.setItem(NOTIFICATION_VIEW_STORAGE_KEY, "needs-action");
     // The app's own default: a minute of freshness for every query.
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: 60_000 } },
+      defaultOptions: {
+        queries: {
+          retry: false,
+          staleTime: 60_000,
+          gcTime: Number.POSITIVE_INFINITY,
+        },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     renderComponent(
       <QueryClientProvider client={client}>

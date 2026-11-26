@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-init
-version: 0.49.0
+version: 0.50.0
 description: Print instructions for a coding agent to set up Sentry
 requires:
   bins: ["sentry"]
@@ -17,8 +17,8 @@ Print instructions for a coding agent to set up Sentry
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
+| Field   | Type   | Description                       |
+| ------- | ------ | --------------------------------- |
 | `guide` | string | The setup guide's Markdown source |
 
 **Examples:**

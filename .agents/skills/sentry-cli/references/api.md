@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-api
-version: 0.49.0
+version: 0.50.0
 description: Make an authenticated API request
 requires:
   bins: ["sentry"]
@@ -17,11 +17,12 @@ Make an authenticated API request
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument     | Description                                                  |
+| ------------ | ------------------------------------------------------------ |
 | `<endpoint>` | API endpoint relative to /api/0/, or an absolute HTTP(S) URL |
 
 **Flags:**
+
 - `-X, --method <value> - The HTTP method for the request - (default: "GET")`
 - `-c, --cursor <value> - Navigate pages: "next", "prev", "first" (or raw cursor string)`
 - `-d, --data <value> - Inline JSON body for the request (like curl -d)`

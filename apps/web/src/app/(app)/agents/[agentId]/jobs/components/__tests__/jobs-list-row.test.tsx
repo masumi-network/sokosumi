@@ -1,6 +1,6 @@
 import type { JobSummary } from "@sokosumi/core-client";
 import { JobType, SokosumiJobStatus } from "@sokosumi/core-client";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -11,8 +11,12 @@ import {
 vi.mock("next-intl", () => ({
   useTimeZone: () => "UTC",
   useLocale: () => "en",
-  useTranslations: () => (key: string) => key,
+  useTranslations:
+    () => (key: string, values?: Record<string, string | number>) =>
+      values ? `${key}:${Object.values(values).join(",")}` : key,
 }));
+
+const search = vi.hoisted(() => ({ value: "", clear: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({}),
@@ -33,6 +37,12 @@ vi.mock("@/contexts/lazy-ably-provider", () => ({
 
 vi.mock("../jobs-search", () => ({
   JobsSearch: () => null,
+  filterJobsByQuery: (jobs: JobSummary[], query: string) => (query ? [] : jobs),
+  useJobsSearchQuery: () => ({
+    searchValue: search.value,
+    handleInputChange: vi.fn(),
+    handleClear: search.clear,
+  }),
 }));
 
 vi.mock("../jobs-list.utils", () => ({
@@ -123,14 +133,33 @@ describe("JobsList empty state", () => {
   }
 
   it("says no jobs exist when the agent has none", () => {
+    search.value = "";
     renderList([]);
 
     expect(screen.getByText("emptyJobs")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "clearSearch" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("says nothing matches when jobs exist but none are listed", () => {
+  it("keeps an empty status region mounted before any miss", () => {
+    search.value = "";
     renderList([createJob()]);
 
-    expect(screen.getByText("noMatches")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  });
+
+  it("names the missed query and offers to clear it", () => {
+    search.value = "zebra";
+    search.clear.mockClear();
+    renderList([createJob()]);
+
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("noMatches:zebra");
+    const clear = screen.getByRole("button", { name: "clearSearch" });
+    expect(status).not.toContainElement(clear);
+    fireEvent.click(clear);
+    expect(search.clear).toHaveBeenCalledOnce();
+    search.value = "";
   });
 });

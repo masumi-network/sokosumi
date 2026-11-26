@@ -1,18 +1,12 @@
 import type { ProjectAdAccount } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getGoogleCampaignSetup } from "@/lib/actions/ads/action";
 import messages from "../../../../../messages/en.json";
-
-const pushMock = vi.hoisted(() => vi.fn());
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: pushMock }),
-}));
 
 vi.mock("@/lib/actions/ads/action", () => ({
   getGoogleCampaignSetup: vi.fn(),
@@ -80,7 +74,16 @@ function renderDialog(account: ProjectAdAccount) {
   const onClose = vi.fn();
   const user = userEvent.setup();
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        })
+      }
+    >
       <NextIntlClientProvider locale="en" messages={messages}>
         <AdsNewCampaignDialog
           account={account}
@@ -94,8 +97,13 @@ function renderDialog(account: ProjectAdAccount) {
 }
 
 describe("AdsNewCampaignDialog", () => {
+  let assignSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    assignSpy = vi
+      .spyOn(window.location, "assign")
+      .mockImplementation(() => {});
   });
 
   it("sends a lost session to sign-in instead of the connection failure", async () => {
@@ -104,10 +112,10 @@ describe("AdsNewCampaignDialog", () => {
     ) as Error & { digest: string };
     lost.digest = "UNAUTHENTICATED";
     setupMock.mockRejectedValue(lost);
-    renderDialog(GOOGLE);
+    await act(async () => renderDialog(GOOGLE));
 
-    await vi.waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith(
+    await waitFor(() => {
+      expect(assignSpy).toHaveBeenCalledWith(
         expect.stringContaining("/signin?returnUrl="),
       );
     });
@@ -124,10 +132,10 @@ describe("AdsNewCampaignDialog", () => {
       ok: false,
       error: { code: "UNAUTHENTICATED" },
     });
-    renderDialog(GOOGLE);
+    await act(async () => renderDialog(GOOGLE));
 
-    await vi.waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith(
+    await waitFor(() => {
+      expect(assignSpy).toHaveBeenCalledWith(
         expect.stringContaining("/signin?returnUrl="),
       );
     });

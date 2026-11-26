@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
+import { z } from "zod";
 import {
   getComposio,
   getComposioConnectedAccount,
@@ -12,6 +14,7 @@ import {
   type GoogleAccountIdentity,
   readGoogleAccountIdentity,
 } from "@/lib/seo/google-account-identity";
+import type { SeoActor } from "@/schemas/project-seo.schema";
 import {
   SEO_CONNECTION_PROVIDERS,
   type SeoConnectionProvider,
@@ -22,15 +25,17 @@ import {
   composioEntityId,
 } from "@/services/composio-integration-tools.service";
 import { resolveProvider } from "@/services/soko-bot-integrations.service";
+import { seoOwnerWhere } from "./project-seo-store";
 
 export interface SeoConnectionOwner {
   userId: string;
   workspaceId: string;
 }
 export interface SeoStatisticsIntegration extends ComposioIntegrationAccount {
+  entityId: string;
   connectionRevision: string;
 }
-function connectionVersion(account: {
+export function connectionVersion(account: {
   composioAccountId: string;
   entityId: string;
   connectionRevision: string;
@@ -218,6 +223,61 @@ export async function resolveSeoStatisticsIntegration(
         provider: resolveProvider(SEO_CONNECTION_PROVIDERS[provider].toolkit),
       }
     : null;
+}
+
+export async function lockSeoSearchConsoleIntegration(
+  actor: SeoConnectionOwner,
+  tx: Prisma.TransactionClient,
+) {
+  // These no-op writes serialize disconnect/replacement and inherited account revocation with the final save.
+  await tx.$executeRaw`
+    UPDATE ${sharedTable("seo_connection")} SET "updatedAt" = "updatedAt"
+    WHERE "workspaceId" = ${actor.workspaceId}::uuid AND "userId" = ${actor.userId} AND provider = 'search_console'
+  `;
+  let integration = await resolveSeoStatisticsIntegration(
+    actor,
+    "search_console",
+    tx,
+  );
+  if (integration?.connectionRevision.startsWith("personal:")) {
+    await tx.$executeRaw`
+      UPDATE ${sharedTable("soko_bot_integration")} SET "updatedAt" = "updatedAt"
+      WHERE "composioAccountId" = ${integration.composioAccountId}
+    `;
+    await tx.$executeRaw`
+      UPDATE ${sharedTable("soko_bot")} SET "updatedAt" = "updatedAt" WHERE id IN (
+        SELECT "sokoBotId" FROM ${sharedTable("soko_bot_integration")} WHERE "composioAccountId" = ${integration.composioAccountId}
+      )
+    `;
+    integration = await resolveSeoStatisticsIntegration(
+      actor,
+      "search_console",
+      tx,
+    );
+  }
+  return integration;
+}
+
+export async function latestSeoSearchConsoleProperty(
+  actor: SeoActor,
+  pageIds: string[],
+  tx: Prisma.TransactionClient = prisma,
+) {
+  const latest = await tx.projectSeoObservation.findFirst({
+    where: {
+      ...seoOwnerWhere(actor),
+      ownerId: actor.userId,
+      kind: "metrics",
+      source: "search_console",
+      pageIds: { hasEvery: pageIds },
+    },
+    orderBy: [{ observedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    select: { payload: true },
+  });
+  const selection = z
+    .object({ propertyId: z.string().min(1).max(500) })
+    .safeParse(latest?.payload);
+  return selection.success ? selection.data.propertyId : null;
 }
 
 export async function getSeoConnection(

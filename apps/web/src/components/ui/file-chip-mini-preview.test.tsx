@@ -184,7 +184,7 @@ describe("FileChipMiniPreviewFrame", () => {
       />,
     );
 
-    const link = screen.getByRole("link");
+    const link = screen.getByRole("link", { name: "archive.zip" });
     expect(link).toHaveClass("cursor-pointer");
     expect(link).toHaveAttribute(
       "href",

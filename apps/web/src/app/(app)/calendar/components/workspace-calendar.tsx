@@ -8,11 +8,8 @@ import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
 import {
-  type ProjectSocialProvider as ProjectSocialProviderValue,
   type SocialPostCalendarItem,
-  SocialPostStatus,
   type SocialPostStatus as SocialPostStatusValue,
-  TaskStatus,
   type TaskStatus as TaskStatusValue,
   type WorkspaceCalendarEntry,
   type WorkspaceCalendarItem,
@@ -48,17 +45,10 @@ import {
   useLocale,
   useTranslations,
 } from "next-intl";
-import {
-  parseAsArrayOf,
-  parseAsString,
-  parseAsStringEnum,
-  parseAsStringLiteral,
-  useQueryStates,
-} from "nuqs";
+import { useQueryStates } from "nuqs";
 import {
   type PointerEvent,
   type ReactNode,
-  useEffect,
   useId,
   useRef,
   useState,
@@ -66,8 +56,15 @@ import {
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
 import {
+  CALENDAR_STATUSES,
+  CALENDAR_VIEWS,
+  type CalendarView,
+  calendarParsers,
+  SOCIAL_CALENDAR_VIEWS,
+  SOCIAL_POST_STATUSES,
+} from "@/app/calendar/calendar-parsers";
+import {
   availableCalendarTypes,
-  CALENDAR_TYPES,
   type CalendarType,
   calendarTypesQuery,
   isSocialOnly,
@@ -84,14 +81,8 @@ import {
   TASK_SCHEDULES_PATH,
   taskSchedulePath,
 } from "@/app/tasks/utils/task-schedule-view";
-import {
-  FilterDropdownMenu,
-  type FilterDropdownMenuSection,
-} from "@/components/common/filter-dropdown-menu";
-import {
-  SOCIAL_POST_PROVIDERS,
-  socialPlatformFilterSection,
-} from "@/components/social-platform-filter";
+import { type FilterDropdownMenuSection } from "@/components/common/filter-dropdown-menu";
+import { socialPlatformFilterSection } from "@/components/social-platform-filter";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -101,9 +92,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
-import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useCalendarMobileAgendaDefault } from "@/hooks/effects/use-calendar-mobile-agenda-default";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useLoadWhenVisible } from "@/hooks/effects/use-load-when-visible";
+import { useIsMobile } from "@/hooks/effects/use-mobile";
+import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
+import { useUrlTimezone } from "@/hooks/effects/use-url-timezone";
+import { useWorkspaceCalendarGridPageDrain } from "@/hooks/effects/use-workspace-calendar-grid-page-drain";
+import { useWorkspaceCalendarRenderEpoch } from "@/hooks/effects/use-workspace-calendar-render-epoch";
 import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import {
@@ -115,7 +111,10 @@ import {
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import { cn } from "@/lib/utils";
 import { schedulableRunAtLocalIso } from "@/lib/utils/task-schedule";
-import { CalendarShowFilter } from "./calendar-show-filter";
+import {
+  type CalendarFilterSurface,
+  CalendarFilters,
+} from "./calendar-filters";
 import {
   type BotRunHandlers,
   type ChangeableBotRun,
@@ -148,17 +147,6 @@ import { SocialStatusSummary } from "./social-status-summary";
 import { SourceMarker } from "./source-marker";
 import { useBotRunChanges } from "./use-bot-run-changes";
 import { useRunChanges } from "./use-run-changes";
-import { useUrlTimezone } from "./use-url-timezone";
-
-const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
-type CalendarView = (typeof CALENDAR_VIEWS)[number];
-// Social lists its drafts and failures in tabs of its own, and the month grid
-// already shows what is coming up, so its calendar has no agenda list.
-const SOCIAL_CALENDAR_VIEWS = ["month", "week"] as const;
-const CALENDAR_STATUSES = Object.values(TaskStatus);
-const SOCIAL_POST_STATUSES = Object.values(SocialPostStatus).filter(
-  (status) => status !== SocialPostStatus.DRAFT,
-);
 
 function isCalendarStatus(value: string | null): value is TaskStatusValue {
   return value !== null && CALENDAR_STATUSES.some((status) => status === value);
@@ -212,6 +200,7 @@ function findCalendarPeople(
 }
 
 interface WorkspaceCalendarProps {
+  searchField?: ReactNode;
   /**
    * A fixed set of features, as when another page embeds the Calendar: the
    * Show filter is left out rather than offered and then ignored.
@@ -238,25 +227,6 @@ interface WorkspaceCalendarProps {
   lockedProjectId?: string;
   workspaceId?: string | null;
 }
-
-const calendarParsers = {
-  assigneeId: parseAsString,
-  assigneeUserId: parseAsString,
-  date: parseAsString,
-  projectId: parseAsString,
-  scope: parseAsStringLiteral(["owned", "workspace"]).withDefault("workspace"),
-  types: parseAsArrayOf(parseAsStringLiteral(CALENDAR_TYPES)),
-  status: parseAsStringEnum<TaskStatusValue>(CALENDAR_STATUSES),
-  postStatus:
-    parseAsStringEnum<Exclude<SocialPostStatusValue, "DRAFT">>(
-      SOCIAL_POST_STATUSES,
-    ),
-  provider: parseAsStringEnum<ProjectSocialProviderValue>(
-    SOCIAL_POST_PROVIDERS,
-  ),
-  timezone: parseAsString,
-  view: parseAsStringLiteral(CALENDAR_VIEWS),
-};
 
 function parseCalendarDate(value: string, fallback: string): Date {
   try {
@@ -603,32 +573,35 @@ function CalendarView({
   view: CalendarView;
 }) {
   const isMobile = useIsMobile();
-  const calendarRef = useRef<HTMLDivElement>(null);
+  const [calendarElement, setCalendarElement] = useState<HTMLDivElement | null>(
+    null,
+  );
   const [fillHeight, setFillHeight] = useState<number | null>(null);
   const socialChips = socialPostVariant !== "compact";
   // Social's week is one row of days; let it reach the bottom of the screen
   // rather than stop under the last chip.
   const fillSpace = socialChips && view === "week" && !isMobile;
-  useEffect(() => {
-    if (!fillSpace || !calendarRef.current) return;
-    const element = calendarRef.current;
-    const measure = () => {
-      setFillHeight(
-        Math.max(
-          320,
-          window.innerHeight - element.getBoundingClientRect().top - 24,
-        ),
-      );
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element.parentElement ?? element);
-    window.addEventListener("resize", measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, [fillSpace]);
+  const measureFillHeight = () => {
+    if (!calendarElement) return;
+    setFillHeight(
+      Math.max(
+        320,
+        window.innerHeight - calendarElement.getBoundingClientRect().top - 24,
+      ),
+    );
+  };
+  useResizeObserver(
+    fillSpace && calendarElement
+      ? (calendarElement.parentElement ?? calendarElement)
+      : null,
+    measureFillHeight,
+    { immediate: true },
+  );
+  useEventListener(
+    fillSpace && calendarElement ? "window" : null,
+    "resize",
+    measureFillHeight,
+  );
   const formatDate = useFormatter().dateTime;
   const t = useTranslations("App.Calendar");
   const reportRunChangeFailure = useReportRunChangeFailure();
@@ -866,7 +839,7 @@ function CalendarView({
     <>
       <div
         className="app-scrollbar workspace-calendar-theme overflow-x-auto rounded-xl bg-card-background"
-        ref={calendarRef}
+        ref={setCalendarElement}
         data-can-create={canCreate ? "true" : undefined}
         data-view={view}
         data-testid={`calendar-${view}`}
@@ -1032,6 +1005,25 @@ function CalendarView({
 }
 
 export function WorkspaceCalendar({
+  calendarKey,
+  ...props
+}: WorkspaceCalendarProps & { calendarKey?: string }) {
+  // Choosing features reloads the data scope. Keep its open controls across that remount.
+  const [surface, setSurface] = useState<CalendarFilterSurface>(null);
+  return (
+    <WorkspaceCalendarView
+      key={calendarKey}
+      {...props}
+      surface={surface}
+      setSurface={setSurface}
+    />
+  );
+}
+
+function WorkspaceCalendarView({
+  surface,
+  setSurface,
+  searchField,
   activeOrganizationId = null,
   currentUserId = null,
   initialDate,
@@ -1046,7 +1038,10 @@ export function WorkspaceCalendar({
   workspaceId = null,
   types,
   newsletterEnabled = false,
-}: WorkspaceCalendarProps) {
+}: WorkspaceCalendarProps & {
+  surface: CalendarFilterSurface;
+  setSurface: (next: CalendarFilterSurface) => void;
+}) {
   const t = useTranslations("App.Calendar");
   const locale = useLocale();
   const tFilters = useTranslations("App.Tasks.Filters");
@@ -1083,7 +1078,6 @@ export function WorkspaceCalendar({
     null,
   );
   const { moveBotRun, restoreBotRun, skipBotRun } = useBotRunChanges();
-  const [calendarRenderEpoch, setCalendarRenderEpoch] = useState(0);
   const calendarAccessGeneration = useRef(0);
   const hasActivatedRef = useRef(false);
 
@@ -1108,28 +1102,7 @@ export function WorkspaceCalendar({
     setLoadMoreError(false);
   }
 
-  useMountEffect(() => {
-    // Defer past React StrictMode's synchronous setup -> cleanup -> setup
-    // dev-mode cycle: only the microtask from the setup that survives (isn't
-    // cancelled by an immediate synthetic cleanup) marks activation or
-    // recreates the Calendar views once for a real reactivation.
-    let cancelled = false;
-
-    queueMicrotask(() => {
-      if (cancelled) {
-        return;
-      }
-      if (hasActivatedRef.current) {
-        setCalendarRenderEpoch((epoch) => epoch + 1);
-        return;
-      }
-      hasActivatedRef.current = true;
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  });
+  const calendarRenderEpoch = useWorkspaceCalendarRenderEpoch(hasActivatedRef);
 
   const requestedDate = parseCalendarDate(
     state.date ?? initialDate,
@@ -1226,12 +1199,7 @@ export function WorkspaceCalendar({
   );
 
   useUrlTimezone(state.timezone, timeZone, renderedTimezone, setState);
-
-  useEffect(() => {
-    if (isMobile && state.view === null && !socialOnly) {
-      void setState({ view: "agenda" }, { shallow: false });
-    }
-  }, [isMobile, state.view, setState, socialOnly]);
+  useCalendarMobileAgendaDefault(isMobile, socialOnly);
 
   function isVisible(item: WorkspaceCalendarEntry, anyPostStatus = false) {
     // Only Social posts survive a Social-only Show / embed lock. Grid views
@@ -1240,6 +1208,7 @@ export function WorkspaceCalendar({
     if (socialOnly && item.kind !== "socialPost") return false;
     if (item.kind === "socialPost")
       return (
+        (state.showCanceled || item.status !== "CANCELED") &&
         (view !== "agenda" ||
           (["SCHEDULED", "PUBLISHING"].includes(item.status) &&
             getCalendarItemDateKey(item.scheduledAt, timeZone) >=
@@ -1457,21 +1426,14 @@ export function WorkspaceCalendar({
     setMovingBotRun(null);
   }
 
-  // Month/week grids must show every event: a day holding three of its five
-  // events looks complete. Drain the remaining pages as soon as one appears.
-  useEffect(() => {
-    const requested = requestedPageRef.current;
-    if (
-      view === "agenda" ||
-      !nextCursor ||
-      loadMoreError ||
-      (requested?.cursor === nextCursor && requested.items === items)
-    ) {
-      return;
-    }
-    requestedPageRef.current = { cursor: nextCursor, items };
-    void loadNextPage();
-  }, [view, items, nextCursor, loadMoreError, loadNextPage]);
+  useWorkspaceCalendarGridPageDrain({
+    view,
+    items,
+    nextCursor,
+    loadMoreError,
+    loadNextPage,
+    requestedPageRef,
+  });
 
   useLoadWhenVisible(agendaBoundaryRef, {
     armed:
@@ -1631,7 +1593,7 @@ export function WorkspaceCalendar({
           onInvalidated={handleCalendarInvalidated}
         />
       ) : null}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+      <div className="@container/page-toolbar flex flex-wrap items-center gap-x-4 gap-y-3">
         {view === "month" || view === "week" ? (
           <div
             className={cn(
@@ -1698,44 +1660,47 @@ export function WorkspaceCalendar({
           className={cn(
             "ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full max-sm:justify-between",
             socialOnly && "max-md:order-1 max-md:w-full max-md:justify-between",
+            searchField && "max-sm:justify-end",
           )}
         >
-          <ToggleGroup
-            type="single"
-            aria-label={t("view.label")}
-            value={view}
-            onValueChange={(value) => {
-              const nextView = views.find((candidate) => candidate === value);
-              if (nextView) {
-                handleViewChange(nextView);
-              }
-            }}
-            className={cn(
-              "app-scrollbar h-auto min-w-0 flex-wrap max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
-              socialOnly && "min-h-11 md:min-h-8",
-            )}
-            data-testid="calendar-views"
+          <div
+            className={
+              searchField
+                ? "flex w-full min-w-0 max-w-full flex-wrap items-center justify-end gap-2 @2xl/page-toolbar:w-auto"
+                : "contents"
+            }
           >
-            {views.map((calendarView) => (
-              <ToggleGroupItem
-                className={cn(
-                  "max-sm:px-1.5 max-sm:text-xs",
-                  socialOnly && "min-h-11 shrink-0 md:min-h-8",
-                )}
-                key={calendarView}
-                value={calendarView}
-              >
-                {t(`view.${calendarView}`)}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-          {types ? null : (
-            <CalendarShowFilter
-              available={availableTypes}
-              selected={shownTypes}
-              onChange={handleTypesChange}
-            />
-          )}
+            {searchField}
+            <ToggleGroup
+              type="single"
+              aria-label={t("view.label")}
+              value={view}
+              onValueChange={(value) => {
+                const nextView = views.find((candidate) => candidate === value);
+                if (nextView) {
+                  handleViewChange(nextView);
+                }
+              }}
+              className={cn(
+                "app-scrollbar h-auto min-w-0 flex-wrap max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
+                socialOnly && "min-h-11 md:min-h-8",
+              )}
+              data-testid="calendar-views"
+            >
+              {views.map((calendarView) => (
+                <ToggleGroupItem
+                  className={cn(
+                    "max-sm:px-1.5 max-sm:text-xs",
+                    socialOnly && "min-h-11 shrink-0 md:min-h-8",
+                  )}
+                  key={calendarView}
+                  value={calendarView}
+                >
+                  {t(`view.${calendarView}`)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
           {lockedProjectId && !socialOnly ? (
             <Button asChild size="sm" variant="outline">
               <Link
@@ -1747,17 +1712,22 @@ export function WorkspaceCalendar({
             </Button>
           ) : null}
           <div>
-            <FilterDropdownMenu
-              buttonLabel={tFilters("title")}
-              emptyResultsLabel={tFilters("emptyResults")}
-              searchPlaceholder={tFilters("searchPlaceholder")}
-              sections={filterSections}
-              triggerClassName={
-                socialOnly
-                  ? "min-h-11 min-w-11 sm:min-h-8 sm:min-w-0"
-                  : undefined
+            <CalendarFilters
+              available={availableTypes}
+              selected={shownTypes}
+              onChange={types ? undefined : handleTypesChange}
+              showCanceled={state.showCanceled}
+              onShowCanceledChange={(showCanceled) =>
+                void setState(
+                  { showCanceled: showCanceled || null },
+                  { shallow: false },
+                )
               }
-              showActiveIndicator={filtersActive}
+              sections={filterSections}
+              filtersActive={filtersActive}
+              socialOnly={socialOnly}
+              surface={surface}
+              setSurface={setSurface}
             />
           </div>
           {canCreate ? (
@@ -1795,7 +1765,7 @@ export function WorkspaceCalendar({
         {/* The grid's period, not the whole loaded range: an empty week next
             to a busy one still says so. */}
         {view !== "agenda" && !visibleItems.some(inShownPeriod) ? (
-          <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
+          <div className="bg-card-background text-muted-foreground rounded-xl p-8 text-center text-sm">
             {emptyState}
           </div>
         ) : null}

@@ -65,6 +65,19 @@ it("shows the weekly audit with its cost, the numbers behind each suggestion and
   expect(text()).not.toMatch(/Sokosumi|coming soon/i);
 });
 
+it("shows a page change Cuso read on the live page as before and after, as a Google result", async () => {
+  await render(actions(seo));
+  const card = container.querySelector(".seo-before-after");
+  expect(card?.textContent).toContain("Now");
+  expect(card?.textContent).toContain(
+    "Teams | Acme: scheduling infrastructure for everyone",
+  );
+  expect(card?.querySelector(".seo-side-after")?.textContent).toContain(
+    "Team Booking Software for Sales and Support | Acme",
+  );
+  expect(card?.querySelectorAll(".seo-result")).toHaveLength(2);
+});
+
 it("says the audit's findings in plain words, without its check ids", async () => {
   await render(actions(seo));
   expect(text()).toContain("Checks that did not pass");
@@ -76,12 +89,32 @@ it("says the audit's findings in plain words, without its check ids", async () =
   expect(text()).toContain(
     'did not pass the check "Script and style files for rendering load and are not blocked"',
   );
-  const detail = [...container.querySelectorAll("details:not([open])")].find(
-    (fold) => fold.querySelector("summary")?.textContent === "More detail",
-  );
-  expect(detail?.textContent).toContain(
+  const details = [...container.querySelectorAll("details:not([open])")]
+    .filter((fold) =>
+      ["More detail", "What it says"].includes(
+        fold.querySelector("summary")?.textContent ?? "",
+      ),
+    )
+    .map((fold) => fold.textContent);
+  expect(details.join(" ")).toContain(
     "update it to the current embed code from the HubSpot account",
   );
+});
+
+it("hands a technical fix to whoever builds the site, with the audit's words one click deeper", async () => {
+  await render(actions(seo));
+  const card = [...container.querySelectorAll("section")].find(
+    (section) =>
+      section.querySelector("h3")?.textContent ===
+      "For whoever builds your site",
+  );
+  expect(card).toBeDefined();
+  expect(card?.textContent).toContain("Copy for them");
+  expect(card?.textContent).toContain("You don't need to follow");
+  const next = [...container.querySelectorAll("section")].find((section) =>
+    section.querySelector("h3")?.textContent?.startsWith("Next"),
+  );
+  expect(next?.textContent).not.toContain("Copy for them");
 });
 
 it("explains every check that did not pass, so the numbers add up", async () => {
@@ -107,6 +140,38 @@ it("says when the next audit runs with its time, so it never reads as the weekly
   expect(text()).toMatch(/Next audit: \w+ \d+ November at \d\d:\d\d\./);
 });
 
+it("shows the original observation date on a related editorial pick", async () => {
+  const search = seo.keywordSearches[0];
+  await render(
+    actions({
+      ...seo,
+      keywordSearches: [
+        {
+          ...search,
+          ideas: [
+            {
+              ...search.ideas[0],
+              editorial: true,
+              measuredAt: new Date("2026-11-14T09:00:00Z"),
+            },
+            {
+              ...search.ideas[1],
+              measuredAt: new Date("2026-11-13T09:00:00Z"),
+            },
+            ...search.ideas.slice(2),
+          ],
+        },
+      ],
+    }),
+  );
+  const cells = [...container.querySelectorAll(".seo-table tbody tr")].map(
+    (row) => row.querySelector("td")?.textContent,
+  );
+  expect(cells[0]).toContain("Editorial pick · Measured 14 Nov 2026");
+  expect(cells[1]).toContain("Measured 13 Nov 2026");
+  expect(cells[1]).not.toContain("Editorial pick");
+});
+
 it("says Not known for a keyword number that is missing", async () => {
   await render(actions(seo));
   const cells = [...container.querySelectorAll(".seo-table tbody tr")].map(
@@ -116,7 +181,7 @@ it("says Not known for a keyword number that is missing", async () => {
     "team booking app free",
     "10",
     "Not known",
-    "commercial",
+    "to compare",
     "Not yet",
   ]);
   expect(cells[3].slice(1, 4)).toEqual(["Not known", "Not known", "Not known"]);
@@ -131,10 +196,15 @@ it("marks a page change done and asks Cuso for more ideas and a full article", a
     seo.pageChanges[0].id,
     "done",
   );
-  await act(async () => button("More article ideas").click());
-  expect(page.askCusoForArticles).toHaveBeenCalledWith(undefined);
+  await act(async () => button("More ideas").click());
+  expect(page.askCusoForArticles).toHaveBeenCalledWith(undefined, false);
+  await act(async () => button("Write an article").click());
+  expect(page.askCusoForArticles).toHaveBeenCalledWith(undefined, true);
   await act(async () => button("Write it").click());
-  expect(page.askCusoForArticles).toHaveBeenCalledWith(seo.articles[0].id);
+  expect(page.askCusoForArticles).toHaveBeenCalledWith(
+    seo.articles[0].id,
+    false,
+  );
   expect(text()).toMatch(/is writing it/);
 });
 
@@ -165,7 +235,7 @@ it("shows a landing page with its sources and says where it is live", async () =
   }));
   const page = actions(seo, { markLandingPageLive });
   await render(page);
-  expect(text()).toContain("Landing pages");
+  expect(text()).toContain("Pages for competitor searches");
   expect(text()).toContain(
     "Calendly alternative for teams that want their own booking page",
   );
@@ -213,5 +283,5 @@ it("shows a landing page that is live with its address, and no address field", a
 
 it("leaves the landing pages out while there are none", async () => {
   await render(actions({ ...seo, landingPages: [] }));
-  expect(text()).not.toContain("Landing pages");
+  expect(text()).not.toContain("Pages for competitor searches");
 });

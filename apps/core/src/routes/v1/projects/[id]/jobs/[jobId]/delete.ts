@@ -32,7 +32,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "delete",
     path: "/{id}/jobs/{jobId}",
     description:
-      "Remove a job from a project without deleting the job. Interactive session user only; coworker keys are rejected.",
+      "Remove a job from a project without deleting the job. A person by any sign-in (browser, API key or OAuth token); Coworker and Soko Bot keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,

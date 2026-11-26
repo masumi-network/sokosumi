@@ -12,6 +12,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 
+import { fixtureGitEnv } from "./fixture-git-env.mjs";
+
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 
 const HASHED_ENV = [
@@ -110,6 +112,7 @@ describe("GitHub OIDC remote cache wiring", () => {
     for (const jobId of [
       "core",
       "core-postgres",
+      "core-postgres-split",
       "packages",
       "cli",
       "build",
@@ -123,7 +126,7 @@ describe("GitHub OIDC remote cache wiring", () => {
     const test = await readRepoFile(".github", "workflows", "ci.yml");
     assert.match(
       jobBlock(test, "web"),
-      /turbo run test:ci --filter=web --filter=cmo\n/,
+      /turbo run test:ci --filter=web --filter=cmo --filter=@sokosumi\/mcp-ui\n/,
     );
     assert.match(
       jobBlock(test, "core"),
@@ -268,6 +271,7 @@ describe("GitHub OIDC remote cache wiring", () => {
       ["web", "web"],
       ["core", "core"],
       ["core-postgres", "core"],
+      ["core-postgres-split", "core"],
       ["packages", "packages"],
       ["cli", "cli"],
       ["local-env", "local-env"],
@@ -300,6 +304,8 @@ describe("GitHub OIDC remote cache wiring", () => {
       ["core", "Test Core"],
       ["core-postgres", "Test Core PostgreSQL"],
       ["packages", "Test Packages"],
+      ["cli", "Test CLI"],
+      ["ci-config", "Test CI config"],
     ]) {
       const block = jobBlock(test, jobId);
       assert.match(block, new RegExp(`\\n    name: ${name}\\n`));
@@ -323,16 +329,27 @@ describe("GitHub OIDC remote cache wiring", () => {
 
   it("the PostgreSQL suites run in parallel only on per-worker databases", async () => {
     const test = await readRepoFile(".github", "workflows", "ci.yml");
-    const step = jobBlock(test, "core-postgres").match(
-      /- name: Test against PostgreSQL\n([\s\S]*?)(?=\n      - |\n\n  [a-z]|$)/,
-    );
-    assert.ok(step, "missing step Test against PostgreSQL");
-    // Without the flag the files share one database and its job queue, and
-    // parallel files steal each other's jobs.
-    assert.match(
-      step[1],
-      /POSTGRES_TEST_DATABASE_PER_WORKER=true|--no-file-parallelism/,
-    );
+    for (const [jobId, stepName] of [
+      ["core-postgres", "Test against PostgreSQL"],
+      ["core-postgres-split", "Test against PostgreSQL on the split layout"],
+      [
+        "core-postgres-split",
+        "Check the pending files still fail on the split layout",
+      ],
+    ]) {
+      const step = jobBlock(test, jobId).match(
+        new RegExp(
+          `- name: ${stepName}\\n([\\s\\S]*?)(?=\\n      - |\\n\\n  [a-z]|$)`,
+        ),
+      );
+      assert.ok(step, `missing step ${stepName}`);
+      // Without the flag the files share one database and its job queue, and
+      // parallel files steal each other's jobs.
+      assert.match(
+        step[1],
+        /POSTGRES_TEST_DATABASE_PER_WORKER=true|--no-file-parallelism/,
+      );
+    }
   });
 
   it("per-leg filters only drop what the leg cannot reach", async () => {
@@ -348,13 +365,16 @@ describe("GitHub OIDC remote cache wiring", () => {
     );
   });
 
-  it("Test CLI runs only when apps/cli changes", async () => {
+  it("Test CLI runs only when apps/cli or the agent-surface manifests change", async () => {
     const test = await readRepoFile(".github", "workflows", "ci.yml");
     const filter = await readRepoFile(".github", "js-paths-filter.yml");
 
     // A single positive pattern, so `predicate-quantifier: every` at the
     // call site behaves the same as the default `some`.
-    assert.match(filter, /^cli:\n  - "apps\/cli\/\*\*"$/m);
+    assert.match(
+      filter,
+      /^cli:\n  - "\{apps\/cli\/\*\*,apps\/core\/agent-surface\/\*\*\}"$/m,
+    );
     assert.match(jobBlock(test, "changes"), /steps\.filter\.outputs\.cli/);
     assert.match(jobBlock(test, "cli"), /Smoke the built CLI\n/);
   });
@@ -499,7 +519,7 @@ describe("Vercel web turbo build command", () => {
   });
 
   it("gates each app's build on its own turbo package", async () => {
-    for (const app of ["web", "core", "cmo"]) {
+    for (const app of ["web", "core", "cmo", "cmo-website"]) {
       const config = JSON.parse(await readRepoFile("apps", app, "vercel.json"));
       const { name } = JSON.parse(
         await readRepoFile("apps", app, "package.json"),
@@ -545,12 +565,13 @@ describe("Vercel web turbo build command", () => {
     );
     await writeFile(
       path.join(fixture, "pnpm-lock.yaml"),
-      "lockfileVersion: '9.0'\nimporters:\n  .: {}\n  apps/web: {}\n  apps/core: {}\n  apps/cmo: {}\n",
+      "lockfileVersion: '9.0'\nimporters:\n  .: {}\n  apps/web: {}\n  apps/core: {}\n  apps/cmo: {}\n  apps/cmo-website: {}\n",
     );
     for (const [app, name] of [
       ["web", "web"],
       ["core", "@sokosumi/core"],
       ["cmo", "cmo"],
+      ["cmo-website", "cmo-website"],
     ]) {
       await mkdir(path.join(fixture, "apps", app), { recursive: true });
       await writeFile(
@@ -558,12 +579,11 @@ describe("Vercel web turbo build command", () => {
         JSON.stringify({ name }),
       );
     }
+    const env = fixtureGitEnv();
     const git = (...args) =>
-      execFileSync("git", args, { cwd: fixture, encoding: "utf8" }).trim();
+      execFileSync("git", args, { cwd: fixture, env, encoding: "utf8" }).trim();
     git("init", "-q");
-    git("config", "user.name", "CI fixture");
-    git("config", "user.email", "ci@example.invalid");
-    git("add", ".");
+    git("add", "-f", ".");
     git("commit", "-qm", "initial fixture");
     for (const [file, content, expected] of [
       [
@@ -580,9 +600,9 @@ describe("Vercel web turbo build command", () => {
     ]) {
       const base = git("rev-parse", "HEAD");
       await writeFile(path.join(fixture, file), content);
-      git("add", file);
+      git("add", "-f", file);
       git("commit", "-qm", `change ${file}`);
-      for (const name of ["web", "@sokosumi/core", "cmo"]) {
+      for (const name of ["web", "@sokosumi/core", "cmo", "cmo-website"]) {
         const result = spawnSync(
           path.join(repoRoot, "node_modules/.bin/turbo"),
           [
@@ -593,7 +613,7 @@ describe("Vercel web turbo build command", () => {
             name,
             "--exit-code",
           ],
-          { cwd: fixture, encoding: "utf8" },
+          { cwd: fixture, env, encoding: "utf8" },
         );
         assert.equal(
           result.status,
@@ -602,6 +622,50 @@ describe("Vercel web turbo build command", () => {
         );
       }
     }
+  });
+
+  it("isolates fixture git and turbo from an inherited GIT_DIR", async (t) => {
+    const canary = await mkdtemp(path.join(tmpdir(), "vercel-ignore-canary-"));
+    t.after(() => rm(canary, { recursive: true, force: true }));
+    const cleanEnv = fixtureGitEnv();
+    const git = (...args) =>
+      execFileSync("git", args, {
+        cwd: canary,
+        env: cleanEnv,
+        encoding: "utf8",
+      }).trim();
+    git("init", "-q");
+    await writeFile(path.join(canary, "sentinel.txt"), "ok\n");
+    git("add", "-f", ".");
+    git("commit", "-qm", "sentinel");
+    const beforeHead = git("rev-parse", "HEAD");
+    const beforeCount = git("rev-list", "--all", "--count");
+
+    const childEnv = { ...cleanEnv, GIT_DIR: path.join(canary, ".git") };
+    // Clear Node's test-runner child marker so the nested `node --test` runs
+    // as a standalone runner and reports its own pass count.
+    delete childEnv.NODE_TEST_CONTEXT;
+
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--test",
+        "--test-reporter=spec",
+        "--test-name-pattern=^builds every app for root install configuration changes$",
+        import.meta.filename,
+      ],
+      {
+        cwd: repoRoot,
+        env: childEnv,
+        encoding: "utf8",
+      },
+    );
+
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /pass 1/);
+    assert.equal(git("rev-parse", "HEAD"), beforeHead);
+    assert.equal(git("rev-list", "--all", "--count"), beforeCount);
+    assert.equal(git("status", "--porcelain"), "");
   });
 
   it("lets only a production deployment of a new commit skip its build", async () => {

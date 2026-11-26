@@ -53,10 +53,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         postId,
         userId: actor.userId,
       });
-      return ok(
-        c,
-        socialPostSchema.parse(presentSocialPost(post, actor.coworkerId)),
-      );
+      return ok(c, socialPostSchema.parse(presentSocialPost(post, actor)));
     } catch (error) {
       return mapSocialPostServiceError(error);
     }

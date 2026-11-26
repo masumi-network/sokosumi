@@ -5,7 +5,7 @@ import {
   getUsersByIdOrganizations,
   getUsersByIdSignUp,
 } from "@sokosumi/core-client";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { CmoApp } from "../components/app/cmo-app";
 import { CusoPicker } from "../components/cuso-picker";
@@ -14,10 +14,14 @@ import { Onboarding } from "../components/onboarding";
 import { OnboardingFlow } from "../components/onboarding/flow";
 import { SignedIn } from "../components/signed-in";
 import { getAuth } from "../lib/auth";
-import { connectReturnError } from "../lib/connect-return";
-import { asSignedInPersonInPage } from "../lib/core";
+import {
+  adsReturnErrorFromCode,
+  connectReturnError,
+  measureReturnError,
+} from "../lib/connect-return";
+import { asSignedInPersonInPage, renderRequestHeaders } from "../lib/core";
 import { LAST_CUSO_COOKIE } from "../lib/last-cuso";
-import { isValidPersonName } from "../lib/person-name";
+import { isValidPersonName, personName } from "../lib/person-name";
 import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
 import { VIEW_PATHS, type View } from "../lib/views";
 import { signOut } from "./actions";
@@ -52,11 +56,13 @@ import {
   loadCusos,
   loadMessages,
   loadOverview,
+  loadPictures,
   loadPieceText,
   loadPlans,
   loadSeo,
   loadState,
   markLandingPageLive,
+  markUpgradeSeen,
   onboard,
   openPortal,
   pauseEntry,
@@ -181,7 +187,7 @@ async function openedScreen(input: {
 
 export interface HomeSearchParams {
   error?: string | string[];
-  /** "subscribed" is Polar's return after a payment; "connect" and "results" a connection's. */
+  /** "subscribed" is Polar's return after a payment; "connect" an account connection's. */
   step?: string | string[];
   project?: string | string[];
   /** The account menu's "Your Cusos": the Cuso picker. */
@@ -191,7 +197,10 @@ export interface HomeSearchParams {
   /** With `hire`: the Project of the Cuso to hire a test copy of. */
   testCopyOf?: string | string[];
   connect?: string | string[];
+  ads?: string | string[];
+  measure?: string | string[];
   from?: string | string[];
+  signed_in?: string | string[];
 }
 
 interface HomeProps {
@@ -205,13 +214,13 @@ interface HomeProps {
  * owns every address.
  */
 export async function Home({ searchParams, view }: HomeProps) {
-  const requestHeaders = await headers();
+  const requestHeaders = await renderRequestHeaders();
   const session = await getAuth().api.getSession({ headers: requestHeaders });
   const params = await searchParams;
   const error = first(params.error);
   const step = first(params.step);
-  // Signed out, the home page is the waitlist site (the proxy serves it);
-  // sign-in errors and expired sessions go to the unlinked /login.
+  // Signed out, sign-in errors and expired sessions go to /login, which
+  // goes on to sign in.
   const signedOut = (signedOutError: string | undefined): never =>
     redirect(
       signedOutError
@@ -230,6 +239,9 @@ export async function Home({ searchParams, view }: HomeProps) {
       `Core did not read the person (${person.response?.status})`,
     );
   }
+  // Core's name, not the session's: the session keeps the sign-up name until
+  // its next token refresh, so the name step's answer would not show for hours.
+  const name = personName(person.data.data);
 
   const project = first(params.project) || undefined;
   const opened = await openedScreen({
@@ -243,16 +255,15 @@ export async function Home({ searchParams, view }: HomeProps) {
   // form (ADR 0065).
   if (opened === undefined) {
     return (
-      <SignedIn
-        name={session.user.name}
-        email={session.user.email}
-        signOut={signOut}
-      />
+      <SignedIn name={name} email={session.user.email} signOut={signOut} />
     );
   }
   if (opened.kind === "only") {
+    // The sign-in marker rides along, so the next page sends sign_up or login.
+    const signedIn =
+      first(params.signed_in) === undefined ? "" : "&signed_in=1";
     redirect(
-      `${VIEW_PATHS[view]}?project=${encodeURIComponent(opened.projectId)}`,
+      `${VIEW_PATHS[view]}?project=${encodeURIComponent(opened.projectId)}${signedIn}`,
     );
   }
   if (opened.kind === "picker") {
@@ -261,7 +272,7 @@ export async function Home({ searchParams, view }: HomeProps) {
   if (opened.kind === "inviteOnly") {
     return (
       <SignedIn
-        name={session.user.name}
+        name={name}
         email={session.user.email}
         signOut={signOut}
         inviteOnly
@@ -290,20 +301,21 @@ export async function Home({ searchParams, view }: HomeProps) {
     );
   }
   const { overview } = opened;
-  // Core ends hiring on the first connection; back from a connection made
-  // during hiring (Accounts, or Results' measurement), the founder stays in
-  // it until Continue.
+  // Core ends hiring on the first connection; back from an account
+  // connected during hiring, the founder stays in it until Continue.
   const backInHiring =
-    (step === "connect" || step === "results") &&
+    step === "connect" &&
     first(params.from) === "onboarding" &&
     overview.strategyVersion?.approvedAt != null;
   // Every Cuso action names the Project of the overview this page rendered,
   // so a workspace switch elsewhere cannot move them to another Cuso.
   const { projectId } = overview;
+  const adsError = adsReturnErrorFromCode(first(params.ads) ?? null);
+  const measureError = measureReturnError(first(params.measure) ?? null);
   if (overview.onboardingStep !== "done" || backInHiring) {
     const skipped = await skippedSteps(projectId);
     // The app's pages open once onboarding ends; until then it is the first run.
-    if (view !== "chat") {
+    if (view !== "today") {
       redirect(`/?project=${encodeURIComponent(projectId)}`);
     }
     return (
@@ -313,7 +325,6 @@ export async function Home({ searchParams, view }: HomeProps) {
         key={skipped.includes("accounts") ? "launched" : "hiring"}
         overview={overview}
         messages={await loadMessages(projectId).catch(() => [])}
-        initialStep={step === "results" ? "results" : undefined}
         skipped={skipped}
         // The steps up to Subscribe open in place, without this page
         // rendering again, so the plans load from the first of them.
@@ -372,14 +383,17 @@ export async function Home({ searchParams, view }: HomeProps) {
       }
       messages={messages}
       work={work}
-      name={session.user.name}
+      name={name}
       email={session.user.email}
+      image={session.user.image ?? null}
       initialView={step === "connect" ? "channels" : view}
       connectError={
         step === "connect"
           ? connectReturnError(first(params.connect) ?? null)
           : null
       }
+      adsError={adsError}
+      measureError={measureError}
       actions={{
         loadState: loadState.bind(null, projectId),
         loadChatWork: loadChatWork.bind(null, projectId),
@@ -393,6 +407,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         markLandingPageLive: markLandingPageLive.bind(null, projectId),
         askCusoForArticles: askCusoForArticles.bind(null, projectId),
         approveStrategy: approveStrategy.bind(null, projectId),
+        requestStrategy: requestStrategy.bind(null, projectId),
         setAdBudget: setAdBudget.bind(null, projectId),
         revertUpdate: revertUpdate.bind(null, projectId),
         retryLearning: retryLearning.bind(null, projectId),
@@ -402,6 +417,9 @@ export async function Home({ searchParams, view }: HomeProps) {
         readTikTokCreator: readTikTokCreator.bind(null, projectId),
         declineDraft: declineDraft.bind(null, projectId),
         editDraft: editDraft.bind(null, projectId),
+        pictures: {
+          loadPictures: loadPictures.bind(null, projectId),
+        },
         competitors: {
           loadCompetitors: loadCompetitors.bind(null, projectId),
           addCompetitor: addCompetitor.bind(null, projectId),
@@ -418,6 +436,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         setAdCampaignStatus: setAdCampaignStatus.bind(null, projectId),
         loadAdCampaigns: loadAdCampaigns.bind(null, projectId),
         setTimeZone: setTimeZone.bind(null, projectId),
+        markUpgradeSeen: markUpgradeSeen.bind(null, projectId),
         startOver: startOver.bind(null, projectId),
         startTopUp: startTopUp.bind(null, projectId),
         skipSubscription: skipSubscription.bind(null, projectId),

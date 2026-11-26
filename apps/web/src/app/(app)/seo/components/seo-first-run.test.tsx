@@ -46,7 +46,10 @@ const clients: QueryClient[] = [];
 
 function page(content: React.ReactNode, searchParams = "") {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   clients.push(client);
   return (
@@ -103,7 +106,7 @@ function network(
   workspace: ProjectSeoWorkspace,
   routes: {
     connection?: (provider: string) => object;
-    properties?: { id: string; name: string }[];
+    properties?: { id: string; name: string }[] | (() => Reply);
     chat?: (init?: RequestInit) => Reply;
     unfiltered?: ProjectSeoWorkspace | (() => Reply);
   } = {},
@@ -122,13 +125,15 @@ function network(
             source: "personal_assistant",
           },
         );
-      if (pathname.endsWith("statistics/properties"))
+      if (pathname.endsWith("statistics/properties")) {
+        if (typeof routes.properties === "function") return routes.properties();
         return Response.json({
           provider: "search_console",
           status: "available",
           reason: null,
           properties: routes.properties ?? [],
         });
+      }
       if (pathname.endsWith("/chat"))
         return (
           routes.chat?.(init) ??
@@ -181,6 +186,128 @@ afterEach(() => {
 });
 
 describe("SEO audit first run", () => {
+  it("starts once with the displayed matching property when both a domain and URL prefix cover the page", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.searchConsolePropertyId = null;
+    const domain = "sc-domain:example.com";
+    let finishDiscovery!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      finishDiscovery = resolve;
+    });
+    network(workspace, {
+      properties: async () => {
+        await waiting;
+        return Response.json({
+          status: "available",
+          properties: [
+            { id: "https://example.com/", name: "Site prefix" },
+            { id: domain, name: "Whole domain" },
+          ],
+        });
+      },
+    });
+    const action = vi.mocked(mutateSeo);
+    action.mockReset().mockResolvedValue({ ok: true, value: null });
+    await renderWorkspace(workspace);
+    await user.click(
+      await screen.findByRole("button", { name: "Run full audit" }),
+    );
+    const start = await screen.findByRole("button", { name: "Start check" });
+    expect(start).toHaveAttribute("aria-busy", "true");
+    await user.click(start);
+    expect(action).not.toHaveBeenCalled();
+    finishDiscovery();
+    await waitFor(() => expect(start).not.toHaveAttribute("aria-busy"));
+    await user.click(start);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(action.mock.calls[0][0].command).toMatchObject({
+      kind: "request_analysis",
+      body: { searchConsolePropertyId: domain },
+    });
+  });
+
+  it("keeps shared property hints out of the request and retries the repaired choice once", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const previous = "https://example.com/old/";
+    const replacement = "sc-domain:example.com";
+    workspace.sharing = "organization";
+    workspace.metrics = [{ ...seoTestMetric(), propertyId: previous }];
+    network(workspace, {
+      properties: [{ id: replacement, name: "Authorized domain" }],
+    });
+    const action = vi.mocked(mutateSeo);
+    action.mockReset().mockResolvedValue({ ok: true, value: null });
+    const refused = {
+      ok: false,
+      error: { code: "BAD_INPUT", kind: "seo_gsc_property", status: 409 },
+    } as const;
+    action.mockResolvedValueOnce(refused).mockResolvedValueOnce(refused);
+    await renderWorkspace(workspace);
+    async function start() {
+      await user.click(
+        await screen.findByRole("button", { name: "Run full audit" }),
+      );
+      await user.click(
+        await screen.findByRole("button", { name: "Start check" }),
+      );
+      return screen.findByRole("dialog", { name: "Search Console coverage" });
+    }
+    const first = await start();
+    expect(
+      within(first).getByRole("heading", { name: "Without Search Console" }),
+    ).toBeVisible();
+    expect(
+      within(first).getByText(
+        /skip Search Console clicks, impressions and indexing data/,
+      ),
+    ).toBeVisible();
+    expect(
+      within(first).queryByRole("button", { name: "Retry and start audit" }),
+    ).toBeNull();
+    expect(within(first).getByRole("alert")).toHaveTextContent(
+      "every selected page",
+    );
+    await user.click(within(first).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(action).toHaveBeenCalledTimes(1);
+
+    const warning = await start();
+    await user.click(
+      within(warning).getByRole("button", { name: "Google connections" }),
+    );
+    const settings = await screen.findByRole("dialog", {
+      name: "Google connections",
+    });
+    const section = within(settings).getByRole("region", {
+      name: "Search Console",
+    });
+    await user.click(
+      within(section).getByRole("combobox", { name: "Property" }),
+    );
+    await user.click(
+      await screen.findByRole("option", { name: "Authorized domain" }),
+    );
+    await user.keyboard("{Escape}");
+    expect(action).toHaveBeenCalledTimes(2);
+    await user.click(
+      within(warning).getByRole("button", { name: "Retry and start audit" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    const bodies = action.mock.calls.map(([{ command }]) =>
+      command.kind === "request_analysis" ? command.body : undefined,
+    );
+    expect(bodies).toHaveLength(3);
+    expect(bodies[1]).not.toHaveProperty("searchConsolePropertyId");
+    expect(bodies[2]).toMatchObject({
+      searchConsolePropertyId: replacement,
+      idempotencyKey: bodies[1]?.idempotencyKey,
+    });
+    expect(bodies[2]).not.toHaveProperty("allowLimitedAudit");
+  });
+
   it("asks for Google before offering the first audit, then permits an explicit skip", async () => {
     const workspace = seoTestWorkspace();
     network(workspace, {
@@ -511,9 +638,7 @@ describe("SEO audit first run", () => {
     }
     expect(screen.queryByRole("dialog")).toBeNull();
     await user.click(screen.getByRole("button", { name: copy.monitor.create }));
-    expect(
-      await screen.findByRole("menuitem", { name: copy.monitor.create }),
-    ).toBeVisible();
+    expect(await screen.findByRole("dialog")).toBeVisible();
     await user.keyboard("{Escape}");
   });
 
@@ -583,7 +708,7 @@ describe("SEO audit first run", () => {
     );
     if (!row) throw new Error("no statistics banner");
     expect(
-      within(row).getByRole("heading", { name: copy.agent.statisticsMissing }),
+      within(row).getByRole("heading", { name: copy.agent.connectedSearch }),
     ).toBeVisible();
     // The banner is the first thing on the tab: it stands over the result.
     expect(
@@ -707,10 +832,11 @@ describe("SEO audit first run", () => {
     expect(document.activeElement).toBe(button);
     expect(button).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByRole("button", { name: "Check running" })).toBeVisible();
-    // Core gives a start time and no progress. A first full audit of one page has the default time limit
-    // (16 minutes) and the steps after it (5 minutes): the card says the time left, as an estimate.
+    // Core gives a start time and no progress. A full audit of one page has the time of that page and of the
+    // four pages it adds (30 minutes) and the steps after them (20 minutes): the card says the time left, as an
+    // estimate.
     expect(
-      screen.getByText("Started just now. About 21 minutes left (estimate)."),
+      screen.getByText("Started just now. About 50 minutes left (estimate)."),
     ).toBeVisible();
     expect(
       screen.getByRole("progressbar", {
@@ -731,17 +857,17 @@ describe("SEO audit first run", () => {
     at(12, "audit_full");
     expect(
       screen.getByText(
-        "Started 12 minutes ago. About 9 minutes left (estimate).",
+        "Started 12 minutes ago. About 38 minutes left (estimate).",
       ),
     ).toBeVisible();
     expect(screen.getByRole("progressbar")).toHaveAttribute(
       "aria-valuenow",
-      "57",
+      "24",
     );
     // Past the usual time the bar does not fill and the words promise no time.
-    at(30, "audit_full");
+    at(55, "audit_full");
     expect(
-      screen.getByText("Started 30 minutes ago. It takes longer than usual."),
+      screen.getByText("Started 55 minutes ago. It takes longer than usual."),
     ).toBeVisible();
     expect(screen.getByRole("progressbar")).toHaveAttribute(
       "aria-valuenow",
@@ -808,19 +934,25 @@ describe("SEO audit first run", () => {
     ).toBeVisible();
     expect(screen.queryByTestId("seo-setup")).toBeNull();
     await user.click(screen.getByRole("button", { name: copy.monitor.create }));
-    expect(
-      await screen.findByRole("menuitem", { name: copy.monitor.create }),
-    ).toBeVisible();
+    expect(await screen.findByRole("dialog")).toBeVisible();
     await user.keyboard("{Escape}");
     view.unmount();
     workspace.runs.push(run("2026-11-10T09:00:00Z", 6));
-    render(page(<SeoWorkspace workspace={workspace} />));
+    const latestView = render(page(<SeoWorkspace workspace={workspace} />));
     const runs = within(screen.getByRole("group", { name: "Checks" }));
-    const newest = runs.getByRole("button", { name: "Nov 12 5 issues" });
-    const older = runs.getByRole("button", { name: "Nov 10 6 issues" });
+    const newest = runs.getByRole("button", {
+      name: "Nov 12 5 issues in this check",
+    });
+    const older = runs.getByRole("button", {
+      name: "Nov 10 6 issues in this check",
+    });
     expect(newest).toHaveAttribute("aria-pressed", "true");
     expect(older).toHaveAttribute("aria-pressed", "false");
     await user.click(older);
+    expect(older).toHaveAttribute("aria-pressed", "false");
+    await user.click(
+      screen.getByRole("button", { name: "Show the check from Nov 10" }),
+    );
     await waitFor(() => expect(older).toHaveAttribute("aria-pressed", "true"));
     expect(newest).toHaveAttribute("aria-pressed", "false");
     // The row shows the pick: the date fields stay closed.
@@ -834,9 +966,25 @@ describe("SEO audit first run", () => {
     expect(newest).toHaveFocus();
     // A press on an entry picks it too.
     await user.click(older);
+    expect(older).toHaveAttribute("aria-pressed", "false");
+    await user.click(
+      screen.getByRole("button", { name: "Show the check from Nov 10" }),
+    );
     await waitFor(() => expect(older).toHaveAttribute("aria-pressed", "true"));
     await user.click(newest);
+    await user.click(
+      screen.getByRole("button", { name: "Show the check from Nov 12" }),
+    );
     await waitFor(() => expect(newest).toHaveAttribute("aria-pressed", "true"));
+    latestView.unmount();
+    await renderWorkspace(workspace, "?to=2026-11-11");
+    await user.click(
+      screen.getByRole("button", { name: /Nov 10 6 issues/, pressed: true }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Show the check from Nov 10" }),
+    );
+    expect(await screen.findByText(/Earlier check \(Nov 10\)/)).toBeVisible();
   });
 
   it("opens the added page count with the keyboard and lists only the current audit URLs in scope order", async () => {
@@ -989,6 +1137,9 @@ describe("SEO audit first run", () => {
       { name: copy.analysis.submit },
     );
     await user.click(submit);
+    expect(vi.mocked(mutateSeo).mock.calls[0][0]).toMatchObject({
+      command: { kind: "request_analysis", body: { includeSitemaps: true } },
+    });
     expect(submit).toHaveAttribute("aria-busy", "true");
     workspace.analyses = [
       {
@@ -1132,7 +1283,8 @@ describe("SEO audit first run", () => {
     expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
       /^No check yet\. Run one to find issues\.$/,
     );
-    await user.click(screen.getByRole("button", { name: "Run a check" }));
+    expect(screen.queryByRole("button", { name: copy.runAnalysis })).toBeNull();
+    await user.click(screen.getByRole("button", { name: copy.runFullAudit }));
     expect(await screen.findByRole("dialog")).toBeVisible();
   });
 });

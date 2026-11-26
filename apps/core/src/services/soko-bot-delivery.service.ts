@@ -1,9 +1,15 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
-import { isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
+import {
+  CMO_PRODUCTION_TURN_PREFIX,
+  CMO_SOKO_BOT_VERSION_IDS,
+  isSokoBotSilentAnswer,
+} from "@sokosumi/soko-bot";
+import { taskNotificationHref } from "@sokosumi/utils";
 import { z } from "zod";
 import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
+import { seoTaskResultHint } from "@/helpers/seo-task-notification";
 import { writableAssistantRoomWhere } from "@/helpers/shared-soko-bot-room";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import {
@@ -11,12 +17,16 @@ import {
   withNoticeMention,
 } from "@/helpers/soko-bot-notice-room";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
+import { AI_BUDGET_EXCEEDED } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
+import { backgroundFailureText } from "@/lib/soko-bot/background-failure";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { TASK_SUMMARY_CLIENT_TURN_PREFIX } from "@/lib/soko-bot/system-routes";
 import { collectTurnResultSnapshots } from "@/services/chat-result-preview.service";
+import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
 import { persistSokoBotChatTurn } from "./soko-bot-chat.service";
 import { deliverSokoBotEffect } from "./soko-bot-effect-outbox.service";
 
@@ -33,14 +43,15 @@ const RETRY_DELAYS_MS = [60_000, 300_000, 1_800_000, 7_200_000];
 /** What a background run that ended without an answer posts instead. */
 function backgroundStopNote(turn: {
   backgroundTitle: string | null;
-  status: string;
   errorKind: string | null;
-  errorDetail: string | null;
-}): string {
-  if (!turn.backgroundTitle) return "";
-  const how =
-    turn.errorKind === "turn_deadline_exceeded" ? "ran out of time" : "failed";
-  return `Background run "${turn.backgroundTitle}" ${how} before it could report.${turn.errorDetail ? ` (${turn.errorDetail.slice(0, 300)})` : ""}`;
+}) {
+  if (!turn.backgroundTitle) return null;
+  const kind =
+    turn.errorKind === AI_BUDGET_EXCEEDED ||
+    turn.errorKind === "turn_deadline_exceeded"
+      ? turn.errorKind
+      : "unknown";
+  return { kind, text: backgroundFailureText(turn.backgroundTitle, kind) };
 }
 
 /**
@@ -72,21 +83,28 @@ export async function enqueueSokoBotDelivery(
   const background = Boolean(turn.parentTurnId);
   // A stopped run stays quiet: whoever stopped it already said so, and the
   // note arrived an hour later when the cancellation finally settled.
+  // A Cuso's month is one progress card in CMO; a production run's answer
+  // (receipts, "timed out") is not for the owner. Nor is a strategy turn's:
+  // a first round read as the finished plan, so Core says once when it is.
   const reason = background
     ? !turn.destinationRoomId
       ? "NO_DESTINATION"
       : turn.status === "CANCELLED"
         ? "CANCELLED"
-        : null
+        : turn.clientTurnId?.startsWith(CMO_PRODUCTION_TURN_PREFIX)
+          ? "CMO_PRODUCTION"
+          : null
     : turn.source === "CHAT" && !isChat
       ? "ASSISTANT_PAGE"
-      : !turn.destinationRoomId
-        ? "NO_DESTINATION"
-        : silent
-          ? "SILENT"
-          : !isChat && turn.status !== "COMPLETED"
-            ? turn.status
-            : null;
+      : turn.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX)
+        ? "CMO_STRATEGY"
+        : !turn.destinationRoomId
+          ? "NO_DESTINATION"
+          : silent
+            ? "SILENT"
+            : !isChat && turn.status !== "COMPLETED"
+              ? turn.status
+              : null;
   await tx.sokoBotDelivery.upsert({
     where: {
       turnId_destinationKind_destinationId_purpose: {
@@ -138,6 +156,7 @@ async function destinationStillAuthorized(
     askedByUserId?: string | null;
     workspaceId: string;
     source: string;
+    versionId: string | null;
     destinationAudience: Prisma.JsonValue;
   },
   roomId: string,
@@ -209,8 +228,13 @@ async function destinationStillAuthorized(
     const present = room.userMembers.some(
       (member) => member.userId === recipientId,
     );
+    // Cuso's room is the owner's: his reports never ping anyone.
+    const cuso =
+      turn.versionId !== null &&
+      CMO_SOKO_BOT_VERSION_IDS.includes(turn.versionId);
     return {
-      mentionUserId: turn.source !== "CHAT" && present ? actingUserId : null,
+      mentionUserId:
+        turn.source !== "CHAT" && present && !cuso ? actingUserId : null,
       shared,
     };
   }
@@ -230,6 +254,53 @@ async function destinationStillAuthorized(
     mentionUserId: shared && turn.source !== "CHAT" ? actingUserId : null,
     shared,
   };
+}
+
+const FOLLOWED_TASK_COMPLETION = `${TASK_SUMMARY_CLIENT_TURN_PREFIX}status:`;
+
+/** Resolve the event from the server-created turn, never an ID from the model's answer. */
+async function withFollowerSeoResult(
+  tx: Prisma.TransactionClient,
+  turn: {
+    clientTurnId: string;
+    source: string;
+    status: string;
+    workspaceId: string;
+  },
+  userId: string | null,
+  content: string,
+): Promise<string> {
+  if (
+    !content ||
+    !userId ||
+    turn.status !== "COMPLETED" ||
+    turn.source !== "EVENT" ||
+    !turn.clientTurnId.startsWith(FOLLOWED_TASK_COMPLETION)
+  )
+    return content;
+  const event = await tx.taskEvent.findFirst({
+    where: {
+      id: turn.clientTurnId.slice(FOLLOWED_TASK_COMPLETION.length),
+      status: "COMPLETED",
+      task: {
+        workspaceId: turn.workspaceId,
+        archivedAt: null,
+        status: "COMPLETED",
+        ...buildHumanTaskVisibilityWhere(userId),
+      },
+    },
+    select: { taskId: true },
+  });
+  if (!event || !(await seoTaskResultHint(tx, turn.workspaceId, event.taskId)))
+    return content;
+  const href = taskNotificationHref({
+    referenceId: event.taskId,
+    messageKey: "Notifications.Task.completed",
+    metadata: { seoResult: true },
+  });
+  return content.includes(`](${href})`)
+    ? content
+    : `${content}\n\n[Open SEO results](${href})`;
 }
 
 /** Retries only persistence/transport. Never invokes inference or capabilities. */
@@ -354,6 +425,19 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
         // A background run's report carries the cards of what it made, as a
         // chat reply does.
         const snapshots = await collectTurnResultSnapshots(turn.id, tx);
+        const answer = turn.finalAnswer?.trim();
+        const failure = answer ? null : backgroundStopNote(turn);
+        const content =
+          answer &&
+          delivery.purpose === "FINAL" &&
+          delivery.destinationId === turn.destinationRoomId
+            ? await withFollowerSeoResult(
+                tx,
+                turn,
+                sokoBotActingUserId(turn),
+                answer,
+              )
+            : answer || failure?.text || "";
         const message = await tx.chatRoomMessage.upsert({
           where: {
             roomId_clientMessageId: {
@@ -365,10 +449,7 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
             roomId: delivery.roomId,
             clientMessageId: `soko-bot:${turn.id}:${delivery.purpose === "FINAL" ? "final" : delivery.id}`,
             senderSokoBotId: turn.sokoBotId,
-            content: withNoticeMention(
-              turn.finalAnswer?.trim() || backgroundStopNote(turn),
-              destination.mentionUserId,
-            ),
+            content: withNoticeMention(content, destination.mentionUserId),
             metadata: {
               ...(snapshots.length
                 ? { [RESULT_SNAPSHOTS_KEY]: sanitizePersistedValue(snapshots) }
@@ -379,6 +460,7 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
                 ...(turn.backgroundTitle
                   ? { background_run_title: turn.backgroundTitle }
                   : {}),
+                ...(failure ? { background_failure_kind: failure.kind } : {}),
                 // Lets the chat say where an unprompted message came from.
                 ...(turn.scheduleRun
                   ? {

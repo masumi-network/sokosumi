@@ -1,16 +1,10 @@
 "use client";
 
-import type { FileResource } from "@sokosumi/core-client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { DriveFilePreview } from "@/app/drive/components/drive-file-preview";
 import { DriveFileSnippet } from "@/app/drive/components/drive-file-snippet";
@@ -18,15 +12,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { FileTypeIcon } from "@/components/ui/file-icon";
+import { useDriveFileDetail } from "@/hooks/effects/use-drive-file-detail";
 import { useSession } from "@/lib/auth/auth.client";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import {
   decideSuggestion,
   type FileStore,
-  fetchFileResource,
-  fetchRelatedFiles,
   updateFileMetadata,
 } from "@/lib/utils/file-search.client";
+import { invalidateDrive } from "@/queries/drive";
 
 /**
  * One document: what it is, what it is about, and what else is like it.
@@ -94,6 +88,7 @@ export function FileDetailView({
   headingAs = "h1",
 }: FileDetailViewProps) {
   const t = useTranslations("App.Drive.Files");
+  const queryClient = useQueryClient();
   const { data: session, isPending: sessionPending } = useSession();
   const activeOrganizationId = session?.session?.activeOrganizationId ?? null;
   const driveStore = driveStoreForActiveWorkspace(activeOrganizationId);
@@ -102,69 +97,20 @@ export function FileDetailView({
       ? { scope: "org", organizationId: driveStore.organizationId }
       : { scope: "me" };
 
-  const [resource, setResource] = useState<FileResource | null>(null);
-  const [related, setRelated] = useState<FileResource[]>([]);
-  const [relatedState, setRelatedState] = useState<string>("ok");
-  const [loading, setLoading] = useState(true);
-  const [unavailable, setUnavailable] = useState(false);
+  const {
+    resource,
+    setResource,
+    related,
+    relatedState,
+    loading,
+    unavailable,
+    reload: load,
+  } = useDriveFileDetail({
+    resourceId,
+    store,
+    sessionPending,
+  });
   const [busy, setBusy] = useState(false);
-
-  /**
-   * Which load is current.
-   *
-   * Two loads can be in flight at once, because the store changes the moment
-   * the session resolves. Without this, a stale reply could land last and
-   * win: a personal-scope request for an organization file 404s quickly, and
-   * it was overwriting the successful organization reply with "File
-   * unavailable". Only the newest run may write state.
-   */
-  const runRef = useRef(0);
-
-  const load = useCallback(async () => {
-    const run = ++runRef.current;
-    const current = () => run === runRef.current;
-
-    setLoading(true);
-    try {
-      const next = await fetchFileResource({ store, resourceId });
-      if (!current()) return;
-      setResource(next);
-      setUnavailable(false);
-    } catch {
-      // A missing document and a denied one look the same on purpose: the
-      // screen must not confirm that a file exists to someone who cannot
-      // open it.
-      if (current()) setUnavailable(true);
-    } finally {
-      if (current()) setLoading(false);
-    }
-
-    try {
-      const relatedResult = await fetchRelatedFiles({ store, resourceId });
-      if (!current()) return;
-      setRelated(relatedResult.items);
-      setRelatedState(relatedResult.state);
-    } catch {
-      if (current()) setRelatedState("unavailable");
-    }
-    // The dependency is the store's two *fields*, not the object identity,
-    // which changes on every render.
-    //
-    // There was an `eslint-disable-next-line react-hooks/exhaustive-deps`
-    // here. This repo lints with Biome, which does not read it — and its
-    // own rule does not fire on this hook either, so the correct
-    // `biome-ignore` is reported as an ineffective suppression. A comment
-    // that explains the choice is all this needs; a suppression that
-    // suppresses nothing only looks like protection.
-  }, [resourceId, store.scope, store.organizationId]);
-
-  useEffect(() => {
-    // Waiting costs a moment of the loading state. Not waiting asks for the
-    // file in the personal drive before the active organization is known,
-    // which is a request we already know the answer to.
-    if (sessionPending) return;
-    void load();
-  }, [load, sessionPending]);
 
   async function decide(suggestionId: string, decision: "accept" | "reject") {
     if (!resource) return;
@@ -178,6 +124,7 @@ export function FileDetailView({
         expectedMetadataRevision: resource.metadataRevision,
       });
       setResource(next);
+      void invalidateDrive(queryClient, store);
     } catch {
       toast.error(t("saveConflict"));
       await load();
@@ -209,6 +156,7 @@ export function FileDetailView({
         allowSuggestionsForLabelIds: [labelId],
       });
       setResource(next);
+      void invalidateDrive(queryClient, store);
       toast.success(t("labelReopened"));
     } catch {
       // The revision this view holds is from whenever it last loaded, so a
@@ -232,6 +180,7 @@ export function FileDetailView({
         removeTagLabelIds: [labelId],
       });
       setResource(next);
+      void invalidateDrive(queryClient, store);
       toast.success(t("tagRemoved"));
     } catch {
       toast.error(t("saveConflict"));

@@ -646,6 +646,27 @@ describe("ably-push-sw display", () => {
    * A title is cut shorter than a body on most platforms, and a task name is
    * long, so every other kind keeps the app name and its line.
    */
+  it("opens SEO results from a completion banner without serializing an audit identifier", async () => {
+    const worker = loadServiceWorker({ isChromium: true });
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      kind: "TASK",
+      messageKey: "Notifications.Task.completed",
+      messageParams: JSON.stringify({
+        taskName: "Quarterly audit",
+        seoResult: true,
+      }),
+      metadata: JSON.stringify({ seoResult: true }),
+    });
+    expect(worker.shown[0]?.options.body).toBe(
+      "Open SEO results for Quarterly audit.",
+    );
+    expect(worker.shown[0]?.options.data).toMatchObject({
+      kind: "TASK",
+      messageKey: "Notifications.Task.completed",
+      metadata: { seoResult: true },
+    });
+  });
   it("leaves a task banner titled with the app name", async () => {
     const worker = loadServiceWorker({ isChromium: true });
 

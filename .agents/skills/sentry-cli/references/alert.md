@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-alert
-version: 0.49.0
+version: 0.50.0
 description: Manage Sentry alert rules
 requires:
   bins: ["sentry"]
@@ -17,11 +17,12 @@ List issue alert rules
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument          | Description                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------- |
 | `[<org/project>]` | &lt;org&gt;/ (all projects), &lt;org&gt;/&lt;project&gt;, or &lt;project&gt; (search) |
 
 **Flags:**
+
 - `-w, --web - Open in browser`
 - `-n, --limit <value> - Maximum number of issue alert rules to list - (default: "25")`
 - `-q, --query <value> - Filter rules by name`
@@ -53,11 +54,12 @@ View an issue alert rule
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                        | Description                 |
+| ------------------------------- | --------------------------- |
 | `<org/project/rule-id-or-name>` | Issue alert rule ID or name |
 
 **Flags:**
+
 - `-w, --web - Open issue alert rules page in browser`
 
 **Examples:**
@@ -79,11 +81,12 @@ Create an issue alert rule
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument     | Description                                                                     |
+| ------------ | ------------------------------------------------------------------------------- |
 | `[<target>]` | &lt;org&gt;/&lt;project&gt;, auto-detected project, or &lt;project&gt; (search) |
 
 **Flags:**
+
 - `--name <value> - Rule name`
 - `-c, --condition <value>... - Trigger condition JSON or name such as first-seen (repeatable, or pass one JSON array)`
 - `-a, --action <value>... - Action object JSON (repeatable, or pass one JSON array)`
@@ -96,15 +99,15 @@ Create an issue alert rule
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `org` | string | Organization slug |
-| `id` | string | Alert rule ID |
-| `name` | string | Alert rule name |
-| `status` | string | Rule status (active, disabled) |
-| `dryRun` | boolean | True when --dry-run made no change |
-| `body` | object | Request body that would be sent (--dry-run) |
-| `project` | string | Project slug |
+| Field     | Type    | Description                                 |
+| --------- | ------- | ------------------------------------------- |
+| `org`     | string  | Organization slug                           |
+| `id`      | string  | Alert rule ID                               |
+| `name`    | string  | Alert rule name                             |
+| `status`  | string  | Rule status (active, disabled)              |
+| `dryRun`  | boolean | True when --dry-run made no change          |
+| `body`    | object  | Request body that would be sent (--dry-run) |
+| `project` | string  | Project slug                                |
 
 **Examples:**
 
@@ -130,25 +133,26 @@ Delete an issue alert rule
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                        | Description                    |
+| ------------------------------- | ------------------------------ |
 | `<org/project/rule-id-or-name>` | Rule id or name (same as view) |
 
 **Flags:**
+
 - `-y, --yes - Skip confirmation prompt`
 - `-f, --force - Force the operation without confirmation`
 - `-n, --dry-run - Show what would happen without making changes`
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `dryRun` | boolean | True when --dry-run made no change |
-| `deleted` | boolean | True when the rule was deleted |
-| `org` | string | Organization slug |
-| `id` | string | Alert rule ID |
-| `name` | string | Alert rule name |
-| `project` | string | Project slug |
+| Field     | Type    | Description                        |
+| --------- | ------- | ---------------------------------- |
+| `dryRun`  | boolean | True when --dry-run made no change |
+| `deleted` | boolean | True when the rule was deleted     |
+| `org`     | string  | Organization slug                  |
+| `id`      | string  | Alert rule ID                      |
+| `name`    | string  | Alert rule name                    |
+| `project` | string  | Project slug                       |
 
 **Examples:**
 
@@ -169,11 +173,12 @@ Edit an issue alert rule
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                        | Description                    |
+| ------------------------------- | ------------------------------ |
 | `<org/project/rule-id-or-name>` | Rule id or name (same as view) |
 
 **Flags:**
+
 - `--name <value> - New rule name`
 - `--status <value> - Rule status: active or disabled`
 - `-c, --condition <value>... - Trigger condition JSON or name such as first-seen (repeatable, or pass one JSON array)`
@@ -186,25 +191,26 @@ Edit an issue alert rule
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Alert rule ID |
-| `name` | string | Alert rule name |
-| `organizationId` | string | ID of the organization the alert belongs to |
-| `createdBy` | string \| null | ID of the user who created the alert |
-| `dateCreated` | string | When the alert was created (ISO 8601) |
-| `dateUpdated` | string | When the alert was last updated (ISO 8601) |
-| `triggers` | object \| null | Conditions on which the alert triggers |
-| `actionFilters` | array \| null | Filters to run before actions fire, each with the actions to fire |
-| `environment` | string \| null | Name of the environment the alert is limited to. Null for all environments |
-| `config` | object | Configuration of the alert, such as frequency in minutes |
-| `detectorIds` | array \| null | IDs of the monitors connected to the alert |
-| `enabled` | boolean | Whether the alert is enabled |
-| `lastTriggered` | string \| null | When the alert last fired (ISO 8601) |
-| `owner` | string \| null | Team or user that owns the alert, such as user:123 or team:456 |
-| `org` | string | Organization slug |
-| `project` | string | Project slug |
-| `status` | string | Rule status (active, disabled) |
+| Field            | Type           | Description                                                                   |
+| ---------------- | -------------- | ----------------------------------------------------------------------------- |
+| `id`             | string         | Alert rule ID                                                                 |
+| `name`           | string         | Alert rule name                                                               |
+| `type`           | string         | Type of the workflow, such as alert                                           |
+| `organizationId` | string         | ID of the organization the workflow belongs to                                |
+| `createdBy`      | string \| null | ID of the user who created the workflow                                       |
+| `dateCreated`    | string         | When the workflow was created (ISO 8601)                                      |
+| `dateUpdated`    | string         | When the workflow was last updated (ISO 8601)                                 |
+| `triggers`       | object \| null | Conditions on which the workflow triggers                                     |
+| `actionFilters`  | array \| null  | Filters to run before actions fire, each with the actions to fire             |
+| `environment`    | string \| null | Name of the environment the workflow is limited to. Null for all environments |
+| `config`         | object         | Configuration of the workflow, such as frequency in minutes                   |
+| `detectorIds`    | array \| null  | IDs of the monitors connected to the workflow                                 |
+| `enabled`        | boolean        | Whether the workflow is enabled                                               |
+| `lastTriggered`  | string \| null | When the workflow last fired (ISO 8601)                                       |
+| `owner`          | string \| null | Team or user that owns the workflow, such as user:123 or team:456             |
+| `org`            | string         | Organization slug                                                             |
+| `project`        | string         | Project slug                                                                  |
+| `status`         | string         | Rule status (active, disabled)                                                |
 
 **Examples:**
 
@@ -228,11 +234,12 @@ List metric alert rules
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument     | Description                                                                              |
+| ------------ | ---------------------------------------------------------------------------------------- |
 | `[<target>]` | &lt;org&gt;/, &lt;org&gt;/&lt;project&gt; (project ignored), or &lt;project&gt; (search) |
 
 **Flags:**
+
 - `-w, --web - Open in browser`
 - `-n, --limit <value> - Maximum number of metric alert rules to list - (default: "25")`
 - `-q, --query <value> - Filter rules by name`
@@ -258,11 +265,12 @@ View a metric alert rule
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                | Description                  |
+| ----------------------- | ---------------------------- |
 | `<org/rule-id-or-name>` | Metric alert rule ID or name |
 
 **Flags:**
+
 - `-w, --web - Open metric alert rules page in browser`
 
 **Examples:**
@@ -287,11 +295,12 @@ Create a metric alert rule
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument   | Description                    |
+| ---------- | ------------------------------ |
 | `<target>` | Target project or organization |
 
 **Flags:**
+
 - `--name <value> - Rule name`
 - `--query <value> - Metric query filter string`
 - `--aggregate <value> - Aggregate expression (for example count(), p95(span.duration))`
@@ -306,14 +315,14 @@ Create a metric alert rule
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `org` | string | Organization slug |
-| `id` | string | Alert rule ID |
-| `name` | string | Alert rule name |
-| `status` | string | Rule status (active, disabled) |
-| `dryRun` | boolean | True when --dry-run made no change |
-| `body` | object | Request body that would be sent (--dry-run) |
+| Field    | Type    | Description                                 |
+| -------- | ------- | ------------------------------------------- |
+| `org`    | string  | Organization slug                           |
+| `id`     | string  | Alert rule ID                               |
+| `name`   | string  | Alert rule name                             |
+| `status` | string  | Rule status (active, disabled)              |
+| `dryRun` | boolean | True when --dry-run made no change          |
+| `body`   | object  | Request body that would be sent (--dry-run) |
 
 **Examples:**
 
@@ -333,24 +342,25 @@ Delete a metric alert rule
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                | Description                    |
+| ----------------------- | ------------------------------ |
 | `<org/rule-id-or-name>` | Rule id or name (same as view) |
 
 **Flags:**
+
 - `-y, --yes - Skip confirmation prompt`
 - `-f, --force - Force the operation without confirmation`
 - `-n, --dry-run - Show what would happen without making changes`
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `dryRun` | boolean | True when --dry-run made no change |
-| `deleted` | boolean | True when the rule was deleted |
-| `org` | string | Organization slug |
-| `id` | string | Alert rule ID |
-| `name` | string | Alert rule name |
+| Field     | Type    | Description                        |
+| --------- | ------- | ---------------------------------- |
+| `dryRun`  | boolean | True when --dry-run made no change |
+| `deleted` | boolean | True when the rule was deleted     |
+| `org`     | string  | Organization slug                  |
+| `id`      | string  | Alert rule ID                      |
+| `name`    | string  | Alert rule name                    |
 
 **Examples:**
 
@@ -368,11 +378,12 @@ Edit a metric alert rule
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                | Description                    |
+| ----------------------- | ------------------------------ |
 | `<org/rule-id-or-name>` | Rule id or name (same as view) |
 
 **Flags:**
+
 - `--name <value> - New rule name`
 - `--status <value> - active or disabled`
 - `--query <value> - Metric query filter`
@@ -387,25 +398,25 @@ Edit a metric alert rule
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `owner` | object \| null | Team or user that owns the monitor |
-| `createdBy` | string \| null | ID of the user who created the monitor |
-| `latestGroup` | object \| null | Latest issue the monitor created |
-| `description` | string \| null | Description of the monitor |
-| `id` | string | Alert rule ID |
-| `projectId` | string \| null | ID of the project the monitor belongs to |
-| `name` | string | Alert rule name |
-| `type` | string | Type of the monitor, such as metric_issue or error |
-| `workflowIds` | array \| null | IDs of the alerts connected to the monitor |
-| `dateCreated` | string | When the monitor was created (ISO 8601) |
-| `dateUpdated` | string | When the monitor was last updated (ISO 8601) |
-| `dataSources` | array \| null | Data sources the monitor evaluates, such as a query subscription |
-| `conditionGroup` | object \| null | Conditions that decide the monitor's status |
-| `config` | object | Configuration of the monitor, which depends on its type |
-| `enabled` | boolean | Whether the monitor is enabled |
-| `org` | string | Organization slug |
-| `status` | string | Rule status (active, disabled) |
+| Field            | Type           | Description                                                      |
+| ---------------- | -------------- | ---------------------------------------------------------------- |
+| `owner`          | object \| null | Team or user that owns the monitor                               |
+| `createdBy`      | string \| null | ID of the user who created the monitor                           |
+| `latestGroup`    | object \| null | Latest issue the monitor created                                 |
+| `description`    | string \| null | Description of the monitor                                       |
+| `id`             | string         | Alert rule ID                                                    |
+| `projectId`      | string \| null | ID of the project the monitor belongs to                         |
+| `name`           | string         | Alert rule name                                                  |
+| `type`           | string         | Type of the monitor, such as metric_issue or error               |
+| `workflowIds`    | array \| null  | IDs of the alerts connected to the monitor                       |
+| `dateCreated`    | string         | When the monitor was created (ISO 8601)                          |
+| `dateUpdated`    | string         | When the monitor was last updated (ISO 8601)                     |
+| `dataSources`    | array \| null  | Data sources the monitor evaluates, such as a query subscription |
+| `conditionGroup` | object \| null | Conditions that decide the monitor's status                      |
+| `config`         | object         | Configuration of the monitor, which depends on its type          |
+| `enabled`        | boolean        | Whether the monitor is enabled                                   |
+| `org`            | string         | Organization slug                                                |
+| `status`         | string         | Rule status (active, disabled)                                   |
 
 **Examples:**
 

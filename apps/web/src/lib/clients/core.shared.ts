@@ -151,6 +151,7 @@ import type {
   PostProjectsByIdCloseData,
   PostProjectsByIdCloseRetryData,
   PostProjectsByIdImageStudioJobsData,
+  PostProjectsByIdImageStudioShortVideoJobsData,
   PostProjectsByIdImageStudioTalkingVideoJobsData,
   PostProjectsByIdImageStudioTalkingVideoScriptsData,
   PostProjectsByIdImageStudioVideoJobsData,
@@ -237,6 +238,7 @@ import {
   deleteChatsRoomsByIdThreadsByParentMessageIdMute as coreDeleteChatsRoomsByIdThreadsByParentMessageIdMute,
   deleteChatsSavedMessagesByMessageId as coreDeleteChatsSavedMessagesByMessageId,
   deleteCoworkersById as coreDeleteCoworkersById,
+  deleteCoworkersByIdApiKeysByKeyId as coreDeleteCoworkersByIdApiKeysByKeyId,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
   deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
@@ -303,6 +305,7 @@ import {
   getCouponDetails as coreGetCouponDetails,
   getCoworkers as coreGetCoworkers,
   getCoworkersById as coreGetCoworkersById,
+  getCoworkersByIdApiKeys as coreGetCoworkersByIdApiKeys,
   getCreditTopUpPriceCatalog as coreGetCreditTopUpPriceCatalog,
   getDeveloperOwnedCoworkerTask as coreGetDeveloperOwnedCoworkerTask,
   getEnterpriseContracts as coreGetEnterpriseContracts,
@@ -355,7 +358,6 @@ import {
   getProjectsByIdHide as coreGetProjectsByIdHide,
   getProjectsByIdImageStudio as coreGetProjectsByIdImageStudio,
   getProjectsByIdImageStudioAssetsByAssetIdSocialMedia as coreGetProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
-  getProjectsByIdImageStudioTalkingVideos as coreGetProjectsByIdImageStudioTalkingVideos,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdNewsletter as coreGetProjectsByIdNewsletter,
   getProjectsByIdNewsletterAnalytics as coreGetProjectsByIdNewsletterAnalytics,
@@ -482,6 +484,7 @@ import {
   postChatsRoomsByIdThreadsRead as corePostChatsRoomsByIdThreadsRead,
   postChatsRoomsByIdUnread as corePostChatsRoomsByIdUnread,
   postComposioCallbackComplete as corePostComposioCallbackComplete,
+  postCoworkersByIdApiKeys as corePostCoworkersByIdApiKeys,
   postCoworkersByIdImage as corePostCoworkersByIdImage,
   postCoworkersByIdUnarchive as corePostCoworkersByIdUnarchive,
   postEnterpriseContracts as corePostEnterpriseContracts,
@@ -513,6 +516,7 @@ import {
   postProjectsByIdImageStudioAssetsByAssetIdCaption as corePostProjectsByIdImageStudioAssetsByAssetIdCaption,
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
   postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
+  postProjectsByIdImageStudioShortVideoJobs as corePostProjectsByIdImageStudioShortVideoJobs,
   postProjectsByIdImageStudioTalkingVideoJobs as corePostProjectsByIdImageStudioTalkingVideoJobs,
   postProjectsByIdImageStudioTalkingVideoScripts as corePostProjectsByIdImageStudioTalkingVideoScripts,
   postProjectsByIdImageStudioVideoJobs as corePostProjectsByIdImageStudioVideoJobs,
@@ -601,6 +605,7 @@ import {
   removeProjectCompetitor as coreRemoveProjectCompetitor,
   resolveAdminTaskX402Payment as coreResolveAdminTaskX402Payment,
   restoreAdminMatchedChannel as coreRestoreAdminMatchedChannel,
+  restoreProjectCompetitor as coreRestoreProjectCompetitor,
   revokeCoworkerWorkspaceAccessAsPlatformAdmin as coreRevokeCoworkerWorkspaceAccessAsPlatformAdmin,
   runProjectCompetitorCheck as coreRunProjectCompetitorCheck,
   searchAdminOrganizations as coreSearchAdminOrganizations,
@@ -626,8 +631,10 @@ import {
 } from "./core.request";
 import { createSokoBotClient } from "./core.soko-bot";
 import { createSokoBotAvatarClient } from "./core.soko-bot-avatars";
+import { createStudioHistoryClient } from "./core.studio-history";
 import { createTaskInterestClient } from "./core.task-interest";
 import { createTaskSubtasksClient } from "./core.task-subtasks";
+import { createTaskViewClient } from "./core.task-view";
 
 export type CoreApiPagination = PaginationMetadata;
 
@@ -4567,6 +4574,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function postProjectsByIdImageStudioShortVideoJobs(
+    id: string,
+    body: NonNullable<PostProjectsByIdImageStudioShortVideoJobsData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioShortVideoJobs({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to start the short",
+    );
+  }
+
   async function postProjectsByIdImageStudioTalkingVideoScripts(
     id: string,
     body: NonNullable<
@@ -4582,19 +4605,6 @@ export function createCoreClient(getClient: GetCoreClient) {
           body,
         }),
       "Failed to write talking video scripts",
-    );
-  }
-
-  async function getProjectsByIdImageStudioTalkingVideos(id: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetProjectsByIdImageStudioTalkingVideos({
-          client,
-          path: { id },
-          cache: "no-store",
-        }),
-      "Failed to fetch the Project's talking videos",
     );
   }
 
@@ -5064,6 +5074,23 @@ export function createCoreClient(getClient: GetCoreClient) {
       (client) =>
         coreRemoveProjectCompetitor({ client, path: { id, competitorId } }),
       "Failed to remove competitor",
+    );
+  }
+
+  async function restoreProjectCompetitor(
+    id: string,
+    competitorId: string,
+    removal: number,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreRestoreProjectCompetitor({
+          client,
+          path: { id, competitorId },
+          body: { removal },
+        }),
+      "Failed to restore competitor",
     );
   }
 
@@ -6313,6 +6340,44 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getCoworkerApiKeys(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetCoworkersByIdApiKeys({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch coworker API keys",
+    );
+  }
+
+  async function createCoworkerApiKey(id: string, body: { name: string }) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostCoworkersByIdApiKeys({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to create coworker API key",
+    );
+  }
+
+  async function revokeCoworkerApiKey(id: string, keyId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteCoworkersByIdApiKeysByKeyId({
+          client,
+          path: { id, keyId },
+        }),
+      "Failed to revoke coworker API key",
+    );
+  }
+
   async function patchCoworkerWhitelist(
     id: string,
     body: NonNullable<PatchCoworkersByIdWhitelistData["body"]>,
@@ -7331,6 +7396,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     unarchiveCoworker,
     uploadCoworkerImage,
     deleteCoworkerImage,
+    getCoworkerApiKeys,
+    createCoworkerApiKey,
+    revokeCoworkerApiKey,
     searchAdminUsers,
     listAdminUsers,
     getUserById,
@@ -7484,6 +7552,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     addProjectCompetitor,
     updateProjectCompetitor,
     removeProjectCompetitor,
+    restoreProjectCompetitor,
     setProjectCompetitorChecks,
     runProjectCompetitorCheck,
     suggestProjectCompetitors,
@@ -7526,9 +7595,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdImageStudioJobs,
     postProjectsByIdImageStudioJobsByJobIdCancel,
     postProjectsByIdImageStudioVideoJobs,
+    postProjectsByIdImageStudioShortVideoJobs,
     postProjectsByIdImageStudioTalkingVideoJobs,
     postProjectsByIdImageStudioTalkingVideoScripts,
-    getProjectsByIdImageStudioTalkingVideos,
     getProjectsByIdSocialPosts,
     getWorkspacesSocialPosts,
     getProjectsByIdSocialPostsStatistics,
@@ -7605,8 +7674,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     updateOrganizationSubscriptionSeats,
     ...createSokoBotAvatarClient(getClient),
     ...createSokoBotClient(getClient),
+    ...createStudioHistoryClient(getClient),
     ...createTaskInterestClient(getClient),
     ...createTaskSubtasksClient(getClient),
+    ...createTaskViewClient(getClient),
     postPublicNewslettersByPublicSlugSubscribe,
     getPublicNewslettersByPublicSlug,
     getPublicNewslettersByPublicSlugIssues,

@@ -5,6 +5,7 @@ import {
   fileLinkFindMany,
   messageFindMany,
   postFindMany,
+  projectFindMany,
   projectFindUnique,
   resetCmoServiceMocks,
   seedStrategy,
@@ -85,6 +86,7 @@ vi.mock("@/config/env", async (importOriginal) =>
 );
 
 import {
+  CMO_CONTEXT_BUDGET_BYTES,
   fitCmoMarketingContext,
   loadCmoMarketingContext,
 } from "./cmo-context.service";
@@ -183,6 +185,61 @@ describe("buildCmoBeatPacket", () => {
     expect(packet).toContain("workspace.marketing");
     expect(packet.length).toBeLessThan(5_000);
   });
+
+  it("dates the weekly review and lists only what went out last week", async () => {
+    // entry.fyi, 23 November: the review read December's drafts as last week.
+    const { buildCmoBeatPacket } = await import("./cmo-context.service");
+    cusoFind.mockResolvedValue({
+      userId: "user-1",
+      workspaceId: "ws-1",
+      projectId: "project-1",
+      businessName: "Acme",
+      websiteUrl: "https://acme.io",
+      goals: "More leads",
+      brandBrain: { summary: "Acme" },
+      updates: [],
+    });
+    seedStrategy(strategy, { approvedAt: new Date("2026-11-01T09:00:00Z") });
+    subscriptionFindFirst.mockResolvedValue(null);
+    connectionFindMany.mockResolvedValue([]);
+    postFindMany.mockResolvedValue([
+      {
+        id: "post-1",
+        provider: "x",
+        status: "PUBLISHED",
+        scheduledAt: new Date("2026-11-18T10:00:00Z"),
+        publishedAt: new Date("2026-11-18T10:00:05Z"),
+        publishedUrl: "https://x.com/acme/status/1",
+        text: "Shipped on Wednesday",
+      },
+    ]);
+
+    const { packet } = await buildCmoBeatPacket(
+      "bot-1",
+      new Date("2026-11-23T08:00:00Z"),
+      "cmo-weekly-review",
+    );
+
+    expect(packet).toContain(
+      "## Today: 2026-11-23. Last week: 2026-11-16 to 2026-11-22.",
+    );
+    expect(packet).toContain(
+      "## Social posts published last week (2026-11-16 to 2026-11-22)",
+    );
+    expect(packet).not.toContain("last 14 days");
+    expect(postFindMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          projectId: "project-1",
+          status: "PUBLISHED",
+          publishedAt: {
+            gte: new Date("2026-11-16T00:00:00Z"),
+            lt: new Date("2026-11-23T00:00:00Z"),
+          },
+        },
+      }),
+    );
+  });
 });
 
 describe("loadCmoMarketingContext", () => {
@@ -247,6 +304,41 @@ describe("loadCmoMarketingContext", () => {
       expect.objectContaining({ id: "message-1", headline: "Week 1" }),
     ]);
     expect(JSON.stringify(context)).not.toContain("previousVersionId");
+  });
+
+  it("counts an account connected to the business's other Cuso for the same site", async () => {
+    // NMKR's Facebook Page sat on its first Cuso; the second read "New: Open an account".
+    const { loadCmoMarketingContext } = await import("./cmo-context.service");
+    cusoFind.mockResolvedValue({
+      sokoBotId: "bot-1",
+      projectId: "project-1",
+      brandBrain: null,
+      mockPlan: null,
+      updates: [],
+    });
+    seedStrategy(strategy);
+    subscriptionFindFirst.mockResolvedValue(null);
+    projectFindMany.mockResolvedValueOnce([
+      { id: "project-old", websiteUrl: "https://www.acme.io/" },
+      { id: "project-other", websiteUrl: "https://other.io" },
+    ]);
+    connectionFindMany.mockImplementation(
+      async (args: { where?: { projectId?: { in?: string[] } } }) =>
+        args.where?.projectId?.in
+          ? [{ provider: "facebook" }, { provider: "instagram" }]
+          : [],
+    );
+    const context = await loadCmoMarketingContext("bot-1");
+    expect(context?.existingAccounts).toEqual(["facebook", "instagram"]);
+    const query = connectionFindMany.mock.calls.find(
+      ([args]) =>
+        (args as { where?: { projectId?: { in?: string[] } } }).where?.projectId
+          ?.in,
+    )?.[0] as { where: { projectId: { in: string[] } } };
+    expect(query.where.projectId.in.sort()).toEqual([
+      "project-1",
+      "project-old",
+    ]);
   });
 
   it("gives Cuso the competitor moves of the last weeks, and none when quiet", async () => {
@@ -335,13 +427,81 @@ describe("fitCmoMarketingContext", () => {
     };
     expect(shed.strategy.calendar[0]?.visual).toBeDefined();
     expect(shed.strategy.calendar[1]?.visual).toBeUndefined();
-    const tight = fitCmoMarketingContext(big, now, 400) as {
+    const twoWeeks = fitCmoMarketingContext(big, now, 1_700) as {
       strategy: { calendar: Record<string, unknown>[] };
     };
-    expect(tight.strategy.calendar.map((piece) => piece.id)).toEqual([
+    expect(twoWeeks.strategy.calendar.map((piece) => piece.id)).toEqual([
       "soon",
       "later",
     ]);
+  });
+
+  it("always fits a top-volume month: NMKR's 116 pieces, 80 of them in two weeks", () => {
+    const channels = ["x", "x", "x", "linkedin", "instagram", "facebook"];
+    const month = {
+      brandBrain: {
+        summary: "s".repeat(400),
+        competitors: Array.from({ length: 6 }, () => "c".repeat(220)),
+        marketingToday: { summary: "m".repeat(1_400) },
+        offers: "o".repeat(800),
+        voice: "v".repeat(500),
+        profile: {},
+      },
+      brandLook: { designMd: "d".repeat(1_600) },
+      brandPictures: Array.from({ length: 20 }, (_, i) => ({
+        fileId: `01a1f567-f147-734d-8c4d-0786f2e0c0${String(i).padStart(2, "0")}`,
+        alt: "a".repeat(80),
+        kind: "screenshot",
+      })),
+      writingSkills: Array.from({ length: 14 }, (_, i) => ({
+        id: `skill-${i}`,
+        use: "u".repeat(110),
+      })),
+      strategy: {
+        summary: "Plan",
+        channels: "h".repeat(800),
+        pillars: "p".repeat(500),
+        mix: "x".repeat(500),
+        questions: "q".repeat(400),
+        focus: "f".repeat(400),
+        funnel: "f".repeat(3_000),
+        patched: Array.from({ length: 60 }, (_, i) => ({
+          id: `w2-x${i}`,
+          was: null,
+        })),
+        start: { gaps: ["g".repeat(800)] },
+        campaigns: [{ id: "conference-notes", message: "l".repeat(900) }],
+        calendar: Array.from({ length: 116 }, (_, i) => ({
+          id: `w${Math.floor(i / 29) + 1}-x${String(i).padStart(2, "0")}`,
+          date: `2026-11-${String(Math.floor(i / 5.8) + 2).padStart(2, "0")}`,
+          time: "07:20",
+          channel: channels[i % channels.length],
+          format: "post",
+          approach: "product-led",
+          pillar: "Project launch workflows",
+          campaignId: "conference-notes",
+          status: "idea",
+          title: "Prepare sale choices before the mint",
+          brief: "List buyer steps before choosing sale settings for the drop.",
+          why: "A practical prompt for UBC 2026, Nov 20-21.",
+        })),
+      },
+    };
+    const fitted = fitCmoMarketingContext(month, now) as {
+      strategy: { calendar?: Record<string, unknown>[] };
+    };
+    expect(Buffer.byteLength(JSON.stringify(fitted))).toBeLessThanOrEqual(
+      CMO_CONTEXT_BUDGET_BYTES,
+    );
+    expect(fitted.strategy.calendar?.[0]?.id).toBe("w1-x00");
+  });
+
+  it("ends within its budget even when the calendar has to go", () => {
+    const fitted = fitCmoMarketingContext(context, now, 200) as {
+      strategy: { calendar?: unknown[]; storedNotShown?: string[] };
+    };
+    expect(Buffer.byteLength(JSON.stringify(fitted))).toBeLessThanOrEqual(200);
+    expect(fitted.strategy.storedNotShown).toContain("calendar");
   });
 
   it("keeps every later piece as a short line before it drops any, so a change can reach weeks three and four", () => {

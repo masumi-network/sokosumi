@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SearchablePageContent } from "@/components/searchable-page-content";
+import { dataRoomQuestionHref } from "@/queries/needs-you-data-room-questions";
 
 const fetchWaiting = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/utils/data-room.client", () => ({
@@ -25,13 +27,22 @@ vi.mock("@/lib/utils/notification-time", () => ({
 
 import { NotificationDataRoomQuestions } from "./notification-data-room-questions";
 
-function renderRows() {
+function renderRows(search = false) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   return render(
     <QueryClientProvider client={client}>
-      <NotificationDataRoomQuestions />
+      {search ? (
+        <SearchablePageContent>
+          <NotificationDataRoomQuestions />
+        </SearchablePageContent>
+      ) : (
+        <NotificationDataRoomQuestions />
+      )}
     </QueryClientProvider>,
   );
 }
@@ -62,6 +73,35 @@ beforeEach(() => {
 });
 
 describe("NotificationDataRoomQuestions", () => {
+  it("searches older questions by body or room without an extra click", async () => {
+    fetchWaiting.mockImplementation(async ({ cursor }) =>
+      cursor
+        ? {
+            total: 3,
+            nextCursor: null,
+            questions: [question("later", "Launch plans?")],
+          }
+        : {
+            total: 3,
+            nextCursor: "old",
+            questions: [
+              question("room", "Forecast?", "Launch"),
+              question("other", "Shipment?"),
+            ],
+          },
+    );
+    renderRows(true);
+    await screen.findByText("Shipment?");
+    await userEvent.type(screen.getByRole("searchbox"), "launch");
+    expect(await screen.findByText("Launch plans?")).toBeVisible();
+    expect(
+      screen.getAllByRole("link").map((link) => link.getAttribute("href")),
+    ).toEqual([
+      dataRoomQuestionHref({ id: "later", roomId: "room-1" }),
+      dataRoomQuestionHref({ id: "room", roomId: "room-1" }),
+    ]);
+  });
+
   it("reads the active organization's rooms", async () => {
     fetchWaiting.mockResolvedValue({
       total: 0,

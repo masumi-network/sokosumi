@@ -20,10 +20,27 @@ type ObservedLanding = {
 };
 const priorityTier = {
   indexingConflict: 0,
-  routine: 1,
-  pendingCrawl: 2,
-  excluded: 3,
+  goalDecline: 1,
+  routine: 2,
+  pendingCrawl: 3,
+  excluded: 4,
 } as const;
+type GoalControl = NonNullable<SeoBriefFollowUp["goalInvestigation"]>;
+/** Only a decline names a next step. A held goal stays routine. */
+const goalDeclineStep: Partial<Record<GoalControl["assessment"], string>> = {
+  handoff:
+    "More organic sessions reached this landing page, but sessions completing the named action did not grow. Test the handoff from the page to completion.",
+  organic_declined:
+    "The organic goal rate fell by at least 20% and the direct rate did not. Compare the queries, devices and countries in Search Console for the same two periods before testing page copy.",
+  both_declined:
+    "Organic and direct goal rates both fell. Check the completion step and compare GA4 tracking with confirmed records before changing search content.",
+};
+const percent = (rate: number) => `${(rate * 100).toFixed(1)}%`;
+function goalEvidence({ event, before, after }: GoalControl) {
+  const channel = (name: string, key: "organic" | "direct") =>
+    `${name} ${percent(before[key].rate)} of ${before[key].sessions} sessions from ${before.from} to ${before.to}, then ${percent(after[key].rate)} of ${after[key].sessions} sessions from ${after.from} to ${after.to}`;
+  return `GA4 ${event} rate: ${channel("organic search", "organic")}; ${channel("direct", "direct")}.`;
+}
 const salesActions = new Set<Page["action"]>([
   "buy",
   "book",
@@ -115,6 +132,8 @@ export function briefPriorities(
   const rows = content.pages.map((p) => {
     const follow = followUps.find((item) => item.pageId === p.pageId);
     const landing = evidence.get(p.pageId);
+    const control = follow?.goalInvestigation;
+    const declineStep = control && goalDeclineStep[control.assessment];
     const fits = fitsObjective(p, content.objective);
     const why: string[] = [];
     let nextStep = "";
@@ -143,16 +162,23 @@ export function briefPriorities(
       why.push("The recorded change followed Google's last observed crawl.");
       nextStep =
         "Recheck the URL after a later Google crawl before reassessing that change.";
+    } else if (declineStep) {
+      tier = priorityTier.goalDecline;
+      nextStep = declineStep;
+      if (control?.weekdayMix === "uneven")
+        nextStep +=
+          " These periods include different numbers of some weekdays. Check the pattern by weekday before acting.";
     }
+    if (control) why.push(goalEvidence(control));
     if (p.job) {
-      const job = `Check whether the page helps visitors complete this job. ${p.job}`;
+      const job = `Check whether the page helps visitors complete the task described as “${p.job}”.`;
       nextStep = nextStep ? `${nextStep} ${job}` : job;
     } else if (!nextStep) {
       nextStep =
         "Confirm what visitors need to do on this page before choosing an edit.";
     }
     if (content.outcome && tier === priorityTier.routine)
-      nextStep += ` Use the owner's stated outcome to assess the change. ${content.outcome}`;
+      nextStep += ` Assess the change against the stated outcome “${content.outcome}”.`;
     if (fits && content.objective)
       why.push(
         `The page's stated role or action fits the owner's ${content.objective} objective.`,

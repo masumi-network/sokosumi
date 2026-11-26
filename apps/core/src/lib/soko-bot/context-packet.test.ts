@@ -615,6 +615,24 @@ describe("ContextPacketBuilder", () => {
     );
   });
 
+  it("reads the workspace membership without a user filter for a self-started turn", async () => {
+    const input = buildInput();
+    await new ContextPacketBuilder().build({
+      ...input,
+      userId: null,
+      sharedScope: {
+        sokoBotId: input.sokoBotId,
+        workspaceId: input.workspaceId,
+        projectId: null,
+      },
+    });
+
+    expect(
+      workspaceFindFirstMock.mock.lastCall?.[0].select.organization.select
+        .members,
+    ).toStrictEqual({ select: { role: true }, take: 1 });
+  });
+
   it("builds a shared bot's packet from its scope and never as OWNER", async () => {
     const sharedScope = {
       sokoBotId: buildInput().sokoBotId,
@@ -635,6 +653,10 @@ describe("ContextPacketBuilder", () => {
     expect(userFindUniqueMock).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: "user-1" } }),
     );
+    expect(
+      workspaceFindFirstMock.mock.lastCall?.[0].select.organization.select
+        .members.where,
+    ).toStrictEqual({ userId: "user-1" });
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -1058,6 +1080,38 @@ describe("ContextPacketBuilder", () => {
 
     expect(result.packet.memory.version).toBe(3);
     expect(result.packet.recentTurns).toHaveLength(1);
+    expect(result.omissions).not.toHaveProperty("memory");
+  });
+
+  it("counts the stored memory a long memory's packet leaves out", async () => {
+    const entries = (word: string) =>
+      Array.from(
+        { length: 12 },
+        (_, i) =>
+          `- ${word} ${i}: ${"keep the launch plan on track ".repeat(13)}`,
+      );
+    memoryFindFirstMock.mockResolvedValue({
+      id: "memory-1",
+      version: 4,
+      hash: "memory-hash",
+      markdown: [
+        "# Soko Bot memory",
+        "## Active goals",
+        ...entries("Goal"),
+        "## Preferences",
+        ...entries("Preference"),
+        "## Follow-ups",
+        ...entries("Follow-up"),
+      ].join("\n"),
+    });
+
+    const result = await new ContextPacketBuilder().build(buildInput());
+
+    expect(
+      Buffer.byteLength(result.packet.memory.markdown),
+    ).toBeLessThanOrEqual(8_192);
+    expect(result.omissions.memory).toBeGreaterThan(4_000);
+    expect(result.packet.omissions.memory).toBe(result.omissions.memory);
   });
   it("scopes pending offers and conversation history to the current room and requester", async () => {
     const result = await new ContextPacketBuilder().build({

@@ -57,7 +57,12 @@ function project(id: string, name: string) {
 }
 
 function wrapper(
-  client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+  client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  }),
 ) {
   return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
@@ -378,7 +383,10 @@ describe("useSelectedScopeProject", () => {
       ),
     );
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     // The workspace page an open menu loaded earlier.
     client.setQueryData(["project-scope-page", "user-1", "org-a", ""], {
@@ -399,12 +407,10 @@ describe("useSelectedScopeProject", () => {
 
   it("asks Core nothing until a session names the workspace", async () => {
     mocks.signedOut.current = true;
-    const { result } = renderHook(() => useSelectedScopeProject("p-1"), {
-      wrapper: wrapper(),
-    });
-
-    // Long enough for an enabled read to reach fetch.
-    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    // Let an enabled mount read reach fetch before asserting no request.
+    const { result } = await act(async () =>
+      renderHook(() => useSelectedScopeProject("p-1"), { wrapper: wrapper() }),
+    );
     expect(fetch).not.toHaveBeenCalled();
     expect(mocks.loadOne).not.toHaveBeenCalled();
     expect(result.current).toBeNull();
@@ -444,7 +450,10 @@ describe("useSelectedScopeProject", () => {
   it("keeps the name when a refetch fails", async () => {
     mocks.loadOne.mockReturnValue(project("far-1", "Far Away"));
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     const { result } = renderHook(
       () => ({
@@ -506,7 +515,10 @@ describe("useIsUnknownScopeProject", () => {
   it("stays true when a refetch fails", async () => {
     mocks.loadOne.mockReturnValue(null);
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     const { result } = renderHook(() => useIsUnknownScopeProject("gone-1"), {
       wrapper: wrapper(client),

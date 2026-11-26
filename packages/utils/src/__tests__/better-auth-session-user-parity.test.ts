@@ -30,6 +30,7 @@ function buildSessionUserWithSchemaFields(
     marketingOptIn: true,
     hideRoomUnreadCount: false,
     tagDirectMessages: false,
+    hideWeekFromStandup: false,
     logo: null,
     metadata: null,
     stripeCustomerId: null,

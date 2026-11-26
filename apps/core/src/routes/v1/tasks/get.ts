@@ -26,6 +26,7 @@ import {
   applyTaskListStatusWhere,
   buildTaskListStatusWhere,
 } from "@/helpers/task-list-filters";
+import { searchTaskList } from "@/helpers/task-list-search";
 import { taskTagIdSchema } from "@/helpers/task-tags";
 import {
   buildHumanTaskVisibilityWhere,
@@ -188,6 +189,10 @@ const includeSubtasksQuerySchema = z
 const query = z
   .object({
     q: taskNameQuerySchema,
+    search: z.string().trim().min(1).max(200).optional().openapi({
+      description:
+        "Find Tasks by name or identifier first, then by visible tag or description, then by result (a done comment). The selected sort breaks ties within each group.",
+    }),
     workspaceTagId: z
       .uuid()
       .optional()
@@ -304,7 +309,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const statusWhere = buildTaskListStatusWhere({
       statuses,
     });
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const { cursor, take } = parseCursorPagination(queryParams);
     const searchFilter = q
       ? {
           name: {
@@ -531,12 +536,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // A list view does not need list/count snapshot consistency, so run these
     // as independent queries. The list include uses relation counts instead of
     // loading each task's full event and job graphs.
-    const [tasks, count] = await Promise.all([
-      prisma.task.findMany({
-        where,
-        take: takePlusOne,
-        skip,
-        cursor: cursor ? { id: cursor } : undefined,
+    function readPage(
+      pageWhere: Prisma.TaskWhereInput,
+      pageSize: number,
+      pageCursor?: string,
+    ) {
+      return prisma.task.findMany({
+        where: pageWhere,
+        take: pageSize,
+        ...(pageCursor ? { cursor: { id: pageCursor }, skip: 1 } : {}),
         orderBy: [...orderBy],
         include: {
           ...taskListInclude,
@@ -545,9 +553,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             c.var.workspaceContext?.workspaceId,
           ),
         },
-      }),
-      prisma.task.count({ where }),
-    ]);
+      });
+    }
+    const [tasks, count, resultMatches] = await (queryParams.search
+      ? searchTaskList({
+          search: queryParams.search,
+          workspaceId: c.var.workspaceContext?.workspaceId,
+          where,
+          take: takePlusOne,
+          cursor,
+          readPage,
+        })
+      : Promise.all([
+          readPage(where, takePlusOne, cursor),
+          prisma.task.count({ where }),
+          new Map<string, string>(),
+        ]));
 
     const hasMore = tasks.length === takePlusOne;
     const pageTasks = tasks.slice(0, take);
@@ -569,12 +590,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ).map((mention) => mention.taskId),
           )
         : null;
-    const mappedTasks = pageTasks.map((task) => ({
-      ...mapTaskListItem(task),
-      ...(unansweredTaskIds
-        ? { hasUnansweredMention: unansweredTaskIds.has(task.id) }
-        : {}),
-    }));
+    const mappedTasks = pageTasks.map((task) => {
+      const { openSubtasks, ...item } = mapTaskListItem(task, authContext);
+      return {
+        ...item,
+        // Sub-task names go to people only: a coworker or a Soko Bot can
+        // read a Task without being able to read each of its sub-tasks.
+        ...(mentionViewerId ? { openSubtasks } : {}),
+        ...(unansweredTaskIds
+          ? { hasUnansweredMention: unansweredTaskIds.has(task.id) }
+          : {}),
+        ...(resultMatches.has(task.id)
+          ? { resultMatch: resultMatches.get(task.id) }
+          : {}),
+      };
+    });
     const paginationMeta = createPaginationMeta(
       mappedTasks,
       count,

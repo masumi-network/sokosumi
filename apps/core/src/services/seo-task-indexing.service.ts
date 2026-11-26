@@ -1,4 +1,3 @@
-import { z } from "@hono/zod-openapi";
 import { getEnv } from "@/config/env";
 import {
   conflict,
@@ -12,9 +11,13 @@ import {
   GSC_INSPECT_TOOL,
   gscInspectionArguments,
 } from "@/lib/seo/native-gsc-inspection";
-import { gscPropertyCovers } from "@/lib/seo/native-gsc-property";
+import {
+  gscPropertyCovers,
+  readableGscProperties,
+} from "@/lib/seo/native-gsc-property";
 import {
   normalizeGscTaskInspection,
+  privateInspectionDiscoverySources,
   unavailableGscTaskInspection,
 } from "@/lib/seo/native-gsc-task-inspection";
 import {
@@ -47,9 +50,6 @@ import {
   type StoredReceipt,
   storedReceiptSchema,
 } from "./seo-task-indexing-receipt";
-
-export { hasSavedSeoIndexingAssessment } from "./seo-task-indexing-receipt";
-
 import { syncLockService } from "./sync-lock.service";
 
 export const SEO_INDEXING_FRESH_MS = 24 * 60 * 60 * 1000;
@@ -170,10 +170,15 @@ async function collect(
   const integration = context.integration;
   const previous = await savedReceipt(context);
   const saved = previous && currentReceipt(previous) ? previous : null;
-  if (!integration)
-    return (
-      saved ?? makeReceipt(context, { ...base, status: "not_connected" }, null)
-    );
+  if (!integration) {
+    const status =
+      context.searchConsoleAccess === undefined
+        ? "not_connected"
+        : "unavailable";
+    return saved?.receipt.status === status
+      ? saved
+      : makeReceipt(context, { ...base, status }, null);
+  }
   try {
     const tools = await listIntegrationTools(integration, { limit: 100 });
     const toolFor = (slug: string): SeoNativeTool => {
@@ -194,39 +199,15 @@ async function collect(
         bindSeoToolArguments(tool, logical),
       );
     // Verify current property permission before serving even a cached inspection.
-    const sites = z
-      .object({
-        siteEntry: z
-          .array(
-            z.object({
-              siteUrl: z.string().max(500),
-              permissionLevel: z.string(),
-            }),
-          )
-          .max(1000)
-          .default([]),
-      })
-      .parse(
-        unwrapNativeStatistics(await read(toolFor(GSC_PROPERTIES_TOOL), {}), [
-          "siteEntry",
-        ]),
-      );
-    const properties = [
-      ...new Set(
-        sites.siteEntry
-          .filter(
-            (site) =>
-              ["siteOwner", "siteFullUser", "siteRestrictedUser"].includes(
-                site.permissionLevel,
-              ) && gscPropertyCovers(site.siteUrl, context.pageUrls),
-          )
-          .map((site) => site.siteUrl),
-      ),
-    ];
+    const properties = readableGscProperties(
+      unwrapNativeStatistics(await read(toolFor(GSC_PROPERTIES_TOOL), {}), [
+        "siteEntry",
+      ]),
+    ).filter((property) => gscPropertyCovers(property, context.pageUrls));
     const property =
       context.selectedProperty && properties.includes(context.selectedProperty)
         ? context.selectedProperty
-        : properties.length === 1
+        : context.searchConsoleAccess === undefined && properties.length === 1
           ? properties[0]
           : null;
     if (!property)
@@ -254,24 +235,35 @@ async function collect(
         : [],
     );
     const results = await Promise.allSettled(
-      context.inspectionPageUrls.map(async (pageUrl) =>
-        !gscPropertyCovers(property, [pageUrl])
-          ? unavailableGscTaskInspection(pageUrl)
-          : (retained.get(pageUrl)?.page ??
-            normalizeGscTaskInspection(
-              pageUrl,
-              unwrapNativeStatistics(
-                await read(
-                  inspectionTool,
-                  gscInspectionArguments(property, pageUrl),
-                ),
-                ["inspectionResult"],
-              ),
-            )),
-      ),
+      context.inspectionPageUrls.map(async (pageUrl) => {
+        if (!gscPropertyCovers(property, [pageUrl]))
+          return { page: unavailableGscTaskInspection(pageUrl) };
+        const reused = retained.get(pageUrl);
+        if (reused)
+          return {
+            page: reused.page,
+            sources: previous?.discoverySources?.find(
+              (entry) => entry.pageUrl === pageUrl,
+            ),
+          };
+        const raw = unwrapNativeStatistics(
+          await read(inspectionTool, gscInspectionArguments(property, pageUrl)),
+          ["inspectionResult"],
+        );
+        const page = normalizeGscTaskInspection(pageUrl, raw);
+        const sources =
+          context.includeDiscoverySources && context.searchConsoleAccess
+            ? privateInspectionDiscoverySources(
+                pageUrl,
+                raw,
+                context.searchConsoleAccess,
+              )
+            : undefined;
+        return { page, sources };
+      }),
     );
     const pages = results.map((result, index) =>
-      result.status === "fulfilled" ? result.value : base.pages[index]!,
+      result.status === "fulfilled" ? result.value.page : base.pages[index]!,
     );
     const collected = makeReceipt(
       context,
@@ -287,6 +279,12 @@ async function collect(
         ? Object.fromEntries([...retained].map(([url, item]) => [url, item.at]))
         : undefined,
     );
+    const discoverySources = results.flatMap((result) =>
+      result.status === "fulfilled" && result.value.sources
+        ? [result.value.sources]
+        : [],
+    );
+    if (discoverySources.length) collected.discoverySources = discoverySources;
     // Preserve the legacy storage shape unless Google's explicit unknown would look like a failed read.
     if (
       results.every((result) => result.status === "fulfilled") &&
@@ -297,9 +295,9 @@ async function collect(
       // A mixed batch cannot use the receipt-wide marker. Record only the unknowns Google actually returned.
       const answered = results.flatMap((result) =>
         result.status === "fulfilled" &&
-        result.value.verdict === "VERDICT_UNSPECIFIED" &&
-        gscPropertyCovers(property, [result.value.pageUrl])
-          ? [result.value.pageUrl]
+        result.value.page.verdict === "VERDICT_UNSPECIFIED" &&
+        gscPropertyCovers(property, [result.value.page.pageUrl])
+          ? [result.value.page.pageUrl]
           : [],
       );
       if (answered.length) collected.answeredUnknownPageUrls = answered;
@@ -442,7 +440,10 @@ export async function readSeoTaskIndexing(
       );
       return {
         receipt: saved ? { ...receipt, assessmentSaved: true } : receipt,
-        retryable: shouldRetryInspection(payload),
+        retryable:
+          (context.searchConsoleAccess === undefined ||
+            context.integration !== null) &&
+          shouldRetryInspection(payload),
       };
     }, "The audit changed before its indexing evidence could be saved. Please retry.");
   } finally {
@@ -532,7 +533,11 @@ export async function recordSeoTaskIndexingResult(
             inspected &&
             googleReturnedUnknown(parsed.data, inspected)
           )
-            return { ...page, checkedAt, googleReturnedUnknown: true };
+            return {
+              ...page,
+              ...(checkedAt !== undefined ? { checkedAt } : {}),
+              googleReturnedUnknown: true,
+            };
           if (!checkedAt) return page;
           const retained = parsed.data.retainedAssessments?.find(
             (assessment) => assessment.pageUrl === page.pageUrl,

@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-info
-version: 0.49.0
+version: 0.50.0
 description: Print configuration and verify authentication
 requires:
   bins: ["sentry"]
@@ -16,6 +16,7 @@ Print configuration and verify authentication
 Print configuration and verify authentication
 
 **Flags:**
+
 - `--config-status-json - Emit configuration + auth status as JSON (for external tooling); always exits 0`
 - `--no-defaults - Verify only authentication, without requiring a default org/project`
 

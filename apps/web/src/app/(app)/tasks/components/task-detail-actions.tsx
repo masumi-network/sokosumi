@@ -69,6 +69,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
     taskVisibility,
     actionsMenuLabel,
     labels,
+    workspaceId,
     currentOrganizationId,
     organizations,
     personalWorkspaceLabel,
@@ -171,7 +172,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
             <Button
               ref={menuTriggerRef}
               type="button"
-              variant="outline"
+              variant="ghost"
               size="icon"
               className="size-10 md:size-8 shrink-0"
               aria-label={actionsMenuLabel}
@@ -612,6 +613,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
 
       <TaskLinkTaskPickerDialog
         taskId={taskId}
+        workspaceId={workspaceId ?? currentOrganizationId ?? "personal"}
         open={isTaskPickerOpen}
         onOpenChange={(open) => {
           setIsTaskPickerOpen(open);
@@ -628,6 +630,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
         <TaskSubtaskMenuDialogs
           model={subtaskActions}
           taskId={taskId}
+          workspaceId={workspaceId ?? currentOrganizationId ?? "personal"}
           assigneeOptions={model.coworkerOptions}
           onCloseAutoFocus={returnFocusToMenu}
         />

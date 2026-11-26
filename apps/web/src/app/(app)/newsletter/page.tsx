@@ -34,7 +34,10 @@ export default async function NewsletterPage({
 
   const scope = await loadNewsletterProject(searchParams);
   if (!scope.project) {
-    return newsletterWorkspacePage({ unavailable: scope.unavailable });
+    return newsletterWorkspacePage({
+      unavailable: scope.unavailable,
+      showSearch: true,
+    });
   }
   const { id } = scope.project;
   const newsletter = await newsletterService.getSettings(id);

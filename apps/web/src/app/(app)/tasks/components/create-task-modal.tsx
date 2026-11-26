@@ -7,16 +7,15 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
+  useRef,
   useState,
 } from "react";
-import { toast } from "sonner";
-import { loadCreateTaskModalData } from "@/app/tasks/actions";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useCreateTaskModalData } from "@/hooks/effects/use-create-task-modal-data";
 import { zonedDateTimeLocalToUtc } from "@/lib/schedules/zoned-datetime";
 import type { CoworkerOption } from "@/lib/types/coworker";
-import { AgentSpotlightSkeleton } from "./agent-spotlight";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
 import {
   TaskForm,
@@ -217,12 +216,6 @@ function runAtPrefillToIso(runAt: RunAtPrefill | null): string | null {
   );
 }
 
-interface LoadedCreateData {
-  agentNameById: Map<string, string>;
-  designMdAttachment: TaskFormInitialDesignMdAttachment | null;
-  projectOptions: ProjectFilterOption[];
-}
-
 interface CreateTaskModalProps {
   coworkerOptions: CoworkerOption[];
   /** Omit to load workspace projects after open (agents gallery). Pass `[]` to show an empty chip without fetching. */
@@ -273,9 +266,15 @@ export function CreateTaskModal({
   const [isCreated, setIsCreated] = useState(false);
   // Bumped to remount the form with a clean slate for "Create another task".
   const [resetKey, setResetKey] = useState(0);
+  const hasTypedTextRef = useRef(false);
   const ownsCreateData = agentNameByIdProp !== undefined;
-  const [loadedCreateData, setLoadedCreateData] =
-    useState<LoadedCreateData | null>(null);
+  const loadedCreateData = useCreateTaskModalData({
+    ownsCreateData,
+    isLoadingOptions,
+    open,
+    initialCreateTaskOpen,
+    tTasksErrors,
+  });
   const agentNameById = agentNameByIdProp ?? loadedCreateData?.agentNameById;
   const initialDesignMdAttachment =
     initialDesignMdAttachmentProp ??
@@ -285,38 +284,6 @@ export function CreateTaskModal({
     projectOptions ?? loadedCreateData?.projectOptions;
   const selectedProjectId =
     projectOverrideId !== undefined ? projectOverrideId : defaultProjectId;
-
-  useEffect(() => {
-    if (ownsCreateData || isLoadingOptions) return;
-    if (!open && !initialCreateTaskOpen) return;
-    if (loadedCreateData) return;
-
-    let cancelled = false;
-    void loadCreateTaskModalData()
-      .then((data) => {
-        if (cancelled) return;
-        setLoadedCreateData({
-          agentNameById: new Map(Object.entries(data.agentNameById)),
-          designMdAttachment: data.designMdAttachment,
-          projectOptions: data.projectOptions,
-        });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        toast.error(tTasksErrors("loadCreateTask"));
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    initialCreateTaskOpen,
-    isLoadingOptions,
-    loadedCreateData,
-    open,
-    ownsCreateData,
-    tTasksErrors,
-  ]);
 
   const stripCreateTaskSearchParams = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -341,6 +308,7 @@ export function CreateTaskModal({
     // opened in place must leave the page's own URL alone.
     if (initialCreateTaskOpen) stripCreateTaskSearchParams();
     setIsCreated(false);
+    hasTypedTextRef.current = false;
     handleClose();
   }, [handleClose, initialCreateTaskOpen, stripCreateTaskSearchParams]);
 
@@ -355,6 +323,8 @@ export function CreateTaskModal({
       title={t("title")}
       cancelLabel={isCreated ? t("close") : t("cancel")}
       isDismissDisabled={isDismissDisabled}
+      variant="composer"
+      hasUnsavedText={() => !isCreated && hasTypedTextRef.current}
     >
       {isLoadingOptions ? (
         <NewTaskWizardLoading />
@@ -382,27 +352,6 @@ export function CreateTaskModal({
             unavailableAssignee: t("unavailableAssignee"),
             changeCoworker: t("changeCoworker"),
             noCoworkerMatches: t("noCoworkerMatches"),
-            defaultBadge: t("defaultBadge"),
-            modelLabel: t("modelLabel"),
-            hostingLabel: t("hostingLabel"),
-            taskStepTitle: t.raw("taskStepTitle") as string,
-            noResults: t("noAgentsFound"),
-            tasksTitle: t.has("tasksTitle")
-              ? t("tasksTitle")
-              : "Ready-To-Run Tasks",
-            startFromScratch: t.has("startFromScratch")
-              ? t("startFromScratch")
-              : "Start from scratch",
-            startFromScratchHint: t.has("startFromScratchHint")
-              ? t("startFromScratchHint")
-              : "Write your own instructions",
-            previewExample: t.has("previewExample")
-              ? t("previewExample")
-              : "Preview example",
-            previewUse: t.has("previewUse") ? t("previewUse") : "Use this task",
-            previewEmpty: t.has("previewEmpty")
-              ? t("previewEmpty")
-              : "No example output available yet.",
             status: t("status"),
             statusDescription: t("statusDescription"),
             statusDraft: t("statusDraft"),
@@ -412,7 +361,6 @@ export function CreateTaskModal({
             statusReady: t("statusReady"),
             untitledTask: t("untitledTask"),
             saveError: t("saveError"),
-            back: t("back"),
             uploadFile: t("uploadFile"),
             uploadFileError: t("uploadFileError"),
             uploadingFile: getTaskAttachmentUploadLabelTemplate(
@@ -469,6 +417,9 @@ export function CreateTaskModal({
           onCreateTask={onCreateTask}
           onCancel={handleDismiss}
           onSubmittingChange={setIsDismissDisabled}
+          onDirtyChange={(dirty) => {
+            hasTypedTextRef.current = dirty;
+          }}
           onCreatedChange={setIsCreated}
           // No router.refresh() here: `createTask` calls revalidatePath, so its
           // response already carries the current page. A refresh on top holds
@@ -477,10 +428,12 @@ export function CreateTaskModal({
           onCreated={onTaskCreated}
           onSuccess={(task) => {
             storeTasksReturnPath();
+            setIsCreated(false);
             handleClose();
             router.push(taskHref(task));
           }}
           onCreateAnother={() => {
+            hasTypedTextRef.current = false;
             clearPromptOverride();
             setIsCreated(false);
             setResetKey((key) => key + 1);
@@ -491,8 +444,7 @@ export function CreateTaskModal({
   );
 }
 
-// Same wrapper as the wizard's first step, so the skeleton sits exactly where
-// the spotlight will.
+// The composer's shape, so nothing jumps when the lists arrive.
 function NewTaskWizardLoading() {
   const tTasks = useTranslations("App.Tasks");
 
@@ -502,9 +454,24 @@ function NewTaskWizardLoading() {
       aria-busy="true"
       aria-label={tTasks("Actions.loading")}
       data-testid="new-task-wizard-loading"
-      className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8 md:py-0"
+      className="flex min-h-0 flex-1 flex-col"
     >
-      <AgentSpotlightSkeleton />
+      <div className="flex-1 space-y-4 px-5 pt-2 pb-3 md:px-6">
+        <Skeleton className="h-7 w-2/5" />
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+      </div>
+      <div className="flex gap-1.5 px-5 pb-3 md:px-6">
+        <Skeleton className="h-7 w-20 rounded-full" />
+        <Skeleton className="h-7 w-24 rounded-full" />
+        <Skeleton className="h-7 w-20 rounded-full" />
+        <Skeleton className="h-7 w-24 rounded-full" />
+      </div>
+      <div className="flex items-center justify-end border-t px-5 py-3 md:px-6">
+        <Skeleton className="h-8 w-32" />
+      </div>
     </div>
   );
 }

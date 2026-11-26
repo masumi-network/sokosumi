@@ -325,7 +325,7 @@ export async function listSocialAccountStatistics(
   const allAccounts = await scopedConnections(input);
   const selected = selectedConnections(allAccounts, input);
   const where = statisticsPostWhere(selected, input);
-  const { cursor, take, skip } = parseCursorPagination(input);
+  const { cursor, take } = parseCursorPagination(input);
   if (
     cursor &&
     !(await prisma.socialAccountPost.findFirst({
@@ -352,7 +352,7 @@ export async function listSocialAccountStatistics(
         { id: "desc" },
       ],
       take: take + 1,
-      ...(cursor ? { cursor: { id: cursor }, skip } : {}),
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     }),
     selected.length
       ? prisma.socialAccountPost.findMany({

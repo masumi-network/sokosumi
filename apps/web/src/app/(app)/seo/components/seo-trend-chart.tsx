@@ -8,8 +8,12 @@ import {
   PenLine,
   ScanSearch,
 } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter } from "next-intl";
 import { type KeyboardEvent, type PointerEvent, useId, useState } from "react";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import {
   SEO_MARKER_KINDS,
@@ -20,6 +24,7 @@ import {
 } from "./seo-trend-model";
 
 interface SeoTrendChartProps {
+  report?: boolean;
   points: ProjectSeoMetric["points"];
   unit: ProjectSeoMetric["unit"];
   /** What the chart shows: "Search clicks". */
@@ -66,9 +71,12 @@ export function SeoTrendChart({
   joinReads,
   positionNote,
   series,
+  report = false,
 }: SeoTrendChartProps) {
-  const t = useTranslations("App.Seo.overview");
-  const format = useFormatter();
+  const t = useSeoResultTranslations("App.Seo.overview", report);
+  const local = useFormatter();
+  const english = useSeoResultFormatter();
+  const format = report ? english : local;
   const hintId = useId();
   const [active, setActive] = useState<number | null>(null);
   const [announced, setAnnounced] = useState<number | null>(null);
@@ -155,7 +163,7 @@ export function SeoTrendChart({
     plottedChanges.some((change) => change.kind === kind),
   );
   return (
-    <figure className="min-w-0 space-y-3">
+    <figure lang={report ? "en" : undefined} className="min-w-0 space-y-3">
       <div
         role="group"
         aria-label={label}
@@ -452,24 +460,26 @@ export function SeoTrendChart({
         </ul>
       ) : null}
       {/* Every day in words for a screen reader, which cannot steer the readout in browse mode. */}
-      <table className="sr-only">
-        <thead>
-          <tr>
-            <th scope="col">{t("day")}</th>
-            <th scope="col">{label}</th>
-            <th scope="col">{t("markerEvents")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {model.points.map((point) => (
-            <tr key={point.date}>
-              <td>{day(point.date)}</td>
-              <td>{value(point)}</td>
-              <td>{format.list(changeOn(point.date) ?? [])}</td>
+      <div className="sr-only">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">{t("day")}</th>
+              <th scope="col">{label}</th>
+              <th scope="col">{t("markerEvents")}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {model.points.map((point) => (
+              <tr key={point.date}>
+                <td>{day(point.date)}</td>
+                <td>{value(point)}</td>
+                <td>{format.list(changeOn(point.date) ?? [])}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {model.inverted ? (
         <figcaption className="text-muted-foreground text-xs">
           {positionNote ?? t("positionAxis")}

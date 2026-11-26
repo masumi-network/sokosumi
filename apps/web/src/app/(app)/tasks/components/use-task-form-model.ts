@@ -1,15 +1,14 @@
 "use client";
 
 import type { Project } from "@sokosumi/core-client";
-import { TaskStatus } from "@sokosumi/core-client";
+import { TaskPriority, TaskStatus } from "@sokosumi/core-client";
 import { taskContextSelectionResolvesAnything } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
+  type SetStateAction,
   useCallback,
-  useEffect,
   useId,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -25,6 +24,8 @@ import {
 } from "@/app/tasks/utils/task-form-status";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import { useLayoutFocusWhen } from "@/hooks/effects/use-focus-when";
+import { useTaskTagSuggestions } from "@/hooks/effects/use-task-tag-suggestions";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import type { useSession } from "@/lib/auth/auth.client";
 import {
@@ -40,7 +41,6 @@ import {
 import type { TaskFormLabels, TaskFormProps } from "./task-form-types";
 import { useTaskFormAttachments } from "./use-task-form-attachments";
 import { useTaskFormWorkspaceTags } from "./use-task-form-workspace-tags";
-import { useTaskTagSuggestions } from "./use-task-tag-suggestions";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
 
@@ -86,6 +86,7 @@ export function useTaskFormModel(
     showCancel = true,
     onSubmittingChange,
     onCreatedChange,
+    onDirtyChange,
   }: TaskFormProps,
   session: ReturnType<typeof useSession>["data"],
 ) {
@@ -105,7 +106,11 @@ export function useTaskFormModel(
   const isCopy = copyOfTaskId !== undefined;
   const workspaceKey = `${session?.user.id ?? ""}:${session?.session.activeOrganizationId ?? "personal"}`;
   const [isCreatingTag, setIsCreatingTag] = useState(false);
-  const [name, setName] = useState(initialValues?.name ?? "");
+  const initialName = initialValues?.name ?? "";
+  const [name, setNameState] = useState(initialName);
+  const [priority, setPriority] = useState<TaskPriority>(TaskPriority.NONE);
+  const [dueOn, setDueOn] = useState<string | null>(null);
+  const [createMore, setCreateMore] = useState(false);
   const [isPrivate, setIsPrivate] = useState(
     initialValues?.visibility === "PRIVATE",
   );
@@ -143,11 +148,7 @@ export function useTaskFormModel(
   const projectSelectRef = useRef<HTMLButtonElement>(null);
   const projectErrorId = useId();
   const privateDescriptionId = useId();
-  useLayoutEffect(() => {
-    if (isProjectMissing) {
-      projectSelectRef.current?.focus();
-    }
-  }, [isProjectMissing]);
+  useLayoutFocusWhen(projectSelectRef, isProjectMissing);
   const [contextSelection, setContextSelection] =
     useState<TaskContextAttachmentsSelection>(
       () =>
@@ -156,7 +157,28 @@ export function useTaskFormModel(
     );
   const initialDescription =
     initialContext?.body ?? initialValues?.description ?? "";
-  const [description, setDescription] = useState(initialDescription);
+  const [description, setDescriptionState] = useState(initialDescription);
+  // Reported from the change handlers, not an effect: the modal asks before
+  // it throws away typed text.
+  const nameRef = useRef(initialName);
+  const descriptionRef = useRef(initialDescription);
+  const reportDirty = () =>
+    onDirtyChange?.(
+      nameRef.current.trim() !== initialName.trim() ||
+        descriptionRef.current.trim() !== initialDescription.trim(),
+    );
+  const setName = (next: string) => {
+    nameRef.current = next;
+    setNameState(next);
+    reportDirty();
+  };
+  const setDescription = (action: SetStateAction<string>) => {
+    const next =
+      typeof action === "function" ? action(descriptionRef.current) : action;
+    descriptionRef.current = next;
+    setDescriptionState(next);
+    reportDirty();
+  };
   const [inlineCreatedProjects, setInlineCreatedProjects] = useState<
     ProjectFilterOption[]
   >([]);
@@ -209,83 +231,100 @@ export function useTaskFormModel(
     [coworkerOptions, initialValues?.assigneeSokoBotId],
   );
 
-  const coworkerTouchedRef = useRef(false);
-  const statusTouchedRef = useRef(initialValues?.status !== undefined);
-  const [assigneeId, setAssigneeId] = useState(defaultAssigneeId);
-  const initialRunAt = initialValues?.runAt ?? null;
-  // Only an agent can hold a Run at (Queued is agent-only), so a Calendar
-  // prefill for a person is dropped rather than sent and refused by Core.
-  const [runAt, setRunAt] = useState<string | null>(() =>
-    isAgentAssigneeFields(
-      resolveTaskAssigneeFields(
-        defaultAssigneeId,
-        coworkerOptions,
-        knownSokoBotId,
-        initialValues?.assigneeUserId,
-      ),
-    )
-      ? initialRunAt
-      : null,
+  const [coworkerTouched, setCoworkerTouched] = useState(false);
+  const [statusTouched, setStatusTouched] = useState(
+    initialValues?.status !== undefined,
   );
-  const [status, setStatus] = useState<TaskStatus>(() => {
-    if (initialValues?.status !== undefined) {
-      return initialValues.status;
-    }
-    const fields = resolveTaskAssigneeFields(
+  const [pickedAssigneeId, setPickedAssigneeId] = useState(defaultAssigneeId);
+  const assigneeId = coworkerTouched ? pickedAssigneeId : defaultAssigneeId;
+  const initialRunAt = initialValues?.runAt ?? null;
+  const isDefaultAgent = isAgentAssigneeFields(
+    resolveTaskAssigneeFields(
       defaultAssigneeId,
       coworkerOptions,
       knownSokoBotId,
       initialValues?.assigneeUserId,
-    );
+    ),
+  );
+  // Only an agent can hold a Run at (Queued is agent-only), so a Calendar
+  // prefill for a person is dropped rather than sent and refused by Core.
+  const [pickedRunAt, setPickedRunAt] = useState<string | null>(() =>
+    isDefaultAgent ? initialRunAt : null,
+  );
+  if (!coworkerTouched && !isDefaultAgent && pickedRunAt !== null) {
+    setPickedRunAt(null);
+  }
+  const runAt = !coworkerTouched && !isDefaultAgent ? null : pickedRunAt;
+  const [pickedStatus, setPickedStatus] = useState<TaskStatus>(() => {
+    if (initialValues?.status !== undefined) {
+      return initialValues.status;
+    }
     return resolveStatusForAssigneeAndRunAt({
-      isAgent: isAgentAssigneeFields(fields),
+      isAgent: isDefaultAgent,
       hasRunAt: initialRunAt !== null,
     });
   });
-
-  useLayoutEffect(() => {
-    if (coworkerTouchedRef.current) return;
-    setAssigneeId(defaultAssigneeId);
-    const isAgent = isAgentAssigneeFields(
-      resolveTaskAssigneeFields(
-        defaultAssigneeId,
-        coworkerOptions,
-        knownSokoBotId,
-        initialValues?.assigneeUserId,
-      ),
-    );
-    if (!isAgent) setRunAt(null);
-    if (!statusTouchedRef.current) {
-      setStatus(
-        resolveStatusForAssigneeAndRunAt({
-          isAgent,
-          hasRunAt: isAgent && runAt !== null,
-        }),
-      );
-    }
-  }, [
-    defaultAssigneeId,
-    coworkerOptions,
-    knownSokoBotId,
-    initialValues?.assigneeUserId,
-    runAt,
-  ]);
+  const status =
+    !coworkerTouched && !statusTouched
+      ? resolveStatusForAssigneeAndRunAt({
+          isAgent: isDefaultAgent,
+          hasRunAt: isDefaultAgent && runAt !== null,
+        })
+      : pickedStatus;
 
   const [isRunAtModalOpen, setIsRunAtModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmittingState] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const isUploadingRef = useRef(false);
+  const lastReportedBusyRef = useRef(false);
+  const onSubmittingChangeRef = useRef(onSubmittingChange);
+  onSubmittingChangeRef.current = onSubmittingChange;
+  const notifyBusyChange = useCallback(
+    (nextSubmitting: boolean, nextUploading: boolean) => {
+      isSubmittingRef.current = nextSubmitting;
+      isUploadingRef.current = nextUploading;
+      const nextBusy = nextSubmitting || nextUploading;
+      if (nextBusy !== lastReportedBusyRef.current) {
+        lastReportedBusyRef.current = nextBusy;
+        onSubmittingChangeRef.current?.(nextBusy);
+      }
+    },
+    [],
+  );
+  const setIsSubmitting = useCallback(
+    (next: boolean) => {
+      setIsSubmittingState(next);
+      notifyBusyChange(next, isUploadingRef.current);
+    },
+    [notifyBusyChange],
+  );
+  const handleUploadingChange = useCallback(
+    (uploading: boolean) => {
+      notifyBusyChange(isSubmittingRef.current, uploading);
+    },
+    [notifyBusyChange],
+  );
   // The tag receipt this create sends. Submitting turns the suggestion hook
   // off, which drops its receipt, so progress reads this snapshot instead.
   const [submittedTagReceipt, setSubmittedTagReceipt] = useState<
     string | undefined
   >();
-  const [createdTask, setCreatedTask] = useState<{
+  type CreatedTaskSnapshot = {
     id: string;
     identifier: string | null;
     name: string;
     status: "DRAFT" | "QUEUED" | "READY";
     statusLabel: string;
     scheduleLabel?: string;
-  } | null>(null);
+  };
+  const [createdTask, setCreatedTaskState] =
+    useState<CreatedTaskSnapshot | null>(null);
+  const onCreatedChangeRef = useRef(onCreatedChange);
+  onCreatedChangeRef.current = onCreatedChange;
+  const setCreatedTask = useCallback((next: CreatedTaskSnapshot | null) => {
+    setCreatedTaskState(next);
+    onCreatedChangeRef.current?.(next !== null);
+  }, []);
   const {
     pendingUploadFiles,
     setPendingUploadFiles,
@@ -296,19 +335,21 @@ export function useTaskFormModel(
     abortActiveUploads,
     handleAttachFiles,
     handleRemoveAttachment,
-  } = useTaskFormAttachments(description, setDescription, labels);
+  } = useTaskFormAttachments(
+    description,
+    setDescription,
+    labels,
+    handleUploadingChange,
+  );
   const mentionOptions = useMemo(
     () => convertAgentNamesToMentionOptions(agentNameById),
     [agentNameById],
   );
   const isSubmittingAny = isSubmitting;
-  useEffect(() => {
-    onCreatedChange?.(createdTask !== null);
-  }, [createdTask, onCreatedChange]);
 
   const handleCoworkerSelect = useCallback(
     (id: string) => {
-      coworkerTouchedRef.current = true;
+      setCoworkerTouched(true);
       const previousFields = resolveTaskAssigneeFields(
         assigneeId,
         coworkerOptions,
@@ -316,7 +357,7 @@ export function useTaskFormModel(
         initialValues?.assigneeUserId,
       );
       const previousIsAgent = isAgentAssigneeFields(previousFields);
-      setAssigneeId(id);
+      setPickedAssigneeId(id);
       const fields = resolveTaskAssigneeFields(
         id,
         coworkerOptions,
@@ -332,25 +373,23 @@ export function useTaskFormModel(
 
       // Queued is agent-only, so a person or no one cannot keep a Run at.
       const keptRunAt = isAgent ? runAt : null;
-      if (keptRunAt !== runAt) {
-        setRunAt(null);
-      }
+      setPickedRunAt(keptRunAt);
 
       const shouldResolveStatus =
-        (!isCopy && (!statusTouchedRef.current || assigneeKindChanged)) ||
+        (!isCopy && (!statusTouched || assigneeKindChanged)) ||
         (status === TaskStatus.QUEUED &&
           !canSelectQueuedTaskStatus({
             isAgent,
             hasRunAt: keptRunAt !== null,
           }));
-      if (shouldResolveStatus) {
-        setStatus(
-          resolveStatusForAssigneeAndRunAt({
-            isAgent,
-            hasRunAt: keptRunAt !== null,
-          }),
-        );
-      }
+      setPickedStatus(
+        shouldResolveStatus
+          ? resolveStatusForAssigneeAndRunAt({
+              isAgent,
+              hasRunAt: keptRunAt !== null,
+            })
+          : status,
+      );
     },
     [
       assigneeId,
@@ -360,15 +399,16 @@ export function useTaskFormModel(
       initialValues?.assigneeUserId,
       runAt,
       status,
+      statusTouched,
     ],
   );
 
   const handleStatusSelect = useCallback((value: TaskStatus) => {
-    statusTouchedRef.current = true;
-    setStatus(value);
+    setStatusTouched(true);
+    setPickedStatus(value);
     // A Run at only exists on a Queued Task; leaving Queued drops it.
     if (value !== TaskStatus.QUEUED) {
-      setRunAt(null);
+      setPickedRunAt(null);
     }
   }, []);
 
@@ -428,11 +468,10 @@ export function useTaskFormModel(
         datetime: formatter.dateTime(new Date(runAt), "dateTime"),
       })
     : null;
-  useEffect(() => {
-    onSubmittingChange?.(isSubmittingAny || isUploadingAttachments);
-  }, [isSubmittingAny, isUploadingAttachments, onSubmittingChange]);
   const hasSaveableDescription =
     Boolean(description.trim()) ||
+    // A new Task may be just a title; it is sent as the description too.
+    (mode === "create" && Boolean(name.trim())) ||
     (mode === "edit" &&
       taskContextSelectionResolvesAnything(contextSelection, {
         projectDesignMdUrl: selectedProject?.designMd?.url ?? null,
@@ -469,29 +508,8 @@ export function useTaskFormModel(
     isSubmittingAny ||
     isUploadingAttachments;
 
-  // Two-step create flow: 1 = spotlight (pick a coworker + a ready-to-run task,
-  // or start from scratch), 2 = compose. Skip the wizard only when a coworker
-  // is prefilled (gallery offer, agents-page deep link). A prompt alone does not
-  // skip step 1 — otherwise a bad coworker slug would land on compose with the
-  // default assignee.
-  const hasPrefilledAssignee = Boolean(
-    initialValues?.assigneeId ??
-      initialValues?.assigneeSokoBotId ??
-      initialValues?.assigneeUserId,
-  );
-  const useWizard = mode === "create" && !hasPrefilledAssignee && !isCopy;
-  const [step, setStep] = useState<1 | 2>(
-    hasPrefilledAssignee || isCopy ? 2 : 1,
-  );
-  const showTaskStep = !useWizard || step === 2;
-  const useComposeLayout = mode === "create" && showTaskStep;
-  const useModalFieldFill = showTaskStep;
   const canUseSubmitShortcut =
-    showTaskStep &&
-    !isSaveDisabled &&
-    !isCreateProjectModalOpen &&
-    !isRunAtModalOpen;
-  const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
+    !isSaveDisabled && !isCreateProjectModalOpen && !isRunAtModalOpen;
   const statusPickerLabels = useMemo(
     () =>
       Object.fromEntries(
@@ -569,19 +587,6 @@ export function useTaskFormModel(
     [coworkerOptions, runAt],
   );
   const isAssigneeLockedToAgent = runAt !== null;
-  const showAssigneePicker = mode === "edit" || isCopy;
-  const showModalCoworkerHeader =
-    useComposeLayout && selectedOption !== undefined;
-  const taskFieldsBorder =
-    showModalCoworkerHeader || showAssigneePicker ? "border-t" : "";
-  const cardLabels = useMemo(
-    () => ({
-      defaultBadge: labels.defaultBadge ?? "Default",
-      modelLabel: labels.modelLabel ?? "Model",
-      hostingLabel: labels.hostingLabel ?? "Hosting",
-    }),
-    [labels.defaultBadge, labels.modelLabel, labels.hostingLabel],
-  );
 
   const handleCancel = () => {
     abortActiveUploads();
@@ -597,15 +602,15 @@ export function useTaskFormModel(
   };
 
   function handleRunAtApply(value: string) {
-    setRunAt(value);
-    setStatus(TaskStatus.QUEUED);
+    setPickedRunAt(value);
+    setPickedStatus(TaskStatus.QUEUED);
   }
 
   function handleRunAtClear() {
-    setRunAt(null);
+    setPickedRunAt(null);
     // Removing the time on a saved Task must not start it: like Core's
     // PATCH, it goes back to Draft. A new Task takes the usual default.
-    setStatus(
+    setPickedStatus(
       mode === "edit"
         ? TaskStatus.DRAFT
         : resolveStatusForAssigneeAndRunAt({
@@ -614,6 +619,20 @@ export function useTaskFormModel(
           }),
     );
   }
+
+  // "Create more": the next Task keeps its properties and starts with an
+  // empty title and description.
+  const [composeKey, setComposeKey] = useState(0);
+  const onCreateMore = () => {
+    nameRef.current = "";
+    descriptionRef.current = "";
+    setNameState("");
+    setDescriptionState("");
+    onDirtyChange?.(false);
+    workspaceSelection.setWorkspaceTags([]);
+    setSubmittedTagReceipt(undefined);
+    setComposeKey((key) => key + 1);
+  };
 
   const handleGoToTask = () => {
     if (!createdTask) return;
@@ -660,8 +679,13 @@ export function useTaskFormModel(
     privateDescriptionId,
     contextSelection,
     setContextSelection,
-    initialDescription,
     description,
+    priority,
+    setPriority,
+    dueOn,
+    setDueOn,
+    createMore,
+    setCreateMore,
     setDescription,
     localProjectOptions,
     isCreateProjectModalOpen,
@@ -696,13 +720,6 @@ export function useTaskFormModel(
     hasRunAt,
     runAtLabel,
     isSaveDisabled,
-    useWizard,
-    step,
-    setStep,
-    showTaskStep,
-    useComposeLayout,
-    useModalFieldFill,
-    taskStepTitle,
     statusPickerLabels,
     draftTags,
     selectedOption,
@@ -713,10 +730,6 @@ export function useTaskFormModel(
     showPrivateControl,
     availableAssigneeOptions,
     isAssigneeLockedToAgent,
-    showAssigneePicker,
-    showModalCoworkerHeader,
-    taskFieldsBorder,
-    cardLabels,
     handleCancel,
     handleRunAtApply,
     handleRunAtClear,
@@ -738,5 +751,7 @@ export function useTaskFormModel(
     setSubmittedTagReceipt,
     setCreatedTask,
     canUseSubmitShortcut,
+    composeKey,
+    onCreateMore,
   };
 }

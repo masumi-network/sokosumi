@@ -802,7 +802,7 @@ body:has(.ob) .site-header {
 
 /* Facts to read, not rows to open: no box and no fill, only a hairline. */
 .ob-plan .ob-goal-facts {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   width: 100%;
   gap: 16px 24px;
   padding-top: 20px;
@@ -840,6 +840,19 @@ body:has(.ob) .site-header {
 
 .ob-goal-facts dd {
   margin: 2px 0 0;
+}
+
+/* Write a new strategy: a quiet button under the goal, not a bar. */
+.ob-plan-body > .button-small {
+  justify-self: center;
+}
+
+/* Where: the networks as marks, named for screen readers and on hover. */
+.ob-goal-networks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
 }
 
 /* Tiles: one idea a row, in one group; the row opens its sheet. */
@@ -1617,13 +1630,6 @@ body:has(.ob) .site-header {
   padding: 14px 20px;
 }
 
-.ob-budget-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
 .ob-approved {
   display: grid;
   margin: 0;
@@ -1637,10 +1643,6 @@ body:has(.ob) .site-header {
 
 .ob-approved li + li {
   border-top: 1px solid var(--border);
-}
-
-.ob-pace {
-  padding: 14px 20px;
 }
 
 .ob-tabs {
@@ -1696,6 +1698,8 @@ body:has(.ob) .site-header {
 
 /* Inside a tab panel the plan's sections are not cards: hairline dividers. */
 .ob-tabpanel .bb-section {
+  /* Title above its body, as on the app's page: one left edge for all. */
+  grid-template-columns: minmax(0, 1fr);
   padding: 24px 0;
   border: 0;
   border-top: 1px solid var(--border);
@@ -1832,6 +1836,29 @@ body:has(.ob) .site-header {
 }
 
 /* Before approval a piece is a topic: a dashed outline until it is made. */
+/* "+N more": a quiet line under a day's first cards that opens the rest. */
+.ob-day-more {
+  justify-self: start;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--radius-mark);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ob-day-more:hover {
+  color: var(--foreground);
+}
+
+.ob-day-more:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
 .ob-entry.pending {
   border-style: dashed;
 }
@@ -1839,20 +1866,6 @@ body:has(.ob) .site-header {
 .ob-entry-media {
   margin-left: auto;
   color: var(--foreground);
-}
-
-.ob-entry-pillar {
-  justify-self: start;
-  max-width: 100%;
-  overflow: hidden;
-  margin-top: 2px;
-  padding: 0 6px;
-  border-radius: var(--radius-mark);
-  background: var(--surface);
-  color: var(--muted);
-  font-size: 0.6875rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .ob-month-pending {
@@ -1873,12 +1886,6 @@ body:has(.ob) .site-header {
 
 .ob-month-pending svg {
   margin-top: 2px;
-}
-
-.ob-month-counts {
-  grid-column: 2;
-  color: var(--muted);
-  font-size: 0.875rem;
 }
 
 .ob-entry-title {
@@ -1911,6 +1918,12 @@ body:has(.ob) .site-header {
 .ob-metrics b {
   font-size: 1rem;
   font-weight: 600;
+}
+
+/* In a tab panel the cells sit on the panel itself: one left edge. */
+.ob-tabpanel .ob-metrics li {
+  padding: 0;
+  background: none;
 }
 
 /* How it works: four steps on one line, joined by a hairline. */
@@ -2019,7 +2032,6 @@ body:has(.ob) .site-header {
 }
 
 .ob-checkout > .ob-plan-options,
-.ob-checkout > .ob-gets,
 .ob-checkout > .ob-wide {
   width: 100%;
 }
@@ -2027,27 +2039,42 @@ body:has(.ob) .site-header {
 /* The plans side by side, so their prices compare at a glance. */
 .ob-checkout > .ob-plan-options {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
-/* What the month holds, so the price reads against it. */
-.ob-gets {
-  display: grid;
-  gap: 12px;
-  margin: 0;
-  padding: 20px;
+/* The month's networks as their marks, under the lead. */
+.ob-networks-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  margin: 8px 0 0;
+  padding: 0;
   list-style: none;
 }
 
-.ob-gets li {
-  display: grid;
-  grid-template-columns: 16px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
+.ob-networks-row li {
+  display: flex;
 }
 
-.ob-gets svg {
-  margin-top: 4px;
+/* Monthly / Yearly is the page's one switch, so it reads a size up. */
+.ob-billing button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  font-size: 0.875rem;
+}
+
+/* The yearly saving as a count pill: ink with inverted text. */
+.ob-save {
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--strip);
+  color: var(--strip-foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 /* Sits on the card's top edge, so the plans' names stay in line. */
@@ -2069,31 +2096,88 @@ body:has(.ob) .site-header {
   font-weight: 600;
 }
 
-/* What lowers the risk of paying, in one quiet row. */
-.ob-trust {
+.ob-checkout > .legal-notice,
+.ob-credits-buy {
+  text-align: center;
+}
+
+/* One customer in their own words: calm, under the plans. */
+.ob-quote {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  margin: 8px 0 0;
+  padding: 0 0 0 16px;
+  border-left: var(--line-width) solid var(--line);
+}
+
+.ob-quote blockquote {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  text-wrap: pretty;
+}
+
+.ob-quote figcaption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+}
+
+.ob-quote figcaption > span:last-child {
+  display: grid;
+}
+
+.ob-quote-name {
+  font-weight: 600;
+}
+
+.ob-quote-avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--strip);
+  object-fit: cover;
+}
+
+.ob-start {
+  width: 100%;
+}
+
+/* On a phone the Start button stays on screen above the plans, clear of the
+   home indicator; in the flow it rests in its own place, so nothing jumps. */
+@media (max-width: 599px) {
+  .ob-start {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    width: calc(100% + 32px);
+    margin-inline: -16px;
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: var(--background);
+  }
+}
+
+/* What makes saying yes safe, right under the button. */
+.ob-assure {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 4px 16px;
   margin: 0;
   padding: 0;
-  color: var(--muted);
-  font-size: 0.875rem;
   list-style: none;
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
-.ob-trust li {
+.ob-assure li {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.ob-trust li::before {
-  content: "";
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--muted);
 }
 
 .ob-plan-options {
@@ -2140,6 +2224,66 @@ body:has(.ob) .site-header {
   font-size: 1rem;
   line-height: 1.25rem;
   font-weight: 600;
+}
+
+/* The top plan stands out picked or not: the 6px shadow, and wider in a row. */
+.ob-plan-option.ob-plan-top {
+  box-shadow: var(--shadow-big);
+}
+
+@media (min-width: 600px) {
+  .ob-checkout > .ob-plan-options:has(> :nth-child(3):last-child) {
+    grid-template-columns: 1fr 1fr 1.2fr;
+  }
+}
+
+/* Under the plan's name: outlined, ink on the top plan; the room is kept on
+   a card without one so every card's lines stay level. */
+.ob-plan-frame,
+.ob-plan-frame-room {
+  justify-self: start;
+  min-height: 20px;
+}
+
+.ob-plan-frame {
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  font-weight: 600;
+}
+
+.ob-plan-frame-top {
+  border-color: var(--strip);
+  background: var(--strip);
+  color: var(--strip-foreground);
+}
+
+/* What only the top plan adds, under a hairline, with a check. */
+.ob-plan-extra {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding-top: 8px;
+  border-top: 1px solid currentColor;
+}
+
+.ob-plan-extra svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.ob-plan-option .ob-value {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ob-plan-option .ob-swap {
+    animation: ob-fade 150ms ease-out;
+  }
 }
 
 .ob-confirming {
@@ -2318,8 +2462,14 @@ body:has(.ob) .site-header {
     right: 58%;
   }
 
+  /*
+   * Its right edge keeps the screen's 16px gutter, whatever the width, and
+   * it sits above Cuso's face rather than across it.
+   */
   .ob-tilt-b {
-    left: 58%;
+    top: 20%;
+    left: auto;
+    right: calc(16px - (100vw - 200px) / 2);
   }
 
   .ob-tilt-c {
@@ -2423,16 +2573,14 @@ body:has(.ob) .site-header {
 }
 
 /* The goal is the headline: short, two lines at most; the sentence under it. */
+/* The goal always reads in full: NMKR's ended "start their first Studi…" on a phone. */
 .ob-goal-headline {
-  display: -webkit-box;
-  overflow: hidden;
   font-size: 2.25rem;
   line-height: 2.375rem;
   font-weight: 600;
   letter-spacing: var(--tracking-heading);
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
+  overflow-wrap: break-word;
+  text-wrap: balance;
 }
 
 .ob-goal-statement {
@@ -2626,21 +2774,6 @@ body:has(.ob) .site-header {
 
 .ob-map-dot.you.flip {
   translate: calc(-100% + 9px) 50%;
-}
-
-.ob-swatches {
-  display: flex;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.ob-swatches li {
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-mark);
 }
 
 /* Side panel: a summary line, findings in hairline rows, one labelled field. */

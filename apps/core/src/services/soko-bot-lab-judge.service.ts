@@ -9,10 +9,21 @@ import {
 } from "@sokosumi/soko-bot";
 import { generateText, Output } from "ai";
 import { getEnv } from "@/config/env";
+import { jsonInput } from "@/helpers/prisma-json";
+import {
+  AiGatewayBudgetError,
+  rethrowAiGatewayFailure,
+} from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import {
+  chatGptPlanEffectiveModel,
+  localChatGptPlanEnabled,
+} from "@/lib/local-chatgpt-plan";
 import { runClaudeCodeJudge } from "@/lib/soko-bot/claude-code-judge";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
+import { modelCallTelemetryFor } from "@/lib/soko-bot/model-call-roles";
+import { recordModelCall, withModelCallTurn } from "@/lib/soko-bot/model-calls";
 import {
   assertSokoBotInferenceRegion,
   SokoBotModelPolicyError,
@@ -45,12 +56,26 @@ const TOOL_BUDGET = 60_000;
 
 export class SokoBotLabJudgeError extends Error {}
 
-/** The judge a verdict is recorded under: a Gateway id, or `claude-code:<model>`. */
-export function sokoBotJudgeModel(): string {
+/**
+ * Where the judge runs. A ChatGPT plan run defaults to Claude Code, which
+ * bills the subscription, not the Gateway; an explicit runner still wins.
+ */
+export function sokoBotJudgeRunner(): "gateway" | "claude-code" {
+  if (localChatGptPlanEnabled() && !process.env.SOKO_BOT_JUDGE_RUNNER)
+    return "claude-code";
+  return getEnv().SOKO_BOT_JUDGE_RUNNER;
+}
+
+/**
+ * The judge a verdict is recorded under: the model that actually ran, as a
+ * Gateway id, `claude-code:<model>` or, on a plan run, `chatgpt-plan:<slug>`.
+ */
+export function sokoBotJudgeModel(modelOverride?: string): string {
   const env = getEnv();
-  return env.SOKO_BOT_JUDGE_RUNNER === "claude-code"
-    ? `claude-code:${env.SOKO_BOT_JUDGE_CLAUDE_CODE_MODEL}`
-    : env.SOKO_BOT_JUDGE_MODEL;
+  if (sokoBotJudgeRunner() === "claude-code")
+    return `claude-code:${env.SOKO_BOT_JUDGE_CLAUDE_CODE_MODEL}`;
+  const model = modelOverride ?? env.SOKO_BOT_JUDGE_MODEL;
+  return chatGptPlanEffectiveModel(model) ?? model;
 }
 
 function clip(value: unknown, limit = VALUE_LIMIT): string {
@@ -204,7 +229,8 @@ export async function generateSokoBotJudgeText(options: {
     abortSignal: options.abortSignal,
     instructions: SOKO_BOT_JUDGE_RUBRIC,
     prompt: JSON.stringify(options.payload),
-  });
+    telemetry: modelCallTelemetryFor("soko-bot-judge"),
+  }).catch((error: unknown) => rethrowAiGatewayFailure(error, "evals"));
   assertSokoBotInferenceRegion(result.providerMetadata, {
     model: options.model,
     role: "judge",
@@ -225,7 +251,7 @@ async function askJudge(
     inference: [],
   };
   const env = getEnv();
-  const onClaudeCode = env.SOKO_BOT_JUDGE_RUNNER === "claude-code";
+  const onClaudeCode = sokoBotJudgeRunner() === "claude-code";
   if (onClaudeCode && env.VERCEL_ENV) {
     throw new SokoBotJudgeFailure(
       "SOKO_BOT_JUDGE_RUNNER=claude-code needs the local claude CLI and does not run on Vercel. Use the gateway judge here.",
@@ -241,6 +267,14 @@ async function askJudge(
           instructions: SOKO_BOT_JUDGE_RUBRIC,
           prompt: JSON.stringify(payload),
           timeoutMs: JUDGE_TIMEOUT_MS,
+        });
+        await recordModelCall({
+          role: "judge",
+          // Paid by the Claude Code subscription, so nothing is metered.
+          label: "not metered",
+          provider: "claude-code",
+          requestedModel: sokoBotJudgeModel(),
+          costUsd: 0,
         });
         return { verdict: sokoBotJudgeVerdictSchema.parse(output), usage };
       }
@@ -262,6 +296,7 @@ async function askJudge(
     } catch (error) {
       if (error instanceof SokoBotModelPolicyError) throw error;
       lastError = error;
+      if (error instanceof AiGatewayBudgetError) break;
     }
   }
   // Both attempts spent tokens. Throwing without reporting them would hide a
@@ -351,11 +386,15 @@ async function addTurnOverheadUsage(
   }, "Another judge recorded usage for this turn at the same moment");
 }
 
-async function storeTurnVerdict(turnId: string, call: JudgeCall) {
+async function storeTurnVerdict(
+  turnId: string,
+  call: JudgeCall,
+  model?: string,
+) {
   await addTurnOverheadUsage(turnId, call.usage, {
     qualityScore: overallScore(call.verdict),
-    qualityVerdict: call.verdict,
-    qualityModel: sokoBotJudgeModel(),
+    qualityVerdict: jsonInput(call.verdict),
+    qualityModel: sokoBotJudgeModel(model),
     judgedAt: new Date(),
   });
 }
@@ -401,11 +440,46 @@ export async function loadLabJudgePayload(turnId: string, scenarioId: string) {
 export async function judgeEvalScenarioTurn(
   turnId: string,
   scenario: SokoBotScenario,
+  model?: string,
 ): Promise<{ verdict: SokoBotJudgeVerdict; model: string }> {
   const { transcript } = await loadTranscript(turnId);
-  const call = await askJudge(labJudgePayload(scenario, transcript));
-  await storeTurnVerdict(turnId, call);
-  return { verdict: call.verdict, model: sokoBotJudgeModel() };
+  const call = await withModelCallTurn(turnId, () =>
+    askJudge(labJudgePayload(scenario, transcript), model),
+  );
+  await storeTurnVerdict(turnId, call, model);
+  return { verdict: call.verdict, model: sokoBotJudgeModel(model) };
+}
+
+/**
+ * Grades an agent-to-agent case: the owner's turn and every follow-up, plus
+ * what the rooms said meanwhile. The verdict is stored on the last turn.
+ */
+export async function judgeEvalChain(
+  turnIds: string[],
+  scenario: SokoBotScenario,
+  roomLog: { room: string; from: string; content: string }[],
+  model?: string,
+): Promise<{ verdict: SokoBotJudgeVerdict; model: string }> {
+  const transcripts = await Promise.all(
+    turnIds.map(async (id) => (await loadTranscript(id)).transcript),
+  );
+  const last = transcripts.at(-1);
+  if (!last) throw new SokoBotLabJudgeError("Turn not found");
+  const call = await askJudge(
+    {
+      ...labJudgePayload(scenario, last),
+      note: "This case is a chain: `earlierTurns` are the owner's turn and the follow-ups before `turn`, in order, and `chatLog` is what the chat rooms said meanwhile (the other side's real answers). Grade the whole chain; `turn.finalAnswer` is what the owner read last.",
+      earlierTurns: transcripts
+        .slice(0, -1)
+        .map((transcript, index) =>
+          index === 0 ? transcript : { ...transcript, contextPacket: null },
+        ),
+      chatLog: roomLog,
+    },
+    model,
+  );
+  await storeTurnVerdict(turnIds.at(-1)!, call, model);
+  return { verdict: call.verdict, model: sokoBotJudgeModel(model) };
 }
 
 /**
@@ -433,9 +507,8 @@ export async function judgeSokoBotLabTurn(input: {
       versionId: turn.versionId ?? "unknown",
       passed: input.evaluation.passed,
       total: input.evaluation.total,
-      checks: input.evaluation.checks,
-      judge: judge ?? undefined,
-      judgeModel: judge ? model : undefined,
+      checks: jsonInput(input.evaluation.checks),
+      ...(judge ? { judge: jsonInput(judge), judgeModel: model } : {}),
     };
     await prisma.sokoBotLabRun.upsert({
       where: { turnId: input.turnId },
@@ -444,7 +517,9 @@ export async function judgeSokoBotLabTurn(input: {
     });
   };
   await record(null);
-  const call = await askJudge(labJudgePayload(scenario, transcript));
+  const call = await withModelCallTurn(input.turnId, () =>
+    askJudge(labJudgePayload(scenario, transcript)),
+  );
   await Promise.all([
     record(call.verdict),
     storeTurnVerdict(input.turnId, call),

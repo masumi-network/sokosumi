@@ -1,4 +1,5 @@
 /* The month on the founder's phones: each feed scrolls through its pieces. */
+/* One phone per network the month goes out on, every one of them. */
 .pf {
   display: flex;
   flex-wrap: wrap;

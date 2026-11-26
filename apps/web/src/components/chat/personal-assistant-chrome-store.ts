@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import type { LiveSokoBotFields } from "@/hooks/effects/use-live-soko-bot-poll";
 
 /**
  * Session flag: Personal Assistant chrome was shown for this account (beta).
@@ -42,24 +43,60 @@ export function getPersonalAssistantChromeVisible(): boolean {
 }
 
 /**
- * Your Soko Bot's id while it is in error (its last reply failed), from the
- * sidebar row's poll, so the chat list's Direct with it says the same thing
- * as that row instead of an always-online dot.
+ * Your Soko Bot as its sidebar row last polled it, so the chat list's Direct
+ * with it shows the same status dot and words as that row instead of an
+ * always-online dot.
  */
-let failedSokoBotId: string | null = null;
+export interface LiveSokoBotStatus extends LiveSokoBotFields {
+  id: string;
+}
 
-export function publishFailedSokoBotId(id: string | null): void {
-  if (failedSokoBotId === id) {
+const liveSokoBots = new Map<symbol, LiveSokoBotStatus>();
+let liveSokoBot: LiveSokoBotStatus | null = null;
+
+function isSameLiveSokoBot(
+  a: LiveSokoBotStatus | null,
+  b: LiveSokoBotStatus | null,
+): boolean {
+  return (
+    a?.id === b?.id &&
+    a?.status === b?.status &&
+    a?.lastActivityAt?.getTime() === b?.lastActivityAt?.getTime()
+  );
+}
+
+function syncLiveSokoBot(): void {
+  let next: LiveSokoBotStatus | null = null;
+  for (const bot of liveSokoBots.values()) {
+    next = bot;
+  }
+  if (isSameLiveSokoBot(liveSokoBot, next)) {
     return;
   }
-  failedSokoBotId = id;
+  liveSokoBot = next;
   notifyListeners();
 }
 
-export function useFailedSokoBotId(): string | null {
+export function publishLiveSokoBot(bot: LiveSokoBotStatus): () => void {
+  const token = Symbol();
+  liveSokoBots.set(token, bot);
+  syncLiveSokoBot();
+  return () => {
+    if (!liveSokoBots.delete(token)) {
+      return;
+    }
+    syncLiveSokoBot();
+  };
+}
+
+export function getLiveSokoBot(): LiveSokoBotStatus | null {
+  return liveSokoBot;
+}
+
+export function useLiveSokoBotStatus(): LiveSokoBotStatus | null {
   return useSyncExternalStore(
     subscribePersonalAssistantChromeVisible,
-    () => failedSokoBotId,
+    getLiveSokoBot,
     () => null,
   );
 }

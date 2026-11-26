@@ -35,6 +35,11 @@ export function companyUrl(
   return (exact ?? close)?.url;
 }
 
+/** The owner asked Cuso to fix this section and he has not yet. */
+export function fixPending(section: BrandSection | undefined): boolean {
+  return Boolean(section?.fix && !section.fix.fixed);
+}
+
 export function brandProfile(brain: BrandBrain): BrandProfile {
   return (brain.profile as BrandProfile | undefined) ?? {};
 }

@@ -95,7 +95,10 @@ export function buildThread(
   const production = overview.updates.filter(
     (update) => update.kind === "production",
   );
-  if (approvedAt && overview.production.total > 0) {
+  if (
+    approvedAt &&
+    (overview.production.total > 0 || overview.production.state === "planning")
+  ) {
     const latest = production.map((update) => iso(update.at) ?? created).sort();
     items.push({ kind: "production", at: latest.at(-1) ?? approvedAt });
   }
@@ -133,6 +136,8 @@ export type CusoState =
   | "planning"
   | "waiting-approval"
   | "waiting-channel"
+  | "blocked"
+  | "stuck"
   | "running";
 
 /** How Cuso looks: the pose of his avatar for that state. */
@@ -143,7 +148,7 @@ export type CusoPose =
   | "reporting"
   | "done";
 
-/** Each state in a word, for the chat header and Cuso's status card. */
+/** Each state in a word, for Cuso's status card. */
 const CUSO_STATE_LABEL: Record<CusoState, string> = {
   stopped: "Stopped",
   learning: "Learning",
@@ -153,6 +158,8 @@ const CUSO_STATE_LABEL: Record<CusoState, string> = {
   planning: "Planning",
   "waiting-approval": "Waiting for approval",
   "waiting-channel": "Waiting for a channel",
+  blocked: "Couldn't start",
+  stuck: "Month stopped",
   running: "On schedule",
 };
 
@@ -169,6 +176,8 @@ const STATE_POSE: Record<Exclude<CusoState, "running">, CusoPose> = {
   planning: "thinking",
   "waiting-approval": "needs-you",
   "waiting-channel": "needs-you",
+  blocked: "thinking",
+  stuck: "thinking",
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -184,10 +193,12 @@ export function cusoState(overview: CmoOverview): CusoState {
   if (!overview.strategy) return "planning";
   if (!strategyApproved(overview)) return "waiting-approval";
   if (overview.channels.length === 0) return "waiting-channel";
+  if (overview.production.state === "blocked") return "blocked";
+  if (overview.production.state === "stuck") return "stuck";
   return "running";
 }
 
-/** Cuso's state in a word, for the chat header. */
+/** Cuso's state in a word, for his status card. */
 export function cusoStatus(overview: CmoOverview): string {
   return CUSO_STATE_LABEL[cusoState(overview)];
 }
@@ -205,6 +216,7 @@ export function cusoPose(
   if (overview.work?.kind === "research") return "reading";
   if (
     overview.production.state === "running" ||
+    overview.production.state === "planning" ||
     overview.work?.status === "running"
   ) {
     return "thinking";

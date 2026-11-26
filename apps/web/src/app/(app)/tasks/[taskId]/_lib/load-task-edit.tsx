@@ -147,7 +147,6 @@ export async function loadTaskEdit(
       untitledTask: tEdit("untitledTask"),
       saveError: tEdit("saveError"),
       statusLabels: buildTaskStatusLabels((key) => tStatus(key)),
-      back: tEdit("back"),
       uploadFile: tEdit("uploadFile"),
       uploadFileError: tEdit("uploadFileError"),
       uploadingFile: getTaskAttachmentUploadLabelTemplate(

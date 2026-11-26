@@ -6,6 +6,8 @@ import { sokoBotTaskboardSyncService } from "@/services/soko-bot-taskboard-sync.
 
 import { syncSokoBotWatches } from "@/services/soko-bot-watches.service";
 import { syncTaskInterest } from "@/services/task-interest-delivery.service";
+import { syncTeamStandups } from "@/services/team-standup.service";
+import { syncWeekInReviews } from "@/services/team-standup-week.service";
 import { handleSyncRequest } from "../handler.js";
 
 const SOKO_BOT_EVENTS_SYNC_LOCK_KEY = "soko-bot-events-sync";
@@ -46,6 +48,16 @@ export default function mount(app: Hono) {
           shouldContinue: context.shouldContinue,
         });
         context.log.set({ result: { taskboard } });
+        if (!context.shouldContinue()) return;
+        const standups = await syncTeamStandups({
+          shouldContinue: context.shouldContinue,
+        });
+        context.log.set({ result: { standups } });
+        if (!context.shouldContinue()) return;
+        const weeksInReview = await syncWeekInReviews({
+          shouldContinue: context.shouldContinue,
+        });
+        context.log.set({ result: { weeksInReview } });
       },
       { errorDetail: "safe-fields" },
     );

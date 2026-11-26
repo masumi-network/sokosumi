@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -137,7 +137,11 @@ describe("TaskContextAttachmentsField", () => {
     });
     const briefingButton = screen.getByRole("button", { name: "briefing" });
     expect(brandButton).toHaveAttribute("aria-pressed", "true");
+    expect(within(brandButton).getByText("brand")).toBeInTheDocument();
     expect(brandButton.parentElement).toHaveClass("h-7", "text-xs");
+    const brandMenu = screen.getByRole("button", { name: "brandMenuAria" });
+    expect(brandMenu).toHaveClass("border-border");
+    expect(brandMenu).not.toHaveClass("border-current");
     expect(briefingButton).toHaveAttribute("aria-pressed", "true");
     expect(briefingButton).toHaveClass("h-7", "text-xs");
     expect(screen.getByRole("button", { name: /memory/ })).toHaveTextContent(
@@ -200,9 +204,11 @@ describe("TaskContextAttachmentsField", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "brandMenuAria" }));
-    await user.click(
-      screen.getByRole("menuitem", { name: "organizationBrand" }),
-    );
+    const organizationItem = screen.getByRole("menuitem", {
+      name: "organizationBrand",
+    });
+    expect(organizationItem).toHaveTextContent("Acme");
+    await user.click(organizationItem);
 
     expect(onSelectionChange).toHaveBeenCalledWith({
       ...selection,
@@ -232,7 +238,7 @@ describe("TaskContextAttachmentsField", () => {
       url: "https://blob.example/design-md/adhoc/user-1/hash.md",
       sourceUrl: "https://www.example.com",
     };
-    onGeneratedSpy(custom);
+    await act(async () => onGeneratedSpy(custom));
 
     expect(onSelectionChange).toHaveBeenCalledWith({
       ...selection,

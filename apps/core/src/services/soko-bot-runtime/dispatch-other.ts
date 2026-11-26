@@ -6,6 +6,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import { ExaUnavailableError, searchExa } from "@/lib/soko-bot/exa";
 import { evaluateWithJevForBot } from "@/lib/soko-bot/jev-tool";
+import { recordModelCall } from "@/lib/soko-bot/model-calls";
 import {
   RuntimeEventLog,
   runtimeEvent,
@@ -16,6 +17,8 @@ import {
   type ExecuteSokoBotToolInput,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
+import { writeCmoMonthPieces } from "./cmo-month-writer";
+import { writeCmoStrategy } from "./cmo-strategy-step";
 import { dispatchCompetitorTools } from "./competitors";
 import { EXA_SEARCHES_PER_TURN } from "./execution-limits";
 import { type RuntimeOperations } from "./operations";
@@ -63,6 +66,13 @@ export async function dispatchOtherTools(
     case "export_contacts_to_table":
       return runtime.exportContactsToTable(input, authorized);
 
+    case "fundraising_pipeline":
+
+    case "investor_warm_paths":
+
+    case "find_investors":
+      return runtime.executeFundraisingTool(input, authorized);
+
     case "create_project":
 
     case "update_project":
@@ -89,6 +99,12 @@ export async function dispatchOtherTools(
 
     case "report_update":
       return runtime.saveCmoRecord(authorized, input);
+
+    case "write_month_pieces":
+      return writeCmoMonthPieces(runtime, input, authorized);
+
+    case "write_strategy":
+      return writeCmoStrategy(runtime, input, authorized);
 
     case "evaluate_with_jev": {
       const parsed = sokoBotEvaluateWithJevInputSchema.parse(input.input);
@@ -150,6 +166,11 @@ export async function dispatchOtherTools(
             usage: { costUsd: found.costUsd },
           }),
         );
+        await recordModelCall({
+          role: "search",
+          requestedModel: "exa/search",
+          costUsd: found.costUsd,
+        });
       }
       // Said on every result, so Cuso stops before the cap refuses him.
       return { ...found, searchesLeft: EXA_SEARCHES_PER_TURN - searches };

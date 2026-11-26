@@ -26,10 +26,16 @@ export const projectFindUnique = vi.fn();
 export const projectFindFirst = vi.fn();
 export const projectUpdate = vi.fn();
 export const turnFindFirst = vi.fn();
+/** Recent turns for the finish resume; none unless a test seeds them. */
+export const turnFindMany = vi.fn(async (): Promise<unknown[]> => []);
+/** The turn a save runs in; null unless a test gives its message. */
+export const turnFindUnique = vi.fn();
 export const toolCallFindMany = vi.fn();
 export const toolCallFindFirst = vi.fn();
 export const connectionFindMany = vi.fn();
 export const workspaceFindUnique = vi.fn();
+/** Other Projects of the organization (another Cuso for the same site). */
+export const projectFindMany = vi.fn(async (): Promise<unknown[]> => []);
 export const postFindFirst = vi.fn();
 export const postFindMany = vi.fn();
 /** Reference library rows a save's style ids are looked up in. */
@@ -79,6 +85,7 @@ type CusoFixture = {
   brandBrain?: unknown;
   brandBrainUpdatedAt?: Date | null;
   brandBrainConfirmedAt?: Date | null;
+  pendingAdBudget?: unknown;
 };
 
 /**
@@ -96,6 +103,7 @@ export function asCusoBot(cuso: unknown) {
       id: fixture.projectId ?? "project-1",
       workspaceId: fixture.workspaceId ?? "ws-1",
       websiteUrl: fixture.websiteUrl ?? "https://acme.io",
+      cmoPendingAdBudget: fixture.pendingAdBudget ?? null,
       workspace: { organizationId: "org-1" },
       brandBrain: fixture.brandBrain
         ? {
@@ -237,6 +245,8 @@ const client = {
     create: projectCreate,
     delete: projectDelete,
     findUnique: projectFindUnique,
+    // Other Cusos for the same website: none unless a test says so.
+    findMany: projectFindMany,
     update: projectUpdate,
     updateMany: projectUpdateMany,
     // Cuso's Project lives in the business's organization (ADR 0065); the
@@ -263,7 +273,11 @@ const client = {
     update: subscriptionUpdate,
   },
   workspace: { findUnique: workspaceFindUnique },
-  sokoBotTurn: { findFirst: turnFindFirst },
+  sokoBotTurn: {
+    findFirst: turnFindFirst,
+    findUnique: turnFindUnique,
+    findMany: turnFindMany,
+  },
   sokoBotToolCall: { findMany: toolCallFindMany, findFirst: toolCallFindFirst },
   projectSocialConnection: { findMany: connectionFindMany },
   socialPost: {
@@ -274,6 +288,7 @@ const client = {
     updateMany: postUpdateMany,
   },
   referenceImage: { findMany: referenceFindMany },
+  socialComment: { findMany: vi.fn(async (): Promise<unknown[]> => []) },
   // No piece of the approved version is written to Files unless a test says so.
   marketingStrategyFile: { findMany: async () => [] },
   // Calendar times read in UTC unless a test gives Cuso's rhythms a zone.

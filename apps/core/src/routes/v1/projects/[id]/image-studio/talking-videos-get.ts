@@ -1,4 +1,4 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -7,11 +7,12 @@ import {
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireProjectAccess } from "@/lib/image-studio/access";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   assetContentPath,
   imageStudioProjectParamsSchema,
+  imageStudioStateQuerySchema,
   imageStudioTalkingVideosSchema,
 } from "@/schemas/project-image-studio.schema";
 import {
@@ -22,19 +23,31 @@ import { reconcileProjectJobs } from "@/services/image-studio-jobs.service";
 
 const JOB_PAGE = 30;
 
+const talkingVideoPageSchema = imageStudioTalkingVideosSchema.and(
+  z.object({ hasMore: z.boolean().optional() }),
+);
+
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "get",
     path: "/{id}/image-studio/talking-videos",
     description:
-      "A Project's talking videos: the newest jobs and the videos they delivered. Polled while one is being made; answering it settles finished jobs, like the studio state.",
+      "A Project's talking videos: jobs and their delivered videos, newest first. Pass the oldest job's createdAt and id to read the next 30. Reading the newest page settles finished jobs, like the studio state.",
     tags: ["Projects"],
-    request: { params: imageStudioProjectParamsSchema },
+    request: {
+      params: imageStudioProjectParamsSchema,
+      query: imageStudioStateQuerySchema
+        .pick({ before: true, beforeId: true })
+        .refine((query) => Boolean(query.before) === Boolean(query.beforeId), {
+          message: "Provide both before and beforeId for an older page",
+        }),
+    },
     responses: {
       200: jsonSuccessResponse(
-        imageStudioTalkingVideosSchema,
+        talkingVideoPageSchema,
         "The Project's talking videos",
       ),
+      400: jsonErrorResponse("Invalid history cursor"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
@@ -44,29 +57,35 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+    const userContext = requireUserAuthContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
+    const { before, beforeId } = c.req.valid("query");
     const scope = {
       projectId,
       workspaceId: workspaceContext.workspaceId,
       userId: userContext.userId,
     };
     await requireProjectAccess(scope);
-    await reconcileProjectJobs(projectId);
+    if (!before) await reconcileProjectJobs(projectId);
 
-    const jobs = await listJobs({
+    const page = await listJobs({
       ...scope,
-      limit: JOB_PAGE,
+      limit: JOB_PAGE + 1,
       kind: "TALKING_VIDEO",
+      ...(before && beforeId
+        ? { before: { createdAt: new Date(before), id: beforeId } }
+        : {}),
     });
+    const jobs = page.slice(0, JOB_PAGE);
     const assets = await listAssetsOfJobs(
       jobs.map((job) => job.id),
       userContext.userId,
     );
     return ok(
       c,
-      imageStudioTalkingVideosSchema.parse({
+      talkingVideoPageSchema.parse({
+        hasMore: page.length > JOB_PAGE,
         jobs,
         assets: assets.map((asset) => ({
           ...asset,

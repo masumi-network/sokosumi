@@ -87,13 +87,13 @@ export function NotificationEmptyState({
   return (
     <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 flex flex-col items-center justify-center gap-1 px-6 py-10 text-center duration-200 ease-out">
       <span
-        className="bg-quinary text-muted-foreground mb-2 flex size-10 items-center justify-center rounded-full"
+        className="bg-quinary text-muted-foreground mb-2 flex size-8 items-center justify-center rounded-full"
         aria-hidden
       >
-        <Icon className="size-5" />
+        <Icon className="size-4" />
       </span>
-      <p className="text-sm font-semibold">{t(title)}</p>
-      <p className="text-muted-foreground max-w-[44ch] text-xs text-pretty">
+      <p className="text-sm font-medium">{t(title)}</p>
+      <p className="text-muted-foreground max-w-xs text-sm text-pretty">
         {t(description)}
       </p>
       {isNarrowed ? (

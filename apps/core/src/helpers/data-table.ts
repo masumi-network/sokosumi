@@ -1,9 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   createDataTableSchema,
   tableBatchSchema,
+  tableColumnInputSchema,
   tableEvidenceSchema,
   tableInsertRowSchema,
   tableMutationSchema,
@@ -12,6 +14,10 @@ import {
   tableViewDefinitionSchema,
 } from "@sokosumi/utils";
 import { z } from "zod";
+import {
+  type DataTableListOptions,
+  readDataTablePage,
+} from "@/helpers/data-table-list";
 import { validateTableValues } from "@/helpers/data-table-values";
 import {
   conflict,
@@ -20,12 +26,12 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
   dataTableSchema,
-  dataTableSummarySchema,
   tableBatchResultSchema,
   tableColumnSchema,
   tableRowSchema,
@@ -109,9 +115,6 @@ export async function requireDataTable(
   return table;
 }
 
-function json(value: unknown): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify(value));
-}
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
   if (value && typeof value === "object")
@@ -210,7 +213,7 @@ async function operation<T>(
           key,
           requestHash,
           tableId,
-          result: json(result),
+          result: jsonInput(result),
         },
       });
       await complete?.(tx, { tableId, result, replayed: false });
@@ -267,12 +270,12 @@ function changeData(
     batchId,
     actorId: actor.actorId,
     actorKind: actor.actorKind,
-    taskId: actor.taskId,
-    rowId,
-    columnId,
-    before: json({ value: before }),
-    after: json({ value: after }),
-    evidence: json(evidence),
+    ...(actor.taskId !== undefined && { taskId: actor.taskId }),
+    ...(rowId !== undefined && { rowId }),
+    ...(columnId !== undefined && { columnId }),
+    before: jsonInput({ value: before }),
+    after: jsonInput({ value: after }),
+    evidence: jsonInput(evidence),
   };
 }
 
@@ -295,7 +298,7 @@ async function persistChanges(
     position,
   }));
   await tx.$executeRaw(PrismaRaw.sql`
-    INSERT INTO "table_change" ("id", "tableId", "batchId", "actorId", "actorKind", "taskId", "rowId", "columnId", "before", "after", "evidence")
+    INSERT INTO ${sharedTable("table_change")} ("id", "tableId", "batchId", "actorId", "actorKind", "taskId", "rowId", "columnId", "before", "after", "evidence")
     SELECT "id", "tableId", "batchId", "actorId", "actorKind", "taskId", "rowId", "columnId", "before", "after", "evidence"
     FROM jsonb_to_recordset(${JSON.stringify(records)}::jsonb) AS changes(
       "id" uuid, "tableId" uuid, "batchId" uuid, "actorId" text, "actorKind" text, "taskId" text,
@@ -308,10 +311,36 @@ function assertUnique(ids: string[], label: string) {
   if (new Set(ids).size !== ids.length)
     throw unprocessableEntity(`Duplicate ${label}`);
 }
-function suppliedIds(rows: readonly { id?: string }[]): string[] {
+function suppliedIds(rows: readonly { id?: string | undefined }[]): string[] {
   const ids: string[] = [];
   for (const row of rows) if (typeof row.id === "string") ids.push(row.id);
   return ids;
+}
+
+function columnData({
+  id,
+  width,
+  wrap,
+  ...column
+}: z.output<typeof tableColumnInputSchema>) {
+  return {
+    ...column,
+    id: id ?? randomUUID(),
+    ...(width !== undefined && { width }),
+    ...(wrap !== undefined && { wrap }),
+  };
+}
+
+function rowData({
+  id,
+  values,
+  evidence,
+}: z.output<typeof tableInsertRowSchema>) {
+  return {
+    ...(id !== undefined && { id }),
+    values: jsonInput(values),
+    evidence: jsonInput(evidence),
+  };
 }
 function assertEditable(table: { archivedAt: Date | null }) {
   if (table.archivedAt) throw conflict("Restore this table before editing");
@@ -388,8 +417,7 @@ export async function createDataTable(
       )
         throw notFound("Project not found");
       const columns = body.columns.map((column, position) => ({
-        ...column,
-        id: column.id ?? randomUUID(),
+        ...columnData(column),
         position,
       }));
       assertUnique(
@@ -400,7 +428,7 @@ export async function createDataTable(
       const table = await tx.dataTable.create({
         data: {
           workspaceId: actor.workspaceId,
-          projectId,
+          ...(projectId !== undefined && { projectId }),
           title: body.title,
           description: body.description,
           createdBy: actor.actorId,
@@ -416,7 +444,7 @@ export async function createDataTable(
         const created = await tx.tableRow.createManyAndReturn({
           data: body.rows
             .slice(start, start + 200)
-            .map((row) => ({ ...row, tableId: table.id })),
+            .map((row) => ({ ...rowData(row), tableId: table.id })),
         });
         await persistChanges(
           tx,
@@ -436,60 +464,10 @@ export async function createDataTable(
 /** Most recently changed first; the cursor is the last table ID of a page. */
 export async function listDataTables(
   actor: TableActor,
-  options: {
-    cursor?: string;
-    limit?: number;
-    archived?: boolean;
-    projectId?: string;
-    search?: string;
-  } = {},
+  options: DataTableListOptions = {},
 ) {
   const scope = await scopeForTask(actor, null, prisma);
-  const limit = Math.min(options.limit ?? 50, 100);
-  const search = options.search?.trim();
-  const where: Prisma.DataTableWhereInput = {
-    workspaceId: actor.workspaceId,
-    ...(scope ? { id: scope.tableId } : {}),
-    archivedAt: options.archived ? { not: null } : null,
-    ...((actor.projectScope ?? options.projectId)
-      ? { projectId: actor.projectScope ?? options.projectId }
-      : {}),
-    ...(search ? { title: { contains: search, mode: "insensitive" } } : {}),
-  };
-  const cursor = options.cursor
-    ? await prisma.dataTable.findFirst({
-        where: { id: options.cursor, workspaceId: actor.workspaceId },
-        select: { id: true, updatedAt: true },
-      })
-    : null;
-  if (options.cursor && !cursor)
-    throw unprocessableEntity("Invalid table cursor");
-  const [tables, total] = await Promise.all([
-    prisma.dataTable.findMany({
-      where: cursor
-        ? {
-            ...where,
-            OR: [
-              { updatedAt: { lt: cursor.updatedAt } },
-              { updatedAt: cursor.updatedAt, id: { lt: cursor.id } },
-            ],
-          }
-        : where,
-      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-      take: limit + 1,
-      include: { _count: { select: { columns: true } } },
-    }),
-    prisma.dataTable.count({ where }),
-  ]);
-  return {
-    total,
-    items: tables
-      .slice(0, limit)
-      .map(({ _count, ...table }) =>
-        dataTableSummarySchema.parse({ ...table, columnCount: _count.columns }),
-      ),
-    nextCursor: tables.length > limit ? tables[limit - 1].id : null,
-  };
+  return readDataTablePage(actor, options, scope?.tableId);
 }
 
 export async function mutateDataTable(
@@ -533,10 +511,7 @@ export async function mutateDataTable(
       }
       if (body.columns) {
         assertEditable(table);
-        const columns = body.columns.map((column) => ({
-          ...column,
-          id: column.id ?? randomUUID(),
-        }));
+        const columns = body.columns.map(columnData);
         assertUnique(
           columns.map((column) => column.id),
           "column IDs",
@@ -581,7 +556,7 @@ export async function mutateDataTable(
             column.type === "last_updated"
           )
             // Raw SQL, so stripping stale nulls leaves each row's updatedAt alone.
-            await tx.$executeRaw`UPDATE table_row SET "values" = "values" - ${column.id}, "evidence" = "evidence" - ${column.id} WHERE "tableId" = ${id}::uuid`;
+            await tx.$executeRaw`UPDATE ${sharedTable("table_row")} SET "values" = "values" - ${column.id}, "evidence" = "evidence" - ${column.id} WHERE "tableId" = ${id}::uuid`;
           if (previous)
             await tx.tableColumn.update({
               where: { id: column.id },
@@ -597,14 +572,13 @@ export async function mutateDataTable(
       const updated = await tx.dataTable.update({
         where: { id },
         data: {
-          title: body.title,
-          description: body.description,
-          archivedAt:
-            body.archived === undefined
-              ? undefined
-              : body.archived
-                ? new Date()
-                : null,
+          ...(body.title !== undefined && { title: body.title }),
+          ...(body.description !== undefined && {
+            description: body.description,
+          }),
+          ...(body.archived !== undefined && {
+            archivedAt: body.archived ? new Date() : null,
+          }),
           version: { increment: 1 },
         },
         include: tableInclude,
@@ -652,7 +626,7 @@ async function removeColumns(
   await tx.tableColumn.deleteMany({
     where: { tableId: table.id, id: { in: ids } },
   });
-  await tx.$executeRaw`UPDATE table_row SET "values" = "values" - ${ids}::text[], "evidence" = "evidence" - ${ids}::text[] WHERE "tableId" = ${table.id}::uuid`;
+  await tx.$executeRaw`UPDATE ${sharedTable("table_row")} SET "values" = "values" - ${ids}::text[], "evidence" = "evidence" - ${ids}::text[] WHERE "tableId" = ${table.id}::uuid`;
   const gone = new Set(ids);
   for (const view of table.views) {
     const definition = tableViewDefinitionSchema.parse(view.definition);
@@ -745,10 +719,10 @@ async function renumberRowPositions(
   tableId: string,
 ) {
   await tx.$executeRaw(PrismaRaw.sql`
-    UPDATE "table_row" AS r SET "position" = ordered.n
+    UPDATE ${sharedTable("table_row")} AS r SET "position" = ordered.n
     FROM (
       SELECT "id", row_number() OVER (ORDER BY "position", "id") AS n
-      FROM "table_row" WHERE "tableId" = ${tableId}::uuid
+      FROM ${sharedTable("table_row")} WHERE "tableId" = ${tableId}::uuid
     ) AS ordered
     WHERE r."id" = ordered."id"
   `);
@@ -761,7 +735,7 @@ async function predecessorOf(
   rowId: string,
 ): Promise<string | null> {
   const [row] = await tx.$queryRaw<Array<{ id: string }>>(PrismaRaw.sql`
-    SELECT p."id"::text FROM "table_row" AS p, "table_row" AS r
+    SELECT p."id"::text FROM ${sharedTable("table_row")} AS p, ${sharedTable("table_row")} AS r
     WHERE r."id" = ${rowId}::uuid AND p."tableId" = r."tableId"
       AND p."tableId" = ${tableId}::uuid
       AND (p."position", p."id") < (r."position", r."id")
@@ -834,7 +808,8 @@ export async function batchTableRows(
   const body = tableBatchSchema.parse(input);
   if (actor.taskId && body.taskId && actor.taskId !== body.taskId)
     throw forbidden("Task context mismatch");
-  const scopedActor = { ...actor, taskId: actor.taskId ?? body.taskId };
+  const taskId = actor.taskId ?? body.taskId;
+  const scopedActor = taskId === undefined ? actor : { ...actor, taskId };
   await scopeForTask(scopedActor, id, prisma);
   return operation(
     scopedActor,
@@ -867,7 +842,7 @@ export async function batchTableRows(
       for (const row of body.insert) {
         validateTableValues(columns, row.values, row.evidence);
         const created = await tx.tableRow.create({
-          data: { ...row, tableId: id },
+          data: { ...rowData(row), tableId: id },
         });
         audit.push(
           changeData(scopedActor, id, batchId, null, created, created.id),
@@ -940,16 +915,13 @@ export async function batchTableRows(
         const updated = await tx.tableRow.update({
           where: { id: previous.id },
           data: {
-            values,
-            evidence,
-            position,
+            values: jsonInput(values),
+            evidence: jsonInput(evidence),
+            ...(position !== undefined && { position }),
             version: { increment: 1 },
-            archivedAt:
-              patch.archived === undefined
-                ? undefined
-                : patch.archived
-                  ? new Date()
-                  : null,
+            ...(patch.archived !== undefined && {
+              archivedAt: patch.archived ? new Date() : null,
+            }),
           },
         });
         if (patch.archived !== undefined)
@@ -1031,7 +1003,7 @@ export async function queryTableRows(
       );
   }
   const [count] = await prisma.$queryRaw<Array<{ total: number }>>(
-    PrismaRaw.sql`SELECT COUNT(*)::integer AS total FROM table_row r WHERE ${PrismaRaw.join(terms, " AND ")}`,
+    PrismaRaw.sql`SELECT COUNT(*)::integer AS total FROM ${sharedTable("table_row")} r WHERE ${PrismaRaw.join(terms, " AND ")}`,
   );
   const byUpdatedAt =
     !!query.sort && isLastUpdated(table.columns, query.sort.columnId);
@@ -1053,7 +1025,7 @@ export async function queryTableRows(
       query.sort?.direction === "desc" ? PrismaRaw.sql`<` : PrismaRaw.sql`>`;
     // Read from the row itself, so the comparison keeps the column's own type and precision.
     const cursorValue = byUpdatedAt
-      ? PrismaRaw.sql`(SELECT c."updatedAt" FROM table_row c WHERE c.id = ${cursor.id}::uuid)`
+      ? PrismaRaw.sql`(SELECT c."updatedAt" FROM ${sharedTable("table_row")} c WHERE c.id = ${cursor.id}::uuid)`
       : query.sort
         ? PrismaRaw.sql`${JSON.stringify(tableValuesSchema.parse(cursor.values)[query.sort.columnId] ?? null)}::jsonb`
         : PrismaRaw.sql`${cursor.position}::double precision`;
@@ -1062,7 +1034,7 @@ export async function queryTableRows(
     );
   }
   const raw = await prisma.$queryRaw<unknown[]>(
-    PrismaRaw.sql`SELECT r.* FROM table_row r WHERE ${PrismaRaw.join(terms, " AND ")} ORDER BY ${sort} ${direction}, r.id ${direction} LIMIT ${query.limit + 1}`,
+    PrismaRaw.sql`SELECT r.* FROM ${sharedTable("table_row")} r WHERE ${PrismaRaw.join(terms, " AND ")} ORDER BY ${sort} ${direction}, r.id ${direction} LIMIT ${query.limit + 1}`,
   );
   const rows = raw
     .slice(0, query.limit)
@@ -1109,13 +1081,22 @@ export async function saveTableView(
         : null;
       if (input.id && (!previous || previous.version !== input.version))
         throw conflict("View changed. Reload before saving.");
+      const storedDefinition = jsonInput(definition);
       const result = previous
         ? await tx.tableView.update({
             where: { id: previous.id },
-            data: { name: input.name, definition, version: { increment: 1 } },
+            data: {
+              name: input.name,
+              definition: storedDefinition,
+              version: { increment: 1 },
+            },
           })
         : await tx.tableView.create({
-            data: { tableId: id, name: input.name, definition },
+            data: {
+              tableId: id,
+              name: input.name,
+              definition: storedDefinition,
+            },
           });
       await change(tx, actor, id, batchId, previous, result);
       return { tableId: id, result };
@@ -1242,13 +1223,12 @@ export async function undoTableBatch(
             await tx.tableRow.update({
               where: { id: row.id },
               data: {
-                values,
-                evidence,
+                values: jsonInput(values),
+                evidence: jsonInput(evidence),
                 archivedAt,
-                position:
-                  moveAfter === undefined
-                    ? undefined
-                    : await positionAfter(tx, id, row.id, moveAfter),
+                ...(moveAfter !== undefined && {
+                  position: await positionAfter(tx, id, row.id, moveAfter),
+                }),
                 version: { increment: 1 },
               },
             }),

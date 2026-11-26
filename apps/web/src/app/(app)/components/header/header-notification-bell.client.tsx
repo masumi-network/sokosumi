@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/effects/use-mobile";
 import { cn } from "@/lib/utils";
 import {
   getNotificationIndicator,

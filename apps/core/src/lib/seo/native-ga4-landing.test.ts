@@ -280,3 +280,45 @@ describe("GA4 key events per landing page", () => {
     ).not.toHaveProperty("skippedUrls");
   });
 });
+
+it("reads views and engagement of the same Organic Search landing sessions, and preserves measured zero", () => {
+  const names = [
+    "sessions",
+    "keyEvents",
+    "userEngagementDuration",
+    "screenPageViews",
+  ];
+  expect(ga4LandingPageArguments(query).metrics).toEqual(
+    names.map((name) => ({ name })),
+  );
+  const input = {
+    dimensionHeaders: [{ name: "landingPagePlusQueryString" }],
+    metricHeaders: names.map((name) => ({ name })),
+    rows: [
+      {
+        dimensionValues: [{ value: "/" }],
+        metricValues: [12, 1, 0, 15].map((value) => ({ value })),
+      },
+    ],
+    rowCount: 1,
+    metadata: { timeZone: "Europe/Oslo" },
+  };
+  expect(normalizeGa4LandingPages(query, input)).toMatchObject({
+    timeZone: "Europe/Oslo",
+    rows: [
+      {
+        pageUrl: query.pageUrls[0],
+        sessions: 12,
+        keyEvents: 1,
+        engagementSeconds: 0,
+        views: 15,
+      },
+    ],
+  });
+  expect(
+    ga4LandingPageArguments({ ...query, channel: "ai_assistant" }).metrics,
+  ).toEqual([{ name: "sessions" }, { name: "keyEvents" }]);
+  expect(
+    normalizeGa4LandingPages(query, { ...input, metadata: {} }).timeZone,
+  ).toBeUndefined();
+});

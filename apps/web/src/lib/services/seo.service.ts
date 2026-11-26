@@ -1,6 +1,7 @@
 import "server-only";
 
 import type {
+  AcknowledgeProjectSeoReviewRequest,
   AddProjectSeoPageRequest,
   CreateProjectSeoActionTaskRequest,
   CreateProjectSeoMonitorRequest,
@@ -8,15 +9,20 @@ import type {
   CreateSeoAuditRequest,
   GetProjectSeoWorkspaceData,
   ImportProjectSeoAuditRequest,
+  ListSeoAuditsData,
   RecordProjectSeoPageChangeRequest,
   RequestProjectSeoAnalysisRequest,
   SaveProjectSeoBrandTermsRequest,
   SaveProjectSeoCompetitorRequest,
   SaveProjectSeoKeywordRequest,
-  SyncProjectSeoStatisticsRequest,
+  SeoConsoleExportInput,
+  SeoSiteTrafficInput,
+  SyncProjectSeoStatisticsData,
   UpdateProjectSeoScopeRequest,
 } from "@sokosumi/core-client";
 import {
+  acknowledgeProjectSeoReview,
+  acknowledgeSeoAuditReview,
   addProjectSeoPage,
   addSeoAuditPage,
   createProjectSeoActionTask,
@@ -26,15 +32,20 @@ import {
   createSeoAuditActionTask,
   createSeoAuditMonitor,
   createSeoAuditScope,
-  deleteSeoAudit,
+  getAuditConsoleExports,
+  getProjectConsoleExports,
   getProjectSeoWorkspace,
   getSeoAuditWorkspace,
   getSeoAuditWorkspaceMapping,
+  importAuditConsoleExport,
+  importProjectConsoleExport,
   importProjectSeoAudit,
   importSeoAuditReport,
   listProjectSeoStatisticsProperties,
   listSeoAuditStatisticsProperties,
   listSeoAudits,
+  readAuditSiteTraffic,
+  readProjectSiteTraffic,
   recordProjectSeoPageChange,
   recordSeoAuditPageChange,
   requestProjectSeoAnalysis,
@@ -45,6 +56,7 @@ import {
   saveSeoAuditBrandTerms,
   saveSeoAuditCompetitor,
   saveSeoAuditKeyword,
+  setSeoAuditArchived,
   syncProjectSeoStatistics,
   syncSeoAuditStatistics,
   updateProjectSeoScope,
@@ -60,9 +72,44 @@ export type SeoWorkspaceQuery = NonNullable<
 >;
 
 export const seoServiceNoRedirect = {
-  async listAudits(
-    query: { cursor?: string; limit?: number; projectId?: string } = {},
+  async siteTraffic(owner: SeoOwner, body: SeoSiteTrafficInput) {
+    const response = await executeCoreOperation(
+      createCoreGeneratedClient,
+      (client) =>
+        (owner.kind === "audit"
+          ? readAuditSiteTraffic
+          : readProjectSiteTraffic)({ client, path: { id: owner.id }, body }),
+      "Failed to read website traffic",
+    );
+    return response.data;
+  },
+  async consoleExports(
+    owner: SeoOwner,
+    taskId: string,
+    body?: SeoConsoleExportInput,
   ) {
+    const path = { id: owner.id, taskId };
+    const response = await executeCoreOperation(
+      createCoreGeneratedClient,
+      (client) => {
+        if (body) {
+          return (
+            owner.kind === "audit"
+              ? importAuditConsoleExport
+              : importProjectConsoleExport
+          )({ client, path, body });
+        }
+        return (
+          owner.kind === "audit"
+            ? getAuditConsoleExports
+            : getProjectConsoleExports
+        )({ client, path });
+      },
+      "Failed to access private Search Console exports",
+    );
+    return response.data;
+  },
+  async listAudits(query: NonNullable<ListSeoAuditsData["query"]> = {}) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) => listSeoAudits({ client, query }),
@@ -78,11 +125,16 @@ export const seoServiceNoRedirect = {
     );
     return response.data;
   },
-  async deleteAudit(auditId: string) {
+  async setAuditArchived(auditId: string, archived: boolean) {
     await executeCoreOperation(
       createCoreGeneratedClient,
-      (client) => deleteSeoAudit({ client, path: { id: auditId } }),
-      "Failed to delete SEO audit",
+      (client) =>
+        setSeoAuditArchived({
+          client,
+          path: { id: auditId },
+          body: { archived },
+        }),
+      "Failed to update SEO report archive status",
     );
   },
   async getWorkspace(owner: SeoOwner, query: SeoWorkspaceQuery = {}) {
@@ -206,6 +258,23 @@ export const seoServiceNoRedirect = {
     );
     return response.data;
   },
+  async acknowledgeReview(
+    owner: SeoOwner,
+    body: AcknowledgeProjectSeoReviewRequest,
+  ) {
+    return executeCoreOperation(
+      createCoreGeneratedClient,
+      (client) =>
+        (owner.kind === "audit"
+          ? acknowledgeSeoAuditReview
+          : acknowledgeProjectSeoReview)({
+          client,
+          path: { id: owner.id },
+          body,
+        }),
+      "Failed to mark the SEO recommendation as reviewed",
+    );
+  },
   async createActionTask(
     owner: SeoOwner,
     body: CreateProjectSeoActionTaskRequest,
@@ -286,7 +355,10 @@ export const seoServiceNoRedirect = {
     );
     return response.data;
   },
-  async syncStatistics(owner: SeoOwner, body: SyncProjectSeoStatisticsRequest) {
+  async syncStatistics(
+    owner: SeoOwner,
+    body: NonNullable<SyncProjectSeoStatisticsData["body"]>,
+  ) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) =>

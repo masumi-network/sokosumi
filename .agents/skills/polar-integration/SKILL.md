@@ -20,6 +20,8 @@ If the project already uses `@polar-sh/sdk` below 1.0 (signs: `new Polar(...)`, 
 
 Don't install the deprecated `@polar-sh/<framework>` adapters (`@polar-sh/express`, `@polar-sh/hono`, `@polar-sh/fastify`, `@polar-sh/elysia`, `@polar-sh/astro`, `@polar-sh/sveltekit`, `@polar-sh/remix`, `@polar-sh/deno`, `@polar-sh/supabase`). `@polar-sh/nextjs`, `@polar-sh/nuxt`, `@polar-sh/tanstack-start` and `@polar-sh/better-auth` are maintained; keep them if the project already uses them.
 
+**No Polar account yet?** Polar supports the [auth.md](https://polar.sh/auth.md) spec: an agent can sign up on its own, without a human, set up the organization (products, benefits, meters, checkouts), and hand it over to the user later. Read <https://polar.sh/auth.md> to learn how to sign up and get claimed.
+
 Required environment variables (use whatever loader your framework provides — `process.env`, `Deno.env`, `import.meta.env`, etc.):
 
 - `POLAR_ACCESS_TOKEN` — organization access token. Create it with the Polar CLI (`polar auth token --scope checkouts:write --scope customer_sessions:write`, which opens a browser and prints the token, so ask the user to run it and save the output to the env file) or in the Polar dashboard (Settings → Access Tokens).
@@ -58,44 +60,44 @@ The recipes below import this `polar` client. They are independent — implement
 
 ### `polar.checkouts.create()` field reference
 
-| Field | Required | Notes |
-|---|---|---|
-| `products` | yes | Array of product UUIDs. The first is selected by default. |
-| `customer_id` | no | Existing Polar customer ID. |
-| `external_customer_id` | no | Your own user ID. If no Polar customer matches, one is created with this external ID. |
-| `customer_email` | no | |
-| `customer_name` | no | |
-| `customer_billing_name` | no | |
-| `customer_billing_address` | no | `{ country: "US", line1, line2, city, state, postal_code }`. `country` (ISO alpha-2) is required if address is set. |
-| `customer_tax_id` | no | |
-| `customer_ip_address` | no | Used to pick the presentment currency. |
-| `customer_metadata` | no | Copied to the created customer. |
-| `is_business_customer` | no | Default `false`. If `true`, full billing address + name required. |
-| `metadata` | no | Copied to the resulting order/subscription. |
-| `custom_field_data` | no | Map of custom field slug → value. |
-| `discount_id` | no | |
-| `allow_discount_codes` | no | Default `true`. |
-| `require_billing_address` | no | Default `false`. US customers always required regardless. |
-| `seats` | no | Predefined number of seats (seat-based pricing only). |
-| `min_seats` / `max_seats` | no | Seat-based pricing only. |
-| `units` / `min_units` / `max_units` | no | Unit-based pricing only. |
-| `amount` | no | Cents. Only used for `custom` (pay-what-you-want) prices. |
-| `subscription_id` | no | Upgrade an existing free subscription. |
-| `success_url` | no | See below. |
-| `return_url` | no | Back-button URL on the checkout page. |
-| `embed_origin` | no | Set when embedding the checkout in an iframe. |
-| `locale` | no | IETF BCP 47 (`en`, `en-US`, `fr-CA`, ...). Defaults to `en`. |
-| `currency` | no | ISO 4217 (e.g. `usd`, `eur`). |
-| `trial_interval` / `trial_interval_count` | no | Override product trial. |
-| `allow_trial` | no | Default `true`. Set `false` to disable an otherwise-configured trial. |
-| `prices` | no | Map of product ID → ad-hoc prices (override catalog prices). |
+| Field                                     | Required | Notes                                                                                                               |
+| ----------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------- |
+| `products`                                | yes      | Array of product UUIDs. The first is selected by default.                                                           |
+| `customer_id`                             | no       | Existing Polar customer ID.                                                                                         |
+| `external_customer_id`                    | no       | Your own user ID. If no Polar customer matches, one is created with this external ID.                               |
+| `customer_email`                          | no       |                                                                                                                     |
+| `customer_name`                           | no       |                                                                                                                     |
+| `customer_billing_name`                   | no       |                                                                                                                     |
+| `customer_billing_address`                | no       | `{ country: "US", line1, line2, city, state, postal_code }`. `country` (ISO alpha-2) is required if address is set. |
+| `customer_tax_id`                         | no       |                                                                                                                     |
+| `customer_ip_address`                     | no       | Used to pick the presentment currency.                                                                              |
+| `customer_metadata`                       | no       | Copied to the created customer.                                                                                     |
+| `is_business_customer`                    | no       | Default `false`. If `true`, full billing address + name required.                                                   |
+| `metadata`                                | no       | Copied to the resulting order/subscription.                                                                         |
+| `custom_field_data`                       | no       | Map of custom field slug → value.                                                                                   |
+| `discount_id`                             | no       |                                                                                                                     |
+| `allow_discount_codes`                    | no       | Default `true`.                                                                                                     |
+| `require_billing_address`                 | no       | Default `false`. US customers always required regardless.                                                           |
+| `seats`                                   | no       | Predefined number of seats (seat-based pricing only).                                                               |
+| `min_seats` / `max_seats`                 | no       | Seat-based pricing only.                                                                                            |
+| `units` / `min_units` / `max_units`       | no       | Unit-based pricing only.                                                                                            |
+| `amount`                                  | no       | Cents. Only used for `custom` (pay-what-you-want) prices.                                                           |
+| `subscription_id`                         | no       | Upgrade an existing free subscription.                                                                              |
+| `success_url`                             | no       | See below.                                                                                                          |
+| `return_url`                              | no       | Back-button URL on the checkout page.                                                                               |
+| `embed_origin`                            | no       | Set when embedding the checkout in an iframe.                                                                       |
+| `locale`                                  | no       | IETF BCP 47 (`en`, `en-US`, `fr-CA`, ...). Defaults to `en`.                                                        |
+| `currency`                                | no       | ISO 4217 (e.g. `usd`, `eur`).                                                                                       |
+| `trial_interval` / `trial_interval_count` | no       | Override product trial.                                                                                             |
+| `allow_trial`                             | no       | Default `true`. Set `false` to disable an otherwise-configured trial.                                               |
+| `prices`                                  | no       | Map of product ID → ad-hoc prices (override catalog prices).                                                        |
 
 **Response:** `{ id, url, client_secret, expires_at, status, ... }`. Redirect the user to `url`. To embed the checkout in an iframe instead, pass `url` to `PolarEmbedCheckout.create` from `@polar-sh/checkout` and set `embed_origin`. `client_secret` is only for client-side checkout calls and custom checkout UIs.
 
 ### Notes on specific fields
 
 - **`success_url` and `{CHECKOUT_ID}`.** Polar performs a literal string substitution: any `{CHECKOUT_ID}` token in the URL is replaced with the actual session ID at redirect time. The official API docs example uses `?checkout_id={CHECKOUT_ID}`; you can use any param name you want. Useful when your success page needs to fetch the session via `polar.checkouts.get(checkoutId)`. Don't treat the redirect as proof of payment — grant access from a verified webhook or customer state.
-- **`theme` (UI hint, not an API field).** The hosted checkout UI accepts `?theme=light|dark` in the URL. To apply a theme, append it to `checkout.url` *after* creating the session.
+- **`theme` (UI hint, not an API field).** The hosted checkout UI accepts `?theme=light|dark` in the URL. To apply a theme, append it to `checkout.url` _after_ creating the session.
 - **Customer IDs come from your auth.** When the user is logged in, set `customer_id` or `external_customer_id` from the server-side session, never from the query string: the ID links the order to that customer.
 
 ### Canonical implementation (Web Standards — Request/Response)
@@ -188,13 +190,13 @@ The body of the handler is identical — only the entry point changes:
 
 The request body is a union — pass **either** `customer_id` **or** `external_customer_id`, not both.
 
-| Field | Required | Notes |
-|---|---|---|
-| `customer_id` | one of these two | Existing Polar customer UUID. |
-| `external_customer_id` | one of these two | Your own user ID. |
-| `return_url` | no | Back-button URL on the portal page. |
-| `member_id` | no | Only for orgs with `member_model_enabled`. Polar customer member UUID. Defaults to the owner member for individual customers. |
-| `external_member_id` | no | Your member ID, alternative to `member_id`. |
+| Field                  | Required         | Notes                                                                                                                         |
+| ---------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `customer_id`          | one of these two | Existing Polar customer UUID.                                                                                                 |
+| `external_customer_id` | one of these two | Your own user ID.                                                                                                             |
+| `return_url`           | no               | Back-button URL on the portal page.                                                                                           |
+| `member_id`            | no               | Only for orgs with `member_model_enabled`. Polar customer member UUID. Defaults to the owner member for individual customers. |
+| `external_member_id`   | no               | Your member ID, alternative to `member_id`.                                                                                   |
 
 **Response:** `{ id, customer_portal_url, token, expires_at, customer, customer_id, return_url, ... }`. Redirect the user to `customer_portal_url`. `token` and `customer` are useful if you want to render portal data inside your own UI instead of redirecting.
 

@@ -41,7 +41,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "delete",
     path: "/{id}/tasks/{taskId}",
     description:
-      "Remove a task from a project without deleting the task. Parked tasks cannot be unlinked. Interactive session user only; coworker keys are rejected.",
+      "Remove a task from a project without deleting the task. Parked tasks cannot be unlinked. A person by any sign-in (browser, API key or OAuth token); Coworker and Soko Bot keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,

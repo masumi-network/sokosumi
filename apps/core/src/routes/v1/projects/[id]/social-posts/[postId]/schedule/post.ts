@@ -24,7 +24,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/{id}/social-posts/{postId}/schedule",
     description:
-      "Schedule a Social post through an active Project social connection. Allowed from DRAFT, NEEDS_APPROVAL, SCHEDULED, FAILED and MISSED. A post that still needs approval keeps that status. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.",
+      "Schedule a Social post through an active Project social connection. Allowed from DRAFT, NEEDS_APPROVAL, SCHEDULED, FAILED and MISSED. A post that still needs approval keeps that status, and an agent's schedule (API key, OAuth or MCP token, Coworker) always lands as Needs approval. Requires a person (any sign-in: session, API key, OAuth or MCP token) or an authorized task-capable Coworker with user context in the Project's Workspace. Approve, reject and publish now stay with a person (ADR 0077).",
     tags: ["Projects"],
     request: {
       params: socialPostParamsSchema,
@@ -62,6 +62,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         workspaceId: workspaceContext.workspaceId,
         userId: userContext.userId,
         coworkerId: userContext.coworkerId,
+        agent: userContext.agent,
         postId,
         scheduledAt: new Date(input.scheduledAt),
         timezone: input.timezone,
@@ -70,7 +71,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       });
       return ok(
         c,
-        socialPostSchema.parse(presentSocialPost(post, userContext.coworkerId)),
+        socialPostSchema.parse(presentSocialPost(post, userContext)),
       );
     } catch (error) {
       return mapSocialPostServiceError(error);

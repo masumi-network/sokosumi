@@ -1,0 +1,19 @@
+{
+  "name": "Sumico, Inc.",
+  "effective_date": "20 November 2026",
+  "terms_effective_date": "25 November 2026",
+  "privacy_effective_date": "25 November 2026",
+  "address": "c/o Corporation Service Company, 251 Little Falls Drive, Wilmington, New Castle County, Delaware 19808, USA",
+  "incorporation_state": "Delaware",
+  "registration_number": "10825778",
+  "eu_representative": {
+    "name": "Phil Isenmann",
+    "email": "phil@utxoag.com"
+  },
+  "legal_email": "legal@sumico.io",
+  "governing_law_state": "Delaware",
+  "authorized_representative": "Patrick Tobler, CEO",
+  "legal_form": "corporation organized under the laws of the State of Delaware, USA (Delaware General Corporation Law)",
+  "registered_agent": "Corporation Service Company",
+  "registration_date": "2 November 2026"
+}

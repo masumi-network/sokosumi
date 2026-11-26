@@ -16,12 +16,12 @@ Updates the `_prisma_migrations` table to manually change the state of a migrati
 
 You must provide exactly one of `--applied` or `--rolled-back`.
 
-| Option | Description |
-|--------|-------------|
-| `--applied <name>` | Mark a migration as **applied** (success) |
+| Option                 | Description                                          |
+| ---------------------- | ---------------------------------------------------- |
+| `--applied <name>`     | Mark a migration as **applied** (success)            |
 | `--rolled-back <name>` | Mark a migration as **rolled back** (ignored/failed) |
-| `--schema` | Path to schema file |
-| `--config` | Custom path to your Prisma config file |
+| `--schema`             | Path to schema file                                  |
+| `--config`             | Custom path to your Prisma config file               |
 
 ## Examples
 

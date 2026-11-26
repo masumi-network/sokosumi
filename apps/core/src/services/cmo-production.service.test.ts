@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { coreEvlogMiddleware, recordCoreWarning } from "@/lib/evlog";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
 
+import { cmoVisualKey } from "@/services/cmo-media-maker.service";
 import type { MarketingStrategyPost } from "@/services/marketing-strategy.service";
 import {
   coreLogEvents,
@@ -20,6 +21,7 @@ const {
   turnFindMany,
   turnFindFirst,
   botFindUniqueOrThrow,
+  botFindUnique,
   startTurn,
   isCmoSubscribed,
   listCmoChannels,
@@ -35,7 +37,9 @@ const {
   advanceMedia,
   turnCount,
   subscriptionFindFirst,
+  toolCallFindMany,
 } = vi.hoisted(() => ({
+  toolCallFindMany: vi.fn(async () => []),
   listMediaJobs: vi.fn(),
   advanceMedia: vi.fn(),
   turnCount: vi.fn(),
@@ -50,6 +54,7 @@ const {
   turnFindMany: vi.fn(),
   turnFindFirst: vi.fn(),
   botFindUniqueOrThrow: vi.fn(),
+  botFindUnique: vi.fn(),
   startTurn: vi.fn(),
   isCmoSubscribed: vi.fn(),
   listCmoChannels: vi.fn(),
@@ -69,10 +74,20 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: turnFindFirst,
       count: turnCount,
     },
-    sokoBot: { findUniqueOrThrow: botFindUniqueOrThrow },
+    sokoBotToolCall: { findMany: toolCallFindMany },
+    sokoBot: {
+      findUniqueOrThrow: botFindUniqueOrThrow,
+      findUnique: botFindUnique,
+    },
     polarSubscription: { findFirst: subscriptionFindFirst },
+    $transaction: async (work: (tx: unknown) => Promise<unknown>) =>
+      work({
+        $queryRaw: async () => [{ locked: productionLock.free }],
+        sokoBotTurn: { count: turnCount },
+      }),
   },
 }));
+const productionLock = vi.hoisted(() => ({ free: true }));
 
 vi.mock("@/services/cmo-cuso.service", () => ({
   findCusoForBot: vi.fn(),
@@ -80,7 +95,14 @@ vi.mock("@/services/cmo-cuso.service", () => ({
   cmoRunnerUserId,
   listCmoChannels,
 }));
-vi.mock("@/services/cmo-billing.service", () => ({ isCmoSubscribed }));
+vi.mock("@/services/cmo-billing.service", async () => {
+  const { cmoVolumeLevelForTier } = await import("@sokosumi/utils");
+  return {
+    isCmoSubscribed,
+    cmoPlanLevel: async () =>
+      cmoVolumeLevelForTier((await subscriptionFindFirst())?.tier ?? null),
+  };
+});
 const keepCusoFirstCompetitorCheck = vi.hoisted(() => vi.fn());
 vi.mock("@/services/cmo-competitors.service", () => ({
   keepCusoFirstCompetitorCheck,
@@ -116,6 +138,27 @@ vi.mock("@/services/brand-brain.service", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/services/brand-brain.service")>()),
   getBrandBrain,
 }));
+// The sync's steps before its Cusos; each has its own tests.
+vi.mock("@/services/cmo-strategy.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/cmo-strategy.service")>()),
+  resumeCmoMonthFinishes: vi.fn(async () => undefined),
+}));
+vi.mock("@/services/cmo-brand-media.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/cmo-brand-media.service")
+  >()),
+  scheduleMissingCmoBrandIndex: vi.fn(async () => false),
+}));
+vi.mock("@/services/cmo-site-pages.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/cmo-site-pages.service")
+  >()),
+  scheduleCmoSitePages: vi.fn(async () => undefined),
+}));
+vi.mock("@/services/cmo-industry.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/cmo-industry.service")>()),
+  scheduleCmoIndustry: vi.fn(async () => undefined),
+}));
 
 import {
   advanceCmoProduction,
@@ -123,6 +166,7 @@ import {
   cmoHiredAt,
   cmoMixLedger,
   cmoPieceReady,
+  cmoPraiseOnly,
   cmoProductionMessage,
   cmoProductionSteps,
   cmoReadyPieceIds,
@@ -374,6 +418,44 @@ describe("cmoReadyPieceIds", () => {
     });
   });
 
+  it("finishes a short's Reel and TikTok, which show its file", () => {
+    // entry.fyi, 2026-11-22: 46 shared Shorts never counted as made.
+    const pieces = [
+      piece({ id: "yt", channel: "youtube", format: "short", draft: "A" }, [
+        "drive/s.mp4",
+      ]),
+      piece(
+        {
+          id: "yt@tiktok",
+          channel: "tiktok",
+          format: "video",
+          draft: "B",
+          videoOf: "yt",
+        },
+        ["drive/s.mp4"],
+      ),
+      piece(
+        {
+          id: "yt@instagram",
+          channel: "instagram",
+          format: "reel",
+          draft: "C",
+          videoOf: "yt",
+        },
+        ["drive/s.mp4"],
+      ),
+    ];
+    expect([...cmoReadyPieceIds(pieces, new Set())]).toEqual([
+      "yt",
+      "yt@tiktok",
+      "yt@instagram",
+    ]);
+    expect(cmoProductionSteps(pieces)).toMatchObject({
+      pictured: 3,
+      needPictures: 3,
+    });
+  });
+
   it("finishes a carousel only with its slides, none shared with another piece", () => {
     const carousel = {
       channel: "instagram",
@@ -520,7 +602,13 @@ describe("cmoProductionMessage", () => {
           id: "written",
           script: "Stop emailing back and forth.",
         }),
-        piece({ ...talking, id: "yt", channel: "youtube", videoOf: "tv" }),
+        piece({
+          ...talking,
+          id: "yt",
+          channel: "youtube",
+          videoOf: "tv",
+          script: "Book a demo in one click.",
+        }),
       ],
       connected: new Set(),
       attempt: 1,
@@ -528,7 +616,7 @@ describe("cmoProductionMessage", () => {
     });
     expect(message).toContain("(write its script)");
     expect(message).toContain(
-      "(the talking video of tv on youtube: write only this post's own caption for youtube; its script stays on tv)",
+      "(the talking video of tv on youtube: the same file, so write only this post's own caption, in youtube's own format, about what the video says: \"Book a demo in one click.\"; its script stays on tv)",
     );
     expect(message).not.toContain("(write its visual)");
   });
@@ -633,6 +721,7 @@ describe("advanceCmoProduction", () => {
     listCmoChannels.mockResolvedValue([]);
     turnFindFirst.mockResolvedValue({ id: "turn-0" });
     botFindUniqueOrThrow.mockResolvedValue({ sharedRoomId: "room-1" });
+    botFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
     cmoRunnerUserId.mockResolvedValue("user-1");
     startTurn.mockResolvedValue({ turnId: "run-1", status: "QUEUED" });
     listMediaJobs.mockResolvedValue([]);
@@ -722,12 +811,25 @@ describe("advanceCmoProduction", () => {
   });
 
   it("says starting, not running, while no run works yet", async () => {
+    pgClock.now = new Date(APPROVED + 10 * 60 * 1_000);
     const read = await readCmoProduction(cuso([post({})]), {
       connected: new Set(),
       subscribed: true,
       now: NOW,
     });
     expect(read.status).toMatchObject({ state: "starting", written: 0 });
+  });
+
+  it("says blocked when no run started for half an hour, and still tries", async () => {
+    pgClock.now = new Date(APPROVED + 31 * 60 * 1_000);
+    const read = await readCmoProduction(cuso([post({})]), {
+      connected: new Set(),
+      subscribed: true,
+      now: NOW,
+    });
+    expect(read.status.state).toBe("blocked");
+    await advanceCmoProduction(cuso([post({})]), NOW);
+    expect(startTurn).toHaveBeenCalledTimes(1);
   });
 
   it("leaves a working run alone", async () => {
@@ -942,23 +1044,72 @@ describe("advanceCmoProduction", () => {
     expect(warnings[0]?.event.path).toBeUndefined();
   });
 
-  it("stops after four runs in a day and tries again the next", async () => {
+  it("waits three hours after four runs that made nothing, not a day", async () => {
+    // CodePat's test copy, 2026-11-21: three writer timeouts, then the cap
+    // held the retry past the copy's 10-hour life at 67 of 171.
     pgClock.now = NOW;
     const runs = [1, 2, 3, 4].map((n) => ({
       clientTurnId: `${RUN}:${5 - n}:0`,
       status: "FAILED",
-      createdAt: hoursAgo(n),
+      createdAt: hoursAgo(n / 4),
     }));
     const stuck = await advanceCmoProduction(cuso([post({})], runs), NOW);
     expect(stuck.state).toBe("stuck");
+    expect(stuck.retryAt).toBe(hoursAgo(0.25 - 3).toISOString());
     expect(startTurn).not.toHaveBeenCalled();
-    const nextDay = new Date(NOW.getTime() + 24 * 60 * 60 * 1_000);
-    pgClock.now = nextDay;
-    await advanceCmoProduction(cuso([post({})], runs), nextDay);
+    const alerts = expectCoreLog(
+      "error",
+      "A CMO month stopped and Core restarted it",
+    );
+    const later = hoursAgo(0.25 - 3);
+    pgClock.now = later;
+    await advanceCmoProduction(cuso([post({})], runs), later);
     expect(startTurn).toHaveBeenCalledTimes(1);
+    expect(alerts).toHaveLength(1);
   });
 
-  it("waits a day when the last run made nothing ready", async () => {
+  it("keeps making the month after four runs in a day that each made pieces", async () => {
+    // NMKR's test copy, 2026-11-21: four runs in 11 minutes made 67 of 171
+    // pieces, and the cap then held the rest for a day.
+    pgClock.now = NOW;
+    const posts = [
+      post({ id: "a", date: "2026-11-05", draft: "Done." }),
+      post({ id: "b", date: "2026-11-06", draft: "Done." }),
+      post({ id: "c", date: "2026-11-07", draft: "Done." }),
+      post({ id: "d", date: "2026-11-08" }),
+    ];
+    const runs = [
+      [4, 2],
+      [3, 2],
+      [2, 1],
+      [1, 0],
+    ].map(([attempt, ready], index) => ({
+      clientTurnId: `${RUN}:${attempt}:${ready}`,
+      status: "COMPLETED",
+      createdAt: new Date(NOW.getTime() - (index + 1) * 60_000),
+    }));
+    const status = await advanceCmoProduction(cuso(posts, runs), NOW);
+    expect(status.state).toBe("running");
+    expect(startTurn.mock.calls[0]?.[0].clientTurnId).toBe(`${RUN}:5:3`);
+  });
+
+  it("starts an attempt once when a run's end and the sync race", async () => {
+    // NMKR's test copy, 2026-11-21: attempt 3 started twice, 0.6 s apart.
+    turnCount.mockImplementation(
+      async (args: { where: { clientTurnId?: { startsWith?: string } } }) =>
+        args.where.clientTurnId?.startsWith === `${RUN}:1:` ? 1 : 0,
+    );
+    const status = await advanceCmoProduction(cuso([post({})]), NOW);
+    expect(startTurn).not.toHaveBeenCalled();
+    expect(status.state).not.toBe("running");
+    turnCount.mockResolvedValue(0);
+    productionLock.free = false;
+    await advanceCmoProduction(cuso([post({})]), NOW);
+    productionLock.free = true;
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("waits three hours, not a day, when the last run made nothing ready, then restarts and alerts us", async () => {
     pgClock.now = NOW;
     const posts = [
       post({ draft: "Done." }),
@@ -970,7 +1121,25 @@ describe("advanceCmoProduction", () => {
     ];
     const stalled = await advanceCmoProduction(cuso(posts, runs), NOW);
     expect(stalled.state).toBe("stuck");
+    expect(stalled.retryAt).toBe(hoursAgo(-3).toISOString());
     expect(startTurn).not.toHaveBeenCalled();
+    const alerts = expectCoreLog(
+      "error",
+      "A CMO month stopped and Core restarted it",
+    );
+    const later = hoursAgo(-3);
+    pgClock.now = later;
+    await advanceCmoProduction(cuso(posts, runs), later);
+    expect(startTurn).toHaveBeenCalledTimes(1);
+    expect(startTurn.mock.calls[0]?.[0].clientTurnId).toBe(`${RUN}:2:1`);
+    expect(alerts[0]?.event).toMatchObject({
+      alert: "cmo_month_unfinished",
+      attempt: 2,
+      ready: 1,
+      total: 2,
+    });
+    startTurn.mockClear();
+    pgClock.now = NOW;
     // A run that crashed is tried again at once.
     await advanceCmoProduction(
       cuso(posts, [{ ...runs[0]!, status: "FAILED" }]),
@@ -994,6 +1163,41 @@ describe("advanceCmoProduction", () => {
       NOW,
     );
     expect(startTurn.mock.calls[0]?.[0].clientTurnId).toBe(`${RUN}:1:0`);
+  });
+
+  it("starts a newly approved version even when the version before used today's runs", async () => {
+    // NMKR, 2026-11-19: three runs for the morning's version and a top-up a
+    // minute before the new approval left the new month stuck until morning.
+    pgClock.now = NOW;
+    const earlier = [1, 2, 3, 4].map((n) => ({
+      clientTurnId: `cmo:production:bot-1:1759309200000:${5 - n}:0`,
+      status: "COMPLETED",
+      createdAt: hoursAgo(n),
+    }));
+    const status = await advanceCmoProduction(cuso([post({})], earlier), NOW);
+    expect(status.state).toBe("running");
+    expect(startTurn.mock.calls[0]?.[0].clientTurnId).toBe(`${RUN}:1:0`);
+  });
+
+  it("has Core write the social pieces on cmo-v6 and lists only Cuso's own", async () => {
+    botFindUnique.mockResolvedValue({ versionId: "cmo-v6" });
+    await advanceCmoProduction(
+      cuso([post({ id: "post-a" }), post({ id: "post-b" })]),
+      NOW,
+    );
+    const message = startTurn.mock.calls[0]?.[0].message as string;
+    expect(message).toContain(
+      "Core writes 2 social pieces of the month for you: call write_month_pieces first, and again until left is 0.",
+    );
+    expect(message).not.toContain("- post-a");
+    expect(message).not.toContain("Pieces (");
+  });
+
+  it("keeps cmo-v5's brief: every piece listed, no month writer", async () => {
+    await advanceCmoProduction(cuso([post({ id: "post-a" })]), NOW);
+    const message = startTurn.mock.calls[0]?.[0].message as string;
+    expect(message).not.toContain("write_month_pieces");
+    expect(message).toContain("- post-a");
   });
 
   it("waits for a run still working on the version approved before", async () => {
@@ -1068,6 +1272,7 @@ describe("syncCmoProduction", () => {
     const now = new Date("2026-11-18T21:00:00Z");
     await expect(syncCmoProduction(() => true, now)).resolves.toEqual({
       checked: 1,
+      skipped: 0,
     });
     expect(keepCusoFirstCompetitorCheck).toHaveBeenCalledWith(cuso, now);
   });
@@ -1092,7 +1297,11 @@ describe("syncCmoProduction", () => {
     cmoRunnerUserId.mockRejectedValue(
       new Error("Plan SENTINEL-PLAN launch week could not be read"),
     );
-    await expect(syncCmoProduction()).resolves.toEqual({ checked: 0 });
+    // Skipped Cusos are the run's failed work, never its idleness.
+    await expect(syncCmoProduction()).resolves.toEqual({
+      checked: 0,
+      skipped: 2,
+    });
     expect(warnings.map((warning) => warning.event.sokoBot)).toEqual(
       expect.arrayContaining([{ id: "bot-1" }, { id: "bot-2" }]),
     );
@@ -1100,11 +1309,76 @@ describe("syncCmoProduction", () => {
   });
 });
 
+describe("a picture that fails on every visual", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pgClock.now = NOW;
+    isCmoSubscribed.mockResolvedValue(true);
+    listCmoChannels.mockResolvedValue([]);
+    turnCount.mockResolvedValue(0);
+    advanceMedia.mockResolvedValue(undefined);
+  });
+
+  const words = post({ id: "words", draft: "Done." });
+  const picture = post({
+    id: "pic",
+    format: "image",
+    draft: "Words",
+    visual: "A card on a desk",
+  });
+  const failedJobs = (visuals: string[]) =>
+    visuals.flatMap((visualKey) =>
+      ["1", "2"].map((attempt) => ({
+        id: `${visualKey}-${attempt}`,
+        pieceId: "pic",
+        slot: 0,
+        step: "image",
+        visualKey,
+        status: "FAILED",
+        assetId: null,
+        prompt: "",
+        rejected: false,
+        attempt,
+        createdAt: NOW,
+      })),
+    );
+
+  it("leaves it a draft without one after three visuals, and the month is made", async () => {
+    // entry.fyi, 2026-11-22: one X post failed the brand check on four
+    // visuals and the month read "stopped" for a day.
+    listMediaJobs.mockResolvedValue(
+      failedJobs(["old-1", "old-2", cmoVisualKey(picture.entry)]),
+    );
+    const { status, pending } = await readCmoProduction(
+      cuso([words, picture]),
+      { connected: new Set(), subscribed: true, now: NOW },
+    );
+    expect(status).toMatchObject({
+      state: "ready",
+      withoutPicture: ["pic"],
+    });
+    expect(pending).toEqual([]);
+  });
+
+  it("asks a run for another visual while it failed on fewer", async () => {
+    listMediaJobs.mockResolvedValue(
+      failedJobs(["old-1", cmoVisualKey(picture.entry)]),
+    );
+    const { status, pending } = await readCmoProduction(
+      cuso([words, picture]),
+      { connected: new Set(), subscribed: true, now: NOW },
+    );
+    expect(status.state).not.toBe("ready");
+    expect(status.withoutPicture).toEqual([]);
+    expect(pending.map((piece) => piece.id)).toEqual(["pic"]);
+  });
+});
+
 describe("the month the plan bought", () => {
-  /** Three X posts a day for two days, and a talking video shown on YouTube too. */
+  /** Four X posts a day for two days, and a talking video shown on YouTube too. */
   const month = [
     ...["2026-11-10", "2026-11-11"].flatMap((date) =>
-      ["a", "b", "c"].map((slot) =>
+      ["a", "b", "c", "d"].map((slot) =>
         post({ id: `x-${date}-${slot}`, date, channel: "x", format: "post" }),
       ),
     ),
@@ -1131,32 +1405,31 @@ describe("the month the plan bought", () => {
     });
   };
 
-  it("makes one X post a day on Starter, and the rest waits for a bigger plan", async () => {
+  it("makes three X posts a day on Starter, and the rest waits for a bigger plan", async () => {
     const { status, pieces } = await read("starter");
     expect(status.level).toBe("steady");
     expect(pieces.map((piece) => piece.id)).toEqual([
       "x-2026-11-10-a",
+      "x-2026-11-10-b",
+      "x-2026-11-10-c",
       "x-2026-11-11-a",
+      "x-2026-11-11-b",
+      "x-2026-11-11-c",
       "v1",
       "v1@youtube",
     ]);
-    expect(status.total).toBe(4);
-    expect(status.beyondPlan).toEqual([
-      "x-2026-11-10-b",
-      "x-2026-11-10-c",
-      "x-2026-11-11-b",
-      "x-2026-11-11-c",
-    ]);
+    expect(status.total).toBe(8);
+    expect(status.beyondPlan).toEqual(["x-2026-11-10-d", "x-2026-11-11-d"]);
   });
 
   it("makes more of the same month on Growth, and all of it on Scale", async () => {
     expect((await read("growth")).status).toMatchObject({
       level: "active",
-      total: 6,
+      total: 10,
     });
     expect((await read("scale")).status).toMatchObject({
       level: "all_in",
-      total: 8,
+      total: 10,
       beyondPlan: [],
     });
   });
@@ -1164,7 +1437,56 @@ describe("the month the plan bought", () => {
   it("makes all of it on Tester credits, with no plan bought", async () => {
     expect((await read(null)).status).toMatchObject({
       level: "all_in",
-      total: 8,
+      total: 10,
     });
+  });
+});
+
+// cmo-v8: NMKR's month opened two posts on "One G2 review, rated 4.0/5"
+// whose reviewer found the fees "somewhat high".
+describe("cmoPraiseOnly", () => {
+  const lukewarm =
+    "One G2 review rates NMKR Studio 4.0/5 and says its percentage fees feel somewhat high.";
+  const praise = "TURF says NMKR's API saved countless development hours.";
+  const fact = "Book.io sold over 130,000 NFTs with NMKR.";
+
+  it("keeps clear praise and facts and leaves out a lukewarm review", async () => {
+    const evaluate = vi.fn(
+      async ({ state }: { state: { points: { point: string }[] } }) => ({
+        answers: new Map(
+          state.points.map(({ point }, index) => [
+            `p${index}`,
+            { type: "boolean", probability: point === lukewarm ? 0.1 : 0.9 },
+          ]),
+        ),
+        costUsd: 0.000_1,
+      }),
+    );
+    const kept = await cmoPraiseOnly(
+      [praise, lukewarm, fact],
+      evaluate as never,
+    );
+    expect(kept.points).toEqual([praise, fact]);
+    // Read once: the same points ask Jev nothing again.
+    const again = await cmoPraiseOnly(
+      [praise, lukewarm, fact],
+      evaluate as never,
+    );
+    expect(again).toEqual({ points: [praise, fact], costUsd: 0 });
+    expect(evaluate).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves out an unread review when Jev does not answer", async () => {
+    const evaluate = vi.fn(async () => {
+      throw new Error("timeout");
+    });
+    const other = "A G2 reviewer gave NMKR Studio 3 stars for support.";
+    const kept = await cmoPraiseOnly(
+      ["NMKR Studio lists a project audit at 150 ADA.", other],
+      evaluate as never,
+    );
+    expect(kept.points).toEqual([
+      "NMKR Studio lists a project audit at 150 ADA.",
+    ]);
   });
 });

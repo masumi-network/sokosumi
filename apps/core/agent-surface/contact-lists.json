@@ -1,0 +1,45 @@
+{
+  "operations": {
+    "GET /contact-lists": {
+      "cli": "contacts list-lists",
+      "mcp": "contacts_list_lists"
+    },
+    "POST /contact-lists": {
+      "cli": "contacts create-list",
+      "mcp": "contacts_create_list"
+    },
+    "PATCH /contact-lists/{id}": {
+      "cli": "contacts update-list",
+      "mcp": "contacts_update_list"
+    },
+    "DELETE /contact-lists/{id}": {
+      "cli": "contacts delete-list",
+      "mcp": "contacts_delete_list"
+    },
+    "POST /contact-lists/{id}/members": {
+      "cli": "contacts update-list-members",
+      "mcp": "contacts_update_list_members"
+    },
+    "POST /contact-lists/{id}/import": {
+      "cli": "contacts import-list",
+      "mcp": false,
+      "reason": "Bulk import: writes up to thousands of contacts from one call. A person runs it from the CLI or the app."
+    },
+    "GET /contact-lists/{id}/suggestions": {
+      "cli": "contacts list-suggestions",
+      "mcp": "contacts_list_suggestions"
+    },
+    "POST /contact-lists/{id}/find": {
+      "cli": "contacts find-people",
+      "mcp": "contacts_find_people"
+    },
+    "POST /contact-lists/{id}/suggestions/add": {
+      "cli": "contacts add-suggestions",
+      "mcp": "contacts_add_suggestions"
+    },
+    "POST /contact-lists/{id}/suggestions/dismiss": {
+      "cli": "contacts dismiss-suggestions",
+      "mcp": "contacts_dismiss_suggestions"
+    }
+  }
+}

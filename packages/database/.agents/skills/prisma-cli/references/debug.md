@@ -11,6 +11,7 @@ prisma debug [options]
 ## What It Does
 
 Outputs details about your Prisma environment, including:
+
 - Prisma CLI version
 - Prisma Client version (if installed)
 - Engine binaries (Query Engine, Migration Engine, etc.)
@@ -20,9 +21,9 @@ Outputs details about your Prisma environment, including:
 
 ## Options
 
-| Option | Description |
-|--------|-------------|
-| `--schema` | Path to schema file |
+| Option     | Description                            |
+| ---------- | -------------------------------------- |
+| `--schema` | Path to schema file                    |
 | `--config` | Custom path to your Prisma config file |
 
 ## Example Output

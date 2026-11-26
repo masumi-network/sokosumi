@@ -1,6 +1,7 @@
-/** The app's pages and their addresses; the chat is home. */
+/** The app's pages and their addresses; Today is home, the chat one tap away. */
 export const VIEW_PATHS = {
-  chat: "/",
+  today: "/",
+  chat: "/chat",
   strategy: "/strategy",
   calendar: "/calendar",
   seo: "/seo",
@@ -9,6 +10,8 @@ export const VIEW_PATHS = {
   brain: "/brand-brain",
   channels: "/channels",
   settings: "/settings",
+  /** Under Settings: every picture Cuso made, chosen or not. */
+  pictures: "/pictures",
 } as const;
 
 export type View = keyof typeof VIEW_PATHS;

@@ -36,6 +36,8 @@ const TRANSPORT_HEADERS =
 
 const authSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("none") }),
+  // The owner signs in on the server's own page (OAuth 2.1, ADR 0074).
+  z.object({ type: z.literal("oauth") }),
   z.object({
     type: z.literal("bearer"),
     token: z.string().trim().min(1).max(8_000),
@@ -82,3 +84,24 @@ export const updateSokoBotMcpToolRequestSchema = z
     readOnly: z.boolean().optional(),
   })
   .openapi("UpdateSokoBotMcpToolRequest");
+
+/** A server just added; with OAuth, where the owner's browser signs in next. */
+export const addedSokoBotMcpServerSchema = sokoBotMcpServerSchema
+  .extend({
+    authorizationUrl: z.string().nullable().openapi({
+      description:
+        "The server's sign-in page to send the owner to; null when no sign-in is needed",
+    }),
+  })
+  .openapi("AddedSokoBotMcpServer");
+
+export const sokoBotMcpSignInSchema = z
+  .object({ authorizationUrl: z.string().nullable() })
+  .openapi("SokoBotMcpSignIn");
+
+export const sokoBotMcpOAuthCallbackQuerySchema = z.object({
+  code: z.string().min(1).max(2_000).optional(),
+  state: z.string().min(1).max(200),
+  iss: z.string().max(2_000).optional(),
+  error: z.string().max(200).optional(),
+});

@@ -4,12 +4,16 @@ const {
   getDefaultVersionIdMock,
   listVersionsMock,
   getForAdminMock,
+  getTurnMock,
   listEvaluationsMock,
+  auth,
 } = vi.hoisted(() => ({
   getDefaultVersionIdMock: vi.fn(),
   listVersionsMock: vi.fn(),
   getForAdminMock: vi.fn(),
+  getTurnMock: vi.fn(),
   listEvaluationsMock: vi.fn(),
+  auth: { role: "admin" },
 }));
 
 vi.mock("@/services/soko-bot-model-evaluation.service", () => ({
@@ -31,7 +35,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
         actor: "user",
         userId: "user_admin",
         organizationId: null,
-        role: "admin",
+        role: auth.role,
       });
       await next();
     },
@@ -57,6 +61,7 @@ vi.mock("@/services/soko-bot-control-plane.service", async (importOriginal) => {
     sokoBotControlPlane: {
       ...actual.sokoBotControlPlane,
       getForAdmin: getForAdminMock,
+      getTurn: getTurnMock,
     },
   };
 });
@@ -67,6 +72,81 @@ import nestedApp from "./index";
 
 const app = new OpenAPIHonoWithAuth();
 app.route("/", nestedApp);
+
+describe("admin scenario turn read", () => {
+  const turnId = "01960001-0001-7001-8001-000000000010";
+  const url = `http://localhost/turns/${turnId}`;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    auth.role = "admin";
+  });
+
+  it("returns failed tool detail for the admin's own turn", async () => {
+    const now = new Date("2026-11-01T12:00:00Z");
+    const errorDetail = "Provider rejected the tool call (HTTP 429)";
+    getTurnMock.mockResolvedValue({
+      id: turnId,
+      sokoBotId: turnId,
+      workspaceId: turnId,
+      source: "CHAT",
+      status: "FAILED",
+      route: null,
+      clientTurnId: "lab:scenario",
+      userMessage: "Run the scenario",
+      finalAnswer: null,
+      classification: null,
+      classifierModel: null,
+      classifierVersion: null,
+      classifierLatencyMs: null,
+      classificationFailed: false,
+      capabilityNames: [],
+      modelId: null,
+      runtimeVersion: null,
+      usage: null,
+      deadlineAt: now,
+      cancellationRequestedAt: null,
+      startedAt: now,
+      completedAt: now,
+      durationMs: null,
+      errorKind: null,
+      errorDetail: null,
+      createdAt: now,
+      updatedAt: now,
+      toolCalls: [
+        {
+          id: turnId,
+          toolCallId: "call-1",
+          capability: "read_email",
+          inputHash: "hash",
+          status: "FAILED",
+          result: null,
+          errorKind: "provider_error",
+          errorDetail,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
+
+    const response = await app.request(url);
+
+    expect(response.status).toBe(200);
+    expect(getTurnMock).toHaveBeenCalledWith("user_admin", turnId);
+    await expect(response.json()).resolves.toMatchObject({
+      data: { toolCalls: [{ status: "FAILED", errorDetail }] },
+    });
+  });
+
+  it("refuses a signed-in non-admin before loading the turn", async () => {
+    auth.role = "user";
+    const response = await app.request(url);
+    auth.role = "admin";
+
+    expect(response.status).toBe(403);
+    expect(getTurnMock).not.toHaveBeenCalled();
+  });
+});
 
 describe("admin Soko Bot route precedence", () => {
   beforeEach(() => {
@@ -112,6 +192,7 @@ describe("admin Soko Bot route precedence", () => {
       "social",
       "ads",
       "long_form",
+      "playbooks",
     ]);
     expect(data.groups[1].skills).toContainEqual(
       expect.objectContaining({

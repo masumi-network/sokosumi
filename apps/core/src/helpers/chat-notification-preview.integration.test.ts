@@ -83,7 +83,8 @@ describe.skipIf(!databaseUrl)(
       );
       ownsType = true;
       await control!.$executeRawUnsafe(`CREATE TABLE chat_room_message (
-      id uuid PRIMARY KEY, "roomId" uuid NOT NULL, content text NOT NULL, "deletedAt" timestamp
+      id uuid PRIMARY KEY, "roomId" uuid NOT NULL, content text NOT NULL, "deletedAt" timestamp,
+      "senderSokoBotId" uuid, metadata jsonb
     )`);
       ownsMessages = true;
       await control!.$executeRawUnsafe(`CREATE TABLE notification (

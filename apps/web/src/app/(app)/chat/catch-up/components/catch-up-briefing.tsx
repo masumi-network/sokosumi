@@ -26,6 +26,7 @@ import {
   DueLabel,
   withoutCatchUpRooms,
 } from "@/components/chat/signals/catch-up-summary-body";
+import { usePageListSearch } from "@/components/page-list-search";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 import { getInitials } from "@/lib/utils/text";
+import { chatQueryKeys } from "@/queries/chat";
 
 /** Every room with something unread. */
 function unreadRoomIds(summary: ChatCatchUpSummary): string[] {
@@ -48,9 +50,6 @@ function unreadRoomIds(summary: ChatCatchUpSummary): string[] {
   ];
 }
 
-/** The query that holds the page's summary. */
-export const CATCH_UP_SUMMARY_QUERY_KEY = ["chat-catch-up-summary"];
-
 /** One Mark read at a time: every button that starts one waits on it. */
 const MARK_READ_MUTATION_KEY = ["chat-catch-up-mark-read"];
 
@@ -61,6 +60,7 @@ const MARK_READ_MUTATION_KEY = ["chat-catch-up-mark-read"];
 function useMarkRead(onDone: () => void) {
   const t = useTranslations("App.Channels.Signals");
   const queryClient = useQueryClient();
+  const summaryQueryKey = chatQueryKeys.catchUpSummary();
   const isMarking = useIsMutating({ mutationKey: MARK_READ_MUTATION_KEY }) > 0;
   const { mutate } = useMutation({
     mutationKey: MARK_READ_MUTATION_KEY,
@@ -77,16 +77,15 @@ function useMarkRead(onDone: () => void) {
       if (!result.ok) throw new Error("Mark read was refused");
     },
     onMutate: (roomIds) => {
-      const before = queryClient.getQueryData<ChatCatchUpSummary>(
-        CATCH_UP_SUMMARY_QUERY_KEY,
-      );
+      const before =
+        queryClient.getQueryData<ChatCatchUpSummary>(summaryQueryKey);
       if (before) {
         // A summary read that is still out would put the rooms back.
         void queryClient.cancelQueries({
-          queryKey: CATCH_UP_SUMMARY_QUERY_KEY,
+          queryKey: summaryQueryKey,
         });
         queryClient.setQueryData(
-          CATCH_UP_SUMMARY_QUERY_KEY,
+          summaryQueryKey,
           withoutCatchUpRooms(before, roomIds),
         );
       }
@@ -94,7 +93,7 @@ function useMarkRead(onDone: () => void) {
     },
     onError: (_error, _roomIds, before) => {
       if (before) {
-        queryClient.setQueryData(CATCH_UP_SUMMARY_QUERY_KEY, before);
+        queryClient.setQueryData(summaryQueryKey, before);
       }
       toast.error(t("markAllReadError"));
     },
@@ -510,7 +509,18 @@ export function BriefingTopics({
   const waitingId = useId();
   const awayId = useId();
   const { hidden, done } = useDone(onChanged);
-  const shown = topics.filter((topic) => !hidden.has(topic.id));
+  const shown = usePageListSearch(
+    topics.filter((topic) => !hidden.has(topic.id)),
+    (topic) => ({
+      primary: [topic.title],
+      secondary: [
+        topic.roomName,
+        topic.status,
+        topic.summary,
+        ...topic.people.map((person) => person.name),
+      ],
+    }),
+  );
   const waiting = shown.filter((topic) => topic.status === "waitingOnYou");
   const rest = shown.filter((topic) => topic.status !== "waitingOnYou");
   const card = (topic: ChatCatchUpTopic) => (
@@ -564,7 +574,13 @@ export function OpenLoopsList({
   const now = useNow({ updateInterval: 60_000 });
   const headingId = useId();
   const { hidden, done } = useDone(onChanged);
-  const shown = items.filter((item) => !hidden.has(item.messageId));
+  const shown = usePageListSearch(
+    items.filter((item) => !hidden.has(item.messageId)),
+    (item) => ({
+      primary: [item.excerpt],
+      secondary: [item.senderName, item.roomName, item.bucket],
+    }),
+  );
   if (shown.length === 0) return null;
   return (
     <section aria-labelledby={headingId} className={HOLDER_CLASS}>
@@ -630,21 +646,25 @@ export function QuietRooms({
   const now = useNow({ updateInterval: 60_000 });
   const headingId = useId();
   const { isMarking, markRead } = useMarkRead(onChanged);
-  if (rooms.length === 0) return null;
+  const matching = usePageListSearch(rooms, (room) => ({
+    primary: [room.roomName],
+    secondary: [room.latest?.excerpt, room.latest?.senderName],
+  }));
+  if (matching.length === 0) return null;
   return (
     <section aria-labelledby={headingId} className={HOLDER_CLASS}>
       <div className="flex items-center gap-2 pr-1">
         <SectionHeading
           id={headingId}
           title={t("otherMessages")}
-          count={rooms.length}
+          count={matching.length}
         />
         <Button
           size="sm"
           variant="ghost"
           className="ml-auto"
           loading={isMarking}
-          onClick={() => markRead(rooms.map((room) => room.roomId))}
+          onClick={() => markRead(matching.map((room) => room.roomId))}
         >
           <Check aria-hidden />
           {tSignals("markRead")}
@@ -654,7 +674,7 @@ export function QuietRooms({
         {t("otherMessagesHint")}
       </p>
       <ul className={cn(HOLDER_ITEM_CLASS, "flex flex-col p-1")}>
-        {rooms.map((room) => (
+        {matching.map((room) => (
           <li key={room.roomId}>
             <Link
               href={

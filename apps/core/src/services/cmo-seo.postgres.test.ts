@@ -7,17 +7,27 @@
  */
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { ssrfSafeFetch } from "@sokosumi/net";
 import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { SEO_FULL_AUDIT_CREDITS } from "@sokosumi/utils";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-
 import { getEnv } from "@/config/env";
+import { fetchKeywordIdeas, fetchKeywordOverview } from "@/lib/ads/dataforseo";
+import { askCmoEditor, EDITORS } from "./cmo-keyword-editorial";
+import { failSeoAnalysesOfEndedTasks } from "./project-seo-import.service";
+
+vi.mock("./cmo-keyword-editorial", async (original) => ({
+  ...(await original<typeof import("./cmo-keyword-editorial")>()),
+  askCmoEditor: vi.fn(),
+}));
+
 import prisma from "@/lib/db/prisma";
 import { parseSeoMonitorPlan } from "@/lib/seo/monitor-plan";
 import { type Cuso, findCusoForBot } from "./cmo-cuso.service";
 import {
   markCmoLandingPageLive,
   readCmoSeo,
+  requestCmoArticleIdeas,
   saveCmoSeoSuggestions,
   searchCmoKeywords,
   setCmoSeoSuggestionStatus,
@@ -34,8 +44,15 @@ import {
   seoCheckOutcome,
 } from "./cmo-seo-rankings.service";
 
+// A page change's before is read on the live page.
+vi.mock("@sokosumi/net", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/net")>()),
+  ssrfSafeFetch: vi.fn(),
+}));
+
 vi.mock("@/lib/ads/dataforseo", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ads/dataforseo")>()),
+  fetchKeywordOverview: vi.fn(),
   fetchKeywordIdeas: vi.fn(async () => [
     {
       keyword: "macbook battery health app",
@@ -572,6 +589,496 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
     );
   });
 
+  it("offers the site's own Search Console searches when research measures nothing, and saves an article on one", async () => {
+    const row = (query: string, impressions: number, position: number) => ({
+      query,
+      pageUrl: "https://battery-sensei.app/guide",
+      clicks: 1,
+      impressions,
+      ctr: 1 / impressions,
+      position,
+    });
+    const gsc = await prisma.projectSeoResearch.create({
+      data: {
+        projectId,
+        kind: "search_console",
+        key: "latest",
+        observedAt: new Date(),
+        payload: {
+          property: "sc-domain:battery-sensei.app",
+          from: "2026-10-20",
+          to: "2026-11-16",
+          totals: { clicks: 2, impressions: 320, ctr: 0.006, position: 14 },
+          rows: [
+            row("macbook battery cycle count", 200, 12.4),
+            row("battery cycle count mac", 120, 18),
+            row("swiss watch straps", 90, 30),
+          ],
+        },
+      },
+    });
+    try {
+      vi.mocked(fetchKeywordIdeas).mockImplementationOnce(async () => []);
+      const search = await searchCmoKeywords(cuso, "macbook battery cycles");
+      expect(search.ideas.map((i) => i.keyword)).toEqual([
+        "macbook battery cycle count",
+        "battery cycle count mac",
+      ]);
+      expect(search.ideas[0]).toMatchObject({
+        searchVolume: null,
+        impressions: 200,
+        position: 12.4,
+        positionSource: "search_console",
+      });
+      const saved = await saveCmoSeoSuggestions(cuso, {
+        articles: [
+          {
+            title: "How to read your MacBook battery cycle count",
+            keyword: "macbook battery cycle count",
+            why: "Google already shows the site for it, at 12.4.",
+            outline: "## Where to find it\n## What the number means",
+          },
+        ],
+      });
+      expect(saved.refused).toEqual([]);
+      const article = (await readCmoSeo(cuso)).articles.find(
+        (a) => a.keyword === "macbook battery cycle count",
+      );
+      expect(article?.evidence).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            metric: "impressions",
+            value: "200",
+            source: "search_console",
+          }),
+        ]),
+      );
+    } finally {
+      await prisma.projectSeoSuggestion.deleteMany({
+        where: { projectId, keyword: "macbook battery cycle count" },
+      });
+      await prisma.projectSeoResearch.delete({ where: { id: gsc.id } });
+    }
+  });
+
+  it("keeps a page change's before only when the live page says it, and refuses a before it does not", async () => {
+    const gsc = await prisma.projectSeoResearch.create({
+      data: {
+        projectId,
+        kind: "search_console",
+        key: "latest",
+        observedAt: new Date(),
+        payload: {
+          property: "sc-domain:battery-sensei.app",
+          from: "2026-10-20",
+          to: "2026-11-16",
+          totals: { clicks: 9, impressions: 900, ctr: 0.01, position: 11 },
+          rows: [
+            {
+              query: "macbook battery health app",
+              pageUrl: "https://battery-sensei.app/",
+              clicks: 9,
+              impressions: 900,
+              ctr: 0.01,
+              position: 11,
+            },
+          ],
+        },
+      },
+    });
+    const page = () =>
+      new Response(
+        "<html><head><title>Battery Sensei &amp; your Mac</title></head><body><h1>Keep your battery young</h1></body></html>",
+      );
+    const change = (title: string, currentText: string) => ({
+      pageUrl: "https://battery-sensei.app/",
+      title,
+      change: "Replace the homepage title.",
+      element: "title" as const,
+      currentText,
+      newText: "MacBook Battery Health App | Battery Sensei",
+      why: "Seen 900 times at 11 for the search; the title never says it.",
+      keyword: "macbook battery health app",
+    });
+    try {
+      vi.mocked(ssrfSafeFetch).mockImplementation(async () => page());
+      const saved = await saveCmoSeoSuggestions(cuso, {
+        pageChanges: [
+          change(
+            "Say battery health in the title",
+            "Battery Sensei & your Mac",
+          ),
+          change("A title the page never had", "Best Mac app of 2026"),
+        ],
+      });
+      expect(saved.saved).toHaveLength(1);
+      expect(saved.refused.join(" ")).toMatch(/does not say "Best Mac app/);
+      const kept = (await readCmoSeo(cuso)).pageChanges.find(
+        (c) => c.title === "Say battery health in the title",
+      );
+      expect(kept).toMatchObject({
+        element: "title",
+        currentText: "Battery Sensei & your Mac",
+      });
+
+      // A page Core cannot read keeps the change, without a before.
+      vi.mocked(ssrfSafeFetch).mockRejectedValueOnce(new Error("timeout"));
+      const unread = await saveCmoSeoSuggestions(cuso, {
+        pageChanges: [change("Name the search on the homepage", "Anything")],
+      });
+      expect(unread.saved).toHaveLength(1);
+      const plain = (await readCmoSeo(cuso)).pageChanges.find(
+        (c) => c.title === "Name the search on the homepage",
+      );
+      expect(plain).toMatchObject({ currentText: null, element: null });
+    } finally {
+      await prisma.projectSeoSuggestion.deleteMany({
+        where: { projectId, source: "cuso", kind: "page_change" },
+      });
+      await prisma.projectSeoResearch.delete({ where: { id: gsc.id } });
+    }
+  });
+
+  it("joins an article request that is still under way instead of starting a second one", async () => {
+    const running = await prisma.sokoBotTurn.create({
+      data: {
+        sokoBotId: cuso.sokoBotId,
+        workspaceId,
+        requestedByUserId: userId,
+        source: "EVENT",
+        status: "RUNNING",
+        clientTurnId: `cmo:seo-ideas:${cuso.sokoBotId}:1`,
+        userMessage: "The owner asked for more article ideas",
+        capabilityNames: [],
+        deadlineAt: new Date(Date.now() + 600_000),
+      },
+      select: { id: true },
+    });
+    try {
+      expect(await requestCmoArticleIdeas({ userId, projectId })).toEqual({
+        turnId: running.id,
+      });
+    } finally {
+      await prisma.sokoBotTurn.delete({ where: { id: running.id } });
+    }
+  });
+
+  it("keeps CMO search receipts separate, reuses its weekly result and saves a billed vendor refusal", async () => {
+    const today = new Date();
+    const term = "How to choose a shelf";
+    const topic = "small spaces";
+    vi.mocked(fetchKeywordIdeas).mockImplementationOnce(
+      async (_q, observed) => {
+        await observed!({
+          costUsd: 0.014,
+          taskId: "vendor-search",
+          exactKeywords: [term.toLowerCase()],
+        });
+        return [
+          {
+            keyword: term,
+            searchVolume: 30,
+            difficulty: 12,
+            intent: "informational",
+            cpc: null,
+          },
+        ];
+      },
+    );
+    vi.mocked(askCmoEditor).mockImplementation(async (model) => ({
+      model,
+      phrases: model === EDITORS[0] ? [term] : [],
+      costUsd: model === EDITORS[0] ? 0.02 : 0.01,
+      generationId: null,
+      status: model === EDITORS[0] ? "ok" : "failed",
+    }));
+    const search = await searchCmoKeywords(cuso, topic, today);
+    expect(search.ideas[0]).toMatchObject({ keyword: term, editorial: true });
+    expect(await searchCmoKeywords(cuso, topic, today)).toEqual(search);
+    expect(
+      vi
+        .mocked(askCmoEditor)
+        .mock.calls.map((c) => c[0])
+        .sort(),
+    ).toEqual([...EDITORS].sort());
+    const rows = await prisma.projectSeoResearch.findMany({
+      where: {
+        projectId: cuso.projectId,
+        kind: "keyword_research_run",
+        key: { contains: topic },
+      },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].payload).toMatchObject({
+      status: "complete",
+      totalUsd: expect.closeTo(0.044),
+    });
+    const lines = await prisma.projectSeoResearch.findMany({
+      where: {
+        projectId: cuso.projectId,
+        kind: "keyword_research_charge",
+        key: { startsWith: rows[0].id },
+      },
+    });
+    expect(lines.map((l) => l.payload)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: EDITORS[1],
+          status: "failed",
+          costUsd: 0.01,
+        }),
+        expect.objectContaining({ source: "dataforseo", costUsd: 0.014 }),
+      ]),
+    );
+    // A later topic may contain a related winning phrase in the prior purchase, while its own signed row reports zero results.
+    vi.mocked(fetchKeywordIdeas).mockImplementationOnce(
+      async (_q, observed) => {
+        await observed!({
+          costUsd: 0.009,
+          taskId: "vendor-second",
+          exactKeywords: [],
+        });
+        return [];
+      },
+    );
+    const later = new Date(today.getTime() + 1000);
+    const related = await searchCmoKeywords(cuso, "reading room", later);
+    expect(related.ideas).toContainEqual(
+      expect.objectContaining({
+        keyword: term,
+        editorial: true,
+        measuredAt: today.toISOString(),
+      }),
+    );
+    vi.mocked(fetchKeywordIdeas).mockImplementationOnce(
+      async (_q, observed) => {
+        await observed!({
+          costUsd: 0.012,
+          taskId: "billed-refusal",
+          exactKeywords: [],
+        });
+        throw new Error("vendor refused");
+      },
+    );
+    await expect(
+      searchCmoKeywords(cuso, "failed source", today),
+    ).rejects.toThrow("vendor refused");
+    await expect(
+      searchCmoKeywords(cuso, "failed source", today),
+    ).rejects.toThrow("already started");
+    const bad = await prisma.projectSeoResearch.findFirstOrThrow({
+      where: {
+        projectId: cuso.projectId,
+        kind: "keyword_research_run",
+        key: { contains: "failed source" },
+      },
+    });
+    expect(bad.payload).toMatchObject({
+      status: "failed",
+      knownUsd: 0.012,
+      totalUsd: 0.012,
+    });
+    const line = await prisma.projectSeoResearch.findFirstOrThrow({
+      where: {
+        projectId: cuso.projectId,
+        kind: "keyword_research_charge",
+        key: { startsWith: bad.id },
+      },
+    });
+    expect(line.payload).toMatchObject({
+      reference: "billed-refusal",
+      status: "failed",
+      costUsd: 0.012,
+    });
+  });
+
+  it("uses the repeat topic’s single purchase for ranked unseen phrases and keeps the original baseline date", async () => {
+    const start = new Date("2026-04-02T09:30:00.000Z");
+    const at = (days: number) => new Date(start.getTime() + days * 86_400_000);
+    const topic = "workshop shelves";
+    const baseline = "paint a workshop shelf";
+    const row = (keyword: string) => ({
+      keyword,
+      searchVolume: 120,
+      difficulty: 25,
+      cpc: null,
+      intent: "informational" as const,
+    });
+    const discoveries = vi.mocked(fetchKeywordIdeas);
+    const overviews = vi.mocked(fetchKeywordOverview);
+    const events: string[] = [];
+    const discovery = async (
+      _q: Parameters<typeof fetchKeywordIdeas>[0],
+      save: Parameters<typeof fetchKeywordIdeas>[1],
+    ) => {
+      events.push("suggestions");
+      await save!({
+        costUsd: 0.012,
+        taskId: "baseline-task",
+        exactKeywords: [baseline],
+      });
+      return [row(baseline)];
+    };
+    discoveries.mockImplementationOnce(discovery);
+    let phrases: string[] = [];
+    vi.mocked(askCmoEditor).mockImplementation(async (model, input) => {
+      expect(input).toMatchObject({
+        countryCode: "US",
+        languageCode: "en",
+        asOf: expect.stringMatching(/^2026-/),
+      });
+      events.push(model);
+      return {
+        model,
+        phrases: model === EDITORS[0] ? phrases : [],
+        costUsd: 0.01,
+        generationId: null,
+        status: "ok",
+      };
+    });
+    await searchCmoKeywords(cuso, topic, start);
+    expect(events[0]).toBe("suggestions");
+    const novel = [
+      "adjustable shelf spacing",
+      "mount shelf uprights",
+      "hang a tool rail",
+      "fourth suggestion",
+    ];
+    phrases = [baseline, ...novel];
+    overviews.mockImplementationOnce(async (q, terms, save) => {
+      expect(q).toMatchObject({
+        topic,
+        locationCode: 2840,
+        languageCode: "en",
+      });
+      expect(terms).toEqual(novel.slice(0, 3));
+      events.push("overview");
+      await save({
+        costUsd: 0.011,
+        taskId: "overview-task",
+        exactKeywords: terms,
+      });
+      return terms.map(row);
+    });
+    events.length = 0;
+    const refreshed = await searchCmoKeywords(cuso, topic, at(8));
+    expect(events.slice(0, 2).sort()).toEqual([...EDITORS].sort());
+    expect(events.slice(2)).toEqual(["overview"]);
+    expect(refreshed.ideas).toContainEqual(
+      expect.objectContaining({
+        keyword: novel[0],
+        editorial: true,
+        searchVolume: 120,
+      }),
+    );
+    expect(refreshed.ideas).not.toContainEqual(
+      expect.objectContaining({ keyword: novel[3] }),
+    );
+    expect(
+      refreshed.ideas.find((i) => i.keyword === baseline)?.measuredAt,
+    ).toBe(start.toISOString());
+    const saved = await prisma.projectSeoResearch.findFirstOrThrow({
+      where: {
+        projectId: cuso.projectId,
+        kind: "keyword_ideas",
+        key: { startsWith: topic + "|" },
+      },
+    });
+    expect(saved.payload).toMatchObject({
+      baseline: {
+        source: "suggestions",
+        taskId: "baseline-task",
+        measuredAt: start.toISOString(),
+      },
+      native: {
+        source: "overview",
+        taskId: "overview-task",
+        measuredAt: at(8).toISOString(),
+      },
+    });
+    expect(await searchCmoKeywords(cuso, topic, at(10))).toEqual(refreshed);
+    phrases = [...novel.slice(0, 3), "shelving brackets"];
+    overviews.mockImplementationOnce(async (_q, terms, save) => {
+      expect(terms).toEqual(["shelving brackets"]);
+      await save({
+        costUsd: 0.01,
+        taskId: "overview-two",
+        exactKeywords: terms,
+      });
+      return terms.map(row);
+    });
+    await searchCmoKeywords(cuso, topic, at(16));
+    phrases = [novel[0], "install shelf hooks"];
+    overviews.mockImplementationOnce(async (_q, terms, save) => {
+      expect(terms).toEqual(["install shelf hooks"]);
+      await save({
+        costUsd: 0.01,
+        taskId: "overview-three",
+        exactKeywords: terms,
+      });
+      return terms.map(row);
+    });
+    const later = await searchCmoKeywords(cuso, topic, at(24));
+    expect(later.ideas.find((i) => i.keyword === novel[0])?.measuredAt).toBe(
+      at(8).toISOString(),
+    );
+    // Intervening searches have not extended the original discovery measurement's 30-day life.
+    events.length = 0;
+    discoveries.mockImplementationOnce(discovery);
+    await searchCmoKeywords(cuso, topic, at(31));
+    expect(events[0]).toBe("suggestions");
+    // The new baseline is current, but both editors propose only its already measured phrase.
+    events.length = 0;
+    phrases = [baseline];
+    discoveries.mockImplementationOnce(discovery);
+    await searchCmoKeywords(cuso, topic, at(39));
+    expect(events.slice(0, 2).sort()).toEqual([...EDITORS].sort());
+    expect(events.slice(2)).toEqual(["suggestions"]);
+  });
+  it("admits one CMO purchase across concurrent requests and a day change", async () => {
+    let started!: () => void;
+    let finish!: () => void;
+    const dispatched = new Promise<void>((r) => {
+      started = r;
+    });
+    const held = new Promise<void>((r) => {
+      finish = r;
+    });
+    vi.mocked(fetchKeywordIdeas).mockImplementationOnce(async (_q, receipt) => {
+      started();
+      await held;
+      await receipt!({
+        costUsd: 0.01,
+        taskId: "charged-only-once",
+        exactKeywords: [],
+      });
+      return [];
+    });
+    const before = new Date("2026-11-19T23:59:59Z");
+    const key = "parallel shelves";
+    const first = searchCmoKeywords(cuso, key, before);
+    await dispatched;
+    try {
+      await expect(searchCmoKeywords(cuso, key, before)).rejects.toThrow(
+        "already started",
+      );
+      await expect(
+        searchCmoKeywords(cuso, key, new Date(before.getTime() + 2_000)),
+      ).rejects.toThrow("already started");
+    } finally {
+      finish();
+    }
+    await first;
+    const purchases = await prisma.projectSeoResearch.findMany({
+      where: {
+        projectId: cuso.projectId,
+        kind: "keyword_research_run",
+        key: { contains: key },
+      },
+    });
+    expect(purchases).toHaveLength(1);
+  });
+
   it("answers a position check from its imported result, and says when it failed", async () => {
     const task = await prisma.task.create({
       data: {
@@ -1039,15 +1546,13 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
         },
         select: { id: true },
       });
-    // An audit's Task, free again now that its audit row is gone.
-    const taken = await prisma.projectSeoAnalysis.findMany({
-      where: { projectId, taskId: { not: null } },
-      select: { taskId: true },
-    });
-    const task = await prisma.task.findFirstOrThrow({
-      where: {
+    const task = await prisma.task.create({
+      data: {
+        name: "SEO audit",
         workspaceId,
-        id: { notIn: taken.flatMap((row) => row.taskId ?? []) },
+        projectId,
+        status: "COMPLETED",
+        ownerId: userId,
       },
       select: { id: true },
     });
@@ -1095,6 +1600,189 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
         now,
       ),
     ).toHaveLength(2);
+  });
+
+  it("runs a failed first audit again after an hour, then after six, then leaves it to the weekly Run", async () => {
+    const own = await prisma.project.create({
+      data: { workspaceId, name: "Cuso", websiteUrl: "https://retry.test/" },
+      select: { id: true },
+    });
+    const bot = await prisma.sokoBot.create({
+      data: {
+        workspaceId,
+        projectId: own.id,
+        userId: null,
+        createdByUserId: userId,
+        versionId: CMO_SOKO_BOT_VERSION_ID,
+        name: "Cuso",
+      },
+    });
+    const retrying = await findCusoForBot(bot.id);
+    if (!retrying) throw new Error("Cuso fixture missing");
+    const grant = await prisma.transaction.create({
+      data: { amount: 10_000n * CREDIT, organizationId },
+      select: { id: true },
+    });
+    await prisma.creditBucket.create({
+      data: {
+        amount: 10_000n * CREDIT,
+        organizationId,
+        projectId: own.id,
+        sourceTransactionId: grant.id,
+        referenceType: "CMO_TESTER_CREDITS",
+      },
+    });
+    await keepCmoSeoAudit(retrying);
+    const monitor = await prisma.taskSchedule.findFirstOrThrow({
+      where: {
+        projectId: own.id,
+        description: { startsWith: "seo_monitor: " },
+      },
+    });
+    // The weekly Run is days away, and the first audit failed half an hour ago.
+    await prisma.taskSchedule.update({
+      where: { id: monitor.id },
+      data: { nextRunAt: new Date(Date.now() + 5 * 86_400_000) },
+    });
+    const analyses = () =>
+      prisma.projectSeoAnalysis.findMany({
+        where: { projectId: own.id, kind: "audit_full" },
+        orderBy: { createdAt: "desc" },
+      });
+    await prisma.projectSeoAnalysis.deleteMany({
+      where: { projectId: own.id },
+    });
+    await prisma.projectSeoAnalysis.create({
+      data: {
+        projectId: own.id,
+        kind: "audit_full",
+        status: "failed",
+        idempotencyKey: randomUUID(),
+        requestHash: randomUUID(),
+        request: {},
+        requestedBy: userId,
+        createdAt: new Date(Date.now() - 30 * 60_000),
+      },
+    });
+    // The newest try failed and started this long ago; the earlier ones before it.
+    const failLatest = async (startedMinutesAgo: number) => {
+      const tries = await prisma.projectSeoAnalysis.findMany({
+        where: { projectId: own.id },
+        orderBy: { id: "desc" },
+      });
+      await prisma.task.updateMany({
+        where: { id: { in: tries.flatMap((row) => row.taskId ?? []) } },
+        data: { status: "FAILED" },
+      });
+      for (const [i, row] of tries.entries())
+        await prisma.projectSeoAnalysis.update({
+          where: { id: row.id },
+          data: {
+            status: "failed",
+            createdAt: new Date(
+              Date.now() - (startedMinutesAgo + i * 24 * 60) * 60_000,
+            ),
+          },
+        });
+    };
+
+    await keepCmoSeoAudit(retrying);
+    expect(await analyses()).toHaveLength(1);
+    const waiting = await readCmoSeoAudit(retrying);
+    expect(waiting.failedTries).toBe(1);
+    expect(Date.parse(waiting.retryAt ?? "")).toBeGreaterThan(Date.now());
+
+    // A weekly Run due before the retry, or just after it, is the retry.
+    await prisma.taskSchedule.update({
+      where: { id: monitor.id },
+      data: { nextRunAt: new Date(Date.now() + 60 * 60_000) },
+    });
+    expect((await readCmoSeoAudit(retrying)).retryAt).toBeNull();
+    await prisma.taskSchedule.update({
+      where: { id: monitor.id },
+      data: { nextRunAt: new Date(Date.now() + 5 * 86_400_000) },
+    });
+
+    await failLatest(61);
+    await keepCmoSeoAudit(retrying);
+    expect(await analyses()).toHaveLength(2);
+    expect((await readCmoSeoAudit(retrying)).running).toBe(true);
+
+    await failLatest(5 * 60);
+    await keepCmoSeoAudit(retrying);
+    expect(await analyses()).toHaveLength(2);
+    await failLatest(6 * 60 + 1);
+    await keepCmoSeoAudit(retrying);
+    expect(await analyses()).toHaveLength(3);
+
+    await failLatest(7 * 60);
+    await keepCmoSeoAudit(retrying);
+    expect(await analyses()).toHaveLength(3);
+    expect(await readCmoSeoAudit(retrying)).toMatchObject({
+      failedTries: 3,
+      retryAt: null,
+    });
+
+    await prisma.projectSeoAnalysis.deleteMany({
+      where: { projectId: own.id },
+    });
+    await prisma.task.deleteMany({ where: { projectId: own.id } });
+    await prisma.taskSchedule.deleteMany({ where: { projectId: own.id } });
+    await prisma.transaction.deleteMany({ where: { id: grant.id } });
+    await prisma.sokoBot.delete({ where: { id: bot.id } });
+    await prisma.project.delete({ where: { id: own.id } });
+  });
+
+  it("fails an analysis whose Task failed or was canceled, and leaves running and completed ones", async () => {
+    const analysisFor = async (
+      taskStatus: "FAILED" | "CANCELED" | "RUNNING",
+      status = "requested",
+    ) => {
+      const task = await prisma.task.create({
+        data: {
+          name: "SEO audit full",
+          workspaceId,
+          projectId,
+          status: taskStatus,
+        },
+        select: { id: true },
+      });
+      return prisma.projectSeoAnalysis.create({
+        data: {
+          projectId,
+          kind: "audit_full",
+          status,
+          taskId: task.id,
+          idempotencyKey: randomUUID(),
+          requestHash: randomUUID(),
+          request: {},
+          requestedBy: userId,
+        },
+        select: { id: true },
+      });
+    };
+    const failed = await analysisFor("FAILED");
+    const canceled = await analysisFor("CANCELED");
+    const running = await analysisFor("RUNNING");
+    const done = await analysisFor("FAILED", "completed");
+    const statusOf = async (id: string) =>
+      (
+        await prisma.projectSeoAnalysis.findUniqueOrThrow({
+          where: { id },
+          select: { status: true },
+        })
+      ).status;
+
+    expect(await failSeoAnalysesOfEndedTasks()).toBeGreaterThanOrEqual(2);
+    expect(await statusOf(failed.id)).toBe("failed");
+    expect(await statusOf(canceled.id)).toBe("failed");
+    expect(await statusOf(running.id)).toBe("requested");
+    expect(await statusOf(done.id)).toBe("completed");
+    expect(await failSeoAnalysesOfEndedTasks()).toBe(0);
+
+    await prisma.projectSeoAnalysis.deleteMany({
+      where: { id: { in: [failed.id, canceled.id, running.id, done.id] } },
+    });
   });
 
   it("pauses the weekly audit of a Cuso that was let go, but not a monitor a person made", async () => {

@@ -91,11 +91,25 @@
   min-width: 0;
 }
 
-.ds-logo {
+.ds-logos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 32px;
   margin: 0;
-  font-size: 1rem;
-  line-height: 1;
-  color: var(--foreground);
+  padding: 0;
+  list-style: none;
+}
+
+.ds-logos li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ds-logos .logo img {
+  width: auto;
+  height: 120px;
 }
 
 .ds-checklist {
@@ -349,8 +363,8 @@
 
 .ds-side {
   display: flex;
-  width: 240px;
-  height: 640px;
+  width: 340px;
+  height: 900px;
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
 }
@@ -361,13 +375,18 @@
 }
 
 .ds-statuses {
-  display: grid;
-  max-width: 240px;
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px 48px;
 }
 
-.ds-statuses .cuso-status {
-  margin: 0;
+/* Each pose on its stage, as the sidebar's foot shows it: Cuso leans out to the right. */
+.ds-stage {
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  height: 380px;
+  margin-right: 100px;
 }
 
 .ds-avatars {

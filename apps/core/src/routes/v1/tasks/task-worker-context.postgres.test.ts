@@ -1,6 +1,7 @@
 /** Real Task authorization and PostgreSQL locking. Only external boundaries are local fixtures. */
-import { generateKeyPairSync, randomUUID, sign } from "node:crypto";
+import { createHash, generateKeyPairSync, randomUUID, sign } from "node:crypto";
 import { TaskStatus } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { Hono } from "hono";
 import {
@@ -23,6 +24,7 @@ import prisma from "@/lib/db/prisma";
 import { type EnvVariables, OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import uploadRouter from "@/routes/v1/webhooks/tasks/files/uploaded";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 import { focusedReport, SEO_TEST_PAGE } from "@/test-fixtures/project-seo";
 import mountEvents from "./[id]/events/post";
 import mountFiles from "./[id]/files/post";
@@ -34,8 +36,24 @@ const { headMock, delMock, grantMock, fixtureEnv } = vi.hoisted(() => ({
   fixtureEnv: {
     publicKey: "",
     globalCoworkerId: null as string | null,
+    failAfterCharge: false,
   },
 }));
+
+// The last step inside the event's transaction, after the charge and the
+// event are written: a test makes it throw once.
+vi.mock("./[id]/events/map-created-event", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./[id]/events/map-created-event")>();
+  return {
+    mapCreatedTaskEventForResponse: ((...args) => {
+      if (!fixtureEnv.failAfterCharge)
+        return actual.mapCreatedTaskEventForResponse(...args);
+      fixtureEnv.failAfterCharge = false;
+      throw new Error("after the charge");
+    }) satisfies typeof actual.mapCreatedTaskEventForResponse,
+  };
+});
 
 vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
@@ -185,12 +203,13 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
 
   async function waitForBlockedTaskWrite(holderPid: number) {
     const deadline = Date.now() + LOCK_WAIT_TIMEOUT_MS;
+    const fromTask = `FROM ${sharedTable("task").sql}`;
     while (Date.now() < deadline) {
       const [state] = await prisma.$queryRaw<Array<{ waiting: boolean }>>`
         SELECT EXISTS (
           SELECT 1 FROM pg_stat_activity
           WHERE ${holderPid} = ANY(pg_blocking_pids(pid))
-            AND query LIKE '%FROM "task"%'
+            AND strpos(query, ${fromTask}) > 0
             AND query LIKE '%FOR UPDATE%'
         ) AS waiting
       `;
@@ -627,6 +646,7 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
           organizationId: task.organizationId,
           projectId: task.projectId,
           cents,
+          scope: testNetworkScope(),
           tx,
         });
         await tx.taskEvent.create({
@@ -733,6 +753,108 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
     await expectNoWrites();
   });
 
+  describe("SEO start admission", () => {
+    let admission: { eventId: string; inputFingerprint: string };
+
+    beforeEach(async () => {
+      fixtureEnv.globalCoworkerId = coworkerId;
+      await markNativeTask();
+      const { description, name } = await prisma.task.update({
+        where: { id: taskId },
+        data: { status: "READY" },
+      });
+      const ready = await prisma.taskEvent.create({
+        data: { taskId, status: "READY", userId: ownerId },
+      });
+      admission = {
+        eventId: ready.id,
+        inputFingerprint: createHash("sha256")
+          .update(JSON.stringify({ description, name }))
+          .digest("hex"),
+      };
+    });
+
+    function start() {
+      return app.request(`/v1/tasks/${taskId}/events/start-admission-v1`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "RUNNING",
+          comment: "Starting the approved audit.",
+          expectedContext: expectedContext(),
+          admission,
+        }),
+      });
+    }
+
+    const starts = () =>
+      prisma.taskEvent.count({ where: { taskId, status: "RUNNING" } });
+
+    it("commits one start when two workers retry the same approval", async () => {
+      const responses = await Promise.all([start(), start()]);
+      expect(responses.map((response) => response.status).sort()).toEqual([
+        201, 409,
+      ]);
+      expect(await starts()).toBe(1);
+      const task = await prisma.task.findUniqueOrThrow({
+        where: { id: taskId },
+      });
+      expect(task.status).toBe("RUNNING");
+    });
+
+    it("starts from the current owner's reply while input is required", async () => {
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { status: "INPUT_REQUIRED" },
+      });
+      await prisma.taskEvent.create({
+        data: {
+          taskId,
+          status: "INPUT_REQUIRED",
+          coworkerId,
+          comment: "Confirm the audit.",
+        },
+      });
+      const reply = await prisma.taskEvent.create({
+        data: { taskId, userId: ownerId, comment: "Run the audit." },
+      });
+      admission.eventId = reply.id;
+      expect((await start()).status).toBe(201);
+      expect(await starts()).toBe(1);
+    });
+
+    it.each(["rename", "edit", "cancel", "comment"] as const)(
+      "refuses a retry after a Task %s",
+      async (change) => {
+        if (change === "comment") {
+          await prisma.taskEvent.create({
+            data: { taskId, userId: ownerId, comment: "Wait." },
+          });
+        } else {
+          const data =
+            change === "rename"
+              ? { name: "Another task" }
+              : change === "edit"
+                ? { description: "Different audit" }
+                : { status: TaskStatus.CANCELED };
+          await prisma.task.update({ where: { id: taskId }, data });
+        }
+        expect((await start()).status).toBe(409);
+        expect(await starts()).toBe(0);
+        const task = await prisma.task.findUniqueOrThrow({
+          where: { id: taskId },
+        });
+        expect(task.status).toBe(change === "cancel" ? "CANCELED" : "READY");
+      },
+    );
+
+    it("requires an active Vendor grant when the workspace has revoked access", async () => {
+      await vendorGrant("REVOKED");
+      expect((await start()).status).toBe(403);
+      expect(await starts()).toBe(0);
+    });
+  });
+
   describe("failed SEO admission", () => {
     const comment = "This SEO audit could not start.";
     // Known-answer hash from the worker for name "Guarded Task delivery" and this input.
@@ -765,6 +887,24 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
           ...over,
         }),
       });
+
+    it("refuses a stale failure after an owner comment and accepts the updated event snapshot", async () => {
+      const reply = await prisma.taskEvent.create({
+        data: { taskId, userId: ownerId, comment: "I changed the approval." },
+      });
+      expect(
+        (await failAdmission({ expectedLatestEventId: readyEventId })).status,
+      ).toBe(409);
+      expect(
+        await prisma.taskEvent.count({ where: { taskId, status: "FAILED" } }),
+      ).toBe(0);
+      expect(
+        (await prisma.task.findUniqueOrThrow({ where: { id: taskId } })).status,
+      ).toBe("READY");
+      expect(
+        (await failAdmission({ expectedLatestEventId: reply.id })).status,
+      ).toBe(201);
+    });
 
     it("writes one uncharged failure after intervening comments and rejects its replay", async () => {
       await prisma.taskEvent.create({ data: { taskId, comment: "Progress" } });
@@ -898,6 +1038,38 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
         where: { taskId, transactionId: charge.id },
       }),
     ).toBe(1);
+  });
+
+  it("rolls the debit back with the event when the request fails after the charge", async () => {
+    const debits = { organizationId, amount: { lt: 0n } };
+    // Every event of the Task, priced or not: the setup already wrote some.
+    const events = () => prisma.taskEvent.count({ where: { taskId } });
+    const eventsBefore = await events();
+    fixtureEnv.failAfterCharge = true;
+
+    expect((await event({ status: "COMPLETED", credits: 1 })).status).toBe(500);
+
+    expect(await prisma.transaction.count({ where: debits })).toBe(0);
+    expect(
+      await prisma.creditConsumption.count({
+        where: { bucket: { organizationId } },
+      }),
+    ).toBe(0);
+    expect(await events()).toBe(eventsBefore);
+
+    // The same request then lands: one event, linked to its debit.
+    expect((await event({ status: "COMPLETED", credits: 1 })).status).toBe(201);
+    const charge = await prisma.transaction.findFirstOrThrow({
+      where: debits,
+      include: { creditConsumptions: true, taskEvents: true },
+    });
+    expect(charge.creditConsumptions).toMatchObject([
+      { amount: convertCreditsToCents(1) },
+    ]);
+    expect(charge.taskEvents).toMatchObject([
+      { taskId, cents: convertCreditsToCents(1), status: "COMPLETED" },
+    ]);
+    expect(await events()).toBe(eventsBefore + 1);
   });
 
   it.each(["owner", "workspace", "assignee", "archive"] as const)(

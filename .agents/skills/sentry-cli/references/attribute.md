@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-attribute
-version: 0.49.0
+version: 0.50.0
 description: Explore span, log, and metric attributes
 requires:
   bins: ["sentry"]
@@ -17,12 +17,13 @@ List attribute keys for spans, logs, or metrics
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument     | Description                                                                           |
+| ------------ | ------------------------------------------------------------------------------------- |
 | `[<target>]` | &lt;org&gt;/ (all projects), &lt;org&gt;/&lt;project&gt;, or &lt;project&gt; (search) |
-| `[<filter>]` | Text in attribute names and/or has:&lt;key&gt; terms, e.g. 'gen_ai has:http.method' |
+| `[<filter>]` | Text in attribute names and/or has:&lt;key&gt; terms, e.g. 'gen_ai has:http.method'   |
 
 **Flags:**
+
 - `-d, --dataset <value> - Dataset to list attributes for (spans, logs, metrics) - (default: "spans")`
 - `--type <value>... - Only show attributes of these types: string, number, boolean, array. Repeat the flag for each type or pass a comma-separated list (e.g. --type string,number)`
 - `-t, --period <value> - Time range: "7d", "2024-01-01..2024-02-01", ">=2024-01-01" - (default: "7d")`

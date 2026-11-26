@@ -1,6 +1,7 @@
 import { type LanguageModelMiddleware, wrapLanguageModel } from "ai";
 import { z } from "zod";
 import { type AiGatewayPurpose, aiGateway } from "@/lib/ai-gateway-purpose";
+import { localChatGptPlanModel } from "@/lib/local-chatgpt-plan";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
 import { evaluationBinding, evaluationMiddleware } from "./evaluation-dispatch";
 import { holdModelStream } from "./stream-model-call";
@@ -22,6 +23,10 @@ const EU_MODELS: Readonly<Record<string, { providers: readonly string[] }>> = {
   "anthropic/claude-opus-5.5": {
     providers: ["vertex", "bedrock"],
   },
+  // Candidates for the stronger lane (`turn-model.ts`), checked 2026-11-21:
+  // Vertex serves both in an EU zone with zero retention and no training.
+  "google/gemini-4-hydrogen": { providers: ["vertex"] },
+  "google/gemini-4-carbon": { providers: ["vertex"] },
 };
 
 /**
@@ -39,6 +44,11 @@ const GLOBAL_AGENT_MODELS: ReadonlySet<string> = new Set([
   "openai/gpt-oss-20b",
   "deepseek/deepseek-v4-flash",
   "google/gemini-2.5-flash-lite",
+  // The stronger models for background runs and complex chat
+  // (`turn-model.ts`), on the same terms: zero retention, no training.
+  // Added 2026-11-21 for the owner's review in the routing PR.
+  "openai/gpt-6.1-terra",
+  "openai/gpt-6.2-sol",
 ]);
 
 /** Whether the agent may run on `model` without EU pinning. */
@@ -133,7 +143,9 @@ export function sokoBotModelRequest(options: {
     : null;
   return {
     model: wrapLanguageModel({
-      model: aiGateway(options.purpose).languageModel(options.model),
+      model:
+        localChatGptPlanModel(options.model) ??
+        aiGateway(options.purpose).languageModel(options.model),
       middleware: evaluation
         ? [
             sokoBotRegionMiddleware(options),

@@ -1,22 +1,15 @@
 "use client";
 
 import type { ChatRoom } from "@sokosumi/core-client";
-import { useEffect, useState } from "react";
 
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
-
+import { useSidebarChatListDeferred } from "@/hooks/effects/use-sidebar-chat-list-deferred";
 import type { SidebarChatListDeferred } from "./private-sidebar-cache";
+import { SidebarMobileChatsDestination } from "./sidebar/components/sidebar-context-panel";
 
 // One array for every render before the archived rooms arrive: the list
 // replaces its rows whenever a collection is a new reference.
 const NO_ARCHIVED_ROOMS: ChatRoom[] = [];
-
-// Answers by promise, so a list that mounts again (the phone's sheet reopens)
-// starts with what the promise already gave and not one render behind it.
-const settledAnswers = new WeakMap<
-  Promise<SidebarChatListDeferred>,
-  SidebarChatListDeferred
->();
 
 interface SidebarChatListProps {
   rooms: ChatRoom[];
@@ -24,6 +17,13 @@ interface SidebarChatListProps {
   deferred: Promise<SidebarChatListDeferred>;
   currentUserId: string;
   organizationId: string | null;
+  /**
+   * `sidebar` (default) closes the sheet on
+   * navigate. `page` is the phone's `/chat` page: titled Chats already and
+   * outside any sheet.
+   */
+  variant?: "sidebar" | "page";
+  directFooter?: React.ReactNode;
 }
 
 /**
@@ -39,27 +39,10 @@ export function SidebarChatList({
   deferred,
   currentUserId,
   organizationId,
+  variant = "sidebar",
+  directFooter,
 }: SidebarChatListProps) {
-  const [settled, setSettled] = useState<SidebarChatListDeferred | null>(
-    () => settledAnswers.get(deferred) ?? null,
-  );
-  useEffect(() => {
-    let current = true;
-    deferred.then(
-      (value) => {
-        settledAnswers.set(deferred, value);
-        if (current) setSettled(value);
-      },
-      // The read failed or the stream closed before the answer arrived. The
-      // rows stay, without the Archived section and the owner/admin menus,
-      // until the layout is next refreshed. No refresh from here: it re-runs
-      // the whole app frame, which fails closed when Core is slow.
-      () => undefined,
-    );
-    return () => {
-      current = false;
-    };
-  }, [deferred]);
+  const settled = useSidebarChatListDeferred(deferred);
 
   return (
     <OrganizationChatList
@@ -68,7 +51,11 @@ export function SidebarChatList({
       currentUserId={currentUserId}
       organizationId={organizationId}
       isOrgOwnerOrAdmin={settled?.isOrgOwnerOrAdmin ?? false}
-      withChatsHeading
+      directFooter={directFooter}
+      afterCatchUp={
+        variant === "sidebar" ? <SidebarMobileChatsDestination /> : null
+      }
+      dismissSheetOnNavigate={variant === "sidebar"}
     />
   );
 }

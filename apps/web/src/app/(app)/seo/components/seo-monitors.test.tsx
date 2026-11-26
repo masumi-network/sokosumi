@@ -76,13 +76,20 @@ function monitor(patch: Partial<ProjectSeoMonitor> = {}): ProjectSeoMonitor {
 function Panel({ workspace }: { workspace: ProjectSeoWorkspace }) {
   return <SeoAutomation model={useSeoWorkspace(workspace)} />;
 }
-function mountCard(workspace: ProjectSeoWorkspace) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => Response.json(workspace)),
-  );
+function mountCard(
+  workspace: ProjectSeoWorkspace,
+  read: typeof fetch = async () => Response.json(workspace),
+) {
+  vi.stubGlobal("fetch", vi.fn(read));
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    defaultOptions: {
+      queries: {
+        retry: false,
+        staleTime: Infinity,
+        gcTime: Number.POSITIVE_INFINITY,
+      },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   render(
     <QueryClientProvider client={client}>
@@ -249,6 +256,124 @@ describe("SEO monitor card", () => {
     ).not.toBeInTheDocument();
     await user.click(within(card).getByRole("button", { name: t.pause }));
     await waitFor(() => expect(mutate).toHaveBeenCalledTimes(1));
+  });
+
+  it("cancels or confirms one limited manual audit using the refused revision", async () => {
+    const user = userEvent.setup();
+    const refusal = {
+      ok: false,
+      error: { kind: "seo_gsc_unavailable", status: 409 },
+    };
+    mutate.mockResolvedValueOnce(refusal).mockResolvedValueOnce(refusal);
+    const card = renderCard(withMonitors(monitor({ kind: "audit_full" })));
+    const run = within(card).getByRole("button", { name: t.runNow });
+    await user.click(run);
+    const warning = await screen.findByRole("dialog", {
+      name: "Search Console coverage",
+    });
+    expect(within(warning).getByRole("alert")).toHaveTextContent(
+      "could not verify",
+    );
+    await user.click(within(warning).getByRole("button", { name: "Cancel" }));
+    expect(mutate).toHaveBeenCalledTimes(1);
+    await user.click(run);
+    await user.dblClick(
+      await screen.findByRole("button", { name: "Start limited audit" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(mutate).toHaveBeenCalledTimes(3);
+    expect(mutate.mock.calls[2][0].command).toEqual({
+      kind: "monitor_run_now",
+      monitorId: MONITOR_ID,
+      expectedRevision: 3,
+      allowLimitedAudit: true,
+    });
+  });
+
+  it("repairs the property for the manual Run's saved pages while a different page is in view", async () => {
+    const user = userEvent.setup();
+    const frozenId = "1aae1a34-1809-46b5-b54d-cade84bf5faf";
+    const frozenProperty = "sc-domain:frozen.example";
+    const workspace = withMonitors(
+      monitor({ kind: "audit_full", pageIds: [frozenId] }),
+    );
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: frozenId,
+      url: "https://frozen.example/",
+    });
+    mutate.mockResolvedValueOnce({
+      ok: false,
+      error: { kind: "seo_gsc_property", status: 409 },
+    });
+    let failCheck!: () => void;
+    mutate.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        failCheck = resolve;
+      });
+      return { ok: false, error: { kind: "seo_gsc_unavailable", status: 409 } };
+    });
+    mutate.mockRejectedValueOnce(new Error("Run acknowledgement lost"));
+    mountCard(workspace, async (input) => {
+      const path = String(input);
+      if (path.includes("/connections/"))
+        return Response.json({
+          name: "Search Console",
+          status: path.endsWith("/ga4") ? "not_connected" : "connected",
+        });
+      if (path.includes("/statistics/properties"))
+        return Response.json({
+          status: "available",
+          properties: [
+            { id: frozenProperty, name: "Scheduled site" },
+            { id: "sc-domain:example.com", name: "Site currently in view" },
+          ],
+        });
+      return Response.json(workspace);
+    });
+    await user.click(screen.getByRole("button", { name: t.runNow }));
+    await user.click(
+      await screen.findByRole("button", { name: "Google connections" }),
+    );
+    const settings = await screen.findByRole("dialog", {
+      name: "Google connections",
+    });
+    await user.click(
+      await within(settings).findByRole("combobox", { name: "Property" }),
+    );
+    expect(
+      screen.queryByRole("option", { name: "Site currently in view" }),
+    ).toBeNull();
+    await user.click(
+      await screen.findByRole("option", { name: "Scheduled site" }),
+    );
+    await user.keyboard("{Escape}");
+    expect(mutate).toHaveBeenCalledTimes(1);
+    await user.click(
+      await screen.findByRole("button", { name: "Retry and start audit" }),
+    );
+    await waitFor(() => expect(mutate).toHaveBeenCalledTimes(2));
+    failCheck();
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("could not verify"),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Retry and start audit" }),
+    );
+    await waitFor(() => expect(mutate).toHaveBeenCalledTimes(3));
+    expect(mutate.mock.calls[2][0].command).toEqual(
+      mutate.mock.calls[1][0].command,
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await user.click(screen.getByRole("button", { name: t.runNow }));
+    await waitFor(() => expect(mutate).toHaveBeenCalledTimes(4));
+    expect(mutate.mock.calls[3][0]).toEqual(mutate.mock.calls[2][0]);
+    expect(mutate.mock.calls[1][0].command).toEqual({
+      kind: "monitor_run_now",
+      monitorId: MONITOR_ID,
+      expectedRevision: 3,
+      searchConsolePropertyId: frozenProperty,
+    });
   });
 
   it("runs now against the revision it shows", async () => {

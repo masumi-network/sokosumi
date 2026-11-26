@@ -1,12 +1,24 @@
 import { z } from "@hono/zod-openapi";
-import type {
-  SokoBotCapability,
-  SokoBotRoute,
-  SokoBotTurnSignals,
-  TurnClassification,
+import {
+  SOKO_BOT_TURN_COMPLEXITIES,
+  type SokoBotCapability,
+  type SokoBotRoute,
+  type SokoBotTurnComplexity,
+  type SokoBotTurnSignals,
+  type TurnClassification,
 } from "@sokosumi/soko-bot";
 import { experimental_evaluate, gateway } from "ai";
+import {
+  AiGatewayBudgetError,
+  rethrowAiGatewayFailure,
+} from "@/lib/ai-gateway-budget";
+import { databaseNow } from "@/lib/db/database-now";
 import { recordCoreWarning } from "@/lib/evlog";
+import {
+  chatGptPlanEffectiveModel,
+  localChatGptPlanEnabled,
+} from "@/lib/local-chatgpt-plan";
+import { evaluateOnChatGptPlan } from "@/lib/local-chatgpt-plan-stand-ins";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
@@ -24,14 +36,27 @@ import { JEV_PROVIDER_OPTIONS, SOKO_BOT_JEV_MODEL } from "./jev";
  * no prompt training.
  */
 export const SOKO_BOT_ROUTE_MODEL = SOKO_BOT_JEV_MODEL;
-const CLASSIFIER_VERSION = "soko-bot-classifier-jev-seo-v2";
-const PRESET_VERSION = "soko-bot-system-route-v1";
+const CLASSIFIER_VERSION = "soko-bot-classifier-jev-seo-v3";
+export const PRESET_VERSION = "soko-bot-system-route-v1";
 /**
  * Jev answers in ~350 ms but an occasional call hangs; two short attempts
  * recover that inside the old single 8 s budget.
  */
 const ATTEMPT_TIMEOUT_MS = 3_500;
+/**
+ * The plan's stand-in is a full model on a shared plan, not Jev: at 3.5 s, 88
+ * of 101 routing calls in one plan suite timed out and became clarifications.
+ */
+const PLAN_ATTEMPT_TIMEOUT_MS = 45_000;
 const MAX_ATTEMPTS = 2;
+
+export function classifierAttemptTimeoutMs(
+  env: NodeJS.ProcessEnv = process.env,
+): number {
+  return localChatGptPlanEnabled(env)
+    ? PLAN_ATTEMPT_TIMEOUT_MS
+    : ATTEMPT_TIMEOUT_MS;
+}
 const MAX_MESSAGE_LENGTH = 8_000;
 const MAX_PREVIOUS_REPLY_LENGTH = 1_500;
 /** Below this the turn only gets reads: acting on a guess is worse than asking. */
@@ -103,6 +128,21 @@ const SIGNAL_INSTRUCTIONS = {
     "Is the latest message about Tasks, Coworkers or Agent Jobs on the Taskboard?",
 } as const;
 
+/**
+ * How much work the message asks for; the turn's model follows it
+ * (`turn-model.ts`). Read with the route, so it costs no extra call.
+ */
+const COMPLEXITY_INSTRUCTIONS =
+  "How much work does the assistant need to do to answer the latest message well? Judge the number of steps, how many tools, people, Coworkers or Agents it involves, whether it coordinates several pieces of work, and how much judgement the answer needs. When the message only answers or agrees to previousReply, judge the work that reply offered.";
+const COMPLEXITY_CRITERIA: Record<SokoBotTurnComplexity["label"], string> = {
+  SIMPLE:
+    "One quick step: a greeting or thanks, a yes or no that starts no new work, one fact or status to look up, one small change to one thing (rename it, move one date, remember one fact), or a short reply that needs no research.",
+  NORMAL:
+    "A few steps of one kind: read some items and summarise them, draft or rewrite one post, message or document, create or update one Task, change a few things of the same kind, or look something up on the web and report it.",
+  COMPLEX:
+    "Many steps or real judgement: plan or rethink a strategy or a campaign, coordinate work across several Tasks, Coworkers or Agents, research several sources and compare or recommend, a request with several independent parts across different tools, a long document or analysis, or debugging why something went wrong. A yes or a short answer to previousReply is complex when that reply offered such work.",
+};
+
 export function routeQuestions(hasPendingProposals: boolean) {
   return {
     ...Object.fromEntries(
@@ -120,6 +160,11 @@ export function routeQuestions(hasPendingProposals: boolean) {
       type: "choice" as const,
       instructions: WRITE_SCOPE_INSTRUCTIONS,
       criteria: WRITE_SCOPE_CRITERIA,
+    },
+    complexity: {
+      type: "choice" as const,
+      instructions: COMPLEXITY_INSTRUCTIONS,
+      criteria: COMPLEXITY_CRITERIA,
     },
     ...(hasPendingProposals
       ? {
@@ -170,10 +215,13 @@ export interface ClassifierUsage {
   inputTokens: number;
   outputTokens: number;
   costUsd: number;
+  /** The Gateway's report of the call: what answered, where. */
+  providerMetadata?: unknown;
 }
 
 export interface ClassificationResult {
-  classification: TurnClassification;
+  classification: TurnClassification &
+    Pick<PresetRoute, "systemKey" | "meetingPrepSlot">;
   model: string | null;
   version: string;
   latencyMs: number;
@@ -183,6 +231,9 @@ export interface ClassificationResult {
 
 /** A route Core chose itself for a turn whose prompt it wrote. */
 export interface PresetRoute {
+  systemKey?: "meeting-prep";
+  /** Original slot for a meeting brief rebuilt from its calendar evidence. */
+  meetingPrepSlot?: string;
   route: SokoBotRoute;
   writeScope?: NonNullable<TurnClassification["writeScope"]>;
   reason: string;
@@ -206,6 +257,10 @@ export function presetClassificationResult(
   return {
     classification: {
       ...baseClassification(preset.route, message, preset.reason, 1),
+      ...(preset.systemKey ? { systemKey: preset.systemKey } : {}),
+      ...(preset.meetingPrepSlot
+        ? { meetingPrepSlot: preset.meetingPrepSlot }
+        : {}),
       ...(preset.writeScope ? { writeScope: preset.writeScope } : {}),
     },
     model: null,
@@ -232,6 +287,7 @@ const choiceAnswer = z.object({
 const routeAnswersSchema = z.object({
   route: choiceAnswer,
   writeScope: choiceAnswer,
+  complexity: choiceAnswer.optional(),
   confirmsPending: z.object({ probability }).optional(),
   withdrawsPending: z.object({ probability }).optional(),
   refersToEarlier: z.object({ probability }).optional(),
@@ -246,6 +302,13 @@ export interface RouteEvaluation {
   answers: unknown;
   usage: { inputTokens?: number; outputTokens?: number };
   providerMetadata?: unknown;
+}
+
+/** The routing model that actually answers: Jev, or the plan's stand-in. */
+export function routeModelName(): string {
+  return (
+    chatGptPlanEffectiveModel(SOKO_BOT_ROUTE_MODEL) ?? SOKO_BOT_ROUTE_MODEL
+  );
 }
 
 /** The single seam to Jev; tests replace it with scripted answers. */
@@ -264,6 +327,12 @@ const evaluateWithJev: RouteEvaluator = async ({
   hasPendingProposals,
   abortSignal,
 }) => {
+  if (localChatGptPlanEnabled())
+    return evaluateOnChatGptPlan({
+      state,
+      questions: routeQuestions(hasPendingProposals),
+      abortSignal,
+    });
   const result = await experimental_evaluate({
     model: gateway.evaluationModel(SOKO_BOT_ROUTE_MODEL),
     // Clipped text can end in half an emoji, which the Gateway refuses.
@@ -272,7 +341,7 @@ const evaluateWithJev: RouteEvaluator = async ({
     abortSignal,
     maxRetries: 0,
     providerOptions: JEV_PROVIDER_OPTIONS,
-  });
+  }).catch(rethrowAiGatewayFailure);
   return {
     answers: result.answers,
     usage: result.usage,
@@ -337,8 +406,32 @@ export function classificationFromAnswers(
   pendingIntents: NonNullable<ClassifierContextSummary["pendingIntents"]>,
 ): TurnClassification {
   const signals = signalsFromAnswers(answers);
-  const classification = routedClassification(message, answers, pendingIntents);
-  return signals ? { ...classification, signals } : classification;
+  const complexity = complexityFromAnswers(answers);
+  return {
+    ...routedClassification(message, answers, pendingIntents),
+    ...(signals ? { signals } : {}),
+    ...(complexity ? { complexity } : {}),
+  };
+}
+
+/** Missing when Jev left it out or named no known label. */
+function complexityFromAnswers(
+  answers: RouteAnswers,
+): SokoBotTurnComplexity | undefined {
+  const answer = answers.complexity;
+  const label = SOKO_BOT_TURN_COMPLEXITIES.find(
+    (option) => option === answer?.choice,
+  );
+  if (!answer || !label) return undefined;
+  return {
+    label,
+    probabilities: Object.fromEntries(
+      SOKO_BOT_TURN_COMPLEXITIES.flatMap((option) => {
+        const probability = answer.probabilities?.[option];
+        return probability === undefined ? [] : [[option, probability]];
+      }),
+    ),
+  };
 }
 
 /** Missing when Jev answered none of the signal questions. */
@@ -541,10 +634,12 @@ export class JevTurnClassifier implements TurnClassifier {
       try {
         return await this.evaluate({
           ...request,
-          abortSignal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+          abortSignal: AbortSignal.timeout(classifierAttemptTimeoutMs()),
         });
       } catch (error) {
-        if (attempt >= MAX_ATTEMPTS) throw error;
+        if (error instanceof AiGatewayBudgetError || attempt >= MAX_ATTEMPTS) {
+          throw error;
+        }
       }
     }
   }
@@ -556,16 +651,6 @@ export class JevTurnClassifier implements TurnClassifier {
     context = evaluationClassifierContext(context);
     const startedAt = performance.now();
     const elapsed = () => Math.round(performance.now() - startedAt);
-    const authorizedTaskIds = context.taskIds;
-    const pending = (context.pendingIntents ?? [])
-      .filter((intent) => Date.parse(intent.expiresAt) > Date.now())
-      .map((intent) => ({
-        ...intent,
-        targetIds: (intent.targetIds ?? []).filter((id) =>
-          authorizedTaskIds.includes(id),
-        ),
-      }));
-
     if (!message.trim()) {
       return {
         classification: baseClassification(
@@ -580,6 +665,19 @@ export class JevTurnClassifier implements TurnClassifier {
         failed: false,
         usage: null,
       };
+    }
+
+    let pending = context.pendingIntents ?? [];
+    if (pending.length > 0) {
+      const now = (await databaseNow()).getTime();
+      pending = pending
+        .filter((intent) => Date.parse(intent.expiresAt) > now)
+        .map((intent) => ({
+          ...intent,
+          targetIds: (intent.targetIds ?? []).filter((id) =>
+            context.taskIds.includes(id),
+          ),
+        }));
     }
 
     let usage: ClassifierUsage | null = null;
@@ -598,6 +696,7 @@ export class JevTurnClassifier implements TurnClassifier {
         inputTokens: result.usage.inputTokens ?? 0,
         outputTokens: result.usage.outputTokens ?? 0,
         costUsd: gatewayCostUsd(result.providerMetadata),
+        providerMetadata: result.providerMetadata,
       };
       return {
         classification: classificationFromAnswers(
@@ -605,7 +704,7 @@ export class JevTurnClassifier implements TurnClassifier {
           routeAnswersSchema.parse(result.answers),
           pending,
         ),
-        model: SOKO_BOT_ROUTE_MODEL,
+        model: routeModelName(),
         version: CLASSIFIER_VERSION,
         latencyMs: elapsed(),
         failed: false,
@@ -624,7 +723,7 @@ export class JevTurnClassifier implements TurnClassifier {
           fix: "If it repeats, check the AI gateway and the classifier's model: meanwhile every request is answered with reads only.",
         },
         {
-          model: SOKO_BOT_ROUTE_MODEL,
+          model: routeModelName(),
           failure: messageSafeErrorFields(error),
         },
       );
@@ -635,7 +734,7 @@ export class JevTurnClassifier implements TurnClassifier {
           "Classifier unavailable; reads only.",
           0,
         ),
-        model: SOKO_BOT_ROUTE_MODEL,
+        model: routeModelName(),
         version: CLASSIFIER_VERSION,
         latencyMs: elapsed(),
         failed: true,

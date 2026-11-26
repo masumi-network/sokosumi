@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-dashboard
-version: 0.49.0
+version: 0.50.0
 description: Manage Sentry dashboards
 requires:
   bins: ["sentry"]
@@ -17,11 +17,12 @@ List dashboards
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                | Description                               |
+| ----------------------- | ----------------------------------------- |
 | `<org/title-filter...>` | [&lt;org/project&gt;] [&lt;name-glob&gt;] |
 
 **Flags:**
+
 - `-w, --web - Open in browser`
 - `-n, --limit <value> - Maximum number of dashboards to list - (default: "25")`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
@@ -29,13 +30,13 @@ List dashboards
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string |  |
-| `title` | string |  |
-| `dateCreated` | string |  |
-| `createdBy` | object |  |
-| `widgetDisplay` | array |  |
+| Field           | Type   | Description |
+| --------------- | ------ | ----------- |
+| `id`            | string |             |
+| `title`         | string |             |
+| `dateCreated`   | string |             |
+| `createdBy`     | object |             |
+| `widgetDisplay` | array  |             |
 
 **Examples:**
 
@@ -74,11 +75,12 @@ View a dashboard
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                     | Description                                         |
+| ---------------------------- | --------------------------------------------------- |
 | `<org/project/dashboard...>` | [&lt;org/project&gt;] &lt;dashboard-id-or-title&gt; |
 
 **Flags:**
+
 - `-w, --web - Open in browser`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 - `-r, --refresh <value> - Auto-refresh interval in seconds (default: 60, min: 10)`
@@ -88,16 +90,16 @@ View a dashboard
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Dashboard ID |
-| `title` | string | Dashboard title |
-| `period` | string | Time range of the widget data |
-| `fetchedAt` | string | When the data was fetched (ISO 8601) |
-| `url` | string | Dashboard URL |
-| `dateCreated` | string | Creation date (ISO 8601) |
-| `environment` | array | Environment filter |
-| `widgets` | array | Widgets with their query results |
+| Field         | Type   | Description                          |
+| ------------- | ------ | ------------------------------------ |
+| `id`          | string | Dashboard ID                         |
+| `title`       | string | Dashboard title                      |
+| `period`      | string | Time range of the widget data        |
+| `fetchedAt`   | string | When the data was fetched (ISO 8601) |
+| `url`         | string | Dashboard URL                        |
+| `dateCreated` | string | Creation date (ISO 8601)             |
+| `environment` | array  | Environment filter                   |
+| `widgets`     | array  | Widgets with their query results     |
 
 **Examples:**
 
@@ -139,23 +141,23 @@ Create a dashboard
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                 | Description                         |
+| ------------------------ | ----------------------------------- |
 | `<org/project/title...>` | [&lt;org/project&gt;] &lt;title&gt; |
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string |  |
-| `title` | string |  |
-| `widgets` | array |  |
-| `dateCreated` | string |  |
-| `createdBy` | object |  |
-| `projects` | array |  |
-| `environment` | array |  |
-| `period` | string \| null |  |
-| `url` | string | Dashboard URL |
+| Field         | Type           | Description   |
+| ------------- | -------------- | ------------- |
+| `id`          | string         |               |
+| `title`       | string         |               |
+| `widgets`     | array          |               |
+| `dateCreated` | string         |               |
+| `createdBy`   | object         |               |
+| `projects`    | array          |               |
+| `environment` | array          |               |
+| `period`      | string \| null |               |
+| `url`         | string         | Dashboard URL |
 
 **Examples:**
 
@@ -176,11 +178,12 @@ Add a widget to a dashboard
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                           | Description                                           |
+| ---------------------------------- | ----------------------------------------------------- |
 | `<org/project/dashboard/title...>` | [&lt;org/project&gt;] &lt;dashboard&gt; &lt;title&gt; |
 
 **Flags:**
+
 - `-d, --display <value> - Display type (big_number, line, area, bar, table, stacked_area, top_n, text, categorical_bar, details, wheel, rage_and_dead_clicks, server_tree, agents_traces_table)`
 - `--dataset <value> - Widget dataset (default: spans). Accepts canonical names and API synonyms: spans, error-events/errors, tracemetrics/metrics, logs, issue`
 - `-q, --query <value>... - Aggregate expression (e.g. count, p95:span.duration)`
@@ -196,11 +199,11 @@ Add a widget to a dashboard
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `dashboard` | object | The saved dashboard |
-| `widget` | object | The added or edited widget |
-| `url` | string | Dashboard URL |
+| Field       | Type   | Description                |
+| ----------- | ------ | -------------------------- |
+| `dashboard` | object | The saved dashboard        |
+| `widget`    | object | The added or edited widget |
+| `url`       | string | Dashboard URL              |
 
 **Examples:**
 
@@ -236,11 +239,12 @@ Edit a widget in a dashboard
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                     | Description                                         |
+| ---------------------------- | --------------------------------------------------- |
 | `<org/project/dashboard...>` | [&lt;org/project&gt;] &lt;dashboard-id-or-title&gt; |
 
 **Flags:**
+
 - `-i, --index <value> - Widget index (0-based)`
 - `-t, --title <value> - Widget title to match`
 - `--new-title <value> - New widget title`
@@ -258,11 +262,11 @@ Edit a widget in a dashboard
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `dashboard` | object | The saved dashboard |
-| `widget` | object | The added or edited widget |
-| `url` | string | Dashboard URL |
+| Field       | Type   | Description                |
+| ----------- | ------ | -------------------------- |
+| `dashboard` | object | The saved dashboard        |
+| `widget`    | object | The added or edited widget |
+| `url`       | string | Dashboard URL              |
 
 **Examples:**
 
@@ -288,11 +292,12 @@ Delete a widget from a dashboard
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                     | Description                                         |
+| ---------------------------- | --------------------------------------------------- |
 | `<org/project/dashboard...>` | [&lt;org/project&gt;] &lt;dashboard-id-or-title&gt; |
 
 **Flags:**
+
 - `-i, --index <value> - Widget index (0-based)`
 - `-t, --title <value> - Widget title to match`
 - `-y, --yes - Skip confirmation prompt`
@@ -301,13 +306,13 @@ Delete a widget from a dashboard
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `dryRun` | boolean | True when --dry-run made no change |
-| `deleted` | boolean | True when the widget was deleted |
-| `widgetTitle` | string | Title of the deleted widget |
-| `widgetCount` | number | Dashboard widget count after the delete (before it, with --dry-run) |
-| `url` | string | Dashboard URL |
+| Field         | Type    | Description                                                         |
+| ------------- | ------- | ------------------------------------------------------------------- |
+| `dryRun`      | boolean | True when --dry-run made no change                                  |
+| `deleted`     | boolean | True when the widget was deleted                                    |
+| `widgetTitle` | string  | Title of the deleted widget                                         |
+| `widgetCount` | number  | Dashboard widget count after the delete (before it, with --dry-run) |
+| `url`         | string  | Dashboard URL                                                       |
 
 **Examples:**
 
@@ -328,23 +333,24 @@ List dashboard revisions
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument             | Description                                         |
+| -------------------- | --------------------------------------------------- |
 | `<org/dashboard...>` | [&lt;org/project&gt;] &lt;dashboard-id-or-title&gt; |
 
 **Flags:**
+
 - `-n, --limit <value> - Maximum number of revisions to list - (default: "25")`
 - `-c, --cursor <value> - Navigate pages: "next", "prev", "first" (or raw cursor string)`
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string |  |
-| `title` | string |  |
-| `dateCreated` | string |  |
-| `createdBy` | object \| null |  |
-| `source` | string |  |
+| Field         | Type           | Description |
+| ------------- | -------------- | ----------- |
+| `id`          | string         |             |
+| `title`       | string         |             |
+| `dateCreated` | string         |             |
+| `createdBy`   | object \| null |             |
+| `source`      | string         |             |
 
 **Examples:**
 
@@ -371,19 +377,20 @@ Restore a dashboard revision
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument             | Description                                         |
+| -------------------- | --------------------------------------------------- |
 | `<org/dashboard...>` | [&lt;org/project&gt;] &lt;dashboard-id-or-title&gt; |
 
 **Flags:**
+
 - `-r, --revision <value> - Revision ID to restore`
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `dashboard` | object | Restored dashboard |
-| `orgSlug` | string | Organization slug |
+| Field        | Type   | Description          |
+| ------------ | ------ | -------------------- |
+| `dashboard`  | object | Restored dashboard   |
+| `orgSlug`    | string | Organization slug    |
 | `revisionId` | string | Restored revision ID |
 
 **Examples:**

@@ -8,16 +8,15 @@ import {
   type ChannelGroup,
   channelInfo,
   channelKey,
-  formatHasImage,
-  formatHasVideo,
   formatName,
-  GROUP_NAMES,
+  formatOn,
   OWNER_PART,
 } from "../lib/channels";
 import { joinNames } from "../lib/names";
 import { ChannelIcon } from "./channel-icon";
 import { planPieces } from "./phone-feeds";
 import { withoutLabel } from "./showcases";
+import { money } from "./strategy-core";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
@@ -82,15 +81,18 @@ export const APPROACHES: Record<
   },
 };
 
-/** The kinds of posts this month: how many of each, what they do, one real example. */
+/** The kinds of posts this month: their share as a bar, what they do, one real example. */
 export function Mix({
   mix,
   calendar,
   business,
+  planned = false,
 }: {
   mix: NonNullable<Strategy["mix"]>;
   calendar: Entry[];
   business: string;
+  /** The calendar holds examples only (cmo-v22): the bars show the planned shares. */
+  planned?: boolean;
 }) {
   const pieces = planPieces(calendar);
   return (
@@ -99,18 +101,14 @@ export function Mix({
         const mine = pieces.filter((entry) => entry.approach === part.approach);
         const example = mine[0];
         // The bar shows what the calendar holds; the planned share until it does.
-        const width = mine.length
-          ? Math.round((mine.length / pieces.length) * 100)
-          : part.share;
+        const width =
+          mine.length && !planned
+            ? Math.round((mine.length / pieces.length) * 100)
+            : part.share;
         return (
           <li key={part.approach}>
             <div className="bb-mix-head">
               <b>{APPROACHES[part.approach].name}</b>
-              <span className="num">
-                {mine.length > 0
-                  ? `${mine.length} ${mine.length === 1 ? "post" : "posts"}`
-                  : `${part.share}%`}
-              </span>
             </div>
             <span className="bb-bar" aria-hidden="true">
               <motion.i
@@ -137,88 +135,37 @@ export function Mix({
   );
 }
 
-/**
- * The content pillars: each topic's share of the month, what it does, and
- * once the month is made, the share Cuso's pieces really have.
- */
-export function Pillars({
-  pillars,
-  calendar,
-  made,
-}: {
-  pillars: Strategy["pillars"];
-  calendar: Entry[];
-  made: CmoOverview["production"]["pillars"];
-}) {
-  const pieces = planPieces(calendar);
+/** The topics the posts keep coming back to, in one plain line. */
+export function Topics({ pillars }: { pillars: Strategy["pillars"] }) {
+  if (pillars.length === 0) return null;
   return (
-    <>
-      {made ? (
-        <p className="note">
-          {made.rewriting
-            ? `Some posts read as another topic than planned. ${AGENT_NAME} is rewriting them now.`
-            : `${AGENT_NAME} read every post he made and counted what each one is really about.`}
-        </p>
-      ) : null}
-      <ul className="bb-mix">
-        {pillars.map((pillar) => {
-          const mine = pieces.filter(
-            (entry) =>
-              entry.pillar?.trim().toLowerCase() ===
-              pillar.name.trim().toLowerCase(),
-          );
-          const read = made?.shares.find((share) => share.name === pillar.name);
-          const width = read ? read.made : pillar.share;
-          return (
-            <li key={pillar.name}>
-              <div className="bb-mix-head">
-                <b>{pillar.name}</b>
-                <span className="num">
-                  {read
-                    ? `${read.made}% made · ${pillar.share}% planned`
-                    : `${pillar.share}%`}
-                </span>
-              </div>
-              <span className="bb-bar" aria-hidden="true">
-                <motion.i
-                  style={{ width: `${width}%` }}
-                  initial={{ scaleX: 0 }}
-                  whileInView={{ scaleX: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6, ease: EASE }}
-                />
-                {read ? (
-                  <span
-                    className="bb-bar-plan"
-                    style={{ left: `${pillar.share}%` }}
-                  />
-                ) : null}
-              </span>
-              {pillar.why ? <span>{pillar.why}</span> : null}
-              <span className="note">
-                {mine.length} {mine.length === 1 ? "post" : "posts"} planned
-                {mine[0] ? `, such as “${withoutLabel(mine[0].title)}”` : ""}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-    </>
+    <p className="note">
+      Topics {AGENT_NAME} keeps coming back to:{" "}
+      {pillars.map((pillar) => pillar.name).join(" · ")}
+    </p>
   );
 }
 
 const GROUP_ORDER: ChannelGroup[] = ["social", "ads", "email", "search"];
 
 /**
- * "Image post" reads "3 image posts" and "Post with a reply" reads "3 posts
- * with a reply"; a name such as "YouTube Short" keeps its capitals.
+ * "Image post" reads "image posts" and "Post with a reply" reads "posts with
+ * a reply"; a name such as "YouTube Short" keeps its capitals.
  */
-export function plural(name: string, count: number): string {
-  const lower = /[a-z][A-Z]/.test(name) ? name : name.toLowerCase();
-  if (count === 1) return `1 ${lower}`;
+export function pluralName(name: string): string {
+  // Platform names keep their case ("Talking Reels"); other words read as
+  // plain nouns ("image posts").
+  const lower = name
+    .split(" ")
+    .map((word) =>
+      /[a-z][A-Z]|^(Reels?|Shorts?|Stor(y|ies)|Talking)$/.test(word)
+        ? word
+        : word.toLowerCase(),
+    )
+    .join(" ");
   const [noun, ...rest] = lower.split(/ (?=with )/);
   const many = /(x|s|sh|ch)$/.test(noun) ? `${noun}es` : `${noun}s`;
-  return [count, many, ...rest].join(" ");
+  return [many, ...rest].join(" ");
 }
 
 interface ChannelPlanProps {
@@ -226,8 +173,8 @@ interface ChannelPlanProps {
 }
 
 /**
- * Each channel of the plan: what Cuso makes there, counted from the
- * calendar, how often, and the one thing the founder does for it.
+ * Each channel of the plan: what Cuso makes there and the one thing the
+ * founder does for it. No counts or rates (owner, 2026-11-23).
  */
 export function ChannelPlan({ strategy }: ChannelPlanProps) {
   const channels = strategy.channels
@@ -242,8 +189,28 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
         GROUP_ORDER.indexOf(channelInfo(b.key)?.group ?? "social"),
     );
   const used = new Set(channels.map((channel) => channel.key));
+  // Ads are a place too, but only Cuso's suggestion until the owner says yes.
+  const ads = strategy.ads;
+  const adKey =
+    ads && (ads.monthly > 0 || ads.suggest)
+      ? channelKey(ads.suggest?.channel ?? "google_ads")
+      : null;
+  const adInfo = adKey && !used.has(adKey) ? channelInfo(adKey) : null;
+  if (adKey && adInfo) used.add(adKey);
+  // Networks Cuso left out because they do not fit the buyer, with his reason.
+  const leftOut = (strategy.leftOut ?? []).flatMap((item) => {
+    const key = channelKey(item.channel);
+    const info = key && !used.has(key) ? channelInfo(key) : null;
+    return key && info ? [{ key, name: info.name, why: item.why }] : [];
+  });
+  const skipped = new Set(leftOut.map((item) => item.key));
   const more = (Object.keys(CMO_CHANNELS) as (keyof typeof CMO_CHANNELS)[])
-    .filter((key) => CMO_CHANNELS[key].status === "live" && !used.has(key))
+    .filter(
+      (key) =>
+        CMO_CHANNELS[key].status === "live" &&
+        !used.has(key) &&
+        !skipped.has(key),
+    )
     .map((key) => CMO_CHANNELS[key].name);
   const soon = (Object.keys(CMO_CHANNELS) as (keyof typeof CMO_CHANNELS)[])
     .filter((key) => (CMO_CHANNELS[key].status as string) === "soon")
@@ -254,21 +221,19 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
         {channels.map((channel) => {
           const info = channelInfo(channel.key);
           if (!info) return null;
+          // A talking video counts on every network it also goes out on:
+          // YouTube's pieces are only those.
           const entries = strategy.calendar.filter(
             (entry) =>
-              channelKey(entry.channel) === channel.key &&
-              entry.status !== "skipped",
+              entry.status !== "skipped" &&
+              [entry.channel, ...(entry.alsoOn ?? [])].some(
+                (network) => channelKey(network) === channel.key,
+              ),
           );
-          const formats = new Map<string, number>();
-          for (const entry of entries) {
-            const name = formatName(channel.key, entry.format);
-            formats.set(name, (formats.get(name) ?? 0) + 1);
-          }
-          const images = entries.some((entry) =>
-            formatHasImage(channel.key, entry.format),
-          );
-          const videos = entries.some((entry) =>
-            formatHasVideo(channel.key, entry.format),
+          const formats = new Set(
+            entries.map((entry) =>
+              formatName(channel.key, formatOn(entry, channel.key)),
+            ),
           );
           return (
             <li key={channel.key} className="cw-card">
@@ -278,24 +243,11 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
                 </span>
                 <div>
                   <p className="cw-name">{info.name}</p>
-                  <p className="note">
-                    {GROUP_NAMES[info.group] === info.name
-                      ? channel.cadence
-                      : `${GROUP_NAMES[info.group]} · ${channel.cadence}`}
-                  </p>
                 </div>
               </div>
               {formats.size > 0 ? (
                 <p className="cw-makes">
-                  {[...formats]
-                    .map(([name, count]) => plural(name, count))
-                    .join(", ")}
-                  {images ? (
-                    <span className="cw-images">Images by {AGENT_NAME}</span>
-                  ) : null}
-                  {videos ? (
-                    <span className="cw-images">Videos by {AGENT_NAME}</span>
-                  ) : null}
+                  {upperFirst([...formats].map(pluralName).join(", "))}
                 </p>
               ) : null}
               {channel.why ? <p className="note">{channel.why}</p> : null}
@@ -303,11 +255,63 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
             </li>
           );
         })}
+        {ads && adKey && adInfo ? (
+          <li className="cw-card">
+            <div className="cw-head">
+              <span className="cw-icon">
+                <ChannelIcon channel={adKey} size={22} />
+              </span>
+              <p className="cw-name">{adInfo.name}</p>
+            </div>
+            <p className="cw-makes">
+              {ads.monthly > 0
+                ? `Ads for ${money(ads.monthly, ads.currency)} a month`
+                : "Ads, only if you say yes"}
+            </p>
+            {ads.expect ? <p className="note">{ads.expect}</p> : null}
+            <p className="cw-you">{OWNER_PART[adInfo.owner]}</p>
+          </li>
+        ) : null}
+        {/* SEO runs beside the strategy, never on its calendar, so it is said here. */}
+        <li className="cw-card">
+          <div className="cw-head">
+            <span className="cw-icon">
+              <ChannelIcon channel="seo" size={22} />
+            </span>
+            <div>
+              <p className="cw-name">Your website and Google search</p>
+              <p className="note">Every week, on the SEO page</p>
+            </div>
+          </div>
+          <p className="cw-makes">
+            A weekly audit of your site, page fixes, and articles for the
+            searches your buyers make when you ask
+          </p>
+          <p className="cw-you">
+            {AGENT_NAME} writes them. You put them on your site.
+          </p>
+        </li>
       </ul>
-      {more.length > 0 ? (
+      {leftOut.length > 0 ? (
+        <ul className="cw-left-out">
+          {leftOut.map((item) => (
+            <li key={item.key}>
+              <ChannelIcon channel={item.key} size={16} />
+              <span>
+                <b>Not on {item.name}.</b> {item.why}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {more.length > 0 || soon.length > 0 ? (
         <p className="note">
-          {AGENT_NAME} can also run {joinNames(more)}. Ask him to add one below.
-          {soon.length > 0 ? ` ${joinNames(soon)} is coming soon.` : ""}
+          {more.length > 0
+            ? `${AGENT_NAME} can also run ${joinNames(more)}. Ask him to add one below.`
+            : ""}
+          {soon.length > 0
+            ? `${more.length > 0 ? " " : ""}${joinNames(soon)} is coming soon.`
+            : ""}
         </p>
       ) : null}
     </>
@@ -330,6 +334,10 @@ export function goalLine(metric: string): string {
   return /^(more|increase|grow|get|win|reach|raise|boost)\b/i.test(metric)
     ? metric
     : `More ${lowerFirst(metric)}`;
+}
+
+function upperFirst(text: string): string {
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
 
 function lowerFirst(text: string): string {

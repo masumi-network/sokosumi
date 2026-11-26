@@ -5,6 +5,7 @@ import { cleanStores } from "nanostores";
 import {
   createElement,
   type TransitionStartFunction,
+  useContext,
   useTransition,
 } from "react";
 import { afterAll, afterEach, vi } from "vitest";
@@ -12,6 +13,8 @@ import { afterAll, afterEach, vi } from "vitest";
 // happy-dom project only. Loading jest-dom and Testing Library (and through it
 // react-dom) costs every test file that imports this, so the node project
 // skips it.
+
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 // happy-dom 20.12+ implements WAAPI. `Animation.cancel()` rejects `finished`
 // with AbortError (spec). motion 13 calls cancel on unmount and does not catch
@@ -129,6 +132,29 @@ let authClientModule: typeof import("@/lib/auth/auth.client") | undefined;
 vi.mock("@/lib/auth/auth.client", async (importOriginal) => {
   authClientModule = await importOriginal();
   return authClientModule;
+});
+
+// Product callers always render under `LiveChatRoomsProvider` in the app frame.
+// Existing unit tests render hooks or leaf callers directly without the frame,
+// so keep the standalone-owner fallback in the DOM test harness rather than a
+// conditional hook call in product code.
+vi.mock("@/components/chat/use-live-chat-rooms", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/components/chat/use-live-chat-rooms")
+    >();
+  function useLiveChatRoomsRead() {
+    const provided = useContext(actual.LiveChatRoomsContext);
+    if (provided !== null) {
+      return provided;
+    }
+    return actual.useLiveChatRoomsOwner();
+  }
+  return {
+    ...actual,
+    useLiveChatRoomsRead,
+    useLiveChatRooms: () => useLiveChatRoomsRead().rooms,
+  };
 });
 
 afterEach(() => {

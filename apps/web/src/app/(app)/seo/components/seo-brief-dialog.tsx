@@ -1,6 +1,7 @@
 "use client";
 
 import type { ProjectSeoPage, SeoAuditBrief } from "@sokosumi/core-client";
+import { allowsSeoCompletionEvent } from "@sokosumi/utils";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -259,10 +260,29 @@ function BriefEditor({
                     onValueChange={(v) =>
                       editPage({
                         action: SEO_BRIEF_ACTIONS.find((x) => x === v) ?? null,
+                        completionEvent: undefined,
                       })
                     }
                   />
                 </SeoField>
+                {allowsSeoCompletionEvent(page.action) && (
+                  <SeoField
+                    id="seo-brief-completion"
+                    label={t("brief.completionEvent")}
+                  >
+                    <Input
+                      id="seo-brief-completion"
+                      maxLength={40}
+                      pattern="[A-Za-z][A-Za-z0-9_]{0,39}"
+                      value={page.completionEvent ?? ""}
+                      onChange={(e) =>
+                        editPage({
+                          completionEvent: e.target.value || undefined,
+                        })
+                      }
+                    />
+                  </SeoField>
+                )}
                 <SeoField id="seo-brief-index" label={t("brief.index")}>
                   <SeoSelect
                     id="seo-brief-index"

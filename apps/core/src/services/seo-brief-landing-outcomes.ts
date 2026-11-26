@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { seoCompletionEvent } from "@sokosumi/utils";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import type {
   SeoBriefContent,
@@ -6,7 +7,9 @@ import type {
 } from "@/schemas/seo-audit-brief.schema";
 import {
   privateLandingOutcomeSchema,
+  privateLandingSourceSchema,
   type SeoBriefOutcome,
+  type SeoGoalInvestigation,
   seoLandingEvents,
 } from "@/schemas/seo-landing-outcomes.schema";
 import { SEO_RESULT_LIMIT, seoOwnerWhere } from "./project-seo-store";
@@ -93,6 +96,9 @@ export async function briefNamedOutcomes(
 ) {
   const byUrl = new Map(pages.map((p) => [p.url, p.id]));
   const histories: Histories = new Map();
+  const activeSource = new Map<string, string>();
+  const currentDataset = new Map<string, string>();
+  const controls = new Map<string, SeoGoalInvestigation>();
   const sales = new Map<string, SalesSignal>();
   if (!pages.length)
     return {
@@ -109,12 +115,19 @@ export async function briefNamedOutcomes(
       source: "ga4",
       pageIds: { hasSome: pages.map((p) => p.id) },
     },
-    orderBy: [{ observedAt: "desc" }, { id: "desc" }],
+    orderBy: [{ observedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
     take: SEO_RESULT_LIMIT,
-    select: { id: true, observedAt: true, payload: true },
+    select: { id: true, pageIds: true, observedAt: true, payload: true },
   });
   for (const record of records) {
     const parsed = privateLandingOutcomeSchema.safeParse(record.payload);
+    const source = parsed.success
+      ? parsed.data
+      : privateLandingSourceSchema.safeParse(record.payload).data;
+    if (!source) continue;
+    const sourceKey = JSON.stringify([source.accountKey, source.propertyId]);
+    for (const id of record.pageIds)
+      if (!activeSource.has(id)) activeSource.set(id, sourceKey);
     if (!parsed.success) continue;
     const {
       accountKey,
@@ -131,9 +144,23 @@ export async function briefNamedOutcomes(
       verifiedHost,
       zone,
     ]);
+    const control = parsed.data.goalInvestigation;
+    const urls = new Set(rows.map((row) => row.pageUrl));
+    if (control) urls.add(control.pageUrl);
+    for (const url of urls)
+      if (
+        activeSource.get(byUrl.get(url) ?? "") === sourceKey &&
+        !currentDataset.has(url)
+      )
+        currentDataset.set(url, dataset);
+    if (control && currentDataset.get(control.pageUrl) === dataset) {
+      const prior = controls.get(control.pageUrl);
+      if (!prior || prior.after.to < control.after.to)
+        controls.set(control.pageUrl, control);
+    }
     for (const row of rows) {
       const pageId = byUrl.get(row.pageUrl);
-      if (!pageId) continue;
+      if (!pageId || currentDataset.get(row.pageUrl) !== dataset) continue;
       const identity = JSON.stringify([pageId, row.event]);
       const windows =
         histories.get(identity) ?? new Map<string, ObservedWindow>();
@@ -151,18 +178,46 @@ export async function briefNamedOutcomes(
     }
   }
   const enriched = followUps.map((follow) => {
-    const action = goals.find((g) => g.pageId === follow.pageId)?.action;
-    const outcomes = seoLandingEvents.flatMap((event) => {
+    const expected = seoCompletionEvent(
+      goals.find((g) => g.pageId === follow.pageId),
+    );
+    const page = pages.find((p) => p.id === follow.pageId);
+    let latestClosedGoal: SeoBriefFollowUp["latestClosedGoal"];
+    const outcomes = [
+      ...new Set<string>([
+        ...seoLandingEvents,
+        ...(expected ? [expected] : []),
+      ]),
+    ].flatMap((event) => {
       const windows = [
         ...(histories.get(JSON.stringify([follow.pageId, event]))?.values() ??
           []),
       ];
       const outcome = landingOutcome(event, windows, follow.changedAt);
       if (!outcome) return [];
-      if (
-        (action === "buy" && event === "purchase") ||
-        (action === "sign up" && event === "sign_up")
-      ) {
+      if (expected === event) {
+        for (const window of windows) {
+          if (
+            !page ||
+            window.dataset !== currentDataset.get(page.url) ||
+            !window.zone
+          )
+            continue;
+          const day = propertyDay(window.collectedAt, window.zone);
+          if (
+            day &&
+            window.to < day &&
+            (!latestClosedGoal ||
+              window.to > latestClosedGoal.to ||
+              (window.to === latestClosedGoal.to &&
+                window.from > latestClosedGoal.from))
+          )
+            latestClosedGoal = {
+              ...windowOnly(window),
+              event,
+              timeZone: window.zone,
+            };
+        }
         const { from, to, count } = outcome.latest;
         const first = windows[0]!;
         const measured = windows.find(
@@ -179,7 +234,14 @@ export async function briefNamedOutcomes(
       }
       return [outcome];
     });
-    return { ...follow, outcomes };
+    const control = page && controls.get(page.url);
+    return {
+      ...follow,
+      outcomes,
+      ...(latestClosedGoal && { latestClosedGoal }),
+      ...(control &&
+        control.event === expected && { goalInvestigation: control }),
+    };
   });
   return { followUps: enriched, sales };
 }

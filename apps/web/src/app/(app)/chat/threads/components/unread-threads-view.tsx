@@ -69,7 +69,6 @@ export function UnreadThreadsView({
               initialPage ? { page: initialPage, rooms: initialRooms } : null
             }
             currentUserId={currentUserId}
-            variant="page"
           />
         </section>
         <div className={cn(HOLDER_ITEM_CLASS, "px-2 pb-2 empty:hidden")}>

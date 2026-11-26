@@ -13,6 +13,8 @@ import {
   getAdminSokoBotFleetDays as coreGetAdminSokoBotFleetDays,
   getAdminSokoBotModelEvaluations as coreGetAdminSokoBotModelEvaluations,
   getAdminSokoBotQuality as coreGetAdminSokoBotQuality,
+  getAdminSokoBotTurn as coreGetAdminSokoBotTurn,
+  getAdminSokoBotTurnConversation as coreGetAdminSokoBotTurnConversation,
   getAdminSokoBotVersionUsage as coreGetAdminSokoBotVersionUsage,
   getAdminWritingSkills as coreGetAdminWritingSkills,
   listAdminSokoBotChatMessages as coreListAdminSokoBotChatMessages,
@@ -43,6 +45,7 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
   async function setAdminSokoBotAvailability(body: {
     disabled: boolean;
     reason?: string;
+    standupPaused?: boolean;
   }) {
     return executeCoreOperation(
       getClient,
@@ -77,6 +80,7 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
     query?: string;
     limit?: number;
     kind?: "all" | "assistant" | "cmo";
+    evals?: "exclude" | "include" | "only";
   }) {
     return executeCoreOperation(
       getClient,
@@ -97,7 +101,10 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getAdminCmoSpend(query: { days: number }) {
+  async function getAdminCmoSpend(query: {
+    days: number;
+    evals?: "exclude" | "include" | "only";
+  }) {
     return executeCoreOperation(
       getClient,
       (client) => coreGetAdminCmoSpend({ client, query, cache: "no-store" }),
@@ -137,6 +144,32 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
       (client) =>
         coreGetAdminSokoBot({ client, path: { sokoBotId }, cache: "no-store" }),
       "Failed to fetch Soko Bot",
+    );
+  }
+
+  async function getAdminSokoBotTurn(turnId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminSokoBotTurn({
+          client,
+          path: { turnId },
+          cache: "no-store",
+        }),
+      "Failed to fetch admin Soko Bot turn",
+    );
+  }
+
+  async function getAdminSokoBotTurnConversation(turnId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminSokoBotTurnConversation({
+          client,
+          path: { turnId },
+          cache: "no-store",
+        }),
+      "Failed to fetch the conversation",
     );
   }
 
@@ -267,6 +300,8 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
     getAdminWritingSkills,
     getAdminSokoBotFleetDays,
     getAdminSokoBot,
+    getAdminSokoBotTurn,
+    getAdminSokoBotTurnConversation,
     listAdminSokoBotChats,
     listAdminSokoBotChatMessages,
     performAdminSokoBotAction,

@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtemp, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { AuthManager } from "../../src/auth/auth-manager.js";
 import { type CliDependencies, runCli } from "../../src/cli/index.js";
@@ -15,7 +18,7 @@ const run = {
   commitMessage: "feat: evals (#6940)",
   prNumber: 6940,
   environment: "mainnet",
-  models: { sokoBotVersionId: "v33" },
+  models: { sokoBotVersionId: "v33", sokoBotModel: "openai/gpt-5.4" },
 };
 
 const report = {
@@ -28,6 +31,9 @@ const report = {
   history: [],
   summary: {
     counts: { regressed: 1, fixed: 1, passing: 1 },
+    costlier: 1,
+    slower: 0,
+    passRate: 2 / 3,
     passed: 4,
     scored: 6,
     open: 0,
@@ -45,6 +51,12 @@ const report = {
       passRate: 1,
       baselinePassRate: 1,
       history: [1],
+      costUsd: 0.42,
+      usualCostUsd: 0.2,
+      costlier: true,
+      durationMs: 60_000,
+      usualDurationMs: 60_000,
+      slower: false,
       results: [],
     },
     {
@@ -67,7 +79,8 @@ const report = {
             { label: "Completed", pass: true, actual: "COMPLETED" },
             { label: "Asks a question", pass: false, actual: "no question" },
           ],
-          judge: null,
+          judge: { verdict: "fail", rationale: "Guessed instead of asking." },
+          judgeModel: "claude-code:opus",
         },
       ],
     },
@@ -201,12 +214,13 @@ test("evals run --wait --tick moves the run on until it ends, then reports", asy
   assert.deepEqual(sleeps, [20_000]);
   const text = output();
   assert.match(text, /running: 2 to go/);
-  assert.match(text, /67% passed \(4 of 6\)/);
+  assert.match(text, /67% passed \(4 of 6 repeats\)/);
   assert.match(
     text,
     /REGRESSED ambiguous-request 0% \(was 100%\)  Asks a question: no question/,
   );
-  assert.doesNotMatch(text, /chat-post/);
+  assert.doesNotMatch(text, /PASSING/);
+  assert.match(text, /Costlier `chat-post`: \$0\.42, usually \$0\.20/);
 });
 
 test("evals show --markdown prints the PR table with what changed", async () => {
@@ -223,7 +237,8 @@ test("evals show --markdown prints the PR table with what changed", async () => 
     /▼ `ambiguous-request` 100% → 0%: Asks a question: no question/,
   );
   assert.match(text, /▲ `files-review` 0% → 100%/);
-  assert.match(text, /Cost \$1\.23/);
+  assert.match(text, /- Costlier `chat-post`: \$0\.42, usually \$0\.20/);
+  assert.match(text, /Cost \$1\.23 · 1 costlier, 0 slower than usual/);
 });
 
 test("evals list and cases read Core", async () => {
@@ -237,4 +252,54 @@ test("evals list and cases read Core", async () => {
 test("evals show needs a run id", async () => {
   const { deps } = fixture();
   await assert.rejects(runCli(["evals", "show"], deps), /evals show RUN_ID/);
+});
+
+test("evals show --summary-md writes the run summary for docs/evals/runs", async () => {
+  const { deps, output } = fixture();
+  const dir = await mkdtemp(join(tmpdir(), "evals-summary-"));
+  const out = join(dir, "summary.md");
+  await runCli(["evals", "show", "run-1", "--summary-md", "--out", out], deps);
+  assert.match(output(), new RegExp(`Wrote ${out}`));
+  const text = await readFile(out, "utf8");
+  assert.match(text, /^# Eval run: pr-6940\n/);
+  assert.match(text, /- Date: 2026-11-09/);
+  assert.match(text, /- Environment: mainnet/);
+  assert.match(text, /- Commit: `abcdef1` feat: evals \(#6940\), PR #6940/);
+  assert.match(text, /- Bots: Soko Bot v33 \(openai\/gpt-5\.4\)/);
+  assert.match(text, /- Judge: claude-code:opus/);
+  assert.match(text, /- Repeats: 2/);
+  assert.match(text, /- Cost: \$1\.23/);
+  assert.match(text, /\| soko-bot \| 4\/6 \| 1 \| 1 \| 0 \| 0 \|/);
+  assert.match(text, /Baseline: weekly run run-0 of 2026-11-08 \(#6931\)/);
+  assert.match(text, /\| `ambiguous-request` \| 100% \| 0% \| regressed \|/);
+  assert.match(text, /\| `files-review` \| 0% \| 100% \| fixed \|/);
+  assert.doesNotMatch(text, /\| `chat-post` \|/);
+  assert.match(
+    text,
+    /### `ambiguous-request`: Ambiguous request\n\n- Failed check: Asks a question: no question\n- Judge: fail, Guessed instead of asking\./,
+  );
+  assert.match(text, /## Why the failures happened\n\n_To fill in/);
+  assert.match(text, /## Verdict\n\n_To fill in/);
+  assert.match(text, /## Links\n/);
+});
+
+test("evals show --summary-md defaults to docs/evals/runs/DATE-SLUG.md", async () => {
+  const { deps, output } = fixture();
+  const dir = await mkdtemp(join(tmpdir(), "evals-summary-"));
+  const cwd = process.cwd();
+  process.chdir(dir);
+  try {
+    await runCli(
+      ["evals", "show", "run-1", "--summary-md", "--slug", "cmo-v8"],
+      deps,
+    );
+  } finally {
+    process.chdir(cwd);
+  }
+  assert.match(output(), /Wrote docs\/evals\/runs\/2026-11-09-cmo-v8\.md/);
+  const text = await readFile(
+    join(dir, "docs/evals/runs/2026-11-09-cmo-v8.md"),
+    "utf8",
+  );
+  assert.match(text, /^# Eval run: cmo-v8\n/);
 });

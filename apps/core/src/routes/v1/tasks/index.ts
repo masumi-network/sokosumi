@@ -8,6 +8,8 @@ import mountPostTaskFile from "./[id]/files/post.js";
 import mountDeleteTaskFollow from "./[id]/follow/delete.js";
 import mountPostTaskFollow from "./[id]/follow/post.js";
 import mountGetTaskById from "./[id]/get.js";
+import mountGetTaskSearchConsole from "./[id]/integrations/search-console/get.js";
+import mountPostTaskSearchConsoleRead from "./[id]/integrations/search-console/reads/post.js";
 import mountGetTaskJobs from "./[id]/jobs/get.js";
 import mountPostTaskJob from "./[id]/jobs/post.js";
 import mountDeleteTaskLink from "./[id]/links/[linkId]/delete.js";
@@ -46,6 +48,8 @@ import mountGetTaskSchedules from "./schedules/get.js";
 import mountPostTaskSchedule from "./schedules/post.js";
 import mountGetTaskSummary from "./summary/get.js";
 import mountSuggestTaskTags from "./tag-suggestions/post.js";
+import mountGetTaskView from "./view/get.js";
+import mountPutTaskView from "./view/put.js";
 
 const app = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
@@ -55,6 +59,8 @@ const app = new OpenAPIHonoWithAuth({
 mountGetTasks(app);
 // Before the `/{id}` routes so the literal path cannot be read as a task id.
 mountGetTaskSummary(app);
+mountGetTaskView(app);
+mountPutTaskView(app);
 mountSuggestTaskTags(app);
 mountPostMoveOverdueTasks(app);
 mountPostUndoMoveOverdueTasks(app);
@@ -84,6 +90,8 @@ mountGetTaskById(app);
 mountGetTaskReceipt(app);
 mountPostTaskSeoIndexing(app);
 mountPostTaskSeoPages(app);
+mountGetTaskSearchConsole(app);
+mountPostTaskSearchConsoleRead(app);
 mountPatchTask(app);
 mountPutTaskShareById(app);
 mountPostTaskChatMessage(app);

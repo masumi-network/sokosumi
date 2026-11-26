@@ -5,6 +5,7 @@ import type {
 import type { Account } from "@sokosumi/utils";
 import type { ReactNode } from "react";
 import type { DesignMdProfileValue } from "@/components/design-md/types";
+import { MyWeekCard } from "@/components/team-standup/my-week-card";
 import type { TimeFormatPreference } from "@/i18n/time-format";
 import type { EmailChangeStatus } from "@/lib/auth/auth.server";
 import { AccountProvider } from "@/lib/auth/types";
@@ -12,7 +13,6 @@ import { AccountBillingDetails } from "./account-billing-details";
 import { AccountCoworkerAccess } from "./account-coworker-access";
 import { AccountVendorGrants } from "./account-vendor-grants";
 import { BrandProfileSection } from "./brand-profile-section";
-
 import { DeleteAccountForm } from "./delete-account-form";
 import { DeletePersonalWorkspaceForm } from "./delete-personal-workspace-form";
 import { EmailForm } from "./email-form";
@@ -22,6 +22,7 @@ import { PasskeySettings } from "./passkey-settings";
 import { PasswordForm } from "./password-form";
 import { PreferencesSection } from "./preferences-section";
 import { ProfileImageSection } from "./profile-image-section";
+import { SignedInDevices } from "./signed-in-devices";
 
 interface AccountSettingsProps {
   accounts: Account[];
@@ -46,6 +47,7 @@ interface AccountSettingsProps {
   deletionPreflightLoadError?: ReactNode;
   ownedOrganizationSlug?: string | null;
   initialTimeFormat?: TimeFormatPreference;
+  includeWeekInStandup?: boolean;
 }
 
 export function AccountSettings({
@@ -71,6 +73,7 @@ export function AccountSettings({
   deletionPreflightLoadError,
   ownedOrganizationSlug = null,
   initialTimeFormat,
+  includeWeekInStandup = true,
 }: AccountSettingsProps) {
   const hasCredentialAccount = accounts.some(
     (account) => account.providerId === AccountProvider.CREDENTIAL,
@@ -107,6 +110,9 @@ export function AccountSettings({
             canAddPasskey={!credentialAccountsLoadError}
           />
         </div>
+        <div className="md:col-span-2">
+          <SignedInDevices />
+        </div>
       </div>
 
       <div className="border-t pt-8">
@@ -129,6 +135,12 @@ export function AccountSettings({
       <div className="border-t pt-8">
         <PreferencesSection initialTimeFormat={initialTimeFormat} />
       </div>
+
+      {hasOrganizationMembership ? (
+        <div className="border-t pt-8">
+          <MyWeekCard included={includeWeekInStandup} />
+        </div>
+      ) : null}
 
       <div className="border-t pt-8">
         {billingDetailsLoadError ? (

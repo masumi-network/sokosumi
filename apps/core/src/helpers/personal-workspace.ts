@@ -11,6 +11,7 @@ import {
   vendorGrantRepository,
   workspaceRepository,
 } from "@sokosumi/database/repositories";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
@@ -38,7 +39,7 @@ async function grantPersonalWorkspaceCredits(
     await prisma.$transaction(async (tx) => {
       // Delete and recreate can leave two workspace creations granting at once.
       const [user] = await tx.$queryRaw<{ stripeCustomerId: string | null }[]>`
-        SELECT "stripeCustomerId" FROM "user" WHERE "id" = ${userId}
+        SELECT "stripeCustomerId" FROM ${sharedTable("user")} WHERE "id" = ${userId}
         FOR NO KEY UPDATE
       `;
       if (!user) {

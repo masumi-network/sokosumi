@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
+vi.mock("@/hooks/effects/use-mobile", () => ({ useIsMobile: () => false }));
 
 import { SidebarChatListSkeleton } from "@/app/components/sidebar/components/sidebar-chat-list-skeleton";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -88,11 +88,9 @@ describe("SidebarChatListSkeleton", () => {
     expect(sectionTitleWidths(container)).toEqual(["w-16", "w-24"]);
   });
 
-  // The real list is one block under its Chats heading, which every reader
-  // has, so the placeholder holds the heading's row above the sections: the
-  // sections land where they will be, not one row higher.
+  // The first row reserves space for Catch up in both workspace types.
   it.each([true, false])(
-    "heads the sections with the Chats heading's row (organization: %s)",
+    "reserves the Catch up row before the sections (organization: %s)",
     (hasOrganization) => {
       const { container } = renderSkeleton({ hasOrganization });
       const group = container.querySelector('[data-slot="sidebar-group"]');
@@ -104,7 +102,7 @@ describe("SidebarChatListSkeleton", () => {
       );
       const bars = heading?.querySelectorAll('[data-slot="skeleton"]') ?? [];
       expect(bars).toHaveLength(1);
-      expect(bars[0]?.className.split(/\s+/)).toContain("w-10");
+      expect(bars[0]?.className.split(/\s+/)).toContain("w-14");
     },
   );
 });

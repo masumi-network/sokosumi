@@ -168,7 +168,7 @@ test("invalid Workspace slugs and non-Task use fail before authentication", asyn
       ["auth", "login"],
       ["admin", "members", "pilot"],
       ["coworkers", "list"],
-      ["jobs", "list"],
+      ["agents", "list"],
       [],
     ].map((command) => [...command, "--organization-slug", "pilot"]),
   ]) {

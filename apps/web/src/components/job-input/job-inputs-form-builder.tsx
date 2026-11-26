@@ -3,11 +3,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
 import type React from "react";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { type SubmitHandler, useForm } from "react-hook-form";
 
 import { Form } from "@/components/ui/form";
-import usePreventEnterSubmit from "@/hooks/use-prevent-enter-submit";
+import { useJobInputsFormValuesWatch } from "@/hooks/effects/use-job-inputs-form-values-watch";
+import usePreventEnterSubmit from "@/hooks/effects/use-prevent-enter-submit";
 import {
   defaultValues as getDefaultValues,
   type JobInputsFormSchemaType,
@@ -56,13 +57,7 @@ export function JobInputsFormBuilder({
     mode: "onChange",
   });
 
-  useEffect(() => {
-    if (!onValuesChange) return;
-    const subscription = form.watch((values) => {
-      onValuesChange(values as JobInputsFormSchemaType);
-    });
-    return () => subscription.unsubscribe();
-  }, [form, onValuesChange]);
+  useJobInputsFormValuesWatch(form, onValuesChange);
 
   const normalFormRef = useRef<HTMLFormElement | null>(null);
   const {

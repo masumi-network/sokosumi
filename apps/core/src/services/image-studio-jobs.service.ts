@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-
 import {
   Prisma,
   ProjectImageJobKind,
@@ -11,14 +10,21 @@ import {
   CORE_API_ERROR_KINDS,
   convertCentsToCredits,
   convertCreditsToCents,
+  DEFAULT_VIDEO_SHAPE,
   readImageDimensionsFromBytes,
+  SHORT_VIDEO_MAX_PICTURES,
+  SHORT_VIDEO_TEXT_FORMATS,
+  type ShortVideoFormat,
   talkingVideoQuotedSeconds,
+  VIDEO_SHAPE_FRAMES,
+  type VideoShape,
+  videoRecipeFor,
+  videoShapesFor,
 } from "@sokosumi/utils";
 import { put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
-
 import { HTTPException } from "hono/http-exception";
-
+import sharp from "sharp";
 import { LIMITS } from "@/config/constants";
 import { getBetterAuthPublicBaseUrl } from "@/config/env";
 import { DriveFileDownloadError } from "@/helpers/drive-file-download";
@@ -27,10 +33,13 @@ import {
   tooManyRequests,
   unprocessableEntity,
 } from "@/helpers/error";
+import { jsonInput } from "@/helpers/prisma-json";
 import {
   createTaskEventTransaction,
   isInsufficientBalanceError,
 } from "@/helpers/task-credits";
+import { DATA_ROOM_PEOPLE_KINDS } from "@/lib/data-room-visibility";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { driveHead, driveReadUrl } from "@/lib/drive-blob";
@@ -51,6 +60,7 @@ import {
   requireStudioBlobToken,
 } from "@/lib/image-studio/blob-store";
 import { imageModel, resolveImageSettings } from "@/lib/image-studio/catalog";
+import { RECRAFT_VECTOR_ENDPOINT } from "@/lib/image-studio/catalog-overrides";
 import {
   type ImageJobFailureReason,
   imageJobFailureMessage,
@@ -59,6 +69,7 @@ import {
   buildFalInput,
   cancelQueued,
   downloadMedia,
+  type FalMedia,
   falModelForKind,
   falModelForLettering,
   fetchQueueResult,
@@ -89,12 +100,14 @@ import {
   buildTalkingVideoCutoutInput,
   buildTalkingVideoInput,
   buildTalkingVideoMusicInput,
+  creditsPerShortVideo,
   creditsPerTalkingVideo,
   findTalkingVideoPresenter,
+  fitVideoPicture,
   frameTalkingVideoPresenter,
+  keepVideoPicture,
   posesAsCustomerTestimonial,
   readTalkingVideoSettings,
-  TALKING_VIDEO_ASPECT_RATIO,
   TALKING_VIDEO_BROLL_ENDPOINT,
   TALKING_VIDEO_CAPTION_ENDPOINT,
   TALKING_VIDEO_CUTOUT_ENDPOINT,
@@ -111,8 +124,11 @@ import {
   loadTalkingVideoEndCard,
 } from "@/lib/image-studio/talking-video-brand";
 import {
+  editShortVideo,
   editTalkingVideo,
   hookTakesBroll,
+  readingTimings,
+  type SpokenWord,
 } from "@/lib/image-studio/talking-video-edit";
 import { timeSpokenWords } from "@/lib/image-studio/talking-video-words";
 import {
@@ -127,8 +143,15 @@ import {
   type VideoSettings,
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
+import { layoutBlockMap } from "@/lib/reference-library/layout";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { speakVoiceover } from "@/lib/soko-bot/voiceover";
+import {
+  type ImageStudioRoute,
+  readImageStudioRoute,
+  readStudioRouterArm,
+  type StudioRouterArm,
+} from "@/schemas/image-studio-route.schema";
 import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
 import { enqueueAdEval } from "@/services/ad-eval.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
@@ -139,6 +162,7 @@ import {
   writeTalkingVideoBrollPrompt,
   writeTalkingVideoHookLine,
 } from "@/services/talking-video-scripts.service";
+import { unsafeSvgReason } from "./soko-bot-svg";
 
 /**
  * The job lifecycle: submit once, settle once.
@@ -169,7 +193,20 @@ const ACTIVE_STATUSES: ProjectImageJobStatus[] = [
   ProjectImageJobStatus.RUNNING,
 ];
 
+/** The idempotency key of a shape cut from another job: `video-shape:<source>:<shape>`. */
+const VIDEO_SHAPE_KEY_PREFIX = "video-shape";
+
+/**
+ * Jobs that take a slot: every one but another shape of a delivered video,
+ * which costs nothing and asks no provider.
+ */
+export const NOT_A_VIDEO_SHAPE_JOB = {
+  NOT: { idempotencyKey: { startsWith: `${VIDEO_SHAPE_KEY_PREFIX}:` } },
+} satisfies Prisma.ProjectImageJobWhereInput;
+
 const SPEND_WINDOW_MS = 60 * 60 * 1000;
+/** The start of every job key a Cuso's month makes (`cmo-media-maker`). */
+export const CMO_MONTH_JOB_KEY_PREFIX = "cmo-media";
 
 export interface ImageJobSettings {
   aspectRatio: string;
@@ -186,7 +223,15 @@ export const DEFAULT_SETTINGS: ImageJobSettings = {
 };
 
 export interface CreateImageJobInput {
+  route?: ImageStudioRoute;
+  experimentArm?: StudioRouterArm;
   modelId?: string;
+  /**
+   * Core's month media (cmo-media-maker): its own limit at a time and no
+   * hourly cap, because the approved plan already bounds how many it makes.
+   * Never set from a request.
+   */
+  forCmoMonth?: boolean;
   projectId: string;
   workspaceId: string;
   userId: string;
@@ -219,6 +264,16 @@ export interface CreateImageJobInput {
    * Cuso's media maker sets them, no route does.
    */
   referenceLibraryIds?: string[];
+  /**
+   * Send the reference library image as a block map of its layout only
+   * (cmo-v11): the picture borrows where things sit, not the print's look.
+   */
+  styleLayoutOnly?: boolean;
+  /**
+   * How many of the Project's month jobs may run at once; Core's media maker
+   * raises it for a version that makes several alternatives per picture.
+   */
+  monthConcurrency?: number;
   /** Keep the source ad's product photo when an assistant edit can use it. */
   reuseParentPhotoIfAvailable?: boolean;
   /** Keep a source ad's currently approved headline on a visual refinement. */
@@ -509,22 +564,41 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
       }
     }
 
+    // Another shape of a delivered video costs nothing and asks no provider,
+    // so it holds none of the project's slots and none of the hourly ones.
     const inFlight = await tx.projectImageJob.count({
-      where: { projectId: input.projectId, status: { in: ACTIVE_STATUSES } },
+      where: {
+        projectId: input.projectId,
+        status: { in: ACTIVE_STATUSES },
+        ...NOT_A_VIDEO_SHAPE_JOB,
+      },
     });
-    if (inFlight >= LIMITS.IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT) {
+    const atOnce = input.forCmoMonth
+      ? (input.monthConcurrency ?? LIMITS.CMO_MONTH_CONCURRENT_JOBS_PER_PROJECT)
+      : LIMITS.IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT;
+    if (inFlight >= atOnce) {
       throw tooManyRequests(
-        `This project already has ${LIMITS.IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT} images being generated. Wait for one to finish.`,
+        `This project already has ${atOnce} images being generated. Wait for one to finish.`,
         { kind: "image_studio_project_busy" },
       );
     }
 
-    const recent = await tx.projectImageJob.count({
-      where: {
-        requestedByUserId: input.userId,
-        createdAt: { gte: new Date(Date.now() - SPEND_WINDOW_MS) },
-      },
-    });
+    // A Cuso's month makes its pictures under the owner's name: they never
+    // count against the picture the owner asks for in chat.
+    const recent = input.forCmoMonth
+      ? 0
+      : await tx.projectImageJob.count({
+          where: {
+            requestedByUserId: input.userId,
+            createdAt: { gte: new Date(Date.now() - SPEND_WINDOW_MS) },
+            NOT: [
+              {
+                idempotencyKey: { startsWith: `${CMO_MONTH_JOB_KEY_PREFIX}:` },
+              },
+              { idempotencyKey: { startsWith: `${VIDEO_SHAPE_KEY_PREFIX}:` } },
+            ],
+          },
+        });
     if (recent >= LIMITS.IMAGE_STUDIO_GENERATIONS_PER_USER_PER_HOUR) {
       throw tooManyRequests(
         `You can start at most ${LIMITS.IMAGE_STUDIO_GENERATIONS_PER_USER_PER_HOUR} image generations per hour.`,
@@ -547,6 +621,12 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     // A unique violation here aborts this transaction. It is caught by the
     // caller, on a fresh connection, because the aborted one cannot answer
     // another query.
+    const productId = input.product?.id ?? source?.job.productId;
+    const productName = input.product?.name ?? source?.job.productName;
+    const useProductCutout = inheritsCutout || input.useProductCutout;
+    const productCutoutChecksum = inheritsCutout
+      ? source?.job.productCutoutChecksum
+      : undefined;
     const job = await tx.projectImageJob.create({
       data: {
         projectId: input.projectId,
@@ -556,33 +636,48 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         kind: input.kind,
         model: input.model,
         prompt: input.prompt,
-        productId: input.product?.id ?? source?.job.productId,
-        productName: input.product?.name ?? source?.job.productName,
-        batchId: input.batchId,
-        templateId: input.templateId,
-        creativeDirection: input.creativeDirection,
-        variationIndex: input.variationIndex,
-        batchSlotId,
-        exportHeadline,
+        ...(productId !== undefined ? { productId } : {}),
+        ...(productName !== undefined ? { productName } : {}),
+        ...(input.batchId !== undefined ? { batchId: input.batchId } : {}),
+        ...(input.templateId !== undefined
+          ? { templateId: input.templateId }
+          : {}),
+        ...(input.creativeDirection !== undefined
+          ? { creativeDirection: input.creativeDirection }
+          : {}),
+        ...(input.variationIndex !== undefined
+          ? { variationIndex: input.variationIndex }
+          : {}),
+        ...(batchSlotId !== undefined ? { batchSlotId } : {}),
+        ...(exportHeadline !== undefined ? { exportHeadline } : {}),
         lettering: input.lettering ?? (exportHeadline ? "ideogram" : "overlay"),
-        letteringQuoteCents: input.letteringQuoteCents,
-        presenterConsentAt: input.presenterConsentAt,
-        useProductCutout: inheritsCutout || input.useProductCutout,
-        productCutoutChecksum: inheritsCutout
-          ? source?.job.productCutoutChecksum
-          : undefined,
-        settings: {
+        ...(input.letteringQuoteCents !== undefined
+          ? { letteringQuoteCents: input.letteringQuoteCents }
+          : {}),
+        ...(input.presenterConsentAt !== undefined
+          ? { presenterConsentAt: input.presenterConsentAt }
+          : {}),
+        ...(useProductCutout !== undefined ? { useProductCutout } : {}),
+        ...(productCutoutChecksum !== undefined
+          ? { productCutoutChecksum }
+          : {}),
+        settings: jsonInput({
           ...input.settings,
+          ...(input.route && { route: input.route }),
+          ...(input.experimentArm && { experimentArm: input.experimentArm }),
           ...(input.letteringSettings
             ? {
                 letteringSettings: { ...input.letteringSettings },
-                letteringModel: input.letteringModel,
+                ...(input.letteringModel !== undefined
+                  ? { letteringModel: input.letteringModel }
+                  : {}),
               }
             : {}),
-        },
+        }),
         referenceAssetIds: input.referenceAssetIds,
         referenceFileIds,
         referenceLibraryIds: input.referenceLibraryIds ?? [],
+        styleLayoutOnly: input.styleLayoutOnly ?? false,
         parentAssetId: input.parentAssetId,
         idempotencyKey: input.idempotencyKey,
         status: ProjectImageJobStatus.PENDING,
@@ -620,6 +715,11 @@ async function claimForSubmission(jobId: string): Promise<boolean> {
   return claimed.count === 1;
 }
 
+/** The idempotency key of a shape cut from another job. */
+export function videoShapeJobKey(sourceJobId: string, shape: VideoShape) {
+  return `${VIDEO_SHAPE_KEY_PREFIX}:${sourceJobId}:${shape}`;
+}
+
 /**
  * States in which the provider may still have something to tell us.
  *
@@ -653,7 +753,47 @@ function recoverableSelection() {
   return {
     status: { in: [...LIVE_STATUSES] },
     falRequestId: { not: null },
-  };
+  } satisfies Prisma.ProjectImageJobWhereInput;
+}
+
+/**
+ * Shapes cut from a delivered video wait here. They ask no provider, so they
+ * have their own slot in a reconcile pass, and only one: each edit takes up
+ * to a settlement's whole time, and a pass that ran several would outlast
+ * the request that runs it.
+ */
+function videoShapeSelection() {
+  return {
+    status: { in: [...LIVE_STATUSES] },
+    falRequestId: null,
+    idempotencyKey: { startsWith: `${VIDEO_SHAPE_KEY_PREFIX}:` },
+  } satisfies Prisma.ProjectImageJobWhereInput;
+}
+
+/** The oldest shape waiting to be cut, as one more job for a reconcile pass. */
+async function nextVideoShape(
+  where: Prisma.ProjectImageJobWhereInput,
+  orderBy: Prisma.ProjectImageJobOrderByWithRelationInput,
+): Promise<{ id: string }[]> {
+  const shape = await prisma.projectImageJob.findFirst({
+    where: { ...where, ...videoShapeSelection() },
+    orderBy,
+    select: { id: true },
+  });
+  return shape ? [shape] : [];
+}
+
+/** A video cut in another shape from a delivered job's parts. */
+function isVideoShapeJob(job: {
+  kind: ProjectImageJobKind;
+  falRequestId: string | null;
+  idempotencyKey: string;
+}): boolean {
+  return (
+    job.kind === ProjectImageJobKind.TALKING_VIDEO &&
+    !job.falRequestId &&
+    job.idempotencyKey.startsWith(`${VIDEO_SHAPE_KEY_PREFIX}:`)
+  );
 }
 
 /**
@@ -674,7 +814,7 @@ async function claimForSettlement(
   const claimed = await prisma.projectImageJob.updateMany({
     where: {
       id: jobId,
-      falRequestId,
+      ...(falRequestId !== undefined ? { falRequestId } : {}),
       status: { in: [...LIVE_STATUSES] },
       OR: [{ settleLeaseAt: null }, { settleLeaseAt: { lt: deadline } }],
     },
@@ -719,6 +859,7 @@ async function buildReferenceUrls(
     referenceAssetIds: string[];
     referenceFileIds: string[];
     referenceLibraryIds?: string[];
+    styleLayoutOnly?: boolean;
     useProductCutout?: boolean;
   },
   organizationId: string | null,
@@ -761,11 +902,19 @@ async function buildReferenceUrls(
     const reference = await readReferenceImage(id);
     if (!reference) throw notFound("A style reference was not found.");
     urls.push(
-      await uploadReference({
-        bytes: reference.bytes,
-        contentType: reference.contentType,
-        fileName: `style-${id}.${reference.contentType.split("/")[1] ?? "jpg"}`,
-      }),
+      await uploadReference(
+        job.styleLayoutOnly
+          ? {
+              bytes: await layoutBlockMap(reference.bytes),
+              contentType: "image/png",
+              fileName: `layout-${id}.png`,
+            }
+          : {
+              bytes: reference.bytes,
+              contentType: reference.contentType,
+              fileName: `style-${id}.${reference.contentType.split("/")[1] ?? "jpg"}`,
+            },
+      ),
     );
   }
   // Order matters to the model, so follow the caller's order rather than the
@@ -800,11 +949,18 @@ async function buildReferenceUrls(
   }
   for (const fileId of providerFileIds) {
     urls.push(
-      await uploadFileReference(job.workspaceId, fileId, {
-        userId: job.requestedByUserId,
-        organizationId,
-        kind: automatedRequestKind(job.idempotencyKey),
-      }),
+      await uploadFileReference(
+        job.workspaceId,
+        fileId,
+        {
+          userId: job.requestedByUserId,
+          organizationId,
+          kind: automatedRequestKind(job.idempotencyKey),
+        },
+        // A styled picture's logo is often a transparent PNG, which a model
+        // can read as a black square.
+        libraryIds.length > 0,
+      ),
     );
   }
   return urls;
@@ -815,12 +971,22 @@ async function uploadFileReference(
   workspaceId: string,
   fileId: string,
   actor: FileActor,
+  onPaper = false,
 ): Promise<string> {
   const { bytes, mimeType } = await downloadStudioFileReference(
     workspaceId,
     fileId,
     actor,
   );
+  if (onPaper && mimeType === "image/png")
+    return await uploadReference({
+      bytes: await sharp(bytes)
+        .flatten({ background: "#ffffff" })
+        .png()
+        .toBuffer(),
+      contentType: "image/png",
+      fileName: `${fileId}.png`,
+    });
   return await uploadReference({
     bytes,
     contentType: mimeType,
@@ -937,7 +1103,7 @@ export async function createImageJob(input: CreateImageJobInput) {
 
   if (
     input.useProductCutout &&
-    (input.referenceFileActor?.kind !== "interactive" ||
+    (!isUserFileActor(input.referenceFileActor) ||
       input.referenceFileIds?.length !== 1 ||
       input.referenceAssetIds.length !== 0 ||
       input.parentAssetId !== null)
@@ -1034,7 +1200,7 @@ export async function createImageJob(input: CreateImageJobInput) {
     reuseParentCutout:
       (lettering !== "ideogram" || startsLettering) &&
       input.reuseParentCutout &&
-      input.referenceFileActor?.kind === "interactive" &&
+      isUserFileActor(input.referenceFileActor) &&
       !input.referenceFileIds?.length &&
       refinesSingleSource,
     kind,
@@ -1051,6 +1217,12 @@ export async function createImageJob(input: CreateImageJobInput) {
 
 export interface CreateVideoJobInput {
   modelId?: string;
+  /**
+   * Core's month media (cmo-media-maker): its own limit at a time and no
+   * hourly cap, because the approved plan already bounds how many it makes.
+   * Never set from a request.
+   */
+  forCmoMonth?: boolean;
   projectId: string;
   workspaceId: string;
   userId: string;
@@ -1125,6 +1297,7 @@ export async function createVideoJob(input: CreateVideoJobInput) {
     prompt: input.prompt,
     product,
     idempotencyKey: input.idempotencyKey,
+    forCmoMonth: input.forCmoMonth,
     kind: hasSource
       ? ProjectImageJobKind.IMAGE_TO_VIDEO
       : ProjectImageJobKind.TEXT_TO_VIDEO,
@@ -1139,6 +1312,12 @@ export async function createVideoJob(input: CreateVideoJobInput) {
 
 export interface CreateTalkingVideoJobInput {
   modelId?: string;
+  /**
+   * Core's month media (cmo-media-maker): its own limit at a time and no
+   * hourly cap, because the approved plan already bounds how many it makes.
+   * Never set from a request.
+   */
+  forCmoMonth?: boolean;
   projectId: string;
   workspaceId: string;
   userId: string;
@@ -1157,6 +1336,8 @@ export interface CreateTalkingVideoJobInput {
   broll?: boolean;
   /** Lay generated music under the voice. */
   music?: boolean;
+  /** The shapes to cut it in; vertical alone when omitted. */
+  shapes?: VideoShape[];
   idempotencyKey: string;
 }
 
@@ -1184,6 +1365,30 @@ export async function talkingVideoShowsSite(
  * The quote comes from the script, because the video is as long as the voice
  * and the voice is not made until the job is sent.
  */
+/**
+ * The shapes a new video is made in: the first is the job itself, the rest
+ * are cut from its parts once it is delivered. Vertical when none are named.
+ */
+function wantedShapes(
+  format: ShortVideoFormat | null,
+  shapes: readonly VideoShape[] | undefined,
+): Pick<
+  TalkingVideoSettings,
+  "aspectRatio" | "shape" | "shapes" | "sourceJobId" | "siteDesktopPagePathname"
+> {
+  const [shape, ...rest] = videoShapesFor(
+    videoRecipeFor(format),
+    shapes ?? [DEFAULT_VIDEO_SHAPE],
+  );
+  return {
+    aspectRatio: shape!,
+    shape: shape!,
+    shapes: rest,
+    sourceJobId: null,
+    siteDesktopPagePathname: null,
+  };
+}
+
 export async function createTalkingVideoJob(input: CreateTalkingVideoJobInput) {
   const access = await requireProjectAccess({
     projectId: input.projectId,
@@ -1214,7 +1419,6 @@ export async function createTalkingVideoJob(input: CreateTalkingVideoJobInput) {
     });
 
   const settings: TalkingVideoSettings = {
-    aspectRatio: TALKING_VIDEO_ASPECT_RATIO,
     durationSeconds: talkingVideoQuotedSeconds(input.script),
     resolution: TALKING_VIDEO_RESOLUTION,
     voice: input.voice,
@@ -1228,6 +1432,9 @@ export async function createTalkingVideoJob(input: CreateTalkingVideoJobInput) {
     brollRequestId: null,
     music: input.music === true,
     musicRequestId: null,
+    format: null,
+    picturePathnames: [],
+    ...wantedShapes(null, input.shapes),
   };
   const ownPhoto = input.presenter.kind === "file" ? input.presenter : null;
   return await reserveAndSend({
@@ -1237,6 +1444,7 @@ export async function createTalkingVideoJob(input: CreateTalkingVideoJobInput) {
     sessionId: null,
     prompt: input.script,
     idempotencyKey: input.idempotencyKey,
+    forCmoMonth: input.forCmoMonth,
     kind: ProjectImageJobKind.TALKING_VIDEO,
     model: model.endpoint,
     settings,
@@ -1247,6 +1455,115 @@ export async function createTalkingVideoJob(input: CreateTalkingVideoJobInput) {
     parentAssetId: null,
     organizationId: access.organizationId,
     chargedCredits: creditsPerTalkingVideo(model, input.script, settings),
+  });
+}
+
+export interface CreateShortVideoJobInput {
+  /** Core's month media (cmo-media-maker), as for a talking video. */
+  forCmoMonth?: boolean;
+  projectId: string;
+  workspaceId: string;
+  userId: string;
+  format: ShortVideoFormat;
+  /** What the voice says, or for a slideshow the lines shown, one a picture. */
+  script: string;
+  /** The words over the first seconds; omitted, they are written from the script. */
+  hookLine?: string | null;
+  voice: string;
+  /** ISO 639-1 language of the script. */
+  languageCode: string;
+  /**
+   * The studio's pictures and Files images the short shows, in order. A
+   * person's request names who reads the Files, checked at once; Core's
+   * month media is checked when the short is sent.
+   */
+  pictures: { assetIds: string[]; fileIds: string[]; actor?: FileActor };
+  /** The shapes to cut it in; vertical alone when omitted. */
+  shapes?: VideoShape[];
+  idempotencyKey: string;
+}
+
+/**
+ * Create (or replay) a short: a vertical video without a presenter, cut from
+ * the brand's pictures and site to a voice or to music. Stored as a talking
+ * video, so it is listed, published and charged like one.
+ */
+export async function createShortVideoJob(input: CreateShortVideoJobInput) {
+  const access = await requireProjectAccess({
+    projectId: input.projectId,
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+  });
+  requireStudioBlobToken();
+  const spoken = !SHORT_VIDEO_TEXT_FORMATS.includes(input.format);
+  const pictureCount =
+    input.pictures.assetIds.length + input.pictures.fileIds.length;
+  if (pictureCount > SHORT_VIDEO_MAX_PICTURES)
+    throw unprocessableEntity(
+      `A short shows at most ${SHORT_VIDEO_MAX_PICTURES} pictures.`,
+      { kind: "invalid_video_settings" },
+    );
+  const showsSite = await talkingVideoShowsSite(input.projectId);
+  if (pictureCount === 0 && !showsSite)
+    throw unprocessableEntity(
+      "Add a picture, or a website to the Project, for the short to show.",
+      { kind: "invalid_video_settings" },
+    );
+  if (input.format === "site_tour" && !showsSite)
+    throw unprocessableEntity("A website tour needs the Project's website.", {
+      kind: "invalid_video_settings",
+    });
+  if (posesAsCustomerTestimonial(input.script))
+    throw unprocessableEntity(TALKING_VIDEO_TESTIMONIAL_MESSAGE, {
+      kind: "talking_video_testimonial",
+    });
+  if (input.pictures.assetIds.length > 0) {
+    const found = await prisma.projectImageAsset.count({
+      where: {
+        id: { in: input.pictures.assetIds },
+        projectId: input.projectId,
+        mediaType: ProjectImageMediaType.IMAGE,
+      },
+    });
+    if (found !== new Set(input.pictures.assetIds).size)
+      throw notFound("A picture for the short was not found");
+  }
+
+  const settings: TalkingVideoSettings = {
+    durationSeconds: talkingVideoQuotedSeconds(input.script),
+    resolution: TALKING_VIDEO_RESOLUTION,
+    voice: spoken ? input.voice : "",
+    presenterId: null,
+    languageCode: input.languageCode,
+    words: [],
+    hookLine: spoken ? input.hookLine?.trim() || null : null,
+    siteShots: showsSite,
+    sitePagePathname: null,
+    broll: false,
+    brollRequestId: null,
+    music: true,
+    musicRequestId: null,
+    format: input.format,
+    picturePathnames: [],
+    ...wantedShapes(input.format, input.shapes),
+  };
+  return await reserveAndSend({
+    projectId: input.projectId,
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+    sessionId: null,
+    prompt: input.script,
+    idempotencyKey: input.idempotencyKey,
+    forCmoMonth: input.forCmoMonth,
+    kind: ProjectImageJobKind.TALKING_VIDEO,
+    model: TALKING_VIDEO_MUSIC_ENDPOINT,
+    settings,
+    referenceAssetIds: input.pictures.assetIds,
+    referenceFileIds: input.pictures.fileIds,
+    referenceFileActor: input.pictures.actor,
+    parentAssetId: null,
+    organizationId: access.organizationId,
+    chargedCredits: creditsPerShortVideo(input.script, input.format),
   });
 }
 
@@ -1268,6 +1585,7 @@ function talkingVideoSecondStep(
   settings: TalkingVideoSettings,
   videoUrl: string,
 ): { endpoint: string; input: Record<string, unknown> } | null {
+  if (settings.format) return null;
   if (settings.words.length === 0)
     return {
       endpoint: TALKING_VIDEO_CAPTION_ENDPOINT,
@@ -1276,7 +1594,7 @@ function talkingVideoSecondStep(
         languageCode: settings.languageCode,
       }),
     };
-  if (settings.sitePagePathname)
+  if (settings.sitePagePathname || settings.siteDesktopPagePathname)
     return {
       endpoint: TALKING_VIDEO_CUTOUT_ENDPOINT,
       input: buildTalkingVideoCutoutInput({ videoUrl }),
@@ -1332,9 +1650,7 @@ async function prepareTalkingVideo(
 ): Promise<Record<string, unknown>> {
   const settings = readTalkingVideoSettings(job.settings);
   // Started first: the page loads while the voice is made.
-  const sitePage = settings.siteShots
-    ? storeTalkingVideoSitePage(job)
-    : Promise.resolve(null);
+  const sitePage = storeTalkingVideoSitePages(job, settings);
   step("reference_not_sendable");
   const stock = settings.presenterId
     ? findTalkingVideoPresenter(settings.presenterId)
@@ -1360,6 +1676,78 @@ async function prepareTalkingVideo(
   }
 
   step("voice_unavailable");
+  const { voiceBlobPathname, audioUrl, spokenSeconds, words, hookLine } =
+    await speakScript(job, settings);
+  // The paid extras last, once nothing before them can fail.
+  const [pages, brollRequestId, musicRequestId] = await Promise.all([
+    sitePage,
+    settings.broll && hookTakesBroll(words, spokenSeconds)
+      ? writeTalkingVideoBrollPrompt(job.prompt).then((prompt) =>
+          prompt
+            ? startTalkingVideoExtra(
+                TALKING_VIDEO_BROLL_ENDPOINT,
+                buildTalkingVideoBrollInput({ prompt }),
+              )
+            : null,
+        )
+      : null,
+    settings.music
+      ? startTalkingVideoExtra(
+          TALKING_VIDEO_MUSIC_ENDPOINT,
+          buildTalkingVideoMusicInput(),
+        )
+      : null,
+  ]);
+  const made: TalkingVideoSettings = {
+    ...settings,
+    durationSeconds: spokenSeconds,
+    words,
+    hookLine,
+    ...pages,
+    broll: brollRequestId !== null,
+    brollRequestId,
+    music: musicRequestId !== null,
+    musicRequestId,
+  };
+  await prisma.projectImageJob.update({
+    where: { id: job.id },
+    data: {
+      voiceBlobPathname,
+      settings: jsonInput(made),
+      // What could not be started is not charged for.
+      ...((settings.siteShots && !made.siteShots) ||
+      (settings.broll && !made.broll) ||
+      (settings.music && !made.music)
+        ? {
+            chargedCents: convertCreditsToCents(
+              creditsPerTalkingVideo(
+                talkingVideoModelForEndpoint(job.model),
+                job.prompt,
+                made,
+              ),
+            ),
+          }
+        : {}),
+    },
+    select: { id: true },
+  });
+  step("request_not_supported");
+  return buildTalkingVideoInput({ imageUrl, audioUrl });
+}
+
+/**
+ * Speak a script, keep the voice in the studio's store, and time its words. The hook line is written beside it unless one was given.
+ */
+async function speakScript(
+  job: { id: string; projectId: string; prompt: string },
+  settings: TalkingVideoSettings,
+): Promise<{
+  voiceBlobPathname: string;
+  audioUrl: string;
+  spokenSeconds: number;
+  words: SpokenWord[];
+  hookLine: string | null;
+}> {
   const voice = await speakVoiceover({
     text: job.prompt,
     voice: settings.voice,
@@ -1394,67 +1782,142 @@ async function prepareTalkingVideo(
       script: job.prompt,
       languageCode: settings.languageCode,
     }),
-    writeTalkingVideoHookLine({
-      script: job.prompt,
-      languageCode: settings.languageCode,
-    }),
+    settings.hookLine ??
+      writeTalkingVideoHookLine({
+        script: job.prompt,
+        languageCode: settings.languageCode,
+      }),
   ]);
-  // The paid extras last, once nothing before them can fail.
-  const [sitePagePathname, brollRequestId, musicRequestId] = await Promise.all([
-    sitePage,
-    settings.broll && hookTakesBroll(words, spokenSeconds)
-      ? writeTalkingVideoBrollPrompt(job.prompt).then((prompt) =>
-          prompt
-            ? startTalkingVideoExtra(
-                TALKING_VIDEO_BROLL_ENDPOINT,
-                buildTalkingVideoBrollInput({ prompt }),
-              )
-            : null,
-        )
-      : null,
-    settings.music
-      ? startTalkingVideoExtra(
-          TALKING_VIDEO_MUSIC_ENDPOINT,
-          buildTalkingVideoMusicInput(),
-        )
-      : null,
-  ]);
-  const made: TalkingVideoSettings = {
-    ...settings,
-    durationSeconds: spokenSeconds,
+  return {
+    voiceBlobPathname: stored.pathname,
+    audioUrl,
+    spokenSeconds,
     words,
     hookLine,
-    siteShots: sitePagePathname !== null,
-    sitePagePathname,
-    broll: brollRequestId !== null,
-    brollRequestId,
-    music: musicRequestId !== null,
-    musicRequestId,
+  };
+}
+
+/** A short's pictures, framed 9:16 and kept in the studio's store, in order. */
+async function storeShortVideoPictures(
+  job: {
+    id: string;
+    projectId: string;
+    workspaceId: string;
+    requestedByUserId: string;
+    idempotencyKey: string;
+    referenceAssetIds: string[];
+    referenceFileIds: string[];
+  },
+  organizationId: string | null,
+): Promise<string[]> {
+  const assets = await prisma.projectImageAsset.findMany({
+    where: { id: { in: job.referenceAssetIds }, projectId: job.projectId },
+    select: { id: true, blobPathname: true },
+  });
+  const sources = [
+    ...job.referenceAssetIds.map(async (assetId) => {
+      const asset = assets.find((candidate) => candidate.id === assetId);
+      if (!asset) throw notFound("A picture for the short was not found");
+      return await readAssetBytes(asset.blobPathname);
+    }),
+    ...job.referenceFileIds.map(
+      async (fileId) =>
+        (
+          await downloadStudioFileReference(job.workspaceId, fileId, {
+            userId: job.requestedByUserId,
+            organizationId,
+            kind: automatedRequestKind(job.idempotencyKey),
+          })
+        ).bytes,
+    ),
+  ];
+  return await Promise.all(
+    sources.map(async (source, index) => {
+      const framed = await keepVideoPicture(await source);
+      const stored = await put(
+        `projects/${job.projectId}/image-studio/${job.id}-picture-${index}.jpg`,
+        framed as unknown as Buffer,
+        {
+          access: "private",
+          token: requireStudioBlobToken(),
+          addRandomSuffix: false,
+          allowOverwrite: true,
+          contentType: "image/jpeg",
+          abortSignal: AbortSignal.timeout(60_000),
+        },
+      );
+      return stored.pathname;
+    }),
+  );
+}
+
+/**
+ * Get a short ready to send: its pictures copied in, its site captured, its
+ * voice spoken and timed (or its lines timed for reading). The request
+ * returned is its one paid call: the music.
+ */
+async function prepareShortVideo(
+  job: {
+    id: string;
+    projectId: string;
+    workspaceId: string;
+    requestedByUserId: string;
+    idempotencyKey: string;
+    prompt: string;
+    settings: Prisma.JsonValue;
+    referenceAssetIds: string[];
+    referenceFileIds: string[];
+  },
+  organizationId: string | null,
+  step: (reason: ImageJobFailureReason) => void,
+): Promise<Record<string, unknown>> {
+  const settings = readTalkingVideoSettings(job.settings);
+  const format = settings.format!;
+  const sitePage = storeTalkingVideoSitePages(job, settings);
+  step("reference_not_sendable");
+  const picturePathnames = await storeShortVideoPictures(job, organizationId);
+  let words: SpokenWord[];
+  let seconds: number;
+  let hookLine: string | null = null;
+  let voiceBlobPathname: string | null = null;
+  if (SHORT_VIDEO_TEXT_FORMATS.includes(format)) {
+    words = readingTimings(job.prompt);
+    seconds = Math.ceil(words.at(-1)?.end ?? 0);
+  } else {
+    step("voice_unavailable");
+    const spoken = await speakScript(job, settings);
+    seconds = spoken.spokenSeconds;
+    hookLine = spoken.hookLine;
+    voiceBlobPathname = spoken.voiceBlobPathname;
+    // Words the voice service could not time are spread over the voice.
+    const read = readingTimings(job.prompt);
+    const scale = seconds / (read.at(-1)?.end || 1);
+    words = spoken.words.length
+      ? spoken.words
+      : read.map((word) => ({
+          text: word.text,
+          start: word.start * scale,
+          end: word.end * scale,
+        }));
+  }
+  const pages = await sitePage;
+  if (picturePathnames.length === 0 && !pages.siteShots)
+    throw new Error("The short has neither pictures nor a site to show.");
+  const made: TalkingVideoSettings = {
+    ...settings,
+    durationSeconds: seconds,
+    words,
+    hookLine,
+    ...pages,
+    picturePathnames,
   };
   await prisma.projectImageJob.update({
     where: { id: job.id },
-    data: {
-      voiceBlobPathname: stored.pathname,
-      settings: { ...made },
-      // What could not be started is not charged for.
-      ...((settings.siteShots && !made.siteShots) ||
-      (settings.broll && !made.broll) ||
-      (settings.music && !made.music)
-        ? {
-            chargedCents: convertCreditsToCents(
-              creditsPerTalkingVideo(
-                talkingVideoModelForEndpoint(job.model),
-                job.prompt,
-                made,
-              ),
-            ),
-          }
-        : {}),
-    },
+    data: { voiceBlobPathname, settings: jsonInput(made) },
     select: { id: true },
   });
   step("request_not_supported");
-  return buildTalkingVideoInput({ imageUrl, audioUrl });
+  return buildTalkingVideoMusicInput();
 }
 
 /**
@@ -1508,20 +1971,53 @@ async function readTalkingVideoExtra(
  * Screenshot the Project's website for a talking video and keep it in the
  * studio's store. Null when the Project has no website or it did not load.
  */
-async function storeTalkingVideoSitePage(job: {
-  id: string;
-  projectId: string;
-}): Promise<string | null> {
+/**
+ * The site as each wanted shape shows it: a phone's page for the upright and
+ * square shapes, a desktop's for widescreen. One after the other, so only one
+ * browser runs at a time.
+ */
+async function storeTalkingVideoSitePages(
+  job: { id: string; projectId: string },
+  settings: TalkingVideoSettings,
+): Promise<
+  Pick<
+    TalkingVideoSettings,
+    "siteShots" | "sitePagePathname" | "siteDesktopPagePathname"
+  >
+> {
+  const shapes = [settings.shape, ...settings.shapes];
+  const sitePagePathname =
+    settings.siteShots && shapes.some((shape) => shape !== "16:9")
+      ? await storeTalkingVideoSitePage(job)
+      : null;
+  const siteDesktopPagePathname =
+    settings.siteShots && shapes.includes("16:9")
+      ? await storeTalkingVideoSitePage(job, "desktop")
+      : null;
+  return {
+    siteShots: sitePagePathname !== null || siteDesktopPagePathname !== null,
+    sitePagePathname,
+    siteDesktopPagePathname,
+  };
+}
+
+async function storeTalkingVideoSitePage(
+  job: {
+    id: string;
+    projectId: string;
+  },
+  device: "phone" | "desktop" = "phone",
+): Promise<string | null> {
   try {
     const project = await prisma.project.findUnique({
       where: { id: job.projectId },
       select: { websiteUrl: true },
     });
     if (!project?.websiteUrl) return null;
-    const page = await captureTalkingVideoSitePage(project.websiteUrl);
+    const page = await captureTalkingVideoSitePage(project.websiteUrl, device);
     if (!page) return null;
     const stored = await put(
-      `projects/${job.projectId}/image-studio/${job.id}-site.jpg`,
+      `projects/${job.projectId}/image-studio/${job.id}-site${device === "desktop" ? "-desktop" : ""}.jpg`,
       page as unknown as Buffer,
       {
         access: "private",
@@ -1536,6 +2032,15 @@ async function storeTalkingVideoSitePage(job: {
   } catch {
     return null;
   }
+}
+
+/**
+ * A person's own credential: a session, an API key or an OAuth token
+ * (ADR 0077). Only these may cut a product out of a Drive photo; a Soko Bot
+ * may not.
+ */
+function isUserFileActor(actor: FileActor | undefined): boolean {
+  return actor !== undefined && DATA_ROOM_PEOPLE_KINDS.includes(actor.kind);
 }
 
 /**
@@ -1614,7 +2119,10 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
     try {
       // The voice is bought here, before the video: a few cents the studio
       // carries when a later step fails, since only a delivery is charged.
-      request = await prepareTalkingVideo(job, organizationId, (step) => {
+      const prepare = readTalkingVideoSettings(job.settings).format
+        ? prepareShortVideo
+        : prepareTalkingVideo;
+      request = await prepare(job, organizationId, (step) => {
         reason = step;
       });
     } catch (error) {
@@ -1660,20 +2168,27 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       job.exportHeadline || job.useProductCutout
         ? { ...brand, approvedLines: undefined }
         : brand;
+    // A picture in a reference library style is Cuso's brief alone: the
+    // brand block (ad copy, Brand Brain, DESIGN.md, Memory) made its prompt
+    // 4,300 characters and was lettered into it (2026-11-20).
+    const styled = (job.referenceLibraryIds?.length ?? 0) > 0;
     const prompt =
       letteringEdit && job.exportHeadline
         ? buildStudioLetteringPrompt(
             job.exportHeadline,
             await readStudioBrandKit(job.projectId),
           )
-        : applyStudioBrandPrompt(
-            job.useProductCutout
-              ? backdropInstruction +
-                  " Leave a surface in the lower center for a product cutout. Keep the central area clear. Leave products, people, promotional text, and logos out of the artwork. Use the brief for the setting, palette, and lighting only.\n\n" +
-                  job.prompt
-              : job.prompt,
-            promptBrand,
-          );
+        : styled
+          ? job.prompt
+          : applyStudioBrandPrompt(
+              job.useProductCutout
+                ? backdropInstruction +
+                    " Leave a surface in the lower center for a product cutout. Keep the central area clear. Leave products, people, promotional text, and logos out of the artwork. Use the brief for the setting, palette, and lighting only.\n\n" +
+                    job.prompt
+                : job.prompt,
+              promptBrand,
+              job.model === RECRAFT_VECTOR_ENDPOINT,
+            );
     let finalPrompt = prompt;
     if (isVideoKind(job.kind)) {
       const model = findVideoModelForEndpoint(job.model);
@@ -1685,7 +2200,8 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       });
     } else {
       const settings = readSettings(job.settings);
-      const photoCount = job.useProductCutout ? 0 : job.referenceFileIds.length;
+      const photoCount =
+        job.useProductCutout || styled ? 0 : job.referenceFileIds.length;
       const productPhotoGuidance = photoCount
         ? `\n\nUse the ${photoCount === 1 ? "last reference image" : `last ${photoCount} reference images`} for the advertised product's appearance. Keep its shape, colors, materials, packaging, and any legible label text unless the brief explicitly asks to change them.`
         : "";
@@ -1717,6 +2233,7 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       input = buildFalInput(
         {
           prompt: finalPrompt,
+          brandColors: brand.look?.colors ?? brand.designColors,
           aspectRatio: settings.aspectRatio,
           resolution: settings.resolution,
           outputFormat: settings.outputFormat,
@@ -1729,12 +2246,15 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
     }
     snapshot = {
       jobId: job.id,
-      finalPrompt,
+      finalPrompt:
+        typeof input.prompt === "string" ? input.prompt : finalPrompt,
       brandContextHash: crypto
         .createHash("sha256")
         .update(studioBrandPromptBlock(promptBrand))
         .digest("hex"),
-      brandLook: brand.look ?? Prisma.DbNull,
+      brandLook: brand.look ? jsonInput(brand.look) : Prisma.DbNull,
+      route: readImageStudioRoute(job.settings) ?? null,
+      experimentArm: readStudioRouterArm(job.settings),
       assemblyVersion: STUDIO_PROMPT_ASSEMBLY_VERSION,
       templateId: job.templateId ?? null,
       creativeDirection: job.creativeDirection ?? null,
@@ -1916,6 +2436,10 @@ export async function sweepStalledSubmissions(
 export async function reconcileJob(jobId: string): Promise<void> {
   const job = await prisma.projectImageJob.findUnique({ where: { id: jobId } });
   if (!job) return;
+  if (isVideoShapeJob(job)) {
+    await settleVideoShapeJob(job);
+    return;
+  }
   // Without a provider request id there is nothing to ask about.
   if (!job.falRequestId) return;
   // Includes SUBMISSION_UNCERTAIN: we hold its request id, so the provider can
@@ -2028,12 +2552,7 @@ export async function reconcileJob(jobId: string): Promise<void> {
   // Settled even when cancellation was requested: fal may accept a
   // cancellation and finish anyway, and an image we paid for should be kept.
   const produced = result.media[0]!;
-  await settleWithMedia(
-    job.id,
-    produced.url,
-    { width: produced.width, height: produced.height },
-    job.falRequestId,
-  );
+  await settleWithMedia(job.id, produced.url, produced, job.falRequestId);
 }
 
 /**
@@ -2220,6 +2739,19 @@ export async function failImageJob(
   providerDetail?: string,
 ): Promise<void> {
   if (await deliverUncaptionedTalkingVideo(jobId)) return;
+  await markImageJobFailed(jobId, reason, providerDetail);
+}
+
+/**
+ * Fails a job as it stands, without `failImageJob`'s fallback to a talking
+ * video's presenter clip: for a failure of Core's own edit, where that
+ * fallback would only run the same edit again.
+ */
+async function markImageJobFailed(
+  jobId: string,
+  reason: ImageJobFailureReason,
+  providerDetail?: string,
+): Promise<void> {
   if (providerDetail) {
     // Where a raw transport string belongs. "Unexpected status code: 422" is
     // useful to whoever is debugging the job and useless to whoever was waiting
@@ -2262,9 +2794,20 @@ function nudgeCmoMonth(jobId: string): void {
     runAsBackgroundWork(async () => {
       const job = await prisma.projectImageJob.findUnique({
         where: { id: jobId },
-        select: { projectId: true, idempotencyKey: true },
+        select: { projectId: true, idempotencyKey: true, settings: true },
       });
-      if (!job?.idempotencyKey.startsWith("cmo-media:")) return;
+      if (!job) return;
+      // A shape of a month's video moves the month on like the video itself.
+      const { sourceJobId } = readTalkingVideoSettings(job.settings);
+      const key = sourceJobId
+        ? (
+            await prisma.projectImageJob.findUnique({
+              where: { id: sourceJobId },
+              select: { idempotencyKey: true },
+            })
+          )?.idempotencyKey
+        : job.idempotencyKey;
+      if (!key?.startsWith("cmo-media:")) return;
       const { startCmoProductionForProject } = await import(
         "@/services/cmo-cuso.service"
       );
@@ -2286,6 +2829,9 @@ function nudgeCmoMonth(jobId: string): void {
   );
 }
 
+type StudioMediaInfo = Pick<FalMedia, "width" | "height"> &
+  Partial<Pick<FalMedia, "contentType">>;
+
 /**
  * Store the generated image and publish the version.
  *
@@ -2295,12 +2841,12 @@ function nudgeCmoMonth(jobId: string): void {
 export async function settleWithMedia(
   jobId: string,
   sourceUrl: string,
-  providerSize?: { width: number | null; height: number | null },
+  mediaInfo?: StudioMediaInfo,
   /** The provider request this media answers. */
   requestId?: string,
 ): Promise<void> {
   if (await startTalkingVideoSecondStep(jobId, sourceUrl, requestId)) return;
-  await storeMedia(jobId, sourceUrl, providerSize);
+  await storeMedia(jobId, sourceUrl, mediaInfo);
   nudgeCmoMonth(jobId);
 }
 
@@ -2373,6 +2919,15 @@ async function startTalkingVideoSecondStep(
 }
 
 /**
+ * A video delivered only as Core's edit: a shape other than vertical, or a
+ * shape cut from another job. The provider's own clip is vertical, so it is
+ * never a fallback for these.
+ */
+function onlyEdited(talking: TalkingVideoSettings): boolean {
+  return talking.sourceJobId !== null || talking.shape !== "9:16";
+}
+
+/**
  * A talking video whose caption step failed is still a video the studio paid
  * for: deliver it as its presenter model made it. True when it was handled.
  */
@@ -2381,6 +2936,9 @@ async function deliverUncaptionedTalkingVideo(jobId: string): Promise<boolean> {
     where: { id: jobId },
     select: { kind: true, pendingMediaUrl: true },
   });
+  // A shape other than vertical is still edited from the clip, without the
+  // step that failed; a failure of that edit fails the job for good
+  // (`markImageJobFailed`), so this never runs it twice.
   if (job?.kind !== ProjectImageJobKind.TALKING_VIDEO || !job.pendingMediaUrl)
     return false;
   recordCoreWarning(
@@ -2396,6 +2954,13 @@ async function deliverUncaptionedTalkingVideo(jobId: string): Promise<boolean> {
   return true;
 }
 
+/** The site's page as this job's shape shows it: a desktop's for widescreen. */
+function shapePagePathname(settings: TalkingVideoSettings): string | null {
+  return settings.shape === "16:9"
+    ? settings.siteDesktopPagePathname
+    : settings.sitePagePathname;
+}
+
 /**
  * What the site shots of a talking video are made from: the clip's matte,
  * from the cut-out the job last asked for, and the site's stored screenshot.
@@ -2405,7 +2970,8 @@ async function readTalkingVideoSite(
   job: { falRequestId: string | null },
   settings: TalkingVideoSettings,
 ): Promise<{ alpha: Uint8Array; page: Uint8Array } | null> {
-  if (!job.falRequestId || !settings.sitePagePathname) return null;
+  const pagePathname = shapePagePathname(settings);
+  if (!job.falRequestId || !pagePathname) return null;
   try {
     const result = await fetchQueueResult({
       model: TALKING_VIDEO_CUTOUT_ENDPOINT,
@@ -2422,12 +2988,61 @@ async function readTalkingVideoSite(
         LIMITS.IMAGE_STUDIO_MAX_TALKING_VIDEO_BYTES,
         "video/mp4",
       ),
-      readAssetBytes(settings.sitePagePathname),
+      readAssetBytes(pagePathname),
     ]);
     return { alpha: alpha.bytes, page };
   } catch {
     return null;
   }
+}
+
+/**
+ * A short, put together from its music, its stored voice, pictures and site,
+ * and the brand's end card. Null when it has no words to time by.
+ */
+async function makeShortVideo(
+  job: {
+    id: string;
+    projectId: string;
+    voiceBlobPathname: string | null;
+  },
+  settings: TalkingVideoSettings,
+  music: Uint8Array,
+): Promise<{ bytes: Uint8Array; durationSeconds: number } | null> {
+  const pagePathname = shapePagePathname(settings);
+  const [voice, pictures, page, endCard, brand] = await Promise.all([
+    job.voiceBlobPathname ? readAssetBytes(job.voiceBlobPathname) : null,
+    Promise.all(
+      settings.picturePathnames.map(async (pathname) =>
+        fitVideoPicture(await readAssetBytes(pathname), settings.shape),
+      ),
+    ),
+    pagePathname ? readAssetBytes(pagePathname).catch(() => null) : null,
+    prisma.project
+      .findUnique({
+        where: { id: job.projectId },
+        select: { id: true, name: true, logo: true, websiteUrl: true },
+      })
+      .then((project) => (project ? loadTalkingVideoEndCard(project) : null)),
+    loadStudioBrand(job.projectId),
+  ]);
+  const colour = (brand.look?.colors ?? brand.designColors ?? []).find(
+    (value) => /^#[0-9a-f]{6}$/i.test(value),
+  );
+  const edited = await editShortVideo({
+    shape: settings.shape,
+    format: settings.format!,
+    words: settings.words,
+    seconds: settings.durationSeconds,
+    hookLine: settings.hookLine,
+    pictures,
+    music,
+    ...(voice ? { voice } : {}),
+    ...(page ? { page } : {}),
+    ...(endCard ? { endCard } : {}),
+    ...(colour ? { cardColour: `0x${colour.slice(1)}` } : {}),
+  });
+  return edited;
 }
 
 /** Media types a log may name; the rest of a Content-Type is the provider's text. */
@@ -2468,7 +3083,9 @@ async function storeMedia(
    * used to take only the URL and throw these away — so even the endpoints that
    * *did* report a size had it discarded, and every non-PNG stored 0x0.
    */
-  providerSize?: { width: number | null; height: number | null },
+  mediaInfo?: StudioMediaInfo,
+  /** A shape job's source request, whose cut-out its site shots read. */
+  sourceRequestId?: string,
 ): Promise<void> {
   const job = await prisma.projectImageJob.findUnique({
     where: { id: jobId },
@@ -2581,9 +3198,11 @@ async function storeMedia(
     job.kind === ProjectImageJobKind.TALKING_VIDEO
       ? readTalkingVideoSettings(job.settings)
       : null;
+  // A short's one paid request is its music: Core makes the video around it.
+  const short = talking?.format ? talking : null;
   // Core edits a clip whose words were timed. After a cut-out, `sourceUrl`
   // is the cut-out and the clip to edit is the one it was made from.
-  const edits = talking !== null && talking.words.length > 0;
+  const edits = talking !== null && !short && talking.words.length > 0;
   const clipUrl =
     edits && job.pendingMediaUrl ? job.pendingMediaUrl : sourceUrl;
   const cutOut = edits && clipUrl !== sourceUrl;
@@ -2596,12 +3215,12 @@ async function storeMedia(
           job.kind === ProjectImageJobKind.TALKING_VIDEO
             ? LIMITS.IMAGE_STUDIO_MAX_TALKING_VIDEO_BYTES
             : LIMITS.IMAGE_STUDIO_MAX_VIDEO_BYTES,
-          "video/mp4",
+          short ? "audio/wav" : "video/mp4",
         )
       : await downloadMedia(sourceUrl, LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES);
     // A CDN that calls an mp4 `application/octet-stream` would make it
     // unplayable in the gallery and unattachable in Social.
-    if (video && !downloaded.contentType.startsWith("video/"))
+    if (video && !short && !downloaded.contentType.startsWith("video/"))
       downloaded = { ...downloaded, contentType: "video/mp4" };
   } catch (error) {
     // fal has already produced the image, so it has already been paid for. A
@@ -2617,12 +3236,75 @@ async function storeMedia(
     return;
   }
 
+  let vectorSource: Uint8Array | undefined;
+  if (
+    !video &&
+    (job.model === RECRAFT_VECTOR_ENDPOINT ||
+      [mediaInfo?.contentType, downloaded.contentType].some(
+        (type) => type?.split(";")[0]?.trim().toLowerCase() === "image/svg+xml",
+      ))
+  ) {
+    try {
+      const svg = new TextDecoder("utf-8", { fatal: true }).decode(
+        downloaded.bytes,
+      );
+      if (unsafeSvgReason(svg)) throw new Error("Unsafe SVG");
+      const bytes = await sharp(downloaded.bytes, {
+        limitInputPixels: 16_000_000,
+      })
+        .timeout({ seconds: 10 })
+        .png()
+        .toBuffer();
+      if (bytes.length > LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES)
+        throw new Error("PNG exceeds the asset limit");
+      vectorSource = downloaded.bytes;
+      downloaded = { bytes, contentType: "image/png" };
+    } catch {
+      await failImageJob(job.id, "invalid_vector_image");
+      return;
+    }
+  }
+
   let editedSeconds: number | null = null;
   let chargedCents = job.chargedCents;
-  if (talking && edits) {
+  if (short) {
+    try {
+      const made = await makeShortVideo(job, short, downloaded.bytes);
+      if (!made)
+        throw new Error("The short had no words to time its shots by.");
+      downloaded = { bytes: made.bytes, contentType: "video/mp4" };
+      editedSeconds = Math.ceil(made.durationSeconds);
+    } catch (error) {
+      // Its music alone is no short. Nothing is delivered, so nothing is charged.
+      recordCoreWarning(
+        {
+          operation: "image_job_settle",
+          imageJobs: [{ id: job.id, failure: messageSafeErrorFields(error) }],
+        },
+        {
+          message: "Could not put a short together",
+          why: "Reading its pictures, voice or site, or running the edit, threw",
+          fix: "The job is marked failed and nothing is charged. If this repeats, check that Core can read the studio's store and run its ffmpeg build.",
+        },
+      );
+      await releaseSettlementLease(job.id, lease);
+      await failImageJob(job.id, "unknown");
+      return;
+    }
+  } else if (talking && !edits && onlyEdited(talking)) {
+    // Its words were never timed, so Core cannot cut it in its shape.
+    await releaseSettlementLease(job.id, lease);
+    await markImageJobFailed(job.id, "unknown");
+    return;
+  } else if (talking && edits) {
     try {
       const [site, endCard, broll, music] = await Promise.all([
-        cutOut ? readTalkingVideoSite(job, talking) : null,
+        cutOut
+          ? readTalkingVideoSite(
+              { falRequestId: sourceRequestId ?? job.falRequestId },
+              talking,
+            )
+          : null,
         prisma.project
           .findUnique({
             where: { id: project.id },
@@ -2640,7 +3322,11 @@ async function storeMedia(
           "audio/wav",
         ),
       ]);
-      if ((talking.broll && !broll) || (talking.music && !music)) {
+      // A shape cut from another job's parts is never charged for them.
+      if (
+        !talking.sourceJobId &&
+        ((talking.broll && !broll) || (talking.music && !music))
+      ) {
         // An extra that did not come is taken off the charge before delivery.
         chargedCents = convertCreditsToCents(
           creditsPerTalkingVideo(
@@ -2660,6 +3346,7 @@ async function storeMedia(
         });
       }
       const edited = await editTalkingVideo({
+        shape: talking.shape,
         clip: downloaded.bytes,
         words: talking.words,
         clipSeconds: talking.durationSeconds,
@@ -2672,8 +3359,29 @@ async function storeMedia(
       if (edited) {
         downloaded = { bytes: edited.bytes, contentType: "video/mp4" };
         editedSeconds = Math.ceil(edited.durationSeconds);
+      } else if (onlyEdited(talking)) {
+        throw new Error("The video had no words to time its cuts by.");
       }
     } catch (error) {
+      // A video in any shape but vertical is only ever its edit: the
+      // presenter's vertical clip would be the wrong shape. Nothing is
+      // delivered, so nothing is charged.
+      if (onlyEdited(talking)) {
+        recordCoreWarning(
+          {
+            operation: "image_job_settle",
+            imageJobs: [{ id: job.id, failure: messageSafeErrorFields(error) }],
+          },
+          {
+            message: "Could not cut a video in its shape",
+            why: "Reading its parts or running the edit threw",
+            fix: "The job is marked failed and nothing is charged. If this repeats, check Core's ffmpeg build and the studio's store.",
+          },
+        );
+        await releaseSettlementLease(job.id, lease);
+        await markImageJobFailed(job.id, "unknown");
+        return;
+      }
       // ffmpeg's output can name a caption, which is the script's words.
       recordCoreWarning(
         {
@@ -2730,8 +3438,14 @@ async function storeMedia(
   // header, which is what covers the endpoints that report nothing. `recraft/v3`
   // returns WebP with no dimensions and `luma-photon` reports none at all, and both
   // stored 0x0 until this read the bytes.
+  // A video Core edited is its shape's frame, whatever the provider's clip was.
   const dimensions =
-    (!job.useProductCutout ? readProviderSize(providerSize) : null) ??
+    (talking && editedSeconds !== null
+      ? VIDEO_SHAPE_FRAMES[talking.shape]
+      : null) ??
+    (!job.useProductCutout && !vectorSource
+      ? readProviderSize(mediaInfo)
+      : null) ??
     (video ? null : readImageDimensionsFromBytes(downloaded.bytes));
   if (!dimensions && !video) {
     // Not a failure: the column holds 0 and the client falls back to the rendered
@@ -2781,6 +3495,13 @@ async function storeMedia(
       allowOverwrite: true,
     };
     const objectPath = `projects/${job.projectId}/image-studio/${job.id}`;
+    if (vectorSource) {
+      await put(`${objectPath}-source.svg`, Buffer.from(vectorSource), {
+        ...storageOptions,
+        contentType: "image/svg+xml",
+        abortSignal: AbortSignal.timeout(60_000),
+      });
+    }
     if (backdrop) {
       const backdropHash = crypto
         .createHash("sha256")
@@ -2868,6 +3589,14 @@ async function storeMedia(
       height: dimensions?.height ?? 0,
       bytes: downloaded.bytes.byteLength,
       checksum,
+      // Every delivered video whose words were timed can be cut again, also
+      // one delivered as its presenter clip after its own edit failed.
+      ...(talking &&
+      talking.shapes.length > 0 &&
+      !talking.sourceJobId &&
+      (short || talking.words.length > 0)
+        ? { videoShapeJobs: videoShapeJobRows(job, talking) }
+        : {}),
     });
   } catch (error) {
     if (isUniqueViolation(error)) return; // Another settler won; its asset stands.
@@ -2926,6 +3655,174 @@ async function storeMedia(
 }
 
 /**
+ * The other shapes of a delivered video, one job each. They are cut from the
+ * parts this job already paid for (voice, presenter, cut-out, B-roll, music),
+ * so they cost nothing more and are free. Each is settled on its own by the
+ * next reconcile (`settleVideoShapeJob`), so every edit has the whole time a
+ * settlement gets. A job like this is the only talking video that runs
+ * without a provider request of its own.
+ */
+function videoShapeJobRows(
+  job: {
+    id: string;
+    projectId: string;
+    workspaceId: string;
+    requestedByUserId: string;
+    kind: ProjectImageJobKind;
+    model: string;
+    prompt: string;
+    voiceBlobPathname: string | null;
+    pendingMediaUrl: string | null;
+    presenterConsentAt: Date | null;
+    sessionId: string | null;
+    productId: string | null;
+    productName: string | null;
+  },
+  talking: TalkingVideoSettings,
+  shapes: readonly VideoShape[] = talking.shapes,
+): Prisma.ProjectImageJobCreateManyInput[] {
+  const now = new Date();
+  return shapes.map((shape) => ({
+    projectId: job.projectId,
+    workspaceId: job.workspaceId,
+    sessionId: job.sessionId,
+    productId: job.productId,
+    productName: job.productName,
+    requestedByUserId: job.requestedByUserId,
+    kind: job.kind,
+    model: job.model,
+    prompt: job.prompt,
+    settings: jsonInput({
+      ...talking,
+      aspectRatio: shape,
+      shape,
+      shapes: [],
+      sourceJobId: job.id,
+    } satisfies TalkingVideoSettings),
+    referenceAssetIds: [],
+    idempotencyKey: videoShapeJobKey(job.id, shape),
+    status: ProjectImageJobStatus.RUNNING,
+    chargedCents: 0n,
+    submittedAt: now,
+    voiceBlobPathname: job.voiceBlobPathname,
+    pendingMediaUrl: job.pendingMediaUrl,
+    presenterConsentAt: job.presenterConsentAt,
+  }));
+}
+
+/**
+ * Asks for one more shape of a delivered video, cut from its parts at no
+ * cost, as a job of its own (`video-shape:<source>:<shape>`). False when the
+ * video cannot be cut again: not delivered, delivered without Core's edit
+ * (its words were never timed), itself a shape of another video, or already
+ * in that shape (then the video itself is the cut).
+ */
+export async function requestVideoShape(
+  sourceJobId: string,
+  shape: VideoShape,
+): Promise<boolean> {
+  const job = await prisma.projectImageJob.findUnique({
+    where: { id: sourceJobId },
+    select: {
+      id: true,
+      projectId: true,
+      workspaceId: true,
+      requestedByUserId: true,
+      kind: true,
+      model: true,
+      prompt: true,
+      status: true,
+      settings: true,
+      voiceBlobPathname: true,
+      pendingMediaUrl: true,
+      presenterConsentAt: true,
+      sessionId: true,
+      productId: true,
+      productName: true,
+    },
+  });
+  if (
+    job?.kind !== ProjectImageJobKind.TALKING_VIDEO ||
+    job.status !== ProjectImageJobStatus.SUCCEEDED
+  )
+    return false;
+  const talking = readTalkingVideoSettings(job.settings);
+  if (
+    talking.sourceJobId ||
+    talking.shape === shape ||
+    (!talking.format && talking.words.length === 0)
+  )
+    return false;
+  await prisma.projectImageJob.createMany({
+    data: videoShapeJobRows(job, talking, [shape]),
+    skipDuplicates: true,
+  });
+  return true;
+}
+
+/**
+ * Cut one shape job from its source's parts: the source's last provider
+ * result (presenter clip, cut-out or music) is read again and edited in this
+ * job's shape. A source that did not deliver takes its shapes with it.
+ */
+async function settleVideoShapeJob(job: {
+  id: string;
+  settings: Prisma.JsonValue;
+}): Promise<void> {
+  const { sourceJobId } = readTalkingVideoSettings(job.settings);
+  if (!sourceJobId) return;
+  const source = await prisma.projectImageJob.findUnique({
+    where: { id: sourceJobId },
+    select: {
+      status: true,
+      model: true,
+      falRequestId: true,
+      pendingMediaUrl: true,
+      settings: true,
+    },
+  });
+  if (
+    source?.status !== ProjectImageJobStatus.SUCCEEDED ||
+    !source.falRequestId
+  ) {
+    if (
+      !source ||
+      !(LIVE_STATUSES as readonly string[]).includes(source.status)
+    ) {
+      await markImageJobFailed(job.id, "unknown");
+      nudgeCmoMonth(job.id);
+    }
+    return;
+  }
+  const result = await fetchQueueResult({
+    model: queueModel(source),
+    requestId: source.falRequestId,
+  });
+  if (result.kind === "pending") return;
+  if (result.kind === "unreachable") {
+    await noteUnreachable(job.id, result.message, "result");
+    return;
+  }
+  if (result.kind === "error") {
+    // The source's last request was an optional step (its cut-out) that
+    // failed; it was delivered from its presenter clip, and so is this.
+    if (source.pendingMediaUrl)
+      await storeMedia(job.id, source.pendingMediaUrl);
+    else await markImageJobFailed(job.id, "provider_error", result.message);
+    // Either way the month moves on: with this cut, or with the source.
+    nudgeCmoMonth(job.id);
+    return;
+  }
+  await storeMedia(
+    job.id,
+    result.media[0]!.url,
+    undefined,
+    source.falRequestId,
+  );
+  nudgeCmoMonth(job.id);
+}
+
+/**
  * Insert the version, take its number, and take the money.
  *
  * Version allocation is a read-then-write, so it runs serializable and the
@@ -2950,9 +3847,9 @@ async function insertAsset(input: {
     exportHeadline: string | null;
     lettering?: string;
     letteringQuoteCents?: bigint | null;
-    sessionId?: string | null;
-    productId?: string | null;
-    productName?: string | null;
+    sessionId: string | null;
+    productId: string | null;
+    productName: string | null;
     batchSlotId?: string | null;
     settings: Prisma.JsonValue;
     parentAssetId: string | null;
@@ -2973,6 +3870,11 @@ async function insertAsset(input: {
   height: number;
   bytes: number;
   checksum: string;
+  /**
+   * A video's other shapes, reserved with its asset: a delivered video never
+   * loses them to a failure after it was stored and charged.
+   */
+  videoShapeJobs?: Prisma.ProjectImageJobCreateManyInput[];
 }): Promise<{
   assetId: string;
   version: number | null;
@@ -3030,6 +3932,7 @@ async function insertAsset(input: {
           organizationId: input.job.organizationId,
           projectId: input.job.projectId,
           cents: chargedCents,
+          scope: createNetworkScope("mainnet"),
           tx,
         });
       } catch (error) {
@@ -3075,8 +3978,12 @@ async function insertAsset(input: {
         prompt: input.job.prompt,
         settings: input.job.settings ?? {},
         blobPathname: input.blobPathname,
-        backdropBlobPathname: input.backdropBlobPathname,
-        backdropContentType: input.backdropContentType,
+        ...(input.backdropBlobPathname !== undefined
+          ? { backdropBlobPathname: input.backdropBlobPathname }
+          : {}),
+        ...(input.backdropContentType !== undefined
+          ? { backdropContentType: input.backdropContentType }
+          : {}),
         contentType: input.contentType,
         mediaType: input.mediaType,
         aiGenerated: input.aiGenerated,
@@ -3092,6 +3999,11 @@ async function insertAsset(input: {
           : {}),
       },
     });
+    if (input.videoShapeJobs?.length)
+      await tx.projectImageJob.createMany({
+        data: input.videoShapeJobs,
+        skipDuplicates: true,
+      });
 
     let letteringJobId: string | null = null;
     if (
@@ -3124,7 +4036,7 @@ async function insertAsset(input: {
           prompt: `Add the approved headline: ${input.job.exportHeadline}`,
           exportHeadline: input.job.exportHeadline,
           lettering: "ideogram",
-          settings: { ...readSettings(secondSettings ?? {}) },
+          settings: jsonInput(readSettings(secondSettings ?? {})),
           productId: input.job.productId,
           productName: input.job.productName,
           batchSlotId: input.job.batchSlotId ?? input.job.id,
@@ -3206,9 +4118,10 @@ export async function reconcileProjectJobs(projectId: string): Promise<void> {
     take: LIMITS.IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT,
     select: { id: true },
   });
+  const shape = await nextVideoShape({ projectId }, { createdAt: "asc" });
   // Sequential: these are the same small set the project is limited to, and a
   // burst of provider reads from one page load buys nothing.
-  for (const job of pending) {
+  for (const job of [...pending, ...shape]) {
     try {
       await reconcileJob(job.id);
     } catch (error) {
@@ -3243,7 +4156,10 @@ export async function reconcileWorkspaceJobs(
   workspaceId: string,
 ): Promise<void> {
   const projects = await prisma.projectImageJob.findMany({
-    where: { project: { workspaceId }, ...recoverableSelection() },
+    where: {
+      project: { workspaceId },
+      OR: [recoverableSelection(), videoShapeSelection()],
+    },
     distinct: ["projectId"],
     take: WORKSPACE_RECONCILE_PROJECTS,
     select: { projectId: true },
@@ -3283,8 +4199,10 @@ export async function reconcileStaleJobs(options: {
     take: options.limit,
     select: { id: true },
   });
+  // A shape is cut on the next sweep, stale or not: no provider will call back.
+  const shape = await nextVideoShape({}, { createdAt: "asc" });
   let reconciled = 0;
-  for (const job of stale) {
+  for (const job of [...stale, ...shape]) {
     try {
       await reconcileJob(job.id);
       reconciled += 1;

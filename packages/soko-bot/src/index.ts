@@ -1,3 +1,4 @@
+export { ACTION_LABELS, withoutActionReceipts } from "./action-labels.js";
 export * from "./avatar/index.js";
 export {
   CMO_BRAND_SECTIONS,
@@ -11,7 +12,6 @@ export {
   type CmoStrategySave,
   type CmoStrategySavePart,
   type CmoSystemSchedule,
-  cmoBrandQuestionsPatchSchema,
   cmoMayExecute,
   cmoReportUpdateInputSchema,
   cmoRoutineSkipReason,
@@ -22,17 +22,12 @@ export {
   isCmoScheduleKey,
   parseCmoStrategySave,
   SOKO_BOT_CMO_RHYTHMS,
-  SOKO_BOT_CMO_SCHEDULES,
 } from "./cmo.js";
 export {
-  COMPETITOR_SUPPORT,
-  type CompetitorFact,
   type CompetitorFeedItem,
   cmoCompetitorWatchBrief,
-  competitorFactSchema,
   competitorFeedItemSchema,
   type SaveCompetitorFeedInput,
-  saveCompetitorFeedInputSchema,
 } from "./competitors.js";
 export {
   getSokoBotIntegrationProvider,
@@ -59,10 +54,48 @@ export {
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   sanitizeSokoBotMemoryMarkdown,
+  sokoBotMemoryNotKept,
 } from "./memory.js";
+export {
+  assertDirectOwnerScheduleEdit,
+  bindScheduleStopRule,
+  type DirectOwnerScheduleEdit,
+  type EvaluateScheduleStopContext,
+  evaluateScheduleStopRule,
+  isOwnerAuthorityExpired,
+  minOwnerAuthorityScope,
+  minOwnerAuthoritySocialMode,
+  type NarrowOwnerAuthorityInput,
+  narrowOwnerAuthority,
+  OWNER_AUTHORITY_ALLOWANCE_PERIODS,
+  OWNER_AUTHORITY_ORIGINS,
+  OWNER_AUTHORITY_SCOPES,
+  OWNER_AUTHORITY_SOCIAL_MODES,
+  type OwnerAuthority,
+  type OwnerAuthorityAllowancePeriod,
+  OwnerAuthorityError,
+  type OwnerAuthorityLimits,
+  type OwnerAuthorityOrigin,
+  type OwnerAuthorityScope,
+  type OwnerAuthoritySocialMode,
+  type OwnerAuthorityStopRule,
+  type OwnerAuthorityStopRuleInput,
+  type OwnerAuthorityTargetScope,
+  ownerAuthorityLimitsSchema,
+  ownerAuthoritySchema,
+  ownerAuthorityStopRuleInputSchema,
+  ownerAuthorityStopRuleSchema,
+  ownerAuthorityTargetScopeSchema,
+  parseOwnerAuthority,
+  type ScheduleStopDenialReason,
+  type ScheduleStopEvaluation,
+  sameOwnerAuthorityTargetScope,
+} from "./owner-authority.js";
 export {
   composeSokoBotIntroduction,
   composeSokoBotVersionNotice,
+  isSokoBotIntroduction,
+  SOKO_BOT_INTRODUCTION_METADATA,
   type SokoBotPersona,
 } from "./persona.js";
 export {
@@ -70,7 +103,6 @@ export {
   exceedsUnattendedHireBudget,
   isSokoBotAnnouncementCapability,
   isSokoBotCapability,
-  isSokoBotCmoCapability,
   isSokoBotCompetitorCapability,
   isSokoBotNewsletterCapability,
   isSokoBotSandboxCapability,
@@ -78,18 +110,21 @@ export {
   SOKO_BOT_ANNOUNCEMENT_CAPABILITIES,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_CAPABILITIES,
-  SOKO_BOT_CMO_CAPABILITIES,
+  SOKO_BOT_CMO_READ_CAPABILITIES,
   SOKO_BOT_COMPETITOR_CAPABILITIES,
+  SOKO_BOT_DIRECT_READ_CAPABILITIES,
   SOKO_BOT_MEMORY_LIMITS,
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_ROUTES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
   SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES,
+  SOKO_BOT_TURN_COMPLEXITIES,
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRoute,
+  type SokoBotTurnComplexity,
   type SokoBotTurnSignals,
   type TurnClassification,
   unattendedHireOverCeilingRefusal,
@@ -101,7 +136,6 @@ export {
   SOKO_BOT_BRIEF_FORMAT,
   SOKO_BOT_PROACTIVE_RULES,
   SOKO_BOT_SYSTEM_SCHEDULES,
-  type SokoBotSystemSchedule,
   sokoBotSystemSchedulePrompt,
   sokoBotTaskSummaryPrompt,
   upcomingFollowUps,
@@ -109,37 +143,36 @@ export {
 export {
   type BrandBrain,
   brandBrainSchema,
+  CMO_AIDA_STAGES,
   CMO_BRAND_ANSWERS,
   CMO_BRAND_SECTION_KEYS,
-  CMO_BUYING_BARRIERS,
   CMO_CALENDAR_STATUSES,
-  CMO_CONTENT_APPROACHES,
-  CMO_IMPROVEMENT_AREAS,
-  CMO_MEASURE_BASES,
-  CMO_PACES,
-  CMO_STAGE_OWNERS,
+  CMO_MONTH_WRITER_STATES,
   type CmoBrandAnswer,
   type CmoBrandFinding,
   type CmoBrandProfile,
   type CmoBrandQuestion,
   type CmoBrandSectionKey,
   type CmoCalendarEntry,
-  type CmoMarketingToday,
-  type CmoPace,
+  type CmoMonthWriter,
   type CmoPillar,
   type CmoPlanQuestion,
-  type CmoPreview,
   type CmoSearchAd,
   cmoBrandProfileSchema,
-  cmoPillarsSchema,
-  cmoPlanQuestionSchema,
+  cmoCalendarAfterPayment,
+  cmoCalendarEntrySchema,
+  cmoMonthWriterSchema,
   cmoSearchAdSchema,
   type MarketingStrategyPlan,
   marketingStrategyPlanSchema,
+  PICTURE_KINDS,
+  type PictureKind,
   REFERENCE_KINDS,
   REFERENCE_PURPOSES,
   type SocialPostPlanning,
+  type StoredBrandBrainBody,
   socialPostPlanningSchema,
+  storedBrandBrainSchema,
 } from "./project-marketing.js";
 export {
   CHAT_RESULT_PREVIEW_LIMIT,
@@ -164,31 +197,38 @@ export type {
   SokoBotTurnGrantClaims,
 } from "./runtime.js";
 export { SOKO_BOT_TURN_TOKEN_HEADER } from "./runtime.js";
+export { A2A_SCENARIOS } from "./scenario-a2a.js";
 export { SEO_EVAL_CAPABILITIES, SEO_SCENARIOS } from "./scenario-seo.js";
 export {
-  CMO_PLACEHOLDER_PATTERN,
   CMO_POST_WITH_PICTURE_SCENARIO_ID,
   CMO_SCENARIOS,
+  CMO_SEO_BEFORE_AFTER_CASE_ID,
+  CMO_SEO_REPORT_CASE_IDS,
+  CMO_SEO_WEEKLY_REPORT_CASE_ID,
+  CMO_SEO_WRITE_ARTICLE_CASE_ID,
   evaluateScenario,
+  SAVES_FILE_TOOLS,
   type ScenarioCheck,
   type ScenarioResult,
+  SOKO_BOT_FEATURE_OFF,
   SOKO_BOT_SCENARIOS,
+  SOKO_BOT_TOOL_REFUSED,
   type SokoBotScenario,
 } from "./scenarios.js";
 export {
   isSokoBotSeoCapability,
   SOKO_BOT_SEO_CAPABILITIES,
-  SOKO_BOT_SEO_DESCRIPTIONS,
   SOKO_BOT_SEO_INPUT_SCHEMAS,
-  SOKO_BOT_SEO_READ_CAPABILITIES,
   SOKO_BOT_SEO_WRITE_CAPABILITIES,
   type SokoBotSeoCapability,
 } from "./seo.js";
 export {
   SOKO_BOT_TASK_STATUSES,
+  type SokoBotFollowUpAllows,
   sokoBotArchiveTaskInputSchema,
   sokoBotAssignTaskInputSchema,
   sokoBotCreateTaskInputSchema,
+  sokoBotFollowUpAllowsSchema,
   sokoBotLinkTasksInputSchema,
   sokoBotListTasksInputSchema,
   sokoBotReplyToTaskInputSchema,
@@ -199,10 +239,8 @@ export {
 } from "./task-tool-contracts.js";
 export {
   isSokoBotDecisionTarget,
-  SOKO_BOT_CONTACT_BREAKDOWNS,
-  SOKO_BOT_CONTACT_EXTRA_FIELDS,
-  SOKO_BOT_EXA_CATEGORIES,
   SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX,
+  SOKO_BOT_SEND_MESSAGE_MAX_WAIT_SECONDS,
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   SOKO_BOT_VOICEOVER_VOICES,
@@ -210,23 +248,16 @@ export {
   type SokoBotDecisionTarget,
   sokoBotAgentIdInputSchema,
   sokoBotAskCoworkerInputSchema,
-  sokoBotBulkUpdateContactsInputSchema,
-  sokoBotCompanyIdInputSchema,
-  sokoBotContactIdInputSchema,
-  sokoBotCountContactsInputSchema,
   sokoBotCreateScheduleInputSchema,
   sokoBotDeleteFileInputSchema,
+  sokoBotDeleteTaskScheduleInputSchema,
   sokoBotDraftEmailInputSchema,
-  sokoBotEnrichContactInputSchema,
   sokoBotEvaluateWithJevInputSchema,
-  sokoBotExportContactsInputSchema,
-  sokoBotFindPeopleInputSchema,
   sokoBotGenerateImageInputSchema,
   sokoBotGenerateTalkingVideoInputSchema,
   sokoBotGenerateVideoInputSchema,
   sokoBotGenerateVoiceoverInputSchema,
   sokoBotGetImageInputSchema,
-  sokoBotGetVideoInputSchema,
   sokoBotHireAgentInputSchema,
   sokoBotInstallSkillInputSchema,
   sokoBotJobIdInputSchema,
@@ -234,8 +265,9 @@ export {
   sokoBotListFilesInputSchema,
   sokoBotListIntegrationToolsInputSchema,
   sokoBotListMcpToolsInputSchema,
+  sokoBotListRecipientsInputSchema,
+  sokoBotListSchedulesInputSchema,
   sokoBotListSkillsInputSchema,
-  sokoBotManageContactListsInputSchema,
   sokoBotManageReminderInputSchema,
   sokoBotMemoryUpdateInputSchema,
   sokoBotMoveFileInputSchema,
@@ -249,36 +281,113 @@ export {
   sokoBotRunIntegrationToolInputSchema,
   sokoBotRunMcpToolInputSchema,
   sokoBotSaveEmailAttachmentInputSchema,
+  sokoBotSaveTaskScheduleInputSchema,
   sokoBotScheduleIdInputSchema,
-  sokoBotSearchCompaniesInputSchema,
-  sokoBotSearchContactsInputSchema,
   sokoBotSearchExaInputSchema,
   sokoBotSearchInboxInputSchema,
   sokoBotSearchInputSchema,
   sokoBotSendEmailDraftInputSchema,
+  sokoBotSendMessageInputSchema,
   sokoBotStartBackgroundRunInputSchema,
-  sokoBotUpdateCompanyInputSchema,
-  sokoBotUpdateContactInputSchema,
   sokoBotUpdateEmailsInputSchema,
   sokoBotUpdateScheduleInputSchema,
   sokoBotUploadFileInputSchema,
-  sokoBotWorkspaceImportFileInputSchema,
 } from "./tool-contracts.js";
+export {
+  CMO_PLAYBOOKS_SKILL,
+  cmoReadsPlaybooks,
+  cmoWritingSkills,
+} from "./versions/cmo-playbooks-skill.js";
+export {
+  CMO_PICKED_PIECE_WRITING_GUIDE,
+  CMO_PIECE_WRITING_GUIDE,
+  CMO_SCENE_PIECE_WRITING_GUIDE,
+  CMO_VARIED_PIECE_WRITING_GUIDE,
+  cmoWritesMonthAtOnce,
+} from "./versions/cmo-skills.js";
+export {
+  CMO_CLAIMS_STRATEGY_SKILL,
+  CMO_VARIED_PRODUCTION_SKILL,
+} from "./versions/cmo-v8-skills.js";
+export { CMO_SCENE_PRODUCTION_SKILL } from "./versions/cmo-v9-skills.js";
+export { CMO_PICKED_PRODUCTION_SKILL } from "./versions/cmo-v11-skills.js";
+export {
+  cmoReportsSeo,
+  cmoSeoReportBrief,
+} from "./versions/cmo-v12-skills.js";
+export { CMO_PART_PATCH_STRATEGY_SKILL } from "./versions/cmo-v13-skills.js";
+export { CMO_CHANNEL_FIT_STRATEGY_SKILL } from "./versions/cmo-v14-skills.js";
+export { CMO_PLAIN_WORDS_STRATEGY_SKILL } from "./versions/cmo-v15-skills.js";
+export { CMO_STAGE_SPREAD_STRATEGY_SKILL } from "./versions/cmo-v18-skills.js";
+export {
+  CMO_SHORTS_WRITING_GUIDE,
+  CMO_SITE_PAGES_SKILL,
+  CMO_V20_STRATEGY_SKILL,
+  cmoMarksPoints,
+  cmoRevisedWritingSkills,
+} from "./versions/cmo-v20-skills.js";
+export {
+  CMO_V21_STRATEGY_SKILL,
+  cmoReadsIndustry,
+} from "./versions/cmo-v21-skills.js";
+export {
+  CMO_STRATEGY_EXAMPLES,
+  CMO_V22_STRATEGY_SKILL,
+  cmoWritesExamplesOnly,
+} from "./versions/cmo-v22-skills.js";
+export {
+  CMO_CONTEXT_ON_DEMAND_SKILL,
+  cmoReadsOnDemand,
+} from "./versions/cmo-v23-skills.js";
+export {
+  CMO_SHORT_FORM_DESCRIPTIONS,
+  CMO_SHORT_FORM_TOOLS,
+  CMO_TOOL_HIGHLIGHTS_SKILL,
+  type CmoShortFormTool,
+  cmoHighlightsTools,
+  cmoShortFormAnswer,
+  cmoShortFormInputSchema,
+  isCmoShortFormCall,
+  isCmoShortFormTool,
+} from "./versions/cmo-v24-skills.js";
+export {
+  CMO_STRATEGY_STEP_SKILL,
+  cmoWritesStrategyStep,
+} from "./versions/cmo-v25-skills.js";
+export {
+  CMO_VIDEO_SHAPES,
+  CMO_VIDEO_SHAPES_SKILL,
+  cmoPostsVideoShapes,
+} from "./versions/cmo-video-shapes-skill.js";
 export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,
+  cmoWhatsNew,
   composeSystemPrompt,
+  composeTurnPreamble,
   DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotVersion,
   SOKO_BOT_PRODUCT_VERSIONS,
   SOKO_BOT_SKILLS,
   SOKO_BOT_VERSIONS,
+  type SokoBotPromptTurn,
   type SokoBotVersion,
   sokoBotIdentity,
   sokoBotToolDescription,
   versionShowsResultCards,
 } from "./versions/index.js";
+export {
+  TURN_TOOL_PROFILES,
+  type TurnToolProfile,
+  versionIntegrityProblems,
+} from "./versions/integrity.js";
+export {
+  SKILL_INDEX,
+  type SkillOccasion,
+  splitSkillsForTurn,
+} from "./versions/skill-index.js";
+export { sokoBotReadsXDms, X_DMS_SKILL_ID } from "./versions/x-dms-skills.js";
 export { sokoBotContextPacketSchema } from "./wire-contracts.js";
 export {
   judgedWritingRules,
@@ -286,12 +395,7 @@ export {
   renderWritingSkill,
   WRITING_SKILL_GROUPS,
   WRITING_SKILLS,
-  writingSkillForChannel,
   writingSkillsBrief,
   writingSkillsForChannels,
 } from "./writing-skills/index.js";
-export type {
-  WritingRule,
-  WritingSkill,
-  WritingSkillGroup,
-} from "./writing-skills/types.js";
+export { LINKEDIN_HOOK_RULE } from "./writing-skills/social.js";

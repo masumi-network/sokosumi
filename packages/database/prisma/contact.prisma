@@ -123,6 +123,10 @@ model Contact {
   createdByUserId    String?
   /// Soko Bot that created the contact, kept after the bot is gone.
   createdBySokoBotId String?      @db.Uuid
+  /// The workspace member this contact is: set by hand, or by capture from a
+  /// member's email address or own X account.
+  userId             String?
+  user               User?        @relation("ContactUser", fields: [userId], references: [id], onDelete: SetNull)
   /// Optimistic concurrency for edits; derived fields do not bump it.
   version            Int          @default(1)
   archivedAt         DateTime?
@@ -137,10 +141,16 @@ model Contact {
   newsletterSubscribers NewsletterSubscriber[]
   webLookups            ContactPeopleSearch[]
   search                ContactSearch?
+  fundraising           FundraisingProspect?
+  fundraisingIntrosVia  FundraisingProspect[]         @relation("FundraisingIntroVia")
+  portfolioOf           FundraisingPortfolioCompany[]
+  linkedInConnections   ContactLinkedInConnection[]
 
   notDuplicateOf ContactNotDuplicate[] @relation("NotDuplicateContact")
   notDuplicateTo ContactNotDuplicate[] @relation("NotDuplicateOther")
+  xFollows       ContactXFollow[]
 
+  @@unique([workspaceId, userId])
   @@index([workspaceId, archivedAt, updatedAt, id])
   @@index([workspaceId, lastContactAt])
   @@index([workspaceId, name])
@@ -428,30 +438,32 @@ model ContactSearch {
 /// `n:acmerobotics`. The row holds facts people, bots and the background
 /// lookup add: one lookup per company domain, never per person.
 model ContactCompany {
-  id            String    @id @default(uuid(7)) @db.Uuid
-  workspaceId   String    @db.Uuid
-  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  key           String
-  name          String
-  domain        String?
-  website       String?
-  description   String?
-  industry      String?
+  id             String    @id @default(uuid(7)) @db.Uuid
+  workspaceId    String    @db.Uuid
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  key            String
+  name           String
+  domain         String?
+  website        String?
+  description    String?
+  industry       String?
   /// Headcount as written: "11-50", "about 200".
-  size          String?
-  headquarters  String?
-  linkedinUrl   String?
-  whyItMatters  String?
+  size           String?
+  headquarters   String?
+  linkedinUrl    String?
+  whyItMatters   String?
   /// Every spelling its people have written (lowercase letters and digits),
   /// kept after a rename so archived people are still found.
-  aliases       String[]  @default([])
-  /// When the background lookup last read the company's site; null queues it.
-  enrichedAt    DateTime?
+  aliases        String[]  @default([])
+  /// When the background lookup last completed successfully, even with no facts.
+  enrichedAt     DateTime?
+  /// Failed lookups of the current site. The queue caps these across runs.
+  lookupFailures Int       @default(0)
   /// Since when no live contact belongs to it: its lookup waits until one does.
-  inactiveSince DateTime?
-  version       Int       @default(1)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  inactiveSince  DateTime?
+  version        Int       @default(1)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   listMemberships ContactCompanyListMember[]
 
@@ -475,6 +487,25 @@ model ContactNotDuplicate {
   @@index([workspaceId])
   @@index([otherContactId])
   @@map("contact_not_duplicate")
+}
+
+/// How a contact and a teammate are linked on X, from that teammate's
+/// follower and following walks. A walk only sets a side: an unfollow is not
+/// noticed.
+model ContactXFollow {
+  contactId      String   @db.Uuid
+  contact        Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation("ContactXFollowUser", fields: [userId], references: [id], onDelete: Cascade)
+  /// They follow the teammate.
+  followsUser    Boolean  @default(false)
+  /// The teammate follows them.
+  followedByUser Boolean  @default(false)
+  updatedAt      DateTime @updatedAt
+
+  @@id([contactId, userId])
+  @@index([userId])
+  @@map("contact_x_follow")
 }
 
 /// A named, shared list of companies, like `ContactList` for people. Always
@@ -509,4 +540,21 @@ model ContactCompanyListMember {
   @@id([listId, companyId])
   @@index([companyId])
   @@map("contact_company_list_member")
+}
+
+/// A teammate's LinkedIn connection to a contact, from their Connections.csv
+/// export. One row per teammate and contact; `connectedOn` is LinkedIn's date.
+/// Warm paths read it: the teammate can ask this person for an introduction.
+model ContactLinkedInConnection {
+  workspaceId String    @db.Uuid
+  contactId   String    @db.Uuid
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation("ContactLinkedInConnectionUser", fields: [userId], references: [id], onDelete: Cascade)
+  connectedOn DateTime? @db.Date
+  createdAt   DateTime  @default(now())
+
+  @@id([contactId, userId])
+  @@index([workspaceId, userId])
+  @@map("contact_linkedin_connection")
 }

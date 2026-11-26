@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { companyUrl } from "./brand-sections";
+import { companyUrl, fixPending } from "./brand-sections";
 
 const companies = [
   { name: "Fathom Analytics", url: "https://usefathom.com" },
@@ -24,5 +24,25 @@ describe("companyUrl", () => {
   it("leaves unknown names and names without a link unlinked", () => {
     expect(companyUrl("Fath", companies)).toBeUndefined();
     expect(companyUrl("Plausible Clone", companies)).toBeUndefined();
+  });
+});
+
+describe("fixPending", () => {
+  const section = { headline: "Rivals", answer: "", findings: [] };
+  it("is true only while a fix waits for Cuso", () => {
+    expect(fixPending(undefined)).toBe(false);
+    expect(fixPending(section)).toBe(false);
+    expect(
+      fixPending({
+        ...section,
+        fix: { note: "Not them", at: "", fixed: false },
+      }),
+    ).toBe(true);
+    expect(
+      fixPending({
+        ...section,
+        fix: { note: "Not them", at: "", fixed: true },
+      }),
+    ).toBe(false);
   });
 });

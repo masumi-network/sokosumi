@@ -1,4 +1,9 @@
-import { CMO_CHANNELS, type CmoChannelKey } from "@sokosumi/utils";
+import {
+  CMO_CHANNELS,
+  type CmoChannelKey,
+  cmoShortVideoFormat,
+  isCmoShortVideoFormat,
+} from "@sokosumi/utils";
 import { AGENT_NAME } from "./agent";
 
 export type ChannelInfo = (typeof CMO_CHANNELS)[CmoChannelKey];
@@ -66,13 +71,6 @@ export function formatMedia(
   return known?.image ? "image" : null;
 }
 
-export const GROUP_NAMES: Record<ChannelGroup, string> = {
-  social: "Social media",
-  ads: "Ads",
-  email: "Newsletter",
-  search: "SEO",
-};
-
 /** What the owner does for each kind of channel, in one line. */
 export const OWNER_PART: Record<ChannelInfo["owner"], string> = {
   connect: `Connect your account. ${AGENT_NAME} posts for you.`,
@@ -88,3 +86,23 @@ export const SOON_CHANNELS = (
   // None today; a channel listed as "soon" shows here without a button.
   .filter(([, channel]) => (channel.status as string) === "soon")
   .map(([key, channel]) => ({ key, name: channel.name }));
+
+/** The fill a channel's posts wear (`.net-<tone>`), so a glance tells networks apart. */
+export function channelTone(channel: string): CmoChannelKey | "other" {
+  return channelKey(channel) ?? "other";
+}
+
+/**
+ * The format a piece takes on a network it also goes out on: a short video
+ * (a TikTok) is a Reel on Instagram and a Short on YouTube; a talking video
+ * keeps its format.
+ */
+export function formatOn(
+  entry: { channel: string; format: string },
+  network: string,
+): string {
+  const channel = channelKey(entry.channel) ?? entry.channel;
+  return isCmoShortVideoFormat(channel, entry.format)
+    ? (cmoShortVideoFormat(network) ?? entry.format)
+    : entry.format;
+}

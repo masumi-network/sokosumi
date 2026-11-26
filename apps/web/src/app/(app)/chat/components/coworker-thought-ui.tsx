@@ -6,14 +6,10 @@
  * Tokens remapped to Sokosumi semantic colors.
  */
 
-import {
-  type ReactNode,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useRef, useState } from "react";
 
+import { useCoworkerThoughtLineHeight } from "@/hooks/effects/use-coworker-thought-line-height";
+import { useCoworkerThoughtLiveElapsed } from "@/hooks/effects/use-coworker-thought-live-elapsed";
 import { cn } from "@/lib/utils";
 
 /** Live timer: tenths under 10s, then whole seconds (`10s`, `1m 15s`). */
@@ -29,20 +25,6 @@ export function formatBeautifulElapsed(elapsedMs: number): string {
   const minutes = Math.floor(secs / 60);
   const rem = secs % 60;
   return rem === 0 ? `${minutes}m` : `${minutes}m ${rem}s`;
-}
-
-/**
- * Deterministic first paint (SSR/client match), then live clock after mount.
- * Seeding with `startedAtMs` yields 0.0s until the effect runs.
- */
-function useLiveElapsedMs(startedAtMs: number): number {
-  const [now, setNow] = useState(startedAtMs);
-  useEffect(() => {
-    setNow(Date.now());
-    const id = setInterval(() => setNow(Date.now()), 100);
-    return () => clearInterval(id);
-  }, [startedAtMs]);
-  return Math.max(0, now - startedAtMs);
 }
 
 /**
@@ -87,15 +69,14 @@ export function CoworkerThoughtTrace({
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const traceRef = useRef<HTMLDivElement>(null);
-  const [lineHeight, setLineHeight] = useState(0);
   const hasBody = Boolean(bodyText?.trim());
   const beatSteps = hasBody ? thoughtBeatSteps(bodyText ?? "") : [];
-
-  useLayoutEffect(() => {
-    if (traceRef.current) {
-      setLineHeight(traceRef.current.offsetHeight);
-    }
-  }, [expanded, bodyText, working]);
+  const lineHeight = useCoworkerThoughtLineHeight(
+    traceRef,
+    expanded,
+    bodyText,
+    working,
+  );
 
   return (
     <div
@@ -234,6 +215,6 @@ export function CoworkerLiveThought({
 }
 
 function LiveElapsed({ startedAtMs }: { startedAtMs: number }) {
-  const elapsedMs = useLiveElapsedMs(startedAtMs);
+  const elapsedMs = useCoworkerThoughtLiveElapsed(startedAtMs);
   return <>{formatBeautifulElapsed(elapsedMs)}</>;
 }

@@ -24,7 +24,10 @@ afterEach(() => vi.unstubAllGlobals());
 
 function previewView() {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   return (values = VALUES, brand?: NewsletterBrand) => (
     <NextIntlClientProvider locale="en" messages={en}>
@@ -232,6 +235,103 @@ describe("newsletter issue preview", () => {
     expect(frame.parentElement).toHaveStyle({
       height: `${Math.round(900 * (360 / 375)) + 2}px`,
     });
+  });
+
+  it("reads immediately on load, defers ResizeObserver reflow reads to the next animation frame, and cancels on unmount", async () => {
+    let reflow = () => {};
+    vi.stubGlobal(
+      "ResizeObserver",
+      class implements ResizeObserver {
+        constructor(private callback: ResizeObserverCallback) {}
+        observe(target: Element) {
+          if (target.tagName === "IFRAME") {
+            reflow = () => this.callback([], this);
+          }
+        }
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation(async () => Response.json({ html: "<p>Long</p>" })),
+    );
+
+    let nextFrameId = 0;
+    const frames = new Map<number, FrameRequestCallback>();
+    const rafSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        const id = ++nextFrameId;
+        frames.set(id, callback);
+        return id;
+      });
+    const cancelSpy = vi
+      .spyOn(window, "cancelAnimationFrame")
+      .mockImplementation((id) => {
+        frames.delete(id);
+      });
+
+    const { unmount } = render(previewView()());
+    const frame = await screen.findByTitle("Newsletter email preview");
+    let emailHeight = 2400;
+    let reads = 0;
+    const scrollHeight = {
+      get: () => {
+        reads += 1;
+        return Math.max(emailHeight, Number.parseInt(frame.style.height, 10));
+      },
+    };
+    Object.defineProperty(frame, "contentDocument", {
+      value: {
+        body: Object.defineProperty({}, "scrollHeight", scrollHeight),
+        documentElement: Object.defineProperty(
+          {},
+          "scrollHeight",
+          scrollHeight,
+        ),
+      },
+    });
+
+    // Immediate read on load.
+    fireEvent.load(frame);
+    expect(frame).toHaveStyle({ height: "2400px" });
+    const readsAfterLoad = reads;
+    expect(readsAfterLoad).toBeGreaterThan(0);
+
+    // ResizeObserver reflow must not read synchronously; multiple resizes coalesce to one frame.
+    emailHeight = 3100;
+    act(() => {
+      reflow();
+      reflow();
+    });
+    expect(reads).toBe(readsAfterLoad);
+    expect(frame).toHaveStyle({ height: "2400px" });
+    expect(frames.size).toBe(1);
+
+    // Next animation frame performs the deferred read.
+    act(() => {
+      for (const callback of [...frames.values()]) {
+        frames.clear();
+        callback(16);
+      }
+    });
+    expect(reads).toBeGreaterThan(readsAfterLoad);
+    expect(frame).toHaveStyle({ height: "3100px" });
+
+    // Pending frame is cancelled when the preview unmounts.
+    emailHeight = 1200;
+    act(() => reflow());
+    expect(frames.size).toBe(1);
+    const pendingId = [...frames.keys()][0];
+    unmount();
+    expect(cancelSpy).toHaveBeenCalledWith(pendingId);
+    expect(frames.size).toBe(0);
+
+    rafSpy.mockRestore();
+    cancelSpy.mockRestore();
   });
 
   it("debounces typing for 600ms and submits only the latest content", async () => {

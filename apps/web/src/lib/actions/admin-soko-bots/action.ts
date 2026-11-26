@@ -6,6 +6,7 @@ import type {
   AdminSokoBotVersionMigrationResult,
   ChatRoomMessage,
   SokoBotAvailability,
+  SokoBotConversation,
   SokoBotDeletionResult,
   SokoBotVersionDetail,
 } from "@sokosumi/core-client";
@@ -63,6 +64,7 @@ const listSchema = z.object({
   query: z.string().trim().max(200).optional(),
   limit: z.number().int().min(1).max(200).optional(),
   kind: z.enum(["all", "assistant", "cmo"]).optional(),
+  evals: z.enum(["exclude", "include", "only"]).optional(),
 });
 
 const versionSlugSchema = z
@@ -111,15 +113,16 @@ interface ListParams extends AuthenticatedRequest {
   query?: unknown;
   limit?: unknown;
   kind?: unknown;
+  evals?: unknown;
 }
 
 export const listAdminSokoBotsAction = withSession<
   ListParams,
   ActionResultDto<AdminSokoBotList, ActionError>
->(async ({ session, query, limit, kind }) => {
+>(async ({ session, query, limit, kind, evals }) => {
   try {
     assertAdminSession(session);
-    const parsed = listSchema.safeParse({ query, limit, kind });
+    const parsed = listSchema.safeParse({ query, limit, kind, evals });
     if (!parsed.success) {
       return toActionResult(
         err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid input" }),
@@ -167,6 +170,26 @@ export const loadAdminSokoBotChatPageAction = withSession<
           parsed.data.cursor,
         ),
       ),
+    );
+  } catch (error) {
+    return toActionResult(err(mapError(error)));
+  }
+});
+
+/** Any bot's conversation around a turn: who asked whom, each step's model, cost and time. */
+export const getAdminSokoBotTurnConversationAction = withSession<
+  AuthenticatedRequest & { turnId: unknown },
+  ActionResultDto<SokoBotConversation, ActionError>
+>(async ({ session, turnId }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = z.string().uuid().safeParse(turnId);
+    if (!parsed.success)
+      return toActionResult(
+        err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid input" }),
+      );
+    return toActionResult(
+      ok(await adminSokoBotService.turnConversation(parsed.data)),
     );
   } catch (error) {
     return toActionResult(err(mapError(error)));
@@ -332,6 +355,7 @@ interface SetAvailabilityParams extends AuthenticatedRequest {
 const availabilitySchema = z.object({
   disabled: z.boolean(),
   reason: z.string().trim().max(300).optional(),
+  standupPaused: z.boolean().optional(),
 });
 
 export const setSokoBotAvailabilityAction = withSession<
@@ -349,6 +373,7 @@ export const setSokoBotAvailabilityAction = withSession<
     const availability = await adminSokoBotService.setAvailability(
       parsed.data.disabled,
       parsed.data.reason,
+      parsed.data.standupPaused,
     );
     revalidatePath(ADMIN_SOKO_BOTS_ROUTE);
     revalidatePath(SOKO_BOT_ROUTE);

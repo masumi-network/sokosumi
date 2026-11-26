@@ -1,27 +1,13 @@
 "use client";
 
 import type { TaskEvent, TaskFile } from "@sokosumi/core-client";
-import {
-  BlobStatus,
-  Channel,
-  TaskEventStatus,
-  TaskStatus,
-} from "@sokosumi/core-client";
-import {
-  extractFileLikeLinks,
-  extractHttpLinks,
-  type SubscriptionPlanName,
-} from "@sokosumi/utils";
+import { Channel, TaskEventStatus, TaskStatus } from "@sokosumi/core-client";
+import { extractHttpLinks, type SubscriptionPlanName } from "@sokosumi/utils";
 import { ArrowDown } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import {
-  type ReactNode,
-  useEffect,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import { type ReactNode, useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { CHAT_MESSAGE_LIST_ATTRIBUTE } from "@/app/chat/chat-message-list";
 import { highlightListMessage } from "@/app/chat/utils/room-message-highlight";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
@@ -37,6 +23,7 @@ import {
   mergeTaskActivityEvents,
   TASK_ACTIVITY_MESSAGE_LIST,
 } from "@/app/tasks/utils/task-activity-feed";
+import { commentFiles } from "@/app/tasks/utils/task-comment-files";
 import { getTaskEventChargePresentation } from "@/app/tasks/utils/task-event-charge-presentation";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
@@ -45,6 +32,8 @@ import { TimeAgo } from "@/components/time-ago";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useTaskActivityJumpHighlight } from "@/hooks/effects/use-task-activity-jump-highlight";
+import { useTaskActivityRowEnter } from "@/hooks/effects/use-task-activity-row-enter";
 import {
   createTaskComment,
   loadOlderTaskActivityEvents,
@@ -60,12 +49,14 @@ import {
   parseMentions,
 } from "@/lib/utils/mention-parser";
 import { getInitials } from "@/lib/utils/text";
-import { getFileNameFromUrl } from "@/lib/utils/url";
 import { TaskActivityComposer } from "./task-activity-composer";
+import { TaskResultAction } from "./task-result-action";
+import { useTaskResultTableComponents } from "./task-result-table-action";
 import {
   getTaskStatusDotColorClass,
   TaskStatusInline,
 } from "./task-status-badge";
+import { TaskTableEvent } from "./task-table-event";
 
 interface TaskActivityProps {
   taskId: string;
@@ -105,6 +96,17 @@ interface TaskActivityProps {
   mentionableUsers?: readonly MentionableUser[];
   /** Sits in the header beside Jump to latest: follow and participant controls. */
   headerAction?: ReactNode;
+  /** The Task's name and project: tables in the activity offer Save as table to a reader who can comment. */
+  tableSource?: {
+    taskId: string;
+    workspaceId: string;
+    title: string;
+    projectId: string | null;
+  };
+  /** Names the files a finished result downloads as. */
+  taskName?: string;
+  /** A result with its own page: the done comment links to it, where a plain result offers its export. */
+  resultLink?: { href: string; label: string };
 }
 
 export interface MentionableUser {
@@ -113,21 +115,14 @@ export interface MentionableUser {
 }
 
 const NO_MENTIONABLE_USERS: readonly MentionableUser[] = [];
+const NO_AGENT_LINKS = new Map<string, string>();
 
 function isNewOptimisticEventId(id: string): boolean {
   return id.startsWith("optimistic:");
 }
 
 function AnimatedNewRow({ children }: { children: ReactNode }) {
-  const [isEntered, setIsEntered] = useState(false);
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      setIsEntered(true);
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
+  const isEntered = useTaskActivityRowEnter();
 
   return (
     <div
@@ -147,44 +142,11 @@ function AnimatedNewRow({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * Match a comment file URL to a TaskFile. Prefers exact sourceUrl (keeps ?token=),
- * then fileUrl, then pathname basename === name (only when exactly one file matches).
- */
-function matchTaskFile(
-  url: string,
-  taskFiles: TaskFile[],
-): TaskFile | undefined {
-  // Try exact sourceUrl match first
-  for (const file of taskFiles) {
-    if (file.sourceUrl === url) {
-      return file;
-    }
-  }
-  // Try fileUrl match
-  for (const file of taskFiles) {
-    if (file.fileUrl === url) {
-      return file;
-    }
-  }
-  // Try pathname basename match (only if unique)
-  const urlBasename = url.split("/").pop()?.split("?")[0];
-  if (urlBasename) {
-    const basenameMatches: TaskFile[] = [];
-    for (const file of taskFiles) {
-      if (file.name === urlBasename) {
-        basenameMatches.push(file);
-      }
-    }
-    // Return basename match only when exactly one file matches
-    if (basenameMatches.length === 1) {
-      return basenameMatches[0];
-    }
-  }
-  return undefined;
+export function TaskActivitySection(props: TaskActivityProps) {
+  return <TaskActivityContent key={props.taskId} {...props} />;
 }
 
-export function TaskActivitySection({
+function TaskActivityContent({
   taskId,
   title,
   placeholder,
@@ -212,8 +174,14 @@ export function TaskActivitySection({
   canComment = true,
   mentionableUsers = NO_MENTIONABLE_USERS,
   headerAction,
+  tableSource,
+  taskName = "result",
+  resultLink,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
+  const markdownComponents = useTaskResultTableComponents(
+    canComment ? (tableSource ?? null) : null,
+  );
   const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
   const resolvedAgentNameById = useMemo(
     () => agentNameById ?? new Map<string, string>(),
@@ -223,7 +191,6 @@ export function TaskActivitySection({
   const [, startExpandTransition] = useTransition();
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
   const [commentsExpanded, setCommentsExpanded] = useState(false);
-  const [pendingJumpId, setPendingJumpId] = useState<string | null>(null);
   // Match chat and Core `excludeUserId`: @ of yourself does not enroll the writer.
   const viewerId = currentUser?.id;
   const mentionOptions = useMemo(() => {
@@ -249,28 +216,25 @@ export function TaskActivitySection({
     }
     return names;
   }, [userById, mentionableUsers, viewerId]);
+  // A downloaded file has no Sokosumi origin, so its mentions are plain names, not app links.
+  const exportNameById = useMemo(
+    () => new Map([...resolvedAgentNameById, ...mentionUserNameById]),
+    [resolvedAgentNameById, mentionUserNameById],
+  );
 
-  useEffect(() => {
-    setCommentsExpanded(false);
-    setPendingJumpId(null);
-  }, [taskId]);
-
-  useEffect(() => {
+  const [syncedEvents, setSyncedEvents] = useState(events);
+  if (syncedEvents !== events) {
+    setSyncedEvents(events);
     // Same task: merge so expanded older pages survive truncated refresh.
     // Drop optimistic rows — the refreshed prop carries the persisted event.
-    // Different task: replace the feed entirely.
-    setLocalEvents((prev) => {
-      const sameTask =
-        prev.length > 0 && prev.every((event) => event.taskId === taskId);
-      if (!sameTask) {
-        return events;
-      }
-      return mergeTaskActivityEvents(
+    // Switching taskId remounts this subtree via key, so state resets cleanly.
+    setLocalEvents((prev) =>
+      mergeTaskActivityEvents(
         prev.filter((event) => !event.id.startsWith("optimistic:")),
         events,
-      );
-    });
-  }, [events, taskId]);
+      ),
+    );
+  }
 
   const localCommentCount = localEvents.filter(
     (event) => event.comment != null,
@@ -301,14 +265,11 @@ export function TaskActivitySection({
     localEvents[0]?.id ??
     null;
 
-  useEffect(() => {
-    if (!pendingJumpId) {
-      return;
-    }
-    if (highlightListMessage(TASK_ACTIVITY_MESSAGE_LIST, pendingJumpId)) {
-      setPendingJumpId(null);
-    }
-  }, [pendingJumpId, localEvents, commentsExpanded, feedItems]);
+  const setPendingJumpId = useTaskActivityJumpHighlight(
+    localEvents,
+    commentsExpanded,
+    feedItems,
+  );
 
   function handleJumpToRecent() {
     if (!latestCommentId) {
@@ -424,6 +385,7 @@ export function TaskActivitySection({
           setLocalEvents((prev) =>
             prev.filter((entry) => entry.id !== optimisticEvent.id),
           );
+          toast.error(t("commentSendError"));
           resolve(false);
         }
       });
@@ -532,31 +494,7 @@ export function TaskActivitySection({
                   mentionUserNameById,
                 )
               : null;
-            const sourceFiles = formattedComment
-              ? extractFileLikeLinks(formattedComment).map((url, fileIndex) => {
-                  const matchedFile = matchTaskFile(url, taskFiles);
-                  if (matchedFile) {
-                    return {
-                      id: `${event.id}-file-${fileIndex}`,
-                      sourceUrl: url,
-                      fileUrl: matchedFile.fileUrl,
-                      name: matchedFile.name,
-                      status: matchedFile.status,
-                      size: matchedFile.size,
-                      mimeType: matchedFile.mimeType,
-                    };
-                  }
-                  return {
-                    id: `${event.id}-file-${fileIndex}`,
-                    sourceUrl: url,
-                    fileUrl: url,
-                    name: getFileNameFromUrl(url),
-                    status: BlobStatus.READY,
-                    size: null,
-                    mimeType: null,
-                  };
-                })
-              : [];
+            const sourceFiles = commentFiles(formattedComment, taskFiles);
             const sourceLinks = formattedComment
               ? extractHttpLinks(formattedComment).map((url, linkIndex) => ({
                   id: `${event.id}-link-${linkIndex}`,
@@ -701,13 +639,29 @@ export function TaskActivitySection({
                       />
                     </div>
                     {formattedComment ? (
-                      <ExpandableMarkdown
-                        content={formattedComment}
-                        className="prose-sm text-foreground text-sm"
-                        expandLabel={expandLabel}
-                        collapseLabel={collapseLabel}
-                        fadeClassName="to-transparent"
-                        defaultOpen={shouldHighlightDoneBorder}
+                      <TaskTableEvent
+                        value={isNewOptimisticEvent ? null : event.id}
+                      >
+                        <ExpandableMarkdown
+                          content={formattedComment}
+                          className="prose-sm text-foreground text-sm"
+                          expandLabel={expandLabel}
+                          collapseLabel={collapseLabel}
+                          fadeClassName="to-transparent"
+                          defaultOpen={shouldHighlightDoneBorder}
+                          components={markdownComponents}
+                        />
+                      </TaskTableEvent>
+                    ) : null}
+                    {shouldHighlightDoneBorder && formattedComment ? (
+                      <TaskResultAction
+                        link={resultLink}
+                        markdown={formatMentionsAsMarkdownLinks(
+                          event.comment ?? "",
+                          NO_AGENT_LINKS,
+                          exportNameById,
+                        )}
+                        fileName={taskName}
                       />
                     ) : null}
                     {shouldShowBillingPlaceholder ? (

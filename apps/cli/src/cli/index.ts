@@ -22,14 +22,15 @@ import { runAuthStatus } from "./auth-status.js";
 import { type AuthWhoamiResult, runAuthWhoami } from "./auth-whoami.js";
 import { runAdminCommand, validateAdminCommand } from "./commands/admin.js";
 import { runAgentsCommand } from "./commands/agents.js";
-import type { CommandOutput } from "./commands/command-helpers.js";
-import { runCoworkersCommand } from "./commands/coworkers.js";
 import {
   CLI_COMMAND_CATALOG,
   formatUnknownCommandUsage,
-  runDiscoverCommand,
-} from "./commands/discover.js";
+} from "./commands/catalog.js";
+import type { CommandOutput } from "./commands/command-helpers.js";
+import { runCoworkersCommand } from "./commands/coworkers.js";
+import { runDiscoverCommand } from "./commands/discover.js";
 import { runEvalsCommand } from "./commands/evals.js";
+import { runGenericCommand } from "./commands/generic.js";
 import { runJobsCommand } from "./commands/jobs.js";
 import {
   type RuntimeDependencies,
@@ -90,6 +91,7 @@ const BOOLEAN_OPTION_NAMES = [
   "wait",
   "tick",
   "markdown",
+  "summary-md",
 ] as const;
 
 const VALUE_OPTIONS = new Set<ValueOptionName>([
@@ -149,11 +151,14 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "repeats",
   "soko-bot-version",
   "cuso-version",
+  "out",
+  "query",
 ]);
 
 const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
   "capability",
   "channel",
+  "query",
 ]);
 
 const BOOLEAN_OPTIONS = new Set<string>(BOOLEAN_OPTION_NAMES);
@@ -163,6 +168,12 @@ const CORE_COMMAND_SECTIONS = new Set(
       section !== "skills" && section !== "runtime" && section !== "auth",
   ),
 );
+const GENERIC_ROWS = CLI_COMMAND_CATALOG.filter(
+  (entry): entry is Extract<typeof entry, { operation: string }> =>
+    "operation" in entry,
+);
+const GENERIC_COMMANDS =
+  "the commands that call one Core operation (see sokosumi --help)";
 interface ParsedArgv {
   positionals: string[];
   options: CliOptions;
@@ -275,6 +286,9 @@ export async function runCli(
     throw error;
   }
   const { positionals, options } = parsed;
+  const genericRow = GENERIC_ROWS.find(
+    (entry) => entry.command === positionals.slice(0, 2).join(" "),
+  );
   const coworkerRegistration =
     positionals[0] === "coworkers" &&
     ["register", "provision", "connect"].includes(positionals[1]);
@@ -287,6 +301,12 @@ export async function runCli(
   if (options.version) {
     stdout.write(`${CLI_VERSION}\n`);
     return { version: CLI_VERSION };
+  }
+
+  if (options.query !== undefined && !genericRow) {
+    const error = new Error(`--query is only supported by ${GENERIC_COMMANDS}`);
+    if (options.json) writeJsonError(stdout, error);
+    throw error;
   }
 
   if (positionals[0] === "skills") {
@@ -358,9 +378,13 @@ export async function runCli(
         "--personal cannot be combined with organization or Workspace flags",
       );
     if (options["organization-slug"] !== undefined) {
-      if (positionals[0] !== "tasks") {
+      if (
+        positionals[0] !== "tasks" &&
+        positionals[0] !== "jobs" &&
+        !genericRow
+      ) {
         throw new Error(
-          "--organization-slug is only supported by tasks commands",
+          `--organization-slug is only supported by tasks and jobs commands and ${GENERIC_COMMANDS}`,
         );
       }
       organizationSlug = validateOrganizationSlug(options["organization-slug"]);
@@ -420,6 +444,17 @@ export async function runCli(
     }
 
     const [section, command, positionalId, ...rest] = positionals;
+    if (genericRow) {
+      await requireAuthenticatedSession(session);
+      await runGenericCommand({
+        client: getCoreClient(session, dependencies, organizationSlug),
+        stdout,
+        row: genericRow,
+        args: positionals.slice(2),
+        options,
+      });
+      return {};
+    }
     if (rest.length > 0) {
       throw new Error(`Unexpected argument: ${rest[0]}`);
     }
@@ -531,7 +566,7 @@ export async function runCli(
     }
     if (section === "jobs") {
       await runJobsCommand({
-        client: getCoreClient(session, dependencies),
+        client: getCoreClient(session, dependencies, organizationSlug),
         stdout,
         json: options.json,
         subcommand: command,

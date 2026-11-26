@@ -6,13 +6,15 @@ import { useId, useRef } from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { HOLDER_CLASS } from "@/components/ui/holder-surface";
+import { useProjectScopeRequiredCleanup } from "@/hooks/effects/use-project-scope-required-cleanup";
+import { useRequireProjectScope } from "@/hooks/effects/use-require-project-scope";
+import { cn } from "@/lib/utils";
 
 import {
   openProjectScope,
   openScopeCreate,
   type ProjectScopeRequest,
-  setScopeCreateOpen,
 } from "./sidebar-project-scope-state";
 import { useHasAnyScopeProject } from "./use-scope-projects";
 
@@ -29,7 +31,7 @@ import { useHasAnyScopeProject } from "./use-scope-projects";
 export function RequireProjectScope(
   request: Omit<ProjectScopeRequest, "required">,
 ) {
-  useMountEffect(() => openProjectScope({ ...request, required: true }));
+  useRequireProjectScope(request);
   return null;
 }
 
@@ -81,12 +83,7 @@ export function ProjectScopeRequired({
     null,
   );
 
-  useMountEffect(() => () => {
-    if (cancelRequest.current) {
-      cancelRequest.current();
-      setScopeCreateOpen(false);
-    }
-  });
+  useProjectScopeRequiredCleanup(cancelRequest);
 
   function handleProjectAction(opener: HTMLButtonElement, create: boolean) {
     cancelRequest.current = openProjectScope({
@@ -108,7 +105,11 @@ export function ProjectScopeRequired({
       className={
         variant === "action"
           ? "flex flex-wrap justify-center gap-2"
-          : "flex w-full min-w-0 flex-col items-center py-10 text-center sm:py-16"
+          : // A panel, so the tile and the backdrop's cards sit on a surface, not the page.
+            cn(
+              HOLDER_CLASS,
+              "flex w-full min-w-0 flex-col items-center py-10 text-center sm:py-16",
+            )
       }
       data-testid={testId}
     >

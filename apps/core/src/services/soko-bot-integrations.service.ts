@@ -12,8 +12,17 @@ import {
 import { getComposio } from "@/clients/composio.client";
 import { adProviderForToolkit } from "@/config/ads-providers";
 import { socialProviderForToolkit } from "@/config/social-providers";
+import {
+  list as asList,
+  field as pick,
+  text as str,
+} from "@/lib/contacts/capture-provider";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, logCoreWarning, recordCoreError } from "@/lib/evlog";
+import {
+  invitationAddresses,
+  mailboxAddresses,
+} from "@/lib/soko-bot/integration-addresses";
 import {
   executeIntegrationTool as execute,
   SokoBotIntegrationError,
@@ -110,15 +119,18 @@ export async function searchSokoBotIntegrationCatalog(
     catalogCache = { at: Date.now(), entries };
   }
   const needle = query.trim().toLowerCase();
-  const entries = needle
-    ? catalogCache.entries.filter(
-        (entry) =>
-          entry.provider.includes(needle) ||
-          entry.name.toLowerCase().includes(needle) ||
-          (entry.description?.toLowerCase().includes(needle) ?? false),
-      )
-    : catalogCache.entries;
-  return entries.slice(0, limit);
+  const { entries } = catalogCache;
+  if (!needle) return entries.slice(0, limit);
+  const names: SokoBotIntegrationCatalogEntry[] = [];
+  const descriptions: SokoBotIntegrationCatalogEntry[] = [];
+  for (const entry of entries) {
+    const name = entry.name.toLowerCase();
+    if (name.includes(needle) || entry.provider.includes(needle))
+      names.push(entry);
+    else if (entry.description?.toLowerCase().includes(needle))
+      descriptions.push(entry);
+  }
+  return names.concat(descriptions).slice(0, limit);
 }
 
 function curatedCatalog(
@@ -251,43 +263,6 @@ export async function activeIntegrationsForBot(
   });
 }
 
-function str(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (typeof value === "number") return String(value);
-  return "";
-}
-
-function pick(obj: unknown, ...keys: string[]): unknown {
-  if (!obj || typeof obj !== "object") return undefined;
-  for (const key of keys) {
-    const value = (obj as Record<string, unknown>)[key];
-    if (value !== undefined && value !== null) return value;
-  }
-  return undefined;
-}
-
-function asList(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function addressList(value: unknown): string[] {
-  if (typeof value === "string") {
-    return value
-      .split(",")
-      .map((part) => part.trim())
-      .filter(Boolean);
-  }
-  return asList(value).map((entry) => {
-    const email = pick(entry, "emailAddress", "email", "address");
-    if (email && typeof email === "object") {
-      const name = str(pick(email, "name"));
-      const address = str(pick(email, "address", "email"));
-      return name ? `${name} <${address}>` : address;
-    }
-    return str(email ?? entry);
-  });
-}
-
 function isoOrEmpty(value: unknown): string {
   if (typeof value === "number") return new Date(value).toISOString();
   const text = str(value);
@@ -303,7 +278,7 @@ function normaliseMessage(
   const from = pick(raw, "sender", "from");
   const fromText =
     from && typeof from === "object"
-      ? (addressList([from])[0] ?? "")
+      ? (mailboxAddresses([from])[0] ?? "")
       : str(from);
   const labels = asList(pick(raw, "labelIds", "categories")).map(str);
   const isRead = pick(raw, "isRead");
@@ -312,7 +287,7 @@ function normaliseMessage(
     id: str(pick(raw, "messageId", "id")),
     threadId: str(pick(raw, "threadId", "conversationId")) || null,
     from: fromText,
-    to: addressList(pick(raw, "to", "toRecipients")),
+    to: mailboxAddresses(pick(raw, "to", "toRecipients")),
     subject: str(pick(raw, "subject")),
     snippet: (
       str(pick(pick(raw, "preview"), "body")) ||
@@ -330,6 +305,8 @@ function normaliseMessage(
   };
 }
 
+const MAX_CALENDAR_ATTENDEES = 20;
+
 function normaliseEvent(
   providerId: string,
   raw: unknown,
@@ -339,6 +316,7 @@ function normaliseEvent(
   const startDate = str(pick(start, "dateTime", "date")) || str(start);
   const endDate = str(pick(end, "dateTime", "date")) || str(end);
   const allDay = Boolean(pick(start, "date")) || Boolean(pick(raw, "isAllDay"));
+  const { attendees, organizer } = invitationAddresses(raw);
   return {
     provider: providerId,
     id: str(pick(raw, "id")),
@@ -350,8 +328,12 @@ function normaliseEvent(
       str(pick(raw, "location")) ||
       str(pick(pick(raw, "location"), "displayName")) ||
       null,
-    attendees: addressList(pick(raw, "attendees")).slice(0, 20),
-    organizer: addressList([pick(raw, "organizer")])[0] || null,
+    attendees: attendees.slice(0, MAX_CALENDAR_ATTENDEES),
+    ...((pick(raw, "attendeesOmitted") === true ||
+      attendees.length > MAX_CALENDAR_ATTENDEES) && {
+      attendeesIncomplete: true,
+    }),
+    organizer,
     description:
       str(pick(raw, "description", "bodyPreview")).slice(0, 500) || null,
     link: str(pick(raw, "htmlLink", "webLink")) || null,

@@ -20,6 +20,10 @@ vi.mock("@/components/design-md/use-design-md-generation", () => ({
   }),
 }));
 
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: { user: { id: "viewer-1" } } }),
+}));
+
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));

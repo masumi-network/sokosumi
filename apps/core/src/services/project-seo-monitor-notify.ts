@@ -130,6 +130,7 @@ export async function notifySeoMonitorWorse(
             id: owner.owner.id,
             workspaceId: task.workspaceId,
             deletedAt: null,
+            archivedAt: null,
           },
           select: { id: true },
         }))) ||

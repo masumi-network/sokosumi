@@ -2,7 +2,7 @@
 
 import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { Loader2, Search } from "lucide-react";
-import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { messageSender } from "@/app/chat/components/room-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,14 +11,15 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from "@/components/ui/popover";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useIsMobile } from "@/hooks/effects/use-mobile";
+import { useRoomSearchQuery } from "@/hooks/effects/use-room-search-query";
+import { useTimeout } from "@/hooks/effects/use-timeout";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { coreClient } from "@/lib/clients/core.browser.client";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { splitVoiceTranscript } from "@/lib/utils/voice-message";
 
-const SEARCH_PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 250;
 const SEARCH_HOTKEY = "f";
 
@@ -46,10 +47,6 @@ export function RoomSearchPanel({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [results, setResults] = useState<ChatRoomMessage[]>([]);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const requestIdRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -72,54 +69,22 @@ export function RoomSearchPanel({
   // because it only mounts inside the popover.
   const isExpanded = isMobile || isFocused || open || query !== "";
 
-  const searchMessages = useEffectEvent(async (searchQuery: string) => {
-    const requestId = ++requestIdRef.current;
-    if (!searchQuery) {
-      setResults([]);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await coreClient.getChatRoomMessages(roomId, {
-        q: searchQuery,
-        limit: SEARCH_PAGE_SIZE,
-      });
-      if (requestId !== requestIdRef.current) {
-        return;
-      }
-      setResults(response.data);
-      setActiveIndex(0);
-    } catch {
-      if (requestId !== requestIdRef.current) {
-        return;
-      }
-      setResults([]);
-      setError(labels.error);
-    } finally {
-      if (requestId === requestIdRef.current) {
-        setIsLoading(false);
-      }
-    }
-  });
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
+  useTimeout(
+    () => {
       setDebouncedQuery(query.trim());
-    }, SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(timeoutId);
-  }, [query]);
+    },
+    SEARCH_DEBOUNCE_MS,
+    query,
+  );
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    void searchMessages(debouncedQuery);
-  }, [debouncedQuery, open, roomId]);
+  const {
+    results,
+    activeIndex,
+    setActiveIndex,
+    error,
+    isLoading,
+    resetSearch,
+  } = useRoomSearchQuery(roomId, open, debouncedQuery, labels, requestIdRef);
 
   function focusField() {
     // On mobile the field only mounts with the popover, so wait a frame.
@@ -130,7 +95,7 @@ export function RoomSearchPanel({
   }
 
   /** The hotkey toggles: a press on a focused field puts it away again. */
-  const toggleFromHotkey = useEffectEvent(() => {
+  function toggleFromHotkey() {
     if (document.activeElement === inputRef.current) {
       // The close would otherwise hand focus straight back to the field.
       interactedOutsideRef.current = open;
@@ -144,30 +109,21 @@ export function RoomSearchPanel({
     if (query) {
       setOpen(true);
     }
-  });
+  }
 
-  useEffect(() => {
-    if (isMobile) {
+  useEventListener(isMobile ? null : "window", "keydown", (event) => {
+    if (event.key?.toLowerCase() !== SEARCH_HOTKEY || event.repeat) {
       return;
     }
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key?.toLowerCase() !== SEARCH_HOTKEY || event.repeat) {
-        return;
-      }
+    const hostModifier = isApplePlatform ? event.metaKey : event.ctrlKey;
+    if (!hostModifier || event.altKey || event.shiftKey) {
+      return;
+    }
 
-      const hostModifier = isApplePlatform ? event.metaKey : event.ctrlKey;
-      if (!hostModifier || event.altKey || event.shiftKey) {
-        return;
-      }
-
-      event.preventDefault();
-      toggleFromHotkey();
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isApplePlatform, isMobile]);
+    event.preventDefault();
+    toggleFromHotkey();
+  });
 
   function isEventInsideField(target: EventTarget | null) {
     return (
@@ -181,14 +137,10 @@ export function RoomSearchPanel({
     // query itself does survive, because the field stays on screen and
     // emptying it under the user would look like data loss; reopening
     // re-runs the search from that query.
-    setResults([]);
-    setActiveIndex(0);
-    setError(null);
     // A surviving query means the next open starts a fetch, so hand the
     // reopen a loading state. Without it the first frame reads "no matches"
     // for a query that has hits.
-    setIsLoading(Boolean(debouncedQuery));
-    requestIdRef.current += 1;
+    resetSearch(Boolean(debouncedQuery));
     setOpen(false);
   }
 
@@ -317,11 +269,7 @@ export function RoomSearchPanel({
           // on the previous fetch. Mobile keeps the popover because the
           // field lives inside it.
           setDebouncedQuery("");
-          setResults([]);
-          setActiveIndex(0);
-          setError(null);
-          setIsLoading(false);
-          requestIdRef.current += 1;
+          resetSearch(false);
           if (!isMobile) {
             setOpen(false);
           }

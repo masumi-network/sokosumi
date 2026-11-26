@@ -9,9 +9,8 @@ import {
   performRoomNotificationJump,
   type RoomNotificationLookup,
 } from "@/app/chat/utils/room-notification-jump";
+import { useMessageParamJump } from "@/hooks/effects/use-message-param-jump";
 import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
-
-import { useMessageParamJump } from "./use-message-param-jump";
 
 export interface RoomNotificationDeepLinkParams {
   /** The room on screen, or null before one is selected. */

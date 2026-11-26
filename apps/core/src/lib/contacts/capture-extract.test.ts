@@ -7,15 +7,16 @@ import outlookReceived from "./__fixtures__/outlook-received.json";
 import outlookSent from "./__fixtures__/outlook-sent.json";
 import slack from "./__fixtures__/slack.json";
 import {
-  cleanPersonName,
+  addXDmPage,
   type ExtractContext,
   extractInboundMail,
   extractMeeting,
   extractSentMail,
   extractSlackConversation,
   extractXDms,
+  keepXDmDay,
   mailTopic,
-  parseAddresses,
+  newXDmWalk,
   parseEvent,
   parseMail,
   parseSignature,
@@ -25,6 +26,9 @@ import {
   parseXPage,
   slackCandidate,
   slackDays,
+  X_SMALL_GROUP,
+  X_WALK_CONVERSATIONS,
+  xDmWalkEvents,
 } from "./capture-extract";
 
 const NOW = new Date("2026-10-21T12:00:00Z");
@@ -51,35 +55,7 @@ function mails(fixture: { messages?: unknown[]; value?: unknown[] }) {
   });
 }
 
-describe("addresses and names", () => {
-  it("splits lists on separating commas only", () => {
-    expect(
-      parseAddresses(
-        '"Keller, Nina" <Nina.Keller@acme.com>, bob@x.com; Max Muster <max@y.org>',
-      ),
-    ).toEqual([
-      { email: "nina.keller@acme.com", name: "Nina Keller" },
-      { email: "bob@x.com", name: null },
-      { email: "max@y.org", name: "Max Muster" },
-    ]);
-  });
-
-  it("reads Graph recipient objects", () => {
-    expect(
-      parseAddresses([
-        {
-          emailAddress: { name: "Ana Silva", address: "Ana.Silva@lawfirm.pt" },
-        },
-      ]),
-    ).toEqual([{ email: "ana.silva@lawfirm.pt", name: "Ana Silva" }]);
-  });
-
-  it("drops names that are only the address", () => {
-    expect(cleanPersonName("contracts@lawfirm.pt")).toBeUndefined();
-    expect(cleanPersonName("nina", "nina@acme.com")).toBeUndefined();
-    expect(cleanPersonName("Jane Doe (via Google Docs)")).toBe("Jane Doe");
-  });
-
+describe("mail topics", () => {
   it("strips reply prefixes from topics", () => {
     expect(mailTopic("Re: Fwd: AW: Pilot pricing")).toBe("Pilot pricing");
     expect(mailTopic("  ")).toBe("Email without a subject");
@@ -488,5 +464,106 @@ describe("X", () => {
         direction: "BOTH",
       },
     ]);
+  });
+
+  describe("a DM walk across pages", () => {
+    const parsed = (...raws: unknown[]) =>
+      raws.flatMap((raw) => parseXDmEvent(raw) ?? []);
+    const ruth = { id: "2", name: "Ruth", username: "ruthw" };
+
+    it("finds the same conversations as reading every event at once", () => {
+      const first = parsed(event("1-2", "2", "2026-10-20T16:00:00Z"));
+      // The owner's reply that day is on the next page.
+      const second = parsed(
+        event("1-2", "1", "2026-10-20T09:00:00Z"),
+        event("1-3", "3", "2026-10-19T08:00:00Z"),
+      );
+      const { walk } = addXDmPage(
+        addXDmPage(newXDmWalk("2026-10-21T00:00:00Z"), {
+          events: first,
+          users: [ruth],
+        }).walk,
+        { events: second, users: [] },
+      );
+      expect(
+        extractXDms({ events: xDmWalkEvents(walk), ownerId: "1" }),
+      ).toEqual(extractXDms({ events: [...first, ...second], ownerId: "1" }));
+      expect(walk.users).toEqual({ "2": { name: "Ruth", username: "ruthw" } });
+    });
+
+    it("returns a copy, so a page that fails leaves the walk as it was", () => {
+      const walk = newXDmWalk("2026-10-21T00:00:00Z");
+      void addXDmPage(walk, {
+        events: parsed(event("1-2", "2", "2026-10-20T16:00:00Z")),
+        users: [ruth],
+      });
+      expect(walk).toEqual(newXDmWalk("2026-10-21T00:00:00Z"));
+    });
+
+    it("stays small: a large group is a marker, and past the cap it says so instead of dropping", () => {
+      const crowd = Array.from({ length: X_SMALL_GROUP + 2 }, (_, i) =>
+        String(i + 10),
+      );
+      const grouped = addXDmPage(newXDmWalk("2026-10-21T00:00:00Z"), {
+        events: parsed({
+          ...event("g1", "10", "2026-10-20T10:00:00Z"),
+          participant_ids: ["1", ...crowd],
+        }),
+        users: crowd.map((id) => ({ id, name: null, username: `u${id}` })),
+      });
+      expect(grouped.walk.talk.g1).toEqual({
+        members: [],
+        days: {},
+        large: true,
+      });
+      expect(grouped.walk.users).toEqual({});
+      expect(grouped.overflow).toBe(false);
+      const full = addXDmPage(grouped.walk, {
+        events: parsed(
+          ...Array.from({ length: X_WALK_CONVERSATIONS + 5 }, (_, i) =>
+            event(`1-${i + 100}`, `${i + 100}`, "2026-10-20T10:00:00Z"),
+          ),
+        ),
+        users: [],
+      });
+      // Nothing is left out (the group marker included); the caller writes
+      // and trims.
+      expect(Object.keys(full.walk.talk)).toHaveLength(
+        X_WALK_CONVERSATIONS + 6,
+      );
+      expect(full.overflow).toBe(true);
+    });
+
+    it("after a flush, keeps only the talk on the oldest day, so a reply on the next page still pairs", () => {
+      const { walk } = addXDmPage(newXDmWalk("2026-10-21T00:00:00Z"), {
+        events: parsed(
+          event("1-2", "2", "2026-10-20T16:00:00Z"),
+          event("1-2", "1", "2026-10-19T18:00:00Z"),
+          event("1-4", "4", "2026-10-20T12:00:00Z"),
+        ),
+        users: [ruth, { id: "4", name: "Omar", username: "omarh" }],
+      });
+      const kept = keepXDmDay(walk, "2026-10-19");
+      expect(kept.talk).toEqual({
+        "1-2": { members: ["1", "2"], days: { "2026-10-19": ["1"] } },
+      });
+      expect(kept.users).toEqual({ "2": { name: "Ruth", username: "ruthw" } });
+      // Ruth's answer that day comes on the next page: the day still counts.
+      const next = addXDmPage(kept, {
+        events: parsed(event("1-2", "2", "2026-10-19T09:00:00Z")),
+        users: [],
+      });
+      expect(
+        extractXDms({ events: xDmWalkEvents(next.walk), ownerId: "1" }),
+      ).toEqual([
+        {
+          day: "2026-10-19",
+          conversationId: "1-2",
+          userId: "2",
+          group: false,
+          direction: "BOTH",
+        },
+      ]);
+    });
   });
 });

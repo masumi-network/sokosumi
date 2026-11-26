@@ -10,14 +10,13 @@ import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useForgotPasswordEmailHint } from "@/hooks/effects/use-forgot-password-email-hint";
 import { requestPasswordReset } from "@/lib/auth/auth.client";
 import {
   buildAuthPageUrl,
   getAbsoluteAuthRedirectUrl,
   readAuthPageContext,
 } from "@/lib/auth/auth.utils";
-import { takeAuthEmailHint } from "@/lib/auth/auth-email-hint";
 import type { FormData } from "@/lib/form";
 import { type EmailFormSchemaType, emailFormSchema } from "@/lib/schemas/auth";
 
@@ -61,12 +60,7 @@ export default function ForgotPasswordForm({
   });
 
   // Sign-in hands over the address it was given, outside the URL.
-  useMountEffect(() => {
-    const emailHint = takeAuthEmailHint();
-    if (emailHint) {
-      form.setValue("email", emailHint);
-    }
-  });
+  useForgotPasswordEmailHint(form);
 
   async function handleSubmit(values: EmailFormSchemaType) {
     setIsEmailSent(false);

@@ -26,8 +26,10 @@ const {
   mockPathname,
   mockReplace,
   mockStreamMessages,
+  readStoredStreamParentMessageIdMock,
   sendStreamMessage,
   useChatRoomRealtimeMock,
+  useCoworkerDirectRoomStreamMock,
   listUnreadThreadReplyCountsAction,
   deleteRoomMessageAction,
   editRoomMessageAction,
@@ -55,8 +57,12 @@ const {
     mockPathname: vi.fn(() => "/chat/rooms/room-channel"),
     mockReplace: vi.fn(),
     mockStreamMessages: vi.fn((): ChatRoomMessage[] => []),
+    readStoredStreamParentMessageIdMock: vi.fn(
+      (_roomId: string): string | null => null,
+    ),
     sendStreamMessage: vi.fn((): boolean => true),
     useChatRoomRealtimeMock: vi.fn(),
+    useCoworkerDirectRoomStreamMock: vi.fn(),
     listUnreadThreadReplyCountsAction: vi.fn(async () => ({
       ok: true as const,
       value: [] as ChatRoomThreadUnreadReplyCount[],
@@ -115,6 +121,7 @@ export {
   mockSearchParams,
   mockStreamMessages,
   pinRoomMessageAction,
+  readStoredStreamParentMessageIdMock,
   removeRoomMessageUnfurlAction,
   retryRoomMentionAction,
   sendRoomMessageAction,
@@ -124,6 +131,7 @@ export {
   unpinRoomMessageAction,
   updateRoomAction,
   useChatRoomRealtimeMock,
+  useCoworkerDirectRoomStreamMock,
 };
 
 vi.mock("next/navigation", () => ({
@@ -156,7 +164,7 @@ vi.mock("@/hooks/use-is-apple-platform", () => ({
   default: () => false,
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   MOBILE_BREAKPOINT: 768,
   useIsMobileMedia: () => mockIsMobileMedia(),
 }));
@@ -169,19 +177,20 @@ vi.mock("@/contexts/lazy-ably-provider", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
+vi.mock("@/hooks/effects/use-chat-room-realtime", () => ({
   useChatRoomRealtime: useChatRoomRealtimeMock,
 }));
 
-vi.mock("@/lib/ably/use-room-typing", () => ({
-  useRoomTyping: () => ({
-    typistIds: [],
-    handleComposerChange: () => {},
-    handleStopTyping: () => {},
-  }),
-}));
+vi.mock("@/hooks/effects/use-room-typing", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/hooks/effects/use-room-typing")>();
+  return {
+    ...actual,
+    useRoomTypingSync: () => undefined,
+  };
+});
 
-vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({
+vi.mock("@/hooks/effects/use-selected-room-channel-health", () => ({
   useSelectedRoomChannelHealth: () => undefined,
 }));
 
@@ -195,13 +204,17 @@ vi.mock(
 );
 
 vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
-  readStoredStreamParentMessageId: () => null,
-  useCoworkerDirectRoomStream: () => ({
-    streamOverlayMessages: mockStreamMessages(),
-    isStreaming: false,
-    activeStreamParentMessageId: null,
-    sendStreamMessage,
-  }),
+  readStoredStreamParentMessageId: (roomId: string) =>
+    readStoredStreamParentMessageIdMock(roomId),
+  useCoworkerDirectRoomStream: (...args: unknown[]) => {
+    useCoworkerDirectRoomStreamMock(...args);
+    return {
+      streamOverlayMessages: mockStreamMessages(),
+      isStreaming: false,
+      activeStreamParentMessageId: null,
+      sendStreamMessage,
+    };
+  },
 }));
 
 vi.mock("@/app/chat/actions", () => ({
@@ -389,9 +402,12 @@ export function resetRoomsClientMocks() {
   mockReplace.mockReset();
   mockStreamMessages.mockReset();
   mockStreamMessages.mockReturnValue([]);
+  readStoredStreamParentMessageIdMock.mockReset();
+  readStoredStreamParentMessageIdMock.mockReturnValue(null);
   sendStreamMessage.mockReset();
   sendStreamMessage.mockReturnValue(true);
   useChatRoomRealtimeMock.mockReset();
+  useCoworkerDirectRoomStreamMock.mockReset();
   transcriptViewportEnd.openAtEnd = true;
 }
 

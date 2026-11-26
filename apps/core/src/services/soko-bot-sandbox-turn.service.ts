@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
 import {
+  getSokoBotVersion,
   isSokoBotCapability,
   isSokoBotSandboxCapability,
   redactSokoBotSensitiveText,
@@ -16,16 +17,15 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
+import { reportAiGatewayBudgetFailure } from "@/lib/ai-gateway-budget";
+import { aiGatewayBudgetScopeFromBody } from "@/lib/ai-gateway-budget-error";
 import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
-import {
-  ACTION_CAPABILITIES,
-  actionInputHash,
-} from "@/lib/soko-bot/action-receipts";
-import { withActiveBackgroundRuns } from "@/lib/soko-bot/active-background-runs";
-import { withCmoReplyLanguage } from "@/lib/soko-bot/cmo-reply-language";
+import { actionInputHash } from "@/lib/soko-bot/action-receipts";
 import { gatewayCallUsage, gatewayRanTool } from "@/lib/soko-bot/gateway-cost";
+import { recordModelCall } from "@/lib/soko-bot/model-calls";
 import {
   assertSokoBotInferenceRegion,
   sokoBotInferenceEvidence,
@@ -45,6 +45,7 @@ import type { TurnTokenClaims } from "@/lib/soko-bot/sandbox/turn-token";
 import {
   MODEL_CALL_MAX_MS,
   ModelStreamStalledError,
+  promptCacheTtlOptions,
   readUntilIdle,
 } from "@/lib/soko-bot/stream-model-call";
 import {
@@ -53,17 +54,27 @@ import {
   failTurn,
   finishTurn,
   isTaintBlocked,
+  offeredCapabilities,
   type PreparedTurn,
   prepareTurn,
   RuntimeEventLog,
   runTurnTool,
   runtimeEvent,
   SokoBotTaintedActionError,
+  sokoBotInputTokenBudget,
   sokoBotMaxSteps,
+  turnRequiresActionProof,
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
+import {
+  turnReasoningEffortOptions,
+  turnRunModel,
+} from "@/lib/soko-bot/turn-model";
+import {
+  modelUserMessage,
+  withReplyLanguage,
+} from "@/lib/soko-bot/turn-model-context";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
-import { withTurnSkills } from "@/services/chat-message-skills.service";
 import {
   type SokoBotSandboxShell,
   sandboxShellFor,
@@ -97,20 +108,35 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
+/** A prompt cache key as `prepareTurn` makes it: version id and hash. */
+const PROMPT_CACHE_KEY = /^[\w.-]{1,40}:[0-9a-f]{16}$/;
+
 /**
- * The reasoning-summary switches a runner request may carry, and nothing
- * else: a summary is what the provider chooses to show, never raw thoughts.
+ * The reasoning-summary switches a runner request may carry, and its prompt
+ * cache key, and nothing else: a summary is what the provider chooses to
+ * show, never raw thoughts.
  * Replacing the whole `providerOptions` dropped these, so no bot reply ever
  * had a summary to show.
  */
 export function reasoningSummaryOptions(
   value: unknown,
+  model: string,
 ): Record<string, Record<string, unknown>> {
   const options = asRecord(value) ?? {};
   const out: Record<string, Record<string, unknown>> = {};
-  const summary = asRecord(options.openai)?.reasoningSummary;
+  const openai = asRecord(options.openai);
+  const summary = openai?.reasoningSummary;
   if (summary === "auto" || summary === "detailed")
     out.openai = { reasoningSummary: summary };
+  // A version with one fixed system prompt and tool set keys its cache;
+  // Core sets the retention.
+  const cacheKey = openai?.promptCacheKey;
+  if (typeof cacheKey === "string" && PROMPT_CACHE_KEY.test(cacheKey))
+    out.openai = {
+      ...out.openai,
+      promptCacheKey: cacheKey,
+      ...promptCacheTtlOptions(model),
+    };
   const thinking = asRecord(asRecord(options.google)?.thinkingConfig);
   if (thinking?.includeThoughts === true)
     out.google = { thinkingConfig: { includeThoughts: true } };
@@ -150,10 +176,12 @@ async function authorizeTurn(claims: TurnTokenClaims) {
 }
 
 export interface SandboxTurnStart
-  extends Omit<PreparedTurn, "inferenceRegion"> {
+  extends Omit<PreparedTurn, "inferenceRegion" | "meetingPrep" | "granted"> {
   message: string;
   deadlineAt: string;
+  budgetMs: number;
   maxSteps: number;
+  inputTokenBudget: number;
   background: boolean;
   /** The owner's setup commands and allowed keys, when this turn has a shell. */
   shell?: SokoBotSandboxShell;
@@ -164,10 +192,12 @@ export async function startSandboxTurn(
   claims: TurnTokenClaims,
 ): Promise<SandboxTurnStart> {
   let prepared: PreparedTurn;
+  let replyLanguage: string | null;
   try {
-    prepared = await prepareTurn(claims.sessionId, claims.turnId, {
-      sandbox: true,
-    });
+    [prepared, replyLanguage] = await withReplyLanguage(
+      claims.turnId,
+      prepareTurn(claims.sessionId, claims.turnId, { sandbox: true }),
+    );
   } catch (error) {
     throw turnInactive(error);
   }
@@ -184,27 +214,41 @@ export async function startSandboxTurn(
       createdAt: true,
       parentTurnId: true,
       sokoBotId: true,
+      source: true,
+      versionId: true,
     },
   });
   await announceTurn(logFor(claims), stored.userMessage);
-  const { inferenceRegion: _region, ...turn } = prepared;
-  const shell = await sandboxShellFor(stored.sokoBotId, turn.capabilities);
+  const {
+    inferenceRegion: _region,
+    meetingPrep: _meetingPrep,
+    granted,
+    ...turn
+  } = prepared;
+  const shell = await sandboxShellFor(stored.sokoBotId, granted);
   const shellNote = shell ? sandboxShellNote(shell) : null;
-  const message = await withCmoReplyLanguage(
-    claims.turnId,
-    await withActiveBackgroundRuns(
-      claims.turnId,
-      await withTurnSkills(claims.turnId, stored.userMessage),
-    ),
+  const message = await modelUserMessage(
+    prepared,
+    stored.userMessage,
+    replyLanguage,
   );
   return {
     ...turn,
     message: shellNote ? `${message}\n\n${shellNote}` : message,
     ...(shell ? { shell } : {}),
     deadlineAt: stored.deadlineAt.toISOString(),
+    budgetMs: Math.max(
+      30_000,
+      stored.deadlineAt.getTime() - (await databaseNow()).getTime() - 20_000,
+    ),
     maxSteps: sokoBotMaxSteps(
       stored.deadlineAt.getTime() - stored.createdAt.getTime(),
     ),
+    inputTokenBudget: sokoBotInputTokenBudget({
+      source: stored.source,
+      cmo: getSokoBotVersion(stored.versionId).profile === "cmo",
+      background: Boolean(stored.parentTurnId),
+    }),
     background: Boolean(stored.parentTurnId),
   };
 }
@@ -219,6 +263,17 @@ export async function runSandboxTool(
   input: { capability: string; toolCallId?: string; toolInput: unknown },
 ): Promise<unknown> {
   const { capability } = input;
+  // Search runs in Core, straight against the search API, not as a model call.
+  if (capability === "web_search") {
+    const { runCoreWebTool } = await import("@/lib/soko-bot/core-web-tools");
+    return runCoreWebTool({
+      sessionId: claims.sessionId,
+      turnId: claims.turnId,
+      capability,
+      toolCallId: input.toolCallId ?? `script:${randomUUID()}`,
+      toolInput: input.toolInput,
+    });
+  }
   if (
     !isSokoBotCapability(capability) ||
     isSokoBotSandboxCapability(capability)
@@ -452,52 +507,6 @@ export async function recordSandboxActionResult(
   );
 }
 
-/**
- * The runner's web search, exactly as `searchWeb` sends it: the Gateway's
- * Perplexity tool forced, and one user message that is only the search
- * terms. Perplexity makes no zero-retention commitment, so this call keeps
- * "no prompt training" but not zero retention; anything else — a system
- * prompt, history, another tool — keeps both.
- */
-const MAX_SEARCH_PROMPT_LENGTH = 1_000;
-const gatewaySearchCallSchema = z.object({
-  tools: z.tuple([
-    z.object({
-      type: z.literal("provider"),
-      id: z.literal("gateway.perplexity_search"),
-    }),
-  ]),
-  toolChoice: z.object({
-    type: z.literal("tool"),
-    toolName: z.literal("perplexity_search"),
-  }),
-  prompt: z.tuple([
-    z.object({
-      role: z.literal("user"),
-      content: z.tuple([
-        z.object({
-          type: z.literal("text"),
-          text: z
-            .string()
-            .startsWith("Search the web for: ")
-            .max(MAX_SEARCH_PROMPT_LENGTH),
-        }),
-      ]),
-    }),
-  ]),
-});
-
-function isGatewaySearchCall(payload: Record<string, unknown>): boolean {
-  return gatewaySearchCallSchema.safeParse(payload).success;
-}
-
-function withoutZeroRetention(
-  options: Record<string, unknown>,
-): Record<string, unknown> {
-  const { zeroDataRetention: _dropped, ...rest } = options;
-  return rest;
-}
-
 const UNDICI_TIMEOUT_ERROR_NAMES = new Set([
   "HeadersTimeoutError",
   "TimeoutError",
@@ -558,9 +567,17 @@ function gatewayStreamParts(
   return parts;
 }
 
+function gatewayBudgetScopeFromResponse(text: string) {
+  try {
+    return aiGatewayBudgetScopeFromBody(JSON.parse(text));
+  } catch {
+    // Non-JSON upstream failures are passed through to the SDK.
+  }
+}
+
 /**
  * One model call from the runner. Core owns the Gateway key and the EU
- * routing policy: only the turn's version model, only the Gateway protocol
+ * routing policy: only the turn's model, only the Gateway protocol
  * headers, and Core's provider options in place of whatever the runner sent.
  * Usage is metered here — the runner's own report is never trusted — and
  * before the region check, so a rejected call is still billed.
@@ -579,7 +596,8 @@ export async function proxySandboxModelCall(
   );
   if (request.headers.get("ai-language-model-streaming") !== "true")
     throw badRequest("Model calls must stream");
-  if (request.headers.get("ai-language-model-id") !== version.model)
+  const model = turnRunModel(version, authorized.turn.modelId);
+  if (request.headers.get("ai-language-model-id") !== model)
     throw forbidden("Model is not this turn's");
   const purpose = await loadSokoBotTurnPurpose(claims.turnId);
   const apiKey = aiGatewayApiKey(purpose);
@@ -595,25 +613,35 @@ export async function proxySandboxModelCall(
   }
   const policy = sokoBotModelRequest({
     role: "agent",
-    model: version.model,
+    model,
     inferenceRegion: version.inferenceRegion,
     purpose,
   });
-  const reasoning = reasoningSummaryOptions(payload.providerOptions);
-  const gateway = isGatewaySearchCall(payload)
-    ? withoutZeroRetention(policy.providerOptions.gateway)
-    : policy.providerOptions.gateway;
+  const summary = reasoningSummaryOptions(payload.providerOptions, model);
+  const effort = turnReasoningEffortOptions({
+    version,
+    model,
+    complexity: authorized.complexity,
+  });
+  const reasoning = {
+    ...summary,
+    ...(effort.openai
+      ? { openai: { ...summary.openai, ...effort.openai } }
+      : {}),
+  };
   payload.providerOptions = {
-    // The runner may only ask for a reasoning summary; routing, region and
-    // retention stay Core's.
+    // The runner may only ask for a reasoning summary and a well-formed
+    // prompt cache key; routing, region, retention and effort stay Core's.
     ...reasoning,
-    // No promptCacheKey or Gateway caching: "auto". Tried on the Personal
-    // CRM run, the cache share fell from 43% to 26% and a step cost 3x.
-    gateway,
+    // No Gateway caching: "auto". A promptCacheKey only comes from a version
+    // whose system prompt and tools stay the same across turns: tried while
+    // the packet sat in the system prompt (the Personal CRM run), a key
+    // dropped the cache share from 43% to 26%.
+    gateway: policy.providerOptions.gateway,
   };
 
   const log = logFor(claims);
-  await log.append(runtimeEvent("step.started", { modelId: version.model }));
+  await log.append(runtimeEvent("step.started", { modelId: model }));
   const headers = new Headers({
     authorization: `Bearer ${apiKey}`,
     "content-type": "application/json",
@@ -645,12 +673,17 @@ export async function proxySandboxModelCall(
       { cause: error },
     );
   }
-  if (!upstream.ok)
+  if (!upstream.ok) {
+    const budgetScope = gatewayBudgetScopeFromResponse(text);
+    if (budgetScope) {
+      await reportAiGatewayBudgetFailure(budgetScope, purpose, apiKey);
+    }
     return {
       status: upstream.status,
       body: text,
       contentType: upstream.headers.get("content-type") ?? "application/json",
     };
+  }
 
   const parts = gatewayStreamParts(text);
   if (!parts) throw badGateway("Unreadable model response");
@@ -664,14 +697,21 @@ export async function proxySandboxModelCall(
   await log.append(
     runtimeEvent("step.completed", {
       // A search runs in its own model call; its spend shows as search.
-      modelId: ranSearch ? "web_search" : version.model,
+      modelId: ranSearch ? "web_search" : model,
       inference: sokoBotInferenceEvidence(finish.providerMetadata),
       usage: gatewayCallUsage(finish),
     }),
   );
+  await recordModelCall({
+    turnId: claims.turnId,
+    role: ranSearch ? "search" : "agent",
+    requestedModel: model,
+    providerMetadata: finish.providerMetadata,
+    usage: gatewayCallUsage(finish),
+  });
   try {
     assertSokoBotInferenceRegion(finish.providerMetadata, {
-      model: version.model,
+      model,
       role: "agent",
     });
   } catch (error) {
@@ -727,10 +767,16 @@ export async function completeSandboxTurn(
       turnId: claims.turnId,
       text: input.text,
       finishReason: input.finishReason,
-      // Same rule the prompt was built with, so the answer is parsed the way
-      // the model was told to write it.
-      requiresActionProof: authorized.grant.capabilities.some((capability) =>
-        ACTION_CAPABILITIES.has(capability),
+      // Same tools and rule the prompt was built with, so the answer is
+      // parsed the way the model was told to write it.
+      requiresActionProof: turnRequiresActionProof(
+        offeredCapabilities(
+          await resolveRunnableSokoBotVersion(
+            authorized.turn.versionId ?? null,
+          ),
+          authorized,
+          { sandbox: true },
+        ),
       ),
     });
   } catch (error) {

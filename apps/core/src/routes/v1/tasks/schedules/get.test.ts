@@ -108,6 +108,30 @@ describe("GET /tasks/schedules", () => {
     expect(body.data.map((schedule) => schedule.id)).toEqual([match.id]);
   });
 
+  it("finds schedules by name, ignoring case", async () => {
+    const match = seedTaskSchedule({ name: "Weekly Competitor report" });
+    seedTaskSchedule({ name: "Monthly invoices" });
+
+    const { body } = await list("?q=competitor");
+
+    expect(body.data.map((schedule) => schedule.id)).toEqual([match.id]);
+    expect(body.meta.pagination.total).toBe(1);
+  });
+
+  it.each([
+    ["50%", "Sale 50% off", "Sale 500 club"],
+    ["a_b", "Report a_b", "Report axb"],
+    ["c:\\d", "Backup c:\\d", "Backup c:d"],
+    ["v1.0 (beta)", "Release v1.0 (beta)", "Release v100 (beta)"],
+  ])("treats %s as typed, not as a wildcard", async (q, name, other) => {
+    const match = seedTaskSchedule({ name });
+    seedTaskSchedule({ name: other });
+
+    const { body } = await list(`?q=${encodeURIComponent(q)}`);
+
+    expect(body.data.map((schedule) => schedule.id)).toEqual([match.id]);
+  });
+
   it("leaves other members' private schedules out", async () => {
     const visible = seedTaskSchedule({ createdAt: at(1) });
     seedTaskSchedule({ visibility: "PRIVATE", createdAt: at(2) });

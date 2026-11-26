@@ -5,7 +5,7 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { projectAdAccountSchema } from "@/schemas/project-ad-account.schema";
 import { projectSocialConnectionProjectParamsSchema } from "@/schemas/project-social-connection.schema";
@@ -18,7 +18,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/{id}/ads/accounts",
     description:
-      "List the ad accounts attached to a Project. Requires an interactive user session in the Project's Workspace.",
+      "List the ad accounts attached to a Project. Open to a person by any sign-in (browser, API key or OAuth token) in the Project's Workspace.",
     tags: ["Projects"],
     request: { params: projectSocialConnectionProjectParamsSchema },
     responses: {
@@ -37,7 +37,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    requireInteractiveUserAuthContext(c.var.authContext);
+    requireUserAuthContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
 

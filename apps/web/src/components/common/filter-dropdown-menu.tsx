@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ListFilter, type LucideIcon } from "lucide-react";
+import { Check, ListFilter, type LucideIcon, RotateCcw } from "lucide-react";
 import { type ReactElement, type ReactNode, useMemo, useState } from "react";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,6 +16,8 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -34,6 +36,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { getInitials } from "@/lib/utils/text";
 
 export interface FilterDropdownMenuOption {
   value: string;
@@ -72,6 +75,11 @@ interface FilterDropdownMenuProps {
   searchPlaceholder: string;
   emptyResultsLabel: string;
   sections: FilterDropdownMenuSection[];
+  /** Direct choices appear above the expandable filter sections. */
+  quickFilters?: { menu: ReactNode; sheet: ReactNode };
+  dropdownOpen?: boolean;
+  onDropdownOpenChange?: (open: boolean) => void;
+  showMobileLabel?: boolean;
   showActiveIndicator?: boolean;
   /**
    * The trigger edge the desktop menu lines up with. `start` for a trigger at
@@ -91,6 +99,8 @@ interface FilterDropdownMenuProps {
   hideMobileTrigger?: boolean;
   sheetOpen?: boolean;
   onSheetOpenChange?: (open: boolean) => void;
+  /** A last item that resets every filter in the menu; omit it when none is set. */
+  resetAction?: { label: string; onReset: () => void };
 }
 
 const ALL_FILTER_VALUE = "__all__";
@@ -102,6 +112,10 @@ export function FilterDropdownMenu({
   searchPlaceholder,
   emptyResultsLabel,
   sections,
+  quickFilters,
+  dropdownOpen: dropdownOpenProp,
+  onDropdownOpenChange,
+  showMobileLabel = false,
   showActiveIndicator = false,
   align = "end",
   activeCount,
@@ -109,8 +123,15 @@ export function FilterDropdownMenu({
   hideMobileTrigger = false,
   sheetOpen: sheetOpenProp,
   onSheetOpenChange,
+  resetAction,
 }: FilterDropdownMenuProps) {
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [uncontrolledDropdownOpen, setUncontrolledDropdownOpen] =
+    useState(false);
+  const dropdownOpen = dropdownOpenProp ?? uncontrolledDropdownOpen;
+  function setDropdownOpen(open: boolean) {
+    if (dropdownOpenProp === undefined) setUncontrolledDropdownOpen(open);
+    onDropdownOpenChange?.(open);
+  }
   const [uncontrolledSheetOpen, setUncontrolledSheetOpen] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
@@ -124,7 +145,7 @@ export function FilterDropdownMenu({
     onSheetOpenChange?.(open);
   }
 
-  if (sections.length === 0) {
+  if (sections.length === 0 && !quickFilters) {
     return null;
   }
 
@@ -168,6 +189,10 @@ export function FilterDropdownMenu({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align={align} className="w-64">
+          {quickFilters?.menu}
+          {quickFilters && sections.length > 0 ? (
+            <DropdownMenuSeparator />
+          ) : null}
           {sections.map((section) => (
             <FilterDropdownMenuSectionItem
               key={section.id}
@@ -177,6 +202,20 @@ export function FilterDropdownMenu({
               onSelect={handleClose}
             />
           ))}
+          {resetAction ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={() => {
+                  resetAction.onReset();
+                  handleClose();
+                }}
+              >
+                <RotateCcw aria-hidden />
+                {resetAction.label}
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -189,6 +228,7 @@ export function FilterDropdownMenu({
           onClick={() => setSheetOpen(true)}
         >
           <ListFilter className="size-4" aria-hidden />
+          {showMobileLabel ? <span>{buttonLabel}</span> : null}
           {countBadge}
           {showActiveIndicator && !activeCount ? (
             <span
@@ -212,6 +252,7 @@ export function FilterDropdownMenu({
             className="h-[calc(80dvh-5rem)] min-w-0 w-full px-4"
           >
             <div className="mt-4 w-full min-w-0 space-y-4">
+              {quickFilters?.sheet}
               {sections.map((section) => (
                 <FilterDropdownMenuSectionMobile
                   key={section.id}
@@ -227,6 +268,19 @@ export function FilterDropdownMenu({
                   onSelect={handleClose}
                 />
               ))}
+              {resetAction ? (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    resetAction.onReset();
+                    handleClose();
+                  }}
+                >
+                  <RotateCcw aria-hidden />
+                  {resetAction.label}
+                </Button>
+              ) : null}
             </div>
           </ScrollArea>
         </SheetContent>
@@ -462,7 +516,7 @@ function FilterDropdownMenuOptionAvatar({
     );
   }
 
-  const fallback = option.avatarLabel.trim().charAt(0).toUpperCase() || "?";
+  const fallback = getInitials(option.avatarLabel);
 
   return (
     <Avatar className="size-5 shrink-0">

@@ -197,6 +197,7 @@ const CUSO_SELECT = {
       id: true,
       workspaceId: true,
       websiteUrl: true,
+      cmoPendingAdBudget: true,
       workspace: { select: { organizationId: true } },
       brandBrain: {
         select: { body: true, updatedAt: true, confirmedAt: true },
@@ -223,6 +224,27 @@ export interface Cuso {
   brandBrain: Prisma.JsonValue | null;
   brandBrainUpdatedAt: Date | null;
   brandBrainConfirmedAt: Date | null;
+  /** An ad budget the owner set while he was busy, still to plan. */
+  pendingAdBudget?: CmoPendingAdBudget | null;
+}
+
+/** An ad budget set while Cuso was busy: he plans it when his turn ends. */
+export interface CmoPendingAdBudget {
+  monthly: number;
+  currency: string;
+  userId: string;
+}
+
+function pendingAdBudgetOf(
+  value: Prisma.JsonValue | null,
+): CmoPendingAdBudget | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const { monthly, currency, userId } = value as Record<string, unknown>;
+  return typeof monthly === "number" &&
+    typeof currency === "string" &&
+    typeof userId === "string"
+    ? { monthly, currency, userId }
+    : null;
 }
 
 /** Null for a bot without a Project, which `CUSO_BOT_WHERE` never returns. */
@@ -239,6 +261,7 @@ function cusoView({ id, createdAt, project }: CusoRow): Cuso | null {
     brandBrain: project.brandBrain?.body ?? null,
     brandBrainUpdatedAt: project.brandBrain?.updatedAt ?? null,
     brandBrainConfirmedAt: project.brandBrain?.confirmedAt ?? null,
+    pendingAdBudget: pendingAdBudgetOf(project.cmoPendingAdBudget),
   };
 }
 
@@ -374,6 +397,48 @@ export async function startCmoProductionForProject(
   if (cuso) await startCmoProduction(cuso.id);
 }
 
+/**
+ * The social networks the business already has an account on: connected to
+ * this Cuso's Project or to another Cuso's for the same website in the same
+ * organization. NMKR's Facebook Page, connected to its first Cuso, read as
+ * "New: Open an account" to the Cuso hired again for nmkr.io.
+ */
+export async function cmoSiteAccountNetworks(
+  cuso: Pick<Cuso, "projectId" | "workspaceId" | "businessName">,
+): Promise<string[]> {
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: cuso.workspaceId },
+    select: { organizationId: true },
+  });
+  const projects = workspace?.organizationId
+    ? await prisma.project.findMany({
+        where: {
+          workspace: { organizationId: workspace.organizationId },
+          websiteUrl: { not: null },
+        },
+        select: { id: true, websiteUrl: true },
+      })
+    : [];
+  const sameSite = projects
+    .filter(
+      (project) =>
+        cmoBusinessNameFromUrl(project.websiteUrl ?? "") === cuso.businessName,
+    )
+    .map((project) => project.id);
+  const connections = await prisma.projectSocialConnection.findMany({
+    where: {
+      projectId: { in: [...new Set([cuso.projectId, ...sameSite])] },
+      status: "active",
+    },
+    select: { provider: true },
+  });
+  return [
+    ...new Set(
+      connections.map((connection) => connection.provider.toLowerCase()),
+    ),
+  ].sort();
+}
+
 /** What the founder reads when a step cannot start for lack of credits. */
 export const CMO_OUT_OF_CREDITS = "You're out of credits";
 
@@ -498,7 +563,11 @@ export async function requireCuso(
   return cuso;
 }
 
-/** The business's connected social accounts, from Project Social. */
+/**
+ * The business's social accounts, from Project Social: one per network, the
+ * newest active one, else the newest. Replacing an account (a LinkedIn Page
+ * for the profile) leaves the old row disconnected.
+ */
 export async function listCmoChannels(projectId: string) {
   const rows = await prisma.projectSocialConnection.findMany({
     where: { projectId },
@@ -512,8 +581,15 @@ export async function listCmoChannels(projectId: string) {
       status: true,
     },
   });
+  const current = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    const kept = current.get(row.provider);
+    if (!kept || row.status === "active" || kept.status !== "active") {
+      current.set(row.provider, row);
+    }
+  }
   // Project Social stores "active"; CMO reads statuses upper case.
-  return rows.map(({ externalAccountId, ...row }) => ({
+  return [...current.values()].map(({ externalAccountId, ...row }) => ({
     ...row,
     status: row.status.toUpperCase(),
     personalProfile: postsAsPerson(row.provider, externalAccountId),

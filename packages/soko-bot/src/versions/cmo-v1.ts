@@ -95,6 +95,7 @@ export const cmoV1: SokoBotVersion = {
     "get_social_post",
     "create_social_post",
     "update_social_post",
+    "update_social_posts",
     "schedule_social_post",
     "cancel_social_post",
     "publish_social_post",

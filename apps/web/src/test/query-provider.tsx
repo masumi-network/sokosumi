@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 /**
  * The app shell's sidebar reads through react-query — the Projects rows are
@@ -12,9 +12,14 @@ export function TestQueryProvider({ children }: { children: ReactNode }) {
   const [client] = useState(
     () =>
       new QueryClient({
-        defaultOptions: { queries: { retry: false } },
+        defaultOptions: {
+          queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+          mutations: { gcTime: Number.POSITIVE_INFINITY },
+        },
       }),
   );
+
+  useEffect(() => () => client.clear(), [client]);
 
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }

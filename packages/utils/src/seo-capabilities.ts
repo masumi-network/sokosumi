@@ -144,7 +144,8 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "technical",
     title: "Core Web Vitals in the SEO tab",
     status: "partial",
-    missing: "Loading speed and layout scores do not show in the SEO tab.",
+    missing:
+      "Real-user measurements require a CrUX sample for the URL or its origin.",
     unlocks: [DEV],
   },
   {
@@ -408,7 +409,7 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     title: "Export and date presets",
     status: "partial",
     missing:
-      "No comparison with the same period last year. The Countries and devices table and the AI assistants table have no export. The CSV separator follows the app language, not the computer's region.",
+      "No comparison with the same period last year. Export is unavailable for “Countries and devices”, “AI assistants”, and “What changed in organic visits”. The CSV separator follows the app language, not the computer's region.",
     unlocks: [DEV],
   },
   {

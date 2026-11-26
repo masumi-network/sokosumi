@@ -4,20 +4,31 @@ import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import { Gavel } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { ChatUnreadViewHeader } from "@/app/chat/components/chat-unread-view-header";
+import {
+  ChatEmptyState,
+  ChatUnreadViewHeader,
+} from "@/app/chat/components/chat-unread-view-header";
 import { messageSender } from "@/app/chat/components/room-helpers";
 import { useRoomDisplayName } from "@/app/chat/components/use-room-display-name";
-import { listChatDecisionsAction } from "@/app/chat/signal-actions";
+import {
+  correctChatSignalTagAction,
+  listChatDecisionsAction,
+} from "@/app/chat/signal-actions";
 import { roomMentionNames } from "@/app/chat/utils/room-mention-names";
 import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
 import { useLiveChatRooms } from "@/components/chat/use-live-chat-rooms";
+import {
+  usePageListSearch,
+  usePageSearchPagination,
+} from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
@@ -66,17 +77,77 @@ export function DecisionsView({
     setMessages(initialPage?.messages ?? []);
     setNextCursor(initialPage?.nextCursor ?? null);
   }
-  const currentPage = useRef(initialPage);
-  useEffect(() => {
-    currentPage.current = initialPage;
-  }, [initialPage]);
+  const currentPage = useLatestRef(initialPage);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [removing, setRemoving] = useState<ReadonlySet<string>>(new Set());
+  const rootRef = useRef<HTMLDivElement>(null);
 
   // Live rooms are the reader's access now: a decision whose room left the
   // sidebar (membership lost) goes at once, before Core is asked again.
   const visible = sawLiveRooms.current
     ? messages.filter((message) => roomsById.has(message.roomId))
     : messages;
+
+  const matching = usePageListSearch(visible, (message) => {
+    const room = roomsById.get(message.roomId);
+    return {
+      primary: [
+        formatUnreadThreadsPreview(
+          message.content,
+          roomMentionNames(room, tChannels("MentionAll.label")),
+        ),
+      ],
+      secondary: [
+        messageSender(message).name,
+        room && roomDisplayName(room, currentUserId),
+      ],
+    };
+  });
+
+  usePageSearchPagination(nextCursor, loadingOlder, handleLoadOlder);
+
+  // Removes only the Decision tag; the message keeps its other tags. Core
+  // lets any member of the room correct a tag, the same as the room's chip.
+  async function handleNotDecision(messageId: string, row: HTMLElement | null) {
+    setRemoving((current) => new Set(current).add(messageId));
+    let result: Awaited<ReturnType<typeof correctChatSignalTagAction>>;
+    try {
+      result = await correctChatSignalTagAction(
+        messageId,
+        "decisionMade",
+        false,
+      );
+    } catch {
+      toast.error(t("notDecisionError"));
+      return;
+    } finally {
+      setRemoving((current) => {
+        const next = new Set(current);
+        next.delete(messageId);
+        return next;
+      });
+    }
+    if (!result.ok) {
+      toast.error(result.error.message);
+      return;
+    }
+    const updated = result.value;
+    // Another reader may have put the tag back before Core answered.
+    if (updated.signal?.tags.includes("decisionMade")) {
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === messageId ? updated : message,
+        ),
+      );
+      return;
+    }
+    if (row?.contains(document.activeElement)) {
+      focusAfterRemoval(row, rootRef.current);
+    }
+    setMessages((current) =>
+      current.filter((message) => message.id !== messageId),
+    );
+  }
 
   async function handleLoadOlder() {
     if (!nextCursor) return;
@@ -95,7 +166,7 @@ export function DecisionsView({
   }
 
   return (
-    <div className="flex w-full flex-col gap-4 pb-4">
+    <div ref={rootRef} className="flex w-full flex-col gap-4 pb-4">
       <div className="flex flex-col gap-1">
         <ChatUnreadViewHeader title={t("title")} />
         <p className="text-muted-foreground text-sm">{t("description")}</p>
@@ -107,20 +178,15 @@ export function DecisionsView({
               {t("error")}
             </p>
           ) : visible.length === 0 ? (
-            <div
-              className="flex flex-col items-center gap-1.5 px-4 py-6 text-center"
-              data-testid="decisions-empty"
-            >
-              <span className="bg-quinary text-foreground grid size-8 place-items-center rounded-full">
-                <Gavel className="size-4" aria-hidden />
-              </span>
-              <p className="text-muted-foreground max-w-xs text-sm text-pretty">
-                {t("empty")}
-              </p>
-            </div>
+            <ChatEmptyState
+              icon={Gavel}
+              title={t("emptyTitle")}
+              description={t("emptyHint")}
+              testId="decisions-empty"
+            />
           ) : (
             <ul className="flex flex-col gap-0.5" data-testid="decisions">
-              {visible.map((message) => {
+              {matching.map((message) => {
                 const room = roomsById.get(message.roomId);
                 const roomName = room
                   ? room.kind === "channel"
@@ -135,11 +201,11 @@ export function DecisionsView({
                 return (
                   <li
                     key={message.id}
-                    className="press hover:bg-accent relative flex items-start gap-2 rounded-md px-2 py-2 transition-colors"
+                    className="press hover:bg-accent relative flex flex-wrap items-start gap-2 rounded-md px-2 py-2 transition-colors"
                   >
                     <Link
                       href={chatRoomMessageHref(message.roomId, message.id)}
-                      className="flex min-w-0 flex-1 flex-col gap-0.5 text-sm outline-none after:absolute after:inset-0 after:rounded-md focus-visible:after:ring-2 focus-visible:after:ring-ring"
+                      className="flex min-w-0 flex-1 basis-full flex-col gap-0.5 text-sm outline-none sm:basis-0 after:absolute after:inset-0 after:rounded-md focus-visible:after:ring-2 focus-visible:after:ring-ring"
                     >
                       <span className="flex items-baseline gap-2">
                         <span className="truncate font-medium">
@@ -160,6 +226,24 @@ export function DecisionsView({
                         </span>
                       ) : null}
                     </Link>
+                    {room ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="relative ms-auto self-end"
+                        loading={removing.has(message.id)}
+                        aria-label={t("notDecisionFor", { message: preview })}
+                        onClick={(event) =>
+                          void handleNotDecision(
+                            message.id,
+                            event.currentTarget.closest("li"),
+                          )
+                        }
+                      >
+                        {t("notDecision")}
+                      </Button>
+                    ) : null}
                   </li>
                 );
               })}
@@ -178,7 +262,25 @@ export function DecisionsView({
           ) : null}
         </div>
       </div>
-      <p className="text-muted-foreground px-1 text-xs">{t("note")}</p>
+      {visible.length > 0 ? (
+        <p className="text-muted-foreground px-1 text-xs">{t("note")}</p>
+      ) : null}
     </div>
   );
+}
+
+/**
+ * A removed row took the focused button with it: focus the next row, else
+ * the previous one, else the page heading.
+ */
+function focusAfterRemoval(row: HTMLElement, root: HTMLElement | null) {
+  const sibling = row.nextElementSibling ?? row.previousElementSibling;
+  const link = sibling?.querySelector("a");
+  if (link) {
+    link.focus();
+    return;
+  }
+  const heading = root?.querySelector("h1");
+  heading?.setAttribute("tabindex", "-1");
+  heading?.focus();
 }

@@ -6,8 +6,8 @@ import { useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { formatDay } from "../../lib/calendar";
 import { PlanReview } from "../onboarding/plan-step";
-import type { ConnectMeasurement } from "../onboarding/plan-tabs";
 import { StatusText } from "../status";
+import { WriteNewStrategy } from "./write-new-strategy";
 
 interface StrategyVersionsProps {
   overview: CmoOverview;
@@ -45,7 +45,9 @@ export function StrategyVersions({
             </span>
             {version.approvedAt ? (
               <StatusText>Approved</StatusText>
-            ) : overview.viewerCanApprove && onApprove ? (
+            ) : overview.viewerCanApprove &&
+              onApprove &&
+              !(index === 0 && overview.strategyShort) ? (
               <button
                 type="button"
                 className="button button-secondary button-small"
@@ -69,9 +71,12 @@ export function StrategyVersions({
 interface StrategyPageProps {
   overview: CmoOverview;
   onOpenCalendar: () => void;
-  connectMeasurement: ConnectMeasurement;
+  /** The owner's Yes or No to ads; returns why it did not go through. */
+  onSetAds: (monthly: number, currency: string) => Promise<string | null>;
   /** Approves an earlier version again: Cuso goes back to that plan. */
   onApprove?: (versionId: string) => Promise<void>;
+  /** Asks for a whole new strategy; returns why it could not start. */
+  onWriteNew?: () => Promise<string | null>;
 }
 
 /**
@@ -81,8 +86,9 @@ interface StrategyPageProps {
 export function StrategyPage({
   overview,
   onOpenCalendar,
-  connectMeasurement,
+  onSetAds,
   onApprove,
+  onWriteNew,
 }: StrategyPageProps) {
   const strategy = overview.strategy;
   if (!strategy) {
@@ -93,21 +99,16 @@ export function StrategyPage({
       </div>
     );
   }
-  const pieces = strategy.calendar.filter(
-    (entry) => entry.status !== "skipped",
-  ).length;
-
   return (
     <div className="plan">
       <PlanReview
         overview={overview}
         readOnly
         onRequest={async () => null}
-        onSetAds={async () => null}
+        onSetAds={onSetAds}
         onAnswer={async () => {}}
         onUpdate={async () => null}
         onApprove={async () => {}}
-        onConnectMeasurement={connectMeasurement}
       />
       <div className="panel">
         <button
@@ -116,10 +117,13 @@ export function StrategyPage({
           onClick={onOpenCalendar}
         >
           <CalendarDays size={15} aria-hidden="true" />
-          See all {pieces} posts in your calendar
+          See your month in the calendar
           <ArrowRight size={15} aria-hidden="true" />
         </button>
         <StrategyVersions overview={overview} onApprove={onApprove} />
+        {onWriteNew ? (
+          <WriteNewStrategy overview={overview} onWriteNew={onWriteNew} />
+        ) : null}
       </div>
     </div>
   );

@@ -3,9 +3,15 @@
 import "./phone-feeds.css";
 
 import type { CmoOverview } from "@sokosumi/core-client";
+import { cmoOfferedFormats, cmoShapedVideoTarget } from "@sokosumi/utils";
 import { ImageIcon, Play } from "lucide-react";
 
-import { channelInfo, channelKey, formatHasVideo } from "../lib/channels";
+import {
+  channelInfo,
+  channelKey,
+  formatHasVideo,
+  formatOn,
+} from "../lib/channels";
 import { BusinessMark, businessDisplayName } from "./business-mark";
 import { ChannelIcon } from "./channel-icon";
 import { plainText } from "./draft-text";
@@ -33,7 +39,6 @@ type Screen = {
   entries: Entry[];
   /** A proposed channel: shown as what the month could add, per month. */
   optional?: boolean;
-  perMonth?: number;
   /** The ads platform the month's ads run on; they need its account. */
   ads?: "google_ads" | "meta_ads";
 };
@@ -59,6 +64,13 @@ const SCREENS: Omit<Screen, "entries">[] = [
     icon: "instagram",
     one: "Instagram post",
     many: "Instagram posts",
+  },
+  {
+    key: "tiktok",
+    name: "TikTok",
+    icon: "tiktok",
+    one: "TikTok",
+    many: "TikToks",
   },
   { key: "x", name: "X", icon: "x", one: "post on X", many: "posts on X" },
   {
@@ -96,18 +108,44 @@ function adsName(channel: string): string {
 }
 
 /**
- * The busiest places first, up to four phones. Ads in the month are planned
- * like every other piece; the caption says when their account is missing.
+ * Each piece on every network it goes out on: a talking video planned on one
+ * network also shows on each network in its `alsoOn` (before approval; after
+ * it each copy is its own entry with `videoOf`).
+ */
+function onEveryNetwork(pieces: Entry[]): Entry[] {
+  const split = new Set(pieces.flatMap((entry) => entry.videoOf ?? []));
+  return pieces.flatMap((entry) =>
+    entry.videoOf || split.has(entry.id)
+      ? [entry]
+      : [
+          entry,
+          ...(entry.alsoOn ?? []).map((name) => {
+            // A video in another shape (instagram_feed) shows on its network.
+            const shaped = cmoShapedVideoTarget(name);
+            return {
+              ...entry,
+              id: `${entry.id}@${name}`,
+              channel: shaped?.channel ?? name,
+              format: shaped?.format ?? formatOn(entry, name),
+            };
+          }),
+        ],
+  );
+}
+
+/**
+ * One phone for every place the month shows up, the busiest first. Ads in
+ * the month are planned like every other piece; the caption says when their
+ * account is missing.
  */
 export function feedScreens(calendar: Entry[]): Screen[] {
-  const pieces = planPieces(calendar);
+  const pieces = onEveryNetwork(planPieces(calendar));
   return SCREENS.map((screen) => ({
     ...screen,
     entries: pieces.filter((entry) => screenKey(entry) === screen.key),
   }))
     .filter((screen) => screen.entries.length > 0)
     .sort((a, b) => b.entries.length - a.entries.length)
-    .slice(0, 4)
     .map((screen) => {
       if (screen.key !== "ads") return screen;
       const channel = screen.entries[0]?.channel ?? "meta_ads";
@@ -120,13 +158,41 @@ export function feedScreens(calendar: Entry[]): Screen[] {
     });
 }
 
+/** A network's own name for its short videos. */
+const VIDEO_NAMES: Record<string, [string, string]> = {
+  instagram: ["Reel", "Reels"],
+  facebook: ["Reel", "Reels"],
+  youtube: ["YouTube Short", "YouTube Shorts"],
+  tiktok: ["TikTok", "TikToks"],
+};
+
+/** What a phone shows, without counts: "Reels · Instagram posts". */
+function screenKinds(screen: Screen): string[] {
+  const names = VIDEO_NAMES[screen.key];
+  const videos =
+    names &&
+    screen.entries.some((entry) => formatHasVideo(entry.channel, entry.format));
+  const rest = screen.entries.some(
+    (entry) => !names || !formatHasVideo(entry.channel, entry.format),
+  );
+  const kinds = [
+    ...(videos && names ? [names[1]] : []),
+    ...(rest ? [screen.many] : []),
+  ];
+  return kinds.map((kind, index) =>
+    index === 0 ? `${kind.charAt(0).toUpperCase()}${kind.slice(1)}` : kind,
+  );
+}
+
 /**
  * A proposed channel as a phone of stand-in pieces in its own formats, so the
  * founder sees what adding it would bring.
  */
 export function proposalScreens(strategy: Strategy): Screen[] {
   return (strategy.proposals ?? []).flatMap((proposal) => {
-    const formats = Object.keys(channelInfo(proposal.channel)?.formats ?? {});
+    // A copy-only format (a video in another shape) is no piece of its own.
+    const key = channelKey(proposal.channel);
+    const formats = key ? cmoOfferedFormats(key) : [];
     const base = SCREENS.find(
       (screen) =>
         screen.key === screenKey({ channel: proposal.channel } as Entry),
@@ -149,7 +215,6 @@ export function proposalScreens(strategy: Strategy): Screen[] {
         icon: proposal.channel,
         entries,
         optional: true,
-        perMonth: proposal.perMonth,
       },
     ];
   });
@@ -219,13 +284,11 @@ export function PhoneFeeds({
           <figcaption>
             {screen.optional ? (
               <>
-                <b className="num">+{screen.perMonth}</b> {screen.many} if you
-                add {screen.name}
+                {screen.many} if you add {screen.name}
               </>
             ) : (
               <>
-                <b className="num">{screen.entries.length}</b>{" "}
-                {screen.entries.length === 1 ? screen.one : screen.many}
+                {screenKinds(screen).join(" · ")}
                 {screen.ads && !overview.adProviders.includes(screen.ads) ? (
                   <small>
                     Planned. Connect {screen.name} in Channels to launch them.

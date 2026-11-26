@@ -1,9 +1,12 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import type {
   Prisma,
   ProjectSocialConnection,
   SocialPostStatus,
 } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
+  LINKEDIN_HOOK_RULE,
   type SocialPostPlanning,
   socialPostPlanningSchema,
 } from "@sokosumi/soko-bot";
@@ -56,6 +59,7 @@ import {
   mapSocialPostQuote,
   moveSocialPostQuotes,
   QUOTED_POST_CANCELLED,
+  QUOTED_POST_FAILED,
   requireSocialPostQuote,
   socialPostQuotePublishDecision,
   socialPostQuoteSelect,
@@ -64,12 +68,13 @@ import { summarizeSocialPostThread } from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { EmbedTexts } from "@/lib/embeddings";
-import { findRepeats } from "@/lib/repeats";
+import { findRepeats, similarities } from "@/lib/repeats";
 import {
   socialPostFormattingError,
   stackedCaveatsProblem,
   tagOwnLinks,
 } from "@/lib/social-post-writing";
+import { evaluateWithJev } from "@/lib/soko-bot/jev";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 import {
   type SocialPostStatistics,
@@ -277,6 +282,8 @@ export interface CreateSocialPostInput
     WorkspaceOwnerScope {
   userId: string;
   coworkerId?: string;
+  /** ADR 0077: no person at the keyboard (API key, OAuth or MCP token, Coworker); the write waits for a person's approval. */
+  agent?: boolean;
   sokoBotId?: string;
   text: string;
   firstComment?: string;
@@ -295,6 +302,8 @@ export interface UpdateSocialPostInput
     WorkspaceOwnerScope {
   userId: string;
   coworkerId?: string;
+  /** ADR 0077: no person at the keyboard (API key, OAuth or MCP token, Coworker); the write waits for a person's approval. */
+  agent?: boolean;
   /** The Soko Bot editing it: its writing is checked for formatting mistakes. */
   sokoBotId?: string;
   postId: string;
@@ -317,6 +326,8 @@ export interface ScheduleSocialPostInput extends ProjectScope {
   /** Prepared before the scheduling transaction when the target account changes. */
   media?: SocialPostMediaRef[];
   coworkerId?: string;
+  /** ADR 0077: no person at the keyboard (API key, OAuth or MCP token, Coworker); the write waits for a person's approval. */
+  agent?: boolean;
   postId: string;
   scheduledAt: Date;
   timezone?: string;
@@ -355,6 +366,8 @@ export interface DuplicateSocialPostInput
     WorkspaceOwnerScope {
   userId: string;
   coworkerId?: string;
+  /** ADR 0077: no person at the keyboard (API key, OAuth or MCP token, Coworker); the write waits for a person's approval. */
+  agent?: boolean;
   postId: string;
 }
 
@@ -363,6 +376,8 @@ export interface RecycleSocialAccountPostInput
     WorkspaceOwnerScope {
   userId: string;
   coworkerId?: string;
+  /** ADR 0077: no person at the keyboard (API key, OAuth or MCP token, Coworker); the write waits for a person's approval. */
+  agent?: boolean;
   accountPostId: string;
   delayDays?: 7 | 14 | 30;
   timezone?: string;
@@ -524,7 +539,7 @@ async function nearPostId(
   const tail = input.postId.match(/-([0-9a-f]{12})$/i)?.[1]?.toLowerCase();
   if (!tail) return null;
   const rows = await tx.$queryRaw<{ id: string }[]>`
-    SELECT id::text AS id FROM social_post
+    SELECT id::text AS id FROM ${sharedTable("social_post")}
     WHERE "projectId" = ${input.projectId}::uuid
       AND "workspaceId" = ${input.workspaceId}::uuid
       AND id::text LIKE ${`%-${tail}`}
@@ -672,6 +687,80 @@ async function requireOwnInMonth(
   if (caveats) throw badRequest(`Rewrite the post: it ${caveats}.`);
 }
 
+const batchStorage = new AsyncLocalStorage<ReadonlySet<string>>();
+
+/**
+ * Runs an update_social_posts batch. `unsaved` holds the batch's posts whose
+ * new text is not settled yet. The checks still compare with the words those
+ * posts hold now, since each edit commits on its own and a later one can
+ * fail; a match on one of them only asks the post to wait for it.
+ */
+export function withSocialPostBatch<T>(
+  unsaved: ReadonlySet<string>,
+  run: () => Promise<T>,
+): Promise<T> {
+  return batchStorage.run(unsaved, run);
+}
+
+/** Whether a post's words may still change in the running batch. */
+function unsavedInBatch(postId: string): boolean {
+  return batchStorage.getStore()?.has(postId) ?? false;
+}
+
+/**
+ * A check's answer. `waitsForBatch` marks a match on a post of the running
+ * batch that may still get new words: the edit is tried again after it.
+ */
+export interface SocialPostCheck {
+  problem: string | null;
+  costUsd: number;
+  waitsForBatch?: true;
+}
+
+/**
+ * The month's other posts as `id:revision`, read before a post's words are
+ * checked and again in the save's transaction: two edits checked at once
+ * each passed against the other's old words and both saved "April release."
+ * (Codex round 11). Null for a post outside a marketing month.
+ */
+export async function monthSiblingsStamp(
+  input: { postId: string; workspaceId: string },
+  client: Pick<Prisma.TransactionClient, "socialPost"> = prisma,
+): Promise<string | null> {
+  const post = await client.socialPost.findFirst({
+    where: { id: input.postId, workspaceId: input.workspaceId },
+    select: { marketingStrategyId: true },
+  });
+  if (!post?.marketingStrategyId) return null;
+  const siblings = await client.socialPost.findMany({
+    where: {
+      marketingStrategyId: post.marketingStrategyId,
+      id: { not: input.postId },
+      status: { not: "CANCELED" },
+    },
+    select: { id: true, revision: true },
+    orderBy: { id: "asc" },
+  });
+  return siblings.map((sibling) => `${sibling.id}:${sibling.revision}`).join();
+}
+
+/** Another post of the month changed between a post's check and its save. */
+export class MonthPostsChangedError extends Error {
+  constructor() {
+    super(
+      "Another post of this month changed while this edit was checked: send it again, and its words are checked against the new ones.",
+    );
+  }
+}
+
+function waitForBatchPost(text: string, costUsd: number): SocialPostCheck {
+  return {
+    problem: `Wait for another post of this batch: this text says nearly what the post "${firstLine(text)}" says now.`,
+    costUsd,
+    waitsForBatch: true,
+  };
+}
+
 /**
  * Why a Soko Bot's new text for a post in a marketing month says what
  * another post of the month says (a month once repeated four messages
@@ -681,7 +770,7 @@ async function requireOwnInMonth(
 export async function ownMessageProblem(
   input: { postId: string; workspaceId: string; text: string },
   embed?: EmbedTexts,
-): Promise<{ problem: string | null; costUsd: number }> {
+): Promise<SocialPostCheck> {
   const post = await prisma.socialPost.findFirst({
     where: { id: input.postId, workspaceId: input.workspaceId },
     select: { marketingStrategyId: true, planning: true },
@@ -699,7 +788,7 @@ export async function ownMessageProblem(
       id: { not: input.postId },
       status: { not: "CANCELED" },
     },
-    select: { text: true, planning: true },
+    select: { id: true, text: true, planning: true },
   });
   // An idea still shows its plan's brief or title until it is written.
   const written = siblings.filter((sibling) => {
@@ -716,10 +805,162 @@ export async function ownMessageProblem(
     embed,
   );
   const repeated = written[repeats.at(-1) ?? -1];
+  if (repeated && unsavedInBatch(repeated.id))
+    return waitForBatchPost(repeated.text, costUsd);
   return {
     problem: repeated
       ? `Rewrite the post: it says nearly what the post "${firstLine(repeated.text)}" says. Give it its own message from its pillar: another claim, number, customer or step.`
       : null,
+    costUsd,
+  };
+}
+
+const OPENING_REFUSAL = "Rewrite the post's first line";
+const MAX_OPENING_REFUSALS = 2;
+
+/**
+ * Below this Jev reads the opening as a miss. LINKEDIN_HOOK_RULE's labelled
+ * lines split cleanly at 0.35, but on NMKR's real month advice lines ("A
+ * token mint does not finish a launch.") scored 0.36 to 0.45 and failed the
+ * month review.
+ */
+const OPENING_PASS = 0.45;
+
+/**
+ * The line a LinkedIn reader decides on before "see more". Two lines once let
+ * a flat first line pass on the result Cuso moved to the second, which Jev's
+ * month review then failed.
+ */
+export function linkedInOpening(text: string): string {
+  return (
+    text
+      .trim()
+      .split(/\n+/)
+      .find((line) => line.trim())
+      ?.trim()
+      .slice(0, 160) ?? ""
+  );
+}
+
+/**
+ * cmo-v8: a LinkedIn post in a month opens on a result, a number, a named
+ * customer or a surprising decision. cal.com's month (2026-11-20) failed
+ * Jev's hook rule on 2 of 2 runs with openings that gave advice.
+ */
+export async function linkedInOpeningProblem(
+  input: { postId: string; workspaceId: string; text: string },
+  evaluate: typeof evaluateWithJev = evaluateWithJev,
+  embed?: EmbedTexts,
+): Promise<SocialPostCheck> {
+  const post = await prisma.socialPost.findFirst({
+    where: { id: input.postId, workspaceId: input.workspaceId },
+    select: { marketingStrategyId: true, provider: true },
+  });
+  if (!post?.marketingStrategyId || post.provider.toLowerCase() !== "linkedin")
+    return { problem: null, costUsd: 0 };
+  // A post's opening is held up twice at most: on NMKR's one-pillar month
+  // the same posts came back again and again, and the month never finished.
+  const [{ refused } = { refused: 0 }] = await prisma.$queryRaw<
+    { refused: number }[]
+  >`
+    SELECT count(*)::int AS refused FROM ${sharedTable("soko_bot_tool_call")}
+    WHERE "capability" = 'update_social_post' AND "status" = 'FAILED'
+      AND "input"->>'postId' = ${input.postId}
+      AND "errorDetail" LIKE ${`%${OPENING_REFUSAL}%`}
+  `.catch(() => [{ refused: 0 }]);
+  if (refused >= MAX_OPENING_REFUSALS) return { problem: null, costUsd: 0 };
+  const opening = linkedInOpening(input.text);
+  // One proof as five posts' first line (NMKR's month opened on Book.io's
+  // 130,000 NFTs again and again) reads as one post.
+  const others = await prisma.socialPost.findMany({
+    where: {
+      marketingStrategyId: post.marketingStrategyId,
+      id: { not: input.postId },
+      provider: post.provider,
+      status: { not: "CANCELED" },
+    },
+    select: { id: true, text: true, planning: true },
+  });
+  const written = others.filter((other) => {
+    const planning = other.planning as { title?: unknown; brief?: unknown };
+    return other.text !== planning?.title && other.text !== planning?.brief;
+  });
+  const openings = written.map((other) => linkedInOpening(other.text));
+  const { repeats, costUsd: compared } = await findRepeats(
+    [...openings, opening],
+    "title",
+    embed,
+  );
+  const echoedIndex = repeats.at(-1) ?? -1;
+  const echoed = openings[echoedIndex];
+  const echoedPost = written[echoedIndex];
+  if (echoedPost && unsavedInBatch(echoedPost.id))
+    return waitForBatchPost(echoedPost.text, compared);
+  if (echoed)
+    return {
+      problem: `${OPENING_REFUSAL}: it opens like another LinkedIn post of the month ("${echoed}"). Open with another true fact from the piece: its own result, number, customer or decision.`,
+      costUsd: compared,
+    };
+  try {
+    const { answers, costUsd } = await evaluate({
+      state: { opening },
+      questions: {
+        hook: {
+          type: "boolean",
+          instructions: `Does this LinkedIn post's opening line follow this rule? ${LINKEDIN_HOOK_RULE}`,
+        },
+      },
+      timeoutMs: 15_000,
+    });
+    const answer = answers.get("hook");
+    const passed =
+      answer?.type !== "boolean" || answer.probability >= OPENING_PASS;
+    return {
+      problem: passed
+        ? null
+        : `${OPENING_REFUSAL}: "${opening}" gives no reason to tap "see more". Open with the most surprising true thing in the piece: a result with its number, a price or another number from the business, a named customer and what they did, or a decision that sounds wrong at first. Advice or a question is not an opening.`,
+      costUsd: costUsd + compared,
+    };
+  } catch {
+    // A quality check: when Jev does not answer, the post is not held up.
+    return { problem: null, costUsd: 0 };
+  }
+}
+
+/**
+ * How much closer to another piece's claim than to its own a post must be
+ * to argue that one instead (cmo-v8), and how close at least.
+ */
+export const CLAIM_MARGIN = 0.15;
+export const CLAIM_FLOOR = 0.6;
+
+/**
+ * A post whose words argue another piece's claim rather than its own: the
+ * same point in other words, which a word-by-word compare misses.
+ */
+export async function otherClaimArgued(
+  text: string,
+  own: string | null,
+  claims: readonly string[],
+  embed?: EmbedTexts,
+): Promise<{ problem: string | null; costUsd: number }> {
+  const theirs = [...new Set(claims)].filter((claim) => claim !== own);
+  if (!own || theirs.length === 0) return { problem: null, costUsd: 0 };
+  const { scores, costUsd } = await similarities(text, [own, ...theirs], embed);
+  if (!scores) return { problem: null, costUsd };
+  const [ownScore = 0, ...others] = scores;
+  const best = others.reduce(
+    (top, score, index) => (score > top.score ? { score, index } : top),
+    { score: 0, index: -1 },
+  );
+  const claim = theirs[best.index];
+  return {
+    problem:
+      claim &&
+      best.score >= CLAIM_FLOOR &&
+      best.score >= ownScore + CLAIM_MARGIN
+        ? `Rewrite the post: it argues another piece's claim ("${claim}"), not its own ("${own}"). Make the post argue its own claim.`
+        : null,
     costUsd,
   };
 }
@@ -1030,9 +1271,9 @@ export function listWorkspaceSocialPosts(
 async function readSocialPostsPage(
   input: Omit<ListSocialPostsInput, "projectId"> & { projectId?: string },
 ): Promise<{ posts: SocialPostSummary[]; pagination: CursorPaginationMeta }> {
-  const { cursor, take, skip } = parseCursorPagination(input);
+  const { cursor, take } = parseCursorPagination(input);
   const where: Prisma.SocialPostWhereInput = {
-    projectId: input.projectId,
+    ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
     workspaceId: input.workspaceId,
     ...(input.statuses ? { status: { in: [...input.statuses] } } : {}),
     ...(input.provider ? { provider: input.provider } : {}),
@@ -1081,7 +1322,7 @@ async function readSocialPostsPage(
                 ]
               : [{ updatedAt: "desc" }, { id: "desc" }],
       take: take + 1,
-      ...(cursor ? { cursor: { id: cursor }, skip } : {}),
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     }),
     prisma.socialPost.count({ where }),
   ]);
@@ -1288,7 +1529,9 @@ export async function createSocialPost(
   if (scheduled) {
     requireMediaRequirement(requireProvider(provider), media);
   }
-  const agentDraft = Boolean(input.coworkerId || input.sokoBotId);
+  const agentDraft = Boolean(
+    input.agent || input.coworkerId || input.sokoBotId,
+  );
   await requireSocialPostQuote(
     { ...input, provider, quotedPostId: input.quotedPostId ?? null },
     tx,
@@ -1419,6 +1662,8 @@ export async function updateSocialPost(
       : post.status === "FAILED" || post.status === "MISSED"
         ? { lastError: null, attemptCount: 0, nextAttemptAt: null }
         : {};
+  // ADR 0077: an agent's edit never publishes on its own; a person approves it.
+  if (input.agent || input.coworkerId) data.status = "NEEDS_APPROVAL";
   if (input.scheduledAt) data.scheduledAt = input.scheduledAt;
   if (input.timezone !== undefined) data.timezone = input.timezone;
   const currentProvider = requireProvider(post.provider);
@@ -1730,8 +1975,11 @@ export async function scheduleSocialPost(
         input,
         input.revision,
         {
+          // ADR 0077: an agent's schedule waits for a person's approval.
           status:
-            post.status === "NEEDS_APPROVAL" ? "NEEDS_APPROVAL" : "SCHEDULED",
+            input.agent || input.coworkerId || post.status === "NEEDS_APPROVAL"
+              ? "NEEDS_APPROVAL"
+              : "SCHEDULED",
           scheduledAt: input.scheduledAt,
           timezone: input.timezone ?? post.timezone,
           socialConnectionId: connection.id,
@@ -1821,6 +2069,151 @@ export async function cancelSocialPost(
   );
   await flagSocialPostQuotes(post.id, QUOTED_POST_CANCELLED, tx);
   return mapSocialPost(canceled);
+}
+
+/** The warnings a quote carries about the post it quotes. */
+const QUOTE_WARNINGS: ReadonlySet<string> = new Set([
+  QUOTED_POST_CANCELLED,
+  QUOTED_POST_FAILED,
+]);
+
+/** The warning a quote needs for its quoted post's status; gone counts as cancelled. */
+function quoteWarning(status: SocialPostStatus | null): string | null {
+  if (status === null || status === "CANCELED") return QUOTED_POST_CANCELLED;
+  if (status === "FAILED" || status === "MISSED") return QUOTED_POST_FAILED;
+  return null;
+}
+
+export interface RestoreCanceledSocialPostInput extends CancelSocialPostInput {
+  organizationId?: string | null;
+  /** The status it had before the cancel: any status a cancel accepts. */
+  status: "DRAFT" | "NEEDS_APPROVAL" | "SCHEDULED" | "FAILED" | "MISSED";
+  /** The time it was planned at before the cancel. */
+  scheduledAt: Date | null;
+  timezone?: string;
+  /** A FAILED or MISSED post's diagnostics, so it comes back as it was. */
+  diagnostics?: {
+    lastError: string | null;
+    needsAttentionReason: string | null;
+  };
+}
+
+/**
+ * Takes back a cancel (an owner's change undone, cmo-v25), in one
+ * transaction: the post comes back with the status it had at its planned
+ * time, under the revision the cancel left; a scheduled one is scheduled
+ * again through `scheduleSocialPost` on the same transaction, so a refused
+ * schedule leaves it cancelled and the retry intact. A draft quoting it
+ * loses the flag the cancel set; a quote the cancel failed keeps its
+ * reason, never a FAILED row without one.
+ */
+export async function restoreCanceledSocialPost(
+  input: RestoreCanceledSocialPostInput,
+): Promise<SocialPostSummary> {
+  if (input.status === "SCHEDULED" && !input.scheduledAt)
+    throw conflict("A scheduled post is restored at its time");
+  const post = await serializableTransaction(async (tx) => {
+    if (input.status === "SCHEDULED")
+      await requireLockedOpenProject(tx, input, {
+        closedMessage: PROJECT_CLOSED_MESSAGE,
+      });
+    else await requireScopedProject(input, { client: tx });
+    const post = await requireScopedPost(input, tx);
+    if (post.status !== "CANCELED")
+      throw conflict("Only a canceled post can be restored");
+    requireRevision(post, input.revision);
+    // A quote carries the warning its quoted post's state calls for now:
+    // still cancelled, failed, or none, so a flag from a cancel since taken
+    // back never blocks it, and one that still holds is never dropped. A
+    // quote whose quoted post was deleted keeps its warning until the owner
+    // detaches or replaces the quote.
+    const target = post.quotedPostId
+      ? await tx.socialPost.findUnique({
+          where: { id: post.quotedPostId },
+          select: { status: true },
+        })
+      : null;
+    const settled = input.status === "FAILED" || input.status === "MISSED";
+    const own = (settled && input.diagnostics) || {
+      lastError: post.lastError,
+      needsAttentionReason: post.needsAttentionReason,
+    };
+    const quoteFlagged =
+      own.needsAttentionReason !== null &&
+      QUOTE_WARNINGS.has(own.needsAttentionReason);
+    const warning = post.quotedPostId
+      ? quoteWarning(target?.status ?? null)
+      : quoteFlagged
+        ? own.needsAttentionReason
+        : null;
+    if (warning === QUOTED_POST_CANCELLED && input.status === "SCHEDULED")
+      throw conflict(
+        "The post it quotes is cancelled; restore that post first, then schedule this one",
+      );
+    const stale = quoteFlagged && post.quotedPostId !== null;
+    const restored = await writeWithRevision(
+      input,
+      input.revision,
+      {
+        status: input.status === "SCHEDULED" ? "DRAFT" : input.status,
+        canceledAt: null,
+        scheduledAt: input.scheduledAt,
+        ...(input.timezone ? { timezone: input.timezone } : {}),
+        ...(warning
+          ? {
+              needsAttentionReason: warning,
+              lastError:
+                warning === own.needsAttentionReason ? own.lastError : warning,
+            }
+          : stale
+            ? { needsAttentionReason: null, lastError: null }
+            : settled
+              ? own
+              : {}),
+      },
+      tx,
+    );
+    // Quotes of this post: the cancel's flag becomes what its status now
+    // calls for: none once it is back, the failure's once it failed.
+    const dependents = quoteWarning(input.status);
+    await tx.socialPost.updateMany({
+      where: {
+        quotedPostId: post.id,
+        needsAttentionReason: QUOTED_POST_CANCELLED,
+        status: { in: ["DRAFT", "NEEDS_APPROVAL"] },
+      },
+      data: {
+        needsAttentionReason: dependents,
+        lastError: dependents,
+        revision: { increment: 1 },
+      },
+    });
+    if (input.status !== "SCHEDULED" || !input.scheduledAt)
+      return mapSocialPost(restored);
+    return scheduleSocialPost(
+      {
+        projectId: input.projectId,
+        workspaceId: input.workspaceId,
+        userId: input.userId,
+        organizationId: input.organizationId,
+        ...(input.coworkerId ? { coworkerId: input.coworkerId } : {}),
+        postId: restored.id,
+        revision: restored.revision,
+        scheduledAt: input.scheduledAt,
+        ...(input.timezone ? { timezone: input.timezone } : {}),
+      },
+      tx,
+    );
+  }, "Post changed while restoring a Social post");
+  if (post.status === "SCHEDULED")
+    await recordSocialStudioAdEvents({
+      ...input,
+      postId: post.id,
+      type: "scheduled",
+      media: post.media,
+      threadParts: post.threadParts,
+    });
+  return post;
 }
 
 export async function approveSocialPost(
@@ -1997,7 +2390,7 @@ export async function duplicateSocialPost(
       ...(threadParts.length > 0
         ? { threadParts: { create: threadParts } }
         : {}),
-      status: input.coworkerId ? "NEEDS_APPROVAL" : "DRAFT",
+      status: input.agent || input.coworkerId ? "NEEDS_APPROVAL" : "DRAFT",
       creatorUserId: input.coworkerId ? null : input.userId,
       creatorCoworkerId: input.coworkerId ?? null,
     },
@@ -2088,6 +2481,7 @@ export async function recycleSocialAccountPost(
       workspaceId: input.workspaceId,
       userId: input.userId,
       coworkerId: input.coworkerId,
+      agent: input.agent,
       postId: post.id,
       scheduledAt: new Date(Date.now() + input.delayDays * DAY_MS),
       timezone: input.timezone,

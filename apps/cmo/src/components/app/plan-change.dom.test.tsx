@@ -88,6 +88,7 @@ function render(overview: CmoOverview, actions: Partial<CmoAppActions>) {
           askCusoForArticles: async () => null,
           loadPieceText: async () => null,
           approveStrategy: same,
+          requestStrategy: result,
           setAdBudget: result,
           revertUpdate: same,
           saveBrandBrain: same,
@@ -97,6 +98,13 @@ function render(overview: CmoOverview, actions: Partial<CmoAppActions>) {
           readTikTokCreator: async () => ({ creator: null, error: null }),
           declineDraft: result,
           editDraft: result,
+          pictures: {
+            loadPictures: async () => ({
+              groups: [],
+              networks: [],
+              months: [],
+            }),
+          },
           competitors: {
             loadCompetitors: async () => null,
             addCompetitor: async () => ({ competitors: null, error: null }),
@@ -113,6 +121,7 @@ function render(overview: CmoOverview, actions: Partial<CmoAppActions>) {
           loadAdCampaigns: async () => [],
           startOver: async () => null,
           setTimeZone: async () => null,
+          markUpgradeSeen: async () => undefined,
           startTopUp: none,
           subscribe: none,
           changePlan: async () => ({ change: null, error: null }),
@@ -147,7 +156,7 @@ it("shows the upgraded plan at once and its credits once Polar's order lands", a
   core = subscribed({ tier: "growth", availableCredits: 17_500 });
   await act(async () => vi.advanceTimersByTimeAsync(5_000));
 
-  expect(text()).toContain("17500");
+  expect(text()).toContain("17,500");
 });
 
 it("shows a scheduled downgrade as soon as the change returns", async () => {

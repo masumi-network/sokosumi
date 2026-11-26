@@ -23,6 +23,7 @@ const boundary = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $queryRaw: async () => [{ now: new Date() }],
     marketingStrategy: { findUniqueOrThrow: boundary.strategy },
     sokoBotTurn: { findMany: boundary.turns },
     socialPost: { updateMany: boundary.cancelPosts },
@@ -34,6 +35,7 @@ vi.mock("@/lib/db/prisma", () => ({
     evalRun: { findFirst: boundary.run, update: boundary.finishRun },
     evalResult: {
       findFirst: boundary.result,
+      findMany: vi.fn().mockResolvedValue([]),
       count: boundary.resultCount,
       update: boundary.finish,
     },
@@ -115,6 +117,28 @@ async function poll() {
     context,
   );
 }
+
+it("omits the turn ID when an errored eval case has no turns", async () => {
+  boundary.result.mockResolvedValueOnce({
+    id: "result",
+    caseId: month.id,
+    turnId: null,
+    state: null,
+    startedAt,
+    createdAt: startedAt,
+  });
+
+  await tickEvalRuns();
+
+  expect(boundary.finish).toHaveBeenCalledExactlyOnceWith({
+    where: { id: "result" },
+    data: expect.objectContaining({
+      status: "ERROR",
+      error: "The month case lost its strategy",
+    }),
+  });
+  expect(boundary.finish.mock.lastCall?.[0]?.data).not.toHaveProperty("turnId");
+});
 
 describe("monthly eval hard-budget guard", () => {
   it("stops before advancing paid production and cancels only unsent month posts", async () => {

@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   isMobile: false,
   push: vi.fn(),
   fetch: vi.fn(),
+  loadActivity: vi.fn(),
   modal: { current: null as CreateModalProps | null },
 }));
 
@@ -25,9 +26,12 @@ vi.mock("next/navigation", () => ({
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   MOBILE_BREAKPOINT: 768,
   useIsMobile: () => mocks.isMobile,
+}));
+vi.mock("@/lib/utils/notification-time", () => ({
+  useNotificationTimeFormatter: () => () => "2 minutes ago",
 }));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
@@ -40,10 +44,12 @@ vi.mock("@/lib/auth/auth.client", () => ({
   }),
 }));
 vi.mock("@/lib/project-scope-list.client", () => ({
-  fetchScopeList: (path: string) =>
-    path.startsWith("/api/project-scope/pinned")
+  fetchScopeList: (path: string) => {
+    if (path === "/api/project-scope/activity") return mocks.loadActivity();
+    return path.startsWith("/api/project-scope/pinned")
       ? Promise.resolve([])
-      : Promise.resolve({ projects: [], nextCursor: null }),
+      : Promise.resolve({ projects: [], nextCursor: null });
+  },
 }));
 // The wizard pulls in the whole Create flow. The stub keeps the props, so a
 // test can finish or cancel Create the way the real dialog does.
@@ -103,7 +109,10 @@ function renderHarness({
   onSelect?: (projectId: string) => void;
 } = {}) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   const view = render(
     <QueryClientProvider client={client}>
@@ -169,6 +178,7 @@ async function openCreateFrom(trigger: HTMLElement) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.loadActivity.mockResolvedValue([]);
   mocks.pathname = "/tasks";
   mocks.search = "";
   mocks.isMobile = false;
@@ -266,6 +276,18 @@ describe("sidebar project scope scope name", () => {
 });
 
 describe("sidebar project scope chip", () => {
+  it("keeps the Projects page reachable on phones without loading the second column", async () => {
+    mocks.isMobile = true;
+    const user = userEvent.setup();
+    renderHarness();
+    await user.click(chip());
+
+    expect(
+      await screen.findByRole("link", { name: "openProjectsPage" }),
+    ).toHaveAttribute("href", "/projects");
+    expect(mocks.loadActivity).not.toHaveBeenCalled();
+  });
+
   it("clears the picked project back to All projects with the chip's ×", async () => {
     const user = userEvent.setup();
     mocks.search = "projectId=p-1";
@@ -277,6 +299,36 @@ describe("sidebar project scope chip", () => {
 
     expect(mocks.push).toHaveBeenCalledExactlyOnceWith("/tasks");
     expect(chip()).toHaveFocus();
+  });
+
+  it("gives the chip the row on a project's own page, × inside its pill", () => {
+    mocks.pathname = "/projects/p-1";
+    renderHarness();
+
+    const pill = chip().parentElement;
+    expect(pill?.className).toContain("flex-1");
+    expect(chip().className).toContain("flex-1");
+    expect(chip().className).not.toContain("max-w-[40vw]");
+    // The name gets about 120px at 375: tight insets, the pill eats the
+    // row's gaps, and × keeps its 40px.
+    expect(pill?.className).toContain("-mx-1");
+    expect(chip().className).toContain("has-[>svg]:ps-2");
+    expect(chip().className).toContain("h-10");
+    expect(screen.getByTestId("project-scope-chip-clear").className).toContain(
+      "size-10",
+    );
+    expect(pill).toContainElement(
+      screen.getByTestId("project-scope-chip-clear"),
+    );
+  });
+
+  // The visible name is part of the accessible name (WCAG 2.5.3).
+  it("names the chip by its text, not an aria-label", async () => {
+    mocks.search = "projectId=p-1";
+    renderHarness();
+
+    await waitFor(() => expect(chip()).toHaveAccessibleName("label: Acme"));
+    expect(chip()).not.toHaveAttribute("aria-label");
   });
 
   it("shows no × on the chip in the workspace view", () => {

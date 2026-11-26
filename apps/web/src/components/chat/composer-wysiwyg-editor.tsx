@@ -5,7 +5,6 @@ import { Hash } from "lucide-react";
 import type { ClipboardEvent, ReactNode, Ref } from "react";
 import {
   useCallback,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -18,10 +17,7 @@ import {
   type ComposerSuggestion,
   resolveComposerSuggestion,
 } from "@/components/chat/composer-suggestions";
-import {
-  ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME,
-  ROOM_COMPOSER_MENTION_ANCHOR_ATTR,
-} from "@/components/chat/room-message-composer";
+import { ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME } from "@/components/chat/room-message-composer";
 import {
   createChannelLinkSpan,
   createMentionSpan,
@@ -31,9 +27,6 @@ import {
   getActiveEmojiTrigger,
   getActiveTrigger,
   getCaretOffset,
-  getCaretRect,
-  getMentionPopupPositionFromAnchorRect,
-  getPopupPositionFromRect,
   getSuggestionPopupFixedStyle,
   isWhitespaceChar,
   MENTION_CLASSNAME,
@@ -44,10 +37,15 @@ import {
   serializeEditorText,
   setCaretAfterNode,
   shouldAppendTrailingSpace,
-  type TriggerPosition,
   UNKNOWN_MENTION_CLASSNAME,
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
+import { useComposerActiveFormatsPublish } from "@/hooks/effects/use-composer-active-formats-publish";
+import { useComposerBlurTimeoutCleanup } from "@/hooks/effects/use-composer-blur-timeout-cleanup";
+import { useComposerExternalValueSync } from "@/hooks/effects/use-composer-external-value-sync";
+import { useComposerSuggestionPopupPosition } from "@/hooks/effects/use-composer-suggestion-popup-position";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { cn } from "@/lib/utils";
 import {
   type ComposerActiveFormats,
@@ -55,10 +53,7 @@ import {
   getComposerActiveFormats,
 } from "@/lib/utils/composer-active-formats";
 import { matchEmoticonClosedAtBoundary } from "@/lib/utils/composer-emoticons";
-import {
-  htmlToMarkdown,
-  markdownToHtml,
-} from "@/lib/utils/composer-markdown-dom";
+import { htmlToMarkdown } from "@/lib/utils/composer-markdown-dom";
 import {
   composerPastedHtmlToPlainText,
   stripComposerInlineTextColors,
@@ -84,14 +79,13 @@ import {
   matchExactEmojiShortcodeClosed,
 } from "@/lib/utils/emoji-shortcodes";
 import { normalizeUrl } from "@/lib/utils/markdown-editor-utils";
-import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
+import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 
 type SuggestionUiState =
   | { open: false }
   | {
       open: true;
       suggestion: ComposerSuggestion;
-      position: TriggerPosition;
       activeIndex: number;
     };
 
@@ -99,6 +93,8 @@ export interface ComposerWysiwygEditorHandle {
   focus: () => void;
   focusAtEnd: () => void;
   insertText: (text: string) => void;
+  /** Add `text` after the whole draft, with a space after a word. */
+  appendText: (text: string) => void;
   /** Remove the last occurrence of `text`; false when it is not in the editor. */
   removeLastText: (text: string) => boolean;
   openMentions: () => void;
@@ -135,7 +131,6 @@ interface ComposerWysiwygEditorProps<TData = unknown> {
   ariaLabel?: string;
   onLinkShortcut?: () => void;
   onActiveFormatsChange?: (formats: ComposerActiveFormats) => void;
-  onSelectedKeysChange?: (selectedKeys: string[]) => void;
   renderMentionItem?: (
     mention: NormalizedMention<TData>,
     isActive: boolean,
@@ -161,17 +156,6 @@ const EDITOR_PROSE_CLASSNAME = cn(
   "[&_span[data-mention-key]]:text-foreground [&_span[data-mention-key]]:cursor-pointer [&_span[data-mention-key]]:font-semibold [&_span[data-mention-key]]:hover:underline",
   "[&_span[data-channel-label]]:text-foreground [&_span[data-channel-label]]:cursor-pointer [&_span[data-channel-label]]:font-semibold [&_span[data-channel-label]]:hover:underline",
 );
-
-function isComposerEditorDomEmpty(editor: HTMLElement): boolean {
-  const html = editor.innerHTML;
-  return (
-    html === "" ||
-    html === "<br>" ||
-    html === "<div><br></div>" ||
-    html === "<p><br></p>" ||
-    (editor.textContent ?? "").replace(/\u200b/g, "").trim() === ""
-  );
-}
 
 function restoreCaretAtOffset(root: HTMLElement, offset: number): void {
   const selection = window.getSelection();
@@ -232,11 +216,17 @@ export function ComposerWysiwygEditor<TData = unknown>({
   ariaLabel,
   onLinkShortcut,
   onActiveFormatsChange,
-  onSelectedKeysChange,
   renderMentionItem,
   groupMentions,
 }: ComposerWysiwygEditorProps<TData>) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const [editorElement, setEditorElement] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const setEditorNode = useCallback((node: HTMLDivElement | null) => {
+    editorRef.current = node;
+    setEditorElement(node);
+  }, []);
   const listRef = useRef<HTMLDivElement>(null);
   const isSelectingRef = useRef(false);
   const isInternalChange = useRef(false);
@@ -280,14 +270,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
     const map = new Map<string, string>();
     for (const mention of normalizedMentions) {
       if (mention.slug) map.set(mention.slug, mention.value);
-    }
-    return map;
-  }, [normalizedMentions]);
-
-  const slugToKey = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const mention of normalizedMentions) {
-      if (mention.slug) map.set(mention.slug, mention.key);
     }
     return map;
   }, [normalizedMentions]);
@@ -344,11 +326,12 @@ export function ComposerWysiwygEditor<TData = unknown>({
       : [];
 
   const activeIndex = suggestionUi.open ? suggestionUi.activeIndex : 0;
-  const triggerPosition = suggestionUi.open ? suggestionUi.position : null;
   const suggestionKind = suggestionUi.open
     ? suggestionUi.suggestion.kind
     : null;
   const isOpen = suggestionUi.open;
+  const { position: triggerPosition, place: placeSuggestionPopup } =
+    useComposerSuggestionPopupPosition(editorElement, isOpen, suggestionKind);
   const visibleSuggestionCount =
     suggestionKind === "emoji"
       ? emojiMatches.length
@@ -356,82 +339,30 @@ export function ComposerWysiwygEditor<TData = unknown>({
         ? channelMatches.length
         : selectableMentions.length;
 
-  const selectedKeys = useMemo(() => {
-    const parsed = parseMentions(value);
-    const uniqueKeys: string[] = [];
-    const seenKeys = new Set<string>();
-    for (const mention of parsed) {
-      const directKey = keyToValue.has(mention.id) ? mention.id : null;
-      const slugKey =
-        slugToKey.get(mention.slug) ??
-        slugToKey.get(slugifyMentionValue(mention.id));
-      const resolvedKey = directKey ?? slugKey ?? null;
-      if (!resolvedKey) continue;
-      if (seenKeys.has(resolvedKey)) continue;
-      seenKeys.add(resolvedKey);
-      uniqueKeys.push(resolvedKey);
-    }
-    return uniqueKeys;
-  }, [keyToValue, slugToKey, value]);
-
-  const lastSelectedKeysRef = useRef<string[]>([]);
-  useEffect(() => {
-    if (!onSelectedKeysChange) return;
-    const previousKeys = lastSelectedKeysRef.current;
-    if (
-      previousKeys.length === selectedKeys.length &&
-      previousKeys.every((key, index) => key === selectedKeys[index])
-    ) {
-      return;
-    }
-
-    lastSelectedKeysRef.current = selectedKeys;
-    onSelectedKeysChange(selectedKeys);
-  }, [onSelectedKeysChange, selectedKeys]);
-
   const openSuggestions = useCallback(
     ({
+      editor,
       suggestion,
-      nextTriggerPosition,
       nextActiveIndex = 0,
     }: {
+      editor: HTMLElement;
       suggestion: ComposerSuggestion;
-      nextTriggerPosition: TriggerPosition;
       nextActiveIndex?: number;
     }) => {
+      placeSuggestionPopup(editor, suggestion.kind);
       setSuggestionUi({
         open: true,
         suggestion,
-        position: nextTriggerPosition,
         activeIndex: nextActiveIndex,
       });
     },
-    [],
+    [placeSuggestionPopup],
   );
 
   const closeSuggestions = useCallback(() => {
     setSuggestionUi({ open: false });
     manualMentionOpenRef.current = false;
   }, []);
-
-  const getSuggestionPopupPosition = useCallback(
-    (editor: HTMLElement, kind: ComposerSuggestion["kind"]) => {
-      if (kind === "mention" || kind === "emoji" || kind === "channel") {
-        const shell = editor.closest(`[${ROOM_COMPOSER_MENTION_ANCHOR_ATTR}]`);
-        if (shell instanceof HTMLElement) {
-          return getMentionPopupPositionFromAnchorRect(
-            shell.getBoundingClientRect(),
-          );
-        }
-      }
-      const caretRect = getCaretRect(editor);
-      const fallbackRect = editor.getBoundingClientRect();
-      return caretRect
-        ? getPopupPositionFromRect(caretRect)
-        : getPopupPositionFromRect(fallbackRect);
-    },
-    [],
-  );
 
   const syncFromEditor = useCallback(() => {
     if (!editorRef.current) {
@@ -450,42 +381,13 @@ export function ComposerWysiwygEditor<TData = unknown>({
     notify(getComposerActiveFormats(editorRef.current));
   }, []);
 
-  useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) {
-      isInternalChange.current = false;
-      return;
-    }
-
-    const isExternalClear = value.trim().length === 0;
-    // Clears must win over isInternalChange: a same-turn clear after input
-    // otherwise leaves stale DOM because this effect will not re-run for "".
-    if (isInternalChange.current && !isExternalClear) {
-      isInternalChange.current = false;
-      return;
-    }
-
-    const currentHtml = editor.innerHTML;
-    const newHtml = markdownToHtml(value, resolveMentionDisplay, {
-      channelLinks: channels.map((channel) => ({
-        name: channel.name,
-        slug: channel.slug,
-      })),
-      wrapUnknownMentions: false,
-    });
-    const isFocused = editor.contains(document.activeElement);
-    const editorLooksEmpty = isComposerEditorDomEmpty(editor);
-
-    // Focused non-clear updates skip to keep the caret; still apply into an
-    // empty editor (restore after failed send cleared DOM first).
-    if (
-      currentHtml !== newHtml &&
-      (!isFocused || isExternalClear || editorLooksEmpty)
-    ) {
-      editor.innerHTML = newHtml || "";
-    }
-    isInternalChange.current = false;
-  }, [channels, resolveMentionDisplay, value]);
+  useComposerExternalValueSync({
+    editorRef,
+    isInternalChange,
+    value,
+    channels,
+    resolveMentionDisplay,
+  });
 
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
@@ -549,15 +451,12 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
       if (manualMentionOpenRef.current && normalizedMentions.length > 0) {
         openSuggestions({
+          editor: editorRef.current,
           suggestion: {
             kind: "mention",
             query: "",
             triggerStart: caret,
           },
-          nextTriggerPosition: getSuggestionPopupPosition(
-            editorRef.current,
-            "mention",
-          ),
           nextActiveIndex: 0,
         });
         return;
@@ -570,11 +469,8 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
       if (suggestion) {
         openSuggestions({
+          editor: editorRef.current,
           suggestion,
-          nextTriggerPosition: getSuggestionPopupPosition(
-            editorRef.current,
-            suggestion.kind,
-          ),
           nextActiveIndex: 0,
         });
         return;
@@ -589,7 +485,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
   }, [
     channels,
     closeSuggestions,
-    getSuggestionPopupPosition,
     normalizedMentions.length,
     openSuggestions,
     publishActiveFormats,
@@ -821,6 +716,18 @@ export function ComposerWysiwygEditor<TData = unknown>({
     [handleInput],
   );
 
+  const appendText = useCallback(
+    (text: string) => {
+      const editor = editorRef.current;
+      if (!editor) return;
+      const draft = serializeEditorText(editor);
+      // No saved caret: insertText puts the caret at the end.
+      savedCaretOffsetRef.current = null;
+      insertText(draft.length === 0 || /\s$/.test(draft) ? text : ` ${text}`);
+    },
+    [insertText],
+  );
+
   const removeLastText = useCallback(
     (text: string) => {
       const editor = editorRef.current;
@@ -959,15 +866,15 @@ export function ComposerWysiwygEditor<TData = unknown>({
     savedCaretOffsetRef.current = caret;
     manualMentionOpenRef.current = true;
     openSuggestions({
+      editor,
       suggestion: {
         kind: "mention",
         query: "",
         triggerStart: caret,
       },
-      nextTriggerPosition: getSuggestionPopupPosition(editor, "mention"),
       nextActiveIndex: 0,
     });
-  }, [getSuggestionPopupPosition, openSuggestions]);
+  }, [openSuggestions]);
 
   const getLiveSuggestionAtCaret = useCallback(() => {
     if (!editorRef.current) return null;
@@ -1007,17 +914,13 @@ export function ComposerWysiwygEditor<TData = unknown>({
     }
 
     openSuggestions({
+      editor: editorRef.current,
       suggestion: live,
-      nextTriggerPosition: getSuggestionPopupPosition(
-        editorRef.current,
-        live.kind,
-      ),
       nextActiveIndex: Math.min(suggestionUi.activeIndex, listLength - 1),
     });
   }, [
     closeSuggestions,
     getLiveSuggestionAtCaret,
-    getSuggestionPopupPosition,
     normalizedMentions,
     openSuggestions,
     publishActiveFormats,
@@ -1034,36 +937,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
     },
     [],
   );
-
-  useEffect(() => {
-    if (!isOpen || !editorRef.current || !suggestionKind) return;
-    const editor = editorRef.current;
-
-    const updatePosition = () => {
-      const nextPosition = getSuggestionPopupPosition(editor, suggestionKind);
-      setSuggestionUi((prev) => {
-        if (!prev.open) return prev;
-        return { ...prev, position: nextPosition };
-      });
-    };
-
-    const visualViewport = window.visualViewport;
-    visualViewport?.addEventListener("resize", updatePosition);
-    visualViewport?.addEventListener("scroll", updatePosition);
-    window.addEventListener("resize", updatePosition);
-    let nestedRafId = 0;
-    const rafId = requestAnimationFrame(() => {
-      nestedRafId = requestAnimationFrame(updatePosition);
-    });
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      cancelAnimationFrame(nestedRafId);
-      visualViewport?.removeEventListener("resize", updatePosition);
-      visualViewport?.removeEventListener("scroll", updatePosition);
-      window.removeEventListener("resize", updatePosition);
-    };
-  }, [getSuggestionPopupPosition, isOpen, suggestionKind]);
 
   const handlePaste = useCallback(
     (event: ClipboardEvent<HTMLDivElement>) => {
@@ -1303,42 +1176,30 @@ export function ComposerWysiwygEditor<TData = unknown>({
     tryFlushTrailingEmoticon,
   ]);
 
-  useEffect(() => {
-    const onSelectionChange = () => {
-      publishActiveFormats();
-      const editor = editorRef.current;
-      if (!editor) return;
-      const caretOffset = getCaretOffset(editor);
-      if (caretOffset != null) {
-        savedCaretOffsetRef.current = caretOffset;
-      }
-    };
-    document.addEventListener("selectionchange", onSelectionChange);
-    return () => {
-      document.removeEventListener("selectionchange", onSelectionChange);
-    };
-  }, [publishActiveFormats]);
-
-  useEffect(() => {
-    if (!onActiveFormatsChange) return;
+  useEventListener("document", "selectionchange", () => {
     publishActiveFormats();
-  }, [onActiveFormatsChange, publishActiveFormats]);
-
-  useEffect(() => {
-    if (!isOpen || !listRef.current) return;
-    const activeItem = listRef.current.querySelector(
-      `[data-index="${activeIndex}"]`,
-    );
-    activeItem?.scrollIntoView({ block: "nearest" });
-  }, [activeIndex, isOpen]);
-
-  useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
+    const caretOffset = getCaretOffset(editor);
+    if (caretOffset != null) {
+      savedCaretOffsetRef.current = caretOffset;
+    }
+  });
 
-    // Capture-phase listener: contentEditable arrow keys are more reliable
-    // here than React's delegated onKeyDown alone.
-    function onNativeKeyDown(event: KeyboardEvent) {
+  useComposerActiveFormatsPublish(onActiveFormatsChange, publishActiveFormats);
+
+  useScrollIntoViewWhen(
+    () => listRef.current?.querySelector(`[data-index="${activeIndex}"]`),
+    isOpen,
+    { block: "nearest", resetKey: activeIndex },
+  );
+
+  // Capture-phase listener: contentEditable arrow keys are more reliable
+  // here than React's delegated onKeyDown alone.
+  useEventListener(
+    editorElement,
+    "keydown",
+    (event) => {
       const currentEditor = editorRef.current;
       if (!currentEditor) return;
       if (event.defaultPrevented || event.isComposing) return;
@@ -1359,21 +1220,11 @@ export function ComposerWysiwygEditor<TData = unknown>({
       requestAnimationFrame(() => {
         publishActiveFormats();
       });
-    }
+    },
+    true,
+  );
 
-    editor.addEventListener("keydown", onNativeKeyDown, true);
-    return () => {
-      editor.removeEventListener("keydown", onNativeKeyDown, true);
-    };
-  }, [handleInput, publishActiveFormats]);
-
-  useEffect(() => {
-    return () => {
-      if (blurTimeoutRef.current) {
-        clearTimeout(blurTimeoutRef.current);
-      }
-    };
-  }, []);
+  useComposerBlurTimeoutCleanup(blurTimeoutRef);
 
   useImperativeHandle(
     ref,
@@ -1394,6 +1245,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         selection.addRange(range);
       },
       insertText,
+      appendText,
       removeLastText,
       openMentions,
       applyFormat,
@@ -1405,6 +1257,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
     }),
     [
       applyFormat,
+      appendText,
       insertLink,
       insertText,
       openMentions,
@@ -1416,7 +1269,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
   return (
     <>
       <div
-        ref={editorRef}
+        ref={setEditorNode}
         id={id}
         contentEditable={!disabled}
         suppressContentEditableWarning

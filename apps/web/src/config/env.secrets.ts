@@ -1,14 +1,15 @@
 import "server-only";
 
 import * as z from "zod";
+import { studioRouterTrialSchema } from "../../agents/image-studio/agent/lib/router-trial";
 
 /**
- * Official `@sparticuz/chromium-min` 153 x64 pack for Vercel PDF export.
- * Matches puppeteer / puppeteer-core 25.11.0 Chrome 153.0.8010.36
- * (pack binary is Chromium 153.0.8010.36).
+ * Official `@sparticuz/chromium-min` 158 x64 pack for Vercel PDF export.
+ * puppeteer / puppeteer-core 25.19.0 target Chrome 158.0.8127.36.
+ * Sparticuz publishes 158.0.0, the same Chrome major.
  */
 export const DEFAULT_CHROMIUM_EXECUTABLE_URL =
-  "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar";
+  "https://github.com/Sparticuz/chromium/releases/download/v158.0.0/chromium-v158.0.0-pack.x64.tar";
 
 const envSecretsSchema = z.object({
   // Environment
@@ -52,6 +53,7 @@ const envSecretsSchema = z.object({
    * says so — it never falls back to an unauthenticated agent.
    */
   IMAGE_STUDIO_AGENT_SECRET: z.string().min(32).optional(),
+  STUDIO_AGENT_ROUTER_TRIAL: studioRouterTrialSchema,
 
   // Max pending invitations per organization (optional; default 100).
   ORG_INVITATION_LIMIT: z.coerce.number().min(0).default(100),

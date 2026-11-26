@@ -4,7 +4,7 @@ import * as React from "react";
 import { Slot as SlotPrimitive } from "radix-ui";
 import { VariantProps, cva } from "class-variance-authority";
 
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/effects/use-mobile";
 import {
   SIDEBAR_BOOT_STOP_GLOBAL,
   SIDEBAR_COMPACT_MEDIA_QUERY,
@@ -40,6 +40,7 @@ type SidebarContextProps = {
   openMobile: boolean;
   setOpenMobile: (open: boolean) => void;
   isMobile: boolean;
+  isCompact: boolean;
   toggleSidebar: () => void;
 };
 
@@ -191,11 +192,12 @@ function SidebarProvider({
       open,
       setOpen,
       isMobile,
+      isCompact,
       openMobile,
       setOpenMobile,
       toggleSidebar,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar],
+    [state, open, setOpen, isMobile, isCompact, openMobile, setOpenMobile, toggleSidebar],
   );
 
   return (
@@ -227,6 +229,7 @@ function Sidebar({
   side = "left",
   variant = "sidebar",
   collapsible = "offcanvas",
+  mobileTriggerId,
   className,
   children,
   ...props
@@ -234,8 +237,11 @@ function Sidebar({
   side?: "left" | "right";
   variant?: "sidebar" | "floating" | "inset";
   collapsible?: "offcanvas" | "none";
+  mobileTriggerId?: string;
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+
+  const mobileOpener = React.useRef<HTMLElement | null>(null);
 
   if (collapsible === "none") {
     return (
@@ -266,6 +272,19 @@ function Sidebar({
             } as React.CSSProperties
           }
           side={side}
+          onOpenAutoFocus={() => {
+            const active = document.activeElement;
+            mobileOpener.current =
+              active instanceof HTMLElement && active.matches("button")
+                ? active
+                : null;
+          }}
+          onCloseAutoFocus={() => {
+            mobileOpener.current?.focus();
+            if (document.activeElement !== mobileOpener.current && mobileTriggerId) {
+              document.getElementById(mobileTriggerId)?.focus();
+            }
+          }}
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Sidebar</SheetTitle>
@@ -302,7 +321,7 @@ function Sidebar({
             // geometry is identical either way, only the travel goes.
             // Dragging the edge sets `data-resizing`: the width follows the
             // pointer, so it must not ease behind it.
-            `relative w-(--sidebar-width) bg-transparent transition-[width] ${SIDEBAR_HIDE_TRANSITION} group-data-[resizing=true]/sidebar-wrapper:transition-none`,
+            `relative w-(--sidebar-width) max-lg:w-0 bg-transparent transition-[width] ${SIDEBAR_HIDE_TRANSITION} group-data-[resizing=true]/sidebar-wrapper:transition-none`,
             "group-data-[collapsible=offcanvas]:w-0",
             "group-data-[side=right]:rotate-180",
           )}
@@ -314,7 +333,7 @@ function Sidebar({
             // and the accessibility tree even before React hydrates, when the
             // boot script is what hid it. Transitioned, it flips only once
             // the panel has slid out, and before it slides back in.
-            `fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width,visibility] ${SIDEBAR_HIDE_TRANSITION} group-data-[collapsible=offcanvas]:invisible group-data-[resizing=true]/sidebar-wrapper:transition-none md:flex`,
+            `fixed inset-y-0 z-10 max-lg:z-40 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width,visibility] ${SIDEBAR_HIDE_TRANSITION} group-data-[collapsible=offcanvas]:invisible group-data-[resizing=true]/sidebar-wrapper:transition-none md:flex`,
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",

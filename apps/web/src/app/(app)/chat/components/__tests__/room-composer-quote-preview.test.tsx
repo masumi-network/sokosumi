@@ -80,7 +80,6 @@ describe("RoomComposer quote preview mentions", () => {
         value=""
         onValueChange={() => undefined}
         mentions={{ cow_1: coworkerMention }}
-        onSelectedKeysChange={() => undefined}
         placeholder="Message"
         attachments={[]}
         onAttachmentsChange={() => undefined}
@@ -116,7 +115,6 @@ describe("RoomComposer quote preview mentions", () => {
         usersById={
           new Map([["b0user", { id: "b0user", name: "Andreas Osberghaus" }]])
         }
-        onSelectedKeysChange={() => undefined}
         placeholder="Message"
         attachments={[]}
         onAttachmentsChange={() => undefined}
@@ -147,7 +145,6 @@ describe("RoomComposer quote preview mentions", () => {
         value=""
         onValueChange={() => undefined}
         mentions={{}}
-        onSelectedKeysChange={() => undefined}
         placeholder="Message"
         attachments={[]}
         onAttachmentsChange={() => undefined}

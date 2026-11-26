@@ -41,6 +41,28 @@ describe("createPrismaClient", () => {
     }
   });
 
+  it("rejects an undefined deleteMany filter before reaching PostgreSQL", async () => {
+    const pool = new Pool({ connectionString: DATABASE_URL });
+    const query = vi.spyOn(pool, "query").mockImplementation(() =>
+      Promise.resolve({
+        ...QUERY_RESULT,
+        command: "DELETE",
+        fields: [],
+        rows: [],
+      }),
+    );
+    const prisma = createPrismaClient(pool);
+    try {
+      await expect(
+        prisma.user.deleteMany({ where: { id: undefined } }),
+      ).rejects.toThrow("explicitly `undefined` values are not allowed");
+      expect(query).not.toHaveBeenCalled();
+    } finally {
+      await prisma.$disconnect();
+      await pool.end();
+    }
+  });
+
   it("queries through a supplied pool without closing the caller's pool", async () => {
     const pool = new Pool({ connectionString: DATABASE_URL });
     vi.spyOn(pool, "query").mockImplementation(() =>
@@ -77,6 +99,35 @@ describe("createPrismaClient", () => {
       );
     } finally {
       await prisma.$disconnect();
+      await pool.end();
+    }
+  });
+
+  it("names the given schema in model queries, public when none is given", async () => {
+    const pool = new Pool({ connectionString: DATABASE_URL });
+    const query = vi
+      .spyOn(pool, "query")
+      .mockImplementation(() =>
+        Promise.resolve({ ...QUERY_RESULT, fields: [], rows: [] }),
+      );
+    const sqlFor = async (schema?: string) => {
+      query.mockClear();
+      const prisma = createPrismaClient(pool, schema ? { schema } : undefined);
+      try {
+        await prisma.lock.findFirst({ where: { key: "k" } });
+      } finally {
+        await prisma.$disconnect();
+      }
+      const calls: unknown[][] = query.mock.calls;
+      const config = calls[0]?.[0] as string | { text: string } | undefined;
+      return typeof config === "string" ? config : config?.text;
+    };
+    try {
+      const unnamed = await sqlFor();
+      expect(unnamed).toContain('"public"."Lock"');
+      expect(await sqlFor("public")).toBe(unnamed);
+      expect(await sqlFor("preprod")).toContain('"preprod"."Lock"');
+    } finally {
       await pool.end();
     }
   });

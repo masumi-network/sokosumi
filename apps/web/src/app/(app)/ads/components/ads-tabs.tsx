@@ -6,6 +6,8 @@ import { useQueryState } from "nuqs";
 
 import { ADS_TABS, adsSearchParams } from "@/app/ads/ads-query";
 import { EmptyState } from "@/components/common/empty-state";
+import { PageSearchActions } from "@/components/page-search-actions";
+import { SearchablePageContent } from "@/components/searchable-page-content";
 import { Button } from "@/components/ui/button";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
@@ -63,52 +65,64 @@ export function AdsTabs({
         if (next) void setTab(next);
       }}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <TabsList
-          aria-label={t("tabsLabel")}
-          className={cn(
-            SEGMENTED_TABS_LIST_CLASS_NAME,
-            "app-scrollbar w-fit min-w-0 max-w-full overflow-x-auto",
-          )}
-        >
-          {ADS_TABS.map((candidate) => (
-            <TabsTrigger
-              key={candidate}
-              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-              value={candidate}
+      <SearchablePageContent
+        key={projectId}
+        renderHeader={(search) => (
+          <div className="@container/page-toolbar flex flex-wrap items-center justify-between gap-3">
+            <TabsList
+              aria-label={t("tabsLabel")}
+              className={cn(
+                SEGMENTED_TABS_LIST_CLASS_NAME,
+                "app-scrollbar w-fit min-w-0 max-w-full overflow-x-auto",
+              )}
             >
-              {t(`tabs.${candidate}`)}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        {tab === "campaigns" ? toolbar : null}
-      </div>
-
-      <TabsContent value="campaigns">
-        {accounts.length === 0 ? (
-          <EmptyState
-            action={
-              readOnly ? undefined : (
-                <Button onClick={() => void setTab("accounts")} type="button">
-                  {t("campaigns.emptyAction")}
-                </Button>
-              )
-            }
-            description={t("campaigns.emptyBody")}
-            title={t("campaigns.emptyTitle")}
-          />
-        ) : (
-          (campaigns ?? <AdsCampaignRowsSkeleton />)
+              {ADS_TABS.map((candidate) => (
+                <TabsTrigger
+                  key={candidate}
+                  className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+                  value={candidate}
+                >
+                  {t(`tabs.${candidate}`)}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            <PageSearchActions>
+              {search}
+              {tab === "campaigns" ? toolbar : null}
+            </PageSearchActions>
+          </div>
         )}
-      </TabsContent>
-      <TabsContent value="market">{market ?? <AdsRowsSkeleton />}</TabsContent>
-      <TabsContent value="accounts">
-        <AdsAccounts
-          accounts={accounts}
-          projectId={projectId}
-          readOnly={readOnly}
-        />
-      </TabsContent>
+      >
+        <TabsContent value="campaigns">
+          {accounts.length === 0 ? (
+            <EmptyState
+              // The empty tab sits on a panel like the rest of the page (DESIGN.md, Page surfaces).
+              className="bg-card-background rounded-xl p-8"
+              action={
+                readOnly ? undefined : (
+                  <Button onClick={() => void setTab("accounts")} type="button">
+                    {t("campaigns.emptyAction")}
+                  </Button>
+                )
+              }
+              description={t("campaigns.emptyBody")}
+              title={t("campaigns.emptyTitle")}
+            />
+          ) : (
+            (campaigns ?? <AdsCampaignRowsSkeleton />)
+          )}
+        </TabsContent>
+        <TabsContent value="market">
+          {market ?? <AdsRowsSkeleton />}
+        </TabsContent>
+        <TabsContent value="accounts">
+          <AdsAccounts
+            accounts={accounts}
+            projectId={projectId}
+            readOnly={readOnly}
+          />
+        </TabsContent>
+      </SearchablePageContent>
     </Tabs>
   );
 }

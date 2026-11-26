@@ -1,4 +1,5 @@
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { HTTPException } from "hono/http-exception";
 
 import { notFound } from "@/helpers/error";
@@ -219,8 +220,8 @@ export async function openFileContentStream(input: {
       COALESCE(fv."sizeBytes", fr."sizeBytes") AS "sizeBytes",
       fv."objectKey",
       fr."contentRevision"
-    FROM file_resource fr
-    JOIN file_version fv
+    FROM ${sharedTable("file_resource")} fr
+    JOIN ${sharedTable("file_version")} fv
       ON fv."resourceId" = fr.id AND fv.revision = fr."contentRevision"
     WHERE ${authorized} AND fr.id::text = ${input.resourceId}
   `);

@@ -53,18 +53,3 @@ export function socialPostEngagementRate(
     ? (100 * numerator) / exposure
     : null;
 }
-
-export function summarizeSocialPostEngagement(
-  posts: SocialPostEngagementInput[],
-) {
-  const interactions = posts.map(socialPostInteractions);
-  const measured = interactions.filter((value) => value !== null);
-  return {
-    postCount: posts.length,
-    measuredInteractionCount: measured.length,
-    interactions: measured.length
-      ? measured.reduce((sum, value) => sum + value, 0)
-      : null,
-    engagementRates: posts.map(socialPostEngagementRate),
-  };
-}

@@ -27,7 +27,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/{id}/social-posts",
     description:
-      "List a Project's Social posts. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.",
+      "List a Project's Social posts. Open to a person by any sign-in (browser, API key or OAuth token) or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.",
     tags: ["Projects"],
     request: {
       params: socialPostProjectParamsSchema,
@@ -79,11 +79,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         c,
         z
           .array(socialPostSchema)
-          .parse(
-            posts.map((post) =>
-              presentSocialPost(post, userContext.coworkerId),
-            ),
-          ),
+          .parse(posts.map((post) => presentSocialPost(post, userContext))),
         pagination,
       );
     } catch (error) {

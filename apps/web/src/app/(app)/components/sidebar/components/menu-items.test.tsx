@@ -6,7 +6,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { pathnameRef, searchRef, routerPrefetchMock } = vi.hoisted(() => ({
-  pathnameRef: { current: "/" },
+  pathnameRef: { current: "/projects" },
   searchRef: { current: "" },
   routerPrefetchMock: vi.fn(),
 }));
@@ -15,16 +15,6 @@ vi.mock("next/navigation", () => ({
   usePathname: () => pathnameRef.current,
   useSearchParams: () => new URLSearchParams(searchRef.current),
   useRouter: () => ({ prefetch: routerPrefetchMock }),
-}));
-
-// Core's answer for the scoped project, without a fetch. "gone" is a project
-// Core does not know, as after a delete.
-vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
-  useSelectedScopeProject: (projectId: string | null) =>
-    projectId && projectId !== "gone"
-      ? { id: projectId, name: "Acme", logo: null }
-      : null,
-  useIsUnknownScopeProject: (projectId: string | null) => projectId === "gone",
 }));
 
 vi.mock("next-intl", () => ({
@@ -117,6 +107,8 @@ describe("MenuItems", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sidebarIsMobile = true;
+    pathnameRef.current = "/projects";
+    searchRef.current = "";
   });
 
   it("no longer lists Credit History in the sidebar", () => {
@@ -166,13 +158,17 @@ describe("MenuItems", () => {
     );
   });
 
-  it("hides Files from the main menu on mobile", () => {
+  it("shows Files in Records on mobile", () => {
+    pathnameRef.current = "/contacts";
     renderMenu(true, true);
 
-    expect(screen.queryByRole("link", { name: /drive/i })).toBeNull();
+    expect(screen.getByRole("link", { name: "drive" })).toHaveAttribute(
+      "href",
+      "/drive",
+    );
   });
 
-  it("orders primary destinations Agents, Tasks, Schedules, Calendar, Studio", () => {
+  it("orders the Work destinations", () => {
     const { container } = renderMenu(true);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
@@ -183,7 +179,6 @@ describe("MenuItems", () => {
       "taskManager",
       "schedules",
       "calendar",
-      "contentStudio",
     ];
     const positions = primaryOrder.map((label) =>
       menuLabels.findIndex((text) => text.includes(label)),
@@ -194,11 +189,13 @@ describe("MenuItems", () => {
   });
 
   it("shows Social by default", () => {
+    pathnameRef.current = "/studio";
     renderMenu();
     expect(screen.getByRole("link", { name: /social/i })).toBeInTheDocument();
   });
 
   it("names the Social destination Social posts", () => {
+    pathnameRef.current = "/studio";
     renderMenu();
 
     expect(screen.getByRole("link", { name: "social" })).toHaveAttribute(
@@ -211,7 +208,7 @@ describe("MenuItems", () => {
     pathnameRef.current = "/studio";
     searchRef.current = "projectId=project-1";
     renderMenu(true, true);
-    pathnameRef.current = "/";
+    pathnameRef.current = "/projects";
     searchRef.current = "";
 
     // `hrefFor` carries the reader's project across, the way Tasks and the
@@ -226,7 +223,7 @@ describe("MenuItems", () => {
     pathnameRef.current = "/studio";
     searchRef.current = "projectId=project-1";
     renderMenu(true, true);
-    pathnameRef.current = "/";
+    pathnameRef.current = "/projects";
     searchRef.current = "";
 
     expect(screen.getByRole("link", { name: /ads/i })).toHaveAttribute(
@@ -265,22 +262,26 @@ function destinationsUnder(heading: string) {
 describe("MenuItems groups", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    pathnameRef.current = "/";
+    pathnameRef.current = "/projects";
     searchRef.current = "";
   });
 
   it("files each destination under its Work, Records or Marketing heading", () => {
-    renderMenu(true, false);
+    const { unmount } = renderMenu(true, false);
 
     expect(destinationsUnder("groups.work")).toEqual([
-      "home",
-      "projects",
       "exploreAgents",
       "taskManager",
       "schedules",
       "calendar",
     ]);
+    unmount();
+    pathnameRef.current = "/drive";
+    const records = renderMenu(true, false);
     expect(destinationsUnder("groups.records")).toEqual(["contacts", "drive"]);
+    records.unmount();
+    pathnameRef.current = "/seo/audit";
+    renderMenu(true, false);
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
       "tiktokStudio",
@@ -291,20 +292,17 @@ describe("MenuItems groups", () => {
     ]);
   });
 
-  it("puts the headings in the order Work, Records, Marketing", () => {
+  it("shows only the active section heading", () => {
     renderMenu(true, false);
 
     const headings = screen
       .getAllByRole("button", { name: /^groups\./ })
       .map((button) => button.textContent);
-    expect(headings).toEqual([
-      "groups.work",
-      "groups.records",
-      "groups.marketing",
-    ]);
+    expect(headings).toEqual(["groups.work"]);
   });
 
   it("folds a group from its heading and opens it again", () => {
+    pathnameRef.current = "/studio";
     renderMenu(true, false);
     const heading = screen.getByRole("button", { name: "groups.marketing" });
     expect(heading).toHaveAttribute("aria-expanded", "true");
@@ -314,8 +312,6 @@ describe("MenuItems groups", () => {
     expect(heading).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("link", { name: "contentStudio" })).toBeNull();
     expect(screen.queryByRole("link", { name: "social" })).toBeNull();
-    // Only its own rows go.
-    expect(screen.getByRole("link", { name: "contacts" })).toBeInTheDocument();
 
     fireEvent.click(heading);
 
@@ -325,39 +321,15 @@ describe("MenuItems groups", () => {
     ).toBeInTheDocument();
   });
 
-  // The wordmark's link to `/` became this row when the Workspace switcher
-  // took the sidebar header.
-  it("puts Home above the scope's row, a plain link to the home page", () => {
-    searchRef.current = "projectId=p-1";
-    renderMenu(true, false);
-
-    expect(destinationsUnder("groups.work")[0]).toBe("home");
-    expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
-      "href",
-      "/",
-    );
-  });
-
   // The phone keeps Home on the Sokosumi icon in its top bar.
   it("groups the phone sheet the same way, without Home", () => {
     renderMenu(true, true);
 
     expect(destinationsUnder("groups.work")).toEqual([
-      "projects",
       "exploreAgents",
       "taskManager",
       "schedules",
       "calendar",
-    ]);
-    // Files stays on the You page there.
-    expect(destinationsUnder("groups.records")).toEqual(["contacts"]);
-    expect(destinationsUnder("groups.marketing")).toEqual([
-      "contentStudio",
-      "tiktokStudio",
-      "social",
-      "seo",
-      "ads",
-      "competitors",
     ]);
   });
 });
@@ -365,11 +337,12 @@ describe("MenuItems groups", () => {
 describe("MenuItems newsletter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    pathnameRef.current = "/";
+    pathnameRef.current = "/projects";
     searchRef.current = "";
   });
 
   it("leaves Newsletter out of the Instant Nav shell by default", () => {
+    pathnameRef.current = "/studio";
     render(
       <TestQueryProvider>
         <MenuItems />
@@ -380,6 +353,7 @@ describe("MenuItems newsletter", () => {
   });
 
   it("shows Newsletter when enabled, alongside Ads", () => {
+    pathnameRef.current = "/studio";
     renderMenu(true, false, true);
 
     expect(screen.getByRole("link", { name: "newsletter" })).toHaveAttribute(
@@ -401,6 +375,7 @@ describe("MenuItems newsletter", () => {
   });
 
   it("files Newsletter under Marketing, after Social and Ads", () => {
+    pathnameRef.current = "/studio";
     renderMenu(true, false, true);
 
     expect(destinationsUnder("groups.marketing")).toEqual([
@@ -437,9 +412,7 @@ describe("MenuItems newsletter", () => {
       pathnameRef.current = pathname;
       renderMenu(true, false, true);
 
-      expect(
-        screen.getByRole("link", { name: "newsletter" }),
-      ).not.toHaveAttribute("aria-current");
+      expect(screen.queryByRole("link", { name: "newsletter" })).toBeNull();
     },
   );
 });
@@ -448,7 +421,7 @@ describe("MenuItems current destination", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sidebarIsMobile = false;
-    pathnameRef.current = "/";
+    pathnameRef.current = "/projects";
   });
 
   it("marks exactly the destination the reader is on", () => {
@@ -461,12 +434,6 @@ describe("MenuItems current destination", () => {
     pathnameRef.current = "/tasks/task-1";
     renderMenu();
     expect(markedHrefs()).toEqual(["/tasks"]);
-  });
-
-  it("marks Home on the home page, and only there", () => {
-    pathnameRef.current = "/";
-    renderMenu(true, false);
-    expect(markedHrefs()).toEqual(["/"]);
   });
 
   // A route no destination owns has nothing open.
@@ -511,29 +478,6 @@ describe("MenuItems during a navigation", () => {
     // The mocked pathname stays on Tasks, as after a navigation that failed.
     expect(markedHrefs()).toEqual(["/tasks"]);
   });
-
-  it("keeps the mark on Overview while a click switches to another project", async () => {
-    pathnameRef.current = "/projects/p1";
-    searchRef.current = "";
-    sidebarIsMobile = false;
-    render(
-      <NavigationProgress>
-        <TestQueryProvider>
-          <OrganizationSeatContext value>
-            <MenuItems />
-          </OrganizationSeatContext>
-        </TestQueryProvider>
-      </NavigationProgress>,
-    );
-    expect(markedHrefs()).toEqual(["/projects/p1"]);
-
-    const arrive = await startNavigation("/projects/p2");
-    try {
-      expect(markedHrefs()).toEqual(["/projects/p1"]);
-    } finally {
-      await arrive();
-    }
-  });
 });
 
 describe("MenuItems project scope", () => {
@@ -543,113 +487,62 @@ describe("MenuItems project scope", () => {
     searchRef.current = "";
   });
 
-  it("puts Projects, to the Projects list, right under Home with no project selected", () => {
-    renderMenu(true, false);
-
-    expect(destinationsUnder("groups.work")[1]).toBe("projects");
-    expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
-      "href",
-      "/projects",
-    );
-    expect(screen.queryByRole("link", { name: "overview" })).toBeNull();
-  });
-
-  it("marks Projects current on the Projects list", () => {
+  it("leaves the workspace project list to the project picker", () => {
     pathnameRef.current = "/projects";
     renderMenu(true, false);
 
-    expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    expect(screen.queryByRole("link", { name: "projects" })).toBeNull();
+    expect(markedHrefs()).toEqual([]);
   });
 
-  it("keeps Projects and adds Overview, with the project's avatar, once one is selected", () => {
+  it("leaves the selected project's Overview to the project picker", () => {
     searchRef.current = "projectId=p-1";
     renderMenu(true, false);
 
-    const projects = screen.getByRole("link", { name: "projects" });
-    expect(projects).toHaveAttribute("href", "/projects");
-    const overview = screen.getByRole("link", { name: "overview" });
-    expect(overview).toHaveAttribute("href", "/projects/p-1");
-    // Projects right under Home, then Overview. Its text starts with the
-    // avatar's hidden initial.
-    expect(screen.getAllByRole("link").slice(1, 3)).toEqual([
-      projects,
-      overview,
-    ]);
-    const slot = overview.querySelector('[data-slot="sidebar-row-slot"]');
-    expect(
-      slot?.querySelector('[data-testid="project-avatar"]'),
-    ).toHaveTextContent("A");
-  });
-
-  it("keeps Projects when Core does not know the scoped project", () => {
-    searchRef.current = "projectId=gone";
-    renderMenu(true, false);
-
-    expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
-      "href",
-      "/projects",
-    );
     expect(screen.queryByRole("link", { name: "overview" })).toBeNull();
-  });
-
-  it.each([
-    "/projects/p-1",
-    "/projects/p-1/design-md",
-    "/projects/p-1/memory",
-    "/projects/p-1/bots",
-    "/projects/p-1/edit",
-  ])("marks Overview current on %s", (pathname) => {
-    pathnameRef.current = pathname;
-    renderMenu(true, false);
-
-    expect(markedHrefs()).toEqual(["/projects/p-1"]);
-  });
-
-  it("shows Projects and Overview on the phone sheet too", () => {
-    searchRef.current = "projectId=p-1";
-    renderMenu(true, true);
-
-    expect(screen.getAllByRole("link").slice(0, 2)).toEqual([
-      screen.getByRole("link", { name: "projects" }),
-      screen.getByRole("link", { name: "overview" }),
-    ]);
+    expect(
+      screen
+        .getAllByRole("link")
+        .some((link) => link.getAttribute("href") === "/projects/p-1"),
+    ).toBe(false);
   });
 
   it("keeps plain destination links in the workspace view", () => {
-    renderMenu(true, false);
-
-    for (const [name, href] of [
+    for (const [name, href, pathname = "/tasks"] of [
       ["taskManager", "/tasks"],
       ["schedules", "/schedules"],
-      ["ads", "/ads"],
-      ["seo", "/seo"],
+      ["ads", "/ads", "/studio"],
+      ["seo", "/seo", "/studio"],
       ["calendar", "/calendar"],
-      ["contacts", "/contacts"],
-      ["contentStudio", "/studio"],
-      ["drive", "/drive"],
+      ["contacts", "/contacts", "/contacts"],
+      ["contentStudio", "/studio", "/studio"],
+      ["drive", "/drive", "/drive"],
     ]) {
+      pathnameRef.current = pathname;
+      const { unmount } = renderMenu(true, false);
       expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
+      unmount();
     }
   });
 
   it("carries the selected project to scoped destinations", () => {
     searchRef.current = "projectId=p-1";
-    renderMenu(true, false);
-
-    for (const [name, href] of [
+    for (const [name, href, pathname = "/tasks"] of [
       ["taskManager", "/tasks?projectId=p-1"],
       ["schedules", "/schedules?projectId=p-1"],
       ["calendar", "/calendar?projectId=p-1"],
       // Contacts belong to the workspace, not a project.
-      ["contacts", "/contacts"],
-      ["contentStudio", "/studio?projectId=p-1"],
-      ["drive", "/drive?view=tasks&projectId=p-1"],
+      ["contacts", "/contacts", "/contacts"],
+      ["contentStudio", "/studio?projectId=p-1", "/studio"],
+      ["drive", "/drive?view=tasks&projectId=p-1", "/drive"],
     ]) {
+      pathnameRef.current = pathname;
+      const { unmount } = renderMenu(true, false);
       expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
+      unmount();
     }
+    pathnameRef.current = "/tasks";
+    renderMenu(true, false);
     expect(screen.getByRole("link", { name: "exploreAgents" })).toHaveAttribute(
       "href",
       "/agents",
@@ -670,7 +563,7 @@ describe("MenuItems project scope", () => {
 describe("MenuItems prefetch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    pathnameRef.current = "/";
+    pathnameRef.current = "/projects";
     searchRef.current = "";
     vi.useFakeTimers();
     return () => {
@@ -699,7 +592,6 @@ describe("MenuItems prefetch", () => {
 
   // These pages' reads are private-cached too.
   it.each([
-    ["projects", "/projects"],
     ["schedules", "/schedules"],
     ["ads", "/ads"],
     ["seo", "/seo"],
@@ -708,6 +600,9 @@ describe("MenuItems prefetch", () => {
     ["exploreAgents", "/agents"],
     ["contentStudio", "/studio"],
   ])("loads the %s page content on a resting hover", (label, href) => {
+    if (["ads", "seo", "social"].includes(label))
+      pathnameRef.current = "/studio";
+    if (label === "contentStudio") pathnameRef.current = "/social";
     renderMenu(true, false);
 
     restOn(new RegExp(`^${label}$`));
@@ -718,33 +613,9 @@ describe("MenuItems prefetch", () => {
     );
   });
 
-  it("loads the Home content on a resting hover from another page", () => {
-    pathnameRef.current = "/tasks";
-    renderMenu(true, false);
-
-    restOn(/^home$/);
-
-    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
-      "/",
-      expect.objectContaining({ kind: "full" }),
-    );
-  });
-
-  it("loads the selected project's Overview content on a resting hover", () => {
-    pathnameRef.current = "/tasks";
-    searchRef.current = "projectId=p-1";
-    renderMenu(true, false);
-
-    restOn(/^overview$/);
-
-    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
-      "/projects/p-1",
-      expect.objectContaining({ kind: "full" }),
-    );
-  });
-
   // A page whose reads are not cached would render on the server for nothing.
   it("loads only the shell for a page without cached reads", () => {
+    pathnameRef.current = "/drive";
     renderMenu(true, false);
 
     restOn(/^contacts$/);
@@ -767,7 +638,7 @@ describe("MenuItems prefetch", () => {
   it("loads the Tasks page content when the reader heads for it", async () => {
     renderMenu(true, false);
 
-    await act(() =>
+    await act(async () =>
       approachElement(screen.getByRole("link", { name: /taskManager/ })),
     );
 

@@ -3,6 +3,7 @@ import { ProjectDetailHeader } from "@/app/projects/components/project-detail-he
 import {
   ProjectProperties,
   type ProjectPropertiesLabels,
+  ProjectPropertiesLine,
 } from "@/app/projects/components/project-properties";
 import {
   type ProjectTab,
@@ -82,6 +83,9 @@ interface ProjectWorkspaceShellProps {
   /** Formatted by the page, which already holds a formatter. */
   createdAt: string;
   updatedAt: string;
+  /** The dates without the time, for the phone's Properties line. */
+  createdOn?: string;
+  updatedOn?: string;
   projectId: string;
   projectLogo?: string | null;
   projectName: string;
@@ -101,8 +105,8 @@ interface ProjectWorkspaceShellProps {
  * two detail pages share one width and one rhythm and move together when the
  * task layout changes. The header, tabs and active area form the main column;
  * the Properties rail sits in the right column from `xl` up. Below `xl` the
- * rail follows the header, so the website and dates stay near the name and
- * the tabs stay against the content they switch.
+ * tabs follow the name, so a phone's first screen reaches the content, and
+ * the Properties shrink to one quiet line under the tabs.
  *
  * No card: content sits on the page ground, as it does on a task. Areas render
  * their sections with the quiet heading the task sections use.
@@ -114,6 +118,8 @@ export function ProjectWorkspaceShell({
   labels,
   createdAt,
   updatedAt,
+  createdOn = createdAt,
+  updatedOn = updatedAt,
   projectId,
   projectLogo,
   projectName,
@@ -165,11 +171,9 @@ export function ProjectWorkspaceShell({
     // rule; the extra top space gives the page a clear start.
     <div className={cn(TASK_DETAIL_SHELL_CLASS, "pt-2 md:pt-6")}>
       {cmo ? <CmoProjectBanner className="mb-6" projectId={projectId} /> : null}
-      {/* Rows sit 16px apart: on a wide screen that joins the name to its
-          tabs, and in one column it joins the name to its Properties. The
-          tabs block adds 16px in one column, so the Properties close their
-          group before the tabs start. The 56px column gap keeps the header's
-          actions clear of the rail. */}
+      {/* Rows sit 16px apart, which joins the name to its tabs on every
+          width (the rail is hidden in one column). The 56px column gap keeps
+          the header's actions clear of the rail. */}
       {/* With panels, from `xl` up, three rows: the name and the Properties
           share the first, the tab block spans the other two, and the panels
           sit in the last, under the Properties. The last row is `1fr` so a
@@ -196,7 +200,7 @@ export function ProjectWorkspaceShell({
         <aside
           className={cn(
             TASK_DETAIL_SIDEBAR_CLASS,
-            "max-w-sm",
+            "max-w-sm max-xl:hidden",
             panels && "xl:max-w-none",
           )}
         >
@@ -209,16 +213,27 @@ export function ProjectWorkspaceShell({
           />
         </aside>
 
-        {/* The tabs open the block they switch, so nothing (not the rail,
-            which comes before this on a phone) sits between a tab and its
-            content. */}
+        {/* The tabs open the block they switch. Below `xl` only the quiet
+            Properties line sits between a tab and its content. */}
         <div
           className={cn(
-            "min-w-0 space-y-8 max-xl:mt-4",
+            "min-w-0 space-y-8",
             panels && "xl:col-start-1 xl:row-span-2 xl:row-start-2",
           )}
         >
-          <ProjectTabs ariaLabel={labels.ariaLabel} tabs={tabs} />
+          {/* Below xl only: from xl the line is hidden, and the tabs keep
+              their 32px to the content. */}
+          <div className="max-xl:space-y-3">
+            <ProjectTabs ariaLabel={labels.ariaLabel} tabs={tabs} />
+            <ProjectPropertiesLine
+              className="xl:hidden"
+              createdAt={createdOn}
+              identifier={identifier}
+              labels={labels.properties}
+              updatedAt={updatedOn}
+              websiteUrl={websiteUrl}
+            />
+          </div>
           {children}
         </div>
 

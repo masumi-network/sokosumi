@@ -16,13 +16,20 @@ import {
 } from "@/lib/ads/composio-tools";
 import { tryUseLogger } from "@/lib/evlog";
 
+import {
+  EDITORIAL_BATCH_SIZE,
+  keywordKey,
+  type NativeKeywordReceipt,
+  nativeKeywordReceipt,
+} from "./native-keyword-ideas";
+
 const DATAFORSEO_API = "https://api.dataforseo.com/v3";
 const KEYWORDS_FOR_KEYWORDS =
   "/keywords_data/google_ads/keywords_for_keywords/live";
 /** Searches that contain the topic's words; keyword_ideas drifts to whatever shares the topic's category. */
 const KEYWORD_IDEAS = "/dataforseo_labs/google/keyword_suggestions/live";
 /** Ideas read per search; DataForSEO Labs bills a base fee plus a little per row. */
-const KEYWORD_IDEAS_LIMIT = 50;
+export const KEYWORD_IDEAS_LIMIT = 50;
 /**
  * The searches of someone weighing a product against others: its
  * alternatives, comparisons and price. DataForSEO matches it on the keyword
@@ -317,6 +324,8 @@ const SEARCH_INTENTS = [
 
 /** A search a page could rank for: Google's monthly volume, ranking difficulty (0 to 100) and the searcher's intent. */
 export const keywordIdeaSchema = z.object({
+  editorial: z.literal(true).optional(),
+  measuredAt: z.string().datetime().optional(),
   keyword: z.string(),
   searchVolume: z.number().nullable(),
   difficulty: z.number().nullable(),
@@ -364,31 +373,68 @@ export function toKeywordIdea(
  * platform DataForSEO connection; without it configured, raises a
  * {@link ComposioConfigError}.
  */
-export async function fetchKeywordIdeas(query: {
-  topic: string;
-  locationCode: number;
-  languageCode: string;
-}): Promise<KeywordIdea[]> {
+export async function fetchKeywordIdeas(
+  query: {
+    topic: string;
+    locationCode: number;
+    languageCode: string;
+  },
+  onReceipt?: (receipt: NativeKeywordReceipt) => Promise<void>,
+): Promise<KeywordIdea[]> {
+  return fetchKeywordResearch(query, onReceipt);
+}
+
+export async function fetchKeywordOverview(
+  query: { topic: string; locationCode: number; languageCode: string },
+  keywords: string[],
+  onReceipt: (receipt: NativeKeywordReceipt) => Promise<void>,
+) {
+  if (keywords.length === 0 || keywords.length > EDITORIAL_BATCH_SIZE)
+    throw new RangeError(
+      "Keyword overview accepts one to three editorial candidates.",
+    );
+  return fetchKeywordResearch(query, onReceipt, keywords);
+}
+
+async function fetchKeywordResearch(
+  query: { topic: string; locationCode: number; languageCode: string },
+  onReceipt?: (receipt: NativeKeywordReceipt) => Promise<void>,
+  keywords?: string[],
+) {
   const context = "fetch DataForSEO keyword ideas";
-  const payload = await callDataForSeo(KEYWORD_IDEAS, context, {
-    method: "POST",
-    tasks: [
-      {
+  const path = keywords
+    ? "/dataforseo_labs/google/keyword_overview/live"
+    : KEYWORD_IDEAS;
+  const params = keywords
+    ? { keywords }
+    : {
         keyword: query.topic,
-        location_code: query.locationCode,
-        language_code: query.languageCode,
         limit: KEYWORD_IDEAS_LIMIT,
         include_seed_keyword: true,
         order_by: ["keyword_info.search_volume,desc"],
+      };
+  const payload = await callDataForSeo(path, context, {
+    method: "POST",
+    tasks: [
+      {
+        ...params,
+        location_code: query.locationCode,
+        language_code: query.languageCode,
       },
     ],
     timeoutMs: KEYWORDS_TIMEOUT_MS,
   });
-  return parseToolRows(
+  // Capture even a billed error before interpreting the vendor status.
+  const receipt = nativeKeywordReceipt(payload, query, keywords);
+  if (onReceipt) await onReceipt(receipt);
+  const ideas = parseToolRows(
     taskItems(checkedTasks(payload, context), context),
     labsKeywordSchema,
     context,
   ).map(toKeywordIdea);
+  if (!keywords) return ideas;
+  const exact = new Set(receipt.exactKeywords);
+  return ideas.filter((i) => exact.has(keywordKey(i.keyword)));
 }
 
 /** A search with what an ad on it costs. Money is USD. */

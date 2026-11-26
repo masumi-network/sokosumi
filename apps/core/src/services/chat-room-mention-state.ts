@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { readSokoBotAttemptAt } from "@sokosumi/utils";
 import prisma from "@/lib/db/prisma";
 import { emitCoreError } from "@/lib/evlog";
@@ -181,7 +182,7 @@ async function lockMention(
   mentionId: string,
 ): Promise<{ updatedAt: Date } | undefined> {
   const [locked] = await tx.$queryRaw<{ updatedAt: Date }[]>`
-    SELECT "updatedAt" FROM "chat_room_mention"
+    SELECT "updatedAt" FROM ${sharedTable("chat_room_mention")}
     WHERE "id" = ${mentionId}::uuid FOR UPDATE`;
   return locked;
 }
@@ -401,18 +402,31 @@ export async function failSokoBotReplyIfOwned(params: {
         error: errorMessage(params.error).slice(0, 500),
       },
     });
+    const reply = mention.responseMessage;
+    const previousMetadata = reply?.metadata;
+    const previousFailure =
+      previousMetadata &&
+      typeof previousMetadata === "object" &&
+      !Array.isArray(previousMetadata)
+        ? previousMetadata.mention_failure
+        : undefined;
+    const mentionFailure =
+      holder?.status === "CANCELLED"
+        ? { kind: "turn_cancelled" }
+        : holder
+          ? previousFailure
+          : undefined;
     const metadata = {
       in_reply_to_message_id: mention.messageId,
       mention_id: mentionId,
       mention_failed: true,
+      ...(mentionFailure !== undefined && { mention_failure: mentionFailure }),
       soko_bot: {
         ...(holder ? { turn_id: holder.id } : {}),
         attempt_at:
-          readSokoBotAttemptAt(mention.responseMessage?.metadata) ??
-          params.stamp.getTime(),
+          readSokoBotAttemptAt(previousMetadata) ?? params.stamp.getTime(),
       },
     };
-    const reply = mention.responseMessage;
     if (reply) {
       // Same guards as `failMentionThoughtPlaceholder`: never erase final
       // content, never touch a withdrawn (soft-deleted) reply.

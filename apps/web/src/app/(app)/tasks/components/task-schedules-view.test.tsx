@@ -8,6 +8,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
@@ -60,7 +61,7 @@ vi.mock("@/app/tasks/actions", () => ({
   loadMoreTaskSchedules: loadMoreTaskSchedulesMock,
 }));
 
-vi.mock("@/hooks/use-load-when-visible", () => ({
+vi.mock("@/hooks/effects/use-load-when-visible", () => ({
   useLoadWhenVisible: (
     _ref: unknown,
     options: { armed: boolean; boundaryKey: string; onVisible: () => void },
@@ -158,6 +159,13 @@ function renderView(
       canCreate
       canCreatePrivate={false}
     />,
+    {
+      wrapper: ({ children }) => (
+        <NuqsTestingAdapter searchParams={searchParamsRef.current}>
+          {children}
+        </NuqsTestingAdapter>
+      ),
+    },
   );
 }
 
@@ -165,6 +173,34 @@ describe("TaskSchedulesView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     searchParamsRef.current = new URLSearchParams();
+  });
+
+  it("ranks a title from a later page above a description match in the selected project and state", async () => {
+    loadMoreTaskSchedulesMock.mockResolvedValueOnce({
+      schedules: [schedule({ id: "later-schedule", name: "Payroll" })],
+      nextCursor: null,
+    });
+    renderView(
+      [
+        schedule({ name: "Weekly reminder", description: "Review payroll" }),
+        schedule({ id: "other", name: "Design review" }),
+      ],
+      { nextCursor: "next", projectId: "selected", state: "ACTIVE" },
+    );
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "payroll" },
+    });
+    await waitFor(() => {
+      const rows = screen.getAllByRole("listitem");
+      expect(rows).toHaveLength(2);
+      expect(rows[0]).toHaveTextContent("Payroll");
+      expect(rows[1]).toHaveTextContent("Weekly reminder");
+    });
+    expect(loadMoreTaskSchedulesMock).toHaveBeenCalledWith({
+      cursor: "next",
+      projectId: "selected",
+      state: "ACTIVE",
+    });
   });
 
   it("lists each schedule with its rule, next Run, state, and assignee", () => {
@@ -231,6 +267,31 @@ describe("TaskSchedulesView", () => {
     await user.click(screen.getByRole("tab", { name: "state.PAUSED" }));
 
     expect(replaceMock).toHaveBeenCalledWith("/schedules?scheduleState=PAUSED");
+  });
+
+  it("keeps the typed search when a state change remounts the schedule list", async () => {
+    const user = userEvent.setup();
+    const view = renderView([schedule({})]);
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "weekly" },
+    });
+    await user.click(screen.getByRole("tab", { name: "state.PAUSED" }));
+    const [href] = replaceMock.mock.lastCall!;
+    searchParamsRef.current = new URL(
+      href,
+      window.location.origin,
+    ).searchParams;
+    expect(searchParamsRef.current.get("q")).toBe("weekly");
+    view.unmount();
+    renderView(
+      [
+        schedule({ state: "PAUSED" }),
+        schedule({ id: "other", name: "Other", state: "PAUSED" }),
+      ],
+      { state: "PAUSED" },
+    );
+    expect(screen.getByRole("searchbox")).toHaveValue("weekly");
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
   });
 
   it("names a stored member without adding them to the create picker", async () => {
@@ -518,7 +579,7 @@ describe("TaskSchedulesView", () => {
       }),
     );
 
-    armed.onVisible();
+    await act(async () => armed.onVisible());
 
     expect(
       await screen.findByRole("link", { name: /Older schedule/ }),

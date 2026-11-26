@@ -17,6 +17,27 @@ import {
   MASS_MAIL_RECIPIENTS,
 } from "./capture-filters";
 
+import {
+  cleanPersonName,
+  field,
+  isoDate,
+  list,
+  type MailAddress,
+  type ParsedEvent,
+  parseAddresses,
+  text,
+} from "./capture-provider";
+
+// These parser exports are part of the contact capture interface.
+export {
+  cleanPersonName,
+  type MailAddress,
+  type ParsedAttendee,
+  type ParsedEvent,
+  parseAddresses,
+  parseEvent,
+} from "./capture-provider";
+
 export interface CaptureChannel {
   type: "EMAIL" | "PHONE" | "LINKEDIN" | "SLACK" | "X";
   value: string;
@@ -52,113 +73,6 @@ export interface ExtractContext {
 }
 
 const EMPTY: Extraction = { candidates: [], skipped: [] };
-
-// ---------------------------------------------------------------------------
-// Small readers for loosely typed provider JSON.
-// ---------------------------------------------------------------------------
-
-function field(value: unknown, ...keys: string[]): unknown {
-  if (!value || typeof value !== "object") return undefined;
-  for (const key of keys) {
-    const found = (value as Record<string, unknown>)[key];
-    if (found !== undefined && found !== null) return found;
-  }
-  return undefined;
-}
-
-function text(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (typeof value === "number") return String(value);
-  return "";
-}
-
-function list(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function isoDate(value: unknown): string | null {
-  if (typeof value === "number") {
-    const date = new Date(value < 1e12 ? value * 1000 : value);
-    return Number.isNaN(date.getTime()) ? null : date.toISOString();
-  }
-  const raw = text(value).trim();
-  if (!raw) return null;
-  const date = new Date(/^\d+$/.test(raw) ? Number(raw) : raw);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
-}
-
-// ---------------------------------------------------------------------------
-// Addresses and names.
-// ---------------------------------------------------------------------------
-
-export interface MailAddress {
-  email: string;
-  name: string | null;
-}
-
-/** Splits `a, "Doe, Jane" <j@x.com>` on the commas that separate addresses. */
-function splitAddressList(value: string): string[] {
-  const parts: string[] = [];
-  let current = "";
-  let quoted = false;
-  let angled = false;
-  for (const char of value) {
-    if (char === '"') quoted = !quoted;
-    else if (char === "<") angled = true;
-    else if (char === ">") angled = false;
-    if ((char === "," || char === ";") && !quoted && !angled) {
-      parts.push(current);
-      current = "";
-    } else current += char;
-  }
-  parts.push(current);
-  return parts.map((part) => part.trim()).filter(Boolean);
-}
-
-/** "Doe, Jane" → "Jane Doe"; quotes, `(via X)` and stray addresses removed. */
-export function cleanPersonName(
-  raw: string | null | undefined,
-  email?: string,
-): string | undefined {
-  if (!raw) return undefined;
-  let name = raw
-    .replace(/^["'\s]+|["'\s]+$/g, "")
-    .replace(/\s*\((via|über|par)\s[^)]*\)\s*$/i, "")
-    .replace(/\s*<[^>]*>\s*/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  const comma = /^([^,]+),\s*([^,]+)$/.exec(name);
-  if (comma?.[1] && comma[2] && !/\b(inc|ltd|llc|gmbh|ag)\b/i.test(name))
-    name = `${comma[2]} ${comma[1]}`;
-  if (!name || name.includes("@")) return undefined;
-  const local = email?.split("@")[0]?.toLowerCase();
-  if (local && name.toLowerCase() === local) return undefined;
-  return name.slice(0, 200);
-}
-
-function parseAddress(raw: string): MailAddress | null {
-  const angle = /^(.*)<([^<>]+)>\s*$/.exec(raw);
-  const email = (angle?.[2] ?? raw).trim().replace(/^mailto:/i, "");
-  if (!email.includes("@")) return null;
-  const lower = email.toLowerCase();
-  return { email: lower, name: cleanPersonName(angle?.[1], lower) ?? null };
-}
-
-/** Addresses from a header string or a provider's recipient objects. */
-export function parseAddresses(value: unknown): MailAddress[] {
-  if (typeof value === "string")
-    return splitAddressList(value).flatMap((part) => parseAddress(part) ?? []);
-  return list(value).flatMap((entry) => {
-    if (typeof entry === "string") return parseAddresses(entry);
-    const inner = field(entry, "emailAddress") ?? entry;
-    const email = text(field(inner, "address", "email"))
-      .trim()
-      .toLowerCase();
-    if (!email.includes("@")) return [];
-    const name = text(field(inner, "name", "displayName"));
-    return [{ email, name: cleanPersonName(name, email) ?? null }];
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Mail.
@@ -469,102 +383,6 @@ export function parseSignature(
   return signature;
 }
 
-// ---------------------------------------------------------------------------
-// Calendar.
-// ---------------------------------------------------------------------------
-
-export interface ParsedAttendee {
-  email: string;
-  name: string | null;
-  self: boolean;
-  organizer: boolean;
-  resource: boolean;
-  declined: boolean;
-}
-
-export interface ParsedEvent {
-  id: string;
-  title: string;
-  startsAt: string;
-  allDay: boolean;
-  cancelled: boolean;
-  /** Focus time, out of office, working location: not meetings. */
-  personal: boolean;
-  ownerDeclined: boolean;
-  organizerEmail: string | null;
-  attendees: ParsedAttendee[];
-  link: string | null;
-}
-
-const RESOURCE_DOMAIN =
-  /(^|\.)(resource\.calendar\.google\.com|group\.calendar\.google\.com|group\.v\.calendar\.google\.com|import\.calendar\.google\.com)$/;
-
-function eventTime(value: unknown): { iso: string | null; allDay: boolean } {
-  const date = text(field(value, "date"));
-  if (date) return { iso: isoDate(`${date}T00:00:00Z`), allDay: true };
-  let dateTime = text(field(value, "dateTime")) || text(value);
-  const zone = text(field(value, "timeZone"));
-  // Graph answers in the zone it was asked for, without an offset.
-  if (dateTime && !/[zZ]|[+-]\d\d:?\d\d$/.test(dateTime) && /^utc$/i.test(zone))
-    dateTime = `${dateTime}Z`;
-  return { iso: isoDate(dateTime), allDay: false };
-}
-
-/** One Google Calendar or Outlook event. */
-export function parseEvent(raw: unknown): ParsedEvent | null {
-  const id = text(field(raw, "id"));
-  const start = eventTime(field(raw, "start"));
-  if (!id || !start.iso) return null;
-  const organizerEmail =
-    parseAddresses([field(raw, "organizer") ?? ""])[0]?.email ?? null;
-  const attendees = list(field(raw, "attendees")).flatMap(
-    (entry): ParsedAttendee[] => {
-      const [address] = parseAddresses([entry]);
-      if (!address) return [];
-      const response = text(
-        field(entry, "responseStatus") ??
-          field(field(entry, "status"), "response"),
-      ).toLowerCase();
-      return [
-        {
-          email: address.email,
-          name: address.name,
-          self: field(entry, "self") === true,
-          organizer:
-            field(entry, "organizer") === true ||
-            address.email === organizerEmail,
-          resource:
-            field(entry, "resource") === true ||
-            text(field(entry, "type")).toLowerCase() === "resource" ||
-            RESOURCE_DOMAIN.test(address.email.split("@")[1] ?? ""),
-          declined: response === "declined",
-        },
-      ];
-    },
-  );
-  const eventType = text(field(raw, "eventType"));
-  const showAs = text(field(raw, "showAs")).toLowerCase();
-  const ownResponse = text(
-    field(field(raw, "responseStatus"), "response"),
-  ).toLowerCase();
-  return {
-    id,
-    title: text(field(raw, "summary", "subject", "title")).trim() || "Meeting",
-    startsAt: start.iso,
-    allDay: start.allDay || field(raw, "isAllDay") === true,
-    cancelled:
-      text(field(raw, "status")).toLowerCase() === "cancelled" ||
-      field(raw, "isCancelled") === true,
-    personal: (eventType !== "" && eventType !== "default") || showAs === "oof",
-    ownerDeclined:
-      attendees.some((attendee) => attendee.self && attendee.declined) ||
-      ownResponse === "declined",
-    organizerEmail,
-    attendees,
-    link: text(field(raw, "htmlLink", "webLink")) || null,
-  };
-}
-
 /**
  * The people at a real meeting that already started: not cancelled, not an
  * all-day block or focus time, not declined by the owner, and small enough
@@ -785,10 +603,14 @@ export interface XUser {
 }
 
 export interface XDmEvent {
+  /** Empty when X left it out. */
+  id: string;
   conversationId: string;
   senderId: string;
   participantIds: string[];
   createdAt: string;
+  /** Only when the read asked for it. */
+  text: string;
 }
 
 /** A group DM with more people than this is not a conversation. */
@@ -832,11 +654,143 @@ export function parseXDmEvent(raw: unknown): XDmEvent | null {
   const createdAt = isoDate(field(raw, "created_at"));
   if (!conversationId || !senderId || !createdAt) return null;
   return {
+    id: text(field(raw, "id")),
     conversationId,
     senderId,
     participantIds: list(field(raw, "participant_ids")).map(text),
     createdAt,
+    text: text(field(raw, "text")),
   };
+}
+
+/**
+ * What a DM walk learned so far, small enough for the capture cursor: who
+ * wrote on which day in each conversation (no message text), and the people
+ * in them. A conversation too large to count stays as a marker only, and past
+ * `X_WALK_CONVERSATIONS` the contacts are written and only the current day's
+ * talk is kept.
+ */
+export interface XDmWalk {
+  /** The next page; null before the first. */
+  token: string | null;
+  /** It read back to `from`; only the contacts are left to write. */
+  reached: boolean;
+  /** The newest event it read, kept as `newestDmId` once it finishes. */
+  newestId: string | null;
+  /** Everything after this was read once the walk finishes. */
+  startedAt: string;
+  talk: Record<
+    string,
+    { members: string[]; days: Record<string, string[]>; large?: true }
+  >;
+  users: Record<string, { name: string | null; username: string }>;
+}
+
+/**
+ * Conversations a walk holds before it writes their contacts and keeps only
+ * the current day's; one day with more keeps all of that day's.
+ */
+export const X_WALK_CONVERSATIONS = 300;
+
+export function newXDmWalk(startedAt: string): XDmWalk {
+  return {
+    token: null,
+    reached: false,
+    newestId: null,
+    startedAt,
+    talk: {},
+    users: {},
+  };
+}
+
+/**
+ * The walk with one more page: its events and the people a kept conversation
+ * names. A copy, so a caller commits it only once the page is fully handled.
+ * Nothing is left out. `overflow`: it now holds more than
+ * `X_WALK_CONVERSATIONS`; the caller writes its contacts and keeps
+ * `keepXDmDay` of it.
+ */
+export function addXDmPage(
+  walk: XDmWalk,
+  page: { events: readonly XDmEvent[]; users: readonly XUser[] },
+): { walk: XDmWalk; overflow: boolean } {
+  const next: XDmWalk = structuredClone(walk);
+  for (const event of page.events) {
+    let conversation = next.talk[event.conversationId];
+    if (!conversation) {
+      conversation = { members: [], days: {} };
+      next.talk[event.conversationId] = conversation;
+    }
+    if (conversation.large) continue;
+    const pair = event.conversationId.split("-");
+    conversation.members = [
+      ...new Set([
+        ...conversation.members,
+        ...event.participantIds,
+        ...(pair.length === 2 ? pair : []),
+        event.senderId,
+      ]),
+    ];
+    // The owner plus more than a small group: never a conversation.
+    if (conversation.members.length > X_SMALL_GROUP + 1) {
+      next.talk[event.conversationId] = { members: [], days: {}, large: true };
+      continue;
+    }
+    const day = event.createdAt.slice(0, 10);
+    conversation.days[day] = [
+      ...new Set([...(conversation.days[day] ?? []), event.senderId]),
+    ];
+  }
+  const named = new Set(
+    Object.values(next.talk).flatMap((conversation) => conversation.members),
+  );
+  for (const user of page.users)
+    if (named.has(user.id))
+      next.users[user.id] = { name: user.name, username: user.username };
+  return {
+    walk: next,
+    overflow: Object.keys(next.talk).length > X_WALK_CONVERSATIONS,
+  };
+}
+
+/**
+ * After its contacts were written, the part of a walk later pages can still
+ * add to: pages go back in time, so only conversations with talk on `day`
+ * (the oldest day read so far), with that day alone, and their people.
+ */
+export function keepXDmDay(walk: XDmWalk, day: string): XDmWalk {
+  const talk: XDmWalk["talk"] = {};
+  for (const [id, conversation] of Object.entries(walk.talk)) {
+    const senders = conversation.days[day];
+    if (senders)
+      talk[id] = { members: conversation.members, days: { [day]: senders } };
+  }
+  const named = new Set(
+    Object.values(talk).flatMap((conversation) => conversation.members),
+  );
+  return {
+    ...walk,
+    talk,
+    users: Object.fromEntries(
+      Object.entries(walk.users).filter(([id]) => named.has(id)),
+    ),
+  };
+}
+
+/** One event per person and day, as `extractXDms` reads them. */
+export function xDmWalkEvents(walk: XDmWalk): XDmEvent[] {
+  return Object.entries(walk.talk).flatMap(([conversationId, conversation]) =>
+    Object.entries(conversation.days).flatMap(([day, senders]) =>
+      senders.map((senderId) => ({
+        id: "",
+        conversationId,
+        senderId,
+        participantIds: conversation.members,
+        createdAt: `${day}T12:00:00.000Z`,
+        text: "",
+      })),
+    ),
+  );
 }
 
 /**

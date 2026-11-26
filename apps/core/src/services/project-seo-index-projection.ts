@@ -8,6 +8,7 @@ import {
   type SeoWorkspaceQuery,
 } from "@/schemas/project-seo.schema";
 import { seoTaskIndexingResultSchema } from "@/schemas/seo-task-indexing.schema";
+import { SEO_ISSUE_SEVERITIES } from "./project-seo-check-identity";
 import { matchesSeoPeriod, normalizeSeoUrl } from "./project-seo-store";
 
 const INDEXING_ROW_ID = "AC-20";
@@ -127,12 +128,12 @@ export function indexAuditFindings(
         ? triage.data
         : null;
     const visibleDate = matchesSeoPeriod(audit.observedAt, query);
-    for (const pageUrl of payload.data.pageUrls) {
-      const normalized = normalizeSeoUrl(pageUrl);
+    for (const normalized of audited) {
       if (!selectedUrls.has(normalized)) continue;
       const duplicate = payload.data.findings.some(
         (finding) =>
           finding.rowId === INDEXING_ROW_ID &&
+          SEO_ISSUE_SEVERITIES.has(finding.severity) &&
           normalizeSeoUrl(finding.pageUrl) === normalized,
       );
       const assessments = new Map(
@@ -160,7 +161,7 @@ export function indexAuditFindings(
         findings.push({
           id: `${audit.id}:google-index:${url}`,
           observationId: audit.id,
-          pageUrl,
+          pageUrl: normalized,
           ...(url !== normalized ? { relatedPageUrl: assessment.pageUrl } : {}),
           device: null,
           rowId: INDEXING_ROW_ID,

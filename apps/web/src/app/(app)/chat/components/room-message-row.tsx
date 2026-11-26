@@ -35,13 +35,12 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import {
+  Fragment,
   memo,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
-  type RefObject,
   useCallback,
-  useEffect,
   useId,
   useMemo,
   useRef,
@@ -49,6 +48,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { saveRoomMessageAction } from "@/app/chat/actions";
+import { ChatCsvTable } from "@/app/chat/components/chat-csv-table";
 import {
   CoworkerLiveThought,
   CoworkerThoughtTrace,
@@ -69,14 +69,10 @@ import {
 } from "@/app/chat/utils/jumbo-emoji";
 import {
   isOutboundLocalMessage,
-  OUTBOUND_PENDING_SPINNER_DELAY_MS,
-  OUTBOUND_SENT_TICK_MS,
   type OutboundDeliveryStatus,
-  outboundPendingAgeMs,
   readClientTurnId,
   readOutboundDeliveryStatus,
   readOutboundErrorMessage,
-  shouldShowOutboundPendingSpinner,
 } from "@/app/chat/utils/outbound-room-message";
 import { isOutboundSentTickActive } from "@/app/chat/utils/outbound-sent-tick";
 import { resolveQuickReactions } from "@/app/chat/utils/quick-reactions";
@@ -136,7 +132,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { copyTextWithToast } from "@/hooks/use-clipboard";
+import { copyTextWithToast } from "@/hooks/effects/use-clipboard";
+import { useOutboundPendingSpinner } from "@/hooks/effects/use-outbound-pending-spinner";
+import { useOutboundSentTickFade } from "@/hooks/effects/use-outbound-sent-tick-fade";
 import {
   recordEmojiUse,
   useFrequentlyUsedEmojis,
@@ -149,12 +147,14 @@ import { getEmojiShortcodeName } from "@/lib/utils/emoji-shortcodes";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 import { getInitials } from "@/lib/utils/text";
-import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
+import {
+  ChatMessageSenderName,
+  ChatParticipantHoverCard,
+} from "./chat-participant-hover-card";
 import { MessageClampToggle } from "./message-clamp-toggle";
 import { MessageEditComposer } from "./message-edit-composer";
 import { participantDirectKey } from "./open-direct-with-participant";
 import { OutboundPendingSpinner } from "./outbound-pending-spinner";
-import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
   formatRoomComposerTooLongFailure,
@@ -174,6 +174,7 @@ import { SokoBotChainBadge } from "./soko-bot-chain-badge";
 import {
   hasSokoBotMessageFooter,
   previewedTaskIds,
+  readSokoBotBackgroundFailure,
   SokoBotFeedbackButtons,
   SokoBotMessageFooter,
   SokoBotSourceLabel,
@@ -794,18 +795,20 @@ export function ChannelMessageText({
                       className="size-40 object-contain"
                     />
                   ) : (
-                    <FileChipMiniPreviewFrame
-                      key={`${link.index}-${link.url}`}
-                      url={link.url}
-                      fileName={link.fileName}
-                      variant={useLargeImage ? "large" : "thumb"}
-                      sizeClass={useLargeImage ? undefined : "size-16"}
-                      onOpenImage={() => {
-                        setOpenImageSrc(link.url);
-                      }}
-                      transcript={link.transcript}
-                      onSaveTranscript={onSaveTranscript}
-                    />
+                    <Fragment key={`${link.index}-${link.url}`}>
+                      <FileChipMiniPreviewFrame
+                        url={link.url}
+                        fileName={link.fileName}
+                        variant={useLargeImage ? "large" : "thumb"}
+                        sizeClass={useLargeImage ? undefined : "size-16"}
+                        onOpenImage={() => {
+                          setOpenImageSrc(link.url);
+                        }}
+                        transcript={link.transcript}
+                        onSaveTranscript={onSaveTranscript}
+                      />
+                      <ChatCsvTable url={link.url} fileName={link.fileName} />
+                    </Fragment>
                   ),
                 )}
               </div>
@@ -1497,7 +1500,8 @@ function useBottomSheetSwipeDismiss(
   open: boolean,
   onDismiss: () => void,
 ): {
-  contentRef: RefObject<HTMLDivElement | null>;
+  setContentRef: (node: HTMLDivElement | null) => void;
+  resetSwipe: () => void;
   swipeHandlers: {
     onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
     onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -1505,7 +1509,7 @@ function useBottomSheetSwipeDismiss(
     onPointerCancel: (event: ReactPointerEvent<HTMLDivElement>) => void;
   };
 } {
-  const contentRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{
     pointerId: number | null;
     startY: number;
@@ -1525,17 +1529,33 @@ function useBottomSheetSwipeDismiss(
     el.style.transition = "";
   }, []);
 
-  useEffect(() => {
-    if (!open) {
-      dragRef.current = {
-        pointerId: null,
-        startY: 0,
-        dragging: false,
-        dismissing: false,
-      };
-      resetTransform();
-    }
-  }, [open, resetTransform]);
+  const resetSwipe = useCallback(() => {
+    dragRef.current = {
+      pointerId: null,
+      startY: 0,
+      dragging: false,
+      dismissing: false,
+    };
+    resetTransform();
+  }, [resetTransform]);
+
+  const setContentRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (contentRef.current && contentRef.current !== node) {
+        resetTransform();
+      }
+      contentRef.current = node;
+      if (!node) {
+        dragRef.current = {
+          pointerId: null,
+          startY: 0,
+          dragging: false,
+          dismissing: false,
+        };
+      }
+    },
+    [resetTransform],
+  );
 
   function finishPointer(event: ReactPointerEvent<HTMLDivElement>) {
     const drag = dragRef.current;
@@ -1568,9 +1588,11 @@ function useBottomSheetSwipeDismiss(
   }
 
   return {
-    contentRef,
+    setContentRef,
+    resetSwipe,
     swipeHandlers: {
       onPointerDown(event) {
+        if (!open) return;
         if (event.button !== 0) return;
         if (dragRef.current.dismissing) return;
         const fromHandle = Boolean(
@@ -1655,15 +1677,23 @@ function TouchMessageActionsSheet({
 }) {
   const t = useTranslations("App.Channels");
   const [portalHost, setPortalHost] = useState<HTMLDivElement | null>(null);
-  const { contentRef, swipeHandlers } = useBottomSheetSwipeDismiss(open, () => {
-    onOpenChange(false);
-  });
+  const { setContentRef, resetSwipe, swipeHandlers } =
+    useBottomSheetSwipeDismiss(open, () => {
+      onOpenChange(false);
+    });
   const setSheetContentRef = useCallback(
     (node: HTMLDivElement | null) => {
-      contentRef.current = node;
+      setContentRef(node);
       setPortalHost(node);
     },
-    [contentRef],
+    [setContentRef],
+  );
+  const handleSheetOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) resetSwipe();
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange, resetSwipe],
   );
   const whoReactedRows = message.reactions.flatMap((reaction) => {
     const whoReactedLabel = formatWhoReactedLabel(reaction, t);
@@ -1685,7 +1715,7 @@ function TouchMessageActionsSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleSheetOpenChange}>
       <SheetContent
         ref={setSheetContentRef}
         side="bottom"
@@ -1953,55 +1983,17 @@ function MessageTimeOrOutboundStatus({
   outboundContentLength?: number;
 }) {
   const t = useTranslations("App.Channels");
-  const [sentFading, setSentFading] = useState(false);
-  const [showPendingSpinner, setShowPendingSpinner] = useState(() =>
-    outboundStatus === "pending"
-      ? shouldShowOutboundPendingSpinner(createdAt)
-      : false,
+  const showPendingSpinner = useOutboundPendingSpinner(
+    outboundStatus,
+    createdAt,
   );
+  const sentFading = useOutboundSentTickFade(showSentTick, createdAt);
   const isGutter = !reserveHeaderWidth;
   const markClass = reserveHeaderWidth
     ? OUTBOUND_HEADER_MARK_CLASS
     : OUTBOUND_GUTTER_MARK_CLASS;
   // Smaller icon in the narrow continuation gutter.
   const iconClass = reserveHeaderWidth ? "size-3" : "size-2.5";
-
-  useEffect(() => {
-    if (outboundStatus !== "pending") {
-      setShowPendingSpinner(false);
-      return;
-    }
-    if (shouldShowOutboundPendingSpinner(createdAt)) {
-      setShowPendingSpinner(true);
-      return;
-    }
-    setShowPendingSpinner(false);
-    const remainingMs =
-      OUTBOUND_PENDING_SPINNER_DELAY_MS - outboundPendingAgeMs(createdAt);
-    const timeoutId = window.setTimeout(
-      () => {
-        setShowPendingSpinner(true);
-      },
-      Math.max(0, remainingMs),
-    );
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [outboundStatus, createdAt]);
-
-  useEffect(() => {
-    if (!showSentTick) {
-      setSentFading(false);
-      return;
-    }
-    setSentFading(false);
-    const fadeAt = window.setTimeout(() => {
-      setSentFading(true);
-    }, OUTBOUND_SENT_TICK_MS / 2);
-    return () => {
-      window.clearTimeout(fadeAt);
-    };
-  }, [showSentTick, createdAt]);
 
   if (outboundStatus === "pending") {
     if (!showPendingSpinner) {
@@ -2076,21 +2068,35 @@ function MessageTimeOrOutboundStatus({
 }
 
 /**
- * A reply that did not finish, said in place of it. The cause is not shown:
- * the shell does not carry one the reader can act on. "Your message is saved"
+ * A reply that did not finish, said in place of it. The cause is not shown
+ * for generic failures: the shell does not carry one the reader can act on. "Your message is saved"
  * only when the shell names the message it answers, which Core keeps.
  */
 function FailedMentionCard({
   name,
   metadata,
+  isSokoBot,
   onRetryMention,
 }: {
   name: string;
   metadata: unknown;
+  isSokoBot: boolean;
   onRetryMention?: () => void;
 }) {
   const t = useTranslations("App.Channels");
+  const tFailure = useTranslations("Components.SokoBotTurnFailure");
   const saved = readFailedMentionShellTarget(metadata) !== null;
+  const failure =
+    metadata && typeof metadata === "object" && "mention_failure" in metadata
+      ? metadata.mention_failure
+      : null;
+  const failureKind =
+    failure && typeof failure === "object" && "kind" in failure
+      ? failure.kind
+      : null;
+  const budgetExceeded = failureKind === "ai_budget_exceeded";
+  const showGeneric =
+    isSokoBot && !budgetExceeded && failureKind !== "turn_cancelled";
   return (
     <div
       className="border-border flex w-fit max-w-full flex-col gap-1 rounded-lg border px-3 py-2"
@@ -2105,7 +2111,14 @@ function FailedMentionCard({
         {t("MentionStatus.failed", { name })}
       </p>
       <p className="text-muted-foreground text-sm">
-        {saved ? t("MentionStatus.failedSaved") : t("MentionStatus.failedBody")}
+        {budgetExceeded
+          ? tFailure("aiBudgetExceeded")
+          : showGeneric
+            ? tFailure("generic")
+            : saved
+              ? t("MentionStatus.failedSaved")
+              : t("MentionStatus.failedBody")}
+        {showGeneric && saved ? ` ${tFailure("messageSaved")}` : null}
       </p>
       {onRetryMention ? (
         <button
@@ -2257,7 +2270,14 @@ function ThreadReplyBar({
       aria-label={countLabel}
       aria-describedby={message.threadLastReplyAt ? ageId : undefined}
       className={cn(
-        "text-foreground press underline-offset-4 -mx-1 mt-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
+        "text-foreground press underline-offset-4 mx-0.5 mt-1 inline-flex min-h-9 items-center gap-1.5 rounded-md px-1 py-0.5 text-xs font-medium sm:mt-1 sm:min-h-0",
+        // The bar is where focus lands when its thread closes, so its ring
+        // must show whole. The content column's `overflow-x-clip` cuts
+        // anything left of its edge: `mx-0.5` keeps the box, and its 2px
+        // ring, inside the column; `px-1 py-0.5` keep the faces clear of
+        // it. Bespoke-chip ring (DESIGN.md, Focus rings); `outline-hidden`
+        // keeps a mark in forced colors.
+        "outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring",
         // Unread reads as a bar, not a badge: the tint plus an inset left
         // rule gives the count an edge to sit against without adding a
         // second mark to a row that already carries reactions. The rule
@@ -2265,11 +2285,11 @@ function ThreadReplyBar({
         // `-quaternary` and `-variant` are the sidebar mention pill's pair:
         // the `-quinary` tint sat 6% above the dark background and read as
         // a faint outline round cramped text, not as a bar.
-        // `mx-0`: the plain state's `-mx-1` only lines bare text up with the
-        // message; on a painted bar it pushes the rule and the rounded edge
-        // into the content column's `overflow-x-clip`, which cuts them off.
+        // The painted bar keeps the plain state's `mx-0.5` for the same
+        // reason: a negative margin would push the rule and the rounded edge
+        // into the column's clip.
         unreadReplyCount > 0 &&
-          "bg-quinary text-foreground mx-0 rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
+          "bg-quinary text-foreground rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
       )}
       onClick={() => onOpenThread(message)}
     >
@@ -2515,6 +2535,14 @@ export const ChatMessageRow = memo(function ChatMessageRow({
 }) {
   const tChat = useTranslations("App.Chat.Chat");
   const tChannels = useTranslations("App.Channels");
+  const tFailure = useTranslations("Components.SokoBotTurnFailure");
+  const backgroundFailure =
+    message.sender.type === "sokoBot"
+      ? readSokoBotBackgroundFailure(message.metadata)
+      : null;
+  const noticeMention = backgroundFailure
+    ? /^@\S+(?= )/.exec(message.content)?.[0]
+    : null;
   const router = useRouter();
   const sender = messageSender(message);
   const hoverProfile = sender.kind === "unknown" ? null : sender;
@@ -2771,6 +2799,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         // than 16rem that every row gives up forever so that one hovered row
         // has somewhere to put eight buttons.
         "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md px-2 transition-colors hover:bg-accent",
+        // The actions trigger is screen-reader-only, so a Tab onto it would
+        // show nothing. Mark the whole row instead, the way hover does.
+        "has-[[data-message-actions-trigger]:focus-visible]:bg-accent has-[[data-message-actions-trigger]:focus-visible]:ring-2 has-[[data-message-actions-trigger]:focus-visible]:ring-ring has-[[data-message-actions-trigger]:focus-visible]:ring-inset",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isSaving && "opacity-60",
         isContinuation
@@ -2832,7 +2863,6 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               live={liveFace}
               streaming={liveFaceStreaming}
             />
-            {sender.kind === "coworker" ? <AiCoworkerAvatarBadge /> : null}
           </span>
         </ChatParticipantHoverCard>
       )}
@@ -2852,22 +2882,15 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           ) : null
         ) : (
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
-            <ChatParticipantHoverCard
-              profile={hoverProfile}
-              side="top"
-              align="start"
-              className="w-fit min-w-0 max-w-full"
+            <ChatMessageSenderName
+              sender={sender}
               currentUserId={currentUserId}
               canOpenHumanDirect={canOpenHumanDirect}
               onOpenDirect={onOpenDirectMessage}
               isOpeningDirect={isOpeningDirect}
               isDirectActionBusy={isDirectActionBusy}
               active={interacted}
-            >
-              <span className="truncate text-base font-semibold md:text-sm">
-                {sender.name}
-              </span>
-            </ChatParticipantHoverCard>
+            />
             <MessageTimeOrOutboundStatus
               createdAt={message.createdAt}
               outboundStatus={outboundStatus}
@@ -2936,6 +2959,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                 <FailedMentionCard
                   name={sender.name}
                   metadata={message.metadata}
+                  isSokoBot={message.sender.type === "sokoBot"}
                   onRetryMention={
                     onRetryMention ? () => onRetryMention(message) : undefined
                   }
@@ -3002,6 +3026,35 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                         )}
                       />
                       {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
+                    </>
+                  ) : backgroundFailure ? (
+                    <>
+                      {noticeMention ? (
+                        <ChannelMessageText
+                          content={noticeMention}
+                          coworkersById={coworkersById}
+                          coworkersBySlug={coworkersBySlug}
+                          sokoBotsById={sokoBotsById}
+                          sokoBotsBySlug={sokoBotsBySlug}
+                          usersById={usersById}
+                          usersBySlug={usersBySlug}
+                          channelLinks={channelLinks}
+                          currentUserId={currentUserId}
+                          canOpenHumanDirect={canOpenHumanDirect}
+                          onOpenDirectMessage={onOpenDirectMessage}
+                          openingDirectParticipantKey={
+                            openingDirectParticipantKey
+                          }
+                        />
+                      ) : null}
+                      <p>
+                        {backgroundFailure.kind === "turn_deadline_exceeded"
+                          ? tFailure("backgroundDeadline", {
+                              title: backgroundFailure.title,
+                            })
+                          : `${tFailure("backgroundFailed", { title: backgroundFailure.title })} ${tFailure(backgroundFailure.kind === "ai_budget_exceeded" ? "aiBudgetExceeded" : "generic")}`}
+                        {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
+                      </p>
                     </>
                   ) : quote && !message.content.trim() ? (
                     bodyEndsTheRow ? (
@@ -3123,6 +3176,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           <button
             type="button"
             className="sr-only"
+            data-message-actions-trigger
             onClick={() => {
               openSheet();
             }}

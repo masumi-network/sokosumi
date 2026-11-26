@@ -67,6 +67,10 @@ export {
   hasConsumableEnterpriseContract,
   OrganizationSubscriptionExclusivityError,
 } from "./organization-subscription-exclusivity.js";
+export {
+  type RequeueEmptyCompanyLookupsOptions,
+  requeueEmptyCompanyLookups,
+} from "./requeue-empty-company-lookups.js";
 export { grantSignupBonusCredits } from "./signup-bonus-credits.js";
 export {
   ACTIVE_SUBSCRIPTION_STATUSES,

@@ -11,6 +11,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const ensureRoom = vi.fn();
 const sendMessage = vi.fn();
 const push = vi.fn();
+const refresh = vi.fn();
+const refreshPage = vi.fn(async () => true);
 /** The composer's text at the moment the caret was put at its end. */
 const focusedAtEnd = vi.fn();
 
@@ -18,20 +20,30 @@ function translate(key: string, values?: Record<string, unknown>): string {
   return values ? `${key}:${JSON.stringify(values)}` : key;
 }
 
-vi.mock("next-intl", () => ({ useTranslations: () => translate }));
+const formatter = {
+  // Without `now` the real formatter reads the clock itself.
+  relativeTime: (_at: Date, options?: { now?: Date | number }) => {
+    if (!options?.now) throw new Error("relativeTime without now");
+    return "2h";
+  },
+  dateTime: () => "Oct 23, 2026",
+};
+
+vi.mock("next-intl", () => ({
+  useTranslations: () => translate,
+  useFormatter: () => formatter,
+}));
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => translate,
-  getFormatter: async () => ({
-    // Without `now` the real formatter reads the clock itself.
-    relativeTime: (_at: Date, options?: { now?: Date }) => {
-      if (!options?.now) throw new Error("relativeTime without now");
-      return "2h";
-    },
-    dateTime: () => "Oct 23, 2026",
-  }),
+  getFormatter: async () => formatter,
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push, refresh }),
+}));
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+vi.mock("@/lib/actions/refresh-page-action", () => ({
+  refreshPage: () => refreshPage(),
+}));
 vi.mock("@/app/chat/actions", () => ({
   ensureSokoBotDirectRoomAction: (...args: unknown[]) => ensureRoom(...args),
   sendRoomMessageAction: (...args: unknown[]) => sendMessage(...args),
@@ -291,7 +303,7 @@ describe("SokoBotHome", () => {
     // that never shrinks, so a long name cannot push the time out of view.
     const name = screen.getByText(from);
     expect(name).toHaveClass("min-w-0", "truncate");
-    const phoneTime = name.parentElement?.querySelector(".sm\\:hidden");
+    const phoneTime = name.nextElementSibling;
     expect(phoneTime?.querySelector("time")).not.toBeNull();
     expect(phoneTime).toHaveClass("shrink-0");
     expect(name.contains(phoneTime ?? null)).toBe(false);
@@ -315,9 +327,36 @@ describe("SokoBotHome", () => {
       "/personal-assistant?schedule=sched-1",
       "/tasks/task-1",
     ]);
-    expect(links[0]?.textContent).toContain('newSchedule:{"name":"Joseph"}');
-    expect(links[0]?.textContent).toContain("Monday invoices");
-    expect(links[0]?.textContent).toContain("2h");
+    // The schedule's name leads; who got it and when sit under it.
+    expect(links[0]?.textContent).toMatch(
+      /^Monday invoices.*newSchedule:\{"name":"Joseph"\}.*2h.*open$/,
+    );
+  });
+
+  it("ends every row in Open", async () => {
+    await renderHome({
+      chats: [
+        {
+          roomId: "room-1",
+          messageId: "msg-9",
+          title: "Hi",
+          from: "Maya",
+          at: new Date("2026-10-24T09:00:00Z"),
+        },
+      ],
+      schedules: [
+        {
+          id: "sched-1",
+          name: "Monday invoices",
+          createdAt: new Date("2026-10-24T09:30:00Z"),
+        },
+      ],
+    });
+    const links = screen
+      .getAllByRole("link")
+      .filter((link) => link.closest("section[aria-labelledby]"));
+    expect(links).toHaveLength(3);
+    for (const link of links) expect(link.textContent).toMatch(/open$/);
   });
 
   it("drops the quiet line once the bot set up a schedule, with no Tasks", async () => {
@@ -375,6 +414,31 @@ describe("SokoBotHome", () => {
     expect(screen.getByText('quietDay:{"name":"Joseph"}')).toBeTruthy();
   });
 
+  // A failed summary read costs the numbers, not Home: the list stays and
+  // only the day's section says so, with a way to read it again.
+  it("says the day's numbers could not load and reads them again", async () => {
+    await renderHome({ summary: null });
+    const day = screen.getByRole("region", { name: "recent" });
+    expect(day).toHaveTextContent("loadError.title");
+    expect(screen.getByText("Research EU marketplaces")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "loadError.retry" }));
+    // The refresh action keeps the pages prefetched for the next click.
+    await waitFor(() => expect(refreshPage).toHaveBeenCalledOnce());
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("reads the numbers with a plain refresh when the action cannot", async () => {
+    refreshPage.mockResolvedValueOnce(false);
+    await renderHome({ summary: null });
+    fireEvent.click(screen.getByRole("button", { name: "loadError.retry" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalledOnce());
+  });
+
+  it("shows no error while the day's numbers loaded", async () => {
+    await renderHome();
+    expect(screen.queryByText("loadError.title")).toBeNull();
+  });
+
   it("links to tasks only when some need the user", async () => {
     const summary = {
       since: new Date(),
@@ -389,7 +453,7 @@ describe("SokoBotHome", () => {
       screen
         .getByRole("link", { name: 'awaiting:{"count":3}' })
         .getAttribute("href"),
-    ).toBe("/tasks?view=board#input-required");
+    ).toBe("/tasks?view=board&scope=workspace#input-required");
     cleanup();
     await renderHome({ summary: { ...summary, awaitingInput: 0 } });
     expect(screen.queryByText(/awaiting/)).toBeNull();
@@ -411,7 +475,7 @@ describe("SokoBotHome", () => {
         screen
           .getByRole("link", { name: 'awaitingTeam:{"count":9}' })
           .getAttribute("href"),
-      ).toBe("/tasks?view=board#input-required");
+      ).toBe("/tasks?view=board&scope=workspace#input-required");
       expect(
         screen
           .getByRole("link", { name: 'needsYou:{"count":2}' })

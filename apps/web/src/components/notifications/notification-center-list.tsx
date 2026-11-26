@@ -7,7 +7,7 @@ import {
 } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useState } from "react";
 import { toast } from "sonner";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { NotificationsSkeletonRows } from "@/app/notifications/components/notifications-loading-view";
@@ -16,9 +16,16 @@ import { useNeedsYouDataRoomQuestions } from "@/components/notifications/notific
 import { NotificationEmptyState } from "@/components/notifications/notification-empty-state";
 import { NotificationOlderBoundaryRow } from "@/components/notifications/notification-older-boundary-row";
 import { useNeedsYouTasks } from "@/components/notifications/notification-waiting-tasks";
+import {
+  usePageListSearch,
+  usePageSearchPagination,
+  usePageSearchQuery,
+} from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
+import { usePrefersReducedMotion } from "@/hooks/effects/use-media-query";
+import { useNotificationRowDeparture } from "@/hooks/effects/use-notification-row-departure";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import {
@@ -60,8 +67,6 @@ export function NotificationCenterList({
   const { handleSelectWorkspace } = useWorkspaceSwitcher();
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const { notice } = useAccountNotice();
-  const { data: waitingTasks, isLoading: isLoadingWaitingTasks } =
-    useNeedsYouTasks();
   const { data: waitingQuestions, isLoading: isLoadingWaitingQuestions } =
     useNeedsYouDataRoomQuestions();
   const {
@@ -78,6 +83,9 @@ export function NotificationCenterList({
     olderStatus,
     loadOlder,
   } = useNotifications();
+  const search = usePageSearchQuery();
+  const { data: waitingTasks, isLoading: isLoadingWaitingTasks } =
+    useNeedsYouTasks(view === "needs-action" && Boolean(search));
   const [pendingNotificationId, setPendingNotificationId] = useState<
     string | null
   >(null);
@@ -123,6 +131,23 @@ export function NotificationCenterList({
             )
           : notifications;
 
+  const matchingNotifications = usePageListSearch(
+    visibleNotifications,
+    (notification) => ({
+      primary: [
+        formatMessage(
+          notification.messageKey,
+          notification.messageParams ?? {},
+        ),
+      ],
+      secondary: [
+        formatPreview(
+          notification.messageKey,
+          notification.messageParams ?? {},
+        ),
+      ],
+    }),
+  );
   const handleNotificationClick = (notification: NotificationItem) => {
     // Immediate paint: pending state + optimistic read. Network and navigation
     // stay off the interaction's critical path for INP.
@@ -179,6 +204,12 @@ export function NotificationCenterList({
         : undefined;
   const showOlderBoundary =
     hasMore && oldest !== undefined && narrowedCount !== 0;
+
+  usePageSearchPagination(
+    showOlderBoundary ? oldest.id : null,
+    olderStatus !== "idle",
+    loadOlder,
+  );
 
   if (visibleNotifications.length === 0) {
     if (isLoading) {
@@ -250,7 +281,7 @@ export function NotificationCenterList({
   return (
     <>
       <div className="divide-border divide-y">
-        {visibleNotifications.map((notification) => (
+        {matchingNotifications.map((notification) => (
           <LeavingRow
             key={notification.id}
             notificationId={notification.id}
@@ -287,9 +318,6 @@ export function NotificationCenterList({
   );
 }
 
-/** How long the collapse takes, matched to the transition below. */
-const LEAVE_DURATION_MS = 200;
-
 interface LeavingRowProps {
   notificationId: string;
   /** Whether the row no longer belongs to the view it is drawn in. */
@@ -319,25 +347,15 @@ function LeavingRow({
 }: LeavingRowProps) {
   const [isPointerInside, setIsPointerInside] = useState(false);
   const [isFocusInside, setIsFocusInside] = useState(false);
+  const reduceMotion = usePrefersReducedMotion();
   const isCollapsed = isLeaving && !isPointerInside && !isFocusInside;
 
-  // The hide waits for the fold to finish. A row put back to unread mid
-  // fold is no longer collapsed, and the cleanup drops the pending hide.
-  useEffect(() => {
-    if (!isCollapsed) return;
-    const reduceMotion =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduceMotion) {
-      onDeparted(notificationId);
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      onDeparted(notificationId);
-    }, LEAVE_DURATION_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [isCollapsed, notificationId, onDeparted]);
+  useNotificationRowDeparture(
+    isCollapsed,
+    notificationId,
+    onDeparted,
+    reduceMotion,
+  );
 
   return (
     <div

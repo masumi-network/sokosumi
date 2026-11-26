@@ -2,14 +2,20 @@ import type { Prisma } from "@sokosumi/database";
 import { socialPostProviderLabel } from "@sokosumi/utils";
 
 import {
+  commentsReadable,
   isSocialCommentProvider,
   listPostComments,
+  listXReplies,
+  type ProviderComment,
   replyToComment,
   SOCIAL_COMMENT_PROVIDERS,
-  SOCIAL_COMMENT_REPLY_MAX,
   type SocialCommentContext,
+  type SocialCommentProvider,
+  socialCommentReplyFits,
 } from "@/clients/social-post-providers/comments";
 import prisma from "@/lib/db/prisma";
+import { recordCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { connectionExecutorUserId } from "@/services/project-social-connections.service";
 import { TEST_COPY_NOTHING_AT_ONCE } from "@/services/project-test-copy";
 
@@ -39,7 +45,11 @@ async function contextFor(
   const connection = await prisma.projectSocialConnection.findFirst({
     where: { id: socialConnectionId, projectId, status: "active", provider },
   });
-  if (!connection) return null;
+  if (
+    !connection ||
+    !commentsReadable(provider, connection.composioConnectedAccountId)
+  )
+    return null;
   return {
     provider,
     connectedAccountId: connection.composioConnectedAccountId,
@@ -75,24 +85,28 @@ export async function collectNewSocialComments(input: {
   });
   const since = new Date(now.getTime() - COMMENT_WINDOW_DAYS * DAY_MS);
   const unavailable = new Set<string>();
-  for (const post of posts) {
-    const context = await contextFor(
-      input.projectId,
-      post.socialConnectionId,
-      post.provider,
+  const refused = (provider: SocialCommentProvider) => (error: unknown) => {
+    unavailable.add(socialPostProviderLabel(provider));
+    // Comment text can be in the error, so content-free metadata only.
+    recordCoreError(
+      { operation: "social_comments_read", provider },
+      {
+        message: `Could not read ${socialPostProviderLabel(provider)} comments`,
+        why: "The network or Composio refused the comment read",
+        fix: "Cuso's reply round skipped this network today. Look up the error under failure.",
+      },
+      { failure: messageSafeErrorFields(error) },
     );
-    if (!context || !post.publishedExternalId) continue;
-    const comments = await listPostComments(
-      context,
-      post.publishedExternalId,
-    ).catch(() => {
-      unavailable.add(socialPostProviderLabel(context.provider));
-      return [];
-    });
+    return [];
+  };
+  const save = async (
+    post: { id: string; provider: string },
+    comments: ProviderComment[],
+  ) => {
     const fresh = comments.filter(
       (comment) => !comment.commentedAt || comment.commentedAt >= since,
     );
-    if (fresh.length === 0) continue;
+    if (fresh.length === 0) return;
     await prisma.socialComment.createMany({
       data: fresh.map((comment) => ({
         projectId: input.projectId,
@@ -106,6 +120,49 @@ export async function collectNewSocialComments(input: {
       })),
       skipDuplicates: true,
     });
+  };
+  const xPosts = new Map<string, typeof posts>();
+  for (const post of posts) {
+    if (post.provider === "x" && post.socialConnectionId) {
+      xPosts.set(post.socialConnectionId, [
+        ...(xPosts.get(post.socialConnectionId) ?? []),
+        post,
+      ]);
+      continue;
+    }
+    const context = await contextFor(
+      input.projectId,
+      post.socialConnectionId,
+      post.provider,
+    );
+    if (!context || !post.publishedExternalId) continue;
+    const comments = await listPostComments(
+      context,
+      post.publishedExternalId,
+    ).catch(refused(context.provider));
+    await save(post, comments);
+  }
+  // X: one read of the account's mentions covers all its posts.
+  for (const [connectionId, accountPosts] of xPosts) {
+    const context = await contextFor(input.projectId, connectionId, "x");
+    if (!context) continue;
+    const newest = await prisma.socialComment.findFirst({
+      where: { projectId: input.projectId, provider: "x" },
+      orderBy: { commentedAt: "desc" },
+      select: { externalCommentId: true },
+    });
+    const replies = await listXReplies(context, {
+      startTime: since,
+      sinceId: newest?.externalCommentId,
+    }).catch(refused("x"));
+    for (const post of accountPosts) {
+      await save(
+        post,
+        replies.filter(
+          (reply) => reply.conversationId === post.publishedExternalId,
+        ),
+      );
+    }
   }
   // Comments left for a later round age out too, or a busy day's backlog
   // keeps Cuso answering ever older comments first.
@@ -154,7 +211,7 @@ async function repliesLeftToday(
   const sent = await prisma.socialComment.count({
     where: {
       projectId,
-      id: exceptCommentId ? { not: exceptCommentId } : undefined,
+      ...(exceptCommentId ? { id: { not: exceptCommentId } } : {}),
       status: "REPLIED",
       handledAt: { gte: new Date(now.getTime() - DAY_MS) },
     },
@@ -182,6 +239,7 @@ export async function handleSocialComment(input: {
       socialPost: {
         select: {
           socialConnectionId: true,
+          publishedExternalId: true,
           provider: true,
           project: { select: { testCopyOfProjectId: true } },
         },
@@ -208,9 +266,12 @@ export async function handleSocialComment(input: {
     return { status: input.action === "skip" ? "skipped" : "owner" };
   }
   const reply = input.reply?.trim() ?? "";
-  if (!reply || reply.length > SOCIAL_COMMENT_REPLY_MAX)
+  if (!isSocialCommentProvider(comment.provider))
+    throw new SocialCommentRefusedError("No such comment.");
+  const fit = socialCommentReplyFits(comment.provider, reply);
+  if (!fit.fits)
     throw new SocialCommentRefusedError(
-      `Write a reply of 1 to ${SOCIAL_COMMENT_REPLY_MAX} characters.`,
+      `Write a reply of 1 to ${fit.max} characters.`,
     );
   // A reply goes out at once, on a real post (ADR 0073).
   if (comment.socialPost.project?.testCopyOfProjectId)
@@ -247,7 +308,12 @@ export async function handleSocialComment(input: {
       );
     replyExternalId = await replyToComment(
       context,
-      comment.externalCommentId,
+      {
+        externalCommentId: comment.externalCommentId,
+        externalPostId:
+          comment.socialPost.publishedExternalId ?? comment.externalCommentId,
+        idempotencyKey: comment.id,
+      },
       reply,
     );
   } catch (error) {

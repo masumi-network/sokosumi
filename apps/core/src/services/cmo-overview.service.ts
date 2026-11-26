@@ -1,7 +1,7 @@
 import {
-  type BrandBrain,
   type MarketingStrategyPlan,
   SOKO_BOT_CMO_RHYTHMS,
+  type StoredBrandBrainBody,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { getWebAppBaseUrl } from "@/config/env";
@@ -57,6 +57,8 @@ import {
   type CmoUpdateRecord,
   listCmoReports,
 } from "@/services/cmo-reports.service";
+import { cmoStrategyShortfall } from "@/services/cmo-strategy.service";
+import { type CmoUpgrade, cmoUpgradeFor } from "@/services/cmo-upgrade.service";
 import { contactListNameKey } from "@/services/contact-lists.service";
 import {
   approvedMarketingStrategy,
@@ -141,6 +143,8 @@ export interface CmoOverview {
   projectLogo: string | null;
   /** The owner gave their photo, with consent, to front talking videos. */
   presenterSet: boolean;
+  /** Cuso's newest version move, while this member has not closed its dialog. */
+  upgrade: CmoUpgrade | null;
   /** What Cuso does when, for Settings. */
   routines: {
     key: string;
@@ -158,9 +162,11 @@ export interface CmoOverview {
   subscriptionActive: boolean;
   /** This member may approve the strategy. */
   viewerCanApprove: boolean;
-  brandBrain: BrandBrain | null;
+  brandBrain: StoredBrandBrainBody | null;
   /** The newest Marketing strategy version's plan: what the owner reviews. */
   strategy: MarketingStrategyPlan | null;
+  /** A draft short of the volume it promises: Core refuses to approve it. */
+  strategyShort: { planned: number; promised: number } | null;
   /**
    * The approved version's plan as Cuso carries it out, with the pieces he
    * made. Differs from `strategy` while a change waits for approval.
@@ -187,6 +193,8 @@ export interface CmoOverview {
   production: import("@/services/cmo-production.service").CmoProductionStatus;
   /** People on the newsletter list. */
   mailingListSize: number;
+  /** Comments Cuso answered or left for the owner in the last few days. */
+  comments: Awaited<ReturnType<typeof recentHandledSocialComments>>;
   /** This person is in Sokosumi's Ads beta, so CMO offers ad connections. */
   /** Cuso's CMO plan (ADR 0068) and what his Project can spend. */
   billing: CmoBilling & {
@@ -285,20 +293,23 @@ export async function getCmoOverview(
         status: true,
         sharedRoomId: true,
         ingestTimezone: true,
+        versionId: true,
         workspace: { select: { organizationId: true } },
       },
     }),
     listCmoChannels(cuso.projectId),
   ]);
-  const [adConnections, mailingListSize, measurement] = await Promise.all([
-    // An ad connection counts once an ad account is attached to it.
-    prisma.projectAdAccount.findMany({
-      where: { projectId: cuso.projectId, connection: { status: "active" } },
-      select: { provider: true },
-    }),
-    cmoMailingListSize(cuso),
-    listCmoMeasurement(cuso.sokoBotId, project?.sitePlatform ?? null),
-  ]);
+  const [adConnections, mailingListSize, measurement, comments] =
+    await Promise.all([
+      // An ad connection counts once an ad account is attached to it.
+      prisma.projectAdAccount.findMany({
+        where: { projectId: cuso.projectId, connection: { status: "active" } },
+        select: { provider: true },
+      }),
+      cmoMailingListSize(cuso),
+      listCmoMeasurement(cuso.sokoBotId, project?.sitePlatform ?? null),
+      recentHandledSocialComments(cuso.projectId, now),
+    ]);
   if (project && project.sitePlatform === null) {
     waitUntil(runAsBackgroundWork(() => learnCmoSitePlatform(cuso)));
   }
@@ -404,8 +415,8 @@ export async function getCmoOverview(
     subscribed,
     now,
   });
-  const learning = await cmoLearningState(cuso, now);
-  const work = await cmoWork(cuso, now);
+  const learning = await cmoLearningState(cuso);
+  const work = await cmoWork(cuso);
   const activity = await cmoActivity(cuso);
   const brandBrain = parseBrandBrain(cuso.brandBrain);
   // Blob storage not answering leaves the research out, not the page.
@@ -438,7 +449,7 @@ export async function getCmoOverview(
       timezone: true,
     },
   });
-  const routines = SOKO_BOT_CMO_RHYTHMS.map((routine) => {
+  const rhythms = SOKO_BOT_CMO_RHYTHMS.map((routine) => {
     const row = schedules.find((s) => s.systemKey === routine.key);
     return {
       key: routine.key,
@@ -449,6 +460,11 @@ export async function getCmoOverview(
       timezone: row?.timezone ?? null,
     };
   });
+  const { cmoSeoAuditRoutine } = await import(
+    "@/services/cmo-seo-audit.service"
+  );
+  const searchCheck = await cmoSeoAuditRoutine(cuso, bot.ingestTimezone);
+  const routines = searchCheck ? [...rhythms, searchCheck] : rhythms;
   return {
     cuso,
     onboardingStep: cmoOnboardingStep({
@@ -473,6 +489,11 @@ export async function getCmoOverview(
     presenterSet: Boolean(
       project.presenterFileId && project.presenterConsentAt,
     ),
+    upgrade: await cmoUpgradeFor({
+      sokoBotId: cuso.sokoBotId,
+      versionId: bot.versionId,
+      userId,
+    }),
     routines,
     timeZone: bot.ingestTimezone,
     organizationSlug: organization?.slug ?? null,
@@ -482,6 +503,9 @@ export async function getCmoOverview(
     viewerCanApprove,
     brandBrain,
     strategy,
+    strategyShort: newest?.approvedAt
+      ? null
+      : cmoStrategyShortfall(bot.versionId, newest?.plan),
     approvedStrategy: approved ? running : null,
     strategyVersions,
     hiredAt,
@@ -509,6 +533,7 @@ export async function getCmoOverview(
     measurement,
     production: production.status,
     mailingListSize,
+    comments,
     billing: {
       ...billing,
       availableCredits: credits.spendable,
@@ -541,4 +566,43 @@ async function cmoMailingListSize(
       contact: { mergedIntoId: null },
     },
   });
+}
+
+/** Comments Cuso answered or left for the owner in the last few days, newest first. */
+export async function recentHandledSocialComments(
+  projectId: string,
+  now: Date = new Date(),
+) {
+  const rows = await prisma.socialComment.findMany({
+    where: {
+      projectId,
+      status: { in: ["REPLIED", "OWNER"] },
+      handledAt: { gte: new Date(now.getTime() - 3 * 86_400_000) },
+    },
+    orderBy: { handledAt: "desc" },
+    take: 10,
+    select: {
+      id: true,
+      provider: true,
+      status: true,
+      authorName: true,
+      text: true,
+      reply: true,
+      note: true,
+      handledAt: true,
+      socialPost: { select: { publishedUrl: true } },
+    },
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    network: row.provider,
+    status:
+      row.status === "REPLIED" ? ("replied" as const) : ("owner" as const),
+    author: row.authorName,
+    text: row.text.slice(0, 280),
+    reply: row.reply,
+    note: row.note,
+    handledAt: (row.handledAt ?? now).toISOString(),
+    postUrl: row.socialPost.publishedUrl,
+  }));
 }

@@ -8,6 +8,8 @@ interface ListProps {
   rooms: ChatRoom[];
   archivedRooms: ChatRoom[];
   isOrgOwnerOrAdmin?: boolean;
+  directFooter?: React.ReactNode;
+  dismissSheetOnNavigate?: boolean;
 }
 
 const listRenders: ListProps[] = [];
@@ -158,6 +160,40 @@ describe("SidebarChatList", () => {
     expect(listRenders[0]).toMatchObject({
       archivedRooms,
       isOrgOwnerOrAdmin: true,
+    });
+  });
+
+  it("passes Soko Bots into Direct messages and retains sheet dismissal", () => {
+    const footer = <a href="/soko-bots">Soko Bots</a>;
+    render(
+      <SidebarChatList
+        rooms={rooms}
+        deferred={deferred().promise}
+        currentUserId="user-1"
+        organizationId="org-1"
+        directFooter={footer}
+      />,
+    );
+
+    expect(lastRender()).toMatchObject({
+      directFooter: footer,
+      dismissSheetOnNavigate: true,
+    });
+  });
+
+  it("renders the phone Chats page's list without the heading and without a sheet to close", () => {
+    render(
+      <SidebarChatList
+        rooms={rooms}
+        deferred={deferred().promise}
+        currentUserId="user-1"
+        organizationId="org-1"
+        variant="page"
+      />,
+    );
+
+    expect(lastRender()).toMatchObject({
+      dismissSheetOnNavigate: false,
     });
   });
 

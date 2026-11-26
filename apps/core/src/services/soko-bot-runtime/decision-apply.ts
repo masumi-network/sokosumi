@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import { AgentJobStatus } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { createAgentClient } from "@sokosumi/masumi";
 import { sokoBotProvideJobInputSchema as provideJobInputSchema } from "@sokosumi/soko-bot";
 import { createAgentJobForUser } from "@/helpers/job";
@@ -121,7 +122,8 @@ export async function applyDecision(
     }
     let resultingEntityId: string | null = null;
     if (decision.toolName === "hire_agent") {
-      const { followUp, ...hire } = parseHireAgentInput(proposal);
+      const { followUp, followUpAllows, ...hire } =
+        parseHireAgentInput(proposal);
       const existingDelegation = await prisma.sokoBotDelegation.findUnique({
         where: {
           turnId_toolCallId: {
@@ -173,7 +175,7 @@ export async function applyDecision(
             // transaction wins determines whether seller dispatch may start.
             await tx.$queryRaw`
                 SELECT "id"
-                FROM "soko_bot"
+                FROM ${sharedTable("soko_bot")}
                 WHERE "id" = ${decision.sokoBotId}::uuid
                 FOR UPDATE
               `;
@@ -213,7 +215,8 @@ export async function applyDecision(
                   action: "hire_agent",
                   outcome: "processing",
                   error: marker,
-                  followUp,
+                  ...(followUp !== undefined ? { followUp } : {}),
+                  ...(followUpAllows ? { followUpAllows } : {}),
                 },
               });
             }
@@ -338,7 +341,7 @@ export async function applyDecision(
         await serializableTransaction(async (tx) => {
           await tx.$queryRaw`
               SELECT "id"
-              FROM "soko_bot"
+              FROM ${sharedTable("soko_bot")}
               WHERE "id" = ${decision.sokoBotId}::uuid
               FOR UPDATE
             `;

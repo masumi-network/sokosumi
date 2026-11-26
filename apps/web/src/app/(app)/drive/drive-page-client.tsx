@@ -4,9 +4,6 @@ import type { DriveItem, DriveTasksListItem } from "@sokosumi/core-client";
 import {
   deleteDriveFilesDelete,
   deleteDriveFoldersDelete,
-  getProjectsById,
-  getTasksById,
-  getUsersByIdOrganizations,
   patchDriveFilesMove,
   patchDriveFilesRename,
   patchDriveFoldersRename,
@@ -14,7 +11,7 @@ import {
   postDriveTasksCopy,
 } from "@sokosumi/core-client";
 import { getExtensionFromUrl } from "@sokosumi/utils";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown,
   ChevronRight,
@@ -32,7 +29,6 @@ import {
   LockKeyhole,
   MoreHorizontal,
   Pencil,
-  Search,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -45,14 +41,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import {
-  type ReactElement,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactElement, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { RoomFileDropZone } from "@/app/chat/components/room-file-drop-zone";
@@ -88,7 +77,6 @@ import { DriveTablesFilters } from "@/app/drive/components/drive-tables-filters"
 import { DriveTasksFilters } from "@/app/drive/components/drive-tasks-filters";
 import {
   DRIVE_FILE_TYPE_ICON_CLASS,
-  DRIVE_HEADER_CONTROL_CLASS,
   driveItemIconWellClass,
   driveItemMetaDesktopClass,
   driveItemMetaMobileClass,
@@ -102,6 +90,7 @@ import {
 import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
 import { TableList } from "@/app/drive/tables/table-list";
 import { PROJECTS_LIST_CARD_MIN_H_CLASS } from "@/app/projects/constants";
+import { PageSearchField } from "@/components/page-search-field";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -132,7 +121,10 @@ import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
 import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useDriveOrganizationName } from "@/hooks/effects/use-drive-organization-name";
+import { useDriveWorkspaceSwitchUrlReset } from "@/hooks/effects/use-drive-workspace-switch-url-reset";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useIsMobile } from "@/hooks/effects/use-mobile";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import {
@@ -173,36 +165,19 @@ import {
 } from "@/lib/utils/files-sort";
 import { formatBytes } from "@/lib/utils/format-bytes";
 import {
-  DRIVE_ITEMS_QUERY_KEY,
-  getDriveItemsQueryOptions,
+  driveQueryKeys,
+  type InvalidateDriveOptions,
+  invalidateDrive,
+  splitDriveQueryKey,
 } from "@/queries/drive";
+import {
+  useScopedInfiniteQuery,
+  useScopedQuery,
+} from "@/queries/scoped-queries";
+import { driveNavParams } from "./drive-nav-params";
 
 const filesSortByParser = parseAsStringLiteral([...FILES_SORT_BY_VALUES]);
 const filesSortOrderParser = parseAsStringLiteral([...FILES_SORT_ORDER_VALUES]);
-
-function withoutLegacyDriveScopeParam(
-  params: URLSearchParams,
-): URLSearchParams {
-  const next = new URLSearchParams(params.toString());
-  next.delete("scope");
-  return next;
-}
-
-/**
- * The query a drive navigation should carry forward.
- *
- * Drops the legacy `scope`, and `archived` — which only the Tables list reads.
- * Every caller here rebuilds the query from the current URL and then navigates
- * into browse or tasks, so without this a `?archived=true` left over from the
- * Tables tab rides along into views that ignore it and ends up in shared links.
- * `navigateToPrimaryView` clears it through nuqs for the same reason.
- */
-function driveNavParams(params: URLSearchParams): URLSearchParams {
-  const next = withoutLegacyDriveScopeParam(params);
-  next.delete("archived");
-  next.delete("tags");
-  return next;
-}
 
 type ExploreItem =
   | ({ kind: "blob-file" | "blob-folder" } & DriveItem)
@@ -237,42 +212,12 @@ export function DrivePageClient({
   const activeOrganizationId = workspaceIdRef.current;
   const router = useRouter();
   const searchParams = useSearchParams();
-  const previousWorkspaceIdRef = useRef<string | null | undefined>(undefined);
   const skeletonViewMode = effectiveFilesViewMode(
     defaultFilesViewMode,
     isMobile,
   );
 
-  useEffect(() => {
-    if (activeOrganizationId === undefined) {
-      return;
-    }
-    if (previousWorkspaceIdRef.current === undefined) {
-      previousWorkspaceIdRef.current = activeOrganizationId;
-      return;
-    }
-    if (previousWorkspaceIdRef.current === activeOrganizationId) {
-      return;
-    }
-    previousWorkspaceIdRef.current = activeOrganizationId;
-    if (
-      !searchParams.get("folder") &&
-      !searchParams.get("view") &&
-      !searchParams.get("projectId") &&
-      !searchParams.get("taskId") &&
-      !searchParams.get("assigneeId")
-    ) {
-      return;
-    }
-    const params = driveNavParams(searchParams);
-    params.delete("folder");
-    params.delete("view");
-    params.delete("projectId");
-    params.delete("taskId");
-    params.delete("assigneeId");
-    const query = params.toString();
-    router.replace(query ? `/drive?${query}` : "/drive");
-  }, [activeOrganizationId, router, searchParams]);
+  useDriveWorkspaceSwitchUrlReset(activeOrganizationId, router, searchParams);
 
   if (activeOrganizationId === undefined) {
     return (
@@ -317,7 +262,6 @@ function DrivePageWorkspace({
   const [filesViewMode, setFilesViewMode] =
     useState<FilesViewMode>(defaultFilesViewMode);
   const isMobile = useIsMobile();
-  const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [shareItem, setShareItem] = useState<DriveShareItem | null>(null);
   const [dataRoomFolder, setDataRoomFolder] =
@@ -353,36 +297,15 @@ function DrivePageWorkspace({
     null,
   );
   const [movingItem, setMovingItem] = useState(false);
-  /** Every folder path in the store, nested ones included. */
-  const [allFolders, setAllFolders] = useState<string[]>([]);
-  const [loadingAllFolders, setLoadingAllFolders] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [uiWorkspaceId, setUiWorkspaceId] = useState(activeOrganizationId);
-  const [tasksItems, setTasksItems] = useState<DriveTasksListItem[]>([]);
-  const [tasksLoading, setTasksLoading] = useState(false);
-  const [tasksNextCursor, setTasksNextCursor] = useState<string | null>(null);
-  const [tasksLoadingMore, setTasksLoadingMore] = useState(false);
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
-  const [recentsReloadToken, setRecentsReloadToken] = useState(0);
-  const [catalogReloadToken, setCatalogReloadToken] = useState(0);
   const [tasksFilterSheetOpen, setTasksFilterSheetOpen] = useState(false);
   const [taskFileToCopy, setTaskFileToCopy] =
     useState<DriveTasksListItem | null>(null);
   const [copying, setCopying] = useState(false);
-  const [projectNameCache, setProjectNameCache] = useState<Map<string, string>>(
-    () => new Map(),
-  );
-  const [taskNameCache, setTaskNameCache] = useState<Map<string, string>>(
-    () => new Map(),
-  );
 
-  const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
-  const loadAllFoldersAbortRef = useRef<AbortController | null>(null);
-  const loadTasksAbortRef = useRef<AbortController | null>(null);
-  const loadMoreTasksAbortRef = useRef<AbortController | null>(null);
-  const workspaceIdRef = useRef(activeOrganizationId);
-  workspaceIdRef.current = activeOrganizationId;
   const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
     setDebouncedSearchQuery(value);
   }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
@@ -399,22 +322,11 @@ function DrivePageWorkspace({
     setMoveDialogOpen(false);
     setItemToMove(null);
     setSelectedDestination(null);
-    loadAllFoldersAbortRef.current?.abort();
-    setAllFolders([]);
-    setLoadingAllFolders(false);
     debouncedSetSearchQuery.cancel();
     setSearchQuery("");
     setDebouncedSearchQuery("");
-    loadTasksAbortRef.current?.abort();
-    loadMoreTasksAbortRef.current?.abort();
-    setTasksItems([]);
-    setTasksLoading(false);
-    setTasksNextCursor(null);
-    setTasksLoadingMore(false);
     setCopyDialogOpen(false);
     setTaskFileToCopy(null);
-    setProjectNameCache(new Map());
-    setTaskNameCache(new Map());
   }
 
   const driveStore = driveStoreForActiveWorkspace(activeOrganizationId);
@@ -472,21 +384,18 @@ function DrivePageWorkspace({
 
   // The Workspace page takes file drops. One that lands beside it (sidebar,
   // app header) must not make the browser open the file and leave Files.
-  useEffect(() => {
-    if (!isWorkspaceView) return;
-    const ignoreFileDrop = (event: DragEvent) => {
-      if (!event.dataTransfer?.types.includes("Files")) return;
-      event.preventDefault();
-      // The no-drop cursor: nothing happens here.
-      event.dataTransfer.dropEffect = "none";
-    };
-    window.addEventListener("dragover", ignoreFileDrop);
-    window.addEventListener("drop", ignoreFileDrop);
-    return () => {
-      window.removeEventListener("dragover", ignoreFileDrop);
-      window.removeEventListener("drop", ignoreFileDrop);
-    };
-  }, [isWorkspaceView]);
+  const ignoreFileDrop = (event: DragEvent) => {
+    if (!event.dataTransfer?.types.includes("Files")) return;
+    event.preventDefault();
+    // The no-drop cursor: nothing happens here.
+    event.dataTransfer.dropEffect = "none";
+  };
+  useEventListener(
+    isWorkspaceView ? "window" : null,
+    "dragover",
+    ignoreFileDrop,
+  );
+  useEventListener(isWorkspaceView ? "window" : null, "drop", ignoreFileDrop);
   /**
    * The Workspace tab is the catalog, and nothing else.
    *
@@ -521,11 +430,22 @@ function DrivePageWorkspace({
     [allFilesOrganizationId],
   );
 
-  const dataRoomsQuery = useQuery({
-    queryKey: ["drive", "data-rooms", allFilesStore],
-    queryFn: () => fetchDataRooms(allFilesStore),
+  const dataRoomsQuery = useScopedQuery({
+    ...splitDriveQueryKey(driveQueryKeys.dataRooms(allFilesStore)),
+    queryFn: ({ signal }) => fetchDataRooms(allFilesStore, { signal }),
     enabled: isWorkspaceView,
   });
+
+  const foldersQuery = useScopedQuery({
+    ...splitDriveQueryKey(driveQueryKeys.folders(allFilesStore)),
+    queryFn: ({ signal }) =>
+      fetchWorkspaceFolders({ store: allFilesStore, signal }),
+    enabled: moveDialogOpen,
+  });
+  const allFolders = foldersQuery.data ?? [];
+  const loadingAllFolders = foldersQuery.isPending;
+  const foldersUnavailable =
+    foldersQuery.isPending || foldersQuery.isFetching || foldersQuery.isError;
 
   const filesSortSelection = parseFilesSortSelection(
     driveNavQuery.sortBy,
@@ -548,95 +468,37 @@ function DrivePageWorkspace({
   }
   const isTasksSearchActive =
     isTasksView && debouncedSearchQuery.trim().length > 0;
-  const storeRootLabel = driveWorkspaceRootLabel(driveStore, organizationName, {
-    myDrive: t("myDrive"),
-    organizationFallback: t("organizationDriveFallback"),
-  });
 
   function handleSearchChange(value: string) {
     setSearchQuery(value);
     debouncedSetSearchQuery(value);
   }
 
-  /**
-   * Still fetched, and no longer rendered as a list.
-   *
-   * The Workspace tab shows the catalog, which lists files from the index
-   * rather than from the blob store. This listing is what the move dialog's
-   * destinations and the folder actions read, and what an upload invalidates,
-   * so it stays — it just stopped being a second list on the page.
-   */
-  const driveItemsQuery = useQuery({
-    ...getDriveItemsQueryOptions({
-      store: driveStore,
-      folder: currentFolder,
-      search: debouncedSearchQuery,
-      ...filesSortQuery,
-    }),
-    enabled: isWorkspaceView && !isTasksView,
-  });
-  // The catalog renders its own skeleton, so the Workspace tab never uses this.
-  const loading = isTasksView ? tasksLoading : false;
+  const isDriveStoreEnabled =
+    driveStore.scope !== "org" || Boolean(driveStore.organizationId);
+  const trimmedTasksSearchQuery = isTasksSearchActive
+    ? debouncedSearchQuery.trim()
+    : "";
 
-  useEffect(() => {
-    if (!driveItemsQuery.isError) {
-      return;
-    }
-    console.error("Failed to load Drive items", driveItemsQuery.error);
-    toast.error(t("loadFilesError"));
-  }, [driveItemsQuery.error, driveItemsQuery.isError, t]);
-
-  async function refreshDriveItems() {
-    await queryClient.invalidateQueries({ queryKey: DRIVE_ITEMS_QUERY_KEY });
-    /**
-     * And the catalog, which is the list a reader on this tab is looking at.
-     *
-     * It fetches from the search index rather than from the blob listing, so
-     * invalidating that query does not touch it. Before the merge an upload
-     * refreshed the grid the reader could see; without this it would land in
-     * the store and appear nowhere until they searched for something.
-     */
-    setCatalogReloadToken((token) => token + 1);
-    // Core moves a room's path with a rename or move of it or of a folder
-    // above it; stale paths would mark the wrong folder as a data room.
-    await queryClient.invalidateQueries({ queryKey: ["drive", "data-rooms"] });
-  }
-
-  const loadTasksItems = useCallback(async () => {
-    if (!isTasksView) {
-      return;
-    }
-
-    loadTasksAbortRef.current?.abort();
-    loadMoreTasksAbortRef.current?.abort();
-    loadMoreTasksAbortRef.current = null;
-    setTasksLoadingMore(false);
-    const controller = new AbortController();
-    loadTasksAbortRef.current = controller;
-
-    try {
-      if (scope === "org" && !activeOrganizationId) {
-        if (!controller.signal.aborted) {
-          setTasksItems([]);
-          setTasksNextCursor(null);
-          setTasksLoading(false);
-        }
-        return;
-      }
-
-      if (!controller.signal.aborted) {
-        setTasksItems([]);
-        setTasksNextCursor(null);
-        setTasksLoading(true);
-      }
-
-      const page = await fetchDriveTasksPage({
+  const tasksQuery = useScopedInfiniteQuery({
+    ...splitDriveQueryKey(
+      driveQueryKeys.tasks(driveStore, {
+        projectId: projectIdParam,
+        taskId: taskIdParam,
+        assigneeId: assigneeIdParam,
+        q: trimmedTasksSearchQuery,
+        sortBy: filesSortQuery.sortBy,
+        sortOrder: filesSortQuery.sortOrder,
+      }),
+    ),
+    queryFn: ({ pageParam, signal }) =>
+      fetchDriveTasksPage({
         scope,
         ...(scope === "org" && activeOrganizationId
           ? { organizationId: activeOrganizationId }
           : {}),
-        ...(isTasksSearchActive
-          ? { q: debouncedSearchQuery.trim() }
+        ...(trimmedTasksSearchQuery
+          ? { q: trimmedTasksSearchQuery }
           : taskIdParam
             ? { taskId: taskIdParam }
             : projectIdParam
@@ -644,268 +506,107 @@ function DrivePageWorkspace({
               : {}),
         ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
         ...filesSortQuery,
-        signal: controller.signal,
-      });
+        ...(pageParam ? { cursor: pageParam } : {}),
+        signal,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled: isTasksView && isDriveStoreEnabled,
+    // Task outputs are produced outside Drive, so returning to the Tasks view
+    // keeps cached rows visible and refetches in the background like main.
+    staleTime: 0,
+  });
 
-      if (!controller.signal.aborted) {
-        setTasksItems(page.items);
-        setTasksNextCursor(page.nextCursor);
-        setProjectNameCache((prev) => {
-          const next = new Map(prev);
-          for (const item of page.items) {
-            if (item.type === "project") {
-              next.set(item.id, item.name);
-            }
-          }
-          return next;
-        });
-        setTaskNameCache((prev) => {
-          const next = new Map(prev);
-          for (const item of page.items) {
-            if (item.type === "task") {
-              next.set(item.id, item.name);
-            }
-          }
-          return next;
-        });
-      }
-    } catch (err) {
-      if (!controller.signal.aborted) {
-        console.error("Failed to load tasks", err);
-        toast.error(t("loadTasksError"));
-      }
-    } finally {
-      if (!controller.signal.aborted) {
-        setTasksLoading(false);
+  const drillDownSelectionQuery = useScopedInfiniteQuery({
+    ...splitDriveQueryKey(
+      driveQueryKeys.tasks(driveStore, {
+        projectId: projectIdParam,
+        taskId: taskIdParam,
+        assigneeId: assigneeIdParam,
+        q: "",
+        sortBy: filesSortQuery.sortBy,
+        sortOrder: filesSortQuery.sortOrder,
+      }),
+    ),
+    queryFn: ({ pageParam, signal }) =>
+      fetchDriveTasksPage({
+        scope,
+        ...(scope === "org" && activeOrganizationId
+          ? { organizationId: activeOrganizationId }
+          : {}),
+        ...(taskIdParam
+          ? { taskId: taskIdParam }
+          : projectIdParam
+            ? { projectId: projectIdParam }
+            : {}),
+        ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
+        ...filesSortQuery,
+        ...(pageParam ? { cursor: pageParam } : {}),
+        signal,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    // Reads cached selectedProject / selectedTask from the unsearched
+    // drill-down key during search without refetching warm entries, while
+    // fetching once if selection or sort changes to an uncached key (and
+    // still refetching on invalidateDrive).
+    enabled:
+      isTasksView &&
+      isDriveStoreEnabled &&
+      isTasksSearchActive &&
+      Boolean(projectIdParam || taskIdParam),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+
+  const firstTasksPage = isTasksSearchActive
+    ? drillDownSelectionQuery.data?.pages[0]
+    : tasksQuery.data?.pages[0];
+  const selectedProject = firstTasksPage?.selectedProject ?? null;
+  const selectedTask = firstTasksPage?.selectedTask ?? null;
+  const effectiveProjectId =
+    projectIdParam ??
+    (taskIdParam && firstTasksPage && "selectedProject" in firstTasksPage
+      ? (selectedProject?.id ?? "null")
+      : null);
+
+  const tasksItems = useMemo(() => {
+    const pages = tasksQuery.data?.pages ?? [];
+    const seen = new Set<string>();
+    const flattened: DriveTasksListItem[] = [];
+    for (const page of pages) {
+      for (const item of page.items) {
+        const key = `${item.type}:${item.id}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        flattened.push(item);
       }
     }
-  }, [
-    isTasksView,
-    isTasksSearchActive,
-    debouncedSearchQuery,
-    scope,
+    return flattened;
+  }, [tasksQuery.data?.pages]);
+
+  const isRefreshingTasksPageOne =
+    tasksQuery.isFetching && !tasksQuery.isFetchingNextPage;
+  const isTasksEmptyError =
+    isTasksView && tasksQuery.isError && tasksItems.length === 0;
+  // The catalog renders its own skeleton, so the Workspace tab never uses this.
+  const loading =
+    isTasksView &&
+    isDriveStoreEnabled &&
+    (tasksQuery.isPending ||
+      (tasksItems.length === 0 && tasksQuery.isFetching));
+
+  function refreshDriveItems(options?: InvalidateDriveOptions) {
+    void invalidateDrive(queryClient, driveStore, options);
+  }
+
+  const organizationName = useDriveOrganizationName(
     activeOrganizationId,
-    projectIdParam,
-    taskIdParam,
-    assigneeIdParam,
-    filesSortQuery.sortBy,
-    filesSortQuery.sortOrder,
-    t,
-  ]);
-
-  const loadMoreTasksItems = useCallback(async () => {
-    if (!isTasksView || !tasksNextCursor || tasksLoadingMore) {
-      return;
-    }
-
-    if (scope === "org" && !activeOrganizationId) {
-      return;
-    }
-
-    loadMoreTasksAbortRef.current?.abort();
-    const controller = new AbortController();
-    loadMoreTasksAbortRef.current = controller;
-    const workspaceIdAtRequest = workspaceIdRef.current;
-    const queryAtRequest = {
-      scope,
-      organizationId: activeOrganizationId,
-      projectId: projectIdParam,
-      taskId: taskIdParam,
-      assigneeId: assigneeIdParam,
-      searchQuery: debouncedSearchQuery.trim(),
-      cursor: tasksNextCursor,
-      sortBy: filesSortQuery.sortBy,
-      sortOrder: filesSortQuery.sortOrder,
-    };
-
-    setTasksLoadingMore(true);
-    try {
-      const page = await fetchDriveTasksPage({
-        scope: queryAtRequest.scope,
-        ...(queryAtRequest.scope === "org" && queryAtRequest.organizationId
-          ? { organizationId: queryAtRequest.organizationId }
-          : {}),
-        ...(queryAtRequest.searchQuery
-          ? { q: queryAtRequest.searchQuery }
-          : queryAtRequest.taskId
-            ? { taskId: queryAtRequest.taskId }
-            : queryAtRequest.projectId
-              ? { projectId: queryAtRequest.projectId }
-              : {}),
-        ...(queryAtRequest.assigneeId
-          ? { assigneeId: queryAtRequest.assigneeId }
-          : {}),
-        ...(queryAtRequest.sortBy ? { sortBy: queryAtRequest.sortBy } : {}),
-        ...(queryAtRequest.sortOrder
-          ? { sortOrder: queryAtRequest.sortOrder }
-          : {}),
-        cursor: queryAtRequest.cursor,
-        signal: controller.signal,
-      });
-
-      const queryStillMatches =
-        workspaceIdRef.current === workspaceIdAtRequest &&
-        scope === queryAtRequest.scope &&
-        activeOrganizationId === queryAtRequest.organizationId &&
-        projectIdParam === queryAtRequest.projectId &&
-        taskIdParam === queryAtRequest.taskId &&
-        assigneeIdParam === queryAtRequest.assigneeId &&
-        debouncedSearchQuery.trim() === queryAtRequest.searchQuery &&
-        filesSortQuery.sortBy === queryAtRequest.sortBy &&
-        filesSortQuery.sortOrder === queryAtRequest.sortOrder;
-
-      if (controller.signal.aborted || !queryStillMatches) {
-        return;
-      }
-
-      setTasksItems((current) => [...current, ...page.items]);
-      setTasksNextCursor(page.nextCursor);
-      setProjectNameCache((prev) => {
-        const next = new Map(prev);
-        for (const item of page.items) {
-          if (item.type === "project") {
-            next.set(item.id, item.name);
-          }
-        }
-        return next;
-      });
-      setTaskNameCache((prev) => {
-        const next = new Map(prev);
-        for (const item of page.items) {
-          if (item.type === "task") {
-            next.set(item.id, item.name);
-          }
-        }
-        return next;
-      });
-    } catch (err) {
-      if (!controller.signal.aborted) {
-        console.error("Failed to load more tasks", err);
-        toast.error(t("loadMoreTasksError"));
-      }
-    } finally {
-      if (!controller.signal.aborted) {
-        setTasksLoadingMore(false);
-      }
-    }
-  }, [
-    isTasksView,
-    tasksNextCursor,
-    tasksLoadingMore,
-    scope,
-    activeOrganizationId,
-    projectIdParam,
-    taskIdParam,
-    assigneeIdParam,
-    debouncedSearchQuery,
-    filesSortQuery.sortBy,
-    filesSortQuery.sortOrder,
-    t,
-  ]);
-
-  useEffect(() => {
-    if (isTasksView) {
-      void loadTasksItems();
-    }
-  }, [isTasksView, loadTasksItems]);
-
-  useEffect(() => {
-    if (!isTasksView) {
-      return;
-    }
-
-    async function fetchMissingNames() {
-      try {
-        if (
-          projectIdParam &&
-          projectIdParam !== "null" &&
-          !projectNameCache.has(projectIdParam) &&
-          !tasksItems.some(
-            (item) => item.type === "project" && item.id === projectIdParam,
-          )
-        ) {
-          const response = await getProjectsById({
-            client: getBrowserCoreClient(),
-            path: { id: projectIdParam },
-            throwOnError: true,
-          });
-          const project = response.data?.data;
-          if (project?.id && project?.name) {
-            setProjectNameCache((prev) => {
-              const next = new Map(prev);
-              next.set(project.id, project.name);
-              return next;
-            });
-          }
-        }
-
-        if (
-          taskIdParam &&
-          !taskNameCache.has(taskIdParam) &&
-          !tasksItems.some(
-            (item) => item.type === "task" && item.id === taskIdParam,
-          )
-        ) {
-          const response = await getTasksById({
-            client: getBrowserCoreClient(),
-            path: { id: taskIdParam },
-            throwOnError: true,
-          });
-          const task = response.data?.data;
-          if (task?.id && task?.name) {
-            setTaskNameCache((prev) => {
-              const next = new Map(prev);
-              next.set(task.id, task.name);
-              return next;
-            });
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch missing names", err);
-      }
-    }
-
-    void fetchMissingNames();
-  }, [isTasksView, projectIdParam, taskIdParam, tasksItems]);
-
-  useEffect(() => {
-    async function fetchOrganizationName() {
-      fetchOrgNameAbortRef.current?.abort();
-      const controller = new AbortController();
-      fetchOrgNameAbortRef.current = controller;
-
-      if (!activeOrganizationId || !session?.user?.id) {
-        if (!controller.signal.aborted) {
-          setOrganizationName(null);
-        }
-        return;
-      }
-
-      try {
-        const response = await getUsersByIdOrganizations({
-          client: getBrowserCoreClient(),
-          path: { id: session.user.id },
-        });
-        const orgs = response.data?.data || [];
-        const activeOrg = orgs.find((org) => org.id === activeOrganizationId);
-        if (!controller.signal.aborted) {
-          setOrganizationName(activeOrg?.name ?? null);
-        }
-      } catch {
-        if (!controller.signal.aborted) {
-          setOrganizationName(null);
-        }
-      }
-    }
-
-    void fetchOrganizationName();
-  }, [activeOrganizationId, session?.user?.id]);
-
-  useEffect(() => {
-    return () => {
-      loadAllFoldersAbortRef.current?.abort();
-    };
-  }, [activeOrganizationId]);
+    session?.user?.id,
+  );
+  const storeRootLabel = driveWorkspaceRootLabel(driveStore, organizationName, {
+    myDrive: t("myDrive"),
+    organizationFallback: t("organizationDriveFallback"),
+  });
 
   /**
    * Run one upload at a time, busy from the moment files arrive: reading a
@@ -978,10 +679,10 @@ function DrivePageWorkspace({
         }
       }
     }
-    await refreshDriveItems();
-    // Empty Recents can start an upload, and the new file belongs there.
-    if (uploaded > 0) setRecentsReloadToken((token) => token + 1);
-    if (uploaded > 0 && plan.rootFolder) applyFolderFacet(plan.rootFolder);
+    if (uploaded > 0) {
+      refreshDriveItems();
+      if (plan.rootFolder) applyFolderFacet(plan.rootFolder);
+    }
 
     if (uploaded === 0 && entries.length === 1 && duplicate) {
       toast.error(t("uploadDuplicateError"));
@@ -1060,7 +761,7 @@ function DrivePageWorkspace({
           `${item.name.slice(0, item.name.lastIndexOf("/") + 1)}${newName.trim()}`,
         );
       }
-      await refreshDriveItems();
+      refreshDriveItems();
     } catch (err) {
       console.error(`Failed to rename ${item.type}`, err);
       if (isDuplicateResourceError(err)) {
@@ -1102,13 +803,17 @@ function DrivePageWorkspace({
         });
       }
 
+      const deletedPathname =
+        itemToDelete.type === "file" ? itemToDelete.pathname : null;
       setDeleteDialogOpen(false);
       // A deleted folder cannot go on narrowing the catalog.
       if (itemToDelete.type === "folder") applyFolderFacet("");
       setItemToDelete(null);
-      await refreshDriveItems();
-      setRecentsReloadToken((token) => token + 1);
+      refreshDriveItems(
+        deletedPathname ? { deletedIds: [deletedPathname] } : undefined,
+      );
     } catch (err) {
+      void invalidateDrive(queryClient, driveStore);
       console.error(`Failed to delete ${itemToDelete.type}`, err);
       toast.error(
         itemToDelete.type === "folder"
@@ -1172,14 +877,7 @@ function DrivePageWorkspace({
     router.push(`/drive?${params.toString()}`);
   }
 
-  function navigateToProject(projectId: string, projectName?: string) {
-    if (projectName) {
-      setProjectNameCache((prev) => {
-        const next = new Map(prev);
-        next.set(projectId, projectName);
-        return next;
-      });
-    }
+  function navigateToProject(projectId: string) {
     const params = driveNavParams(searchParams);
     params.set("view", "tasks");
     params.set("projectId", projectId);
@@ -1188,14 +886,7 @@ function DrivePageWorkspace({
     router.push(`/drive?${params.toString()}`);
   }
 
-  function navigateToTask(taskId: string, taskName?: string) {
-    if (taskName) {
-      setTaskNameCache((prev) => {
-        const next = new Map(prev);
-        next.set(taskId, taskName);
-        return next;
-      });
-    }
+  function navigateToTask(taskId: string) {
     const params = driveNavParams(searchParams);
     params.set("view", "tasks");
     params.set("taskId", taskId);
@@ -1285,7 +976,7 @@ function DrivePageWorkspace({
           ? `${targetFolder}/${newFolderName.trim()}`
           : newFolderName.trim(),
       );
-      await refreshDriveItems();
+      refreshDriveItems();
     } catch (err) {
       console.error("Failed to create folder", err);
       toast.error(t("createFolderError"));
@@ -1300,7 +991,6 @@ function DrivePageWorkspace({
     setMoveNewFolderName("");
     setSelectedDestination(null);
     setMoveDialogOpen(true);
-    void loadAllFolders();
   }
 
   function openMoveFilesDialog(files: { pathname: string; name: string }[]) {
@@ -1309,11 +999,10 @@ function DrivePageWorkspace({
     setMoveNewFolderName("");
     setSelectedDestination(null);
     setMoveDialogOpen(true);
-    void loadAllFolders();
   }
 
   /** Moving several ticked files: each on its own, failures reported once. */
-  async function moveFiles(targetFolderPath: string) {
+  async function moveFiles(targetFolderPath: string): Promise<number> {
     const results = await Promise.allSettled(
       filesToMove.map((file) =>
         patchDriveFilesMove({
@@ -1328,60 +1017,32 @@ function DrivePageWorkspace({
       ),
     );
     const failed = results.filter((result) => result.status === "rejected");
+    const moved = results.length - failed.length;
     if (failed.length > 0)
       toast.error(t("moveFilesPartialError", { count: failed.length }));
     else toast.success(t("movedFiles", { count: filesToMove.length }));
-  }
-
-  async function loadAllFolders() {
-    loadAllFoldersAbortRef.current?.abort();
-    const controller = new AbortController();
-    loadAllFoldersAbortRef.current = controller;
-    const requestedWorkspaceId = activeOrganizationId;
-    setLoadingAllFolders(true);
-    try {
-      const loaded = await fetchWorkspaceFolders({
-        store: driveStore,
-        signal: controller.signal,
-      });
-      if (
-        controller.signal.aborted ||
-        workspaceIdRef.current !== requestedWorkspaceId
-      ) {
-        return;
-      }
-
-      setAllFolders(loaded);
-    } catch (err) {
-      if (controller.signal.aborted) {
-        return;
-      }
-      console.error("Failed to load all folders", err);
-      if (workspaceIdRef.current === requestedWorkspaceId) {
-        setAllFolders([]);
-      }
-    } finally {
-      if (
-        !controller.signal.aborted &&
-        workspaceIdRef.current === requestedWorkspaceId
-      ) {
-        setLoadingAllFolders(false);
-      }
-    }
+    return moved;
   }
 
   async function handleMoveConfirm() {
-    if (selectedDestination === null) return;
+    if (
+      foldersQuery.isFetching ||
+      selectedDestination === null ||
+      !hasValidMoveDestination
+    ) {
+      return;
+    }
     if (!itemToMove) {
       if (filesToMove.length === 0) return;
       setMovingItem(true);
       try {
-        await moveFiles(selectedDestination);
+        const moved = await moveFiles(selectedDestination);
         setMoveDialogOpen(false);
         setFilesToMove([]);
         setSelectedDestination(null);
-        await refreshDriveItems();
-        setRecentsReloadToken((token) => token + 1);
+        if (moved > 0) {
+          refreshDriveItems();
+        }
       } finally {
         setMovingItem(false);
       }
@@ -1405,8 +1066,7 @@ function DrivePageWorkspace({
       setMoveDialogOpen(false);
       setItemToMove(null);
       setSelectedDestination(null);
-      await refreshDriveItems();
-      setRecentsReloadToken((token) => token + 1);
+      refreshDriveItems();
     } catch (err) {
       console.error(`Failed to move ${itemToMove.type}`, err);
       toast.error(
@@ -1449,7 +1109,7 @@ function DrivePageWorkspace({
       toast.success(t("copyToFilesSuccess"));
       setCopyDialogOpen(false);
       setTaskFileToCopy(null);
-      await refreshDriveItems();
+      refreshDriveItems();
     } catch (err) {
       console.error("Failed to copy file", err);
       if (isDuplicateResourceError(err)) {
@@ -1526,6 +1186,15 @@ function DrivePageWorkspace({
     return destinations;
   })();
 
+  const isTypedMoveDestination = moveNewFolderName.trim().length > 0;
+  const hasValidMoveDestination =
+    selectedDestination !== null &&
+    (isTypedMoveDestination ||
+      (!foldersUnavailable &&
+        availableDestinations.some(
+          (dest) => dest.path === selectedDestination,
+        )));
+
   const exploreItems: ExploreItem[] = (() => {
     if (isTasksView) {
       return tasksItems.map((item) => {
@@ -1549,7 +1218,8 @@ function DrivePageWorkspace({
     return [];
   })();
 
-  const emptyState = !loading && isTasksView && exploreItems.length === 0;
+  const emptyState =
+    !loading && !isTasksEmptyError && isTasksView && exploreItems.length === 0;
   const hasItems = exploreItems.length > 0;
 
   const tasksBreadcrumbs = (() => {
@@ -1559,28 +1229,21 @@ function DrivePageWorkspace({
     const crumbs: Array<{ label: string; onClick: () => void }> = [
       { label: t("tasksBreadcrumbLabel"), onClick: navigateToTasksRoot },
     ];
-    if (projectIdParam) {
-      const project = tasksItems.find(
-        (item) => item.type === "project" && item.id === projectIdParam,
-      );
-      const cachedName = projectNameCache.get(projectIdParam);
+    if (effectiveProjectId) {
       const projectName =
-        project && project.type === "project"
-          ? project.name
-          : cachedName ||
-            (projectIdParam === "null" ? t("noProject") : projectIdParam);
+        selectedProject?.id === effectiveProjectId
+          ? selectedProject.name
+          : effectiveProjectId === "null"
+            ? t("noProject")
+            : effectiveProjectId;
       crumbs.push({
         label: projectName,
-        onClick: () => navigateToProject(projectIdParam),
+        onClick: () => navigateToProject(effectiveProjectId),
       });
     }
     if (taskIdParam) {
-      const task = tasksItems.find(
-        (item) => item.type === "task" && item.id === taskIdParam,
-      );
-      const cachedName = taskNameCache.get(taskIdParam);
       const taskName =
-        task && task.type === "task" ? task.name : cachedName || taskIdParam;
+        selectedTask?.id === taskIdParam ? selectedTask.name : taskIdParam;
       crumbs.push({
         label: taskName,
         onClick: () => navigateToTask(taskIdParam),
@@ -1607,6 +1270,7 @@ function DrivePageWorkspace({
     taskLabel: t("filterTaskLabel"),
     noProjectLabel: t("noProject"),
     loadMore: t("loadMore"),
+    retry: t("Files.retry"),
   };
 
   const driveTablesFilterLabels = {
@@ -1805,7 +1469,9 @@ function DrivePageWorkspace({
       {/* Drive scopes to a Project only on the Tasks view. */}
       <DriveCmoProjectBanner
         projectId={
-          isTasksView && projectIdParam !== "null" ? projectIdParam : null
+          isTasksView && effectiveProjectId !== "null"
+            ? effectiveProjectId
+            : null
         }
       />
       <div className="mb-4 flex flex-col gap-4 md:mb-6">
@@ -1858,26 +1524,22 @@ function DrivePageWorkspace({
             {isTasksView && (
               <>
                 <div className="hidden items-center gap-2 @2xl:flex">
-                  <div className="relative">
-                    <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-                    <Input
-                      type="text"
-                      placeholder={t("tasksSearchPlaceholder")}
-                      value={searchQuery}
-                      onChange={(e) => handleSearchChange(e.target.value)}
-                      className={cn(
-                        "w-64 max-w-full pl-8",
-                        DRIVE_HEADER_CONTROL_CLASS,
-                      )}
-                    />
-                  </div>
+                  <PageSearchField
+                    className="w-64 max-w-full"
+                    inputClassName="h-8"
+                    placeholder={t("tasksSearchPlaceholder")}
+                    value={searchQuery}
+                    onValueChange={handleSearchChange}
+                  />
                 </div>
                 <div className="hidden @2xl:block">
                   <DriveTasksFilters
                     activeOrganizationId={activeOrganizationId}
                     assigneeId={assigneeIdParam}
-                    projectId={projectIdParam}
+                    projectId={effectiveProjectId}
                     taskId={taskIdParam}
+                    selectedProject={selectedProject}
+                    selectedTask={selectedTask}
                     labels={driveTasksFilterLabels}
                     hideMobileTrigger
                     sheetOpen={tasksFilterSheetOpen}
@@ -1949,19 +1611,13 @@ function DrivePageWorkspace({
             )}
             {!isTasksView && isRecentsView && (
               <div className="hidden items-center gap-2 @2xl:flex">
-                <div className="relative">
-                  <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-                  <Input
-                    type="text"
-                    placeholder={t("searchPlaceholder")}
-                    value={searchQuery}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    className={cn(
-                      "w-64 max-w-full pl-8",
-                      DRIVE_HEADER_CONTROL_CLASS,
-                    )}
-                  />
-                </div>
+                <PageSearchField
+                  className="w-64 max-w-full"
+                  inputClassName="h-8"
+                  placeholder={t("searchPlaceholder")}
+                  value={searchQuery}
+                  onValueChange={handleSearchChange}
+                />
                 {recentsTagFilter}
               </div>
             )}
@@ -2031,16 +1687,12 @@ function DrivePageWorkspace({
           className="mb-6 flex items-center gap-2 @2xl:hidden"
           data-testid="tasks-mobile-toolbar"
         >
-          <div className="relative flex-1">
-            <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-            <Input
-              type="text"
-              placeholder={t("tasksSearchPlaceholder")}
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-8"
-            />
-          </div>
+          <PageSearchField
+            className="min-w-0 flex-1"
+            placeholder={t("tasksSearchPlaceholder")}
+            value={searchQuery}
+            onValueChange={handleSearchChange}
+          />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -2085,16 +1737,12 @@ function DrivePageWorkspace({
 
       {!isTasksView && isRecentsView && (
         <div className="mb-6 flex items-center gap-2 @2xl:hidden">
-          <div className="relative flex-1">
-            <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-            <Input
-              type="text"
-              placeholder={t("searchPlaceholder")}
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-8"
-            />
-          </div>
+          <PageSearchField
+            className="min-w-0 flex-1"
+            placeholder={t("searchPlaceholder")}
+            value={searchQuery}
+            onValueChange={handleSearchChange}
+          />
           {recentsTagFilter}
         </div>
       )}
@@ -2108,10 +1756,8 @@ function DrivePageWorkspace({
       ) : isRecentsView ? (
         <DriveRecentsPanel
           driveStore={driveStore}
-          activeOrganizationId={activeOrganizationId}
           searchQuery={debouncedSearchQuery}
           tagLabelIds={driveNavQuery.tags}
-          reloadToken={recentsReloadToken}
           viewMode={layoutMode}
           onOpenMoveDialog={openMoveDialog}
           onOpenDeleteDialog={openDeleteDialog}
@@ -2129,15 +1775,31 @@ function DrivePageWorkspace({
             });
             setCopyDialogOpen(true);
           }}
-          onItemsChanged={() => {
-            void refreshDriveItems();
-          }}
           onUpload={openFilePicker}
           uploading={uploading}
           onOpenWorkspace={() => navigateToPrimaryView("workspace")}
         />
       ) : loading ? (
         <DriveListSkeleton viewMode={layoutMode} />
+      ) : isTasksEmptyError ? (
+        <div
+          className={cn(
+            "bg-card-background flex flex-col items-center justify-center overflow-hidden rounded-xl px-4 py-12 text-center text-sm",
+            PROJECTS_LIST_CARD_MIN_H_CLASS,
+          )}
+          role="alert"
+        >
+          <p>{t("loadTasksError")}</p>
+          <Button
+            type="button"
+            className="mt-3"
+            variant="outline"
+            size="sm"
+            onClick={() => void tasksQuery.refetch()}
+          >
+            {t("Files.retry")}
+          </Button>
+        </div>
       ) : emptyState ? (
         <div
           className={cn(
@@ -2200,7 +1862,7 @@ function DrivePageWorkspace({
                     key={`project-${item.id}`}
                     viewMode={layoutMode}
                     activateLabel={item.name}
-                    onActivate={() => navigateToProject(item.id, item.name)}
+                    onActivate={() => navigateToProject(item.id)}
                   >
                     <div className={driveItemIconWellClass(layoutMode)}>
                       <Folder className="text-muted-foreground size-5" />
@@ -2271,7 +1933,7 @@ function DrivePageWorkspace({
                     key={`task-${item.id}`}
                     viewMode={layoutMode}
                     activateLabel={item.name}
-                    onActivate={() => navigateToTask(item.id, item.name)}
+                    onActivate={() => navigateToTask(item.id)}
                   >
                     <div className={driveItemIconWellClass(layoutMode)}>
                       <Folder className="text-muted-foreground size-5" />
@@ -2414,14 +2076,48 @@ function DrivePageWorkspace({
                */
               return null;
             })}
-            {isTasksView && tasksNextCursor ? (
+            {isTasksView && tasksQuery.isError ? (
+              <div
+                className="flex items-center justify-center gap-2 py-4 text-sm"
+                role="alert"
+              >
+                <span className="text-muted-foreground">
+                  {tasksQuery.isFetchNextPageError
+                    ? t("loadMoreTasksError")
+                    : t("loadTasksError")}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  loading={
+                    tasksQuery.isFetchNextPageError
+                      ? tasksQuery.isFetchingNextPage
+                      : isRefreshingTasksPageOne
+                  }
+                  disabled={
+                    tasksQuery.isFetchNextPageError && isRefreshingTasksPageOne
+                  }
+                  onClick={() =>
+                    void (tasksQuery.isFetchNextPageError
+                      ? tasksQuery.fetchNextPage({ cancelRefetch: false })
+                      : tasksQuery.refetch())
+                  }
+                >
+                  {t("Files.retry")}
+                </Button>
+              </div>
+            ) : isTasksView && tasksQuery.hasNextPage ? (
               <div className="flex justify-center py-4">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => void loadMoreTasksItems()}
-                  disabled={tasksLoadingMore}
+                  loading={tasksQuery.isFetchingNextPage}
+                  disabled={isRefreshingTasksPageOne}
+                  onClick={() =>
+                    void tasksQuery.fetchNextPage({ cancelRefetch: false })
+                  }
                 >
                   {t("loadMore")}
                 </Button>
@@ -2460,7 +2156,6 @@ function DrivePageWorkspace({
             onOpen: navigateToTasksRoot,
           }}
           dataRoomPaths={dataRoomsQuery.data?.map((room) => room.folderPath)}
-          reloadToken={catalogReloadToken}
           onShareFile={setShareItem}
           onMoveFiles={openMoveFilesDialog}
         />
@@ -2479,7 +2174,6 @@ function DrivePageWorkspace({
         store={driveStore}
         folder={currentFolder}
         onOpenChange={setLinkSheetDialogOpen}
-        onLinked={() => void refreshDriveItems()}
       />
 
       <DriveDataRoomDialog
@@ -2488,7 +2182,6 @@ function DrivePageWorkspace({
         onOpenChange={(open) => {
           if (!open) setDataRoomFolder(null);
         }}
-        onChanged={() => void dataRoomsQuery.refetch()}
       />
 
       {/* Outside any one view: Workspace's Upload menu, the phone FAB and
@@ -2619,12 +2312,13 @@ function DrivePageWorkspace({
                 <button
                   key={dest.path}
                   type="button"
+                  disabled={foldersUnavailable}
                   onClick={() => {
                     setMoveNewFolderName("");
                     setSelectedDestination(dest.path);
                   }}
                   className={cn(
-                    "text-foreground press hover:bg-accent flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                    "text-foreground press hover:bg-accent flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors disabled:pointer-events-none disabled:opacity-50",
                     selectedDestination === dest.path &&
                       "bg-muted border-foreground",
                   )}
@@ -2673,7 +2367,11 @@ function DrivePageWorkspace({
             </Button>
             <Button
               onClick={() => void handleMoveConfirm()}
-              disabled={movingItem || selectedDestination === null}
+              disabled={
+                movingItem ||
+                foldersQuery.isFetching ||
+                !hasValidMoveDestination
+              }
             >
               {t("moveHere")}
             </Button>

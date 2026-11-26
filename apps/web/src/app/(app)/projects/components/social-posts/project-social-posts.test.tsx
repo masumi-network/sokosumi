@@ -20,6 +20,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { useQueryState } from "nuqs";
 import { NuqsTestingAdapter, type UrlUpdateEvent } from "nuqs/adapters/testing";
+import { Activity } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
 import {
@@ -392,6 +393,14 @@ vi.mock("next-intl", async () => {
             );
             return createTranslator({ locale: "en", messages })(
               key.slice("composer.".length),
+              values,
+            );
+          }
+          if (key.startsWith("bulkApprove.")) {
+            const messages: Record<string, string> =
+              enMessages.App.Projects.SocialPosts.bulkApprove;
+            return createTranslator({ locale: "en", messages })(
+              key.slice("bulkApprove.".length),
               values,
             );
           }
@@ -805,6 +814,29 @@ function render(ui: React.ReactElement, searchParams?: string) {
 }
 
 describe("ProjectSocialPosts", () => {
+  it("selects only the matching failed posts when searching before a bulk retry", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          { ...FAILED_POST, id: "shown", text: "Launch day" },
+          { ...FAILED_POST, id: "hidden", text: "Sunday update" },
+        ]}
+        projectId={PROJECT_ID}
+        searchQuery="launch"
+      />,
+      "?tab=attention",
+    );
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "Select all posts that can be retried",
+      }),
+    );
+    expect(screen.getByText("1 selected")).toBeVisible();
+    expect(screen.queryByTestId("social-post-select-hidden")).toBeNull();
+  });
+
   it("shows waiting in the list and preview for a due quote", async () => {
     const user = userEvent.setup();
     render(
@@ -1034,6 +1066,7 @@ describe("ProjectSocialPosts", () => {
       projectId: PROJECT_ID,
       action: "reconnect",
       socialConnectionId: "connection-1",
+      accountChoice: true,
     });
     const dialog = await screen.findByRole("alertdialog");
     expect(within(dialog).getByText("Retry 1 failed posts?")).toBeVisible();
@@ -1407,13 +1440,27 @@ describe("ProjectSocialPosts", () => {
     "offers post actions and the composer only off a CMO Project (readOnly %s)",
     async (readOnly) => {
       const user = userEvent.setup();
+      const waiting = buildPost({
+        id: "post-waiting",
+        status: "NEEDS_APPROVAL",
+        canApprove: true,
+        canPublishNow: false,
+      });
       render(
         <ProjectSocialPosts
           connections={[buildConnection()]}
-          posts={[buildPost({ canApprove: true, canDuplicate: true })]}
+          posts={[buildPost({ canApprove: true, canDuplicate: true }), waiting]}
           projectId={PROJECT_ID}
           readOnly={readOnly}
         />,
+      );
+
+      // Bulk approval follows the same rule as the row's Approve.
+      expect(
+        screen.queryByTestId(`social-post-select-${waiting.id}`) !== null,
+      ).toBe(!readOnly);
+      expect(screen.queryByTestId("social-bulk-approve") !== null).toBe(
+        !readOnly,
       );
 
       const row = within(screen.getByTestId("social-post-post-draft"));
@@ -2610,7 +2657,7 @@ describe("ProjectSocialPosts", () => {
     expect(postNow).toHaveAttribute("aria-describedby");
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
 
-    trigger.focus();
+    act(() => trigger.focus());
     expect(await screen.findByRole("tooltip")).toHaveTextContent(
       "Add text or media.",
     );
@@ -2638,7 +2685,10 @@ describe("ProjectSocialPosts", () => {
     expect(postNow.querySelector("kbd")).not.toBeInTheDocument();
 
     await user.type(within(dialog).getByLabelText("Text"), "Hello");
-    const enabled = within(dialog).getByRole("button", { name: "Post now" });
+    const enabled = within(dialog).getByRole("button", {
+      name: "Post now",
+      busy: false,
+    });
     expect(enabled).toBeEnabled();
     expect(enabled.querySelector("kbd")).toHaveTextContent("⌘↵");
   });
@@ -2664,7 +2714,7 @@ describe("ProjectSocialPosts", () => {
     expect(saveDraft).toHaveAttribute("aria-describedby");
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
 
-    trigger.focus();
+    act(() => trigger.focus());
     expect(await screen.findByRole("tooltip")).toHaveTextContent(
       "Add text or media.",
     );
@@ -6588,16 +6638,26 @@ describe("ProjectSocialPosts", () => {
         );
         expect(initiateProjectSocialConnection).toHaveBeenCalledWith(
           status === "disconnected"
-            ? { projectId: PROJECT_ID, action: "connect", provider: "x" }
+            ? {
+                projectId: PROJECT_ID,
+                action: "connect",
+                provider: "x",
+                accountChoice: true,
+              }
             : {
                 projectId: PROJECT_ID,
                 action: "reconnect",
                 socialConnectionId: connection.id,
+                accountChoice: true,
               },
         );
         expect(finalizeProjectSocialConnection).toHaveBeenCalledWith({
           projectId: PROJECT_ID,
           connectionId: "ca-1",
+          callbackProof: undefined,
+          pendingDataToken: undefined,
+          connectToken: undefined,
+          offerChoice: true,
         });
         expect(within(dialog).getByLabelText("Text")).toHaveValue("Fixed copy");
         expect(
@@ -7279,6 +7339,320 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("approves only the picked posts, at the revision shown, and lists each result", async () => {
+    const user = userEvent.setup();
+    const waiting = (id: string, text: string, revision: number) =>
+      buildPost({
+        id,
+        text,
+        status: "NEEDS_APPROVAL",
+        scheduledAt: null,
+        canApprove: true,
+        canPublishNow: false,
+        revision,
+      });
+    const toDraft = waiting("post-wait-1", "First waiting", 2);
+    const toSchedule = {
+      ...waiting("post-wait-2", "Second waiting", 4),
+      scheduledAt: new Date("2099-01-05T09:00:00.000Z"),
+    };
+    const changed = waiting("post-wait-3", "Third waiting", 7);
+    const untouched = waiting("post-wait-4", "Not picked", 1);
+    vi.mocked(approveProjectSocialPost).mockImplementation(
+      async ({ postId }) => {
+        if (postId === toDraft.id) {
+          return {
+            ok: true,
+            value: { ...toDraft, status: "DRAFT", canApprove: false },
+          };
+        }
+        if (postId === toSchedule.id) {
+          return {
+            ok: true,
+            value: { ...toSchedule, status: "SCHEDULED", canApprove: false },
+          };
+        }
+        return {
+          ok: false,
+          error: {
+            code: "BAD_INPUT",
+            kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+            message: "Conflict copy can change freely",
+          },
+        };
+      },
+    );
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[toDraft, toSchedule, changed, untouched]}
+        projectId={PROJECT_ID}
+      />,
+      "?tab=drafts",
+    );
+
+    const approveSelected = screen.getByRole("button", {
+      name: "Approve selected",
+    });
+    expect(approveSelected).toBeDisabled();
+    expect(
+      screen.queryByRole("checkbox", { name: /all/i }),
+    ).not.toBeInTheDocument();
+
+    for (const post of [toDraft, toSchedule, changed]) {
+      await user.click(
+        screen.getByRole("checkbox", {
+          name: `Select post ${[toDraft, toSchedule, changed, untouched].indexOf(post) + 1} of 4 to approve: ${post.text}`,
+        }),
+      );
+    }
+    expect(screen.getByText("3 selected")).toBeVisible();
+    await user.click(approveSelected);
+
+    const alert = screen.getByRole("alertdialog");
+    expect(
+      within(alert).getByRole("heading", { name: "Approve 3 posts?" }),
+    ).toBeVisible();
+    expect(within(alert).getByText("First waiting")).toBeVisible();
+    expect(within(alert).queryByText("Not picked")).not.toBeInTheDocument();
+    expect(
+      within(alert).getByTestId(`social-bulk-approve-plan-${toDraft.id}`),
+    ).toHaveTextContent("Becomes a draft");
+    expect(
+      within(alert).getByTestId(`social-bulk-approve-plan-${toSchedule.id}`),
+    ).toHaveTextContent(/^.*Set for .*still far enough ahead/);
+    expect(approveProjectSocialPost).not.toHaveBeenCalled();
+    await user.click(
+      within(alert).getByRole("button", { name: "Approve selected" }),
+    );
+
+    await waitFor(() => {
+      expect(approveProjectSocialPost).toHaveBeenCalledTimes(3);
+    });
+    for (const post of [toDraft, toSchedule, changed]) {
+      expect(approveProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: post.id,
+        revision: post.revision,
+      });
+    }
+
+    const results = await screen.findByTestId("social-bulk-approve-results");
+    expect(
+      within(results).getByTestId(`social-bulk-approve-result-${toDraft.id}`),
+    ).toHaveTextContent("Approved as a draft");
+    expect(
+      within(results).getByTestId(
+        `social-bulk-approve-result-${toSchedule.id}`,
+      ),
+    ).toHaveTextContent(/Approved\. Goes out/);
+    expect(
+      within(results).getByTestId(`social-bulk-approve-result-${changed.id}`),
+    ).toHaveTextContent("Changed since you looked. Open it to check again.");
+
+    // The bar's button is disabled now, so focus returns to the bar itself.
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("social-bulk-approve")).toHaveFocus();
+    });
+
+    // Other dialogs keep their own return target.
+    const newPost = screen.getByRole("button", { name: "New post" });
+    await user.click(newPost);
+    await user.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId("social-bulk-approve")).not.toHaveFocus();
+  });
+
+  it("names each checkbox apart, words dated plans as a condition, and returns focus to the tab", async () => {
+    const user = userEvent.setup();
+    // Two textless posts on one account fall back to the same handle.
+    const textless = (id: string, scheduledAt: Date | null) =>
+      buildPost({
+        id,
+        text: "",
+        status: "NEEDS_APPROVAL",
+        scheduledAt,
+        canApprove: true,
+        canPublishNow: false,
+        socialConnection: FAILED_POST.socialConnection,
+      });
+    // Already past by the browser's clock; Core still decides.
+    const past = textless(
+      "post-wait-past",
+      new Date("2020-01-01T09:00:00.000Z"),
+    );
+    const undated = textless("post-wait-undated", null);
+    vi.mocked(approveProjectSocialPost).mockImplementation(
+      async ({ postId }) => ({
+        ok: true,
+        value: {
+          ...(postId === past.id ? past : undated),
+          status: "DRAFT",
+          canApprove: false,
+        },
+      }),
+    );
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[past, undated]}
+        projectId={PROJECT_ID}
+      />,
+      "?tab=drafts",
+    );
+
+    const boxes = screen.getAllByRole("checkbox", { name: /to approve/ });
+    expect(boxes.map((box) => box.getAttribute("aria-label"))).toEqual([
+      "Select post 1 of 2 to approve: sokosumi",
+      "Select post 2 of 2 to approve: sokosumi",
+    ]);
+
+    for (const box of boxes) await user.click(box);
+    await user.click(screen.getByRole("button", { name: "Approve selected" }));
+    const alert = screen.getByRole("alertdialog");
+    expect(
+      within(alert).getByTestId(`social-bulk-approve-plan-${past.id}`),
+    ).toHaveTextContent(/Set for .*still far enough ahead/);
+    expect(
+      within(alert).getByTestId(`social-bulk-approve-plan-${undated.id}`),
+    ).toHaveTextContent("Becomes a draft");
+    await user.click(
+      within(alert).getByRole("button", { name: "Approve selected" }),
+    );
+    await screen.findByTestId("social-bulk-approve-results");
+    await user.click(screen.getByRole("button", { name: "Close" }));
+
+    // No post is left waiting, so the bar is gone and the open tab takes focus.
+    await waitFor(() => {
+      expect(getTab("Drafts")).toHaveFocus();
+    });
+  });
+
+  it("approves at the revision the person picked, even after the post changes", async () => {
+    const user = userEvent.setup();
+    const picked = buildPost({
+      id: "post-wait-stale",
+      text: "Picked at revision 2",
+      status: "NEEDS_APPROVAL",
+      scheduledAt: null,
+      canApprove: true,
+      canPublishNow: false,
+      revision: 2,
+    });
+    vi.mocked(approveProjectSocialPost).mockResolvedValue({
+      ok: false,
+      error: {
+        code: "BAD_INPUT",
+        kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+        message: "Conflict copy can change freely",
+      },
+    });
+    const { rerender } = render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[picked]}
+        projectId={PROJECT_ID}
+      />,
+      "?tab=drafts",
+    );
+    await user.click(screen.getByTestId(`social-post-select-${picked.id}`));
+
+    // Someone edits it after it was ticked; the page refreshes to revision 3.
+    rerender(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[{ ...picked, text: "Edited elsewhere", revision: 3 }]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Approve selected" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Approve selected",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(approveProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: picked.id,
+        revision: 2,
+      });
+    });
+    expect(
+      await screen.findByTestId(`social-bulk-approve-result-${picked.id}`),
+    ).toHaveTextContent("Changed since you looked. Open it to check again.");
+  });
+
+  it("keeps what was approved when the session ends mid-batch, and offers sign-in", async () => {
+    const user = userEvent.setup();
+    const waiting = (id: string, text: string) =>
+      buildPost({
+        id,
+        text,
+        status: "NEEDS_APPROVAL",
+        scheduledAt: null,
+        canApprove: true,
+        canPublishNow: false,
+      });
+    const first = waiting("post-wait-a", "First goes through");
+    const second = waiting("post-wait-b", "Session ends here");
+    const third = waiting("post-wait-c", "Never tried");
+    const authError = new Error("User is not authenticated") as Error & {
+      digest: string;
+    };
+    authError.name = "UnAuthenticatedError";
+    authError.digest = "UNAUTHENTICATED";
+    vi.mocked(approveProjectSocialPost)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: { ...first, status: "DRAFT", canApprove: false },
+      })
+      .mockRejectedValueOnce(authError);
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[first, second, third]}
+        projectId={PROJECT_ID}
+      />,
+      "?tab=drafts",
+    );
+    for (const post of [first, second, third]) {
+      await user.click(screen.getByTestId(`social-post-select-${post.id}`));
+    }
+    await user.click(screen.getByRole("button", { name: "Approve selected" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Approve selected",
+      }),
+    );
+
+    const results = await screen.findByTestId("social-bulk-approve-results");
+    expect(approveProjectSocialPost).toHaveBeenCalledTimes(2);
+    expect(
+      within(results).getByTestId(`social-bulk-approve-result-${first.id}`),
+    ).toHaveTextContent("Approved as a draft");
+    expect(
+      within(results).getByTestId(`social-bulk-approve-result-${second.id}`),
+    ).toHaveTextContent("Not approved: your session ended.");
+    expect(
+      within(results).getByTestId(`social-bulk-approve-result-${third.id}`),
+    ).toHaveTextContent("Not tried: your session ended.");
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "Please log in to continue.",
+      expect.objectContaining({
+        action: expect.objectContaining({ label: "Log in" }),
+      }),
+    );
+
+    // The two that did not go through stay picked for after sign-in.
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.getByText("2 selected")).toBeVisible();
+  });
+
   it("publishes a draft now and toasts the failure reason when Core reports FAILED", async () => {
     const user = userEvent.setup();
     vi.mocked(publishProjectSocialPost).mockResolvedValue({
@@ -7669,6 +8043,82 @@ describe("ProjectSocialPosts", () => {
       }),
     );
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("does not replay the missing-post toast on Activity reveal", async () => {
+    const connections = [buildConnection()];
+    const posts = [buildPost()];
+
+    const { rerender } = render(
+      <Activity mode="visible">
+        <ProjectSocialPosts
+          connections={connections}
+          posts={posts}
+          projectId={PROJECT_ID}
+          requestedPostId="post-gone"
+        />
+      </Activity>,
+    );
+
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <Activity mode="hidden">
+        <ProjectSocialPosts
+          connections={connections}
+          posts={posts}
+          projectId={PROJECT_ID}
+          requestedPostId="post-gone"
+        />
+      </Activity>,
+    );
+    rerender(
+      <Activity mode="visible">
+        <ProjectSocialPosts
+          connections={connections}
+          posts={posts}
+          projectId={PROJECT_ID}
+          requestedPostId="post-gone"
+        />
+      </Activity>,
+    );
+
+    expect(toastErrorMock).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <Activity mode="visible">
+        <ProjectSocialPosts
+          connections={connections}
+          posts={posts}
+          projectId={PROJECT_ID}
+          requestedPostId="post-gone-2"
+        />
+      </Activity>,
+    );
+
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalledTimes(2));
+
+    rerender(
+      <Activity mode="visible">
+        <ProjectSocialPosts
+          connections={connections}
+          posts={posts}
+          projectId={PROJECT_ID}
+        />
+      </Activity>,
+    );
+    rerender(
+      <Activity mode="visible">
+        <ProjectSocialPosts
+          connections={connections}
+          posts={posts}
+          projectId={PROJECT_ID}
+          requestedPostId="post-gone-2"
+        />
+      </Activity>,
+    );
+
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalledTimes(3));
   });
 
   it("does not toast when the named post is present", () => {

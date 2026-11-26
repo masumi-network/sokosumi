@@ -1,7 +1,7 @@
 "use client";
 
 import type { NotificationItem } from "@sokosumi/core-client";
-import { CircleAlert } from "lucide-react";
+import { CircleAlert, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -31,6 +31,10 @@ export interface NeedsYouLead {
   title: string;
   detail: string;
   href: string;
+  /** When it came; a failure shows no time. */
+  at?: Date;
+  /** A message to read rather than something that failed. */
+  kind?: "message";
 }
 
 interface NeedsYouPanelListProps {
@@ -45,7 +49,8 @@ interface NeedsYouPanelListProps {
    * team's day, and one line saying so when nothing waits.
    */
   quiet?: boolean;
-  lead?: NeedsYouLead;
+  /** Rows above the notifications, each with its time label. */
+  leads?: (NeedsYouLead & { time: string })[];
 }
 
 /**
@@ -59,7 +64,7 @@ export function NeedsYouPanelList({
   projects,
   labels,
   quiet = false,
-  lead,
+  leads = [],
 }: NeedsYouPanelListProps) {
   const router = useRouter();
   const tCenter = useTranslations("Components.NotificationCenter");
@@ -116,28 +121,33 @@ export function NeedsYouPanelList({
       ),
     };
   });
-  const rows = lead
-    ? [
-        {
-          key: "lead",
-          node: (
-            <WorkspaceColumnRow
-              leading={
-                <CircleAlert
-                  className="text-semantic-destructive size-4"
-                  aria-hidden
-                />
-              }
-              title={lead.title}
-              detail={lead.detail}
-              time=""
-              target={{ href: lead.href }}
-            />
-          ),
-        },
-        ...notificationRows,
-      ]
-    : notificationRows;
+  const rows = [
+    ...leads.map((lead) => ({
+      key: `lead:${lead.href}`,
+      node: (
+        <WorkspaceColumnRow
+          leading={
+            lead.kind === "message" ? (
+              <MessageCircle
+                className="text-muted-foreground size-4"
+                aria-hidden
+              />
+            ) : (
+              <CircleAlert
+                className="text-semantic-destructive size-4"
+                aria-hidden
+              />
+            )
+          }
+          title={lead.title}
+          detail={lead.detail}
+          time={lead.time}
+          target={{ href: lead.href }}
+        />
+      ),
+    })),
+    ...notificationRows,
+  ];
   const showAll = {
     label: labels.showAll,
     href: "/notifications",
@@ -152,10 +162,12 @@ export function NeedsYouPanelList({
             {labels.title}
           </h2>
           {notificationRows.length > 0 ? (
+            // The padding gives a phone a 36px tap target; the negative
+            // margin keeps the heading row at its text height.
             <Link
               href={showAll.href}
               onClick={showAll.onClick}
-              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm text-sm outline-none transition-colors focus-visible:ring-2"
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring -my-2 rounded-sm py-2 text-sm outline-none transition-colors focus-visible:ring-2"
             >
               {showAll.label}
             </Link>

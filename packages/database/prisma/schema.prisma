@@ -7,7 +7,7 @@
 generator client {
   provider        = "prisma-client" // ESM-first
   output          = "../src/generated/prisma" // output directory for the generated client
-  previewFeatures = ["partialIndexes", "views"]
+  previewFeatures = ["partialIndexes", "strictUndefinedChecks", "views"]
 }
 
 datasource db {
@@ -134,6 +134,7 @@ model Organization {
   coworkerUsages CoworkerUsage[]
   sokoBotUsages  SokoBotUsage[]
   chatRooms      ChatRoom[]
+  teamStandup    TeamStandup?
 
   stripeCustomerId String?
 
@@ -154,11 +155,13 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  dataTables          DataTable[]
-  contacts            Contact[]
-  contactLists        ContactList[]
-  contactCompanies    ContactCompany[]
-  contactCompanyLists ContactCompanyList[]
+  dataTables           DataTable[]
+  contacts             Contact[]
+  contactLists         ContactList[]
+  contactCompanies     ContactCompany[]
+  contactCompanyLists  ContactCompanyList[]
+  fundraisingProspects FundraisingProspect[]
+  fundraisingPortfolio FundraisingPortfolioCompany[]
 
   seoAudits            SeoAudit[]
   seoConnections       SeoConnection[]
@@ -173,6 +176,7 @@ model Workspace {
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   jobs                     Job[]
+  taskViewPreferences      TaskViewPreference[]
   tasks                    Task[]
   socialPosts              SocialPost[]
   newsletters              Newsletter[]
@@ -483,6 +487,9 @@ model Project {
   presenterFileId         String?                 @db.Uuid
   /// When the owner confirmed they may use that photo in videos.
   presenterConsentAt      DateTime?
+  /// The ad budget the owner set while Cuso was busy, as
+  /// `{ monthly, currency, userId }`: Cuso plans it when his turn ends.
+  cmoPendingAdBudget      Json?
   /// When a member turned the weekly competitor check on for this Project;
   /// null while it is off. A CMO Project's check does not need it: it runs
   /// while its Cuso is paid for.
@@ -503,6 +510,7 @@ model Project {
   seoActionTasks          ProjectSeoActionTask[]
   seoSuggestions          ProjectSeoSuggestion[]
   seoResearch             ProjectSeoResearch[]
+  cmoPicturePicks         CmoPicturePick[]
   /// What the website runs on when it is a shop system Cuso can measure
   /// (only "shopify" today), learned once from the site; null otherwise.
   sitePlatform            String?
@@ -512,6 +520,11 @@ model Project {
   studioBrandLookRevision Int       @default(0)
   designMdUrl             String?
   designMdExtractionId    String?
+  /// One sentence describing how this brand's pictures look, written once
+  /// from its DESIGN.md for pictures that borrow only a layout (cmo-v11).
+  cmoPictureStyle         String?
+  /// The DESIGN.md the sentence was written from; a new one rewrites it.
+  cmoPictureStyleSource   String?
   /// Markdown guidance for drafting this Project's social posts (tone,
   /// hashtags, CTAs, optional `##` per-platform sections). Separate from
   /// project memory (contextMd) and DESIGN.md.
@@ -2285,8 +2298,9 @@ model OauthClientResource {
 
   clientId   String
   client     OauthClient   @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  /// The resource's `identifier` (its URL), which is what Better Auth stores.
   resourceId String
-  resource   OauthResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  resource   OauthResource @relation(fields: [resourceId], references: [identifier], onDelete: Cascade)
   metadata   Json?
 
   @@unique([clientId, resourceId])
@@ -2653,6 +2667,12 @@ model SokoBot {
   /// default: an assistant that only watches what it created misses most of
   /// what its owner is actually working on.
   followWholeBoard    Boolean   @default(true)
+  /// Unused: the old opt-in switch, superseded by `leftTeamStandupAt`. Kept
+  /// so a running deployment still reads it during a deploy; drop it later.
+  joinsTeamStandup    Boolean   @default(false)
+  /// When a member took this bot out of the daily stand-up; null = it joins
+  /// (on by default, so every live bot speaks without a row written for it).
+  leftTeamStandupAt   DateTime?
   /// Kill switch for everything the bot starts on its own (rhythms, ingest, nudges).
   proactivePaused     Boolean   @default(false)
   /// Max self-started turns per local day; beyond it the syncs skip the bot.
@@ -2719,6 +2739,7 @@ model SokoBot {
   legacyMessages       SokoBotLegacyMessage[]
   pendingDecisions     SokoBotPendingDecision[]
   schedules            SokoBotSchedule[]
+  cmoUpgradesSeen      CmoUpgradeSeen[]
 
   // One LIVE bot per user and workspace. Partial, because a plain unique would
   // let a tombstone block its owner from ever creating a new bot.
@@ -2812,6 +2833,9 @@ model SokoBotTurn {
   continuationTokenKeyId      String?
 
   modelId        String?
+  /// Why the turn runs on `modelId`: `default` (the version's model) or the
+  /// rule that chose the version's stronger model (lib/soko-bot/turn-model.ts).
+  modelReason    String?
   runtimeVersion String?
   usage          Json?
   /// Billable cost: the agent loop alone. Drives `sokoBotUsageCents`, so
@@ -2871,6 +2895,7 @@ model SokoBotTurn {
   events              SokoBotEvent[]
   runtimeEvents       SokoBotRuntimeEvent[]
   toolCalls           SokoBotToolCall[]
+  modelCalls          SokoBotModelCall[]
   delegations         SokoBotDelegation[]
   watches             SokoBotWatch[]
   pendingDecisions    SokoBotPendingDecision[]
@@ -3093,8 +3118,45 @@ model SokoBotSetting {
   disabledByUserId String?
   disabledReason   String?
 
+  /// Set while an administrator has paused every organization's stand-up.
+  standupPausedAt DateTime?
+
   @@map("soko_bot_setting")
 }
+
+/// One AI Gateway call made for a turn: the agent's steps, Jev's routing and
+/// checks, the judge, check models and embeddings. What was asked for, what
+/// answered, and what it cost on that model. A record, not the bill: billing
+/// stays on `SokoBotTurn.costUsdMicros`.
+model SokoBotModelCall {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  turnId String      @db.Uuid
+  turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  /// agent, classifier, judge, check, search, embedding
+  role              String
+  /// Which code made the call, e.g. `claim-check`; null for agent steps.
+  label             String?
+  requestedModel    String
+  /// The model the Gateway says answered; null when it reported none.
+  answeredModel     String?
+  provider          String?
+  region            String?
+  zeroDataRetention Boolean?
+  inputTokens       Int      @default(0)
+  cacheReadTokens   Int      @default(0)
+  cacheWriteTokens  Int      @default(0)
+  outputTokens      Int      @default(0)
+  costUsdMicros     BigInt   @default(0)
+  generationId      String?
+  failed            Boolean  @default(false)
+
+  @@index([turnId, createdAt])
+  @@map("soko_bot_model_call")
+}
+
 
 model SokoBotRuntimeEvent {
   id        String   @id @default(uuid(7)) @db.Uuid
@@ -3185,6 +3247,9 @@ model SokoBotDelegation {
   followUp       String?
   /// The EVENT turn that carried `followUp`; set once, so a plan runs once.
   followUpTurnId String? @db.Uuid
+  /// The owner's own limits for `followUp` ({ images?, maxCredits? }):
+  /// the turn that carries it out may make no more images or spend no more.
+  followUpAllows Json?
 
   @@unique([turnId, toolCallId])
   @@index([taskId])
@@ -3308,9 +3373,15 @@ model SokoBotSchedule {
   /// their chat tools. Empty for built-ins and console schedules written
   /// before 2026-11-16, which Jev classifies on every run.
   capabilityNames     String[]  @default([])
+  /// Core-owned OwnerAuthority envelope bound to this schedule (ADR:
+  /// neon-arch-owner-authority). Null for legacy schedules created before
+  /// OwnerAuthority persistence.
+  authority           Json?
   nextRunAt           DateTime
   lastRunAt           DateTime?
   consecutiveFailures Int       @default(0)
+  /// Durable count of distinct completed runs; survives the 7-day run retention purge.
+  completedRuns       Int       @default(0)
 
   /// The Task or Job this schedule follows. Core removes the schedule once
   /// that work finishes; the result itself wakes the bot through the events sync.
@@ -3406,6 +3477,22 @@ model SokoBotAdminAction {
   @@map("soko_bot_admin_action")
 }
 
+/// A member closed CMO's "Cuso got better" dialog for this Cuso's move onto
+/// this version, so it is not shown to them again.
+model CmoUpgradeSeen {
+  userId    String
+  sokoBotId String   @db.Uuid
+  versionId String
+  seenAt    DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sokoBot SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  @@id([userId, sokoBotId, versionId])
+  @@index([sokoBotId])
+  @@map("cmo_upgrade_seen")
+}
+
 model CoworkerApiKey {
   id        String   @id @default(uuid(7))
   createdAt DateTime @default(now())
@@ -3417,6 +3504,8 @@ model CoworkerApiKey {
 
   expiresAt DateTime?
   revokedAt DateTime?
+  /// Last successful authentication, written at most once a minute.
+  lastUsedAt DateTime?
 
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
@@ -4381,6 +4470,7 @@ model ChatRoom {
   guestInviteLinks ChatRoomGuestInviteLink[]
   sharedSokoBot    SokoBot?                  @relation("SokoBotSharedRoom")
   messageSignals   ChatMessageSignal[]
+  teamStandups     TeamStandup[]
 
   // The Channel/Direct slug and directKey CHECKs live in SQL migrations only:
   // Prisma cannot express CHECK constraints.
@@ -5353,6 +5443,10 @@ model ProjectImageJob {
   /// Reference library images (`reference_image`) sent first, as the style to
   /// borrow: Cuso's pictures in the look of an old ad or poster.
   referenceLibraryIds String[] @default([]) @db.Uuid
+  /// Send the reference library image as a block map of its layout only
+  /// (three greys, no texture), so the picture borrows where things sit and
+  /// none of the old print's look (cmo-v11).
+  styleLayoutOnly     Boolean  @default(false)
   /// The version this one refines, when the user started from a selection.
   parentAssetId     String?  @db.Uuid
 

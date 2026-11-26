@@ -6,7 +6,11 @@ import {
 } from "./project-seo.schema";
 
 export const seoLandingEvents = ["purchase", "sign_up"] as const;
-export const seoLandingEventSchema = z.enum(seoLandingEvents);
+export const seoLandingEventSchema = z
+  .string()
+  .regex(/^[A-Za-z][A-Za-z0-9_]{0,39}$/);
+// A page has two legacy events and at most one owner-selected completion.
+export const maxPageOutcomeEvents = seoLandingEvents.length + 1;
 export const seoOutcomeWindow = z.strictObject({
   from: seoDateSchema,
   to: seoDateSchema,
@@ -21,9 +25,36 @@ export const seoBriefOutcome = z.strictObject({
 });
 export type SeoBriefOutcome = z.infer<typeof seoBriefOutcome>;
 
+const goalChannel = z.strictObject({
+  sessions: z.number().int().positive(),
+  rate: z.number().min(0).max(1),
+});
+const goalPeriod = z.strictObject({
+  from: seoDateSchema,
+  to: seoDateSchema,
+  organic: goalChannel,
+  direct: goalChannel,
+});
+export const seoGoalInvestigation = z.strictObject({
+  pageUrl: seoUrlSchema,
+  timeZone: z.string().min(1).max(100),
+  event: seoLandingEventSchema,
+  before: goalPeriod,
+  after: goalPeriod,
+  weekdayMix: z.literal("uneven").optional(),
+  assessment: z.enum([
+    "both_declined",
+    "organic_declined",
+    "goal_held",
+    "handoff",
+  ]),
+});
+export type SeoGoalInvestigation = z.infer<typeof seoGoalInvestigation>;
+
 export const privateLandingOutcomeSchema = z
   .strictObject({
     version: z.literal(1),
+    metricObservationId: z.uuid().optional(),
     channel: z.literal("organic"),
     accountKey: z.string().regex(/^[a-f0-9]{64}$/),
     propertyId: z.string().min(1).max(500),
@@ -31,6 +62,7 @@ export const privateLandingOutcomeSchema = z
     timeZone: z.string().min(1).max(100).nullable(),
     from: seoDateSchema,
     to: seoDateSchema,
+    goalInvestigation: seoGoalInvestigation.optional(),
     rows: z
       .array(
         z.strictObject({
@@ -39,13 +71,25 @@ export const privateLandingOutcomeSchema = z
           count: z.number().int().nonnegative(),
         }),
       )
-      .max(SEO_MAX_PAGES * seoLandingEvents.length),
+      .max(SEO_MAX_PAGES * maxPageOutcomeEvents),
   })
   .refine(
     (v) =>
       v.from <= v.to &&
+      (!v.goalInvestigation ||
+        (v.timeZone === v.goalInvestigation.timeZone &&
+          new URL(v.goalInvestigation.pageUrl).hostname === v.verifiedHost &&
+          v.goalInvestigation.after.from === v.from &&
+          v.goalInvestigation.after.to === v.to &&
+          v.goalInvestigation.before.to < v.from)) &&
       v.rows.every((row) => new URL(row.pageUrl).hostname === v.verifiedHost),
   );
+// A successful source selection may have no publishable counts or verified landing host.
+export const privateLandingSourceSchema = z.strictObject({
+  version: z.literal(2),
+  accountKey: z.string().regex(/^[a-f0-9]{64}$/),
+  propertyId: z.string().min(1).max(500),
+});
 export type PrivateLandingOutcomes = z.infer<
   typeof privateLandingOutcomeSchema
 >;

@@ -2,6 +2,7 @@ import "./rooms-client-harness";
 import type { ChatRoomMessage } from "@sokosumi/core-client";
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
@@ -112,6 +113,7 @@ describe("room open read started on click", () => {
     rowMounts.count = 0;
   });
   afterEach(() => {
+    cleanup();
     vi.unstubAllGlobals();
     clearMembershipVisibleRoomsSnapshot();
   });
@@ -231,7 +233,7 @@ describe("room open read started on click", () => {
     expect(fetch).not.toHaveBeenCalled();
 
     const link = screen.getByText("Open B");
-    await act(() => approachElement(link));
+    await act(async () => approachElement(link));
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(String(vi.mocked(fetch).mock.calls[0][0])).toContain("room-b");
 
@@ -280,7 +282,7 @@ describe("room open read started on click", () => {
     }
     render(<OpenB />, { wrapper: CacheWrapper });
 
-    await act(() => approachElement(screen.getByText("Open B")));
+    await act(async () => approachElement(screen.getByText("Open B")));
 
     const urls = vi.mocked(fetch).mock.calls.map(([url]) => String(url));
     expect(urls).toHaveLength(2);
@@ -313,6 +315,7 @@ describe("app chrome while a room paints ahead of its route", () => {
     window.history.replaceState(null, "", "/chat");
   });
   afterEach(() => {
+    cleanup();
     vi.unstubAllGlobals();
     clearMembershipVisibleRoomsSnapshot();
     window.history.replaceState(null, "", "/");
@@ -346,7 +349,7 @@ describe("app chrome while a room paints ahead of its route", () => {
     render(<Page />, { wrapper: CacheWrapper });
     expect(chromePath()).toBe("/chat");
 
-    fireEvent.click(screen.getByText("Open B"));
+    await act(async () => fireEvent.click(screen.getByText("Open B")));
 
     await waitFor(() => expect(chromePath()).toBe("/chat/rooms/room-b"));
     expect(mockPathname()).toBe("/chat");

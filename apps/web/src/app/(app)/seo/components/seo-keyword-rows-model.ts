@@ -1,4 +1,8 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import {
+  MEDIUM_DIFFICULTY_FROM,
+  recommendedOrder,
+} from "./seo-keyword-recommendations";
 import { seoFoldCount } from "./seo-list-model";
 import { normalizeQuery } from "./seo-search-model";
 
@@ -6,6 +10,25 @@ type Keyword = ProjectSeoWorkspace["keywords"][number];
 
 /** A rank up to this one is on the first results page. */
 export const SEO_FIRST_PAGE_RANK = 10;
+
+function hasRankedIdeas(rows: Keyword[]) {
+  return rows.some((row) => row.ideaRank !== undefined);
+}
+
+export function workspaceKeywordGroups(
+  workspace: Pick<ProjectSeoWorkspace, "observations" | "keywords">,
+  rows = workspace.keywords,
+) {
+  const broad =
+    workspace.observations.some((audit) =>
+      audit.checklistBreakdown?.research.some(
+        (page) => page.rankedKeywordIdeas,
+      ),
+    ) || hasRankedIdeas(workspace.keywords);
+  return keywordGroups(rows, broad);
+}
+const compareText = (left: string, right: string) =>
+  left < right ? -1 : left > right ? 1 : 0;
 
 const DEVICE_ORDER: Record<string, number> = { mobile: 0, desktop: 1 };
 
@@ -52,7 +75,7 @@ const chosen = (group: SeoKeywordGroup) => seoKeywordOwn(group.lead);
  * "ideas" the keywords a check only lists as a competitor gap or an opportunity.
  * Ideas with a high or medium conversion estimate lead their list.
  */
-export function keywordGroups(rows: Keyword[]) {
+export function keywordGroups(rows: Keyword[], broad = hasRankedIdeas(rows)) {
   const members = new Map<string, Keyword[]>();
   for (const row of rows) {
     const key = JSON.stringify([
@@ -141,10 +164,53 @@ export function keywordGroups(rows: Keyword[]) {
     group.sources.some(
       (source) => !SEO_IDEA_SOURCES.some((idea) => idea === source),
     );
-  return {
-    checked: groups.filter(checked).toSorted(byReach),
-    ideas: groups.filter((group) => !checked(group)).toSorted(byConversion),
-  };
+  // Page capture times differ within one observation. Use one timestamp for all its pages.
+  const observed = new Map<string | null, number>();
+  for (const row of rows) {
+    const at = row.observedAt ? new Date(row.observedAt).getTime() : 0;
+    observed.set(
+      row.observationId,
+      Math.max(at, observed.get(row.observationId) ?? 0),
+    );
+  }
+  const byAuditRank = (a: Keyword, b: Keyword) =>
+    (observed.get(b.observationId) ?? 0) -
+      (observed.get(a.observationId) ?? 0) ||
+    compareText(a.observationId ?? "", b.observationId ?? "") ||
+    (a.ideaRank ?? Infinity) - (b.ideaRank ?? Infinity) ||
+    compareText(a.pageUrl ?? "", b.pageUrl ?? "") ||
+    compareText(a.keyword, b.keyword) ||
+    compareText(a.id, b.id);
+  const ranked = groups
+    .flatMap((group) => {
+      const first = group.rows
+        .filter((row) => typeof row.ideaRank === "number")
+        .toSorted(byAuditRank)[0];
+      return first ? [{ group, first }] : [];
+    })
+    .toSorted((a, b) => byAuditRank(a.first, b.first));
+  const legacy = groups.filter(
+    (group) =>
+      !checked(group) && group.rows.every((row) => row.ideaRank === undefined),
+  );
+  const ordered = [
+    ...ranked.map((row) => row.group),
+    ...recommendedOrder(legacy.toSorted(byConversion)),
+  ];
+  const distinct = new Set<string>();
+  const ideas = broad
+    ? ordered.filter(({ lead }) => {
+        const key = JSON.stringify([
+          normalizeQuery(lead.keyword),
+          lead.countryCode,
+          lead.languageCode,
+        ]);
+        if (distinct.has(key)) return false;
+        distinct.add(key);
+        return true;
+      })
+    : ordered;
+  return { checked: groups.filter(checked).toSorted(byReach), ideas };
 }
 
 /** A keyword of a check whose position read failed: the check ran, so "not checked yet" would be wrong. */
@@ -232,7 +298,7 @@ export function keywordPositions(reads: Keyword[]) {
 }
 
 /** Keyword difficulty (0 to 100) from here reads "Medium", and from the next one "Hard". */
-export const SEO_DIFFICULTY_MEDIUM_FROM = 30;
+export const SEO_DIFFICULTY_MEDIUM_FROM = MEDIUM_DIFFICULTY_FROM;
 export const SEO_DIFFICULTY_HARD_FROM = 60;
 export type SeoDifficultyBand = "easy" | "medium" | "hard";
 

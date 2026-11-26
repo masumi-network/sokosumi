@@ -24,6 +24,7 @@ import * as driveReads from "./soko-bot-runtime/drive-reads";
 import * as driveWrites from "./soko-bot-runtime/drive-writes";
 import * as execution from "./soko-bot-runtime/execution";
 import { TOOL_CALLS_PER_FIFTEEN_MINUTES } from "./soko-bot-runtime/execution-limits";
+import * as fundraising from "./soko-bot-runtime/fundraising";
 import { PROJECT_SCOPED_TOOLS } from "./soko-bot-runtime/grant";
 import * as mail from "./soko-bot-runtime/mail";
 import * as mediaChecks from "./soko-bot-runtime/media-checks";
@@ -99,12 +100,20 @@ export interface SokoBotActionContext {
     actingUserId: string | null;
     /** The member who asked (ADR 0057); null when the bot started on its own. */
     requestedByUserId: string | null;
+    /** The user who authored the triggering chat message, when applicable. */
+    askedByUserId?: string | null;
+    /** Parent turn id when this turn is a child run (background run, wake, etc.). */
+    parentTurnId?: string | null;
+    /** The bot's pinned Project id when it is a Project bot (such as Cuso). */
+    botProjectId?: string | null;
     workspaceId: string;
     eveSessionId: string | null;
     // Required, not optional: both were silently dropped from authorize()'s
     // return once, which made every turn resolve the default version and
     // disabled the DRAFT-only rule for self-started work.
     versionId: string | null;
+    /** The model chosen for this turn at its start (`turn-model.ts`). */
+    modelId?: string | null;
     source: string | null;
     /** Bot-to-bot hops behind this turn; see lib/soko-bot/chat-chain.ts. */
     chainDepth: number;
@@ -115,10 +124,13 @@ export interface SokoBotActionContext {
 }
 
 export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
+  meetingPrep?: true;
   grant: SokoBotTurnGrantClaims;
   toolCallLimit: number;
   askedByKind?: SokoBotPacketAudience;
   reader: SokoBotTurnReader;
+  /** Jev's complexity label for a chat turn; Core-started turns have none. */
+  complexity?: string;
 }
 
 /**
@@ -174,6 +186,9 @@ export class SokoBotRefusedUnsentError extends SokoBotRuntimeValidationError {}
 
 /** The studio refused an image before sending it: nothing happened. */
 export class SokoBotImageRefusedError extends SokoBotRefusedUnsentError {}
+
+/** The tool's feature is off for this workspace: there is nothing to do. */
+export class SokoBotFeatureOffError extends SokoBotRefusedUnsentError {}
 
 export function isSokoBotDecisionTargetAllowed(
   toolName: string,
@@ -275,6 +290,7 @@ export class SokoBotRuntimeService {
     findCoworkers: (...args) => this.findCoworkers(...args),
     findTeammates: (...args) => this.findTeammates(...args),
     executeContactResearch: (...args) => this.executeContactResearch(...args),
+    executeFundraisingTool: (...args) => this.executeFundraisingTool(...args),
     executeProjectTool: (...args) => this.executeProjectTool(...args),
     findIntegrations: (...args) => this.findIntegrations(...args),
     requireSocialAccess: (...args) => this.requireSocialAccess(...args),
@@ -658,6 +674,12 @@ export class SokoBotRuntimeService {
   private executeContactResearch = (
     ...args: RuntimeOperationArguments<typeof contacts.executeContactResearch>
   ) => contacts.executeContactResearch(this.operations, ...args);
+
+  private executeFundraisingTool = (
+    ...args: RuntimeOperationArguments<
+      typeof fundraising.executeFundraisingTool
+    >
+  ) => fundraising.executeFundraisingTool(this.operations, ...args);
 
   private executeProjectTool = (
     ...args: RuntimeOperationArguments<typeof contacts.executeProjectTool>

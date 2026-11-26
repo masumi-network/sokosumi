@@ -2,7 +2,8 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { Check } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useInterval } from "../../hooks/effects/use-interval";
 
 /** Done (green, check), working (dashed, dot) or not yet (hairline). */
 export interface ChecklistItem {
@@ -48,11 +49,7 @@ export function useElapsed(
   running: boolean,
 ): string | null {
   const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!running) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
-    return () => window.clearInterval(timer);
-  }, [running]);
+  useInterval(() => setNow(Date.now()), running ? 1_000 : null);
   if (!running || !since) return null;
   return elapsedLabel(
     Math.max(0, Math.round((now - new Date(since).getTime()) / 1_000)),
@@ -76,6 +73,12 @@ export const RESEARCH_PHASES = [
 export const PLANNING_PHASES = [
   { kinds: ["other"], label: "Your channels" },
   { kinds: ["strategy"], label: "Four weeks, day by day" },
+] as const;
+
+/** cmo-v22: the plan and its example posts; the month comes after payment. */
+export const EXAMPLE_PLANNING_PHASES = [
+  { kinds: ["other"], label: "Your channels" },
+  { kinds: ["strategy"], label: "A few example posts" },
 ] as const;
 
 /**

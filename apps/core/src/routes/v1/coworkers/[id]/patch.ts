@@ -87,14 +87,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const updatedCount = await tx.coworker.updateMany({
         where: mutationWhere,
         data: {
-          name: body.name,
-          caption: body.caption,
-          url: body.url,
-          baseURL: body.baseURL,
-          description: body.description,
-          capabilities: body.capabilities,
-          priority: body.priority,
-          metadata,
+          ...(body.name !== undefined && { name: body.name }),
+          ...(body.caption !== undefined && { caption: body.caption }),
+          ...(body.url !== undefined && { url: body.url }),
+          ...(body.baseURL !== undefined && { baseURL: body.baseURL }),
+          ...(body.description !== undefined && {
+            description: body.description,
+          }),
+          ...(body.capabilities !== undefined && {
+            capabilities: body.capabilities,
+          }),
+          ...(body.priority !== undefined && { priority: body.priority }),
+          ...(metadata !== undefined && { metadata }),
         },
       });
 

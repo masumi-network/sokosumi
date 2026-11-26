@@ -1,0 +1,324 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { Repeat } from "lucide-react";
+import type { CSSProperties, ReactNode } from "react";
+import { useDebounce } from "use-debounce";
+import { chatRoomHref } from "@/app/chat/utils/chat-route-base";
+import { useScopeProjects } from "@/app/components/project-scope/use-scope-projects";
+import { ProjectAvatar } from "@/app/projects/components/project-avatar";
+import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
+import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
+import { ChannelKindGlyph } from "@/components/chat/channel-discoverability-icon";
+import { useLiveChatRoomsRead } from "@/components/chat/use-live-chat-rooms";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  CoreApiRequestError,
+  coreClient,
+} from "@/lib/clients/core.browser.client";
+
+const GO_TO_LIMIT = 5;
+const SCHEDULE_SEARCH_DEBOUNCE_MS = 250;
+
+/** Where the Projects and Channels reads stand, for the dialog's status. */
+export interface GoToSearchState {
+  pending: boolean;
+  failed: boolean;
+  count: number;
+}
+
+const IDLE_GO_TO: GoToSearchState = {
+  pending: false,
+  failed: false,
+  count: 0,
+};
+
+/**
+ * Schedules whose name matches (Core's search, so past the first page) and
+ * the Coworkers this workspace can assign, read once per open and filtered
+ * here since they are few. As the Tasks read, the debounce gap is not
+ * "loading".
+ */
+function useScheduleAndCoworkerSearch({
+  query,
+  activeOrganizationId,
+  withCoworkers,
+}: {
+  query: string;
+  activeOrganizationId: string | null;
+  withCoworkers: boolean;
+}) {
+  const needle = query.trim();
+  const [scheduleNeedle] = useDebounce(needle, SCHEDULE_SEARCH_DEBOUNCE_MS);
+  const scheduleRead = useQuery({
+    queryKey: ["search-schedules", activeOrganizationId, scheduleNeedle],
+    queryFn: async () => {
+      try {
+        return (
+          await coreClient.listTaskSchedules({
+            q: scheduleNeedle,
+            limit: GO_TO_LIMIT,
+          })
+        ).data;
+      } catch (error) {
+        // No seat here: no Schedules to find, not a failed search.
+        if (error instanceof CoreApiRequestError && error.status === 403) {
+          return [];
+        }
+        throw error;
+      }
+    },
+    enabled: scheduleNeedle.length > 0,
+  });
+  const coworkerRead = useQuery({
+    queryKey: ["search-coworkers", activeOrganizationId],
+    queryFn: async () =>
+      (await coreClient.getTaskScheduleAssignees()).data.coworkers,
+    enabled: withCoworkers,
+  });
+  const typed = needle.length > 0 && scheduleNeedle.length > 0;
+  const lower = needle.toLowerCase();
+  return {
+    schedules: typed ? (scheduleRead.data ?? []) : [],
+    coworkers:
+      needle && withCoworkers
+        ? (coworkerRead.data ?? [])
+            .filter((coworker) => coworker.name.toLowerCase().includes(lower))
+            .slice(0, GO_TO_LIMIT)
+        : [],
+    // Rows of the previous query show until the debounce settles, but
+    // cannot be picked: Enter must never open a Schedule the text no longer names.
+    schedulesStale: needle !== scheduleNeedle,
+    pending: scheduleRead.isLoading || coworkerRead.isLoading,
+    failed: scheduleRead.isError || coworkerRead.isError,
+  };
+}
+
+/**
+ * Search's result list, led by the Projects and channels whose name matches
+ * so Search can jump to them; the dialog's other groups follow as children.
+ * Mounted with the open dialog. It renders the dialog's one status region
+ * just above the list, since a listbox may hold only options and groups.
+ * Both lists come from the reader's own access (Core's project search, the
+ * reader's room memberships). Schedules (Core's name search) and the
+ * Coworkers this workspace can assign follow; a failed read of either reads
+ * as a failure, like Projects and channels, never as "No results".
+ */
+export function GoToSearchList({
+  query,
+  activeOrganizationId,
+  labels,
+  onSelect,
+  onNewTaskWith,
+  renderStatus,
+  listRef,
+  listStyle,
+  children,
+}: {
+  query: string;
+  activeOrganizationId: string | null;
+  labels: {
+    projectsGroup: string;
+    channelsGroup: string;
+    schedulesGroup: string;
+    coworkersGroup: string;
+    newTask: string;
+  };
+  onSelect: (href: string) => void;
+  /** Opens New task with this Coworker; without it, no Coworkers group. */
+  onNewTaskWith?: (coworkerId: string) => void;
+  /** The dialog's status line, told whether these reads are still out. */
+  renderStatus: (state: GoToSearchState) => ReactNode;
+  listRef: (list: HTMLDivElement | null) => void;
+  listStyle: CSSProperties;
+  children: ReactNode;
+}) {
+  const needle = query.trim().toLowerCase();
+  const typed = needle.length > 0;
+  const scopeProjects = useScopeProjects({
+    search: query,
+    selectedProjectId: null,
+  });
+  const projects = typed ? scopeProjects.rows.slice(0, GO_TO_LIMIT) : [];
+  // Null until the reader's own rooms are read; `failed` while that read
+  // fails and the reader retries.
+  const { rooms, failed: roomsFailed } = useLiveChatRoomsRead();
+  const channels = (typed ? (rooms ?? []) : [])
+    .filter(
+      (room) =>
+        room.kind === "channel" && room.name.toLowerCase().includes(needle),
+    )
+    .slice(0, GO_TO_LIMIT);
+  const {
+    schedules,
+    schedulesStale,
+    coworkers,
+    pending: extraPending,
+    failed: extraFailed,
+  } = useScheduleAndCoworkerSearch({
+    query,
+    activeOrganizationId,
+    withCoworkers: Boolean(onNewTaskWith),
+  });
+
+  return (
+    <>
+      {renderStatus(
+        typed
+          ? {
+              // A failed source is answered, not pending: its failure shows
+              // once the other source answers too.
+              pending:
+                extraPending ||
+                (rooms === null && !roomsFailed) ||
+                (!scopeProjects.isError &&
+                  (scopeProjects.isPending || scopeProjects.isSearchPending)),
+              failed: roomsFailed || scopeProjects.isError || extraFailed,
+              count:
+                projects.length +
+                channels.length +
+                schedules.length +
+                coworkers.length,
+            }
+          : IDLE_GO_TO,
+      )}
+      <CommandList ref={listRef} style={listStyle}>
+        {projects.length > 0 ? (
+          <CommandGroup heading={labels.projectsGroup}>
+            {projects.map((project) => (
+              <CommandItem
+                key={project.id}
+                value={`project:${project.id}`}
+                onSelect={() => onSelect(`/projects/${project.id}`)}
+              >
+                {/* Decorative: its initial would repeat the name. */}
+                <span aria-hidden className="contents">
+                  <ProjectAvatar
+                    name={project.name}
+                    logo={project.logo}
+                    className="size-4 rounded-sm [&_[data-slot=avatar-fallback]]:rounded-sm"
+                    fallbackClassName="text-2xs"
+                  />
+                </span>
+                <span className="truncate">{project.name}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ) : null}
+        {channels.length > 0 ? (
+          <CommandGroup heading={labels.channelsGroup}>
+            {channels.map((room) => (
+              <CommandItem
+                key={room.id}
+                value={`channel:${room.id}`}
+                onSelect={() => onSelect(chatRoomHref(room.id))}
+              >
+                <ChannelKindGlyph
+                  discoverability={room.discoverability}
+                  className="size-4"
+                />
+                <span className="truncate">{room.name}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ) : null}
+        <ScheduleResults
+          schedules={schedules}
+          stale={schedulesStale}
+          heading={labels.schedulesGroup}
+          onSelect={onSelect}
+        />
+        {onNewTaskWith ? (
+          <CoworkerResults
+            coworkers={coworkers}
+            labels={labels}
+            onNewTaskWith={onNewTaskWith}
+          />
+        ) : null}
+        {children}
+      </CommandList>
+    </>
+  );
+}
+
+function ScheduleResults({
+  schedules,
+  stale,
+  heading,
+  onSelect,
+}: {
+  schedules: { id: string; name: string }[];
+  stale: boolean;
+  heading: string;
+  onSelect: (href: string) => void;
+}) {
+  if (schedules.length === 0) return null;
+  return (
+    <CommandGroup heading={heading}>
+      {schedules.map((schedule) => (
+        <CommandItem
+          key={schedule.id}
+          value={`schedule:${schedule.id}`}
+          disabled={stale}
+          onSelect={() => onSelect(`${TASK_SCHEDULES_PATH}/${schedule.id}`)}
+        >
+          <Repeat aria-hidden className="size-4" />
+          <span className="truncate">{schedule.name}</span>
+        </CommandItem>
+      ))}
+    </CommandGroup>
+  );
+}
+
+function CoworkerResults({
+  coworkers,
+  labels,
+  onNewTaskWith,
+}: {
+  coworkers: {
+    id: string;
+    name: string;
+    slug: string;
+    image?: string | null;
+  }[];
+  labels: {
+    coworkersGroup: string;
+    newTask: string;
+  };
+  onNewTaskWith: (coworkerId: string) => void;
+}) {
+  if (coworkers.length === 0) return null;
+  return (
+    <CommandGroup heading={labels.coworkersGroup}>
+      {coworkers.map((coworker) => (
+        <CommandItem
+          key={coworker.id}
+          value={`coworker:${coworker.id}`}
+          onSelect={() => onNewTaskWith(coworker.id)}
+        >
+          {/* As the New task assignee avatar: two letters, a ring edge for
+              light rows. 20px fits two letters; -mx-0.5 keeps the label in
+              line with the 16px icons of the other groups. */}
+          <Avatar
+            aria-hidden
+            className="ring-border -mx-0.5 size-5 shrink-0 rounded-full ring-1"
+          >
+            <AvatarImage src={getCoworkerImage(coworker) ?? undefined} alt="" />
+            <AvatarFallback className="text-2xs rounded-full font-medium">
+              {coworker.name.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <span className="truncate">{coworker.name}</span>
+          <span className="text-muted-foreground ml-auto shrink-0 text-xs">
+            {labels.newTask}
+          </span>
+        </CommandItem>
+      ))}
+    </CommandGroup>
+  );
+}

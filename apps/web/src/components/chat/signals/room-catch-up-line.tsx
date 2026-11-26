@@ -11,6 +11,7 @@ import {
   RoomSummaryPopover,
   useRoomSummary,
 } from "@/components/chat/signals/room-summary-popover";
+import { chatQueryKeys } from "@/queries/chat";
 
 /** Below this many unread messages a room is read faster than summarised. */
 export const BUSY_ROOM_UNREAD = 5;
@@ -40,7 +41,7 @@ export function RoomCatchUpLine({
   // Decided once per visit: reading the room drops its unread to zero.
   const [busy] = useState(unreadAtOpen >= BUSY_ROOM_UNREAD);
   const { data } = useQuery({
-    queryKey: ["chat-room-catch-up", roomId],
+    queryKey: chatQueryKeys.roomCatchUp(roomId),
     queryFn: async (): Promise<ChatRoomCatchUp | null> => {
       const result = await getChatRoomCatchUpAction(roomId);
       return result.ok ? result.value : null;

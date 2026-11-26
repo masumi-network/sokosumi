@@ -40,8 +40,9 @@ describe("chat-route-base", () => {
     expect(roomIdFromPath(null)).toBeUndefined();
   });
 
-  it("isChatChatsPathname matches bare /chat exactly", () => {
-    expect(isChatChatsPathname("/chat")).toBe(true);
+  it("isChatChatsPathname matches /chat/rooms exactly", () => {
+    expect(isChatChatsPathname("/chat/rooms")).toBe(true);
+    expect(isChatChatsPathname("/chat")).toBe(false);
     expect(isChatChatsPathname("/chat/extra")).toBe(false);
     expect(isChatChatsPathname("/")).toBe(false);
     expect(isChatChatsPathname(null)).toBe(false);
@@ -98,15 +99,16 @@ describe("chat-route-base", () => {
       expect(classifyChatChromeSurface("/chat/rooms/abc/thread")).toBe("room");
     });
 
-    it("returns chats for bare /chat", () => {
-      expect(classifyChatChromeSurface("/chat")).toBe("chats");
-      expect(classifyChatChromeSurface("/chat", new URLSearchParams())).toBe(
-        "chats",
-      );
+    it("returns chats for /chat/rooms", () => {
+      expect(classifyChatChromeSurface("/chat/rooms")).toBe("chats");
+      expect(
+        classifyChatChromeSurface("/chat/rooms", new URLSearchParams()),
+      ).toBe("chats");
     });
 
-    it("returns home for Welcome at /", () => {
+    it("returns home for /chat and the legacy root", () => {
       expect(classifyChatChromeSurface("/")).toBe("home");
+      expect(classifyChatChromeSurface("/chat")).toBe("home");
       expect(classifyChatChromeSurface("/", new URLSearchParams())).toBe(
         "home",
       );
@@ -121,12 +123,12 @@ describe("chat-route-base", () => {
       ).toBe("home");
       expect(
         classifyChatChromeSurface(
-          "/chat",
+          "/chat/rooms",
           new URLSearchParams("create=channel"),
         ),
       ).toBe("chats");
       expect(
-        classifyChatChromeSurface("/chat", new URLSearchParams("dm=new")),
+        classifyChatChromeSurface("/chat/rooms", new URLSearchParams("dm=new")),
       ).toBe("chats");
     });
 

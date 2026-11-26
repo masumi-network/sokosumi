@@ -8,6 +8,7 @@
  * new ones.
  */
 export const CORE_API_ERROR_KINDS = {
+  AI_BUDGET_EXCEEDED: "ai_budget_exceeded",
   CALENDAR_CLIENT_UPGRADE_REQUIRED: "calendar_client_upgrade_required",
   /** CMO is invite-only: the person is not on Core's `CMO_HIRE_ALLOWLIST`. */
   CMO_HIRE_NOT_ALLOWED: "cmo_hire_not_allowed",
@@ -17,6 +18,20 @@ export const CORE_API_ERROR_KINDS = {
   CMO_PROJECT_READ_ONLY: "cmo_project_read_only",
   /** The person already hired a Cuso nobody paid for; `unpaidCuso` names him. */
   CMO_UNPAID_CUSO: "cmo_unpaid_cuso",
+  /** A test copy's source has no live Cuso the person can see (ADR 0073). */
+  CMO_TEST_COPY_SOURCE_NOT_HIRED: "cmo_test_copy_source_not_hired",
+  /** A test copy was asked for in another organization than its source's. */
+  CMO_TEST_COPY_OTHER_ORGANIZATION: "cmo_test_copy_other_organization",
+  /** The source is itself a test copy. */
+  CMO_TEST_COPY_OF_TEST_COPY: "cmo_test_copy_of_test_copy",
+  /** Only an owner or admin of the source's organization, or a tester, copies. */
+  CMO_TEST_COPY_NOT_ALLOWED: "cmo_test_copy_not_allowed",
+  /** The Project already watches as many competitors as it may. */
+  COMPETITOR_LIMIT_REACHED: "competitor_limit_reached",
+  /** Another competitor of the Project holds the name. */
+  COMPETITOR_NAME_TAKEN: "competitor_name_taken",
+  /** An Undo for a removal that is no longer the competitor's latest change. */
+  COMPETITOR_REMOVAL_STALE: "competitor_removal_stale",
   CONCURRENCY_CONFLICT: "concurrency_conflict",
   /** A channel being added already belongs to another contact; `existingContactId` names it. */
   CONTACT_CHANNEL_TAKEN: "contact_channel_taken",
@@ -53,10 +68,19 @@ export const CORE_API_ERROR_KINDS = {
   FREE_CREDIT_INVALID: "free_credit_invalid",
   LAST_WORKSPACE: "last_workspace",
   PERSONAL_WORKSPACE_MISSING: "personal_workspace_missing",
+  /** A person approves, publishes or sends this in Sokosumi (ADR 0077); `webUrl` links the item. */
+  PERSON_APPROVAL_REQUIRED: "person_approval_required",
   PROJECT_DELETION_REMOVED: "project_deletion_removed",
   SEO_AUDIT_ACTIVE_CHECK: "seo_audit_active_check",
   SEO_AUDIT_ACTIVE_CHAT: "seo_audit_active_chat",
   SEO_AUDIT_RESUMABLE_MONITOR: "seo_audit_resumable_monitor",
+  SEO_AUDIT_TASK_SCOPE_CONFLICT: "seo_audit_task_scope_conflict",
+  SEO_GSC_NOT_CONNECTED: "seo_gsc_not_connected",
+  SEO_GSC_RECONNECT: "seo_gsc_reconnect",
+  SEO_GSC_PROPERTY: "seo_gsc_property",
+  SEO_GSC_UNAVAILABLE: "seo_gsc_unavailable",
+  /** Google answered a Task read with more than Core forwards to the SEO worker. */
+  SEO_GSC_RESPONSE_TOO_LARGE: "seo_gsc_response_too_large",
   SCHEDULE_RUN_STATE_CONFLICT: "schedule_run_state_conflict",
   SCHEDULE_RUN_TARGET_INVALID: "schedule_run_target_invalid",
   QUEUED_REQUIRES_RUN_AT: "queued_requires_run_at",

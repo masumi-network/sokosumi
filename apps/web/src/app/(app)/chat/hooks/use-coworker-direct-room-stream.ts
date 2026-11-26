@@ -20,6 +20,7 @@ import {
   OUTBOUND_ERROR_METADATA_KEY,
   outboundLocalMessageId,
 } from "@/app/chat/utils/outbound-room-message";
+import { useCoworkerStreamResume } from "@/hooks/effects/use-coworker-stream-resume";
 import { fireGTMEvent } from "@/lib/gtm-events";
 
 const CHAT_NO_RESUMABLE_STREAM_PATH = "/api/chat/no-resumable-stream";
@@ -398,12 +399,6 @@ export function useCoworkerDirectRoomStream({
     setStreamParentMessageId(readStoredStreamParentMessageId(roomId));
   }, [roomId]);
 
-  useEffect(() => {
-    if (!enabled) {
-      overlayCreatedAtByMessageIdRef.current.clear();
-    }
-  }, [enabled]);
-
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -497,14 +492,12 @@ export function useCoworkerDirectRoomStream({
 
   const isStreaming = status === "submitted" || status === "streaming";
 
+  const clearStreamOverlay = useCallback(() => {
+    setMessages([]);
+  }, [setMessages]);
+
   // Leave: drop overlay. Enter: reconnect to Core active stream (Thinking…).
-  useEffect(() => {
-    if (!roomId) {
-      setMessages([]);
-      return;
-    }
-    void resumeStream();
-  }, [roomId, resumeStream, setMessages]);
+  useCoworkerStreamResume(roomId, resumeStream, clearStreamOverlay);
 
   const currentUser = useMemo(() => {
     if (!room) {

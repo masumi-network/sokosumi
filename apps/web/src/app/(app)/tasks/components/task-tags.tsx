@@ -2,6 +2,7 @@
 
 import type { TaskTagId, TaskTags as TaskTagsDto } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { Clock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useOptimistic, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -46,10 +47,40 @@ function useTopicTags(
     ...(showManual ? (tags?.manual ?? []) : []),
     ...(tags?.automatic ?? []),
   ];
+  // Automatic tags kept from before the last edit until the new ones arrive.
+  const checking = new Set(tags?.checking ? tags.automatic : []);
   return useVisibleTaskTopicIds(ids, workspaceTags).map((id) => ({
     id,
     displayName: t(`vocabulary.${id}`),
+    checking: checking.has(id),
   }));
+}
+
+/** Marks a kept automatic tag as being checked, by icon and by name, not colour alone. */
+function CheckingTagIndicator() {
+  const t = useTranslations("App.Tasks.Tags");
+  const label = t("checkingTag");
+  return (
+    <span title={label} className="inline-flex shrink-0">
+      <Clock role="img" aria-label={label} className="size-3" />
+    </span>
+  );
+}
+
+function TagsChecking({ className }: { className?: string }) {
+  const t = useTranslations("App.Tasks.Tags");
+  return (
+    <p
+      role="status"
+      className={cn(
+        "text-muted-foreground flex items-center gap-1 text-xs",
+        className,
+      )}
+    >
+      <Clock aria-hidden className="size-3.5 shrink-0" />
+      {t("checking")}
+    </p>
+  );
 }
 
 function renderTagBadge(
@@ -128,7 +159,7 @@ export function TaskTags({
                   // On a card's one-line row the count keeps one fixed height.
                   compact && "h-6",
                 )}
-                aria-label={t("showAll", { count: badges.length })}
+                aria-label={t("moreTags", { count: remaining })}
                 onPointerDown={(event) => event.stopPropagation()}
                 onKeyDown={(event) => event.stopPropagation()}
               >
@@ -163,8 +194,17 @@ function TopicBadges({
   disabled?: boolean;
 }) {
   return useTopicTags(tags, workspaceTags).map((topic) => (
-    <TaskTagBadge key={topic.id} id={topic.id}>
-      <span className="truncate">{topic.displayName}</span>
+    <TaskTagBadge
+      key={topic.id}
+      id={topic.id}
+      className={topic.checking ? "gap-1" : undefined}
+    >
+      {topic.checking && <CheckingTagIndicator />}
+      <span
+        className={cn("truncate", topic.checking && "text-muted-foreground")}
+      >
+        {topic.displayName}
+      </span>
       {onRemove && (
         <TaskTagRemoveButton
           name={topic.displayName}
@@ -213,6 +253,7 @@ export function TaskTagSection({
       ) : (
         <p className="text-muted-foreground text-xs">{t("empty")}</p>
       )}
+      {tags?.checking && <TagsChecking />}
     </section>
   );
 }
@@ -249,6 +290,7 @@ function EditableWorkspaceTags({
       setOptimistic({
         ...next,
         tags: {
+          ...next.tags,
           manual: next.tags.manual.filter((id) => !dismissed.has(id)),
           automatic: next.tags.automatic.filter((id) => !dismissed.has(id)),
           rejected: [...new Set([...next.tags.rejected, ...dismissed])],
@@ -337,6 +379,8 @@ function EditableWorkspaceTags({
         onRemove={(id) => save(current, { dismissedTopicIds: [id] })}
         disabled={saving || conflict}
       />
+      {/* The picker's row wraps; this takes its own last line. */}
+      {current.tags.checking && <TagsChecking className="order-last w-full" />}
     </TaskWorkspaceTagPicker>
   );
 }

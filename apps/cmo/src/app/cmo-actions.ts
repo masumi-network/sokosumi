@@ -16,6 +16,7 @@ import {
   type CmoKeywordSearch,
   type CmoMeasurement,
   type CmoOverview,
+  type CmoPictures,
   type CmoSeo,
   type CmoSubscriptionPlan,
   type CmoTikTokCreator,
@@ -39,6 +40,7 @@ import {
   getCmoChatWorkTextForProject,
   getCmoCompetitorsForProject,
   getCmoOverviewForProject,
+  getCmoPicturesForProject,
   getCmoSeoForProject,
   getContactLists,
   initiateCmoSocialConnectionForProject,
@@ -48,6 +50,7 @@ import {
   listCmoCusos,
   listCmoPlans,
   markCmoLandingPageLiveForProject,
+  markCmoUpgradeSeenForProject,
   openCmoCustomerPortalForProject,
   type ProjectCompetitorCreate,
   pauseCmoCalendarEntryForProject,
@@ -88,6 +91,12 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { DraftResult } from "../components/app/draft-post";
 import { AGENT_NAME } from "../lib/agent";
+import {
+  analyticsConsent,
+  CONSENT_COOKIE,
+  GA_SESSION_COOKIE,
+  gaIds,
+} from "../lib/analytics";
 import type { BrandSectionKey } from "../lib/brand-sections";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
 import type { ChatTable, ChatWork } from "../lib/chat-work";
@@ -214,6 +223,11 @@ const HIRE_REFUSALS: Partial<Record<CoreApiErrorKind, string>> = {
     "You've reached the organization limit. Choose one of your organizations instead.",
   [CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED]:
     "You're no longer a member of that organization. Choose another one.",
+  [CORE_API_ERROR_KINDS.CMO_TEST_COPY_SOURCE_NOT_HIRED]: `There's no ${AGENT_NAME} to copy at this link: he isn't hired any more, or you're not in his organization.`,
+  [CORE_API_ERROR_KINDS.CMO_TEST_COPY_OTHER_ORGANIZATION]: `A test copy goes into the same organization as the ${AGENT_NAME} it copies. Choose that one.`,
+  [CORE_API_ERROR_KINDS.CMO_TEST_COPY_OF_TEST_COPY]: `This ${AGENT_NAME} is already a test copy. Copy the original instead.`,
+  [CORE_API_ERROR_KINDS.CMO_TEST_COPY_NOT_ALLOWED]:
+    "Only an owner or admin of that organization, or a tester, can make a test copy.",
 };
 
 /**
@@ -751,6 +765,18 @@ export async function setTimeZone(
   return null;
 }
 
+/** The member closed the dialog about Cuso's newer version; it stays closed. */
+export async function markUpgradeSeen(
+  projectId: string,
+  versionId: string,
+): Promise<void> {
+  await markCmoUpgradeSeenForProject({
+    ...(await requireCore()),
+    path: { projectId },
+    body: { versionId },
+  });
+}
+
 /** A browser's time zone when this server knows it, else nothing. */
 function knownTimeZone(value: FormDataEntryValue | null): string | undefined {
   const timeZone = String(value ?? "").trim();
@@ -1175,7 +1201,7 @@ export async function setAdCampaignStatus(
 export async function connectMeasurement(
   projectId: string,
   provider: CmoMeasurement["provider"],
-  from: "onboarding" | "launch" | "app" | "seo",
+  from: "launch" | "app" | "seo" | "channels",
 ): Promise<{ url: string | null; error: string | null }> {
   const core = await requireCore();
   const { data, error } = await connectCmoMeasurementForProject({
@@ -1201,6 +1227,25 @@ export async function connectMeasurement(
  * page, which shows the confirming state (`step=subscribed`) until the
  * payment is in; its back link leads to the plans without that marker.
  */
+/**
+ * The GA4 ids a checkout carries so Core reports the paid order: only with
+ * analytics consent (the same rule the tag follows) and no GPC signal.
+ */
+async function checkoutAnalytics() {
+  const [store, requestHeaders] = await Promise.all([cookies(), headers()]);
+  const consent = analyticsConsent(
+    store.get(CONSENT_COOKIE)?.value,
+    requestHeaders.get("x-vercel-ip-country"),
+  );
+  if (consent !== "granted" || requestHeaders.get("sec-gpc") === "1") {
+    return undefined;
+  }
+  return (
+    gaIds(store.get("_ga")?.value, store.get(GA_SESSION_COOKIE)?.value) ??
+    undefined
+  );
+}
+
 export async function startPlanCheckout(
   projectId: string,
   interval: CmoSubscriptionPlan["interval"],
@@ -1220,6 +1265,7 @@ export async function startPlanCheckout(
       }),
       // Back without paying: the plans again, not the confirming state.
       backUrl: await callbackUrl("/", { project: projectId }),
+      analytics: await checkoutAnalytics(),
     },
   });
   if (!data) {
@@ -1242,7 +1288,10 @@ export async function startTopUp(
   const { data, error } = await startCmoTopUpForProject({
     ...core,
     path: { projectId },
-    body: { returnUrl: await callbackUrl("/", { project: projectId }) },
+    body: {
+      returnUrl: await callbackUrl("/", { project: projectId }),
+      analytics: await checkoutAnalytics(),
+    },
   });
   if (!data) {
     return {
@@ -1457,6 +1506,7 @@ export async function markLandingPageLive(
 export async function askCusoForArticles(
   projectId: string,
   articleId?: string,
+  write = false,
 ): Promise<string | null> {
   const core = await requireCore();
   const { error } = articleId
@@ -1464,11 +1514,33 @@ export async function askCusoForArticles(
         ...core,
         path: { projectId, id: articleId },
       })
-    : await requestCmoArticleIdeasForProject({ ...core, path: { projectId } });
+    : await requestCmoArticleIdeasForProject({
+        ...core,
+        path: { projectId },
+        body: { write },
+      });
   return error ? errorText(error, `${AGENT_NAME} could not start`) : null;
 }
 
 /** The Competitors page of this Cuso; null when it cannot be read. */
+/** Every picture Cuso made for the month's posts (Settings, Pictures). */
+export async function loadPictures(
+  projectId: string,
+  filters: { network?: string; month?: string; chosen?: boolean },
+): Promise<CmoPictures | null> {
+  const core = await requireCore();
+  const { data } = await getCmoPicturesForProject({
+    ...core,
+    path: { projectId },
+    query: {
+      network: filters.network,
+      month: filters.month,
+      chosen: filters.chosen ? "true" : undefined,
+    },
+  });
+  return data?.data ?? null;
+}
+
 export async function loadCompetitors(
   projectId: string,
 ): Promise<CmoCompetitors | null> {

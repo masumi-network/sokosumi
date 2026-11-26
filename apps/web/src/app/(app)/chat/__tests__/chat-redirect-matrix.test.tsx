@@ -17,13 +17,9 @@ vi.mock("@/lib/auth/auth.server", () => ({
 }));
 
 vi.mock("@/app/components/private-sidebar-cache", () => ({
-  getPrivateCachedMembershipVisibleRooms: vi.fn().mockResolvedValue({
+  loadSidebarChatList: vi.fn().mockResolvedValue({
     rooms: [],
-    nextCursor: null,
-  }),
-  getPrivateCachedChatListArchivedAndMembers: vi.fn().mockResolvedValue({
-    archivedChatRoomsPage: { rooms: [], nextCursor: null },
-    members: [],
+    deferred: Promise.resolve({ archivedRooms: [], isOrgOwnerOrAdmin: false }),
   }),
 }));
 
@@ -46,18 +42,18 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarSeparator: () => null,
 }));
 
-vi.mock("@/app/chat/components/chat-desktop-home-redirect.client", () => ({
-  ChatDesktopHomeRedirect: () => null,
+vi.mock("@/app/chat/catch-up/components/catch-up-view", () => ({
+  CatchUpView: () => null,
 }));
 
-import ChatPage from "@/app/chat/page";
+import ChatPage from "@/app/chat/rooms/page";
 
 describe("SOK-795 chat redirect matrix", () => {
   beforeEach(() => {
     redirectMock.mockClear();
   });
 
-  it("bare /chat with retired compose queries stays on the list", async () => {
+  it("/chat/rooms with retired compose queries stays on the list", async () => {
     const dm = await ChatPage({
       searchParams: Promise.resolve({ dm: "new" }),
     });
@@ -72,15 +68,15 @@ describe("SOK-795 chat redirect matrix", () => {
     expect(create).toBeTruthy();
   });
 
-  it("bare /chat with notice redirects to Welcome preserving query", async () => {
+  it("/chat/rooms with notice redirects to Welcome preserving query", async () => {
     await expect(
       ChatPage({
         searchParams: Promise.resolve({ notice: "room-unavailable" }),
       }),
-    ).rejects.toThrow("REDIRECT:/?notice=room-unavailable");
+    ).rejects.toThrow("REDIRECT:/chat?notice=room-unavailable");
   });
 
-  it("bare /chat without draft/notice does not redirect (list)", async () => {
+  it("/chat/rooms without draft/notice does not redirect (list)", async () => {
     const result = await ChatPage({
       searchParams: Promise.resolve({}),
     });

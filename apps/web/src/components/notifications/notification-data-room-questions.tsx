@@ -5,6 +5,11 @@ import { MessageCircleQuestionMark } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
+import {
+  usePageListSearch,
+  usePageSearchPagination,
+  usePageSearchQuery,
+} from "@/components/page-list-search";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
@@ -59,9 +64,28 @@ export function NotificationDataRoomQuestions({
     hasNextPage,
     fetchNextPage,
     isFetchingNextPage,
+    isFetching,
   } = useNeedsYouDataRoomQuestions();
   // The panel and the page can both be open, so the heading id is per frame.
   const headingId = useId();
+  const query = usePageSearchQuery();
+  const questions = usePageListSearch(
+    data?.pages.flatMap((page) => page.questions) ?? [],
+    (question) => ({
+      primary: [question.body],
+      secondary: [
+        question.name,
+        question.email,
+        question.path,
+        question.roomName,
+      ],
+    }),
+  );
+  usePageSearchPagination(
+    data?.pages.at(-1)?.nextCursor,
+    isFetching,
+    fetchNextPage,
+  );
 
   if (isError) {
     return (
@@ -80,10 +104,9 @@ export function NotificationDataRoomQuestions({
   }
 
   const total = data?.pages[0]?.total ?? 0;
-  if (total === 0) {
+  if (total === 0 || (query && !questions.length && !hasNextPage)) {
     return null;
   }
-  const questions = data?.pages.flatMap((page) => page.questions) ?? [];
 
   return (
     <section aria-labelledby={headingId}>

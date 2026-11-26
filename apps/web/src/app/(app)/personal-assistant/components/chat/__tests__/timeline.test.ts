@@ -50,6 +50,7 @@ function turn(overrides: Partial<ChatTurn> = {}): ChatTurn {
     decisions: [],
     requestedBy: null,
     chatRoom: null,
+    schedule: null,
     qualityScore: null,
     ...overrides,
   };
@@ -66,6 +67,7 @@ function state(overrides: Partial<SokoBotChatState> = {}): SokoBotChatState {
       avatarImageUrl: null,
       versionId: null,
       followWholeBoard: false,
+      joinsTeamStandup: false,
       mailAutoRead: false,
       ingestTimezone: "Europe/Berlin",
       proactivePaused: false,

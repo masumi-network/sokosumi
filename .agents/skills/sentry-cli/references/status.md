@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-status
-version: 0.49.0
+version: 0.50.0
 description: Check Sentry service status
 requires:
   bins: ["sentry"]
@@ -16,6 +16,7 @@ Check Sentry service status
 Show Sentry service status
 
 **Flags:**
+
 - `--url <value> - Status page base URL to query - (default: "https://status.sentry.io")`
 
 **Examples:**

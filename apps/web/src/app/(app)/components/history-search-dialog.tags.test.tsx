@@ -13,12 +13,28 @@ const { getHistoryMock, getTasksMock, fetchLabelsMock, pushMock } = vi.hoisted(
   }),
 );
 
+// Projects and Channels read the session and rooms; covered in go-to tests.
+// Here they answer at once with nothing, so only this file's groups count.
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  useScopeProjects: () => ({ rows: [] }),
+}));
+vi.mock("@/components/chat/use-live-chat-rooms", () => ({
+  useLiveChatRoomsRead: () => ({ rooms: [], failed: false }),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
 }));
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
-  coreClient: { getHistory: getHistoryMock, getTasks: getTasksMock },
+  coreClient: {
+    getHistory: getHistoryMock,
+    getTasks: getTasksMock,
+    listTaskSchedules: async () => ({ data: [] }),
+    getTaskScheduleAssignees: async () => ({
+      data: { coworkers: [], sokoBot: null },
+    }),
+  },
 }));
 
 vi.mock("@/lib/utils/file-search.client", () => ({
@@ -44,11 +60,22 @@ const labels = {
   created: "Created",
   filesGroup: "Files",
   filesSeeAll: "See all files",
+  tasksSeeAll: (query: string) => `Search tasks and results for ${query}`,
   filesFilenameMatch: "Filename match",
+  peopleGroup: "People",
+  copyEmail: (email: string) => `Copy ${email}`,
+  emailCopied: "Email copied",
+  emailCopyFailed: "Failed to copy email",
+  mentionInTask: (name: string) => `Mention ${name} in a new task`,
   tagsGroup: "Tags",
   tagTasksGroup: (name: string) => `Tasks tagged ${name}`,
   tagsError: "Couldn't load tags",
   tagTasksError: "Couldn't load these tasks",
+  projectsGroup: "Projects",
+  channelsGroup: "Channels",
+  schedulesGroup: "Schedules",
+  coworkersGroup: "Coworkers",
+  newTask: "New task",
 };
 
 function tag(id: string, displayName: string, archived = false) {
@@ -67,7 +94,10 @@ function renderDialog(
   activeOrganizationId: string | null = "org-1",
 ) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   return render(
     <QueryClientProvider client={client}>

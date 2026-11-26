@@ -12,11 +12,13 @@ import {
   isPersonalSokoBotAuthContext,
   isSharedSokoBotAuthContext,
   type PersonalSokoBotAuthenticationContext,
+  preAuthenticatedRequests,
   requireAdminAuthContext,
   requireFirstPartyUserAuthContext,
   requireInteractiveAdminAuthContext,
   requireInteractiveUserAuthContext,
   requireOwnerUserContext,
+  requirePersonApproval,
   requirePersonalSokoBotAuthContext,
   requireUserContext,
   resolveUserContext,
@@ -27,6 +29,7 @@ const {
   verifyApiKeyMock,
   getSessionMock,
   coworkerApiKeyFindUniqueMock,
+  coworkerApiKeyUpdateManyMock,
   workspaceFindFirstMock,
   oauthAccessTokenFindUniqueMock,
   oauthConsentFindFirstMock,
@@ -35,6 +38,7 @@ const {
   verifyApiKeyMock: vi.fn(),
   getSessionMock: vi.fn(),
   coworkerApiKeyFindUniqueMock: vi.fn(),
+  coworkerApiKeyUpdateManyMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
   oauthAccessTokenFindUniqueMock: vi.fn(),
   oauthConsentFindFirstMock: vi.fn(),
@@ -50,10 +54,13 @@ vi.mock("@/lib/auth", () => ({
   },
 }));
 
+vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworkerApiKey: {
       findUnique: coworkerApiKeyFindUniqueMock,
+      updateMany: coworkerApiKeyUpdateManyMock,
     },
     workspace: {
       findFirst: workspaceFindFirstMock,
@@ -104,6 +111,7 @@ describe("authMiddleware", () => {
     vi.clearAllMocks();
 
     coworkerApiKeyFindUniqueMock.mockResolvedValue(null);
+    coworkerApiKeyUpdateManyMock.mockResolvedValue({ count: 1 });
     workspaceFindFirstMock.mockResolvedValue({ organizationId: "org_123" });
 
     verifyApiKeyMock.mockResolvedValue({
@@ -150,6 +158,8 @@ describe("authMiddleware", () => {
         keyHash: expect.any(String),
       },
       select: {
+        id: true,
+        lastUsedAt: true,
         coworkerId: true,
         sokoBotId: true,
         revokedAt: true,
@@ -777,10 +787,7 @@ describe("authMiddleware", () => {
         clientId: "client_123",
       },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-      select: {
-        id: true,
-        scopes: true,
-      },
+      select: { scopes: true },
     });
   });
 
@@ -1195,6 +1202,43 @@ describe("authMiddleware", () => {
     expect(oauthConsentFindFirstMock).not.toHaveBeenCalled();
   });
 
+  describe("pre-authenticated request", () => {
+    const preAuthenticated: AuthVariables = {
+      isAuthenticated: true,
+      authContext: {
+        actor: "user",
+        userId: "user_mcp",
+        organizationId: null,
+        role: "user",
+        authenticationMethod: "oauth",
+      },
+    };
+
+    it("takes the caller Core registered for that Request object", async () => {
+      const request = new Request("http://localhost/", {
+        headers: { authorization: "Bearer coworker_ignored" },
+      });
+      preAuthenticatedRequests.set(request, preAuthenticated);
+
+      const response = await createApp().fetch(request);
+
+      expect(await response.json()).toEqual(preAuthenticated.authContext);
+      expect(coworkerApiKeyFindUniqueMock).not.toHaveBeenCalled();
+      expect(getSessionMock).not.toHaveBeenCalled();
+    });
+
+    it("does not carry over to a copy of that Request", async () => {
+      const request = new Request("http://localhost/");
+      preAuthenticatedRequests.set(request, preAuthenticated);
+
+      const response = await createAppWithErrorHandler().fetch(
+        new Request(request),
+      );
+
+      expect(response.status).toBe(401);
+    });
+  });
+
   describe("first-party client", () => {
     function firstPartyToken(overrides: Record<string, unknown> = {}) {
       return {
@@ -1549,6 +1593,53 @@ describe("requireFirstPartyUserAuthContext", () => {
     expect(() =>
       requireFirstPartyUserAuthContext({ ...user, ...credential }),
     ).toThrowError("Interactive session required");
+  });
+});
+
+describe("requirePersonApproval", () => {
+  const user = {
+    actor: "user" as const,
+    userId: "user_123",
+    organizationId: null,
+    role: "user",
+  };
+
+  it("allows a browser session", () => {
+    expect(
+      requirePersonApproval(
+        { ...user, authenticationMethod: "session" },
+        "/social?projectId=p",
+      ),
+    ).toMatchObject({ userId: "user_123" });
+  });
+
+  // ADR 0077: an agent drafts; a person approves, publishes and sends.
+  it.each([
+    { ...user, authenticationMethod: "api_key" as const },
+    { ...user, authenticationMethod: "oauth" as const },
+    { ...user, authenticationMethod: "oauth" as const, firstPartyClient: true },
+    user,
+    {
+      actor: "coworker" as const,
+      coworkerId: "cow_1",
+      vendorId: "vendor_1",
+      context: { userId: "user_123", organizationId: null },
+    },
+  ])("sends %o to the item's Web page", (authContext) => {
+    expect(() =>
+      requirePersonApproval(authContext, "/social?projectId=p&postId=x"),
+    ).toThrow(
+      expect.objectContaining({
+        status: 403,
+        message: "A person approves this in Sokosumi",
+        cause: {
+          kind: "person_approval_required",
+          extensions: {
+            webUrl: "https://example.com/social?projectId=p&postId=x",
+          },
+        },
+      }),
+    );
   });
 });
 

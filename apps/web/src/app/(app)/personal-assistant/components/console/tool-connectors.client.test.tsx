@@ -7,10 +7,18 @@ import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SearchablePageContent } from "@/components/searchable-page-content";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../../messages/en.json";
 import { ToolConnectors } from "./tool-connectors.client";
@@ -73,8 +81,21 @@ function renderConnectors(
   focusProvider: string | null = null,
   readOnly = false,
   onError?: (error: Error) => void,
-  client = new QueryClient(),
+  client = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  }),
+  withPageSearch = false,
 ) {
+  const connectors = (
+    <ToolConnectors
+      integrations={{ configured: true, integrations }}
+      focusProvider={focusProvider}
+      readOnly={readOnly}
+    />
+  );
   return render(
     <QueryClientProvider client={client}>
       <NextIntlClientProvider
@@ -84,11 +105,11 @@ function renderConnectors(
         formats={createFormats("h12")}
         onError={onError}
       >
-        <ToolConnectors
-          integrations={{ configured: true, integrations }}
-          focusProvider={focusProvider}
-          readOnly={readOnly}
-        />
+        {withPageSearch ? (
+          <SearchablePageContent>{connectors}</SearchablePageContent>
+        ) : (
+          connectors
+        )}
       </NextIntlClientProvider>
     </QueryClientProvider>,
   );
@@ -164,6 +185,33 @@ describe("ToolConnectors", () => {
       expect(screen.getAllByRole("listitem")).toHaveLength(1),
     );
     expect(screen.getByRole("button", { name: "Connect figma" })).toBeTruthy();
+  });
+
+  it("uses one dashboard field for a linked provider and for catalog matches beyond the popular suggestions", async () => {
+    const user = userEvent.setup();
+    renderConnectors(
+      [],
+      "figma",
+      false,
+      undefined,
+      new QueryClient({
+        defaultOptions: {
+          queries: { gcTime: Number.POSITIVE_INFINITY },
+          mutations: { gcTime: Number.POSITIVE_INFINITY },
+        },
+      }),
+      true,
+    );
+    const field = screen.getByRole("searchbox");
+    expect(field).toHaveValue("figma");
+    expect(
+      await screen.findByRole("button", { name: "Connect figma" }),
+    ).toBeInTheDocument();
+    await user.clear(field);
+    await user.type(field, "teams");
+    expect(
+      await screen.findByRole("button", { name: "Connect microsoft_teams" }),
+    ).toBeInTheDocument();
   });
 
   it("opens a bot's connect link on that app", async () => {
@@ -263,7 +311,12 @@ describe("ToolConnectors", () => {
 
   it("shows a failed refresh of an old search, not its old cards", async () => {
     const user = userEvent.setup();
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     renderConnectors([], null, false, undefined, client);
     const search = screen.getByRole("searchbox");
     await user.type(search, "fig");
@@ -272,8 +325,13 @@ describe("ToolConnectors", () => {
     ).toBeTruthy();
     await user.clear(search);
     await screen.findByText("slack");
+    // Flush useQuery's passive effect so its observer moves from "fig" to ""
+    // before invalidation; findByText can resolve before setImmediate runs it.
+    await act(async () => {});
     // Five minutes later the old answer is stale and Core is down.
-    await client.invalidateQueries();
+    await act(async () => {
+      await client.invalidateQueries();
+    });
     let fail = (_value: unknown) => {};
     searchCatalog.mockImplementation(
       () => new Promise((resolve) => (fail = resolve)),
@@ -340,16 +398,22 @@ describe("ToolConnectors", () => {
   });
 
   it("waits offline instead of saying nothing matched, and searches once back", async () => {
-    const user = userEvent.setup();
-    renderConnectors([]);
-    act(() => onlineManager.setOnline(false));
+    vi.useFakeTimers();
+    try {
+      renderConnectors([]);
+      act(() => onlineManager.setOnline(false));
 
-    await user.type(screen.getByRole("searchbox"), "fig");
-    await new Promise((resolve) => setTimeout(resolve, 400));
+      fireEvent.change(screen.getByRole("searchbox"), {
+        target: { value: "fig" },
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(250));
 
-    expect(screen.getByRole("status")).toHaveTextContent("“fig”");
-    expect(screen.queryByText("Nothing found.")).toBeNull();
-    expect(searchCatalog).not.toHaveBeenCalledWith({ query: "fig" });
+      expect(screen.getByRole("status")).toHaveTextContent("“fig”");
+      expect(screen.queryByText("Nothing found.")).toBeNull();
+      expect(searchCatalog).not.toHaveBeenCalledWith({ query: "fig" });
+    } finally {
+      vi.useRealTimers();
+    }
     act(() => onlineManager.setOnline(true));
     expect(
       await screen.findByRole("button", { name: "Connect figma" }),
@@ -453,5 +517,134 @@ describe("ToolConnectors", () => {
     // Unconnected popular apps would only invite a connect Core refuses.
     await waitFor(() => expect(searchCatalog).not.toHaveBeenCalled());
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  });
+
+  it("debounces catalog searches by 250ms and resets on new input", async () => {
+    vi.useFakeTimers();
+    try {
+      renderConnectors([integration({ provider: "gmail", name: "Gmail" })]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      searchCatalog.mockClear();
+
+      const input = screen.getByRole("searchbox");
+      fireEvent.change(input, { target: { value: "fi" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+      expect(searchCatalog).not.toHaveBeenCalled();
+
+      // Another keystroke before 250ms resets the debounce window.
+      fireEvent.change(input, { target: { value: "fig" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(249);
+      });
+      expect(searchCatalog).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(searchCatalog).toHaveBeenCalledTimes(1);
+      expect(searchCatalog).toHaveBeenCalledWith({ query: "fig" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows the full list on the same frame when search is cleared while typing still debounces", async () => {
+    vi.useFakeTimers();
+    try {
+      renderConnectors([integration({ provider: "gmail", name: "Gmail" })]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(screen.getByText("slack")).toBeTruthy();
+
+      const input = screen.getByRole("searchbox");
+      fireEvent.change(input, { target: { value: "fig" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(250);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(
+        screen.getByRole("button", { name: "Connect figma" }),
+      ).toBeTruthy();
+      expect(screen.queryByText("slack")).toBeNull();
+
+      // Clearing shows the full list immediately without waiting 250ms.
+      fireEvent.change(input, { target: { value: "" } });
+      expect(screen.getByText("slack")).toBeTruthy();
+      expect(screen.getAllByRole("listitem")).toHaveLength(7);
+      expect(screen.queryByText("figma")).toBeNull();
+
+      // Re-typing the cleared query still waits out the 250ms debounce.
+      fireEvent.change(input, { target: { value: "fig" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(249);
+      });
+      expect(screen.getByRole("status")).toHaveTextContent("“fig”");
+      expect(screen.queryByText("figma")).toBeNull();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(
+        screen.getByRole("button", { name: "Connect figma" }),
+      ).toBeTruthy();
+
+      // Clearing again, then typing a new query still debounces the search call.
+      fireEvent.change(input, { target: { value: "" } });
+      expect(screen.getByText("slack")).toBeTruthy();
+      searchCatalog.mockClear();
+      fireEvent.change(input, { target: { value: "lin" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(249);
+      });
+      expect(searchCatalog).not.toHaveBeenCalled();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(searchCatalog).toHaveBeenCalledTimes(1);
+      expect(searchCatalog).toHaveBeenCalledWith({ query: "lin" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not scroll again on an identical catalog refetch with a newer dataUpdatedAt", async () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
+    const scrollSpy = vi.fn();
+    window.HTMLElement.prototype.scrollIntoView = scrollSpy;
+
+    renderConnectors([], "slack", false, undefined, client);
+
+    await screen.findByRole("button", { name: "Connect slack" });
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
+    expect(scrollSpy).toHaveBeenLastCalledWith({ block: "center" });
+
+    const queryKey = ["soko-bot-integration-catalog", "slack"];
+    const firstState = client.getQueryState(queryKey);
+    const firstData = firstState?.data;
+    const firstUpdatedAt = firstState?.dataUpdatedAt ?? 0;
+
+    scrollSpy.mockClear();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await act(async () => {
+      await client.refetchQueries({ queryKey });
+    });
+    await screen.findByRole("button", { name: "Connect slack" });
+
+    const nextState = client.getQueryState(queryKey);
+    expect(searchCatalog).toHaveBeenCalledTimes(2);
+    expect(nextState?.data).toBe(firstData);
+    expect(nextState?.dataUpdatedAt).toBeGreaterThan(firstUpdatedAt);
+    expect(scrollSpy).not.toHaveBeenCalled();
   });
 });

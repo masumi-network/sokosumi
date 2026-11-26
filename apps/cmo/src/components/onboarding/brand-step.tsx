@@ -3,7 +3,8 @@
 import "./onboarding.css";
 import type { CmoBrandMedia, CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { type ReactNode, useEffect, useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
+import { useTimeout } from "../../hooks/effects/use-timeout";
 import { AGENT_NAME } from "../../lib/agent";
 import {
   BRAND_SECTIONS,
@@ -12,6 +13,7 @@ import {
   type BrandSectionKey,
   brandProfile,
   EVIDENCE_LABELS,
+  fixPending,
   sourceHost,
 } from "../../lib/brand-sections";
 import { channelLabel, isSocialProvider } from "../../lib/calendar";
@@ -55,7 +57,6 @@ import { Refusal } from "./refusal";
 import { SidePanel, Tile } from "./tiles";
 
 /** Brand colours the site card shows, at most. */
-const MAX_COLORS = 5;
 
 /** Insights "What I noticed" lists, at most. */
 const MAX_INSIGHTS = 3;
@@ -76,11 +77,38 @@ interface TileData {
   body?: ReactNode;
 }
 
+/**
+ * What the owner reads while a correction waits. A whole strategy takes
+ * Cuso 10 to 15 minutes and the fix follows it; a change is quick.
+ */
+export function fixWaitNote(
+  overview: Pick<CmoOverview, "botStatus" | "work">,
+): string {
+  const work = overview.work;
+  return overview.botStatus === "RUNNING" &&
+    work?.kind === "strategy" &&
+    work.status === "running" &&
+    !work.change
+    ? `${AGENT_NAME} is writing your strategy now. He makes this fix as soon as he is done, usually within 15 minutes, and updates the strategy to match.`
+    : `${AGENT_NAME} will fix this and update your strategy.`;
+}
+
 /** Cuso wrote that he does not know yet: nothing to show the owner. */
 export function saysUnknown(text: string): boolean {
   return /^(unknown|not (yet )?known|unclear|n\/a|tbd)[.!]?$/i.test(
     text.trim(),
   );
+}
+
+/** A section the owner corrected and Cuso rewrote, with a headline to show. */
+function correctedSection(
+  brain: BrandBrain,
+  key: BrandSectionKey,
+): (BrandSection & { headline: string }) | undefined {
+  const section = brandProfile(brain)[key];
+  return section?.fix?.fixed && section.headline
+    ? { ...section, headline: section.headline }
+    : undefined;
 }
 
 /**
@@ -100,8 +128,10 @@ export function brandTiles(
   const tiles: TileData[] = [];
   const offers = brain.offers ?? [];
   const offer = offers[0];
+  const correctedOffer = correctedSection(brain, "offer");
   // The product's name, else how many offers there are; the detail says more.
   const sells =
+    correctedOffer?.headline ??
     brain.products[0] ??
     (offers.length > 0
       ? `${offers.length} ${offers.length === 1 ? "offer" : "offers"}`
@@ -111,27 +141,33 @@ export function brandTiles(
       id: "sell",
       label: "What you sell",
       value: short(sells),
-      detail: offer
-        ? short(
-            // "Free" priced "Free, 250 credits per seat" reads once, not twice.
-            `${offer.price.startsWith(offer.name) ? offer.price : `${offer.name}, ${offer.price}`}. ${offer.what}`,
-          )
-        : short(brain.products.slice(1).join(", ")),
+      detail: correctedOffer
+        ? short(correctedOffer.answer)
+        : offer
+          ? short(
+              // "Free" priced "Free, 250 credits per seat" reads once, not twice.
+              `${offer.price.startsWith(offer.name) ? offer.price : `${offer.name}, ${offer.price}`}. ${offer.what}`,
+            )
+          : short(brain.products.slice(1).join(", ")),
       section: "offer",
       body: <Offers brain={brain} onSave={(next) => onSave(next, "offer")} />,
     });
   }
-  const buyer = brain.reveal?.buyers[0];
-  const buys = buyer?.role ?? brain.audience[0];
+  // The owner's correction rewrites the section, not the reveal's buyers.
+  const corrected = correctedSection(brain, "customers");
+  const buyer = corrected ? undefined : brain.reveal?.buyers[0];
+  const buys = corrected?.headline ?? buyer?.role ?? brain.audience[0];
   const quotes = brain.voiceOfCustomer ?? [];
   if (buys || quotes.length > 0) {
     tiles.push({
       id: "buy",
       label: "Who buys",
       value: short(buys ?? "Your buyers"),
-      detail: buyer
-        ? short(`Wants: ${buyer.wants}`)
-        : short(brain.audience.slice(1).join(", ")),
+      detail: corrected
+        ? short(corrected.answer)
+        : buyer
+          ? short(`Wants: ${buyer.wants}`)
+          : short(brain.audience.slice(1).join(", ")),
       section: "customers",
       body: quotes.length > 0 ? <CustomerWords quotes={quotes} /> : undefined,
     });
@@ -308,6 +344,8 @@ interface BrandStepProps {
   subscribe?: StartTopUp | null;
   /** Continues without a subscription, for a tester Core allows it. */
   skip?: SkipSubscription | null;
+  /** False in the app, whose page leads itself and shows Cuso in the sidebar. */
+  withLead?: boolean;
 }
 
 /** What Cuso learned, as the founder's brand: a promise, six tiles, a side panel. */
@@ -323,6 +361,7 @@ export function BrandStep({
   topUp = null,
   subscribe = null,
   skip = null,
+  withLead = true,
 }: BrandStepProps) {
   const brain = overview.brandBrain as BrandBrain;
   const profile = brandProfile(brain);
@@ -347,14 +386,11 @@ export function BrandStep({
   const [staleSent, setStaleSent] = useState<typeof sent>(null);
   const stale = sent !== null && staleSent === sent;
   const idle = overview.botStatus !== "RUNNING";
-  useEffect(() => {
-    if (sent === null || answered) return;
-    const timer = window.setTimeout(
-      () => setStaleSent(sent),
-      idle ? 30_000 : 240_000,
-    );
-    return () => window.clearTimeout(timer);
-  }, [sent, answered, idle]);
+  useTimeout(
+    () => setStaleSent(sent),
+    sent !== null && !answered ? (idle ? 30_000 : 240_000) : null,
+    sent,
+  );
   // With onFix the overview says when a fix runs; the chat's reply never has to.
   const fixing = onFix
     ? overview.botStatus === "RUNNING" && overview.work?.change === "fix"
@@ -406,7 +442,7 @@ export function BrandStep({
   );
   const shown = tiles.find((tile) => tile.id === open);
   const section = shown?.section ? profile[shown.section] : undefined;
-  const waiting = onFix && section?.fix && !section.fix.fixed;
+  const waiting = onFix && fixPending(section);
 
   const [shownQuestions, answer] = useAnswers(
     brain.questions ?? [],
@@ -430,14 +466,16 @@ export function BrandStep({
 
   return (
     <section className="ob-brand">
-      <div className="ob-lead">
-        <CusoScene
-          scene="brand"
-          now={fixing ? "Updating your Brand Brain" : null}
-        />
-        <h1 className="ob-h1">Here's {site} as I see it.</h1>
-        <p className="muted">Tap any line to see the source or fix it.</p>
-      </div>
+      {withLead ? (
+        <div className="ob-lead">
+          <CusoScene
+            scene="brand"
+            now={fixing ? "Updating your Brand Brain" : null}
+          />
+          <h1 className="ob-h1">Here's {site} as I see it.</h1>
+          <p className="muted">Tap any line to see the source or fix it.</p>
+        </div>
+      ) : null}
       {refusal ? (
         <Refusal
           text={refusal}
@@ -492,7 +530,11 @@ export function BrandStep({
                 label={tile.label}
                 value={tile.value}
                 detail={tile.detail}
-                source={`Source: ${sourceHost(tileSource(tile, profile, overview.websiteUrl))}`}
+                source={
+                  tile.section && fixPending(profile[tile.section])
+                    ? `Your fix is waiting for ${AGENT_NAME}`
+                    : `Source: ${sourceHost(tileSource(tile, profile, overview.websiteUrl))}`
+                }
                 open={open === tile.id}
                 onToggle={() => setOpen(open === tile.id ? null : tile.id)}
               />
@@ -567,6 +609,12 @@ export function BrandStep({
                 inputId="ob-tell"
                 cta="Send"
                 placeholder="Say what to fix"
+                sentNote={
+                  // The note below already says how long it waits.
+                  fixWaitNote(overview).startsWith(`${AGENT_NAME} is writing`)
+                    ? "Sent."
+                    : undefined
+                }
                 onAsk={(text) => correct(shown.section, text)}
               />
             </div>
@@ -574,7 +622,7 @@ export function BrandStep({
               <p className="note" aria-live="polite">
                 {fixing
                   ? `${AGENT_NAME} is fixing this now.`
-                  : `${AGENT_NAME} will fix this and update your strategy.`}
+                  : fixWaitNote(overview)}
               </p>
             ) : null}
             {sent && answered && lastWord ? (
@@ -708,22 +756,12 @@ interface SiteCardProps {
   host: string;
 }
 
-/** The homepage as visitors see it, with the brand's colours. */
+/** The homepage as visitors see it; its colours are in "Your look". */
 function SiteCard({ overview, host }: SiteCardProps) {
-  const colors = (overview.brandVisual?.colors ?? []).slice(0, MAX_COLORS);
   return (
     <div className="card ob-sitecard">
       <h2>Your site</h2>
       <SiteShowcase media={overview.brandMedia} host={host} />
-      {colors.length > 0 ? (
-        <ul className="ob-swatches" aria-label="Brand colours">
-          {colors.map((color) => (
-            <li key={color} style={{ background: color }}>
-              <span className="ob-sr">{color}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
     </div>
   );
 }
@@ -818,7 +856,10 @@ function PromiseCard({ overview, brain, site, onSave }: PromiseCardProps) {
       ) : (
         <p className="ob-statement">{statement}</p>
       )}
-      <p className="ob-tile-source">Source: {site}</p>
+      {/* Once the owner rewrote it, the line is theirs, not the site's. */}
+      {brain.promiseByOwner ? null : (
+        <p className="ob-tile-source">Source: {site}</p>
+      )}
     </div>
   );
 }

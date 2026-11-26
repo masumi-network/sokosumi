@@ -85,6 +85,15 @@ export function resolveRequestHourCycle({
   return timeFormat ? HOUR_CYCLES[timeFormat] : undefined;
 }
 
+export function requestClockHourCycle(cookies: {
+  get(name: string): { value: string } | undefined;
+}) {
+  return resolveRequestHourCycle({
+    preference: cookies.get(TIME_FORMAT_COOKIE_NAME)?.value,
+    detected: cookies.get(DETECTED_TIME_FORMAT_COOKIE_NAME)?.value,
+  });
+}
+
 /**
  * The request's next-intl `formats`: one named `dateTime` format per shape of
  * label that shows a clock time. Each carries the hour cycle, so a label picks

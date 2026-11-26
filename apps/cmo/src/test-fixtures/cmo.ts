@@ -111,6 +111,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     brandBrainConfirmedAt: null,
     projectLogo: null,
     presenterSet: false,
+    upgrade: null,
     onboardingStep: "done",
     timeZone: "Europe/Berlin",
     routines: [
@@ -136,6 +137,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     },
     brandBrainUpdatedAt: new Date("2026-10-01T09:01:00Z"),
     strategy: cmoStrategy,
+    strategyShort: null,
     approvedStrategy: null,
     media: [],
     postRevisions: {},
@@ -158,6 +160,10 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
       pillars: null,
       level: "all_in",
       beyondPlan: [],
+      withoutPicture: [],
+      retryAt: null,
+      writerFailed: false,
+      floor: null,
     },
     measurement: [
       {
@@ -180,6 +186,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
       },
     ],
     mailingListSize: 0,
+    comments: [],
     billing: cmoBilling(),
     posts: { draft: 2, scheduled: 1, published: 0, failed: 0 },
     createdAt: new Date("2026-10-01T09:00:00Z"),

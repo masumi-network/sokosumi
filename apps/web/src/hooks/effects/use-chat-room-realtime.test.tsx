@@ -1,0 +1,913 @@
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { useState } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/ably/realtime-channel-environment", () => ({
+  getRealtimeChannelEnvironment: () => ({
+    network: "Mainnet",
+    vercelEnv: "production",
+  }),
+}));
+
+const {
+  authorizeMock,
+  getMock,
+  channelsByName,
+  ablyClient,
+  connectedListeners,
+} = vi.hoisted(() => {
+  const authorize = vi.fn();
+  const get = vi.fn();
+  const connectedListeners = new Set<() => void>();
+  return {
+    connectedListeners,
+    authorizeMock: authorize,
+    getMock: get,
+    channelsByName: new Map<string, FakeChannel>(),
+    // Stable client identity — new object each useAbly() would full-reset attach.
+    ablyClient: {
+      connection: {
+        state: "connected",
+        on: (_event: string, listener: () => void) =>
+          connectedListeners.add(listener),
+        off: (_event: string, listener: () => void) =>
+          connectedListeners.delete(listener),
+      },
+      auth: { authorize },
+      channels: { get },
+    },
+  };
+});
+
+vi.mock("ably/react", () => ({
+  useAbly: () => ablyClient,
+}));
+
+import { expectConsole } from "@sokosumi/utils/test-console";
+import { useChatControlChannel } from "@/hooks/effects/use-chat-control-channel";
+import {
+  createRoomTypingStore,
+  useRoomTypingSync,
+} from "@/hooks/effects/use-room-typing";
+import { getAblyChatRoomScope } from "@/lib/ably/chat-room-auth-scope.client";
+import { useChatRoomRealtime } from "./use-chat-room-realtime";
+
+type FakeChannelListener = (message: { data: unknown }) => void;
+
+interface FakeChannel {
+  name: string;
+  attached: boolean;
+  listeners: Map<string, Set<FakeChannelListener>>;
+  subscribe: ReturnType<typeof vi.fn>;
+  unsubscribe: ReturnType<typeof vi.fn>;
+  detach: ReturnType<typeof vi.fn>;
+  emit: (event: string, data: unknown) => void;
+}
+
+function channelFor(name: string): FakeChannel {
+  let channel = channelsByName.get(name);
+  if (!channel) {
+    const listeners = new Map<string, Set<FakeChannelListener>>();
+    const created: FakeChannel = {
+      name,
+      attached: false,
+      listeners,
+      subscribe: vi.fn((event: string, listener: FakeChannelListener) => {
+        created.attached = true;
+        let set = listeners.get(event);
+        if (!set) {
+          set = new Set();
+          listeners.set(event, set);
+        }
+        set.add(listener);
+      }),
+      unsubscribe: vi.fn((event: string, listener?: FakeChannelListener) => {
+        if (!listener) {
+          listeners.delete(event);
+          return;
+        }
+        listeners.get(event)?.delete(listener);
+      }),
+      detach: vi.fn(() => {
+        created.attached = false;
+      }),
+      emit: (event: string, data: unknown) => {
+        if (!created.attached) {
+          return;
+        }
+        for (const listener of listeners.get(event) ?? []) {
+          listener({ data });
+        }
+      },
+    };
+    channel = created;
+    channelsByName.set(name, channel);
+  }
+  return channel;
+}
+
+function tokenWithRooms(...roomIds: string[]) {
+  const capability: Record<string, string[]> = {
+    "notifications:all:user_1": ["subscribe"],
+    "chat_control:user_user_1": ["subscribe"],
+  };
+  for (const roomId of roomIds) {
+    capability[`chat_rooms:room_${roomId}`] = ["subscribe"];
+  }
+  return { capability: JSON.stringify(capability) };
+}
+
+function controlSubscribeHandler() {
+  const control = channelFor("chat_control:user_user_1");
+  const call = control.subscribe.mock.calls.find(
+    (args) => args[0] === "chat_membership_revoked",
+  );
+  return call?.[1] as ((message: { data: unknown }) => void) | undefined;
+}
+
+/**
+ * Event names one room channel carries: chat_room_message,
+ * chat_room_pinned_message and chat_room_read. One subscribe per name, so
+ * "attached once" is this many calls rather than one.
+ */
+const ROOM_CHANNEL_SUBSCRIPTIONS = 3;
+
+describe("useChatRoomRealtime", () => {
+  beforeEach(() => {
+    authorizeMock.mockReset();
+    getMock.mockReset();
+    channelsByName.clear();
+    connectedListeners.clear();
+    ablyClient.connection.state = "connected";
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-b"));
+    getMock.mockImplementation((name: string) => channelFor(name));
+    vi.useRealTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("registers room intent before minting and releases it when rooms change", async () => {
+    authorizeMock.mockImplementation(async () =>
+      tokenWithRooms(...getAblyChatRoomScope()),
+    );
+    const { rerender, unmount } = renderHook(
+      ({ roomId }) =>
+        useChatRoomRealtime({ roomIds: [roomId], currentUserId: "user_1" }),
+      { initialProps: { roomId: "room-a" } },
+    );
+    await waitFor(() =>
+      expect(getMock).toHaveBeenCalledWith("chat_rooms:room_room-a"),
+    );
+    expect(getAblyChatRoomScope()).toEqual(["room-a"]);
+
+    rerender({ roomId: "room-b" });
+    await waitFor(() =>
+      expect(getMock).toHaveBeenCalledWith("chat_rooms:room_room-b"),
+    );
+    expect(getAblyChatRoomScope()).toEqual(["room-b"]);
+
+    unmount();
+    expect(getAblyChatRoomScope()).toEqual([]);
+  });
+
+  it("retains typing scope when the message subscriber unmounts first", () => {
+    const messages = renderHook(() =>
+      useChatRoomRealtime({ roomIds: ["room-a"], currentUserId: "user_1" }),
+    );
+    const typing = renderHook(() => {
+      const [store] = useState(createRoomTypingStore);
+      useRoomTypingSync("room-a", "user_1", store);
+    });
+    messages.unmount();
+    expect(getAblyChatRoomScope()).toEqual(["room-a"]);
+
+    typing.unmount();
+    expect(getAblyChatRoomScope()).toEqual([]);
+  });
+
+  it("authorizes then subscribes to each membership room channel", async () => {
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-b", "room-a"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(1);
+      expect(getMock).toHaveBeenCalledWith("chat_rooms:room_room-a");
+      expect(getMock).toHaveBeenCalledWith("chat_rooms:room_room-b");
+      expect(channelFor("chat_rooms:room_room-a").subscribe).toHaveBeenCalled();
+      expect(channelFor("chat_rooms:room_room-b").subscribe).toHaveBeenCalled();
+      expect(
+        channelFor("chat_rooms:room_room-a").subscribe,
+      ).toHaveBeenCalledWith("chat_room_pinned_message", expect.any(Function));
+      // Seen by rides the same room channel under its own event name.
+      expect(
+        channelFor("chat_rooms:room_room-a").subscribe,
+      ).toHaveBeenCalledWith("chat_room_read", expect.any(Function));
+    });
+  });
+
+  it("subscribes to the user chat control channel for revoke signals", async () => {
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(getMock).toHaveBeenCalledWith("chat_control:user_user_1");
+      expect(
+        channelFor("chat_control:user_user_1").subscribe,
+      ).toHaveBeenCalledWith("chat_membership_revoked", expect.any(Function));
+    });
+  });
+
+  it("does not subscribe when authorize fails", async () => {
+    const errorCalls = expectConsole("error", "");
+    const onError = vi.fn();
+    const error = new Error("token refresh failed");
+    authorizeMock.mockRejectedValue(error);
+
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+        onError,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalled();
+    });
+    // Control channel still attaches; room channels do not.
+    expect(getMock).toHaveBeenCalledWith("chat_control:user_user_1");
+    expect(getMock).not.toHaveBeenCalledWith("chat_rooms:room_room-a");
+    expect(errorCalls[0]?.[0]).toBe(error);
+  });
+
+  it.each(["connected", "online"])(
+    "retries a failed room sync on %s without a focus event",
+    async (event) => {
+      const errorCalls = expectConsole("error", "");
+      const onError = vi.fn();
+      const error = new Error("token temporarily unavailable");
+      authorizeMock.mockRejectedValueOnce(error);
+      const { unmount } = renderHook(() =>
+        useChatRoomRealtime({
+          roomIds: ["room-a"],
+          currentUserId: "user_1",
+          onError,
+        }),
+      );
+      await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+
+      await act(async () => {
+        if (event === "connected") {
+          for (const listener of connectedListeners) listener();
+        } else {
+          window.dispatchEvent(new Event("online"));
+        }
+      });
+      expect(channelFor("chat_rooms:room_room-a").subscribe).toHaveBeenCalled();
+      expect(authorizeMock).toHaveBeenCalledTimes(2);
+
+      await act(async () => {
+        for (const listener of connectedListeners) listener();
+        window.dispatchEvent(new Event("online"));
+      });
+      expect(authorizeMock).toHaveBeenCalledTimes(2);
+      unmount();
+      expect(connectedListeners.size).toBe(0);
+      expect(errorCalls[0]?.[0]).toBe(error);
+    },
+  );
+
+  it("retries transient auth failure while the socket remains connected, then stops retrying", async () => {
+    const errorCalls = expectConsole("error", "");
+    vi.useFakeTimers();
+    const error = new Error("token temporarily unavailable");
+    authorizeMock.mockRejectedValueOnce(error);
+    const { unmount } = renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+      }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+    expect(channelFor("chat_rooms:room_room-a").subscribe).toHaveBeenCalled();
+    expect(authorizeMock).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(authorizeMock).toHaveBeenCalledTimes(2);
+    unmount();
+    expect(errorCalls[0]?.[0]).toBe(error);
+  });
+
+  it("does not retry a closed client on a timer", async () => {
+    const errorCalls = expectConsole("error", "");
+    vi.useFakeTimers();
+    ablyClient.connection.state = "closed";
+    const error = new Error("session is gone");
+    authorizeMock.mockRejectedValue(error);
+    const { unmount } = renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+      }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(authorizeMock).toHaveBeenCalledTimes(1);
+    unmount();
+    expect(errorCalls[0]?.[0]).toBe(error);
+  });
+
+  it("cancels pending auth retries on unmount", async () => {
+    const errorCalls = expectConsole("error", "");
+    vi.useFakeTimers();
+    const error = new Error("token temporarily unavailable");
+    authorizeMock.mockRejectedValue(error);
+    const { unmount } = renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+      }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    unmount();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(authorizeMock).toHaveBeenCalledTimes(1);
+    expect(errorCalls[0]?.[0]).toBe(error);
+  });
+
+  it.each(["closing", "closed", "failed"])(
+    "does not let a scheduled retry reopen a client that becomes %s",
+    async (state) => {
+      const errorCalls = expectConsole("error", "");
+      vi.useFakeTimers();
+      const error = new Error("token temporarily unavailable");
+      authorizeMock.mockRejectedValue(error);
+      const { unmount } = renderHook(() =>
+        useChatRoomRealtime({
+          roomIds: ["room-a"],
+          currentUserId: "user_1",
+        }),
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      ablyClient.connection.state = state;
+      await act(async () => {
+        window.dispatchEvent(new Event("online"));
+        await vi.advanceTimersByTimeAsync(15_000);
+      });
+      expect(authorizeMock).toHaveBeenCalledTimes(1);
+      unmount();
+      expect(errorCalls[0]?.[0]).toBe(error);
+    },
+  );
+
+  it("on membership change, only detaches removed and subscribes added rooms", async () => {
+    authorizeMock.mockResolvedValue(
+      tokenWithRooms("room-a", "room-b", "room-c"),
+    );
+
+    const { rerender } = renderHook(
+      ({ roomIds }: { roomIds: string[] }) =>
+        useChatRoomRealtime({
+          roomIds,
+          currentUserId: "user_1",
+        }),
+      { initialProps: { roomIds: ["room-a", "room-b"] } },
+    );
+
+    await waitFor(() => {
+      expect(
+        channelFor("chat_rooms:room_room-a").subscribe,
+      ).toHaveBeenCalledTimes(ROOM_CHANNEL_SUBSCRIPTIONS);
+      expect(
+        channelFor("chat_rooms:room_room-b").subscribe,
+      ).toHaveBeenCalledTimes(ROOM_CHANNEL_SUBSCRIPTIONS);
+    });
+
+    authorizeMock.mockClear();
+    getMock.mockClear();
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-c"));
+
+    rerender({ roomIds: ["room-a", "room-c"] });
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(1);
+      // left b
+      expect(
+        channelFor("chat_rooms:room_room-b").unsubscribe,
+      ).toHaveBeenCalled();
+      expect(channelFor("chat_rooms:room_room-b").detach).toHaveBeenCalled();
+      // joined c
+      expect(getMock).toHaveBeenCalledWith("chat_rooms:room_room-c");
+      expect(
+        channelFor("chat_rooms:room_room-c").subscribe,
+      ).toHaveBeenCalledTimes(ROOM_CHANNEL_SUBSCRIPTIONS);
+    });
+
+    // stable a — no second subscribe
+    expect(
+      channelFor("chat_rooms:room_room-a").subscribe,
+    ).toHaveBeenCalledTimes(ROOM_CHANNEL_SUBSCRIPTIONS);
+    expect(
+      channelFor("chat_rooms:room_room-a").unsubscribe,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("detaches a room the props dropped before the token without it is minted", async () => {
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a"));
+    const { rerender } = renderHook(
+      ({ roomIds }: { roomIds: string[] }) =>
+        useChatRoomRealtime({
+          roomIds,
+          currentUserId: "user_1",
+        }),
+      { initialProps: { roomIds: ["room-a"] } },
+    );
+    await waitFor(() => {
+      expect(
+        channelFor("chat_rooms:room_room-a").subscribe,
+      ).toHaveBeenCalledTimes(ROOM_CHANNEL_SUBSCRIPTIONS);
+    });
+
+    authorizeMock.mockClear();
+    let mint: (token: ReturnType<typeof tokenWithRooms>) => void = () => {};
+    authorizeMock.mockImplementation(
+      () =>
+        new Promise<ReturnType<typeof tokenWithRooms>>((resolve) => {
+          mint = resolve;
+        }),
+    );
+
+    rerender({ roomIds: ["room-b"] });
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(1);
+    });
+    // The token being minted grants room-b alone. A channel for room-a that
+    // is still attached when the server reads it loses its grant mid-attach.
+    expect(channelFor("chat_rooms:room_room-a").detach).toHaveBeenCalled();
+    expect(channelFor("chat_rooms:room_room-a").unsubscribe).toHaveBeenCalled();
+
+    await act(async () => {
+      mint(tokenWithRooms("room-b"));
+    });
+    await waitFor(() => {
+      expect(
+        channelFor("chat_rooms:room_room-b").subscribe,
+      ).toHaveBeenCalledTimes(ROOM_CHANNEL_SUBSCRIPTIONS);
+    });
+  });
+
+  it("on control revoke, detaches the room immediately and re-authorizes", async () => {
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-b"));
+    const onMembershipRevoked = vi.fn();
+
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a", "room-b"],
+        currentUserId: "user_1",
+        onMembershipRevoked,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-b").subscribe).toHaveBeenCalled();
+      expect(controlSubscribeHandler()).toBeTypeOf("function");
+    });
+
+    authorizeMock.mockClear();
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a"));
+
+    act(() => {
+      controlSubscribeHandler()?.({
+        data: {
+          roomId: "room-b",
+          reason: "removed",
+          at: "2026-08-06T12:00:00.000Z",
+        },
+      });
+    });
+
+    expect(channelFor("chat_rooms:room_room-b").unsubscribe).toHaveBeenCalled();
+    expect(channelFor("chat_rooms:room_room-b").detach).toHaveBeenCalled();
+    expect(onMembershipRevoked).toHaveBeenCalledWith({
+      roomId: "room-b",
+      reason: "removed",
+      at: "2026-08-06T12:00:00.000Z",
+    });
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("does not re-attach a revoked room when a stale authorize resolves late", async () => {
+    let resolveStaleAuth: ((value: unknown) => void) | undefined;
+    const staleAuth = new Promise((resolve) => {
+      resolveStaleAuth = resolve;
+    });
+
+    authorizeMock
+      .mockResolvedValueOnce(tokenWithRooms("room-a", "room-b"))
+      .mockImplementationOnce(() => staleAuth)
+      .mockResolvedValue(tokenWithRooms("room-a"));
+
+    const { rerender } = renderHook(
+      ({ roomIds }: { roomIds: string[] }) =>
+        useChatRoomRealtime({
+          roomIds,
+          currentUserId: "user_1",
+        }),
+      { initialProps: { roomIds: ["room-a", "room-b"] } },
+    );
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-b").subscribe).toHaveBeenCalled();
+      expect(controlSubscribeHandler()).toBeTypeOf("function");
+    });
+
+    // Start a membership-driven re-auth that will resolve with a stale token.
+    act(() => {
+      rerender({ roomIds: ["room-a", "room-b", "room-c"] });
+    });
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(2);
+    });
+
+    act(() => {
+      controlSubscribeHandler()?.({
+        data: {
+          roomId: "room-b",
+          reason: "removed",
+          at: "2026-08-06T12:00:00.000Z",
+        },
+      });
+    });
+
+    expect(channelFor("chat_rooms:room_room-b").detach).toHaveBeenCalled();
+
+    const subscribeCountAfterDetach = channelFor("chat_rooms:room_room-b")
+      .subscribe.mock.calls.length;
+
+    // Stale token still includes room-b; generation bump must discard it.
+    await act(async () => {
+      resolveStaleAuth?.(tokenWithRooms("room-a", "room-b", "room-c"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      // Fresh authorize after revoke must have run.
+      expect(authorizeMock.mock.calls.length).toBeGreaterThanOrEqual(3);
+    });
+
+    expect(
+      channelFor("chat_rooms:room_room-b").subscribe.mock.calls.length,
+    ).toBe(subscribeCountAfterDetach);
+  });
+
+  it("detaches rooms dropped from token capability even when props stay stale", async () => {
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-b"));
+
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a", "room-b"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-b").subscribe).toHaveBeenCalled();
+    });
+
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a"));
+
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+
+    await waitFor(() => {
+      expect(
+        channelFor("chat_rooms:room_room-b").unsubscribe,
+      ).toHaveBeenCalled();
+      expect(channelFor("chat_rooms:room_room-b").detach).toHaveBeenCalled();
+    });
+
+    // room-a stays attached; no re-subscribe
+    expect(
+      channelFor("chat_rooms:room_room-a").subscribe,
+    ).toHaveBeenCalledTimes(ROOM_CHANNEL_SUBSCRIPTIONS);
+    expect(
+      channelFor("chat_rooms:room_room-a").unsubscribe,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("does not re-authorize on a timer while mounted (control + focus/visibility only)", async () => {
+    vi.useFakeTimers();
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a"));
+
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(authorizeMock).toHaveBeenCalledTimes(1);
+
+    // Former 120s interval and multi-minute span must not mint again.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120_000);
+    });
+    expect(authorizeMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15 * 60_000);
+    });
+    expect(authorizeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-authorizes when the document becomes visible", async () => {
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a"));
+
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(1);
+    });
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("keeps prior channels when a later authorize fails", async () => {
+    const errorCalls = expectConsole("error", "");
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a"));
+
+    const onError = vi.fn();
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+        onError,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-a").subscribe).toHaveBeenCalled();
+    });
+
+    const error = new Error("token refresh failed");
+    authorizeMock.mockRejectedValue(error);
+
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+
+    await waitFor(() => {
+      expect(onError).toHaveBeenCalled();
+    });
+
+    expect(
+      channelFor("chat_rooms:room_room-a").unsubscribe,
+    ).not.toHaveBeenCalled();
+    expect(channelFor("chat_rooms:room_room-a").detach).not.toHaveBeenCalled();
+    expect(errorCalls[0]?.[0]).toBe(error);
+  });
+
+  it("falls back to prop roomIds when token capability is unparseable", async () => {
+    authorizeMock.mockResolvedValue({ capability: "not-json" });
+
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a", "room-b"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(getMock).toHaveBeenCalledWith("chat_rooms:room_room-a");
+      expect(getMock).toHaveBeenCalledWith("chat_rooms:room_room-b");
+      expect(channelFor("chat_rooms:room_room-a").subscribe).toHaveBeenCalled();
+      expect(channelFor("chat_rooms:room_room-b").subscribe).toHaveBeenCalled();
+    });
+  });
+
+  it("does not re-attach a revoked room when capability falls back to props", async () => {
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-b"));
+
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a", "room-b"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-b").subscribe).toHaveBeenCalled();
+      expect(controlSubscribeHandler()).toBeTypeOf("function");
+    });
+
+    // Post-revoke authorize returns unparseable capability so sync would
+    // otherwise fall back to stale prop roomIds including room-b.
+    authorizeMock.mockClear();
+    authorizeMock.mockResolvedValue({ capability: "not-json" });
+    getMock.mockClear();
+    channelFor("chat_rooms:room_room-b").subscribe.mockClear();
+
+    act(() => {
+      controlSubscribeHandler()?.({
+        data: {
+          roomId: "room-b",
+          reason: "removed",
+          at: "2026-08-06T12:00:00.000Z",
+        },
+      });
+    });
+
+    expect(channelFor("chat_rooms:room_room-b").detach).toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(getMock).not.toHaveBeenCalledWith("chat_rooms:room_room-b");
+    expect(
+      channelFor("chat_rooms:room_room-b").subscribe,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("detaches all chat rooms when token grants no room channels", async () => {
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-b"));
+
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a", "room-b"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-a").subscribe).toHaveBeenCalled();
+      expect(channelFor("chat_rooms:room_room-b").subscribe).toHaveBeenCalled();
+    });
+
+    authorizeMock.mockResolvedValue(tokenWithRooms());
+
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-a").detach).toHaveBeenCalled();
+      expect(channelFor("chat_rooms:room_room-b").detach).toHaveBeenCalled();
+    });
+  });
+
+  it("detaches room channels on unmount without detaching the shared control channel", async () => {
+    const { unmount } = renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a", "room-b"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-a").subscribe).toHaveBeenCalled();
+      expect(channelFor("chat_rooms:room_room-b").subscribe).toHaveBeenCalled();
+    });
+
+    act(() => {
+      unmount();
+    });
+
+    expect(channelFor("chat_rooms:room_room-a").unsubscribe).toHaveBeenCalled();
+    expect(channelFor("chat_rooms:room_room-a").detach).toHaveBeenCalled();
+    expect(channelFor("chat_rooms:room_room-b").unsubscribe).toHaveBeenCalled();
+    expect(channelFor("chat_rooms:room_room-b").detach).toHaveBeenCalled();
+    expect(
+      channelFor("chat_control:user_user_1").unsubscribe,
+    ).toHaveBeenCalledWith("chat_membership_revoked", expect.any(Function));
+    expect(
+      channelFor("chat_control:user_user_1").detach,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("keeps delivering chat_rooms_changed on the shared control channel after leaving a Room", async () => {
+    const onRevoked = vi.fn();
+    const onRoomsChanged = vi.fn();
+
+    const control = renderHook(() =>
+      useChatControlChannel({
+        currentUserId: "user_1",
+        onRevoked,
+        onRoomsChanged,
+      }),
+    );
+
+    const room = renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-a").subscribe).toHaveBeenCalled();
+    });
+
+    act(() => {
+      room.unmount();
+    });
+
+    act(() => {
+      channelFor("chat_control:user_user_1").emit("chat_rooms_changed", {
+        collections: ["active"],
+        roomId: "room-new",
+        at: "2026-11-23T18:00:00.000Z",
+      });
+    });
+
+    expect(onRoomsChanged).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collections: ["active"],
+        roomId: "room-new",
+      }),
+    );
+
+    act(() => {
+      control.unmount();
+    });
+  });
+
+  it("does not surface attach/detach race rejections on unmount", async () => {
+    const consoleError = vi.spyOn(console, "error");
+
+    const { unmount } = renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-a").subscribe).toHaveBeenCalled();
+    });
+
+    channelFor("chat_rooms:room_room-a").detach.mockRejectedValue(
+      new Error("Attach request superseded by a subsequent detach request"),
+    );
+
+    act(() => {
+      unmount();
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(consoleError).not.toHaveBeenCalledWith(
+      "Ably channel detach failed",
+      expect.anything(),
+    );
+    consoleError.mockRestore();
+  });
+});

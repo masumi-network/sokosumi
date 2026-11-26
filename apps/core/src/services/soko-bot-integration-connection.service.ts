@@ -1,4 +1,5 @@
 import { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { getSokoBotIntegrationProvider } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { createError } from "evlog";
@@ -143,7 +144,7 @@ export async function connectSokoBotIntegration(input: {
       // Finalization and disconnect write this row too. Lock it before
       // deciding which pending account the committed replacement supersedes.
       await tx.$queryRaw`
-        SELECT "id" FROM "soko_bot_integration"
+        SELECT "id" FROM ${sharedTable("soko_bot_integration")}
         WHERE "sokoBotId" = ${bot.id}::uuid AND "provider" = ${provider.id}
         FOR UPDATE
       `;
@@ -233,16 +234,25 @@ export async function finalizeSokoBotIntegration(input: {
   });
   if (!row) throw new SokoBotIntegrationError("Not connected", "NOT_FOUND");
   const composio = requireComposio();
-  const accountId = row.pendingComposioAccountId ?? row.composioAccountId;
+  const verified = input.expectedComposioAccountId;
   if (
-    input.expectedComposioAccountId &&
-    input.expectedComposioAccountId !== accountId
+    verified &&
+    verified !== row.composioAccountId &&
+    verified !== row.pendingComposioAccountId
   ) {
     throw new SokoBotIntegrationError(
       "Connection changed; retry finalizing OAuth",
     );
   }
+  // A second Connect click starts another attempt, while the owner may sign
+  // in through the first one: the attempt Composio verified wins.
+  const accountId =
+    verified ?? row.pendingComposioAccountId ?? row.composioAccountId;
   const replacing = accountId !== row.composioAccountId;
+  const abandoned =
+    row.pendingComposioAccountId && row.pendingComposioAccountId !== accountId
+      ? row.pendingComposioAccountId
+      : null;
   if (replacing) {
     await assertSokoBotIntegrationReplace(
       input.userId,
@@ -279,12 +289,13 @@ export async function finalizeSokoBotIntegration(input: {
     },
     data: {
       status,
-      connectedAt: status === "ACTIVE" ? new Date() : undefined,
+      ...(status === "ACTIVE" ? { connectedAt: new Date() } : {}),
       lastError:
         status === "FAILED" || status === "REVOKED"
           ? (account.statusReason ?? account.status)
           : null,
       ...(status === "ACTIVE" ? { lastErrorAt: null } : {}),
+      ...(abandoned ? { pendingComposioAccountId: null } : {}),
       ...(replacing
         ? {
             composioAccountId: accountId,
@@ -354,10 +365,9 @@ export async function finalizeSokoBotIntegration(input: {
     );
   // Preserve the existing replacement policy, but only revoke after the new
   // account is active and persisted. Never delete unrelated upstream accounts.
-  if (replacing) {
-    await composio.connectedAccounts
-      .delete(row.composioAccountId)
-      .catch(() => undefined);
+  for (const unused of [replacing ? row.composioAccountId : null, abandoned]) {
+    if (unused)
+      await composio.connectedAccounts.delete(unused).catch(() => undefined);
   }
   return status;
 }

@@ -71,6 +71,30 @@ describe("mapIntegrationError", () => {
 });
 
 describe("mapTurn", () => {
+  it("gives owners the tool failure kind and keeps the stored diagnostic", () => {
+    const toolCall = {
+      status: "FAILED",
+      errorKind: "provider_error",
+      errorDetail: "Raw tool provider diagnostic",
+    };
+    expect(mapTurn({ toolCalls: [toolCall] }).toolCalls).toEqual([
+      { ...toolCall, errorDetail: null },
+    ]);
+    expect(toolCall.errorDetail).toBe("Raw tool provider diagnostic");
+  });
+
+  it("keeps provider diagnostics out of the owner turn payload", () => {
+    const turn = {
+      errorKind: "GatewayInternalServerError",
+      errorDetail: "Raw provider diagnostic",
+    };
+    expect(mapTurn(turn)).toMatchObject({
+      errorKind: turn.errorKind,
+      errorDetail: null,
+    });
+    expect(turn.errorDetail).toBe("Raw provider diagnostic");
+  });
+
   it("returns the teammate who asked as requestedBy and the room as chatRoom", () => {
     const teammate = { id: "teammate", name: "Tea Mate", image: null };
     const room = { id: "room-1", name: "general", kind: "channel" };
@@ -83,5 +107,15 @@ describe("mapTurn", () => {
     expect(mapped.requestedBy).toEqual(teammate);
     expect(mapped.chatRoom).toEqual(room);
     expect(mapped).not.toHaveProperty("askedBy");
+  });
+
+  it("names the schedule a scheduled turn ran for, and null for other turns", () => {
+    const schedule = { name: "Dreaming", systemKey: "dreaming" };
+
+    const scheduled = mapTurn({ scheduleRun: { schedule } });
+
+    expect(scheduled.schedule).toEqual(schedule);
+    expect(scheduled).not.toHaveProperty("scheduleRun");
+    expect(mapTurn({}).schedule).toBeNull();
   });
 });

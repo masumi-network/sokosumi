@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { ChatCaughtUp } from "@/app/chat/components/chat-unread-view-header";
+import { ChatEmptyState } from "@/app/chat/components/chat-unread-view-header";
 import {
   CatchUpSummaryBody,
   isCatchUpSummaryEmpty,
@@ -16,6 +16,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
+import { chatQueryKeys } from "@/queries/chat";
 
 interface RoomSummaryPopoverProps {
   roomId: string;
@@ -31,7 +32,7 @@ interface RoomSummaryPopoverProps {
  */
 export function useRoomSummary(roomId: string, enabled: boolean) {
   return useQuery({
-    queryKey: ["chat-room-summary", roomId],
+    queryKey: chatQueryKeys.roomSummary(roomId),
     queryFn: () => fetchCatchUpSummary(roomId),
     enabled,
     staleTime: Number.POSITIVE_INFINITY,
@@ -72,7 +73,7 @@ export function RoomSummaryPopover({
       >
         {data ? (
           isCatchUpSummaryEmpty(data) ? (
-            <ChatCaughtUp
+            <ChatEmptyState
               title={t("caughtUpTitle")}
               description={t("caughtUpDescription")}
             />

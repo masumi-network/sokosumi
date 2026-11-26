@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { z } from "zod";
 import {
   listMcpServerTools,
@@ -11,6 +12,13 @@ import {
   sealSokoBotSecret,
 } from "@/lib/soko-bot/secret-box";
 import { sokoBotMcpToolSchema } from "@/schemas/soko-bot-mcp.schema";
+import {
+  finishMcpSignIn,
+  McpSignInError,
+  StoredMcpOAuthProvider,
+  serverIdFromState,
+  startMcpSignIn,
+} from "@/services/soko-bot-mcp-oauth.service";
 
 /** Enough for the handful of services an owner works with. */
 export const SOKO_BOT_MCP_SERVER_LIMIT = 5;
@@ -22,7 +30,8 @@ export type SokoBotMcpTool = z.infer<typeof sokoBotMcpToolSchema>;
 export type SokoBotMcpAuth =
   | { type: "none" }
   | { type: "bearer"; token: string }
-  | { type: "header"; name: string; value: string };
+  | { type: "header"; name: string; value: string }
+  | { type: "oauth" };
 
 type Fetch = typeof globalThis.fetch;
 
@@ -77,10 +86,17 @@ function authHeaders(auth: SokoBotMcpAuth): Record<string, string> {
 
 /** Where to call a stored server, with its credential opened. */
 export async function mcpServerTarget(server: {
+  id: string;
   url: string;
+  authKind: string;
   credentialCiphertext: string | null;
   credentialKeyId: string | null;
 }): Promise<McpServerTarget> {
+  if (server.authKind === "oauth")
+    return {
+      url: server.url,
+      authProvider: new StoredMcpOAuthProvider(server.id),
+    };
   if (!server.credentialCiphertext || !server.credentialKeyId)
     return { url: server.url };
   const headers = z.record(z.string(), z.string()).parse(
@@ -180,6 +196,29 @@ export async function addSokoBotMcpServer(
   )
     throw new SokoBotMcpError("This bot already has a server by that name");
 
+  if (input.auth.type === "oauth") {
+    // Stored first: the sign-in keeps its state on the row, and the tools
+    // are read when the owner comes back from the server's sign-in page.
+    const created = await prisma.sokoBotMcpServer.create({
+      data: {
+        sokoBotId: input.sokoBotId,
+        createdByUserId: input.userId,
+        name: input.name,
+        url,
+        authKind: "oauth",
+      },
+      select: serverSelect,
+    });
+    try {
+      const authorizationUrl = await startMcpSignIn(created, fetch);
+      return { ...present(created), authorizationUrl };
+    } catch (error) {
+      await prisma.sokoBotMcpServer.delete({ where: { id: created.id } });
+      if (error instanceof McpSignInError)
+        throw new SokoBotMcpError(error.message);
+      throw error;
+    }
+  }
   const headers = authHeaders(input.auth);
   const tools = mergeMcpTools(await readTools({ url, headers }, fetch), null);
   const sealed =
@@ -200,7 +239,69 @@ export async function addSokoBotMcpServer(
     },
     select: serverSelect,
   });
-  return present(server);
+  return { ...present(server), authorizationUrl: null };
+}
+
+/** Where the owner's browser goes to sign in to an OAuth server again. */
+export async function signInToSokoBotMcpServer(
+  sokoBotId: string,
+  serverId: string,
+  fetch?: Fetch,
+): Promise<string | null> {
+  const server = await prisma.sokoBotMcpServer.findFirst({
+    where: { id: serverId, sokoBotId, authKind: "oauth" },
+    select: { id: true, url: true },
+  });
+  if (!server) return null;
+  try {
+    return await startMcpSignIn(server, fetch);
+  } catch (error) {
+    if (error instanceof McpSignInError)
+      throw new SokoBotMcpError(error.message);
+    throw error;
+  }
+}
+
+/**
+ * The owner is back from the server's sign-in page: trade the code for
+ * tokens, then read the tools. A first read switches every tool on, as
+ * adding a server with a key does. Returns the server's bot, or throws.
+ */
+export async function completeSokoBotMcpSignIn(
+  callback: { code: string; state: string; issuer?: string },
+  ownedBy: (sokoBotId: string) => Promise<void>,
+  fetch?: Fetch,
+) {
+  const serverId = serverIdFromState(callback.state);
+  const server = serverId
+    ? await prisma.sokoBotMcpServer.findFirst({
+        where: { id: serverId, authKind: "oauth" },
+      })
+    : null;
+  if (!server) throw new SokoBotMcpError("This sign-in link is out of date");
+  await ownedBy(server.sokoBotId);
+  try {
+    await finishMcpSignIn(server, callback, fetch);
+  } catch (error) {
+    if (error instanceof McpSignInError)
+      throw new SokoBotMcpError(error.message);
+    throw error;
+  }
+  const listed = await readTools(await mcpServerTarget(server), fetch);
+  await prisma.sokoBotMcpServer.update({
+    where: { id: server.id },
+    data: {
+      tools: sokoBotMcpToolsJson(
+        mergeMcpTools(
+          listed,
+          server.toolsRefreshedAt ? parseSokoBotMcpTools(server.tools) : null,
+        ),
+      ),
+      toolsRefreshedAt: new Date(),
+      lastError: null,
+    },
+  });
+  return server.sokoBotId;
 }
 
 /** Reads the tools again; a failure is kept on the row and thrown. */
@@ -247,7 +348,7 @@ export async function updateSokoBotMcpTool(
   return prisma.$transaction(async (tx) => {
     // Locked: two switches flipped at once must not overwrite each other.
     const [row] = await tx.$queryRaw<{ id: string }[]>`
-      SELECT id FROM soko_bot_mcp_server
+      SELECT id FROM ${sharedTable("soko_bot_mcp_server")}
       WHERE id = ${serverId}::uuid AND "sokoBotId" = ${sokoBotId}::uuid
       FOR UPDATE`;
     if (!row) return null;

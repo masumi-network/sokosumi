@@ -1,8 +1,11 @@
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   isSokoBotAnnouncementCapability,
   isSokoBotNewsletterCapability,
   isSokoBotSeoCapability,
+  SOKO_BOT_FEATURE_OFF,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
+  SOKO_BOT_TOOL_REFUSED,
 } from "@sokosumi/soko-bot";
 import {
   createDataTableSchema,
@@ -17,8 +20,8 @@ import {
   ACTION_CAPABILITIES,
   actionInputHash,
   actionOperationKey,
-  EXTERNAL_EFFECT_CAPABILITIES,
   externalActionReceipt,
+  isExternalEffectToolCall,
   verifyTaskArchiveReceipt,
 } from "@/lib/soko-bot/action-receipts";
 import {
@@ -34,6 +37,7 @@ import { getSocialPost } from "@/services/social-posts.service";
 import {
   type ExecuteSokoBotToolInput,
   pinToBotProject,
+  SokoBotFeatureOffError,
   SokoBotRefusedUnsentError,
   SokoBotRuntimeAuthorizationError,
   SokoBotRuntimeConflictError,
@@ -47,8 +51,23 @@ import {
   READ_CALLS_PER_WRITE_CALL,
   TOOL_CALL_STALE_MS,
 } from "./execution-limits";
+import { fundraisingActor, isFundraisingCapability } from "./fundraising";
+import { readMemory } from "./memory";
 import { type RuntimeOperations } from "./operations";
+import { isSkillRead, readSkillAgain } from "./read-skill";
 import { persistedErrorDetail } from "./seller-recovery";
+import {
+  compareHistoricalClippedCreateTask,
+  createTaskCanonicalInputHashFromAudit,
+  createTaskInputIdentity,
+} from "./task-policy";
+
+/** A refusal Core meant is stored as such, so a report can tell it from a failure. */
+export function toolErrorKind(error: unknown): string {
+  if (error instanceof SokoBotFeatureOffError) return SOKO_BOT_FEATURE_OFF;
+  if (error instanceof SokoBotRefusedUnsentError) return SOKO_BOT_TOOL_REFUSED;
+  return error instanceof Error ? error.name : "unknown";
+}
 
 export async function executeTool(
   runtime: RuntimeOperations,
@@ -56,6 +75,16 @@ export async function executeTool(
 ): Promise<unknown> {
   const authorized = await runtime.authorize(rawInput);
   let input = await pinToBotProject(rawInput, authorized.turn.sokoBotId);
+  let createTaskIdentity: Awaited<
+    ReturnType<typeof createTaskInputIdentity>
+  > | null = null;
+  if (input.capability === "create_task") {
+    createTaskIdentity = await createTaskInputIdentity(
+      prisma,
+      authorized.turn,
+      input.input,
+    );
+  }
   // Before any receipt lookup, so a replay is refused like a first call.
   if (isSokoBotAnnouncementCapability(input.capability))
     requireAnnouncementBot(authorized.turn.sokoBotId);
@@ -76,18 +105,84 @@ export async function executeTool(
     clientTurnId: authorized.turn.id,
   });
   assertEvaluationTool(input.capability, input.input);
-  const inputHash = actionInputHash(input.input ?? null);
-  const operationKey = ACTION_CAPABILITIES.has(input.capability)
-    ? actionOperationKey({
-        workspaceId: authorized.turn.workspaceId,
-        principalId: actionPrincipalId(authorized.turn),
-        intentRevision: authorized.turn.intentId
-          ? `${authorized.turn.intentId}:${authorized.turn.intentRevision}`
-          : authorized.turn.id,
-        capability: input.capability,
-        inputHash,
-      })
-    : null;
+  const inputHash =
+    createTaskIdentity?.primaryHash ?? actionInputHash(input.input ?? null);
+  const candidateInputHashes = createTaskIdentity?.candidateHashes ?? [
+    inputHash,
+  ];
+  const externalEffect = isExternalEffectToolCall(
+    input.capability,
+    input.input,
+  );
+  const action = externalEffect || ACTION_CAPABILITIES.has(input.capability);
+  const intentRevision = authorized.turn.intentId
+    ? `${authorized.turn.intentId}:${authorized.turn.intentRevision}`
+    : authorized.turn.id;
+  const principalId = actionPrincipalId(authorized.turn);
+  const operationKeyForHash = (hash: string) =>
+    actionOperationKey({
+      workspaceId: authorized.turn.workspaceId,
+      principalId,
+      intentRevision,
+      capability: input.capability,
+      inputHash: hash,
+    });
+  const operationKey = action ? operationKeyForHash(inputHash) : null;
+  const candidateOperationKeys = action
+    ? candidateInputHashes.map(operationKeyForHash)
+    : [];
+  const matchesToolCallInput = (row: {
+    inputHash: string;
+    input?: unknown;
+  }): boolean => {
+    if (candidateInputHashes.includes(row.inputHash)) {
+      return true;
+    }
+    if (
+      createTaskIdentity?.canonicalHash !== null &&
+      createTaskIdentity?.canonicalHash !== undefined &&
+      row.input !== undefined
+    ) {
+      const auditCanonicalHash = createTaskCanonicalInputHashFromAudit(
+        row.input,
+        createTaskIdentity.singleEventTaskId,
+      );
+      if (auditCanonicalHash === createTaskIdentity.canonicalHash) {
+        return true;
+      }
+      if (
+        auditCanonicalHash === null &&
+        createTaskIdentity.canonicalInput !== null &&
+        compareHistoricalClippedCreateTask(
+          row,
+          createTaskIdentity.canonicalInput,
+          input.input,
+          createTaskIdentity.singleEventTaskId,
+        ) === "match"
+      ) {
+        return true;
+      }
+    }
+    return false;
+  };
+  const persistedInput = persistedToolResult(
+    input.input ?? null,
+    input.capability,
+    createTaskIdentity?.canonicalHash
+      ? { canonicalInputHash: createTaskIdentity.canonicalHash }
+      : undefined,
+  );
+  const isReopenableRejectedCall = (row: {
+    status: string;
+    disposition: string | null;
+    verification: string | null;
+    committedAt: Date | null;
+  }): boolean =>
+    row.status === "FAILED" &&
+    !externalEffect &&
+    row.disposition === "REJECTED" &&
+    row.verification === "NONE" &&
+    !row.committedAt;
   let existing = await prisma.sokoBotToolCall.findUnique({
     where: {
       turnId_toolCallId: {
@@ -96,11 +191,17 @@ export async function executeTool(
       },
     },
   });
-  if (!existing) {
+  const shouldReserveOrReopen =
+    !existing ||
+    (isReopenableRejectedCall(existing) &&
+      existing.capability === input.capability &&
+      matchesToolCallInput(existing));
+  if (shouldReserveOrReopen) {
+    const reopenCandidate = existing;
     existing = await serializableTransaction(async (tx) => {
       await tx.$queryRaw`
           SELECT "id"
-          FROM "soko_bot_turn"
+          FROM ${sharedTable("soko_bot_turn")}
           WHERE "id" = ${input.turnId}::uuid
           FOR UPDATE
         `;
@@ -112,12 +213,115 @@ export async function executeTool(
           },
         },
       });
-      if (raced) return raced;
-      if (operationKey) {
+      if (
+        raced &&
+        (!isReopenableRejectedCall(raced) ||
+          raced.capability !== input.capability ||
+          !matchesToolCallInput(raced))
+      ) {
+        return raced;
+      }
+      // Check all candidate operation keys under the reservation lock before
+      // creating a new row or reopening a rejected receipt, so an equivalent
+      // retry cannot duplicate or collide with a fresh call that already ran.
+      for (const candidateKey of candidateOperationKeys) {
         const operation = await tx.sokoBotToolCall.findUnique({
-          where: { operationKey },
+          where: { operationKey: candidateKey },
         });
         if (operation) return operation;
+      }
+      // Also compare earlier create_task receipts in the same operation scope
+      // after applying domain defaults, so pre-rollout or opposite-spelling
+      // receipts (e.g. description: null stored before retry omits description)
+      // still replay without changing the stored raw operationKey format.
+      if (
+        action &&
+        input.capability === "create_task" &&
+        createTaskIdentity?.canonicalHash !== null &&
+        createTaskIdentity?.canonicalHash !== undefined &&
+        typeof tx.sokoBotToolCall.findMany === "function"
+      ) {
+        const scopeWhere = authorized.turn.intentId
+          ? {
+              turn: {
+                workspaceId: authorized.turn.workspaceId,
+                intentId: authorized.turn.intentId,
+                intentRevision: authorized.turn.intentRevision,
+              },
+            }
+          : { turnId: input.turnId };
+        const sameScopeCreateTasks = await tx.sokoBotToolCall.findMany({
+          where: {
+            ...scopeWhere,
+            capability: "create_task",
+            operationKey: { not: null },
+          },
+          orderBy: { createdAt: "asc" },
+        });
+        const scopedCandidates = (sameScopeCreateTasks ?? []).filter(
+          (candidate) =>
+            Boolean(candidate.operationKey) &&
+            operationKeyForHash(candidate.inputHash) === candidate.operationKey,
+        );
+        let ambiguousClipped = false;
+        for (const candidate of scopedCandidates) {
+          const auditCanonicalHash = createTaskCanonicalInputHashFromAudit(
+            candidate.input,
+            createTaskIdentity.singleEventTaskId,
+          );
+          if (auditCanonicalHash === createTaskIdentity.canonicalHash) {
+            return candidate;
+          }
+          if (
+            auditCanonicalHash === null &&
+            createTaskIdentity.canonicalInput !== null
+          ) {
+            const clippedMatch = compareHistoricalClippedCreateTask(
+              candidate,
+              createTaskIdentity.canonicalInput,
+              input.input,
+              createTaskIdentity.singleEventTaskId,
+            );
+            if (clippedMatch === "match") {
+              return candidate;
+            }
+            if (clippedMatch === "ambiguous") {
+              ambiguousClipped = true;
+            }
+          }
+        }
+        if (ambiguousClipped) {
+          throw new SokoBotRuntimeConflictError(
+            "Previous truncated create_task receipt cannot be verified against this retry; reconcile before retrying",
+          );
+        }
+      }
+      const rejectedToReopen = raced ?? reopenCandidate;
+      if (rejectedToReopen) {
+        const reopened = await tx.sokoBotToolCall.updateMany({
+          where: {
+            id: rejectedToReopen.id,
+            status: "FAILED",
+            disposition: "REJECTED",
+            verification: "NONE",
+            committedAt: null,
+          },
+          data: {
+            status: "PENDING",
+            disposition: null,
+            operationKey,
+            inputHash,
+            input: persistedInput,
+            errorKind: null,
+            errorDetail: null,
+          },
+        });
+        if (reopened.count !== 1) {
+          throw new SokoBotRuntimeConflictError(
+            "Tool call retry was claimed concurrently",
+          );
+        }
+        return null;
       }
       const isRead = CORE_READ_CAPABILITIES.includes(input.capability);
       const callCount = await tx.sokoBotToolCall.count({
@@ -142,7 +346,7 @@ export async function executeTool(
           operationKey,
           actorBotId: authorized.turn.sokoBotId,
           inputHash,
-          input: persistedToolResult(input.input ?? null),
+          input: persistedInput,
         },
       });
       return null;
@@ -150,7 +354,7 @@ export async function executeTool(
   }
   if (existing) {
     if (
-      existing.inputHash !== inputHash ||
+      !matchesToolCallInput(existing) ||
       existing.capability !== input.capability
     ) {
       throw new SokoBotRuntimeAuthorizationError(
@@ -163,9 +367,15 @@ export async function executeTool(
       );
     }
     if (existing.status === "COMPLETED") {
+      if (isFundraisingCapability(input.capability))
+        await fundraisingActor(authorized);
       if (isSokoBotSeoCapability(input.capability)) {
         return runtime.executeSeoTool(input, authorized, true);
       }
+      // A skill read changes nothing and its stored row is a shortened audit
+      // copy: the replay reads the whole skill again.
+      if (isSkillRead(input.capability))
+        return readSkillAgain(authorized, input.capability, input.input);
       let replayResult = existing.result;
       if (input.capability === "preview_result") {
         if (authorized.askedByKind !== "OWNER")
@@ -181,10 +391,20 @@ export async function executeTool(
           throw new SokoBotRuntimeAuthorizationError("Result unavailable");
         return { ...snapshot, data: preview };
       }
+      if (input.capability === "read_memory") {
+        // The stored result is the 16 KB audit copy; the model gets the
+        // revision the first read saw, whole.
+        // A first read that found no memory replays as that: no memory,
+        // even if a revision was saved since.
+        const pinned = (existing.result as { id?: unknown } | null)?.id;
+        if (typeof pinned !== "string") return existing.result;
+        return readMemory(authorized.turn.sokoBotId, pinned);
+      }
       if (
         [
           "create_social_post",
           "update_social_post",
+          "update_social_posts",
           "schedule_social_post",
           "cancel_social_post",
           "publish_social_post",
@@ -361,76 +581,47 @@ export async function executeTool(
       }
       return replayResult;
     }
-    if (
-      existing.status === "FAILED" &&
-      !EXTERNAL_EFFECT_CAPABILITIES.has(input.capability) &&
-      existing.disposition === "REJECTED" &&
-      existing.verification === "NONE" &&
-      !existing.committedAt
-    ) {
-      const reopened = await prisma.sokoBotToolCall.updateMany({
+    if (existing.status === "FAILED") {
+      throw new SokoBotRuntimeConflictError("Tool call previously failed");
+    }
+    if (externalEffect) {
+      await prisma.sokoBotToolCall.updateMany({
         where: {
           id: existing.id,
+          status: "PENDING",
+          updatedAt: { lt: new Date(Date.now() - TOOL_CALL_STALE_MS) },
+        },
+        data: {
           status: "FAILED",
-          disposition: "REJECTED",
+          disposition: "UNKNOWN",
           verification: "NONE",
-          committedAt: null,
-        },
-        data: {
-          status: "PENDING",
-          disposition: null,
-          operationKey,
-          errorKind: null,
-          errorDetail: null,
         },
       });
-      if (reopened.count !== 1)
-        throw new SokoBotRuntimeConflictError(
-          "Tool call retry was claimed concurrently",
-        );
-    } else {
-      if (existing.status === "FAILED") {
-        throw new SokoBotRuntimeConflictError("Tool call previously failed");
-      }
-      if (EXTERNAL_EFFECT_CAPABILITIES.has(input.capability)) {
-        await prisma.sokoBotToolCall.updateMany({
-          where: {
-            id: existing.id,
-            status: "PENDING",
-            updatedAt: { lt: new Date(Date.now() - TOOL_CALL_STALE_MS) },
-          },
-          data: {
-            status: "FAILED",
-            disposition: "UNKNOWN",
-            verification: "NONE",
-          },
-        });
-        throw new SokoBotRuntimeConflictError(
-          "Effect outcome is unknown; reconciliation is required before retrying",
-        );
-      }
-      if (existing.turnId && existing.turnId !== input.turnId) {
-        throw new SokoBotRuntimeConflictError(
-          "Previous-turn operation requires reconciliation before retrying",
-        );
-      }
-      const reclaimed = await prisma.sokoBotToolCall.updateMany({
-        where: {
-          id: existing.id,
-          status: "PENDING",
-          updatedAt: {
-            lt: new Date(Date.now() - TOOL_CALL_STALE_MS),
-          },
+      throw new SokoBotRuntimeConflictError(
+        "Effect outcome is unknown; reconciliation is required before retrying",
+      );
+    }
+    if (existing.turnId && existing.turnId !== input.turnId) {
+      throw new SokoBotRuntimeConflictError(
+        "Previous-turn operation requires reconciliation before retrying",
+      );
+    }
+    const reclaimed = await prisma.sokoBotToolCall.updateMany({
+      where: {
+        id: existing.id,
+        status: "PENDING",
+        updatedAt: {
+          lt: new Date(Date.now() - TOOL_CALL_STALE_MS),
         },
-        data: {
-          updatedAt: new Date(),
-          errorKind: null,
-          errorDetail: null,
-        },
-      });
-      if (reclaimed.count === 0) {
-        throw new SokoBotRuntimeConflictError("Tool call is already executing");
-      }
+      },
+      data: {
+        updatedAt: new Date(),
+        errorKind: null,
+        errorDetail: null,
+      },
+    });
+    if (reclaimed.count === 0) {
+      throw new SokoBotRuntimeConflictError("Tool call is already executing");
     }
     // A semantic retry may carry a new call id. The original reserved row
     // remains authoritative for its transaction and finalization.
@@ -475,14 +666,13 @@ export async function executeTool(
           status: "FAILED",
           disposition: "REJECTED",
           operationKey: null,
-          errorKind: error instanceof Error ? error.name : "unknown",
+          errorKind: toolErrorKind(error),
           errorDetail: persistedErrorDetail(error),
         },
       });
       throw error;
     }
   }
-  const externalEffect = EXTERNAL_EFFECT_CAPABILITIES.has(input.capability);
   if (externalEffect) {
     // Fence cancellation and capability revocation at the durable dispatch
     // boundary. A crash after this commit remains UNKNOWN, never retryable.
@@ -526,7 +716,7 @@ export async function executeTool(
           ? externalActionReceipt(input.capability, result)
           : {}),
         status: "COMPLETED",
-        result: persistedToolResult(result ?? null),
+        result: persistedToolResult(result ?? null, input.capability),
       },
     });
     return result;
@@ -549,12 +739,13 @@ export async function executeTool(
         // A rolled-back local attempt is not an enduring semantic
         // reservation, and neither is an effect refused before it was sent.
         ...(!externalEffect || refusedUnsent ? { operationKey: null } : {}),
-        disposition: ACTION_CAPABILITIES.has(input.capability)
-          ? EXTERNAL_EFFECT_CAPABILITIES.has(input.capability) && !refusedUnsent
-            ? "UNKNOWN"
-            : "REJECTED"
-          : undefined,
-        errorKind: error instanceof Error ? error.name : "unknown",
+        ...(action
+          ? {
+              disposition:
+                externalEffect && !refusedUnsent ? "UNKNOWN" : "REJECTED",
+            }
+          : {}),
+        errorKind: toolErrorKind(error),
         errorDetail: persistedErrorDetail(error),
       },
     });

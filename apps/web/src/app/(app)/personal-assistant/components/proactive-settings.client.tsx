@@ -111,7 +111,8 @@ export function ProactiveSettings({
           max={200}
           value={limit}
           disabled={isPending}
-          className="w-20 text-right tabular-nums"
+          // shrink-0: the text beside it would squeeze it to one digit.
+          className="w-20 shrink-0 text-right tabular-nums"
           onChange={(event) => setLimit(Number(event.target.value))}
           onBlur={() => {
             const next = Math.min(200, Math.max(1, Math.round(limit) || 1));

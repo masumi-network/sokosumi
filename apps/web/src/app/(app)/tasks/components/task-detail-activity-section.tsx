@@ -4,6 +4,7 @@ import {
   type SubscriptionPlanName,
 } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
+import { seoTaskResultLink } from "@/app/seo/seo-href";
 import {
   type MentionableUser,
   TaskActivitySection,
@@ -16,10 +17,12 @@ import {
   TaskFollowControl,
   type ViewerSokoBotFace,
 } from "@/app/tasks/components/task-follow-control";
+import { taskTableSource } from "@/app/tasks/components/task-result-table";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
 import { taskActivityFeedFromEvents } from "@/app/tasks/utils/task-activity-feed";
 import { canCommentOnTaskForViewer } from "@/app/tasks/utils/task-read-only";
+import { ContactMentionScope } from "@/components/contact-mention-card";
 
 export async function TaskActivitySectionContent({
   taskId,
@@ -104,6 +107,7 @@ export async function TaskActivitySectionContent({
       }
     : knownUserById;
   const agentNameById = buildAgentNameById(agents);
+  const seoResult = seoTaskResultLink(task.seoAudit);
   const canComment = canCommentOnTaskForViewer({
     taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
     taskOwnerId: task.ownerId,
@@ -113,7 +117,7 @@ export async function TaskActivitySectionContent({
     hasAssignedSeat,
   });
 
-  return (
+  const activity = (
     <TaskActivitySection
       key={taskId}
       taskId={taskId}
@@ -140,8 +144,25 @@ export async function TaskActivitySectionContent({
       expandLabel={t("expand")}
       collapseLabel={t("collapse")}
       viewerPlan={viewerPlan}
-      mentionableUsers={mentionableUsers.map(({ id, name }) => ({ id, name }))}
+      mentionableUsers={mentionableUsers.map(({ id, name }) => ({
+        id,
+        name,
+      }))}
       canComment={canComment}
+      tableSource={taskTableSource(task)}
+      taskName={task.name}
+      resultLink={
+        seoResult
+          ? {
+              href: seoResult.href,
+              label: t(
+                seoResult.kind === "audit"
+                  ? "openSeoAudit"
+                  : "openSeoProjectWorkspace",
+              ),
+            }
+          : undefined
+      }
       headerAction={
         <TaskFollowControl
           taskId={taskId}
@@ -154,4 +175,5 @@ export async function TaskActivitySectionContent({
       }
     />
   );
+  return <ContactMentionScope>{activity}</ContactMentionScope>;
 }

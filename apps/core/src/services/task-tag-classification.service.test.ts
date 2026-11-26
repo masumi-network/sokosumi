@@ -5,9 +5,6 @@ import {
   classifyPendingTaskTags,
 } from "./task-tag-classification.service";
 
-vi.mock("@/helpers/task-tag-rollout", () => ({
-  TASK_WORKSPACE_JEV_ENABLED: true,
-}));
 const publishTaskEventMock = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/ably/publish", () => ({
   publishTaskEventData: publishTaskEventMock,

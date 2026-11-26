@@ -2,15 +2,16 @@
 
 import type {
   ChatRoomCoworkerParticipant,
-  ChatRoomPinnedMessageListItem,
   ChatRoomSokoBotParticipant,
   ChatRoomUserParticipant,
 } from "@sokosumi/core-client";
 import type { ChannelLinkTarget } from "@sokosumi/utils";
 import { Loader2, Pin, PinOff, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { listPinnedMessagesAction } from "@/app/chat/actions";
+import { ChatEmptyState } from "@/app/chat/components/chat-unread-view-header";
 import { Button } from "@/components/ui/button";
+import { usePinnedMessagesList } from "@/hooks/effects/use-pinned-messages-list";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import type { ChatParticipantHoverProfile } from "./room-helpers";
@@ -23,6 +24,8 @@ export interface PinnedMessagesPanelLabels {
   title: string;
   close: string;
   empty: string;
+  /** Under the empty title: how a message gets pinned. */
+  emptyHint: string;
   loading: string;
   error: string;
   couldNotLoad: string;
@@ -96,15 +99,20 @@ export function PinnedMessagesPanel({
   onJump,
   onUnpin,
 }: PinnedMessagesPanelProps) {
-  const [loadedItems, setItems] = useState<ChatRoomPinnedMessageListItem[]>([]);
+  const {
+    loadedItems,
+    setItems,
+    nextCursor,
+    setNextCursor,
+    isLoading,
+    error,
+    setError,
+  } = usePinnedMessagesList(roomId, listGeneration, labels);
   const [unpinningIds, setUnpinningIds] = useState<readonly string[]>([]);
   const items = loadedItems.filter(
     (item) => !unpinningIds.includes(item.messageId),
   );
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [jumpingMessageId, setJumpingMessageId] = useState<string | null>(null);
   const { formatTimeAgo } = useLocalizedDateTime();
 
@@ -125,39 +133,6 @@ export function PinnedMessagesPanel({
       );
     }
   }
-
-  useEffect(() => {
-    let cancelled = false;
-    setIsLoading(true);
-    setError(null);
-    setNextCursor(null);
-    void listPinnedMessagesAction(roomId)
-      .then((result) => {
-        if (cancelled) {
-          return;
-        }
-        if (!result.ok) {
-          setError(labels.error);
-          setItems([]);
-          setIsLoading(false);
-          return;
-        }
-        setItems(result.value.items);
-        setNextCursor(result.value.nextCursor);
-        setIsLoading(false);
-      })
-      .catch(() => {
-        if (cancelled) {
-          return;
-        }
-        setError(labels.error);
-        setItems([]);
-        setIsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [labels.error, listGeneration, roomId]);
 
   return (
     <aside
@@ -192,9 +167,12 @@ export function PinnedMessagesPanel({
           </p>
         ) : null}
         {!isLoading && !error && items.length === 0 ? (
-          <p className="text-muted-foreground px-2 py-6 text-center text-sm">
-            {labels.empty}
-          </p>
+          <ChatEmptyState
+            icon={Pin}
+            title={labels.empty}
+            description={labels.emptyHint}
+            testId="pinned-messages-empty"
+          />
         ) : null}
         {items.map((item) => {
           const message = item.message;

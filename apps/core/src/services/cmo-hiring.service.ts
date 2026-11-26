@@ -49,6 +49,7 @@ import {
   requireCuso,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
+import { documentCmoSitePages } from "@/services/cmo-site-pages.service";
 import {
   linkTestCopyConnections,
   requireTestCopySource,
@@ -231,12 +232,11 @@ function newestResearchTurn(sokoBotId: string) {
 
 export async function cmoLearningState(
   cuso: Pick<Cuso, "sokoBotId" | "brandBrain">,
-  now: Date = new Date(),
 ): Promise<CmoLearningState> {
   if (parseBrandBrain(cuso.brandBrain)) return "done";
   const turn = await newestResearchTurn(cuso.sokoBotId);
   // Cuso can finish without a Brand Brain on purpose: it asked questions.
-  return turn ? settledTurnStatus(turn, now) : "failed";
+  return turn ? settledTurnStatus(turn) : "failed";
 }
 
 /** One thing Cuso did while researching or planning, for the live feed. */
@@ -361,7 +361,7 @@ export function describeCmoStep(
       url: null,
     };
   }
-  if (capability === "save_strategy") {
+  if (capability === "save_strategy" || capability === "write_strategy") {
     return { kind: "strategy", label: "Writing your strategy", url: null };
   }
   if (capability === "list_project_social_accounts") {
@@ -373,7 +373,6 @@ export function describeCmoStep(
 /** Cuso's latest research or strategy turn, step by step. */
 export async function cmoWork(
   cuso: Pick<Cuso, "sokoBotId" | "websiteUrl" | "brandBrain">,
-  now: Date = new Date(),
 ): Promise<CmoWork | null> {
   const turn = await prisma.sokoBotTurn.findFirst({
     where: {
@@ -426,7 +425,7 @@ export async function cmoWork(
       ? "strategy"
       : "research",
     change: cmoChangeKind(turn.clientTurnId),
-    status: await settledTurnStatus(turn, now),
+    status: await settledTurnStatus(turn),
     startedAt: turn.createdAt,
     steps,
     sections,
@@ -453,7 +452,7 @@ export async function cmoActivity(
       status: { in: ["QUEUED", "STARTING", "RUNNING"] },
     },
     orderBy: { createdAt: "desc" },
-    select: { id: true, eveSessionId: true, createdAt: true },
+    select: { id: true, eveSessionId: true },
   });
   if (!turn) return null;
   // Read from the runtime's own log: a summary lands there as its step ends,
@@ -469,7 +468,7 @@ export async function cmoActivity(
           where: {
             sessionId: turn.eveSessionId,
             type: "reasoning.completed",
-            occurredAt: { gte: turn.createdAt },
+            turnId: turn.id,
           },
           orderBy: { startIndex: "desc" },
           select: { data: true },
@@ -492,7 +491,6 @@ export async function cmoActivity(
  */
 export async function retryCmoOnboarding(
   target: CusoTarget,
-  now: Date = new Date(),
 ): Promise<{ turnId: string }> {
   const { userId } = target;
   const cuso = await requireCuso(target);
@@ -500,7 +498,7 @@ export async function retryCmoOnboarding(
     throw new CmoConflictError("Cuso already learned the business");
   }
   const turn = await newestResearchTurn(cuso.sokoBotId);
-  if (turn && (await settledTurnStatus(turn, now)) === "running") {
+  if (turn && (await settledTurnStatus(turn)) === "running") {
     // createdAt is PostgreSQL time.
     if (!cmoRunIsSlow("research", turn.createdAt, await databaseNow())) {
       throw new CmoConflictError("Cuso is still learning the business");
@@ -524,9 +522,6 @@ export async function retryCmoOnboarding(
   return startCmoResearch(cuso, userId);
 }
 
-/** Social posts Cuso planned that have not gone out. */
-const UNSENT_POST_STATUSES = ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] as const;
-
 /**
  * The owner's time zone for this Cuso: his routines keep their local times
  * ("every day at 09:00") and move to the new zone, next runs included.
@@ -548,8 +543,8 @@ export async function setCmoTimeZone(
 
 /**
  * Lets this person hire Cuso again for another website: the Cuso they work
- * with is archived (his running work stops) and his posts that have not gone
- * out are canceled. His organization, Project and Files stay in Sokosumi.
+ * with is archived, which stops his running work and cancels his posts that
+ * have not gone out. His organization, Project and Files stay in Sokosumi.
  * Only an organization owner or admin may (the archive checks).
  */
 export async function startCmoOver(target: CusoTarget): Promise<void> {
@@ -579,43 +574,6 @@ export async function startCmoOver(target: CusoTarget): Promise<void> {
       data: { name: `${CUSO_NAME} · ${cuso.businessName}`.slice(0, 80) },
     });
   }
-  const posts = await prisma.socialPost.findMany({
-    where: {
-      projectId: cuso.projectId,
-      status: { in: [...UNSENT_POST_STATUSES] },
-    },
-    select: { id: true, revision: true },
-  });
-  const { cancelSocialPost } = await import("@/services/social-posts.service");
-  const leftPosts: {
-    id: string;
-    failure: ReturnType<typeof messageSafeErrorFields>;
-  }[] = [];
-  for (const post of posts) {
-    await cancelSocialPost({
-      projectId: cuso.projectId,
-      workspaceId: cuso.workspaceId,
-      userId,
-      postId: post.id,
-      revision: post.revision,
-    }).catch((error) => {
-      // A post's error can quote its text, so only its name and code.
-      leftPosts.push({
-        id: post.id,
-        failure: messageSafeErrorFields(error),
-      });
-    });
-  }
-  if (leftPosts.length > 0)
-    recordCoreWarning(
-      { operation: "cmo_start_over", project: { id: cuso.projectId } },
-      {
-        message: "Starting over left Social posts unsent but not cancelled",
-        why: "Cancelling the posts failed",
-        fix: "Cancel the posts listed under socialPosts in the Social queue, or they may still publish.",
-      },
-      { socialPosts: leftPosts },
-    );
 }
 
 /**
@@ -785,8 +743,18 @@ async function requireHirerSeat(
   }
 }
 
-/** One unpaid Cuso per person (ADR 0068): the refusal names him for CMO's link. */
+/**
+ * One unpaid Cuso per person (ADR 0068): the refusal names him for CMO's link.
+ * A tester may continue any Cuso on Tester credits anyway, so the cap would
+ * only stop them hiring two Cusos to compare before approving either.
+ */
 async function requireNoUnpaidCuso(userId: string): Promise<void> {
+  if (
+    await isOnEmailAllowlist(userId, getEnv().CMO_SUBSCRIPTION_SKIP_ALLOWLIST, {
+      requireVerifiedEmail: true,
+    })
+  )
+    return;
   const unpaid = await findUnpaidCusoHiredBy(userId);
   if (!unpaid) return;
   throw new CmoConflictError(
@@ -948,20 +916,23 @@ export async function startCmoOnboarding(input: {
   // opens with them instead of waiting for the full capture.
   waitUntil(
     runAsBackgroundWork(() =>
-      captureCmoHomepage(created).catch((error) => {
-        emitCoreWarning(
-          {
-            operation: "cmo_homepage_capture",
-            sokoBot: { id: created.sokoBotId },
-            failure: messageSafeErrorFields(error),
-          },
-          {
-            message: "Could not capture the brand's homepage for a new Cuso",
-            why: "The homepage screenshot capture threw",
-            fix: "The Brand Brain waits for the full capture after research instead. If it repeats, look up the error name and code under failure.",
-          },
-        );
-      }),
+      captureCmoHomepage(created)
+        // Then the whole site, so research and the Brand Brain can use it.
+        .then(() => documentCmoSitePages(created.sokoBotId))
+        .catch((error) => {
+          emitCoreWarning(
+            {
+              operation: "cmo_homepage_capture",
+              sokoBot: { id: created.sokoBotId },
+              failure: messageSafeErrorFields(error),
+            },
+            {
+              message: "Could not capture the brand's homepage for a new Cuso",
+              why: "The homepage screenshot capture threw",
+              fix: "The Brand Brain waits for the full capture after research instead. If it repeats, look up the error name and code under failure.",
+            },
+          );
+        }),
     ),
   );
 

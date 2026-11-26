@@ -723,6 +723,20 @@ describe("markTaskArchivedRead", () => {
     }
   });
 
+  it("clears the archived Task's notifications even if its descendants cannot be read", async () => {
+    prismaTaskFindUniqueMock.mockRejectedValueOnce(new Error("Read failed"));
+
+    await markTaskArchivedRead(ARCHIVED_TASK);
+
+    expect(markAttentionReadMock).toHaveBeenCalledWith(
+      ARCHIVED_TASK.ownerId,
+      "TASK",
+      ARCHIVED_TASK.id,
+      TASK_ATTENTION_MESSAGE_KEYS,
+      "task-archived-read",
+    );
+  });
+
   it("marks a mentioned person's added row read", async () => {
     prismaTaskParticipantFindManyMock.mockResolvedValue([{ userId: "user_3" }]);
 

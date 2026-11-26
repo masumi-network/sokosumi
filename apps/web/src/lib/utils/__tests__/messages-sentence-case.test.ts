@@ -21,11 +21,12 @@ const PROPER_PHRASES = [
   "Content Studio",
   "TikTok Studio",
   "Sokosumi Projects",
-  "Agent Identities",
+  "Agent Marketplace",
   // Ad platforms.
   "Google Ads",
   "Google Search",
   "Google Analytics",
+  "Google Trends",
   "Search Console",
   "Display Network",
   // Google's spreadsheet product, which Files links.
@@ -38,6 +39,8 @@ const PROPER_PHRASES = [
   "From Files",
   // The You tab, named as a destination ("Back to You").
   "to You",
+  // Catch up's Decisions tab, named as a destination ("Open in Decisions").
+  "in Decisions",
   // The Ads Market tab, named as a destination ("Add from Market").
   "from Market",
   // Legal documents, capitalised as titles in the sign-up consent copy too.
@@ -92,6 +95,9 @@ const PROPER_WORDS = new Set([
   "Jev",
   "YouTube",
   "TikTok",
+  // Networks named in the Files crop shapes.
+  "Instagram",
+  "Facebook",
   // AI assistants that GA4 counts in its AI Assistant channel.
   "ChatGPT",
   "Gemini",

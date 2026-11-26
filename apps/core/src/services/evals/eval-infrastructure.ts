@@ -1,18 +1,31 @@
 import { z } from "zod";
+import { AI_BUDGET_EXCEEDED } from "@/lib/ai-gateway-budget";
+import {
+  aiGatewayBudgetScope,
+  GATEWAY_INTERNAL_SERVER_ERROR,
+} from "@/lib/ai-gateway-budget-error";
 import prisma from "@/lib/db/prisma";
 import type { CaseOutcome } from "./eval-case-runner";
 
 const MAX_INFRASTRUCTURE_DETAIL_CHARS = 2_000;
-const PROVIDER_ERROR_KIND = "GatewayInternalServerError";
 const BUDGET_EXHAUSTED_CODE = "provider_budget_exhausted";
 const failureSchema = z.object({
   status: z.literal("FAILED"),
-  errorKind: z.enum([PROVIDER_ERROR_KIND, "runner_exited"]),
+  errorKind: z.enum([
+    GATEWAY_INTERNAL_SERVER_ERROR,
+    AI_BUDGET_EXCEEDED,
+    "runner_exited",
+  ]),
   errorDetail: z.string().nullable().optional(),
 });
 
 export interface EvalInfrastructureFailure {
-  code: "provider_budget_exhausted" | "provider_failure" | "runner_exited";
+  code:
+    | "provider_budget_exhausted"
+    | "provider_failure"
+    | "runner_exited"
+    | "chat_delivery_failed"
+    | "case_unsettled";
   stopsRun: boolean;
   message: string;
   detail: string;
@@ -35,12 +48,14 @@ export function evalInfrastructureFailure(
       message: "The evaluation runner exited before completing the turn",
       detail,
     };
-  const exhausted = /^\s*API key budget exceeded\./i.test(detail);
+  const exhausted =
+    parsed.data.errorKind === AI_BUDGET_EXCEEDED ||
+    Boolean(aiGatewayBudgetScope(detail));
   return {
     code: exhausted ? BUDGET_EXHAUSTED_CODE : "provider_failure",
     stopsRun: exhausted,
     message: exhausted
-      ? "AI Gateway API key budget exhausted"
+      ? "AI Gateway budget exhausted"
       : "AI Gateway could not complete the evaluation turn",
     detail,
   };
@@ -99,7 +114,7 @@ export async function stopPendingAfterBudgetError(
     data: {
       status: "ERROR",
       finishedAt: new Date(),
-      error: `Not executed: AI Gateway API key budget exhausted (result ${blocked.id})`,
+      error: `Not executed: AI Gateway budget exhausted (result ${blocked.id})`,
       checks: [],
       output: {
         infrastructure: failure.data.infrastructure,

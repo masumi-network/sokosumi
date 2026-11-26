@@ -4,9 +4,11 @@ import {
   hasReadableSeoMonitorPlan,
   parseSeoMonitorPlan,
   SEO_MONITOR_MARKER,
+  savedScheduleSummaryForUser,
   seoMonitorAuditId,
   seoMonitorDescriptionForUser,
   seoMonitorDescriptionWithRule,
+  taskScheduleDescriptionForWrite,
 } from "./monitor-plan";
 
 const AUDIT_ID = "11111111-1111-4111-8111-111111111111";
@@ -32,6 +34,19 @@ function description(packet: object): string {
 }
 
 describe("SEO monitor owner protocol", () => {
+  it.each(["includeSitemaps", "includePropertyTotals", "includePageDiscovery"])(
+    "rejects a public monitor template that claims %s consent",
+    (field) => {
+      const packet = {
+        version: 1,
+        ...plan,
+        analysis: { ...plan.analysis, kind: "audit_full", [field]: true },
+      };
+      expect(() => parseSeoMonitorPlan(description(packet))).toThrow(
+        /bounded public analysis/,
+      );
+    },
+  );
   it("retains an independent Audit identity without exposing protocol details in user copy", () => {
     const body = description({ version: 2, auditId: AUDIT_ID, ...plan });
     expect(parseSeoMonitorPlan(body)).toMatchObject({
@@ -264,5 +279,37 @@ describe("SEO monitor rule edits", () => {
       false,
     );
     expect(hasReadableSeoMonitorPlan("ordinary prose")).toBe(true);
+  });
+});
+
+describe("taskScheduleDescriptionForWrite", () => {
+  it("keeps a full audit's hidden request line when an edit sends back the text people saw", () => {
+    const stored =
+      'Full SEO audit of 2 selected pages:\n\nseo_audit: {"version":1}';
+    const edit = (description: string) =>
+      taskScheduleDescriptionForWrite(stored, {
+        expectedRevision: 1,
+        description,
+      });
+    expect(edit("Full SEO audit of 2 selected pages:")).toBeUndefined();
+    expect(edit("Full SEO audit of 3 selected pages:")).toBe(
+      "Full SEO audit of 3 selected pages:",
+    );
+    expect(
+      taskScheduleDescriptionForWrite("Weekly report", {
+        expectedRevision: 1,
+        description: "Weekly report",
+      }),
+    ).toBe("Weekly report");
+  });
+});
+
+describe("savedScheduleSummaryForUser", () => {
+  it("drops a full audit's request line that a saved card cut in the middle", () => {
+    expect(
+      savedScheduleSummaryForUser(
+        'Full SEO audit of 2 selected pages:\n\nseo_audit: {"version":1,"price":{"kind":"co',
+      ),
+    ).toBe("Full SEO audit of 2 selected pages:");
   });
 });

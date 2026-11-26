@@ -37,17 +37,13 @@ interface FullCalendarProps {
   }>;
 }
 
-const {
-  fullCalendarMock,
-  filterDropdownMenuMock,
-  changeRunMock,
-  toastSuccessMock,
-} = vi.hoisted(() => ({
-  fullCalendarMock: vi.fn(),
-  filterDropdownMenuMock: vi.fn(),
-  changeRunMock: vi.fn(),
-  toastSuccessMock: vi.fn(),
-}));
+const { fullCalendarMock, changeRunMock, toastSuccessMock } = vi.hoisted(
+  () => ({
+    fullCalendarMock: vi.fn(),
+    changeRunMock: vi.fn(),
+    toastSuccessMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/ably/calendar-realtime-bridge", () => ({
   CalendarRealtimeBridge: () => null,
@@ -93,13 +89,6 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/app/tasks/components/create-task-modal", () => ({
   useCreateTaskModal: () => ({ handleOpenWithDefaults: vi.fn() }),
-}));
-
-vi.mock("@/components/common/filter-dropdown-menu", () => ({
-  FilterDropdownMenu: (props: unknown) => {
-    filterDropdownMenuMock(props);
-    return <div data-testid="calendar-filters" />;
-  },
 }));
 
 vi.mock("@/lib/actions/soko-bot/action", () => ({
@@ -292,8 +281,14 @@ function renderedTitles(): string[] {
   return renderedEvents().map((event) => event.title);
 }
 
+function desktopShowTrigger() {
+  return screen
+    .getAllByRole("button", { name: /^showAndFilter/ })
+    .find((button) => button.hasAttribute("aria-haspopup"))!;
+}
+
 async function openShowFilter(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByTestId("calendar-show"));
+  await user.click(desktopShowTrigger());
   return screen.getByRole("menu");
 }
 
@@ -638,6 +633,7 @@ describe("WorkspaceCalendar features", () => {
         "show.newsletter",
         "show.contacts",
         "show.sokoBot",
+        "show.canceled",
       ]);
     });
 
@@ -711,14 +707,86 @@ describe("WorkspaceCalendar features", () => {
         "show.contacts",
         "show.marketing",
         "show.sokoBot",
+        "show.canceled",
       ]);
+    });
+
+    it("opens directly on feature choices in the mobile filter sheet", async () => {
+      const user = userEvent.setup();
+      const onUrlUpdate = vi.fn();
+      render(
+        <NuqsTestingAdapter
+          hasMemory
+          searchParams="?timezone=UTC&view=week&types=tasks,social"
+          onUrlUpdate={onUrlUpdate}
+        >
+          <WorkspaceCalendar initialDate="2030-01-03" items={ALL} />
+        </NuqsTestingAdapter>,
+      );
+      const trigger = screen
+        .getAllByRole("button", { name: /^showAndFilter/ })
+        .find((button) => !button.hasAttribute("aria-haspopup"))!;
+      await user.click(trigger);
+      const sheet = screen.getByRole("dialog");
+      await user.click(
+        within(sheet).getByRole("checkbox", { name: "show.social" }),
+      );
+      expect(onUrlUpdate.mock.lastCall?.[0].searchParams.get("types")).toBe(
+        "tasks",
+      );
+      expect(
+        within(sheet).getByRole("checkbox", { name: "show.tasks" }),
+      ).toBeDisabled();
+      expect(
+        within(sheet).getByRole("checkbox", { name: "show.social" }),
+      ).not.toBeChecked();
+      await user.click(
+        within(sheet).getByRole("button", { name: /statusLabel/ }),
+      );
+      await user.click(
+        within(sheet).getByRole("option", { name: "statusOptions.COMPLETED" }),
+      );
+      const params = onUrlUpdate.mock.lastCall?.[0].searchParams;
+      expect(params?.get("types")).toBe("tasks");
+      expect(params?.get("status")).toBe("COMPLETED");
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("keeps Show open when new server results remount the calendar data", async () => {
+      const user = userEvent.setup();
+      function page(calendarKey: string) {
+        return (
+          <NuqsTestingAdapter searchParams="?timezone=UTC&view=week">
+            <WorkspaceCalendar
+              calendarKey={calendarKey}
+              initialDate="2030-01-03"
+              items={ALL}
+            />
+          </NuqsTestingAdapter>
+        );
+      }
+      const { rerender } = render(page("tasks,social"));
+      await openShowFilter(user);
+      rerender(page("tasks"));
+      expect(
+        await screen.findByRole("menuitemcheckbox", { name: "show.tasks" }),
+      ).toBeVisible();
+    });
+
+    it("places search immediately before the view selector in the local controls", () => {
+      renderCalendar({
+        searchField: <input aria-label="Calendar search" type="search" />,
+      });
+      expect(screen.getByRole("searchbox").nextElementSibling).toBe(
+        screen.getByTestId("calendar-views"),
+      );
     });
 
     it("is named, and reached and opened from the keyboard", async () => {
       const user = userEvent.setup();
       renderCalendar();
 
-      const show = screen.getByRole("button", { name: "show.label" });
+      const show = desktopShowTrigger();
       for (
         let presses = 0;
         presses < 12 && document.activeElement !== show;

@@ -3,11 +3,14 @@ import {
   type Prisma,
   type SocialPostStatus,
 } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   type CmoBrandAnswer,
   type CmoCalendarEntry,
   type CmoSearchAd,
+  cmoPostsVideoShapes,
   cmoSearchAdSchema,
+  getSokoBotVersion,
   type MarketingStrategyPlan,
   marketingStrategyPlanSchema,
   type SocialPostPlanning,
@@ -15,19 +18,29 @@ import {
 } from "@sokosumi/soko-bot";
 import {
   CMO_CHANNELS,
+  CMO_SHAPED_VIDEO_TARGETS,
+  CMO_SHORT_VIDEO_FORMATS,
+  cmoShapedVideoTarget,
+  cmoShortVideoFormat,
+  isCmoChannelFormat,
+  isCmoShapedVideoFormat,
+  isCmoShortVideoFormat,
   isCmoTalkingFormat,
+  normalizeCmoChannelFormat,
   SOCIAL_POST_TEXT_LIMITS,
   type SocialPostMediaRef,
   type SocialPostProvider,
+  socialPostProviderLabel,
 } from "@sokosumi/utils";
-
 import {
   conflict,
   forbidden,
   internalServerError,
   notFound,
+  unprocessableEntity,
 } from "@/helpers/error";
 import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
+import { jsonInput } from "@/helpers/prisma-json";
 import { answerNote, changesAfterPlanAnswer } from "@/helpers/question-answers";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import { organizationRoleInWorkspace } from "@/helpers/soko-bot-management";
@@ -37,6 +50,7 @@ import {
   zonedDateTimeLocalToUtc,
 } from "@/helpers/task-schedule";
 import prisma from "@/lib/db/prisma";
+import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
 import { madeTestCopy } from "@/services/project-test-copy";
 import {
   settledTurnStatus,
@@ -71,6 +85,37 @@ export function cmoChangeKind(
   if (!clientTurnId?.startsWith(STRATEGY_TURN_PREFIX)) return null;
   const kind = clientTurnId.split(":")[3];
   return kind === "fix" || kind === "patch" ? kind : null;
+}
+
+/** The id segment of a strategy turn whose strategy Core writes in one step (cmo-v25). */
+const STEP_SEGMENT = "step";
+
+/** Whether Core writes this strategy turn's strategy in one step (`write_strategy`). */
+export function cmoStrategyStepTurn(clientTurnId: string | null): boolean {
+  return (
+    clientTurnId?.startsWith(STRATEGY_TURN_PREFIX) === true &&
+    clientTurnId.split(":").includes(STEP_SEGMENT)
+  );
+}
+
+/** A step turn's id: `cmo:strategy:<bot>:step:<time>`, or `…:patch:step:<time>`. */
+export function cmoStrategyStepTurnId(
+  sokoBotId: string,
+  kind: "plan" | "patch",
+  now: number = Date.now(),
+): string {
+  return `${STRATEGY_TURN_PREFIX}${sokoBotId}:${kind === "patch" ? "patch:" : ""}${STEP_SEGMENT}:${now}`;
+}
+
+/** The line after which a step turn's message holds the brief Core writes from. */
+export const CMO_STRATEGY_BRIEF_MARK = "The brief:";
+
+/** The brief of a step turn's message; null for any other message. */
+export function cmoStrategyBrief(message: string): string | null {
+  const at = message.indexOf(`\n${CMO_STRATEGY_BRIEF_MARK}\n`);
+  return at < 0
+    ? null
+    : message.slice(at + CMO_STRATEGY_BRIEF_MARK.length + 2).trim();
 }
 
 /** Every column but the plan: what a list of versions shows. */
@@ -127,8 +172,8 @@ export async function listMarketingStrategies(
       orderBy: [...NEWEST_FIRST],
       select: MARKETING_STRATEGY_VERSION_SELECT,
       take: page.take,
-      skip: page.skip,
-      cursor: page.cursor ? { id: page.cursor } : undefined,
+      ...(page.skip !== undefined ? { skip: page.skip } : {}),
+      ...(page.cursor ? { cursor: { id: page.cursor } } : {}),
     }),
     prisma.marketingStrategy.count({ where: { projectId } }),
   ]);
@@ -144,7 +189,7 @@ export function createMarketingStrategy(input: {
     data: {
       projectId: input.projectId,
       authorUserId: input.userId,
-      plan: input.plan,
+      plan: jsonInput(input.plan),
     },
   });
 }
@@ -196,7 +241,7 @@ async function strategyBeingWritten(projectId: string): Promise<boolean> {
     select: TURN_ROW_SELECT,
   });
   if (!writing) return false;
-  return (await settledTurnStatus(writing, new Date())) === "running";
+  return (await settledTurnStatus(writing)) === "running";
 }
 
 interface VersionChange {
@@ -263,7 +308,7 @@ export async function approveMarketingStrategy(
   }
   return prisma.$transaction(async (tx) => {
     // One approval at a time per Project, so two never race the unique index.
-    await tx.$executeRaw`SELECT 1 FROM project WHERE id = ${input.projectId}::uuid FOR UPDATE`;
+    await tx.$executeRaw`SELECT 1 FROM ${sharedTable("project")} WHERE id = ${input.projectId}::uuid FOR UPDATE`;
     const version = await tx.marketingStrategy.findFirst({
       where: { id: input.strategyId, projectId: input.projectId },
     });
@@ -481,52 +526,121 @@ export function plannedAt(
   );
 }
 
+/** One more post of a video: the `alsoOn` name, its network and format. */
+interface VideoCopy {
+  name: string;
+  channel: SocialPostProvider;
+  format: string;
+}
+
 /**
- * The other networks a talking video also goes out on: live social networks
- * with a talking video format, each once, never the entry's own.
+ * The posts a video's `alsoOn` adds. A talking video goes to the other live
+ * networks with a talking video format; a short video (a TikTok, a Reel, a
+ * YouTube Short) to the other short-video networks (owner, 2026-11-22: one
+ * file on TikTok, Reels and Shorts), never the entry's own. And, for a
+ * version that posts other shapes (`cmo-video-shapes`), one per shaped-video
+ * target (an X or YouTube video in 16:9, an Instagram or Facebook feed video
+ * in 4:5, a LinkedIn widescreen video), which Core cuts from the same video.
  */
-export function cmoVideoNetworks(
+export function cmoVideoCopies(
   entry: Pick<CmoCalendarEntry, "channel" | "format" | "alsoOn">,
-): SocialPostProvider[] {
-  if (!isCmoTalkingFormat(entry.channel, entry.format)) return [];
-  const networks = (entry.alsoOn ?? []).flatMap((network) => {
-    const provider = socialPostProvider(network);
-    return provider &&
+  shapes: boolean,
+): VideoCopy[] {
+  const talking = isCmoTalkingFormat(entry.channel, entry.format);
+  const short = isCmoShortVideoFormat(entry.channel, entry.format);
+  if (!talking && !short) return [];
+  const copies = new Map<string, VideoCopy>();
+  for (const name of entry.alsoOn ?? []) {
+    const provider = socialPostProvider(name);
+    if (
+      provider &&
       provider !== entry.channel &&
-      isCmoTalkingFormat(provider, entry.format)
-      ? [provider]
-      : [];
+      (talking
+        ? isCmoTalkingFormat(provider, entry.format)
+        : cmoShortVideoFormat(provider) !== null)
+    ) {
+      copies.set(name, {
+        name,
+        channel: provider,
+        format: short
+          ? (cmoShortVideoFormat(provider) ?? entry.format)
+          : entry.format,
+      });
+      continue;
+    }
+    const target = shapes ? cmoShapedVideoTarget(name) : null;
+    const channel = target && socialPostProvider(target.channel);
+    if (target && channel)
+      copies.set(name, { name, channel, format: target.format });
+  }
+  return [...copies.values()];
+}
+
+/** Whether the Project's live Cuso posts its videos in other shapes. */
+export async function cusoPostsVideoShapes(
+  projectId: string,
+  db: Prisma.TransactionClient = prisma,
+): Promise<boolean> {
+  const bot = await db.sokoBot.findFirst({
+    where: { ...LIVE_CUSO_WHERE, projectId },
+    select: { versionId: true },
   });
-  return [...new Set(networks)];
+  return (
+    bot?.versionId != null &&
+    cmoPostsVideoShapes(getSokoBotVersion(bot.versionId).skills)
+  );
 }
 
 /** Why an entry's `alsoOn` cannot be carried out, or null. */
 export function cmoAlsoOnProblem(
   entry: Pick<CmoCalendarEntry, "id" | "channel" | "format" | "alsoOn">,
+  shapes = false,
 ): string | null {
   if (!entry.alsoOn?.length) return null;
-  if (!isCmoTalkingFormat(entry.channel, entry.format))
-    return `${entry.id} lists alsoOn, which only a talking_video takes: one video shown on several networks. Remove alsoOn or make it a talking_video.`;
-  const allowed = cmoVideoNetworks(entry) as string[];
+  const talking = isCmoTalkingFormat(entry.channel, entry.format);
+  if (!talking && !isCmoShortVideoFormat(entry.channel, entry.format))
+    return `${entry.id} lists alsoOn, which only a video takes: a talking_video, or a short video (a TikTok, a Reel, a YouTube Short) shown on the other short-video networks. Remove alsoOn or make it one.`;
+  const allowed = cmoVideoCopies(entry, shapes).map((copy) => copy.name);
   const refused = entry.alsoOn.filter((network) => !allowed.includes(network));
-  return refused.length > 0
-    ? `${entry.id} cannot also go out on ${refused.join(", ")}: alsoOn takes other live networks with a talking_video format (${Object.entries(
-        CMO_CHANNELS,
-      )
-        .filter(
-          ([key]) =>
+  const offered = [
+    ...(talking
+      ? Object.keys(CMO_CHANNELS).filter(
+          (key) =>
             key !== entry.channel &&
             socialPostProvider(key) &&
             isCmoTalkingFormat(key, entry.format),
         )
-        .map(([key]) => key)
-        .join(", ")}), never its own channel.`
+      : Object.keys(CMO_SHORT_VIDEO_FORMATS).filter(
+          (key) => key !== entry.channel,
+        )),
+    ...(shapes ? Object.keys(CMO_SHAPED_VIDEO_TARGETS) : []),
+  ];
+  return refused.length > 0
+    ? `${entry.id} cannot also go out on ${refused.join(", ")}: alsoOn takes ${offered.join(", ")}, never its own channel.`
     : null;
 }
 
 /** The planning id of a talking video's post on another network. */
 function videoCopyId(entryId: string, network: string): string {
   return `${entryId.slice(0, 63 - network.length)}@${network}`;
+}
+
+/**
+ * The format a piece of its own takes for what the entry names. A video's
+ * other shape (an X video, a feed video) is a post Core makes from the
+ * video's alsoOn: named on anything else it maps to the plan's format ("a
+ * YouTube video" is a Short), or is refused when none fits.
+ */
+export function planEntryFormat(
+  entry: Pick<CmoCalendarEntry, "id" | "channel" | "format" | "status">,
+): string {
+  if (!isCmoShapedVideoFormat(entry.channel, entry.format)) return entry.format;
+  const { format } = normalizeCmoChannelFormat(entry.channel, entry.format);
+  if (entry.status !== "skipped" && !isCmoChannelFormat(entry.channel, format))
+    throw unprocessableEntity(
+      `${entry.id}: "${entry.channel}" / "${entry.format}" is a video's other shape, which Core posts from the video's alsoOn. Plan the video on its own network and list the shape in its alsoOn.`,
+    );
+  return format;
 }
 
 function withoutUndefined<T extends object>(value: T): Partial<T> {
@@ -561,7 +675,13 @@ export async function planMarketingStrategyPosts(
   const posts = await db.socialPost.findMany({
     where: { marketingStrategyId: version.id },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    select: { id: true, status: true, provider: true, planning: true },
+    select: {
+      id: true,
+      status: true,
+      provider: true,
+      planning: true,
+      media: true,
+    },
   });
   const connections = await db.projectSocialConnection.findMany({
     where: { projectId: version.projectId, status: "active" },
@@ -584,52 +704,87 @@ export async function planMarketingStrategyPosts(
   const entries = [...input.entries];
   // The posts Core plans here for a talking video's other networks.
   const copies = new Set<CmoCalendarEntry>();
+  // Read once, on the first video with alsoOn.
+  let shapes: boolean | undefined;
   for (const entry of entries) {
     const provider = socialPostProvider(entry.channel);
     if (!provider) continue;
     const post = byEntry.get(entry.id);
     const stored = parseSocialPostPlanning(post?.planning);
+    // A video's other shape stands only on the post Core made for it, found
+    // by its post id or plan id; anywhere else it is held to the plan's
+    // formats, as a plan save is.
+    const sentFormat =
+      copies.has(entry) || (stored?.videoOf && stored.format === entry.format)
+        ? entry.format
+        : planEntryFormat({ ...entry, channel: provider });
     const planning = {
-      ...stored,
-      ...withoutUndefined(socialPostPlanningSchema.parse(entry)),
-      // What a copy speaks is its entry's: a save of the copy changes its
-      // own caption and plan only.
-      ...(stored?.videoOf && !copies.has(entry)
-        ? {
-            script: stored.script,
-            presenter: stored.presenter,
-            voice: stored.voice,
-            languageCode: stored.languageCode,
-            alsoOn: undefined,
-            videoOf: stored.videoOf,
-          }
-        : {}),
+      ...withoutUndefined({
+        ...stored,
+        ...withoutUndefined(
+          socialPostPlanningSchema.parse({ ...entry, format: sentFormat }),
+        ),
+        // What a copy speaks is its entry's: a save of the copy changes its
+        // own caption and plan only.
+        ...(stored?.videoOf && !copies.has(entry)
+          ? {
+              // Core chose the copy's format (its network's shape).
+              format: stored.format,
+              // A short video's copy is the same file: its picture plan too.
+              visual: stored.visual,
+              visualFileIds: stored.visualFileIds,
+              script: stored.script,
+              presenter: stored.presenter,
+              voice: stored.voice,
+              shortFormat: stored.shortFormat,
+              hookLine: stored.hookLine,
+              languageCode: stored.languageCode,
+              alsoOn: undefined,
+              videoOf: stored.videoOf,
+              videoOfTalking: stored.videoOfTalking,
+            }
+          : {}),
+      }),
       id: stored?.id ?? entry.id,
     };
     if (!planning.videoOf) {
-      const networks = cmoVideoNetworks({
-        channel: provider,
-        format: planning.format ?? entry.format,
-        alsoOn: planning.alsoOn,
-      });
-      for (const network of networks) {
+      const wanted = cmoVideoCopies(
+        {
+          channel: provider,
+          format: planning.format ?? entry.format,
+          alsoOn: planning.alsoOn,
+        },
+        planning.alsoOn?.length
+          ? (shapes ??= await cusoPostsVideoShapes(version.projectId, db))
+          : false,
+      );
+      const wantedIds = new Set<string>();
+      for (const target of wanted) {
         const copy = {
           ...entry,
           ...planning,
-          id: videoCopyId(planning.id, network),
-          channel: network,
+          id: videoCopyId(planning.id, target.name),
+          channel: target.channel,
+          format: target.format,
           alsoOn: undefined,
           videoOf: planning.id,
+          videoOfTalking: isCmoShapedVideoFormat(target.channel, target.format)
+            ? isCmoTalkingFormat(provider, planning.format ?? entry.format)
+            : undefined,
           draft: undefined,
           socialPostId: undefined,
         };
+        wantedIds.add(copy.id);
         copies.add(copy);
         entries.push(copy);
       }
+      // A copy is its planning id: a network can carry two (a Reel and a
+      // feed video), and taking one off the list cancels only that one.
       for (const copy of posts) {
+        const copyPlanning = parseSocialPostPlanning(copy.planning);
         if (
-          parseSocialPostPlanning(copy.planning)?.videoOf === planning.id &&
-          !(networks as string[]).includes(copy.provider) &&
+          copyPlanning?.videoOf === planning.id &&
+          !wantedIds.has(copyPlanning.id ?? "") &&
           unpublished(copy.status)
         )
           await db.socialPost.update({
@@ -662,8 +817,13 @@ export async function planMarketingStrategyPosts(
       continue;
     }
     if (!unpublished(post.status)) continue;
+    // A talking video made for other words is taken off, so Core makes the
+    // new one: a carried-over post kept a video of an older script.
+    const remake =
+      spokenChanged(stored, planning) &&
+      parseSocialPostMedia(post.media, post.id).length > 0;
     // A scheduled post's words and time change through Social, which checks them.
-    const draft = post.status !== "SCHEDULED";
+    const draft = post.status !== "SCHEDULED" || remake;
     await db.socialPost.update({
       where: { id: post.id },
       data:
@@ -671,6 +831,14 @@ export async function planMarketingStrategyPosts(
           ? canceledPost(now)
           : {
               planning,
+              ...(remake
+                ? {
+                    media: [],
+                    status: "DRAFT" as const,
+                    scheduledByUserId: null,
+                    scheduledByCoworkerId: null,
+                  }
+                : {}),
               ...(draft
                 ? {
                     scheduledAt: plannedAt(entry, timeZone),
@@ -684,6 +852,20 @@ export async function planMarketingStrategyPosts(
     });
   }
   if (drafts.length > 0) await db.socialPost.createMany({ data: drafts });
+}
+
+/** Whether a talking video's post now speaks other words, or with another presenter or voice. */
+export function spokenChanged(
+  before: SocialPostPlanning | null | undefined,
+  after: Pick<SocialPostPlanning, "script" | "presenter" | "voice">,
+): boolean {
+  if (!before?.script?.trim()) return false;
+  return (
+    before.script.trim() !== after.script?.trim() ||
+    (before.presenter ?? "").toLowerCase() !==
+      (after.presenter ?? "").toLowerCase() ||
+    (before.voice ?? "").toLowerCase() !== (after.voice ?? "").toLowerCase()
+  );
 }
 
 /** A version's Social post, as a calendar entry and the media it carries. */
@@ -707,6 +889,45 @@ const CALENDAR_STATUS: Record<SocialPostStatus, CmoCalendarEntry["status"]> = {
   CANCELED: "skipped",
 };
 
+const RECONNECT_ERROR = /reconnect|revoked|authoriz/i;
+/**
+ * A network pausing our app's posting: our words from Core's publisher, or the
+ * network's own cap error on posts from before. Never the owner's to fix.
+ */
+const PAUSED_ERROR =
+  /paused our posting|spend.?cap|usage.?cap|UsageCapExceeded/i;
+
+/**
+ * Why a post did not go out, as the owner reads it on the Calendar and
+ * Today; null for a post that has not failed or missed its time. A post the
+ * network's pause moved on stays scheduled and says it waits.
+ */
+export function socialPostNotSent(post: {
+  status: SocialPostStatus;
+  provider: string;
+  lastError: string | null;
+}): string | null {
+  const provider = post.provider.toLowerCase() as SocialPostProvider;
+  const network = socialPostProviderLabel(provider) ?? post.provider;
+  const error = post.lastError ?? "";
+  if (post.status === "SCHEDULED" && PAUSED_ERROR.test(error)) {
+    return `${network} paused our posting for now; Cuso will try again.`;
+  }
+  if (post.status === "MISSED") return "It missed its time.";
+  if (post.status !== "FAILED") return null;
+  if (PAUSED_ERROR.test(error)) {
+    return `${network} paused our posting for a day. Ask Cuso to post it again.`;
+  }
+  if (RECONNECT_ERROR.test(error)) {
+    return `${network} needs reconnecting in Channels.`;
+  }
+  // Networks answer with JSON; its "detail" is the one human sentence.
+  const detail = /"detail"\s*:\s*"([^"]{1,200})"/.exec(error)?.[1]?.trim();
+  return detail
+    ? `${network} refused it: ${detail.replace(/\.?$/, ".")}`
+    : `${network} refused it.`;
+}
+
 /** The Social posts a version's calendar became, oldest first. */
 export async function listMarketingStrategyPosts(
   version: Pick<MarketingStrategy, "id" | "projectId">,
@@ -721,6 +942,7 @@ export async function listMarketingStrategyPosts(
       text: true,
       media: true,
       status: true,
+      lastError: true,
       revision: true,
       scheduledAt: true,
       createdAt: true,
@@ -729,8 +951,19 @@ export async function listMarketingStrategyPosts(
   });
   if (posts.length === 0) return [];
   const timeZone = await planTimeZone(version.projectId, db);
+  // Entries read under their post's id, so a talking video's copies name
+  // its post too: by its plan id they never found it and were never made.
+  const postIds = new Map(
+    posts.flatMap((post) => {
+      const id = parseSocialPostPlanning(post.planning)?.id;
+      return id ? [[id, post.id] as const] : [];
+    }),
+  );
   return posts.map((post) => {
     const planning = parseSocialPostPlanning(post.planning);
+    const videoOf = planning?.videoOf
+      ? (postIds.get(planning.videoOf) ?? planning.videoOf)
+      : undefined;
     const at = post.scheduledAt ?? post.createdAt;
     const { hour, minute } = getLocalTimeParts(at, timeZone);
     const title = planning?.title ?? post.text.slice(0, 80);
@@ -738,11 +971,13 @@ export async function listMarketingStrategyPosts(
       post.text.trim() !== "" &&
       post.text !== placeholderText({ ...planning, title }, post.provider);
     const status = CALENDAR_STATUS[post.status];
+    const notSent = socialPostNotSent(post);
     return {
       entry: {
         ...planning,
         id: post.id,
         socialPostId: post.id,
+        ...(videoOf ? { videoOf } : {}),
         channel: post.provider,
         title,
         format: planning?.format ?? "post",
@@ -750,6 +985,7 @@ export async function listMarketingStrategyPosts(
         time: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
         status: status === "draft" && !written ? "idea" : status,
         ...(written ? { draft: post.text } : {}),
+        ...(notSent ? { notSent } : {}),
       },
       entryId: planning?.id ?? null,
       media: parseSocialPostMedia(post.media, post.id),
@@ -907,7 +1143,7 @@ export async function answerMarketingStrategyQuestion(input: {
   note?: string;
 }): Promise<MarketingStrategy> {
   return prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT 1 FROM marketing_strategy WHERE id = ${input.strategyId}::uuid FOR UPDATE`;
+    await tx.$executeRaw`SELECT 1 FROM ${sharedTable("marketing_strategy")} WHERE id = ${input.strategyId}::uuid FOR UPDATE`;
     const version = await tx.marketingStrategy.findFirst({
       where: { id: input.strategyId, projectId: input.projectId },
     });
@@ -926,7 +1162,7 @@ export async function answerMarketingStrategyQuestion(input: {
     return tx.marketingStrategy.update({
       where: { id: version.id },
       data: {
-        plan: {
+        plan: jsonInput({
           ...plan,
           changes: changesAfterPlanAnswer({
             changes: plan.changes,
@@ -934,12 +1170,16 @@ export async function answerMarketingStrategyQuestion(input: {
             answer: input.answer,
             note,
           }),
-          questions: plan.questions.map((question) =>
-            question.id === input.questionId
-              ? { ...question, answer: input.answer, note }
-              : question,
-          ),
-        },
+          questions: plan.questions.map((question) => {
+            if (question.id !== input.questionId) return question;
+            const { note: _previousNote, ...fields } = question;
+            return {
+              ...fields,
+              answer: input.answer,
+              ...(note !== undefined ? { note } : {}),
+            };
+          }),
+        }),
       },
     });
   });

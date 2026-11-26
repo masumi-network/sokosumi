@@ -3,10 +3,18 @@ import type {
   MarketingStrategyPlan,
   ScenarioCheck,
 } from "@sokosumi/soko-bot";
+import { CMO_CHANNELS } from "@sokosumi/utils";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
+  CMO_LIVE_NETWORKS,
+  cmoExampleProblems,
+  cmoFunnelPlanProblems,
+  cmoLeftOutProblems,
+  cmoMonthByCore,
   cmoPlanProblems,
   cmoPlanRuleProblems,
+  cmoTopVolumeProblems,
+  type PlanReviewOptions,
 } from "@/services/cmo-plan-review.service";
 import { parseMarketingPlan } from "@/services/marketing-strategy.service";
 import type { CmoEvalBrand } from "./eval-cmo-cases";
@@ -70,6 +78,7 @@ const PIECE_LANGUAGE_SHARE = 0.4;
 export function strategyChecks(
   brand: CmoEvalBrand,
   saved: unknown,
+  options: PlanReviewOptions = {},
 ): { strategy: MarketingStrategyPlan | null; checks: ScenarioCheck[] } {
   const strategy = parseMarketingPlan(saved) as MarketingStrategyPlan | null;
   if (!strategy)
@@ -134,9 +143,37 @@ export function strategyChecks(
       actual: `${titles.length - other.length} of ${titles.length} titles${other.length ? `; not: ${other.slice(0, 4).join(" · ")}` : ""}`,
     });
   }
+  if (brand.websiteOnly) checks.push(...websiteOnlyChecks(strategy));
+  // cmo-v8's claims are compared by meaning: the runner checks them.
+  if (brand.focus && brand.focus !== "claims")
+    checks.push(focusCheck(brand.focus, strategy, options));
+  if (options.everyNetwork) checks.push(firstStrategyAdsCheck(strategy));
+  // cmo-v22: the strategy shows a few examples; Core writes the month.
+  if (options.examplesOnly) {
+    const problems = cmoExampleProblems(strategy, options);
+    const examples = strategy.calendar.filter(
+      (entry) => entry.status !== "skipped",
+    );
+    checks.push({
+      label: "Shows 3 to 5 example posts on its pillars, and no month",
+      pass: strategy.monthWriter?.state === "examples" && problems.length === 0,
+      actual:
+        strategy.monthWriter?.state !== "examples"
+          ? `no examples shape; ${examples.length} pieces`
+          : problems.join(" · ") ||
+            examples
+              .map(
+                (entry) => `${entry.channel}/${entry.format} · ${entry.pillar}`,
+              )
+              .join(", "),
+    });
+  }
+  // The claims case is scored on its claims; every other strategy case
+  // holds the plan to the skill's rules.
+  if (brand.focus === "claims") return { strategy, checks };
   const problems = [
     ...cmoPlanRuleProblems(strategy),
-    ...cmoPlanProblems(strategy),
+    ...cmoPlanProblems(strategy, options),
   ];
   checks.push({
     label: "Keeps the strategy skill's rules",
@@ -147,6 +184,138 @@ export function strategyChecks(
 }
 
 /** Failed checks as the lab's findings list. */
+/**
+ * A business with no profile anywhere: every live network is planned or left
+ * out with a reason, and each planned one says the owner opens the account.
+ */
+function websiteOnlyChecks(strategy: MarketingStrategyPlan): ScenarioCheck[] {
+  const planned = strategy.channels.filter((channel) =>
+    CMO_LIVE_NETWORKS.includes(channel.channel.toLowerCase()),
+  );
+  const leftOut = (strategy.leftOut ?? []).map((item) => item.channel);
+  const missing = CMO_LIVE_NETWORKS.filter(
+    (network) =>
+      !planned.some((channel) => channel.channel.toLowerCase() === network) &&
+      !leftOut.includes(network),
+  );
+  const notNew = planned.filter((channel) => !/^new:/i.test(channel.why ?? ""));
+  const proposed = strategy.proposals
+    .map((proposal) => proposal.channel)
+    .filter((channel) => CMO_LIVE_NETWORKS.includes(channel));
+  return [
+    {
+      label: "Every live network is planned or left out with a reason",
+      pass: missing.length === 0 && planned.length >= 3,
+      actual: `planned: ${planned.map((channel) => channel.channel).join(", ") || "none"}; left out: ${leftOut.join(", ") || "none"}${missing.length ? `; missing: ${missing.join(", ")}` : ""}`,
+    },
+    {
+      label: "Each planned network says the owner opens the account",
+      pass: notNew.length === 0,
+      actual: notNew.length
+        ? `no "New:" on ${notNew.map((channel) => channel.channel).join(", ")}`
+        : "all new",
+    },
+    {
+      label: "No social network is parked in proposals",
+      pass: proposed.length === 0,
+      actual: proposed.join(", ") || "none",
+    },
+  ];
+}
+
+/**
+ * One promise of cmo-v5's strategy, checked on its own: the top volume
+ * whatever pays for Cuso, a funnel in the plan's own numbers, and YouTube and
+ * TikTok fed by the month's talking videos. NMKR's month broke all three.
+ */
+function focusCheck(
+  focus: Exclude<CmoEvalBrand["focus"], "claims" | undefined>,
+  strategy: MarketingStrategyPlan,
+  options: PlanReviewOptions = {},
+): ScenarioCheck {
+  if (focus === "top-volume") {
+    const problems = cmoTopVolumeProblems(strategy, options);
+    return {
+      label: "Writes the month at the top volume",
+      pass: problems.length === 0,
+      actual:
+        problems.join(" · ") ||
+        `${strategy.pace?.level}, ${strategy.channels.map((channel) => `${channel.channel} ${channel.cadence}`).join(", ")}`,
+    };
+  }
+  if (focus === "funnel-plan") {
+    const problems = cmoFunnelPlanProblems(strategy, options);
+    return {
+      label: "The funnel says what the channels and calendar hold",
+      pass: strategy.funnel.length > 0 && problems.length === 0,
+      actual: problems.join(" · ") || "matches",
+    };
+  }
+  // cmo-v14 feeds them with TikToks and YouTube Shorts of their own too.
+  const video = (entry: MarketingStrategyPlan["calendar"][number]) =>
+    options.channelFit
+      ? Boolean(
+          (
+            CMO_CHANNELS as Record<
+              string,
+              { formats: Record<string, { video?: boolean }> }
+            >
+          )[entry.channel]?.formats[entry.format]?.video,
+        )
+      : entry.format === "talking_video";
+  // cmo-v22: Core's month always carries the short videos of a planned network.
+  const byCore = cmoMonthByCore(strategy);
+  const missing = ["youtube", "tiktok"].filter(
+    (network) =>
+      !strategy.channels.some((channel) => channel.channel === network) ||
+      (!byCore &&
+        !strategy.calendar.some(
+          (entry) =>
+            video(entry) &&
+            entry.status !== "skipped" &&
+            (entry.channel === network || entry.alsoOn?.includes(network)),
+        )),
+  );
+  return {
+    label: "Plans YouTube and TikTok with the month's videos",
+    pass:
+      missing.length === 0 &&
+      cmoLeftOutProblems(strategy, options).length === 0,
+    actual: missing.length
+      ? `missing ${missing.join(", ")}; left out: ${(strategy.leftOut ?? []).map((item) => `${item.channel} (${item.why})`).join(", ") || "none"}`
+      : "both planned",
+  };
+}
+
+/** A first strategy plans no ads: they wait for the owner's yes. */
+function firstStrategyAdsCheck(strategy: MarketingStrategyPlan): ScenarioCheck {
+  const ads = ["google_ads", "meta_ads"];
+  const planned = [
+    ...strategy.channels
+      .filter((channel) => ads.includes(channel.channel))
+      .map((channel) => `channel ${channel.channel}`),
+    ...strategy.calendar
+      .filter(
+        (entry) => ads.includes(entry.channel) && entry.status !== "skipped",
+      )
+      .map((entry) => `piece ${entry.id}`),
+    ...strategy.questions
+      .filter((question) =>
+        /\bads?\b|advertis|ad budget/i.test(question.question),
+      )
+      .map((question) => `question "${question.question}"`),
+  ];
+  return {
+    label: "Plans no ads and asks nothing about them before the owner's yes",
+    pass: planned.length === 0 && (strategy.ads?.monthly ?? 0) === 0,
+    actual:
+      planned.slice(0, 5).join(" · ") ||
+      (strategy.ads?.monthly
+        ? `monthly ${strategy.ads.monthly}`
+        : `no ads; would start with ${strategy.ads?.suggest ? `${strategy.ads.suggest.channel} at ${strategy.ads.suggest.monthly}` : "nothing"}`),
+  };
+}
+
 export function findings(checks: readonly ScenarioCheck[]): string[] {
   return checks
     .filter((check) => !check.pass)

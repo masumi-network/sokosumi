@@ -28,7 +28,19 @@ export default async function AppViewPage({
     <FixtureFrame searchParams={searchParams}>
       <FixtureApp
         view={view}
-        state={state === "empty" || state === "loading" ? state : undefined}
+        state={
+          state === "empty" ||
+          state === "loading" ||
+          state === "blocked" ||
+          state === "stuck" ||
+          state === "stopped" ||
+          state === "busy" ||
+          state === "quiet" ||
+          state === "upgraded" ||
+          state === "planning"
+            ? state
+            : undefined
+        }
       />
     </FixtureFrame>
   );

@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useStudioCompareMountLifecycle } from "@/hooks/effects/use-studio-compare-mount-lifecycle";
 import {
   getStudioComparePair,
   saveStudioPairwisePick,
@@ -64,13 +64,7 @@ export function StudioCompare({
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const active = useRef(true);
-  useMountEffect(() => {
-    active.current = true;
-    return () => {
-      active.current = false;
-      if (advanceTimer.current) clearTimeout(advanceTimer.current);
-    };
-  });
+  useStudioCompareMountLifecycle(active, advanceTimer);
 
   const query = useQuery({
     queryKey: ["studio-compare", projectId, batchId],

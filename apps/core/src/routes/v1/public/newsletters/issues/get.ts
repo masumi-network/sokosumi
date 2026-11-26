@@ -48,7 +48,7 @@ export default function mount(app: OpenAPIHono) {
     });
     if (!newsletter) throw notFound("Newsletter not found");
 
-    const { cursor, take, skip } = parseCursorPagination(c.req.valid("query"));
+    const { cursor, take } = parseCursorPagination(c.req.valid("query"));
     const where = {
       newsletterId: newsletter.id,
       status: "SENT" as const,
@@ -65,9 +65,8 @@ export default function mount(app: OpenAPIHono) {
           sentAt: true,
         },
         orderBy: [{ sentAt: "desc" }, { id: "desc" }],
-        cursor: cursor ? { id: cursor } : undefined,
         take: take + 1,
-        skip,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       }),
       prisma.newsletterIssue.count({ where }),
     ]);

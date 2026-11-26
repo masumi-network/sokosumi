@@ -75,6 +75,8 @@ const nextConfig: NextConfig = {
       },
       // Older names for Log in and Register. The query passes through, so a
       // returnUrl or an OAuth request survives.
+      // Soko Bots are made and managed on Agents; each console stays.
+      { source: "/soko-bots", destination: "/agents", permanent: false },
       { source: "/login", destination: "/signin", permanent: false },
       { source: "/register", destination: "/signup", permanent: false },
     ];

@@ -10,16 +10,21 @@
  * idempotent by `sourceRef`, so reading a page twice adds nothing.
  */
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
+  getSokoBotVersion,
   SOKO_BOT_SLACK_CAPTURE_TOOLS,
   SOKO_BOT_X_CAPTURE_TOOLS,
+  sokoBotReadsXDms,
 } from "@sokosumi/soko-bot";
 import {
   CONTACT_LIST_COLORS,
   normalizeContactChannelValue,
 } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import {
+  addXDmPage,
   type CaptureCandidate,
   type ExtractContext,
   type Extraction,
@@ -28,6 +33,8 @@ import {
   extractSentMail,
   extractSlackConversation,
   extractXDms,
+  keepXDmDay,
+  newXDmWalk,
   parseEvent,
   parseMail,
   parseSlackConversation,
@@ -39,8 +46,11 @@ import {
   type SlackProfile,
   slackCandidate,
   slackDays,
+  type XDmEvent,
+  type XDmWalk,
   type XUser,
   xCandidate,
+  xDmWalkEvents,
 } from "@/lib/contacts/capture-extract";
 import type { CaptureSkipReason } from "@/lib/contacts/capture-filters";
 import {
@@ -51,6 +61,7 @@ import {
   contactNameKeys,
   followerNameKey,
   isLikelyBot,
+  isLikelyBrand,
   type MatchContact,
   matchFollower,
   ownHost,
@@ -59,6 +70,7 @@ import {
   type XFollower,
 } from "@/lib/contacts/x-followers";
 import prisma from "@/lib/db/prisma";
+import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
 import {
   type CoreError,
   createCoreLogger,
@@ -66,6 +78,7 @@ import {
   emitCoreWarning,
 } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { keepXDms } from "@/lib/soko-bot/x-inbox";
 import {
   runIntegrationTool,
   SokoBotIntegrationError,
@@ -96,8 +109,10 @@ import {
   captureContactInteraction,
   enrichContactFields,
   inContactTransaction,
+  linkMemberByChannel,
   mergeContacts,
   upsertContact,
+  workspaceMemberEmails,
 } from "@/services/contacts.service";
 import {
   type ActiveIntegration,
@@ -167,8 +182,24 @@ export interface CaptureLimits {
   xIntervalMs: number;
   /** Followers change slowly: read from the newest once a day. */
   xFollowsIntervalMs: number;
-  /** Followers pages (1000 each) per run. */
+  /** DM events the first, cheap read asks for. */
+  /**
+   * DM calls per run, of `xCallsPerRun`: a busy account's walk goes on next
+   * run, and the rest stays for the follower walk.
+   */
+  xDmCallsPerRun: number;
+  xDmProbeSize: number;
+  /** DM events per page once the newest one is new. */
+  xDmPageSize: number;
+  /** Follow pages a day, followers and following walks together. */
   xFollowPages: number;
+  /** Users on the first page of a walk that already read everyone once. */
+  xFollowProbeSize: number;
+  /**
+   * Followers per page. X bills each one returned, and a page the write
+   * budget ends inside is read again, so a page stays well under it.
+   */
+  xFollowPageSize: number;
   /** Re-read this much before `since`; capture is idempotent. */
   overlapMs: number;
   /** Pause between Composio calls, so a backfill never bursts. */
@@ -200,7 +231,12 @@ export const DEFAULT_CAPTURE_LIMITS: CaptureLimits = {
   xCallsPerRun: 12,
   xIntervalMs: 60 * 60 * 1_000,
   xFollowsIntervalMs: DAY_MS,
-  xFollowPages: 3,
+  xDmCallsPerRun: 7,
+  xDmProbeSize: 10,
+  xDmPageSize: 20,
+  xFollowPages: 4,
+  xFollowProbeSize: 20,
+  xFollowPageSize: 100,
   overlapMs: 10 * 60 * 1_000,
   callSpacingMs: 250,
   unsupportedPauseMs: DAY_MS,
@@ -215,19 +251,85 @@ interface SourceCursor {
   pageToken: string | null;
   /** Slack's forward pass resumes its conversation walk here. */
   forwardToken?: string | null;
-  /** When X followers were last read from the newest. */
+  /** The newest X DM event read; a run whose newest is still it reads no more. */
+  newestDmId?: string;
+  /** An X DM walk that took more than one run, where it stands. */
+  dmWalk?: XDmWalk;
+  /** When the day's X follow pages were read, for both walks together. */
   followsAt?: string;
-  /** The followers page still to read; set until all were read. */
+  /** Before `xWalks`: the followers walk, carried over once. */
   followersToken?: string | null;
-  /**
-   * Every follower was read once; a later walk stops at a page of people who
-   * were all contacts before it began.
-   */
   followersWalked?: boolean;
-  /** When the current walk began at the newest follower. */
   followersWalkFrom?: string;
+  /** The owner's followers and the people they follow, walked apart. */
+  xWalks?: Partial<Record<XWalkKind, XWalk>>;
   /** Provider lacks a needed tool: left alone until then. */
   pausedUntil?: string;
+}
+
+type XWalkKind = "followers" | "following";
+
+interface XWalk {
+  /** The page still to read; set until all were read. */
+  token?: string | null;
+  /**
+   * Everyone was read once; a later walk stops at a page of people who were
+   * all contacts before it began.
+   */
+  walked?: boolean;
+  /** When the current walk began at the newest. */
+  walkFrom?: string;
+}
+
+/** What each walk reads, the list it adds new people to, and the side it records. */
+const X_WALKS: Record<
+  XWalkKind,
+  {
+    tool: string;
+    list: string;
+    color: (typeof CONTACT_LIST_COLORS)[number];
+    side: "followsUser" | "followedByUser";
+  }
+> = {
+  followers: {
+    tool: SOKO_BOT_X_CAPTURE_TOOLS.followers,
+    list: "X followers",
+    color: CONTACT_LIST_COLORS[6],
+    side: "followsUser",
+  },
+  following: {
+    tool: SOKO_BOT_X_CAPTURE_TOOLS.following,
+    list: "X following",
+    color: CONTACT_LIST_COLORS[7],
+    side: "followedByUser",
+  },
+};
+
+/**
+ * The walks, from the old followers fields on first read. The followers walk
+ * goes on where it stood: the migration took who follows the owner from the
+ * "X followers" list, so nothing is read again. Known gap, accepted to save
+ * a second paid pass: followers an old walk joined to an existing contact
+ * without listing them get `followsUser` only if a later walk reaches them.
+ * Before `followersWalked` existed, `followsAt` was set only by a finished
+ * walk.
+ */
+function xWalksOf(cursor: SourceCursor): Partial<Record<XWalkKind, XWalk>> {
+  if (!cursor.xWalks) {
+    cursor.xWalks = cursor.followsAt
+      ? {
+          followers: {
+            token: cursor.followersToken ?? null,
+            walked: cursor.followersWalked ?? true,
+            walkFrom: cursor.followersWalkFrom,
+          },
+        }
+      : {};
+    delete cursor.followersToken;
+    delete cursor.followersWalked;
+    delete cursor.followersWalkFrom;
+  }
+  return cursor.xWalks;
 }
 
 type CaptureCursor = Partial<Record<CaptureSource, SourceCursor>>;
@@ -320,7 +422,12 @@ interface CaptureRow {
   composioAccountId: string;
   connectorUserId: string | null;
   cursor: Prisma.JsonValue | null;
-  sokoBot: { id: string; userId: string | null; workspaceId: string };
+  sokoBot: {
+    id: string;
+    userId: string | null;
+    workspaceId: string;
+    versionId: string | null;
+  };
   contactCaptureState: {
     id: string;
     backfillFloor: Date;
@@ -363,6 +470,8 @@ async function loadCaptureRows(workspaceId?: string): Promise<CaptureRow[]> {
     where: {
       status: "ACTIVE",
       provider: { in: Object.keys(PROVIDER_SOURCES) },
+      // An eval lane's stand-in connection has nothing to read.
+      composioAccountId: { not: { startsWith: EVAL_CONNECTED_ACCOUNT_PREFIX } },
       sokoBot: { archivedAt: null, ...(workspaceId ? { workspaceId } : {}) },
     },
     select: {
@@ -371,7 +480,9 @@ async function loadCaptureRows(workspaceId?: string): Promise<CaptureRow[]> {
       composioAccountId: true,
       connectorUserId: true,
       cursor: true,
-      sokoBot: { select: { id: true, userId: true, workspaceId: true } },
+      sokoBot: {
+        select: { id: true, userId: true, workspaceId: true, versionId: true },
+      },
       contactCaptureState: {
         select: {
           id: true,
@@ -384,28 +495,6 @@ async function loadCaptureRows(workspaceId?: string): Promise<CaptureRow[]> {
     },
     orderBy: { createdAt: "asc" },
   });
-}
-
-/** Members' addresses: none of them is ever a contact. */
-async function workspaceMemberEmails(
-  workspaceId: string,
-): Promise<Map<string, string>> {
-  const workspace = await prisma.workspace.findUnique({
-    where: { id: workspaceId },
-    select: {
-      user: { select: { id: true, email: true } },
-      organization: {
-        select: {
-          members: { select: { user: { select: { id: true, email: true } } } },
-        },
-      },
-    },
-  });
-  const users = [
-    ...(workspace?.user ? [workspace.user] : []),
-    ...(workspace?.organization?.members.map((member) => member.user) ?? []),
-  ];
-  return new Map(users.map((user) => [user.id, user.email.toLowerCase()]));
 }
 
 function isConflict(error: unknown): boolean {
@@ -528,6 +617,8 @@ export class ContactCaptureService {
       const members = rows.length
         ? await workspaceMemberEmails(workspaceId)
         : new Map<string, string>();
+      for (const [userId, email] of members)
+        await linkMemberByChannel(workspaceId, userId, "EMAIL", email);
       for (const row of rows) {
         if (!shouldContinue()) break;
         await this.captureIntegration(
@@ -583,15 +674,17 @@ export class ContactCaptureService {
             limit: this.limits.embeddingsPerWorkspace,
             shouldContinue,
           }).catch((error: unknown) => {
-            emitCaptureError(
-              { workspace: { id: workspaceId } },
-              {
-                message: "Could not update contact search for a workspace",
-                why: "The embedding step threw",
-                fix: "Search keeps its old entries; the next contact capture run embeds the changed contacts.",
-              },
-              error,
-            );
+            if (!(error instanceof AiGatewayBudgetError)) {
+              emitCaptureError(
+                { workspace: { id: workspaceId } },
+                {
+                  message: "Could not update contact search for a workspace",
+                  why: "The embedding step threw",
+                  fix: "Search keeps its old entries; the next contact capture run embeds the changed contacts.",
+                },
+                error,
+              );
+            }
             return { embedded: 0, costUsd: 0, failed: true };
           }),
         );
@@ -1461,15 +1554,17 @@ export class ContactCaptureService {
   }
 
   // -------------------------------------------------------------------------
-  // X: whom the owner writes with in DMs, and who follows them.
+  // X: whom the owner writes with in DMs, who follows them, whom they follow.
   // -------------------------------------------------------------------------
 
   /**
    * X keeps about 30 days of DMs, so there is no long backfill: every hour
-   * the newest pages back to `since` (the first run reads all it has). Once
-   * a day, followers become contacts, newest first: X bills every follower a
-   * page returns, so a long walk goes on a few pages a day, and after one
-   * full walk a walk ends at the first page it has nothing new on.
+   * the events newer than `since` (the first run reads all it has). X bills
+   * every event and user a page returns, so a quiet hour reads a few events
+   * and no users. Once a day, followers and the people the owner follows
+   * become contacts, newest first: both walks share `xFollowPages` small
+   * pages a day, and after one full walk a walk starts with a probe page and
+   * ends at the first page it has nothing new on.
    */
   private async captureX(
     context: RunContext,
@@ -1484,7 +1579,7 @@ export class ContactCaptureService {
     const dmsDue =
       cursor.backfillUntil !== null ||
       now.getTime() - since.getTime() >= this.limits.xIntervalMs;
-    // A day's walk, new or unfinished, at most once a day.
+    // A day's walks, new or unfinished, at most once a day.
     const followsDue =
       !cursor.followsAt ||
       now.getTime() - new Date(cursor.followsAt).getTime() >=
@@ -1503,155 +1598,335 @@ export class ContactCaptureService {
         "X did not say who is connected",
         "NOT_FOUND",
       );
+    await linkMemberByChannel(
+      context.actor.workspaceId,
+      context.teammateUserId,
+      "X",
+      me.username,
+    );
     if (dmsDue) {
       const from =
         cursor.backfillUntil !== null
           ? floor
           : new Date(since.getTime() - this.limits.overlapMs);
-      if (await this.readXDms(context, budget, me, from)) {
-        cursor.since = now.toISOString();
+      const readUpTo = await this.readXDms(
+        context,
+        budget,
+        me,
+        from,
+        cursor,
+        save,
+      ).catch(async (error: unknown) => {
+        if (isXDmRefusal(error))
+          await recordXDmAccess(context.integration.id, false);
+        throw error;
+      });
+      await recordXDmAccess(context.integration.id, true);
+      if (readUpTo) {
+        cursor.since = readUpTo;
         cursor.backfillUntil = null;
         cursor.pageToken = null;
       }
       await save();
     }
-    if (followsDue && budget.calls > 0 && this.canRead(context)) {
-      await this.readXFollowers(context, budget, me, cursor, save);
-    }
-  }
-
-  /** Reads DM events newest first back to `from`; true when it got there. */
-  private async readXDms(
-    context: RunContext,
-    budget: { calls: number },
-    me: XUser,
-    from: Date,
-  ): Promise<boolean> {
-    const events = [];
-    const users = new Map<string, XUser>();
-    let token: string | null = null;
-    let reached = false;
-    while (budget.calls > 0 && this.canRead(context)) {
-      const page = parseXPage(
-        await this.call(context, budget, SOKO_BOT_X_CAPTURE_TOOLS.dmEvents, {
-          event_types: ["MessageCreate"],
-          dm_event_fields: [
-            "created_at",
-            "sender_id",
-            "dm_conversation_id",
-            "participant_ids",
-          ],
-          expansions: ["sender_id", "participant_ids"],
-          user_fields: ["name", "username"],
-          max_results: 100,
-          ...(token ? { pagination_token: token } : {}),
-        }),
-      );
-      for (const user of page.users) users.set(user.id, user);
-      for (const raw of page.items) {
-        const event = parseXDmEvent(raw);
-        if (!event) continue;
-        if (new Date(event.createdAt) < from) reached = true;
-        else events.push(event);
-      }
-      token = page.nextToken;
-      if (reached || !token) {
-        reached = true;
-        break;
-      }
-    }
-    const candidates: CaptureCandidate[] = [];
-    const skipped: CaptureSkipReason[] = [];
-    for (const talk of extractXDms({ events, ownerId: me.id })) {
-      const user = users.get(talk.userId);
-      if (!user) {
-        skipped.push("invalid_address");
-        continue;
-      }
-      candidates.push(
-        xCandidate({ ...talk, user, teammateUserId: context.teammateUserId }),
-      );
-    }
-    const outcome = await this.write(context, { candidates, skipped });
-    return reached && outcome.complete;
+    if (followsDue && budget.calls > 0 && this.canRead(context))
+      await this.walkXFollows(context, budget, me, cursor, save);
   }
 
   /**
-   * Walks the owner's followers from where the last run stopped, a page at a
-   * time, at most `xFollowPages` pages a day. A page is read again when the
-   * run's write budget ends inside it. After one full walk, a new one stops at
-   * the first page whose people were all contacts before it began: X lists
-   * followers newest first, so everyone after them was read before. People a
-   * walk adds itself, or who only became contacts from a DM, keep it going.
+   * The day's follow pages: `xFollowPages` in all, split evenly between the
+   * followers and the following walk, and what one does not need goes to the
+   * other. So both walks together never read more than the followers walk
+   * alone did.
    */
-  private async readXFollowers(
+  private async walkXFollows(
     context: RunContext,
     budget: { calls: number },
     me: XUser,
     cursor: SourceCursor,
     save: () => Promise<unknown>,
   ): Promise<void> {
+    const walks = xWalksOf(cursor);
+    // Today's walks, however far they get.
+    cursor.followsAt = context.now.toISOString();
+    await save();
+    const kinds = ["followers", "following"] as const;
+    let pages = this.limits.xFollowPages;
+    for (const [i, kind] of kinds.entries()) {
+      const share = Math.ceil(pages / (kinds.length - i));
+      walks[kind] ??= {};
+      pages -= await this.walkX(
+        context,
+        budget,
+        me,
+        kind,
+        walks[kind],
+        share,
+        save,
+      );
+    }
+  }
+
+  /**
+   * Reads DM events newest first back to `from`. A busy account takes more
+   * pages than one run may call, so the walk saves its place and what it
+   * learned after every page (`cursor.dmWalk`) and the next run goes on from
+   * there; contacts are written once it reaches `from`. Returns the moment
+   * everything after which has been read, or null while a walk is open.
+   */
+  private async readXDms(
+    context: RunContext,
+    budget: { calls: number },
+    me: XUser,
+    from: Date,
+    cursor: SourceCursor,
+    save: () => Promise<unknown>,
+  ): Promise<string | null> {
+    let dmCalls = this.limits.xDmCallsPerRun;
+    const dmEvents = (args: Record<string, unknown>) => {
+      dmCalls -= 1;
+      return this.call(context, budget, SOKO_BOT_X_CAPTURE_TOOLS.dmEvents, {
+        event_types: ["MessageCreate"],
+        dm_event_fields: [
+          "created_at",
+          "sender_id",
+          "dm_conversation_id",
+          "participant_ids",
+        ],
+        ...args,
+      });
+    };
+    let walk = cursor.dmWalk;
+    // X's page tokens do not last: a walk left for a day starts over.
+    if (
+      walk &&
+      context.now.getTime() - new Date(walk.startedAt).getTime() >
+        X_WALK_MAX_AGE_MS
+    ) {
+      delete cursor.dmWalk;
+      walk = undefined;
+    }
+    if (!walk) {
+      // The newest message alone: when it is not new, nothing is. X filters
+      // a page by event type after picking it, so a small page can hold no
+      // message at all while older ones exist; then only a full read can
+      // tell. X bills the messages a page returns, not the size asked for.
+      const probe = parseXPage(
+        await dmEvents({ max_results: this.limits.xDmProbeSize }),
+      );
+      const newest = probe.items
+        .map(parseXDmEvent)
+        .find((event) => event !== null);
+      if (newest) {
+        if (
+          (newest.id && newest.id === cursor.newestDmId) ||
+          new Date(newest.createdAt) < from
+        ) {
+          if (newest.id) cursor.newestDmId = newest.id;
+          return context.now.toISOString();
+        }
+      } else if (!probe.nextToken) return context.now.toISOString();
+      walk = newXDmWalk(context.now.toISOString());
+    }
+    // A personal bot's owner reads their new DMs through it (x-inbox), on a
+    // version that reads them.
+    const keepsDms =
+      context.row.sokoBot.userId === context.teammateUserId &&
+      sokoBotReadsXDms(getSokoBotVersion(context.row.sokoBot.versionId).skills);
+    while (
+      !walk.reached &&
+      dmCalls > 0 &&
+      budget.calls > 0 &&
+      this.canRead(context)
+    ) {
+      const page = parseXPage(
+        await dmEvents({
+          ...(keepsDms
+            ? {
+                dm_event_fields: [
+                  "created_at",
+                  "sender_id",
+                  "dm_conversation_id",
+                  "participant_ids",
+                  "text",
+                ],
+              }
+            : {}),
+          expansions: ["sender_id", "participant_ids"],
+          user_fields: ["name", "username"],
+          max_results: this.limits.xDmPageSize,
+          ...(walk.token ? { pagination_token: walk.token } : {}),
+        }).catch((error: unknown) => {
+          // A token X no longer takes: the next run starts a fresh walk.
+          if (walk?.token && isXPageTokenRefusal(error)) delete cursor.dmWalk;
+          throw error;
+        }),
+      );
+      const events: XDmEvent[] = [];
+      let older = false;
+      for (const raw of page.items) {
+        const event = parseXDmEvent(raw);
+        if (!event) continue;
+        if (new Date(event.createdAt) < from) older = true;
+        else events.push(event);
+      }
+      // Staged: the walk moves past this page only once all of it is
+      // handled, so a failed inbox write reads the page again next run.
+      const staged = addXDmPage(walk, { events, users: page.users });
+      let next = staged.walk;
+      const oldestDay = events.at(-1)?.createdAt.slice(0, 10);
+      if (staged.overflow && oldestDay) {
+        // More conversations than the walk keeps: write the contacts of all
+        // of them, this page's included (writes are idempotent if it is read
+        // again), then keep only what this page's oldest day can still add
+        // to. That day's conversations stay however many there are.
+        if (!(await this.writeXDmWalk(context, next, me.id))) return null;
+        next = keepXDmDay(next, oldestDay);
+      }
+      next.newestId ??= events[0]?.id || null;
+      next.token = page.nextToken;
+      next.reached = older || !page.nextToken;
+      if (keepsDms) {
+        const people = new Map(page.users.map((user) => [user.id, user]));
+        await keepXDms(
+          context.integration.id,
+          events.map((event) => ({
+            id: event.id,
+            conversationId: event.conversationId,
+            from: xSender(people.get(event.senderId), event.senderId),
+            createdAt: event.createdAt,
+            text: event.text,
+            fromOwner: event.senderId === me.id,
+          })),
+          context.now,
+        );
+      }
+      walk = next;
+      cursor.dmWalk = walk;
+      await save();
+    }
+    cursor.dmWalk = walk;
+    if (!walk.reached) return null;
+    // A write the budget cut short is tried again next run, without reading.
+    if (!(await this.writeXDmWalk(context, walk, me.id))) return null;
+    delete cursor.dmWalk;
+    if (walk.newestId) cursor.newestDmId = walk.newestId;
+    return walk.startedAt;
+  }
+
+  /** Writes the contacts a DM walk found; false when the budget cut it short. */
+  private async writeXDmWalk(
+    context: RunContext,
+    walk: XDmWalk,
+    ownerId: string,
+  ): Promise<boolean> {
+    const candidates: CaptureCandidate[] = [];
+    const skipped: CaptureSkipReason[] = [];
+    for (const talk of extractXDms({ events: xDmWalkEvents(walk), ownerId })) {
+      const known = walk.users[talk.userId];
+      if (!known) {
+        skipped.push("invalid_address");
+        continue;
+      }
+      candidates.push(
+        xCandidate({
+          ...talk,
+          user: { id: talk.userId, ...known },
+          teammateUserId: context.teammateUserId,
+        }),
+      );
+    }
+    return (await this.write(context, { candidates, skipped })).complete;
+  }
+
+  /**
+   * Walks the owner's followers, or the people they follow, from where the
+   * last run stopped, at most `pages` pages, and returns how many it read. A
+   * page is read again when the run's write budget ends inside it. After one
+   * full walk, a new one starts with a probe page (`xFollowProbeSize`) and
+   * stops at the first page whose people this walk had all recorded before
+   * it began: X lists both newest first, so everyone after them was read
+   * before. People a walk adds itself, or who became contacts another way (a
+   * DM, the other walk, a teammate), keep it going.
+   */
+  private async walkX(
+    context: RunContext,
+    budget: { calls: number },
+    me: XUser,
+    kind: XWalkKind,
+    walk: XWalk,
+    pages: number,
+    save: () => Promise<unknown>,
+  ): Promise<number> {
     let index: Promise<Map<string, string[]>> | null = null;
     // Read on first need, then shared by every page of this run.
     const names = () => {
       index ??= personNameIndex(context.actor.workspaceId);
       return index;
     };
-    // Before `followersWalked` existed, `followsAt` was set only by a finished
-    // walk.
-    cursor.followersWalked ??= Boolean(cursor.followsAt);
-    if (!cursor.followersToken)
-      cursor.followersWalkFrom = context.now.toISOString();
-    const walkFrom = new Date(
-      cursor.followersWalkFrom ?? context.now.toISOString(),
-    );
-    // Today's walk, however far it gets.
-    cursor.followsAt = context.now.toISOString();
-    await save();
-    for (let page = 0; page < this.limits.xFollowPages; page += 1) {
-      if (budget.calls <= 0 || !this.canRead(context)) return;
-      const token = cursor.followersToken ?? null;
-      const result = parseXPage(
-        await this.call(context, budget, SOKO_BOT_X_CAPTURE_TOOLS.followers, {
-          id: me.id,
-          max_results: 1000,
-          user_fields: X_FOLLOWER_FIELDS,
-          ...(token ? { pagination_token: token } : {}),
-        }),
-      );
-      const followers = result.items.flatMap(
-        (raw) => parseXFollower(raw) ?? [],
-      );
-      const { done, settled } = await this.addXFollowers(
+    if (!walk.token) walk.walkFrom = context.now.toISOString();
+    const walkFrom = new Date(walk.walkFrom ?? context.now.toISOString());
+    for (let page = 0; page < pages; page += 1) {
+      if (budget.calls <= 0 || !this.canRead(context)) return page;
+      const token = walk.token ?? null;
+      const raw = await this.call(context, budget, X_WALKS[kind].tool, {
+        id: me.id,
+        max_results:
+          walk.walked && !token
+            ? this.limits.xFollowProbeSize
+            : this.limits.xFollowPageSize,
+        user_fields: X_FOLLOWER_FIELDS,
+        ...(token ? { pagination_token: token } : {}),
+      }).catch(async (error: unknown) => {
+        if (!token || !isXPageTokenRefusal(error)) throw error;
+        // A token X no longer takes: this walk starts over at the newest
+        // tomorrow, and the other walk still runs today. A walk that read
+        // everyone once stays so, and starts with its probe.
+        walk.token = null;
+        delete walk.walkFrom;
+        await save();
+        return null;
+      });
+      if (raw === null) return page + 1;
+      const result = parseXPage(raw);
+      const users = result.items.flatMap((raw) => parseXFollower(raw) ?? []);
+      const { done, settled } = await this.addXUsers(
         context,
-        followers,
+        kind,
+        users,
         names,
         walkFrom,
       );
-      await recordXFollowerCounts(context.actor.workspaceId, followers);
-      if (!done) return;
-      const caughtUp = cursor.followersWalked === true && settled;
-      cursor.followersToken = caughtUp ? null : result.nextToken;
-      if (!result.nextToken) cursor.followersWalked = true;
+      await recordXFollowerCounts(context.actor.workspaceId, users);
+      if (!done) return page + 1;
+      const caughtUp = walk.walked === true && settled;
+      walk.token = caughtUp ? null : result.nextToken;
+      if (!result.nextToken) walk.walked = true;
       await save();
-      if (caughtUp || !result.nextToken) return;
+      if (caughtUp || !result.nextToken) return page + 1;
     }
+    return pages;
   }
 
   /**
-   * Each follower who looks like a person joins the contact they certainly
-   * are (`matchFollower`), or becomes a new contact in the "X followers"
-   * list. Their bio stands in for the summary, so the model never enriches
-   * them. `done` is false when the write budget ran out first; `settled` when
-   * the page has people and every one was a contact before `walkFrom`.
+   * Each user on the page who looks like a person joins the contact they
+   * certainly are (`matchFollower`), or becomes a new contact in the walk's
+   * list ("X followers", "X following"), and every contact among them is
+   * recorded as following the owner, or followed by them. Their bio stands
+   * in for the summary, so the model never enriches them. `done` is false
+   * when the write budget ran out first; `settled` when the page has people
+   * and every one was a contact before `walkFrom` already recorded on this
+   * walk's side for this teammate.
    */
-  private async addXFollowers(
+  private async addXUsers(
     context: RunContext,
+    kind: XWalkKind,
     followers: readonly XFollower[],
     names: () => Promise<Map<string, string[]>>,
     walkFrom: Date,
   ): Promise<{ done: boolean; settled: boolean }> {
     const { actor } = context;
+    const walk = X_WALKS[kind];
     const handleOf = (follower: XFollower) =>
       normalizeContactChannelValue("X", follower.username) ?? "";
     const channels = await prisma.contactChannel.findMany({
@@ -1660,28 +1935,58 @@ export class ContactCaptureService {
         type: "X",
         value: { in: followers.map(handleOf) },
       },
-      select: { value: true, createdAt: true },
+      select: { value: true, createdAt: true, contactId: true },
     });
+    const reached = channels.map((channel) => channel.contactId);
+    const finish = async (done: boolean) => {
+      await recordXFollows(actor.userId, walk.side, reached);
+      return { done, settled };
+    };
     const linked = new Set(channels.map((channel) => channel.value));
+    // Known to this walk: a contact before it began who was already recorded
+    // on this side for this teammate. A contact from a DM, another walk or a
+    // teammate is news to it, so it keeps the walk going.
+    const recorded = new Set(
+      (
+        await prisma.contactXFollow.findMany({
+          where: {
+            userId: actor.userId,
+            contactId: { in: reached },
+            [walk.side]: true,
+          },
+          select: { contactId: true },
+        })
+      ).map((follow) => follow.contactId),
+    );
     const before = new Set(
       channels
-        .filter((channel) => channel.createdAt < walkFrom)
+        .filter(
+          (channel) =>
+            channel.createdAt < walkFrom && recorded.has(channel.contactId),
+        )
         .map((channel) => channel.value),
     );
+    // Bots and brand accounts never become contacts.
+    const skipOf = (follower: XFollower) =>
+      isLikelyBot(follower)
+        ? ("bot_user" as const)
+        : isLikelyBrand(follower)
+          ? ("brand_account" as const)
+          : null;
     const people = followers.filter(
-      (follower) => linked.has(handleOf(follower)) || !isLikelyBot(follower),
+      (follower) => linked.has(handleOf(follower)) || !skipOf(follower),
     );
     const settled =
       people.length > 0 &&
       people.every((follower) => before.has(handleOf(follower)));
     const open = followers.filter((follower) => {
       if (linked.has(handleOf(follower))) return false;
-      if (!isLikelyBot(follower)) return true;
-      context.stats.skipped.bot_user =
-        (context.stats.skipped.bot_user ?? 0) + 1;
+      const skip = skipOf(follower);
+      if (!skip) return true;
+      context.stats.skipped[skip] = (context.stats.skipped[skip] ?? 0) + 1;
       return false;
     });
-    if (open.length === 0) return { done: true, settled };
+    if (open.length === 0) return finish(true);
     const index = await names();
     const bucketOf = (follower: XFollower) =>
       index.get(followerNameKey(follower.name ?? "") ?? "") ?? [];
@@ -1706,11 +2011,11 @@ export class ContactCaptureService {
     const candidates = (follower: XFollower) =>
       bucketOf(follower).flatMap((id) => byId.get(id) ?? []);
     const list = await inContactTransaction((tx) =>
-      ensureManualContactList(tx, actor, "X followers", CONTACT_LIST_COLORS[6]),
+      ensureManualContactList(tx, actor, walk.list, walk.color),
     );
     for (const follower of open) {
       if (context.budget.captures <= 0 || !context.shouldContinue())
-        return { done: false, settled };
+        return finish(false);
       context.budget.captures -= 1;
       const profile = `https://x.com/${follower.username}`;
       const fields = {
@@ -1736,6 +2041,7 @@ export class ContactCaptureService {
               { markEnriched: false },
             );
           });
+          reached.push(match.contactId);
           context.stats.updated += 1;
           continue;
         }
@@ -1773,22 +2079,94 @@ export class ContactCaptureService {
                 addedAutomatically: true,
               },
             });
+            return contact.id;
           });
         // Someone else already has that website: add the person without it.
-        await create(true).catch((error: unknown) => {
-          if (website && isConflict(error)) return create(false);
-          throw error;
-        });
+        reached.push(
+          await create(true).catch((error: unknown) => {
+            if (website && isConflict(error)) return create(false);
+            throw error;
+          }),
+        );
         context.stats.created += 1;
       } catch (error) {
         if (!isConflict(error)) throw error;
       }
     }
-    return { done: true, settled };
+    return finish(true);
   }
 }
 
+/** Sets one side of how these contacts and the teammate follow each other. */
+async function recordXFollows(
+  userId: string,
+  side: "followsUser" | "followedByUser",
+  contactIds: readonly string[],
+): Promise<void> {
+  const ids = [...new Set(contactIds)];
+  if (ids.length === 0) return;
+  await prisma.contactXFollow.createMany({
+    data: ids.map((contactId) => ({ contactId, userId, [side]: true })),
+    skipDuplicates: true,
+  });
+  await prisma.contactXFollow.updateMany({
+    where: { userId, contactId: { in: ids }, [side]: false },
+    data: { [side]: true },
+  });
+}
+
 /** Each follower's own audience on their X channel, whoever they are on. */
+export const X_DM_ACCESS_ERROR =
+  "X does not let your assistant read your direct messages. Reconnect X and allow messages.";
+
+/** X answered a DM read with a permission error, not a passing failure. */
+/** How long a DM walk may go on from a saved page token. */
+const X_WALK_MAX_AGE_MS = DAY_MS;
+
+/** X refused a saved page token: an expired or invalid pagination token. */
+function isXPageTokenRefusal(error: unknown): boolean {
+  return (
+    error instanceof SokoBotIntegrationError &&
+    /pagination|next_token|\btoken\b/i.test(error.message) &&
+    /invalid|expired|not valid|malformed|400/i.test(error.message)
+  );
+}
+
+function isXDmRefusal(error: unknown): boolean {
+  return (
+    error instanceof SokoBotIntegrationError &&
+    /\b403\b|forbidden|not permitted|unauthori[sz]ed|dm\.read|scope/i.test(
+      error.message,
+    )
+  );
+}
+
+/**
+ * Shows a refused DM read on the owner's Connections page, where the
+ * connection then offers Reconnect, and clears it once a read works.
+ */
+async function recordXDmAccess(
+  integrationId: string,
+  allowed: boolean,
+): Promise<void> {
+  await prisma.sokoBotIntegration.updateMany({
+    where: allowed
+      ? { id: integrationId, lastError: X_DM_ACCESS_ERROR }
+      : { id: integrationId },
+    data: allowed
+      ? { lastError: null, lastErrorAt: null }
+      : { lastError: X_DM_ACCESS_ERROR, lastErrorAt: new Date() },
+  });
+}
+
+function xSender(
+  user: Pick<XUser, "name" | "username"> | undefined,
+  id: string,
+): string {
+  if (!user) return `X user ${id}`;
+  return user.name ? `${user.name} (@${user.username})` : `@${user.username}`;
+}
+
 async function recordXFollowerCounts(
   workspaceId: string,
   followers: readonly XFollower[],
@@ -1801,7 +2179,7 @@ async function recordXFollowerCounts(
   });
   if (counted.length === 0) return;
   await prisma.$executeRaw`
-    UPDATE "contact_channel" ch
+    UPDATE ${sharedTable("contact_channel")} ch
     SET "followers" = v.count
     FROM unnest(${counted.map((c) => c.handle)}::text[], ${counted.map((c) => c.count)}::int[]) AS v(handle, count)
     WHERE ch."workspaceId" = ${workspaceId}::uuid

@@ -14,8 +14,12 @@ import {
   Shuffle,
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
-import { useEffect, useState, useTransition } from "react";
+import { useQueryState } from "nuqs";
+import { useState, useTransition } from "react";
+import {
+  usePageListSearch,
+  usePageSearchQuery,
+} from "@/components/page-list-search";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -29,9 +33,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  type StudioSort,
+  studioSortParser,
+} from "@/hooks/effects/use-studio-sort-refresh";
 import { cn } from "@/lib/utils";
 
-import { resolveModel, supportsVariation } from "./catalog";
+import { imageRepeatRoute, resolveModel } from "./catalog";
 import { canCompareStudioAsset } from "./studio-batch";
 import { StudioImage } from "./studio-image";
 import { StudioAssetMenu, StudioRating } from "./studio-rating";
@@ -68,8 +76,7 @@ export function StudioGallery({
   onRate,
   onHide,
   ratingBusyIds = [],
-  sort = "newest",
-  onSortChange,
+  sort,
   onReroll,
   onReusePrompt,
   onToggleSelect,
@@ -94,8 +101,7 @@ export function StudioGallery({
   ) => void;
   onHide?: (asset: StudioAsset) => void;
   ratingBusyIds?: string[];
-  sort?: "newest" | "best";
-  onSortChange?: (sort: "newest" | "best") => void;
+  sort?: StudioSort;
   /** Same brief, same settings, no reference: another draw of the dice. */
   onReroll?: (asset: StudioAsset) => void;
   /** Put this image's prompt back in the composer to edit. */
@@ -126,14 +132,33 @@ export function StudioGallery({
     sort === "best"
       ? [...assets].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
       : [...assets].reverse();
-  for (const asset of ordered) {
+  const visibleAssets = usePageListSearch(ordered, (asset) => ({
+    primary: [asset.headline?.text, asset.prompt, asset.id],
+    secondary: [
+      asset.product?.name,
+      asset.projectName,
+      asset.model,
+      asset.mediaType,
+      ...asset.myReasons,
+    ],
+  }));
+  const searching = Boolean(usePageSearchQuery());
+  const visibleJobs = usePageListSearch(activeJobs, (job) => ({
+    primary: [job.prompt, job.id],
+    secondary: [job.model, job.status],
+  }));
+  const visibleQueue = usePageListSearch(queued, (request) => ({
+    primary: [request.prompt],
+    secondary: [request.modelId],
+  }));
+  for (const asset of visibleAssets) {
     const ms = epochMs(asset.createdAt);
     const date = ms === null ? null : new Date(ms);
     const product =
       groupByProduct && sort !== "best" ? asset.product : undefined;
     const key =
-      sort === "best"
-        ? "best"
+      searching || sort === "best"
+        ? "ranked"
         : product
           ? `product:${asset.projectId}:${product.id}`
           : `date:${date?.toDateString() ?? ""}`;
@@ -147,7 +172,7 @@ export function StudioGallery({
     }
     groups.set(key, {
       title:
-        sort === "best"
+        searching || sort === "best"
           ? ""
           : (product?.name ??
             (date
@@ -170,9 +195,7 @@ export function StudioGallery({
         {t("adGallery")}
       </h2>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        {onSortChange ? (
-          <GallerySort onSortChange={onSortChange} sort={sort} />
-        ) : null}
+        {sort ? <GallerySort /> : null}
         {hasProducts && sort !== "best" ? (
           <Button
             aria-pressed={groupByProduct}
@@ -201,9 +224,12 @@ export function StudioGallery({
               const selected = selectedIds.includes(asset.id);
               const model = resolveModel(catalog, asset.model);
               const video = isVideoAsset(asset);
-              const reroll = video ? undefined : onReroll;
+              const reroll =
+                !video && imageRepeatRoute(catalog, asset, 0)
+                  ? onReroll
+                  : undefined;
               const variation =
-                !video && supportsVariation(catalog, asset.model)
+                !video && imageRepeatRoute(catalog, asset, 1)
                   ? onVariation
                   : undefined;
               const downloadName = `v${asset.version}.${assetFileExtension(asset)}`;
@@ -447,7 +473,7 @@ export function StudioGallery({
       ))}
 
       <ul className={cn(GRID_CLASS, groups.size > 0 && "mt-6")}>
-        {queued.map((request) => (
+        {visibleQueue.map((request) => (
           <li className="mb-3 break-inside-avoid" key={request.id}>
             <PendingTile
               label={labels.waitingForSlot}
@@ -458,7 +484,7 @@ export function StudioGallery({
           </li>
         ))}
 
-        {activeJobs.map((job) => {
+        {visibleJobs.map((job) => {
           const requested = cancelRequestedJobIds.includes(job.id);
           return (
             <li className="mb-3 break-inside-avoid" key={job.id}>
@@ -584,30 +610,16 @@ function PendingTile({
   );
 }
 
-function GallerySort({
-  sort,
-  onSortChange,
-}: {
-  sort: "newest" | "best";
-  onSortChange: (sort: "newest" | "best") => void;
-}) {
+function GallerySort() {
   const t = useTranslations("App.Studio.Rating");
-  const [querySort, setQuerySort] = useQueryState(
-    "sort",
-    parseAsStringLiteral(["newest", "best"]).withDefault("newest"),
-  );
-  // Back/forward and shared URLs select the same Core ordering as this control.
-  useEffect(() => {
-    onSortChange(querySort);
-  }, [querySort, onSortChange]);
+  const [sort, setSort] = useQueryState("sort", studioSortParser);
   return (
     <select
       aria-label={t("sort")}
       className="border-input bg-background focus-visible:ring-ring h-10 rounded-md border px-2 text-sm focus-visible:ring-2 md:h-8"
       onChange={(event) => {
         const next = event.target.value === "best" ? "best" : "newest";
-        onSortChange(next);
-        void setQuerySort(next);
+        void setSort(next);
       }}
       value={sort}
     >

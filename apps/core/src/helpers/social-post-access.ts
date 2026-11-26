@@ -6,7 +6,7 @@ import prisma from "@/lib/db/prisma";
 import {
   type AuthenticationContext,
   type CoworkerAuthenticationContext,
-  requireInteractiveUserAuthContext,
+  requireUserAuthContext,
 } from "@/middleware/auth";
 
 import {
@@ -14,20 +14,37 @@ import {
   isActiveUser,
 } from "@/middleware/auth-active-user";
 
-/** Scheduling follows the existing delegated scheduled-task policy; credentials stay human-only. */
+/**
+ * Who may draft, schedule and cancel Social posts (ADR 0077): a person on a
+ * browser session, or an agent: any other user credential (API key, OAuth or
+ * MCP token) or a delegated task-capable Coworker. An agent's write lands as
+ * Needs approval. Soko Bots use their own tools.
+ */
 export async function requireSocialPostActor(
   authContext: AuthenticationContext,
   tx: Prisma.TransactionClient = prisma,
-): Promise<{
-  userId: string;
-  coworkerId?: string;
-}> {
+): Promise<SocialPostActor> {
   if (authContext.actor !== "coworker") {
-    return requireInteractiveUserAuthContext(authContext);
+    const user = requireUserAuthContext(authContext);
+    return {
+      userId: user.userId,
+      agent: user.authenticationMethod !== "session",
+    };
   }
   const userContext = await requireAuthorizedUserContext(authContext, tx);
   await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
-  return { userId: userContext.userId, coworkerId: authContext.coworkerId };
+  return {
+    userId: userContext.userId,
+    coworkerId: authContext.coworkerId,
+    agent: true,
+  };
+}
+
+export interface SocialPostActor {
+  userId: string;
+  coworkerId?: string;
+  /** No person at the keyboard: the write waits for a person's approval. */
+  agent: boolean;
 }
 
 /** A delayed publish must not outlive its delegation, capability, or contextual user's membership. */

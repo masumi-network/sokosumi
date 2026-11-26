@@ -15,9 +15,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const useSessionMock = vi.fn();
 const listDriveItemsMock = vi.fn();
+const deleteDriveFilesDeleteMock = vi.fn();
+const deleteDriveFoldersDeleteMock = vi.fn();
+const patchDriveFilesRenameMock = vi.fn();
 const patchDriveFoldersRenameMock = vi.fn();
 const patchDriveFilesMoveMock = vi.fn();
 const postDriveFoldersMock = vi.fn();
+const postDriveTasksCopyMock = vi.fn();
+const getProjectsByIdMock = vi.fn();
+const getTasksByIdMock = vi.fn();
 const getUsersByIdOrganizationsMock = vi.fn();
 const replaceMock = vi.fn();
 const pushMock = vi.fn();
@@ -25,7 +31,7 @@ const useIsMobileMock = vi.fn(() => false);
 
 let searchParams = new URLSearchParams();
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   useIsMobile: () => useIsMobileMock(),
   useIsMobileMedia: () => useIsMobileMock(),
   MOBILE_BREAKPOINT: 768,
@@ -136,23 +142,23 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   getBrowserCoreClient: () => ({ id: "browser-core-client" }),
 }));
 
-vi.mock("@sokosumi/core-client", () => ({
-  deleteDriveFilesDelete: vi.fn(),
-  deleteDriveFoldersDelete: vi.fn(),
+vi.mock("@sokosumi/core-client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/core-client")>()),
+  deleteDriveFilesDelete: (...args: unknown[]) =>
+    deleteDriveFilesDeleteMock(...args),
+  deleteDriveFoldersDelete: (...args: unknown[]) =>
+    deleteDriveFoldersDeleteMock(...args),
   getUsersByIdOrganizations: (...args: unknown[]) =>
     getUsersByIdOrganizationsMock(...args),
   patchDriveFilesMove: (...args: unknown[]) => patchDriveFilesMoveMock(...args),
-  patchDriveFilesRename: vi.fn(),
+  patchDriveFilesRename: (...args: unknown[]) =>
+    patchDriveFilesRenameMock(...args),
   patchDriveFoldersRename: (...args: unknown[]) =>
     patchDriveFoldersRenameMock(...args),
   postDriveFolders: (...args: unknown[]) => postDriveFoldersMock(...args),
-  // A project or task named in the URL but not yet listed: its name is read.
-  getProjectsById: async ({ path }: { path: { id: string } }) => ({
-    data: { data: { id: path.id, name: `Project ${path.id}` } },
-  }),
-  getTasksById: async ({ path }: { path: { id: string } }) => ({
-    data: { data: { id: path.id, name: `Task ${path.id}` } },
-  }),
+  postDriveTasksCopy: (...args: unknown[]) => postDriveTasksCopyMock(...args),
+  getProjectsById: (...args: unknown[]) => getProjectsByIdMock(...args),
+  getTasksById: (...args: unknown[]) => getTasksByIdMock(...args),
 }));
 
 vi.mock("@/lib/utils/drive-file-list.client", async (importOriginal) => {
@@ -165,6 +171,7 @@ vi.mock("@/lib/utils/drive-file-list.client", async (importOriginal) => {
 });
 
 const fetchWorkspaceFoldersMock = vi.fn();
+const fetchWorkspaceLabelsMock = vi.fn().mockResolvedValue([]);
 
 vi.mock("@/lib/utils/file-search.client", async (importOriginal) => {
   const actual =
@@ -173,14 +180,22 @@ vi.mock("@/lib/utils/file-search.client", async (importOriginal) => {
     ...actual,
     fetchWorkspaceFolders: (...args: unknown[]) =>
       fetchWorkspaceFoldersMock(...args),
+    fetchWorkspaceLabels: (...args: unknown[]) =>
+      fetchWorkspaceLabelsMock(...args),
   };
 });
 
 const fetchDataRoomsMock = vi.fn();
+const fetchDataRoomMock = vi.fn();
+const updateDataRoomMock = vi.fn();
+const inviteToDataRoomMock = vi.fn();
 
 vi.mock("@/lib/utils/data-room.client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/utils/data-room.client")>()),
   fetchDataRooms: (...args: unknown[]) => fetchDataRoomsMock(...args),
+  fetchDataRoom: (...args: unknown[]) => fetchDataRoomMock(...args),
+  updateDataRoom: (...args: unknown[]) => updateDataRoomMock(...args),
+  inviteToDataRoom: (...args: unknown[]) => inviteToDataRoomMock(...args),
 }));
 
 const fetchDriveTasksPageMock = vi.fn();
@@ -195,19 +210,37 @@ vi.mock("@/lib/utils/drive-recents-list.client", () => ({
     fetchDriveRecentsPageMock(...args),
 }));
 
+vi.mock("@/app/drive/components/drive-cmo-project-banner", () => ({
+  DriveCmoProjectBanner: () => null,
+}));
+
 vi.mock("@/app/drive/components/drive-tasks-filters", () => ({
   DriveTasksFilters: ({
+    projectId,
+    taskId,
+    selectedProject,
+    selectedTask,
     hideMobileTrigger,
     sheetOpen,
     onSheetOpenChange,
   }: {
+    projectId?: string | null;
+    taskId?: string | null;
+    selectedProject?: { id: string; name: string } | null;
+    selectedTask?: { id: string; name: string } | null;
     hideMobileTrigger?: boolean;
     sheetOpen?: boolean;
     onSheetOpenChange?: (open: boolean) => void;
   }) => {
     const { createPortal } = require("react-dom") as typeof import("react-dom");
     return (
-      <>
+      <div
+        data-testid="drive-tasks-filters-stub"
+        data-project-id={projectId ?? ""}
+        data-task-id={taskId ?? ""}
+        data-selected-project={selectedProject?.name ?? ""}
+        data-selected-task={selectedTask?.name ?? ""}
+      >
         {!hideMobileTrigger ? (
           <button
             type="button"
@@ -225,7 +258,7 @@ vi.mock("@/app/drive/components/drive-tasks-filters", () => ({
               document.body,
             )
           : null}
-      </>
+      </div>
     );
   },
 }));
@@ -362,13 +395,16 @@ vi.mock("@/components/ui/document-viewer", () => ({
 }));
 
 import { toast } from "sonner";
+import { DataRoomClient } from "@/app/drive/data-rooms/[id]/data-room-client";
 import { DrivePageClient } from "@/app/drive/drive-page-client";
+import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import {
   FILES_VIEW_MODE_COOKIE_NAME,
   type FilesViewMode,
   parseFilesViewMode,
 } from "@/lib/ui-preferences/files-view-mode";
 import { DriveFileUploadError } from "@/lib/utils/drive-file-upload.client";
+import { driveQueryKeys } from "@/queries/drive";
 
 function filesViewModeFromDocumentCookie(): FilesViewMode {
   const value = document.cookie
@@ -386,7 +422,9 @@ function createDriveQueryClient() {
       queries: {
         retry: false,
         staleTime: 60_000,
+        gcTime: Number.POSITIVE_INFINITY,
       },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
     },
   });
 }
@@ -429,7 +467,7 @@ function pendingSession() {
 }
 
 function listedStore() {
-  const options = listDriveItemsMock.mock.calls.at(-1)?.[0] as {
+  const options = fetchDataRoomsMock.mock.calls.at(-1)?.[0] as {
     scope: string;
     organizationId?: string;
   };
@@ -506,7 +544,7 @@ describe("DrivePage workspace remount", () => {
     const { rerender } = renderDrive();
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(fetchDataRoomsMock).toHaveBeenCalled();
     });
     expect(replaceMock).not.toHaveBeenCalled();
 
@@ -523,40 +561,40 @@ describe("DrivePage workspace remount", () => {
 
     const { rerender } = renderDrive();
 
-    expect(listDriveItemsMock).not.toHaveBeenCalled();
+    expect(fetchDataRoomsMock).not.toHaveBeenCalled();
 
     useSessionMock.mockReturnValue(sessionFor("org_a"));
     rerender(driveTree());
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(fetchDataRoomsMock).toHaveBeenCalled();
     });
 
     expect(listedStore()).toMatchObject({
       scope: "org",
       organizationId: "org_a",
     });
-    expect(listDriveItemsMock).toHaveBeenCalledTimes(1);
+    expect(fetchDataRoomsMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not remount as personal when the session briefly goes pending", async () => {
     useSessionMock.mockReturnValue(sessionFor("org_a"));
 
-    const { rerender } = renderDrive();
+    const { rerender } = await act(async () => renderDrive());
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(fetchDataRoomsMock).toHaveBeenCalled();
     });
-    const callsAfterFirstLoad = listDriveItemsMock.mock.calls.length;
+    const callsAfterFirstLoad = fetchDataRoomsMock.mock.calls.length;
 
     useSessionMock.mockReturnValue(pendingSession());
-    rerender(driveTree());
+    await act(async () => rerender(driveTree()));
     useSessionMock.mockReturnValue(sessionFor("org_a"));
-    rerender(driveTree());
+    await act(async () => rerender(driveTree()));
 
-    expect(listDriveItemsMock).toHaveBeenCalledTimes(callsAfterFirstLoad);
+    expect(fetchDataRoomsMock).toHaveBeenCalledTimes(callsAfterFirstLoad);
     expect(
-      listDriveItemsMock.mock.calls.every(
+      fetchDataRoomsMock.mock.calls.every(
         ([options]) =>
           (options as { scope: string }).scope === "org" &&
           (options as { organizationId?: string }).organizationId === "org_a",
@@ -570,14 +608,14 @@ describe("DrivePage workspace remount", () => {
     const { rerender, unmount } = renderDrive();
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalledTimes(1);
+      expect(fetchDataRoomsMock).toHaveBeenCalledTimes(1);
     });
 
     useSessionMock.mockReturnValue(sessionFor("org_b"));
     rerender(driveTree());
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalledTimes(2);
+      expect(fetchDataRoomsMock).toHaveBeenCalledTimes(2);
     });
     expect(listedStore()).toMatchObject({
       scope: "org",
@@ -592,9 +630,9 @@ describe("DrivePage workspace remount", () => {
       expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
 
-    expect(listDriveItemsMock).toHaveBeenCalledTimes(2);
+    expect(fetchDataRoomsMock).toHaveBeenCalledTimes(2);
     expect(
-      listDriveItemsMock.mock.calls.filter(
+      fetchDataRoomsMock.mock.calls.filter(
         ([options]) =>
           (options as { organizationId?: string }).organizationId === "org_b",
       ),
@@ -687,6 +725,145 @@ describe("DrivePage move dialog", () => {
       expect(screen.getByText("Clients / Acme")).toBeVisible();
     });
   });
+
+  it("shares the Drive folders cache key and disables destinations and submit while refetching", async () => {
+    const user = userEvent.setup();
+    queryClient = createDriveQueryClient();
+    const store = { scope: "org" as const, organizationId: "org_a" };
+    const refetchDeferred = Promise.withResolvers<string[]>();
+    fetchWorkspaceFoldersMock.mockReset();
+    fetchWorkspaceFoldersMock.mockResolvedValue([]);
+    fetchWorkspaceFoldersMock.mockImplementationOnce(
+      () => refetchDeferred.promise,
+    );
+    // Pre-seed the shared Drive folders cache (as the catalog facet populates).
+    queryClient.setQueryData(driveQueryKeys.folders(store), [
+      "Reports",
+      "Clients",
+    ]);
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("files-move-folder")).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId("files-move-folder"));
+
+    const clientsButton = await screen.findByRole("button", {
+      name: "Clients",
+    });
+    expect(clientsButton).toBeVisible();
+    // Stale time is 60s in this harness, so the shared cache avoids a duplicate fetch.
+    expect(fetchWorkspaceFoldersMock).not.toHaveBeenCalled();
+
+    await user.click(clientsButton);
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeEnabled();
+
+    // While folders refetch after invalidation, cached destinations stay visible
+    // but disabled (no loading text replacing them), and Submit is disabled.
+    const invalidation = queryClient.invalidateQueries({
+      queryKey: driveQueryKeys.prefix(store),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Clients" })).toBeDisabled();
+    });
+    expect(screen.getByRole("button", { name: "Clients" })).toBeVisible();
+    expect(screen.queryByText("loadingFolders")).toBeNull();
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeDisabled();
+
+    await act(async () => {
+      refetchDeferred.resolve(["Reports", "Archive"]);
+      await invalidation;
+    });
+
+    const archiveButton = await screen.findByRole("button", {
+      name: "Archive",
+    });
+    expect(archiveButton).toBeVisible();
+    expect(archiveButton).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Clients" })).toBeNull();
+    // Fresh response dropped Clients, so Submit stays disabled until a valid destination is chosen.
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeDisabled();
+    await user.click(archiveButton);
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeEnabled();
+    expect(fetchWorkspaceFoldersMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps destinations and submit disabled after a held-then-failed folders refresh while allowing a typed new folder", async () => {
+    const user = userEvent.setup();
+    queryClient = createDriveQueryClient();
+    const store = { scope: "org" as const, organizationId: "org_a" };
+    const failedRefetch = Promise.withResolvers<string[]>();
+    fetchWorkspaceFoldersMock.mockReset();
+    fetchWorkspaceFoldersMock.mockResolvedValue(["Reports", "Archive"]);
+    fetchWorkspaceFoldersMock.mockImplementationOnce(
+      () => failedRefetch.promise,
+    );
+    queryClient.setQueryData(driveQueryKeys.folders(store), [
+      "Reports",
+      "Clients",
+    ]);
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("files-move-folder")).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId("files-move-folder"));
+
+    const clientsButton = await screen.findByRole("button", {
+      name: "Clients",
+    });
+    await user.click(clientsButton);
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeEnabled();
+
+    const failedInvalidation = queryClient.invalidateQueries({
+      queryKey: driveQueryKeys.prefix(store),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Clients" })).toBeDisabled();
+    });
+    expect(screen.getByRole("button", { name: "Clients" })).toBeVisible();
+    expect(screen.queryByText("loadingFolders")).toBeNull();
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeDisabled();
+
+    await act(async () => {
+      failedRefetch.reject(new Error("folders refresh failed"));
+      await failedInvalidation;
+    });
+
+    // After a failed refresh, listed destinations stay visible & disabled and Submit stays disabled.
+    expect(screen.getByRole("button", { name: "Clients" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Clients" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "rootFolder" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeDisabled();
+
+    // A typed new folder stays allowed after the failed refresh.
+    const newFolderInput = screen.getByLabelText("moveNewFolderLabel");
+    await user.type(newFolderInput, "Inbox");
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeEnabled();
+    await user.clear(newFolderInput);
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Clients" })).toBeDisabled();
+
+    // A subsequent successful read re-enables listed destinations.
+    await act(async () => {
+      await queryClient.invalidateQueries({
+        queryKey: driveQueryKeys.prefix(store),
+      });
+    });
+
+    const archiveButton = await screen.findByRole("button", {
+      name: "Archive",
+    });
+    expect(archiveButton).toBeEnabled();
+    await user.click(archiveButton);
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeEnabled();
+  });
 });
 
 describe("DrivePage tasks mobile toolbar", () => {
@@ -771,6 +948,465 @@ describe("DrivePage tasks mobile toolbar", () => {
   });
 });
 
+describe("DrivePage tasks view cache", () => {
+  beforeEach(() => {
+    queryClient = createDriveQueryClient();
+    searchParams = new URLSearchParams("view=tasks");
+    replaceMock.mockReset();
+    pushMock.mockReset();
+    useSessionMock.mockReset();
+    fetchDriveTasksPageMock.mockReset();
+    fetchDriveRecentsPageMock.mockReset();
+    postDriveTasksCopyMock.mockReset();
+    getProjectsByIdMock.mockReset();
+    getTasksByIdMock.mockReset();
+    getUsersByIdOrganizationsMock.mockReset();
+    useIsMobileMock.mockReset();
+    useIsMobileMock.mockReturnValue(false);
+
+    fetchDriveTasksPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    fetchDriveRecentsPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    postDriveTasksCopyMock.mockResolvedValue({ data: {} });
+    getUsersByIdOrganizationsMock.mockResolvedValue({
+      data: { data: [{ id: "org_a", name: "Org A" }] },
+    });
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+  });
+
+  it("reads breadcrumb and filter names from the single drill-down response without extra breadcrumb queries or name lookups", async () => {
+    searchParams = new URLSearchParams(
+      "view=tasks&projectId=proj-p2&taskId=task-p2",
+    );
+    fetchDriveTasksPageMock.mockResolvedValueOnce({
+      items: [
+        {
+          type: "task-file",
+          id: "tf-1",
+          name: "mockup-v2.pdf",
+          fileUrl: "https://example.com/mockup-v2.pdf",
+          size: 1024,
+          mimeType: "application/pdf",
+          updatedAt: new Date("2026-08-25T10:00:00.000Z"),
+        },
+      ],
+      nextCursor: null,
+      selectedProject: { id: "proj-p2", name: "Page 2 Project" },
+      selectedTask: { id: "task-p2", name: "Page 2 Task" },
+    });
+
+    renderDrive();
+
+    expect(await screen.findByText("mockup-v2.pdf")).toBeVisible();
+    const nav = screen.getByRole("navigation", { name: "breadcrumbNavLabel" });
+    expect(
+      within(nav).getByRole("button", { name: "Page 2 Project" }),
+    ).toBeVisible();
+    expect(
+      within(nav).getByRole("button", { name: "Page 2 Task" }),
+    ).toBeVisible();
+    expect(screen.getByTestId("drive-tasks-filters-stub")).toHaveAttribute(
+      "data-selected-project",
+      "Page 2 Project",
+    );
+    expect(screen.getByTestId("drive-tasks-filters-stub")).toHaveAttribute(
+      "data-selected-task",
+      "Page 2 Task",
+    );
+    expect(fetchDriveTasksPageMock).toHaveBeenCalledTimes(1);
+    expect(getProjectsByIdMock).not.toHaveBeenCalled();
+    expect(getTasksByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("derives the parent project breadcrumb and filter selection on a cold task-only deep link", async () => {
+    searchParams = new URLSearchParams("view=tasks&taskId=task-p2");
+    fetchDriveTasksPageMock.mockResolvedValueOnce({
+      items: [
+        {
+          type: "task-file",
+          id: "tf-1",
+          name: "solo-output.pdf",
+          fileUrl: "https://example.com/solo-output.pdf",
+          size: 512,
+          mimeType: "application/pdf",
+          updatedAt: new Date("2026-08-25T10:00:00.000Z"),
+        },
+      ],
+      nextCursor: null,
+      selectedProject: { id: "proj-p2", name: "Page 2 Project" },
+      selectedTask: { id: "task-p2", name: "Page 2 Task" },
+    });
+
+    renderDrive();
+
+    expect(await screen.findByText("solo-output.pdf")).toBeVisible();
+    const nav = screen.getByRole("navigation", { name: "breadcrumbNavLabel" });
+    expect(
+      within(nav).getByRole("button", { name: "Page 2 Project" }),
+    ).toBeVisible();
+    expect(
+      within(nav).getByRole("button", { name: "Page 2 Task" }),
+    ).toBeVisible();
+    const filterStub = screen.getByTestId("drive-tasks-filters-stub");
+    expect(filterStub).toHaveAttribute("data-project-id", "proj-p2");
+    expect(filterStub).toHaveAttribute(
+      "data-selected-project",
+      "Page 2 Project",
+    );
+    expect(filterStub).toHaveAttribute("data-selected-task", "Page 2 Task");
+    expect(fetchDriveTasksPageMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps page-2 breadcrumb and filter names during a search that returns no rows without extra fetches", async () => {
+    searchParams = new URLSearchParams(
+      "view=tasks&projectId=proj-p2&taskId=task-p2",
+    );
+    fetchDriveTasksPageMock
+      .mockResolvedValueOnce({
+        items: [
+          {
+            type: "task-file",
+            id: "tf-1",
+            name: "mockup-v2.pdf",
+            fileUrl: "https://example.com/mockup-v2.pdf",
+            size: 1024,
+            mimeType: "application/pdf",
+            updatedAt: new Date("2026-08-25T10:00:00.000Z"),
+          },
+        ],
+        nextCursor: null,
+        selectedProject: { id: "proj-p2", name: "Page 2 Project" },
+        selectedTask: { id: "task-p2", name: "Page 2 Task" },
+      })
+      .mockResolvedValueOnce({
+        items: [],
+        nextCursor: null,
+      });
+
+    renderDrive();
+
+    expect(await screen.findByText("mockup-v2.pdf")).toBeVisible();
+    const nav = screen.getByRole("navigation", { name: "breadcrumbNavLabel" });
+    expect(
+      within(nav).getByRole("button", { name: "Page 2 Project" }),
+    ).toBeVisible();
+    expect(
+      within(nav).getByRole("button", { name: "Page 2 Task" }),
+    ).toBeVisible();
+
+    const [searchInput] = screen.getAllByPlaceholderText(
+      "tasksSearchPlaceholder",
+    );
+    fireEvent.change(searchInput!, { target: { value: "nonexistent" } });
+
+    expect(await screen.findByText("tasksNoMatchTitle")).toBeVisible();
+    expect(
+      within(nav).getByRole("button", { name: "Page 2 Project" }),
+    ).toBeVisible();
+    expect(
+      within(nav).getByRole("button", { name: "Page 2 Task" }),
+    ).toBeVisible();
+    const filterStub = screen.getByTestId("drive-tasks-filters-stub");
+    expect(filterStub).toHaveAttribute(
+      "data-selected-project",
+      "Page 2 Project",
+    );
+    expect(filterStub).toHaveAttribute("data-selected-task", "Page 2 Task");
+    expect(fetchDriveTasksPageMock).toHaveBeenCalledTimes(2);
+    expect(fetchDriveTasksPageMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ q: "nonexistent" }),
+    );
+  });
+
+  it("fetches the new task name once when selection changes during an empty search", async () => {
+    searchParams = new URLSearchParams(
+      "view=tasks&projectId=proj-p2&taskId=task-a",
+    );
+    fetchDriveTasksPageMock.mockImplementation(
+      async (params: { q?: string; taskId?: string }) => {
+        if (params.q) {
+          return { items: [], nextCursor: null };
+        }
+        if (params.taskId === "task-a") {
+          return {
+            items: [
+              {
+                type: "task-file",
+                id: "tf-a",
+                name: "task-a-file.pdf",
+                fileUrl: "https://example.com/task-a-file.pdf",
+                size: 1024,
+                mimeType: "application/pdf",
+                updatedAt: new Date("2026-08-25T10:00:00.000Z"),
+              },
+            ],
+            nextCursor: null,
+            selectedProject: { id: "proj-p2", name: "Page 2 Project" },
+            selectedTask: { id: "task-a", name: "Task A" },
+          };
+        }
+        if (params.taskId === "task-b") {
+          return {
+            items: [],
+            nextCursor: null,
+            selectedProject: { id: "proj-p2", name: "Page 2 Project" },
+            selectedTask: { id: "task-b", name: "Task B" },
+          };
+        }
+        return { items: [], nextCursor: null };
+      },
+    );
+
+    const { rerender } = renderDrive();
+
+    expect(await screen.findByText("task-a-file.pdf")).toBeVisible();
+    const nav = screen.getByRole("navigation", { name: "breadcrumbNavLabel" });
+    expect(within(nav).getByRole("button", { name: "Task A" })).toBeVisible();
+
+    const [searchInput] = screen.getAllByPlaceholderText(
+      "tasksSearchPlaceholder",
+    );
+    fireEvent.change(searchInput!, { target: { value: "nonexistent" } });
+
+    expect(await screen.findByText("tasksNoMatchTitle")).toBeVisible();
+    expect(within(nav).getByRole("button", { name: "Task A" })).toBeVisible();
+    expect(fetchDriveTasksPageMock).toHaveBeenCalledTimes(2);
+
+    searchParams = new URLSearchParams(
+      "view=tasks&projectId=proj-p2&taskId=task-b",
+    );
+    rerender(driveTree());
+
+    expect(
+      await within(nav).findByRole("button", { name: "Task B" }),
+    ).toBeVisible();
+    expect(
+      within(nav).getByRole("button", { name: "Page 2 Project" }),
+    ).toBeVisible();
+    const filterStub = screen.getByTestId("drive-tasks-filters-stub");
+    expect(filterStub).toHaveAttribute(
+      "data-selected-project",
+      "Page 2 Project",
+    );
+    expect(filterStub).toHaveAttribute("data-selected-task", "Task B");
+    const unsearchedTaskBCalls = fetchDriveTasksPageMock.mock.calls.filter(
+      ([args]) => !args?.q && args?.taskId === "task-b",
+    );
+    expect(unsearchedTaskBCalls).toHaveLength(1);
+    const unsearchedTaskACalls = fetchDriveTasksPageMock.mock.calls.filter(
+      ([args]) => !args?.q && args?.taskId === "task-a",
+    );
+    expect(unsearchedTaskACalls).toHaveLength(1);
+  });
+
+  it("refetches on return to Drive tasks view while keeping cached rows visible", async () => {
+    const refetchDeferred = Promise.withResolvers<{
+      items: unknown[];
+      nextCursor: string | null;
+    }>();
+
+    fetchDriveTasksPageMock
+      .mockResolvedValueOnce({
+        items: [
+          {
+            type: "project",
+            id: "proj-1",
+            name: "Alpha",
+            latestFileUpdatedAt: new Date("2026-08-25T10:00:00.000Z"),
+          },
+        ],
+        nextCursor: null,
+      })
+      .mockImplementationOnce(() => refetchDeferred.promise);
+
+    const { unmount } = renderDrive();
+    expect(await screen.findByText("Alpha")).toBeVisible();
+
+    unmount();
+    renderDrive();
+
+    expect(screen.getByText("Alpha")).toBeVisible();
+    await waitFor(() => {
+      expect(fetchDriveTasksPageMock).toHaveBeenCalledTimes(2);
+    });
+
+    await act(async () => {
+      refetchDeferred.resolve({
+        items: [
+          {
+            type: "project",
+            id: "proj-1",
+            name: "Alpha",
+            latestFileUpdatedAt: new Date("2026-08-25T10:00:00.000Z"),
+          },
+          {
+            type: "project",
+            id: "proj-2",
+            name: "Beta",
+            latestFileUpdatedAt: new Date("2026-08-26T10:00:00.000Z"),
+          },
+        ],
+        nextCursor: null,
+      });
+      await refetchDeferred.promise;
+    });
+
+    expect(await screen.findByText("Beta")).toBeVisible();
+  });
+
+  it("disables Load more while Copy to Files refreshes page one and shows Retry when Load more or refresh fails", async () => {
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams("view=tasks&taskId=task-1");
+
+    const file1 = {
+      type: "task-file" as const,
+      id: "tf-1",
+      name: "mockup-v2.pdf",
+      fileUrl: "https://example.com/mockup-v2.pdf",
+      size: 1024,
+      mimeType: "application/pdf",
+      updatedAt: new Date("2026-08-25T10:00:00.000Z"),
+    };
+    const file2 = {
+      type: "task-file" as const,
+      id: "tf-2",
+      name: "spec.pdf",
+      fileUrl: "https://example.com/spec.pdf",
+      size: 2048,
+      mimeType: "application/pdf",
+      updatedAt: new Date("2026-08-24T10:00:00.000Z"),
+    };
+
+    const copyRefreshDeferred = Promise.withResolvers<{
+      items: unknown[];
+      nextCursor: string | null;
+    }>();
+
+    fetchDriveTasksPageMock
+      .mockResolvedValueOnce({ items: [file1], nextCursor: "cursor-2" })
+      .mockImplementationOnce(() => copyRefreshDeferred.promise)
+      .mockRejectedValueOnce(new Error("page 2 failed"))
+      .mockResolvedValueOnce({ items: [file2], nextCursor: null })
+      .mockRejectedValueOnce(new Error("page 1 refresh failed"))
+      .mockResolvedValueOnce({ items: [file1, file2], nextCursor: null });
+
+    renderDrive();
+
+    expect(await screen.findByText("mockup-v2.pdf")).toBeVisible();
+    expect(screen.getByRole("button", { name: "loadMore" })).toBeEnabled();
+
+    // Production write flow: Copy to Files invalidates the Drive cache.
+    await user.click(screen.getByRole("button", { name: "copyToFilesAction" }));
+    await user.click(
+      await screen.findByRole("button", { name: "copyToFilesDialogConfirm" }),
+    );
+
+    await waitFor(() => {
+      expect(postDriveTasksCopyMock).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "loadMore" })).toBeDisabled();
+    });
+    expect(screen.getByText("mockup-v2.pdf")).toBeVisible();
+
+    await act(async () => {
+      copyRefreshDeferred.resolve({ items: [file1], nextCursor: "cursor-2" });
+      await copyRefreshDeferred.promise;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "loadMore" })).toBeEnabled();
+    });
+
+    // Next page fails: loaded page stays visible, Retry replaces Load more.
+    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    const retryNext = await screen.findByRole("button", {
+      name: "Files.retry",
+    });
+    expect(screen.getByText("mockup-v2.pdf")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent("loadMoreTasksError");
+    expect(screen.queryByRole("button", { name: "loadMore" })).toBeNull();
+
+    await user.click(retryNext);
+    expect(await screen.findByText("spec.pdf")).toBeVisible();
+    expect(screen.getByText("mockup-v2.pdf")).toBeVisible();
+
+    // Failed page-one refresh after another write keeps loaded rows and shows Retry.
+    await user.click(
+      screen.getAllByRole("button", { name: "copyToFilesAction" })[0]!,
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "copyToFilesDialogConfirm" }),
+    );
+
+    const retryRefresh = await screen.findByRole("button", {
+      name: "Files.retry",
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent("loadTasksError");
+    expect(screen.getByText("mockup-v2.pdf")).toBeVisible();
+    expect(screen.getByText("spec.pdf")).toBeVisible();
+
+    await user.click(retryRefresh);
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Files.retry" })).toBeNull();
+    });
+    expect(screen.getByText("mockup-v2.pdf")).toBeVisible();
+    expect(screen.getByText("spec.pdf")).toBeVisible();
+  });
+
+  it("never renders a late workspace A tasks response under workspace B", async () => {
+    const orgADeferred = Promise.withResolvers<{
+      items: unknown[];
+      nextCursor: string | null;
+    }>();
+
+    fetchDriveTasksPageMock
+      .mockImplementationOnce(() => orgADeferred.promise)
+      .mockResolvedValueOnce({
+        items: [
+          {
+            type: "project",
+            id: "proj-b",
+            name: "Org B Project",
+            latestFileUpdatedAt: new Date("2026-08-25T10:00:00.000Z"),
+          },
+        ],
+        nextCursor: null,
+      });
+
+    const { rerender } = renderDrive();
+    await waitFor(() => {
+      expect(fetchDriveTasksPageMock).toHaveBeenCalledTimes(1);
+    });
+
+    useSessionMock.mockReturnValue(sessionFor("org_b"));
+    rerender(driveTree());
+
+    expect(await screen.findByText("Org B Project")).toBeVisible();
+
+    await act(async () => {
+      orgADeferred.resolve({
+        items: [
+          {
+            type: "project",
+            id: "proj-a",
+            name: "Org A Project",
+            latestFileUpdatedAt: new Date("2026-08-25T10:00:00.000Z"),
+          },
+        ],
+        nextCursor: null,
+      });
+      await orgADeferred.promise;
+    });
+
+    expect(screen.queryByText("Org A Project")).toBeNull();
+    expect(screen.getByText("Org B Project")).toBeVisible();
+  });
+});
+
 describe("DrivePage recents view", () => {
   beforeEach(() => {
     queryClient = createDriveQueryClient();
@@ -813,7 +1449,7 @@ describe("DrivePage recents view", () => {
       "aria-selected",
       "true",
     );
-    expect(screen.getByText("recentsEmptyTitle")).toBeVisible();
+    expect(await screen.findByText("recentsEmptyTitle")).toBeVisible();
     expect(screen.getAllByPlaceholderText("searchPlaceholder")).toHaveLength(2);
     expect(
       screen.queryByRole("button", { name: "createFolder" }),
@@ -904,12 +1540,13 @@ describe("DrivePage recents view", () => {
 
   it("opens browse for legacy folder links without view=browse", async () => {
     searchParams = new URLSearchParams("folder=Reports");
-    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    fetchDataRoomsMock.mockReset();
+    fetchDataRoomsMock.mockResolvedValue([]);
 
     renderDrive();
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
 
     expect(fetchDriveRecentsPageMock).not.toHaveBeenCalled();
@@ -921,7 +1558,8 @@ describe("DrivePage recents view", () => {
 
   it("switches to browse when the browse tab is selected", async () => {
     const user = userEvent.setup();
-    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    fetchDataRoomsMock.mockReset();
+    fetchDataRoomsMock.mockResolvedValue([]);
 
     renderDrive();
 
@@ -932,8 +1570,104 @@ describe("DrivePage recents view", () => {
     await user.click(screen.getByRole("tab", { name: "workspaceTab" }));
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
+  });
+
+  it("invalidates Drive cache after rename, move, and delete from recents without a reload token", async () => {
+    const user = userEvent.setup();
+    const orgA = { scope: "org" as const, organizationId: "org_a" };
+    const recentsFile = (
+      name: string,
+      pathname = `drive/orgs/org_a/${name}`,
+    ) => ({
+      kind: "drive-file" as const,
+      name,
+      fileUrl: `https://example.com/${pathname}`,
+      pathname,
+      size: 100,
+      activityAt: "2026-08-28T10:00:00.000Z",
+      resourceId: "res_1",
+      category: null,
+      tags: [],
+      dataRoom: false,
+    });
+
+    patchDriveFilesRenameMock.mockReset();
+    patchDriveFilesRenameMock.mockResolvedValue({});
+    patchDriveFilesMoveMock.mockReset();
+    patchDriveFilesMoveMock.mockResolvedValue({});
+    deleteDriveFilesDeleteMock.mockReset();
+    deleteDriveFilesDeleteMock.mockResolvedValue({});
+    fetchWorkspaceFoldersMock.mockReset();
+    fetchWorkspaceFoldersMock.mockResolvedValue(["Archive"]);
+
+    const deleteRefetch = Promise.withResolvers<{
+      items: unknown[];
+      nextCursor: string | null;
+    }>();
+
+    fetchDriveRecentsPageMock
+      .mockResolvedValueOnce({
+        items: [recentsFile("notes.txt")],
+        nextCursor: null,
+      })
+      .mockResolvedValueOnce({
+        items: [recentsFile("renamed.txt")],
+        nextCursor: null,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          recentsFile("renamed.txt", "drive/orgs/org_a/Archive/renamed.txt"),
+        ],
+        nextCursor: null,
+      })
+      .mockImplementationOnce(() => deleteRefetch.promise);
+
+    // Seed a cached catalog query to verify recents writes invalidate the shared prefix.
+    const catalogKey = driveQueryKeys.folders(orgA);
+    queryClient.setQueryData(catalogKey, ["Archive"]);
+
+    renderDrive();
+
+    expect(await screen.findByText("notes.txt")).toBeVisible();
+
+    // Rename from recents invalidates shared Drive cache and updates recents.
+    await user.click(screen.getByRole("button", { name: "renameAction" }));
+    const renameInput = screen.getByDisplayValue("notes.txt");
+    await user.clear(renameInput);
+    await user.type(renameInput, "renamed.txt{Enter}");
+
+    expect(await screen.findByText("renamed.txt")).toBeVisible();
+    expect(patchDriveFilesRenameMock).toHaveBeenCalledTimes(1);
+    expect(queryClient.getQueryState(catalogKey)?.isInvalidated).toBe(true);
+
+    // Move from recents invalidates shared Drive cache and refetches recents.
+    await user.click(screen.getByRole("button", { name: "moveAction" }));
+    await user.click(await screen.findByRole("button", { name: "Archive" }));
+    await user.click(screen.getByRole("button", { name: "moveHere" }));
+
+    await waitFor(() => {
+      expect(patchDriveFilesMoveMock).toHaveBeenCalledTimes(1);
+      expect(fetchDriveRecentsPageMock).toHaveBeenCalledTimes(3);
+    });
+
+    // Delete from recents drops the row immediately before the refetch returns.
+    await user.click(screen.getByRole("button", { name: "deleteAction" }));
+    await user.click(
+      await screen.findByRole("button", { name: "deleteDialogConfirm" }),
+    );
+
+    await waitFor(() => {
+      expect(deleteDriveFilesDeleteMock).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText("renamed.txt")).toBeNull();
+    });
+
+    await act(async () => {
+      deleteRefetch.resolve({ items: [], nextCursor: null });
+      await deleteRefetch.promise;
+    });
+    expect(await screen.findByText("recentsEmptyTitle")).toBeVisible();
   });
 });
 
@@ -1541,14 +2275,9 @@ describe("DrivePage files sort", () => {
     await user.click(screen.getByRole("tab", { name: "workspaceTab" }));
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
-    const browseCall = listDriveItemsMock.mock.calls.at(-1)?.[0] as Record<
-      string,
-      unknown
-    >;
-    expect(browseCall).not.toHaveProperty("sortBy");
-    expect(browseCall).not.toHaveProperty("sortOrder");
+    expect(listDriveItemsMock).not.toHaveBeenCalled();
     // The tab is the catalog, which this control would not order. Its presence
     // on the Tasks view is covered by the two cases above.
     expect(screen.queryByTestId("files-sort-trigger")).toBeNull();
@@ -1563,6 +2292,8 @@ describe("DrivePage workspace tab and breadcrumb root", () => {
     pushMock.mockReset();
     useSessionMock.mockReset();
     listDriveItemsMock.mockReset();
+    fetchDataRoomsMock.mockReset();
+    fetchDataRoomsMock.mockResolvedValue([]);
     listDataTablesMock.mockReset();
     fetchDriveTasksPageMock.mockReset();
     fetchDriveRecentsPageMock.mockReset();
@@ -1587,7 +2318,7 @@ describe("DrivePage workspace tab and breadcrumb root", () => {
     renderDrive();
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
 
     expect(screen.getByRole("tab", { name: "workspaceTab" })).toBeVisible();
@@ -1600,7 +2331,7 @@ describe("DrivePage workspace tab and breadcrumb root", () => {
     renderDrive();
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
 
     // The chip carried the organization name and an aria-label of its own.
@@ -1684,14 +2415,14 @@ describe("DrivePage workspace tab and breadcrumb root", () => {
     const search = within(
       screen.getByTestId("files-desktop-header"),
     ).getByPlaceholderText("searchPlaceholder");
-    expect(search.className).toContain("@xl:h-8");
+    expect(search.className).toMatch(/(?:^| )h-8(?: |$)/);
   });
 
   it("keeps every Workspace header-row control at the tab strip's height", async () => {
     searchParams = new URLSearchParams("view=browse");
     renderDrive();
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
 
     assertHeaderRowHeightContract(headerRowControls());
@@ -1801,6 +2532,9 @@ describe("one catalog, not two", () => {
     pushMock.mockReset();
     useSessionMock.mockReset();
     listDriveItemsMock.mockReset();
+    fetchDataRoomsMock.mockReset();
+    fetchDataRoomsMock.mockResolvedValue([]);
+    fetchDataRoomMock.mockReset();
     getUsersByIdOrganizationsMock.mockReset();
     fetchDriveTasksPageMock.mockReset();
     fetchDriveRecentsPageMock.mockReset();
@@ -1961,6 +2695,333 @@ describe("one catalog, not two", () => {
     );
     expect(patchDriveFoldersRenameMock).toHaveBeenCalled();
     vi.unstubAllGlobals();
+  });
+
+  it("refetches both the data-room list and a mounted room detail after a Drive write", async () => {
+    const user = userEvent.setup();
+    const store = { scope: "org" as const, organizationId: "org_a" };
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    patchDriveFoldersRenameMock.mockReset();
+    patchDriveFoldersRenameMock.mockResolvedValue({});
+
+    fetchDataRoomsMock
+      .mockResolvedValueOnce([{ id: "room_1", folderPath: "Reports" }])
+      .mockResolvedValue([{ id: "room_1", folderPath: "Investors" }]);
+    fetchDataRoomMock
+      .mockResolvedValueOnce({
+        room: {
+          id: "room_1",
+          folderPath: "Reports",
+          title: "Reports Room",
+          storage: "private",
+          token: "tok",
+          createdByUserId: "user_1",
+        },
+        members: [],
+        rows: [],
+        colleagues: null,
+        canChooseColleagues: false,
+      })
+      .mockResolvedValue({
+        room: {
+          id: "room_1",
+          folderPath: "Investors",
+          title: "Investors Room",
+          storage: "private",
+          token: "tok",
+          createdByUserId: "user_1",
+        },
+        members: [],
+        rows: [],
+        colleagues: null,
+        canChooseColleagues: false,
+      });
+    vi.stubGlobal("prompt", () => "Investors");
+
+    render(
+      <NuqsTestingAdapter searchParams={searchParams} hasMemory>
+        <QueryClientProvider client={queryClient}>
+          <DrivePageClient defaultFilesViewMode="list" />
+          <DataRoomClient roomId="room_1" />
+        </QueryClientProvider>
+      </NuqsTestingAdapter>,
+    );
+
+    const panel = await screen.findByTestId("drive-all-files");
+    await waitFor(() => {
+      expect(panel).toHaveAttribute("data-room-paths", "Reports");
+      expect(
+        screen.getByRole("heading", { name: "Reports Room" }),
+      ).toBeVisible();
+    });
+    expect(
+      queryClient.getQueryData(driveQueryKeys.dataRooms(store)),
+    ).toBeDefined();
+    expect(
+      queryClient.getQueryData(driveQueryKeys.dataRoom(store, "room_1")),
+    ).toBeDefined();
+
+    await user.click(screen.getByTestId("files-rename-folder"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+        "data-room-paths",
+        "Investors",
+      );
+      expect(
+        screen.getByRole("heading", { name: "Investors Room" }),
+      ).toBeVisible();
+    });
+    expect(fetchDataRoomsMock).toHaveBeenCalledTimes(2);
+    expect(fetchDataRoomMock).toHaveBeenCalledTimes(2);
+    vi.unstubAllGlobals();
+  });
+
+  it("isolates the data-room list by store prefix so org A rooms never show under org B", async () => {
+    const orgBDeferred = Promise.withResolvers<Array<{ folderPath: string }>>();
+    searchParams = new URLSearchParams("view=workspace");
+    fetchDataRoomsMock
+      .mockResolvedValueOnce([{ folderPath: "OrgARoom" }])
+      .mockImplementationOnce(() => orgBDeferred.promise);
+
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+    const { rerender } = renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+        "data-room-paths",
+        "OrgARoom",
+      );
+    });
+    expect(
+      queryClient.getQueryData(
+        driveQueryKeys.dataRooms({ scope: "org", organizationId: "org_a" }),
+      ),
+    ).toEqual([{ folderPath: "OrgARoom" }]);
+
+    useSessionMock.mockReturnValue(sessionFor("org_b"));
+    rerender(driveTree());
+
+    expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+      "data-room-paths",
+      "",
+    );
+
+    await act(async () => {
+      orgBDeferred.resolve([{ folderPath: "OrgBRoom" }]);
+      await orgBDeferred.promise;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+        "data-room-paths",
+        "OrgBRoom",
+      );
+    });
+  });
+
+  it("keeps a pending room refetch alive when a subsequent write fails", async () => {
+    const user = userEvent.setup();
+    const refetchAfterSave = Promise.withResolvers<unknown>();
+    let refetchSignal: AbortSignal | undefined;
+
+    fetchDataRoomMock.mockReset();
+    updateDataRoomMock.mockReset();
+    inviteToDataRoomMock.mockReset();
+
+    const makeRoomDetail = (title: string) => ({
+      room: {
+        id: "room_1",
+        folderPath: "Reports",
+        title,
+        welcomeNote: null,
+        logoFileId: null,
+        allowedDomains: [],
+        expiresAt: null,
+        allowDownload: false,
+        watermark: true,
+        notifyOnFirstVisit: true,
+        storage: "private",
+        token: "tok",
+        createdByUserId: "user_1",
+      },
+      members: [],
+      rows: [],
+      colleagues: null,
+      canChooseColleagues: false,
+    });
+
+    fetchDataRoomMock
+      .mockResolvedValueOnce(makeRoomDetail("Old Title"))
+      .mockImplementationOnce(({ signal }: { signal?: AbortSignal }) => {
+        refetchSignal = signal;
+        return refetchAfterSave.promise;
+      });
+    updateDataRoomMock.mockResolvedValue(makeRoomDetail("New Title").room);
+    inviteToDataRoomMock.mockRejectedValue(new Error("invite refused"));
+
+    render(
+      <NuqsTestingAdapter searchParams="?tab=settings" hasMemory>
+        <QueryClientProvider client={queryClient}>
+          <DataRoomClient roomId="room_1" />
+        </QueryClientProvider>
+      </NuqsTestingAdapter>,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Old Title" }),
+    ).toBeVisible();
+
+    const titleInput = screen.getByLabelText("titleLabel");
+    await user.clear(titleInput);
+    await user.type(titleInput, "New Title");
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => {
+      expect(fetchDataRoomMock).toHaveBeenCalledTimes(2);
+    });
+
+    // While the refetch from saving settings is still pending, trigger a failing write.
+    await user.click(screen.getByRole("tab", { name: "tabs.people" }));
+    await user.type(
+      screen.getByLabelText("emailsLabel"),
+      "investor@example.com",
+    );
+    await user.click(screen.getByRole("button", { name: "invite" }));
+
+    await waitFor(() => {
+      expect(inviteToDataRoomMock).toHaveBeenCalledTimes(1);
+    });
+    expect(refetchSignal?.aborted).toBe(false);
+
+    await act(async () => {
+      refetchAfterSave.resolve(makeRoomDetail("New Title"));
+      await refetchAfterSave.promise;
+    });
+
+    expect(
+      await screen.findByRole("heading", { name: "New Title" }),
+    ).toBeVisible();
+  });
+
+  it("cancels a held cold data-room-list GET on rename so the new name lands", async () => {
+    const user = userEvent.setup();
+    const firstGet =
+      Promise.withResolvers<Array<{ id: string; folderPath: string }>>();
+    let firstSignal: AbortSignal | undefined;
+
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    patchDriveFoldersRenameMock.mockReset();
+    patchDriveFoldersRenameMock.mockResolvedValue({});
+    fetchDataRoomsMock.mockReset();
+    fetchDataRoomsMock
+      .mockImplementationOnce(
+        (_store: unknown, options?: { signal?: AbortSignal }) => {
+          firstSignal = options?.signal;
+          return firstGet.promise;
+        },
+      )
+      .mockResolvedValue([{ id: "room_1", folderPath: "Investors" }]);
+    vi.stubGlobal("prompt", () => "Investors");
+
+    renderDrive();
+
+    const panel = await screen.findByTestId("drive-all-files");
+    await waitFor(() => {
+      expect(fetchDataRoomsMock).toHaveBeenCalledTimes(1);
+    });
+    expect(panel).toHaveAttribute("data-room-paths", "");
+
+    await user.click(screen.getByTestId("files-rename-folder"));
+
+    await waitFor(() => {
+      expect(fetchDataRoomsMock).toHaveBeenCalledTimes(2);
+    });
+    expect(firstSignal?.aborted).toBe(true);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+        "data-room-paths",
+        "Investors",
+      );
+    });
+
+    // Stale first GET resolving late must not overwrite the renamed folder.
+    await act(async () => {
+      firstGet.resolve([{ id: "room_1", folderPath: "Reports" }]);
+      await firstGet.promise;
+    });
+
+    expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+      "data-room-paths",
+      "Investors",
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it("invalidates Drive cache when a delete throws after partial commit", async () => {
+    const user = userEvent.setup();
+    const staleFile = {
+      type: "file" as const,
+      name: "report.pdf",
+      fileUrl: "https://blob.example/docs/report.pdf",
+      pathname: "drive/organizations/org_a/docs/report.pdf",
+      size: 1024,
+      uploadedAt: new Date("2026-08-18T10:00:00.000Z"),
+      dataRoom: false,
+    };
+    const heldRefetch = Promise.withResolvers<unknown[]>();
+
+    searchParams = new URLSearchParams("view=workspace&folder=docs");
+    deleteDriveFoldersDeleteMock.mockReset();
+    deleteDriveFoldersDeleteMock.mockRejectedValueOnce(
+      new Error("partial delete failed"),
+    );
+    listDriveItemsMock
+      .mockResolvedValueOnce([staleFile])
+      .mockImplementationOnce(() => heldRefetch.promise);
+
+    const errorCalls = expectConsole("error", "Failed to delete folder");
+
+    function renderTree(pickerOpen: boolean) {
+      return (
+        <NuqsTestingAdapter searchParams={searchParams} hasMemory>
+          <QueryClientProvider client={queryClient}>
+            <DrivePageClient defaultFilesViewMode="list" />
+            <DriveFilePicker
+              open={pickerOpen}
+              onOpenChange={vi.fn()}
+              onSelect={vi.fn()}
+            />
+          </QueryClientProvider>
+        </NuqsTestingAdapter>
+      );
+    }
+
+    const { rerender } = render(renderTree(true));
+    expect(
+      await screen.findByRole("button", { name: /report\.pdf/ }),
+    ).toBeEnabled();
+
+    rerender(renderTree(false));
+    await user.click(screen.getByTestId("files-delete-folder"));
+    await user.click(
+      await screen.findByRole("button", { name: "deleteDialogConfirm" }),
+    );
+    await waitFor(() => {
+      expect(errorCalls.length).toBeGreaterThanOrEqual(1);
+    });
+
+    rerender(renderTree(true));
+    expect(
+      await screen.findByRole("button", { name: /report\.pdf/ }),
+    ).toBeDisabled();
+    expect(listDriveItemsMock).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      heldRefetch.resolve([]);
+      await heldRefetch.promise;
+    });
   });
 
   it("offers no folder actions when no folder is applied", async () => {
@@ -2256,12 +3317,16 @@ describe("one catalog, not two", () => {
       expectConsole("error", "Failed to upload file");
       renderDrive();
       const list = await screen.findByTestId("drive-all-files");
+      await waitFor(() => {
+        expect(fetchDataRoomsMock).toHaveBeenCalledTimes(1);
+      });
 
       await dropOn(list, fileEntry("/notes.txt"));
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith("uploadError", undefined);
       });
+      expect(fetchDataRoomsMock).toHaveBeenCalledTimes(1);
     });
   });
 });

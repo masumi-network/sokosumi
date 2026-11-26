@@ -13,11 +13,13 @@ import {
 } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
+import { hasSessionCookie } from "@/lib/auth/session-cookie";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
 import { taskService } from "@/lib/services/task.service";
 import { normalizeTaskNameForCoreApi } from "@/lib/utils/task-transformer";
@@ -61,6 +63,9 @@ interface CreateTaskParameters extends AuthenticatedRequest, TaskTagWrite {
   /** ISO time to start the Task at; Core then creates it Queued. */
   runAt?: string;
   visibility?: "PUBLIC" | "PRIVATE";
+  priority?: TaskPriority;
+  /** `YYYY-MM-DD`. */
+  dueOn?: string;
 }
 
 interface UpdateTaskParameters extends AuthenticatedRequest, TaskTagWrite {
@@ -158,6 +163,8 @@ interface CreateAndLinkTaskParameters
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   runAt?: string;
   visibility?: "PUBLIC" | "PRIVATE";
+  priority?: TaskPriority;
+  dueOn?: string;
   relation: UserWritableTaskLinkRelation;
   note?: string | null;
 }
@@ -200,6 +207,8 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
     status,
     runAt,
     visibility,
+    priority,
+    dueOn,
   }) => {
     try {
       const task = await createTaskFromDescription({
@@ -219,6 +228,8 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
         status,
         runAt,
         visibility,
+        priority,
+        dueOn,
       });
 
       revalidatePath("/tasks");
@@ -591,6 +602,16 @@ export const deleteTaskLink = withSession<
   }
 });
 
+/**
+ * Revalidates `/tasks` after a browser-direct archive DELETE settles, so Next
+ * drops its cached `/tasks` pages without making another Core call.
+ */
+export async function revalidateTasksAfterArchive(): Promise<boolean> {
+  if (!hasSessionCookie(await headers())) return false;
+  revalidatePath("/tasks");
+  return true;
+}
+
 export const createTaskAndLink = withSession<
   CreateAndLinkTaskParameters,
   CreateTaskAndLinkResult
@@ -612,6 +633,8 @@ export const createTaskAndLink = withSession<
     context,
     runAt,
     visibility,
+    priority,
+    dueOn,
     relation,
     note,
   }) => {
@@ -639,6 +662,8 @@ export const createTaskAndLink = withSession<
         status,
         runAt,
         visibility,
+        priority,
+        dueOn,
       });
 
       const link = await taskService.createTaskLink(normalizedTaskId, {

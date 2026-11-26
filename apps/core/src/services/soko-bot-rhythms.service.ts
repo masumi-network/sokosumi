@@ -1,17 +1,17 @@
+import { Prisma } from "@sokosumi/database";
 import type {
   SokoBotCalendarEvent,
   SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
 import { parseSokoBotMemory, upcomingFollowUps } from "@sokosumi/soko-bot";
-import { FREEMAIL_DOMAINS } from "@/lib/contacts/capture-filters";
 import prisma from "@/lib/db/prisma";
+import { failOpen } from "@/lib/fail-open";
 import {
   foreignTasksBlock,
   memoryTasks,
   tasksIn,
 } from "@/lib/soko-bot/memory-task-ownership";
 import { rhythmTaskScope } from "@/lib/soko-bot/rhythm-task-scope";
-import { contactLinesByEmail } from "@/services/contacts-context.service";
 import {
   type ActivityStatsBot,
   activityStats,
@@ -23,10 +23,15 @@ import {
   fetchInboxMessages,
   withOwnerReplies,
 } from "@/services/soko-bot-integrations.service";
+import { meetingPrep } from "@/services/soko-bot-meeting-evidence.service";
+import {
+  mailLine,
+  ownerEmail,
+  when,
+} from "@/services/soko-bot-rhythm-context.service";
 
 const HOUR_MS = 60 * 60 * 1_000;
 const DAY_MS = 24 * HOUR_MS;
-const SLOT_MS = 30 * 60 * 1_000;
 /** A bot a rhythm runs for; a shared bot (`userId: null`) needs its scope. */
 export type RhythmBot = ActivityStatsBot & { ingestTimezone: string };
 
@@ -52,6 +57,31 @@ export const RHYTHM_KEYS = new Set([
   "dreaming",
 ]);
 
+/**
+ * A rhythm's input (an account's calendar or mail, a block of the packet)
+ * that failed to load; the rhythm runs without it, which would otherwise read
+ * as an empty day.
+ */
+export function rhythmInputFailed<T>(
+  fallback: T,
+  botId: string,
+  input: string,
+): (error: unknown) => T {
+  return failOpen(
+    fallback,
+    {
+      operation: "soko_bot_rhythm",
+      sokoBot: { id: botId },
+      rhythmInput: input,
+    },
+    {
+      message: "A Soko Bot rhythm ran without one of its inputs",
+      why: "Loading the input threw, so the rhythm saw it as empty",
+      fix: "Read rhythmInput and the failure fields; an integration that keeps failing needs reconnecting.",
+    },
+  );
+}
+
 async function calendar(
   bot: RhythmBot,
   from: Date,
@@ -64,28 +94,16 @@ async function calendar(
   for (const integration of integrations)
     events.push(
       ...(await fetchCalendarEvents(integration, { from, to, limit }).catch(
-        () => [],
+        rhythmInputFailed([], bot.id, "calendar"),
       )),
     );
   return events.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
 
-/** Mail from or to one address, in each provider's search syntax. */
-function participantQuery(providerId: string, email: string): string {
-  return providerId === "gmail"
-    ? `{from:${email} to:${email} cc:${email}} -filename:ics`
-    : `participants:${email}`;
-}
-
-/** Invitations and RSVPs say a meeting exists, not what was said. */
-const CALENDAR_NOTICE =
-  /^(invitation|updated invitation|accepted|declined|tentatively accepted|canceled event|cancelled event)\b[^:]*:/i;
-
 async function mail(
   bot: RhythmBot,
   options: {
     query?: string;
-    participant?: string;
     since?: Date;
     limit: number;
     gmailOnly?: boolean;
@@ -100,14 +118,10 @@ async function mail(
   const messages: SokoBotInboxMessage[] = [];
   for (const integration of integrations) {
     const fetched = await fetchInboxMessages(integration, {
-      query: options.participant
-        ? participantQuery(integration.provider.id, options.participant)
-        : integration.provider.id === "gmail"
-          ? options.query
-          : undefined,
+      query: integration.provider.id === "gmail" ? options.query : undefined,
       since: options.since,
       limit: options.limit,
-    }).catch(() => []);
+    }).catch(rhythmInputFailed([], bot.id, "mail"));
     messages.push(
       ...(options.replies && options.since
         ? await withOwnerReplies(integration, fetched, options.since)
@@ -117,148 +131,8 @@ async function mail(
   return messages;
 }
 
-function when(date: string, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone,
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(date));
-}
-
-function mailLine(message: SokoBotInboxMessage, timeZone: string): string {
-  return `- ${when(message.receivedAt, timeZone)} · from ${message.from} · **${message.subject || "(no subject)"}** — ${message.snippet.replace(/\s+/g, " ").slice(0, 140)} [${message.provider}:${message.id}]`;
-}
-
 function emailOf(value: string): string | null {
   return /[\w.+-]+@[\w-]+(\.[\w-]+)+/.exec(value)?.[0].toLowerCase() ?? null;
-}
-
-function domainOf(email: string): string {
-  return email.split("@")[1] ?? "";
-}
-
-/** "acme" for anna@acme.com; null for freemail, where the domain names no company. */
-function companyOf(email: string): string | null {
-  const domain = domainOf(email);
-  if (!domain || FREEMAIL_DOMAINS.has(domain)) return null;
-  return domain.split(".")[0] ?? null;
-}
-
-async function ownerEmail(bot: RhythmBot): Promise<string | null> {
-  const ownerUserId = rhythmTaskScope(bot).ownerUserId;
-  if (ownerUserId === null) return null;
-  const user = await prisma.user.findUnique({
-    where: { id: ownerUserId },
-    select: { email: true },
-  });
-  return user?.email.toLowerCase() ?? null;
-}
-
-async function openTasksMatching(bot: RhythmBot, terms: string[]) {
-  if (terms.length === 0) return [];
-  return prisma.task.findMany({
-    where: {
-      workspaceId: bot.workspaceId,
-      archivedAt: null,
-      status: { notIn: ["COMPLETED", "CANCELED"] },
-      OR: terms.map((term) => ({
-        name: { contains: term, mode: "insensitive" as const },
-      })),
-      AND: [rhythmTaskScope(bot).visible],
-    },
-    select: { id: true, name: true, status: true },
-    take: 5,
-  });
-}
-
-/**
- * External meetings starting 30–60 minutes after this run's half-hour slot.
- * The cron fires every half hour, so the windows tile the day and each
- * meeting is briefed exactly once, retries included.
- */
-async function meetingPrep(
-  bot: RhythmBot,
-  slotAt: Date,
-): Promise<RhythmPacket> {
-  const slot = Math.floor(slotAt.getTime() / SLOT_MS) * SLOT_MS;
-  const events = await calendar(
-    bot,
-    new Date(slot + SLOT_MS),
-    new Date(slot + 2 * SLOT_MS),
-    10,
-  );
-  if (!events?.length) return { lines: [], skip: true };
-  const owner = await ownerEmail(bot);
-  const ownDomain = owner ? domainOf(owner) : "";
-  const lines: string[] = [];
-  for (const event of events) {
-    const start = new Date(event.startsAt).getTime();
-    if (event.allDay || start < slot + SLOT_MS || start >= slot + 2 * SLOT_MS)
-      continue;
-    const external = event.attendees
-      .map(emailOf)
-      .filter(
-        (email): email is string =>
-          !!email && email !== owner && domainOf(email) !== ownDomain,
-      );
-    if (external.length === 0) continue;
-    lines.push(
-      `## Meeting ${when(event.startsAt, bot.ingestTimezone)}: ${event.title} [${event.provider}:${event.id}]`,
-      `- From outside: ${external.slice(0, 6).join(", ")}`,
-    );
-    // Context only: a failed lookup must not cost the meeting its prep.
-    const known = await contactLinesByEmail({
-      workspaceId: bot.workspaceId,
-      emails: external.slice(0, 6),
-      timeZone: bot.ingestTimezone,
-    }).catch(() => new Map<string, string>());
-    for (const email of external.slice(0, 6)) {
-      const line = known.get(email);
-      if (line) lines.push(`- Contact: ${line}`);
-    }
-    if (event.description)
-      lines.push(
-        `- Agenda: ${event.description.replace(/\s+/g, " ").slice(0, 300)}`,
-      );
-    // One search per person, so whoever has the most mail can't crowd the
-    // others out of a shared result.
-    for (const email of external.slice(0, 4)) {
-      const recent = (
-        (await mail(bot, {
-          participant: email,
-          since: new Date(slotAt.getTime() - 365 * DAY_MS),
-          limit: 8,
-        })) ?? []
-      )
-        .filter((m) => !CALENDAR_NOTICE.test(m.subject))
-        .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
-        .slice(0, 3);
-      lines.push(
-        recent.length > 0
-          ? `- Last mail with ${email}:`
-          : `- No mail with ${email} by address in the last year`,
-        ...recent.map((m) => `  ${mailLine(m, bot.ingestTimezone)}`),
-      );
-    }
-    const companies = [
-      ...new Set(external.flatMap((email) => companyOf(email) ?? [])),
-    ];
-    const tasks = await openTasksMatching(bot, companies);
-    if (tasks.length > 0) {
-      lines.push("- Related open Tasks:");
-      lines.push(
-        ...tasks.map(
-          (task) =>
-            `  - ${task.status} · "${task.name ?? "Untitled task"}" (id ${task.id})`,
-        ),
-      );
-    }
-    lines.push("");
-  }
-  return { lines, skip: lines.length === 0 };
 }
 
 async function endOfDay(bot: RhythmBot, dayStart: Date): Promise<RhythmPacket> {
@@ -568,6 +442,56 @@ async function dreamSince(bot: RhythmBot, now: Date): Promise<Date> {
 }
 
 /**
+ * Only people's words and failures teach the dream anything. Scheduled and
+ * inbox turns run every day (the last dream is one), so counting them made
+ * every bot dream every night.
+ */
+export function hasDreamMaterial(
+  turns: ReadonlyArray<DreamTurn>,
+  failedTools: number,
+  staleLines: number,
+): boolean {
+  return staleLines > 0 || failedTools > 0 || turns.some(teachesTheDream);
+}
+
+/** A reviewer's verdict worth learning from; a passing one teaches nothing. */
+const MEANINGFUL_VERDICTS = ["weak", "fail"] as const;
+
+interface DreamTurn {
+  source: string;
+  status: string;
+  ownerFeedback: number | null;
+  qualityVerdict?: unknown;
+}
+
+/**
+ * The one rule for which turns a dream learns from, as code; the query
+ * below asks the database the same.
+ */
+function teachesTheDream(turn: DreamTurn): boolean {
+  const verdict = (turn.qualityVerdict as { verdict?: unknown } | null)
+    ?.verdict;
+  return (
+    turn.source === "CHAT" ||
+    turn.ownerFeedback != null ||
+    turn.status === "FAILED" ||
+    (MEANINGFUL_VERDICTS as readonly unknown[]).includes(verdict)
+  );
+}
+
+/** {@link teachesTheDream} as a filter. */
+const TEACHES_THE_DREAM = {
+  OR: [
+    { source: "CHAT" },
+    { ownerFeedback: { not: null } },
+    { status: "FAILED" },
+    ...MEANINGFUL_VERDICTS.map((verdict) => ({
+      qualityVerdict: { path: ["verdict"], equals: verdict },
+    })),
+  ],
+} satisfies Prisma.SokoBotTurnWhereInput;
+
+/**
  * What the bot did since its last dream, for it to learn from: its chats
  * (what was asked, what it answered, the owner's thumbs), failed turns,
  * failing tools grouped so a repeat shows, answers the judge found weak, and
@@ -580,23 +504,36 @@ export async function dreaming(
   now: Date,
 ): Promise<RhythmPacket> {
   const since = await dreamSince(bot, now);
-  const [turns, failedTools, saved, stale] = await Promise.all([
+  const turnFields = {
+    createdAt: true,
+    source: true,
+    status: true,
+    userMessage: true,
+    finalAnswer: true,
+    errorKind: true,
+    ownerFeedback: true,
+    qualityVerdict: true,
+    backgroundTitle: true,
+  } as const;
+  const [turns, learnable, failedTools, saved, stale] = await Promise.all([
     prisma.sokoBotTurn.findMany({
       where: { sokoBotId: bot.id, createdAt: { gte: since } },
       orderBy: { createdAt: "desc" },
       take: DREAM_MAX_TURNS,
-      select: {
-        createdAt: true,
-        source: true,
-        status: true,
-        userMessage: true,
-        finalAnswer: true,
-        errorKind: true,
-        errorDetail: true,
-        ownerFeedback: true,
-        qualityVerdict: true,
-        backgroundTitle: true,
+      select: turnFields,
+    }),
+    // Read apart from the newest turns: a hundred routine turns after one
+    // chat pushed it out of that list, the dream skipped, and the skip moved
+    // the watermark past the chat for good.
+    prisma.sokoBotTurn.findMany({
+      where: {
+        sokoBotId: bot.id,
+        createdAt: { gte: since },
+        ...TEACHES_THE_DREAM,
       },
+      orderBy: { createdAt: "desc" },
+      take: DREAM_MAX_TURNS,
+      select: turnFields,
     }),
     prisma.sokoBotToolCall.findMany({
       where: {
@@ -606,7 +543,7 @@ export async function dreaming(
       },
       orderBy: { createdAt: "desc" },
       take: 200,
-      select: { capability: true, errorKind: true, errorDetail: true },
+      select: { capability: true, errorKind: true },
     }),
     prisma.sokoBotToolCall.findMany({
       where: {
@@ -619,7 +556,7 @@ export async function dreaming(
     }),
     staleMemoryLines(bot, now),
   ]);
-  if (turns.length === 0 && stale.length === 0)
+  if (!hasDreamMaterial(learnable, failedTools.length, stale.length))
     return { lines: [], skip: true };
 
   const at = (date: Date) =>
@@ -631,14 +568,14 @@ export async function dreaming(
     }).format(date);
   const count = (source: string) =>
     turns.filter((turn) => turn.source === source).length;
-  const failed = turns.filter((turn) => turn.status === "FAILED");
+  const failed = learnable.filter((turn) => turn.status === "FAILED");
   const lines: string[] = [
     `## Since ${at(since)} (${bot.ingestTimezone})`,
     `${turns.length} turns: ${count("CHAT")} chats, ${count("INGEST")} inbox checks, ${count("SCHEDULE")} scheduled, ${count("EVENT")} Task events; ${failed.length} failed.`,
     "",
   ];
 
-  const chats = turns
+  const chats = learnable
     .filter((turn) => turn.source === "CHAT")
     .slice(0, DREAM_MAX_CHATS)
     .reverse();
@@ -658,7 +595,7 @@ export async function dreaming(
     lines.push("");
   }
 
-  const weak = turns.flatMap((turn) => {
+  const weak = learnable.flatMap((turn) => {
     const verdict = turn.qualityVerdict as {
       verdict?: string;
       issues?: string[];
@@ -679,34 +616,23 @@ export async function dreaming(
         .slice(0, 15)
         .map(
           (turn) =>
-            `- ${at(turn.createdAt)} ${turn.source.toLowerCase()}${turn.backgroundTitle ? ` "${quote(turn.backgroundTitle, 80)}"` : ""}: ${turn.errorKind ?? "error"}${turn.errorDetail ? ` (${quote(turn.errorDetail, 140)})` : ""}`,
+            `- ${at(turn.createdAt)} ${turn.source.toLowerCase()}${turn.backgroundTitle ? ` "${quote(turn.backgroundTitle, 80)}"` : ""}: ${turn.errorKind ?? "error"}`,
         ),
       "",
     );
 
-  const toolFailures = new Map<
-    string,
-    { count: number; detail: string | null }
-  >();
+  const toolFailures = new Map<string, number>();
   for (const call of failedTools) {
     const key = `${call.capability} (${call.errorKind ?? "error"})`;
-    const entry = toolFailures.get(key) ?? {
-      count: 0,
-      detail: call.errorDetail,
-    };
-    entry.count += 1;
-    toolFailures.set(key, entry);
+    toolFailures.set(key, (toolFailures.get(key) ?? 0) + 1);
   }
   if (toolFailures.size > 0)
     lines.push(
       "## Tools that failed",
       ...[...toolFailures]
-        .sort((a, b) => b[1].count - a[1].count)
+        .sort((a, b) => b[1] - a[1])
         .slice(0, 12)
-        .map(
-          ([key, { count, detail }]) =>
-            `- ${key} ×${count}${detail ? `: ${quote(detail, 140)}` : ""}`,
-        ),
+        .map(([key, count]) => `- ${key} ×${count}`),
       "",
     );
 

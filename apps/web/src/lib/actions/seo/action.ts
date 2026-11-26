@@ -1,5 +1,7 @@
 "use server";
 
+import type { RequestProjectSeoAnalysisRequest } from "@sokosumi/core-client";
+import { seoFullAuditPrice } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -9,7 +11,7 @@ import {
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import type { SeoCommand } from "@/lib/actions/seo/types";
+import { type SeoCommand, seoReviewIdentity } from "@/lib/actions/seo/types";
 import {
   CoreApiRequestError,
   toCoreApiActionError,
@@ -21,6 +23,18 @@ import {
   type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
+
+/** The price terms never pass through the browser: a new full audit approves them here. A cap the browser sends goes on, so Core refuses it as a stale price. */
+function withFullAuditPrice(
+  analysis: RequestProjectSeoAnalysisRequest,
+): RequestProjectSeoAnalysisRequest {
+  return analysis.kind === "audit_full"
+    ? {
+        ...analysis,
+        fullAuditPrice: seoFullAuditPrice(analysis.fullAuditPrice?.maxCredits),
+      }
+    : analysis;
+}
 
 const scheduleRevision = z.number().int().nonnegative();
 /** Monitor commands go straight to the Task Schedule routes: check their shape before the id goes into a path. */
@@ -37,6 +51,8 @@ const monitorCommandSchema = z.discriminatedUnion("kind", [
       kind: z.literal("monitor_run_now"),
       monitorId: z.uuid(),
       expectedRevision: scheduleRevision,
+      allowLimitedAudit: z.literal(true).optional(),
+      searchConsolePropertyId: z.string().min(1).max(500).optional(),
     })
     .strict(),
   z
@@ -73,12 +89,12 @@ export const mutateSeo = withSession<
   ) {
     return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
+  const reviewIdentity = seoReviewIdentity(command);
   if (
-    command.kind === "request_analysis" &&
-    (command.body?.sharedBrief || command.body?.setupGoal) &&
+    reviewIdentity &&
     (!briefViewer ||
       briefViewer.userId !== session.user.id ||
-      (command.body.setupGoal && !briefViewer.sessionId) ||
+      (reviewIdentity === "session" && !briefViewer.sessionId) ||
       (briefViewer.sessionId !== undefined &&
         briefViewer.sessionId !== session.session.id) ||
       briefViewer.organizationId !==
@@ -117,7 +133,10 @@ export const mutateSeo = withSession<
         await seoServiceNoRedirect.saveBrandTerms(owner, command.body);
         break;
       case "create_monitor":
-        await seoServiceNoRedirect.createMonitor(owner, command.body);
+        await seoServiceNoRedirect.createMonitor(owner, {
+          ...command.body,
+          analysis: withFullAuditPrice(command.body.analysis),
+        });
         break;
       // A monitor is a Task Schedule: Core checks the same access and revision as on the schedule page.
       case "monitor_state":
@@ -129,6 +148,10 @@ export const mutateSeo = withSession<
       case "monitor_run_now":
         await taskScheduleService.runNow(command.monitorId, {
           expectedRevision: command.expectedRevision,
+          ...(command.allowLimitedAudit && { allowLimitedAudit: true }),
+          ...(command.searchConsolePropertyId && {
+            searchConsolePropertyId: command.searchConsolePropertyId,
+          }),
         });
         break;
       case "monitor_update":
@@ -138,13 +161,19 @@ export const mutateSeo = withSession<
         });
         break;
       case "request_analysis":
-        await seoServiceNoRedirect.requestAnalysis(owner, command.body);
+        await seoServiceNoRedirect.requestAnalysis(
+          owner,
+          withFullAuditPrice(command.body),
+        );
         break;
       case "save_keyword":
         await seoServiceNoRedirect.saveKeyword(owner, command.body);
         break;
       case "save_competitor":
         await seoServiceNoRedirect.saveCompetitor(owner, command.body);
+        break;
+      case "acknowledge_review":
+        await seoServiceNoRedirect.acknowledgeReview(owner, command.body);
         break;
       case "create_action_task":
         await seoServiceNoRedirect.createActionTask(owner, command.body);
@@ -167,10 +196,17 @@ export const mutateSeo = withSession<
   } catch (error) {
     const refusal = toCoreApiActionError(error);
     if (
-      command.kind === "request_analysis" &&
-      error instanceof CoreApiRequestError
+      command.kind === "request_analysis" ||
+      command.kind === "create_monitor" ||
+      command.kind === "monitor_run_now"
     )
-      refusal.status = error.status;
+      return toActionResult(
+        err({
+          code: refusal.code,
+          kind: refusal.kind,
+          ...(error instanceof CoreApiRequestError && { status: error.status }),
+        }),
+      );
     return toActionResult(err(refusal));
   }
 });

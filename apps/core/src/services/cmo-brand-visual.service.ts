@@ -1,4 +1,10 @@
-import { designMdBrandLook, designMdPalette } from "@sokosumi/utils";
+import { ssrfSafeFetch } from "@sokosumi/net";
+import {
+  designMdBrandLook,
+  designMdLogo,
+  designMdPalette,
+} from "@sokosumi/utils";
+import sharp from "sharp";
 
 import { getEnv } from "@/config/env";
 import { type BrandVisual, readBrandVisual } from "@/lib/brand-visual";
@@ -10,7 +16,15 @@ import {
 import { recordCoreWarning } from "@/lib/evlog";
 import { decodeEntities } from "@/lib/open-graph-html";
 import { resolveSiteIconAsProjectLogo } from "@/lib/site-icon";
+import {
+  CMO_BRAND_LOGO_FILES,
+  CMO_BRAND_LOGO_FOLDER,
+} from "@/services/cmo-brand-media.service";
 import type { Cuso } from "@/services/cmo-cuso.service";
+import {
+  cusoDrive,
+  saveCusoProjectFile,
+} from "@/services/cuso-project-files.service";
 
 /** The brand's look as CMO shows it, read from the Project. */
 export interface CmoBrandVisual {
@@ -103,13 +117,15 @@ const DESIGN_MD_POLL_MS = 3_000;
 const DESIGN_MD_BUDGET_MS = 120_000;
 
 /**
- * The brand's DESIGN.md from the Masumi DESIGN.md API (the service Web uses),
- * stored on the CMO Project. Null when the API is not configured or fails.
+ * The site's DESIGN.md from the Masumi DESIGN.md API (the service Web uses).
+ * `force` asks for a fresh reading instead of one it kept. Null when the API
+ * is not configured or fails.
  */
-async function generateProjectDesignMd(
+async function requestDesignMd(
   projectId: string,
   websiteUrl: string,
-): Promise<{ url: string; content: string } | null> {
+  force = false,
+): Promise<{ designMd: string; extractionId: string | null } | null> {
   const env = getEnv();
   if (!env.MASUMI_DESIGN_MD_API_KEY) return null;
   const { createDesignMdClient } = await import("@sokosumi/masumi/tools");
@@ -121,6 +137,7 @@ async function generateProjectDesignMd(
   // named the file after that page.
   let result = await client.submit({
     url: new URL("/", websiteUrl).toString(),
+    ...(force ? { force } : {}),
   });
   const deadline = Date.now() + DESIGN_MD_BUDGET_MS;
   while (
@@ -153,22 +170,148 @@ async function generateProjectDesignMd(
     return null;
   }
   const done = result.value;
-  const extractionId =
-    done.extractionId === null ? null : String(done.extractionId);
+  return {
+    designMd: done.designMd,
+    extractionId: done.extractionId === null ? null : String(done.extractionId),
+  };
+}
+
+/** The brand's DESIGN.md from the API, stored on the CMO Project. */
+async function generateProjectDesignMd(
+  projectId: string,
+  websiteUrl: string,
+): Promise<{ url: string; content: string } | null> {
+  const done = await requestDesignMd(projectId, websiteUrl);
+  if (!done) return null;
   const stored = await uploadDesignMdContent({
     content: done.designMd,
     owner: { kind: "project", id: projectId },
-    extractionId,
+    extractionId: done.extractionId,
   });
   if (!stored) return null;
   await prisma.project.update({
     where: { id: projectId },
     data: {
       designMdUrl: stored,
-      designMdExtractionId: extractionId,
+      designMdExtractionId: done.extractionId,
     },
   });
   return { url: stored, content: done.designMd };
+}
+
+const MAX_LOGO_BYTES = 2_000_000;
+const LOGO_TIMEOUT_MS = 10_000;
+/** A logo is kept this wide at most; an SVG is drawn at this width. */
+const LOGO_WIDTH = 1024;
+
+/**
+ * A logo file as a PNG that keeps its transparency: an SVG drawn at
+ * `LOGO_WIDTH` however small it declares itself, a bitmap never enlarged.
+ * Null for anything that is not one still image.
+ */
+export async function logoPng(bytes: Buffer): Promise<Buffer | null> {
+  try {
+    const first = await sharp(bytes, {
+      limitInputPixels: 16_000_000,
+    }).metadata();
+    if ((first.pages ?? 1) !== 1 || !first.width) return null;
+    const density =
+      first.format === "svg" && first.width < LOGO_WIDTH
+        ? Math.min(2400, Math.ceil((72 * LOGO_WIDTH) / first.width))
+        : undefined;
+    return await sharp(bytes, {
+      limitInputPixels: 16_000_000,
+      ...(density ? { density } : {}),
+    })
+      .timeout({ seconds: 4 })
+      .resize({
+        width: LOGO_WIDTH,
+        height: LOGO_WIDTH,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .png()
+      .toBuffer();
+  } catch {
+    return null;
+  }
+}
+
+/** Whether every visible pixel of a logo is near white. */
+async function lightOnly(png: Buffer): Promise<boolean> {
+  const { data, info } = await sharp(png)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  let visible = 0;
+  for (let at = 0; at < data.length; at += info.channels) {
+    if ((data[at + 3] ?? 0) < 32) continue;
+    visible += 1;
+    const luminance =
+      0.2126 * (data[at] ?? 0) +
+      0.7152 * (data[at + 1] ?? 0) +
+      0.0722 * (data[at + 2] ?? 0);
+    if (luminance < 200) return false;
+  }
+  return visible > 0;
+}
+
+type LogoOwner = Pick<
+  Cuso,
+  "projectId" | "websiteUrl" | "workspaceId" | "sokoBotId"
+>;
+
+/**
+ * Saves the logo a DESIGN.md names as the Project's files under "Brand
+ * research/Logo": the full logo, its version for a dark background and the
+ * square mark, each as a PNG. Returns how many were saved.
+ */
+export async function saveCmoBrandLogo(
+  cuso: LogoOwner,
+  designMd: string,
+): Promise<number> {
+  const logo = designMdLogo(designMd);
+  const drive = logo ? await cusoDrive(cuso) : null;
+  if (!logo || !drive) return 0;
+  let saved = 0;
+  for (const [key, name] of Object.entries(CMO_BRAND_LOGO_FILES)) {
+    const url = logo[key as keyof typeof CMO_BRAND_LOGO_FILES];
+    if (!url) continue;
+    const png = await ssrfSafeFetch(url, {
+      signal: AbortSignal.timeout(LOGO_TIMEOUT_MS),
+      maxResponseBytes: MAX_LOGO_BYTES,
+    })
+      .then(async (response) =>
+        response.ok ? logoPng(Buffer.from(await response.arrayBuffer())) : null,
+      )
+      .catch(() => null);
+    if (!png) continue;
+    // A header logo painted white by the site's CSS comes as a white file,
+    // invisible on a light page: it is the version for a dark background.
+    let filename = name;
+    if (key === "src" && (await lightOnly(png))) {
+      if (logo.srcDark) continue;
+      filename = CMO_BRAND_LOGO_FILES.srcDark;
+    }
+    const fileId = await saveCusoProjectFile(
+      drive,
+      { folder: CMO_BRAND_LOGO_FOLDER, filename: `${filename}.png` },
+      png,
+      "image/png",
+    );
+    if (fileId) saved += 1;
+  }
+  return saved;
+}
+
+/**
+ * Reads the site's logo again and saves it, for a Cuso whose Project has no
+ * logo files: one hired before DESIGN.md named the full logo, or one whose
+ * first reading failed. The Project's stored DESIGN.md is left as it is.
+ */
+export async function refreshCmoBrandLogo(cuso: LogoOwner): Promise<number> {
+  const done = await requestDesignMd(cuso.projectId, cuso.websiteUrl, true);
+  return done ? saveCmoBrandLogo(cuso, done.designMd) : 0;
 }
 
 /**
@@ -176,9 +319,7 @@ async function generateProjectDesignMd(
  * Studio read it: the site's best icon as the Project logo, and a DESIGN.md
  * from the API, else one of the site's own colours and fonts.
  */
-export async function learnCmoBrandVisual(
-  cuso: Pick<Cuso, "projectId" | "websiteUrl">,
-): Promise<void> {
+export async function learnCmoBrandVisual(cuso: LogoOwner): Promise<void> {
   const [site, , designMd] = await Promise.all([
     readBrandVisual(cuso.websiteUrl),
     resolveSiteIconAsProjectLogo(cuso.websiteUrl, cuso.projectId)
@@ -193,7 +334,11 @@ export async function learnCmoBrandVisual(
       .catch(() => null),
     generateProjectDesignMd(cuso.projectId, cuso.websiteUrl).catch(() => null),
   ]);
-  if (designMd) return;
+  if (designMd) {
+    // Best effort: the Brand Brain shows the Project's icon without them.
+    await saveCmoBrandLogo(cuso, designMd.content).catch(() => 0);
+    return;
+  }
   if (!site.siteName && site.colors.length === 0 && site.fonts.length === 0)
     return;
   const stored = await uploadDesignMdContent({

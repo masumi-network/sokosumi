@@ -91,7 +91,7 @@ it("shows what goes out this week and when the first numbers arrive, before any 
   expect(html).not.toContain("nothing to chart");
 });
 
-it("counts posts written for a network that is not connected as waiting, not as drafts", () => {
+it("says once that written posts wait for a network, with no tile row repeating the month", () => {
   const html = results({
     channels: [],
     posts: { draft: 2, scheduled: 0, published: 0, failed: 0 },
@@ -100,9 +100,54 @@ it("counts posts written for a network that is not connected as waiting, not as 
       { channel: "linkedin", status: "draft", date: inDays(2) },
     ]),
   });
-  expect(html).toContain("Waiting 2 for LinkedIn");
-  expect(html).toContain("2 posts are written and wait for LinkedIn.");
+  expect(html).toContain("2 posts wait for LinkedIn.");
+  expect(html).not.toContain("Waiting");
   expect(html).not.toContain("Drafts");
+});
+
+it("counts a post that did not go out apart from the written ones", () => {
+  const month = withCalendar([
+    { channel: "linkedin", status: "draft", date: inDays(-1) },
+    { channel: "linkedin", status: "draft", date: inDays(1) },
+  ]);
+  const [failed, written] = month.strategy.calendar;
+  if (!failed || !written) throw new Error("two entries");
+  const calendar = [{ ...failed, notSent: "LinkedIn refused it." }, written];
+  const strategy = { ...month.strategy, calendar };
+  const html = results({
+    channels: [linkedin],
+    strategy,
+    approvedStrategy: strategy,
+  });
+  expect(html).toContain("Written 1 ");
+  expect(html).toContain("Didn&#x27;t go out 1");
+});
+
+it("counts as drafts only the written posts the plan makes", () => {
+  const month = withCalendar([
+    { channel: "linkedin", status: "draft", date: inDays(1) },
+    { channel: "linkedin", status: "draft", date: inDays(2) },
+    { channel: "linkedin", status: "draft", date: inDays(3) },
+  ]);
+  const unwritten = month.strategy.calendar.map((entry, index) =>
+    index === 0
+      ? { ...entry, status: "idea" as const, draft: undefined }
+      : entry,
+  );
+  const calendar = { strategy: { ...month.strategy, calendar: unwritten } };
+  const html = results({
+    channels: [linkedin],
+    // Core counts every Social post row: placeholders and posts beyond the plan.
+    posts: { draft: 149, scheduled: 0, published: 0, failed: 0 },
+    ...calendar,
+    approvedStrategy: calendar.strategy,
+    production: {
+      ...cmoOverview().production,
+      beyondPlan: ["p2"],
+    },
+  });
+  expect(html).toContain("Written 1 ");
+  expect(html).not.toContain("149");
 });
 
 it("lists sending the newsletter as soon, and TikTok once, only where it can be connected", () => {
@@ -115,7 +160,7 @@ it("lists sending the newsletter as soon, and TikTok once, only where it can be 
       addMailingList={async () => ({ overview: null, error: null })}
       onChange={() => {}}
       openSeo={() => {}}
-      connectSearchConsole={async () => ({ url: null, error: null })}
+      connectMeasurement={async () => ({ url: null, error: null })}
     />,
   );
   expect(html).not.toContain("<b>TikTok</b>");
@@ -130,10 +175,55 @@ it("lists sending the newsletter as soon, and TikTok once, only where it can be 
       addMailingList={async () => ({ overview: null, error: null })}
       onChange={() => {}}
       openSeo={() => {}}
-      connectSearchConsole={async () => ({ url: null, error: null })}
+      connectMeasurement={async () => ({ url: null, error: null })}
     />,
   );
   expect(enabled.match(/<b>TikTok<\/b>/g)).toHaveLength(1);
   expect(text(enabled)).toContain("You confirm each video before it goes out.");
   expect(text(html)).not.toMatch(/coming soon/i);
+});
+
+it("draws the month by network: what is out of each network's posts", () => {
+  const base = cmoOverview().strategy;
+  if (!base) throw new Error("The fixture has a strategy");
+  const entry = (
+    id: string,
+    channel: string,
+    status: "published" | "scheduled",
+  ) => ({ id, date: "2026-11-02", channel, title: id, format: "post", status });
+  const html = renderToStaticMarkup(
+    <ResultsPage
+      overview={cmoOverview({
+        ...cmoStrategyVersion(new Date("2026-11-02T09:00:00Z")),
+        updates: [],
+        strategy: {
+          ...base,
+          calendar: [
+            entry("a", "linkedin", "published"),
+            entry("b", "linkedin", "scheduled"),
+            entry("c", "linkedin", "scheduled"),
+            entry("d", "x", "published"),
+          ],
+        },
+      })}
+      compose={() => {}}
+      openUpdate={() => {}}
+      openView={() => {}}
+      connectMeasurement={async () => ({ url: null, error: null })}
+      ads={{
+        loadAdCampaigns: async () => [],
+        setAdCampaignStatus: async () => ({ overview: null, error: null }),
+      }}
+      onChange={() => {}}
+    />,
+  );
+  expect(html).toContain('aria-label="LinkedIn: 1 of 3 out"');
+  expect(html).toContain('aria-label="X: 1 of 1 out"');
+  expect(html).toContain(
+    'aria-label="Out 2, Scheduled 2, Written 0, To make 0"',
+  );
+  // The longest bar is the network with the most posts.
+  expect(html.indexOf("LinkedIn: 1 of 3")).toBeLessThan(
+    html.indexOf("X: 1 of 1"),
+  );
 });

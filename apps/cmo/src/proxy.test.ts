@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { hasSessionCookie, renewSession } from "./lib/auth";
-import { config, LANDING_PATH, proxy, showsLanding } from "./proxy";
+import { config, proxy } from "./proxy";
 
 /** CMO's public origin, as `getAuth().options.baseURL` reports it. */
 const cmo = vi.hoisted(() => ({ baseURL: "https://app.cmo.xyz" }));
@@ -27,24 +27,14 @@ afterEach(() => {
   vi.mocked(listCmoCusos).mockReset();
 });
 
-it("shows the waitlist site to a signed-out visitor of the home page", async () => {
+it("lets the home page send a signed-out visitor on to sign in", async () => {
   vi.mocked(renewSession).mockResolvedValue(
     new Response(null, { status: 204 }),
   );
 
   const response = await proxy(new NextRequest("https://app.cmo.xyz/"));
 
-  expect(response.headers.get("x-middleware-rewrite")).toBe(
-    `https://app.cmo.xyz${LANDING_PATH}`,
-  );
-});
-
-it("leaves the app to the signed in, and errors and other pages to the app", () => {
-  const url = (path: string) => new URL(`https://app.cmo.xyz${path}`);
-  expect(showsLanding(url("/"), false)).toBe(true);
-  expect(showsLanding(url("/"), true)).toBe(false);
-  expect(showsLanding(url("/?error=state_mismatch"), false)).toBe(false);
-  expect(showsLanding(url("/login"), false)).toBe(false);
+  expect(response.headers.has("x-middleware-rewrite")).toBe(false);
 });
 
 it("renders the app for a visitor with a session", async () => {
@@ -108,16 +98,14 @@ it("remembers on this device the Cuso an address opens", async () => {
   vi.mocked(hasSessionCookie).mockReturnValue(false);
 });
 
-const BRANCH_ALIAS = "https://sokosumi-cmo-git-sok-1-fix.preview.cmo.xyz";
+const BRANCH_ALIAS = "https://cmo-app-git-sok-1-fix.preview.cmo.xyz";
 
 it("moves a preview's deployment URL to its branch alias, where sign in lands", async () => {
   vi.stubEnv("VERCEL_ENV", "preview");
   cmo.baseURL = BRANCH_ALIAS;
 
   const response = await proxy(
-    new NextRequest(
-      "https://sokosumi-cmo-abc123.preview.cmo.xyz/signin?ref=mail",
-    ),
+    new NextRequest("https://cmo-app-abc123.preview.cmo.xyz/signin?ref=mail"),
   );
 
   expect(response.status).toBe(308);
@@ -132,9 +120,7 @@ it("keeps a protocol-relative path on the branch alias", async () => {
   cmo.baseURL = BRANCH_ALIAS;
 
   const response = await proxy(
-    new NextRequest(
-      "https://sokosumi-cmo-abc123.preview.cmo.xyz//evil.example/x",
-    ),
+    new NextRequest("https://cmo-app-abc123.preview.cmo.xyz//evil.example/x"),
   );
 
   expect(response.status).toBe(308);
@@ -148,7 +134,7 @@ it.each([
   ["a preview on its branch alias", "preview", `${BRANCH_ALIAS}/`],
   // Behind a local proxy, Next.js sees its own host, not CMO's origin.
   ["local development", undefined, "http://cmo-internal:3100/"],
-  ["production", "production", "https://sokosumi-cmo.vercel.app/"],
+  ["production", "production", "https://cmo-app.vercel.app/"],
 ])("keeps the host for %s", async (_case, vercelEnv, url) => {
   vi.stubEnv("VERCEL_ENV", vercelEnv);
   if (vercelEnv === "preview") cmo.baseURL = BRANCH_ALIAS;

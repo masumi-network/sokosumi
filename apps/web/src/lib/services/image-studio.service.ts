@@ -2,14 +2,16 @@ import "server-only";
 
 import type {
   CreateProjectImageJobRequest,
+  CreateProjectShortVideoJobRequest,
   CreateProjectTalkingVideoJobRequest,
   CreateProjectVideoJobRequest,
+  GetProjectsByIdImageStudioTalkingVideosData,
+  GetProjectsByIdImageStudioTalkingVideosResponses,
   ImageStudioRecentProjects,
   ProjectImageJob,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
   ProjectTalkingVideoScripts,
-  ProjectTalkingVideos,
   SaveStudioBrandCopy,
   SaveStudioBrandLook,
   SaveStudioPairwisePick,
@@ -18,8 +20,12 @@ import type {
   StudioProductCatalog,
   StudioProductImport,
   StudioProductPhoto,
+  WriteProjectTalkingVideoScriptsRequest,
 } from "@sokosumi/core-client";
 import { coreClient } from "@/lib/clients/core.client";
+
+export type TalkingVideoPage =
+  GetProjectsByIdImageStudioTalkingVideosResponses[200]["data"];
 
 interface StudioStateQuery {
   assetId?: string;
@@ -214,16 +220,34 @@ export const imageStudioService = {
     return result.data;
   },
 
+  async createShortVideoJob(
+    projectId: string,
+    input: CreateProjectShortVideoJobRequest,
+  ): Promise<ProjectImageJob> {
+    const result = await coreClient.postProjectsByIdImageStudioShortVideoJobs(
+      projectId,
+      input,
+    );
+    return result.data;
+  },
+
   /** Answering this settles finished talking videos, like `getState`. */
-  async getTalkingVideos(projectId: string): Promise<ProjectTalkingVideos> {
-    const result =
-      await coreClient.getProjectsByIdImageStudioTalkingVideos(projectId);
+  async getTalkingVideos(
+    projectId: string,
+    query?: GetProjectsByIdImageStudioTalkingVideosData["query"],
+    signal?: AbortSignal,
+  ): Promise<TalkingVideoPage> {
+    const result = await coreClient.getProjectsByIdImageStudioTalkingVideos(
+      projectId,
+      query,
+      signal,
+    );
     return result.data;
   },
 
   async writeTalkingVideoScripts(
     projectId: string,
-    input: { topic?: string; languageCode: string },
+    input: WriteProjectTalkingVideoScriptsRequest,
   ): Promise<ProjectTalkingVideoScripts["scripts"]> {
     const result =
       await coreClient.postProjectsByIdImageStudioTalkingVideoScripts(

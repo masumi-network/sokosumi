@@ -1,11 +1,15 @@
 import { randomUUID } from "node:crypto";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
 import prisma from "@/lib/db/prisma";
 import { fakeMcpServer } from "@/lib/evals/fake-mcp-server";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { mcpServerTarget } from "@/services/soko-bot-mcp.service";
+import {
+  mcpServerTarget,
+  parseSokoBotMcpTools,
+} from "@/services/soko-bot-mcp.service";
 
 import { mountSokoBotMcpServerRoutes } from "./mcp-servers";
 
@@ -73,15 +77,15 @@ describe.skipIf(!enabled)("Soko Bot MCP servers against PostgreSQL", () => {
 
   beforeAll(async () => {
     for (const id of [OWNER, STRANGER])
-      await prisma.$executeRaw`INSERT INTO "user" (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${id}, ${id}, ${`${id}@fixture.invalid`}, true, now(), now())`;
-    await prisma.$executeRaw`INSERT INTO workspace (id, "userId", "updatedAt") VALUES (${WS}::uuid, ${OWNER}, now())`;
-    await prisma.$executeRaw`INSERT INTO soko_bot (id, "userId", "workspaceId", "updatedAt") VALUES (${BOT}::uuid, ${OWNER}, ${WS}::uuid, now())`;
+      await prisma.$executeRaw`INSERT INTO ${sharedTable("user")} (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${id}, ${id}, ${`${id}@fixture.invalid`}, true, now(), now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("workspace")} (id, "userId", "updatedAt") VALUES (${WS}::uuid, ${OWNER}, now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("soko_bot")} (id, "userId", "workspaceId", "updatedAt") VALUES (${BOT}::uuid, ${OWNER}, ${WS}::uuid, now())`;
   });
 
   afterAll(async () => {
-    await prisma.$executeRaw`DELETE FROM soko_bot WHERE id = ${BOT}::uuid`;
-    await prisma.$executeRaw`DELETE FROM workspace WHERE id = ${WS}::uuid`;
-    await prisma.$executeRaw`DELETE FROM "user" WHERE id IN (${OWNER}, ${STRANGER})`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("soko_bot")} WHERE id = ${BOT}::uuid`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("workspace")} WHERE id = ${WS}::uuid`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("user")} WHERE id IN (${OWNER}, ${STRANGER})`;
   });
 
   it("connects, reads the tools, and keeps the key encrypted and unseen", async () => {
@@ -183,5 +187,106 @@ describe.skipIf(!enabled)("Soko Bot MCP servers against PostgreSQL", () => {
     expect(
       await prisma.sokoBotMcpServer.count({ where: { sokoBotId: BOT } }),
     ).toBe(0);
+  });
+});
+
+describe.skipIf(!enabled)("signing in to an MCP server with OAuth", () => {
+  const OAUTH_OWNER = `owner-${randomUUID()}`;
+  const OAUTH_WS = randomUUID();
+  const OAUTH_BOT = randomUUID();
+  const oauthServer = fakeMcpServer({ tools, oauth: true });
+
+  function oauthApp() {
+    const hono = new OpenAPIHonoWithAuth();
+    hono.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "user",
+        userId: OAUTH_OWNER,
+        organizationId: null,
+        role: "user",
+        authenticationMethod: "session",
+      });
+      return await next();
+    });
+    hono.onError(errorHandler);
+    mountSokoBotMcpServerRoutes(hono, oauthServer.fetch);
+    return hono;
+  }
+
+  beforeAll(async () => {
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("user")} (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${OAUTH_OWNER}, ${OAUTH_OWNER}, ${`${OAUTH_OWNER}@fixture.invalid`}, true, now(), now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("workspace")} (id, "userId", "updatedAt") VALUES (${OAUTH_WS}::uuid, ${OAUTH_OWNER}, now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("soko_bot")} (id, "userId", "workspaceId", "updatedAt") VALUES (${OAUTH_BOT}::uuid, ${OAUTH_OWNER}, ${OAUTH_WS}::uuid, now())`;
+  });
+
+  afterAll(async () => {
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("soko_bot")} WHERE id = ${OAUTH_BOT}::uuid`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("workspace")} WHERE id = ${OAUTH_WS}::uuid`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("user")} WHERE id = ${OAUTH_OWNER}`;
+  });
+
+  it("sends the owner to the server's sign-in page, then reads the tools with the token", async () => {
+    const added = await oauthApp().request(
+      `http://localhost/${OAUTH_BOT}/mcp-servers`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Notes",
+          url: "https://mcp.example.test/mcp",
+          auth: { type: "oauth" },
+        }),
+      },
+    );
+    expect(added.status).toBe(200);
+    const body = (await added.json()).data;
+    const signIn = new URL(body.authorizationUrl);
+    expect(signIn.origin + signIn.pathname).toBe(
+      "https://mcp.example.test/authorize",
+    );
+    expect(signIn.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(signIn.searchParams.get("client_id")).toBe("client-1");
+    expect(signIn.searchParams.get("resource")).toBe(
+      "https://mcp.example.test/mcp",
+    );
+    const state = signIn.searchParams.get("state") ?? "";
+    expect(state.startsWith(`${body.id}.`)).toBe(true);
+    expect(body.tools).toEqual([]);
+
+    // A forged state is refused and changes nothing.
+    const forged = await oauthApp().request(
+      `http://localhost/mcp-oauth/callback?code=code-1&state=${body.id}.forged`,
+    );
+    expect(forged.headers.get("location")).toContain("mcp=failed");
+
+    const back = await oauthApp().request(
+      `http://localhost/mcp-oauth/callback?code=code-1&state=${encodeURIComponent(state)}`,
+    );
+    expect(back.status).toBe(302);
+    expect(back.headers.get("location")).toContain(
+      "/personal-assistant?view=advanced&mcp=connected",
+    );
+    const exchange = oauthServer.tokenRequests.at(-1);
+    expect(exchange?.get("grant_type")).toBe("authorization_code");
+    expect(exchange?.get("code_verifier")?.length).toBeGreaterThan(40);
+
+    const row = await prisma.sokoBotMcpServer.findUniqueOrThrow({
+      where: { id: body.id },
+    });
+    expect(row.credentialCiphertext).not.toContain("access-1");
+    expect(
+      parseSokoBotMcpTools(row.tools).map((tool) => [tool.name, tool.enabled]),
+    ).toEqual([
+      ["search_issues", true],
+      ["create_issue", true],
+    ]);
+    expect(
+      oauthServer.requests.some(
+        (request) =>
+          request.rpcMethod === "tools/list" &&
+          request.headers.authorization === "Bearer access-1",
+      ),
+    ).toBe(true);
   });
 });

@@ -4,7 +4,8 @@ import type { ProjectSeoAction } from "@sokosumi/core-client";
 import { Check, Copy } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { useClipboard } from "@/hooks/use-clipboard";
+import { useClipboard } from "@/hooks/effects/use-clipboard";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 
 /** A button that copies one text, and says so for a moment. */
 export function SeoCopyButton({
@@ -44,17 +45,23 @@ export function useSeoActionInstructions(
   action: ProjectSeoAction,
   finding: string,
 ): string {
-  const t = useTranslations("App.Seo");
+  const t = useSeoResultTranslations("App.Seo");
   return [
     t("actions.copyAgentLead"),
     action.title,
     `${t("actions.copyPage")}: ${action.pageUrl}`,
     finding,
     // Without an issue behind it the finding line is the effect: it is not said twice.
-    finding === action.expectedEffect
+    action.decision || finding === action.expectedEffect
       ? null
       : `${t("actions.effect")}: ${action.expectedEffect}`,
-    action.why,
+    finding === action.why ? null : action.why,
+    action.decision
+      ? `${t("actions.alternative")}: ${action.decision.alternative}`
+      : null,
+    action.decision
+      ? `${t("actions.nextCheck")}: ${action.decision.nextCheck}`
+      : null,
     action.evidence.length
       ? action.evidence.map((line) => `- ${line}`).join("\n")
       : null,

@@ -6,6 +6,7 @@ const {
   turnUpdate,
   turnFind,
   toolCallFind,
+  runtimeEventFind,
   eventTransaction,
 } = vi.hoisted(() => ({
   buildActionResponseMock: vi.fn(),
@@ -13,6 +14,7 @@ const {
   turnUpdate: vi.fn(),
   turnFind: vi.fn(),
   toolCallFind: vi.fn(),
+  runtimeEventFind: vi.fn(),
   eventTransaction: vi.fn(),
 }));
 
@@ -20,6 +22,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: { update: turnUpdate, findUnique: turnFind },
     sokoBotToolCall: { findMany: toolCallFind },
+    sokoBotRuntimeEvent: { findFirst: runtimeEventFind },
     $transaction: eventTransaction,
   },
 }));
@@ -29,15 +32,108 @@ vi.mock("./action-response", async (importOriginal) => ({
   buildActionResponse: buildActionResponseMock,
 }));
 
-import { expectCoreLogWhys } from "@/test/core-log";
 import {
-  contextBlock,
+  getSokoBotVersion,
+  SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
+} from "@sokosumi/soko-bot";
+import { expectCoreLogWhys } from "@/test/core-log";
+import { withPromptCache } from "./stream-model-call";
+import {
   finishTurn,
-  latestExchange,
+  isOwnerDirected,
+  isTaintBlocked,
+  offeredCapabilities,
+  promptCacheKey,
   RuntimeEventLog,
   runtimeEvent,
+  SANDBOX_GUIDANCE,
   sokoBotMaxSteps,
+  sokoBotToolCallTimeoutMs,
+  stableCapabilities,
+  turnRequiresActionProof,
+  WEB_GUIDANCE,
 } from "./turn-loop";
+
+describe("a version with one fixed tool set", () => {
+  const v24 = getSokoBotVersion("cmo-v24");
+
+  it("offers the same tools whatever the route granted", () => {
+    const narrow = stableCapabilities(v24, ["read_calendar"]);
+    expect(stableCapabilities(v24, ["create_task", "read_calendar"])).toEqual(
+      narrow,
+    );
+    expect(narrow).toContain("save_strategy");
+    expect(narrow).toContain("read_skill");
+    expect(narrow).not.toContain("search_exa");
+    expect(stableCapabilities(v24, ["search_exa"])).toContain("search_exa");
+  });
+
+  it("decides the answer format from the offered tools, start and finish alike", () => {
+    const readOnly = {
+      grant: { capabilities: ["read_calendar"] },
+      turn: { source: "SCHEDULE", chainDepth: 0 },
+    } as never;
+    const offered = offeredCapabilities(v24, readOnly, { sandbox: true });
+    expect(offered).toContain("create_social_post");
+    expect(turnRequiresActionProof(offered)).toBe(true);
+    // Before the fixed tool set, the grant alone decided.
+    expect(turnRequiresActionProof(["read_calendar"])).toBe(false);
+  });
+
+  it("offers the sandbox's own tools only when the route grants them", () => {
+    const v36 = { ...getSokoBotVersion("v36"), skillsOnDemand: true as const };
+    const scheduled = stableCapabilities(v36, ["create_task"]);
+    expect(scheduled).not.toContain("bash");
+    expect(scheduled).not.toContain("web_fetch");
+    expect(scheduled).toContain("create_task");
+    expect(scheduled).toContain("hire_agent");
+    const asked = stableCapabilities(v36, ["bash", "web_fetch"]);
+    expect(asked).toContain("bash");
+    expect(asked).toContain("web_fetch");
+  });
+
+  it("keys the cache by system prompt and tools, not by turn", () => {
+    const key = promptCacheKey("cmo-v24", "system", ["a", "b"], []);
+    expect(promptCacheKey("cmo-v24", "system", ["a", "b"], [])).toBe(key);
+    expect(promptCacheKey("cmo-v24", "system", ["a"], [])).not.toBe(key);
+    expect(
+      promptCacheKey("cmo-v24", "system", ["a", "b"], ["save_strategy"]),
+    ).not.toBe(key);
+    expect(key).toMatch(/^cmo-v24:[0-9a-f]{16}$/);
+  });
+
+  it("asks OpenAI to keep the prefix as long as the model allows", () => {
+    expect(
+      withPromptCache(
+        { openai: { reasoningSummary: "auto" } },
+        "cmo-v24:k",
+        "openai/gpt-6-luna",
+      ),
+    ).toEqual({
+      openai: {
+        reasoningSummary: "auto",
+        promptCacheKey: "cmo-v24:k",
+        promptCacheOptions: { ttl: "12h" },
+      },
+    });
+    expect(
+      withPromptCache<Record<string, unknown>>({}, "v36:k", "openai/gpt-5.4")
+        .openai,
+    ).toMatchObject({ promptCacheRetention: "24h" });
+    const plain = { openai: { reasoningSummary: "auto" } };
+    expect(withPromptCache(plain, null, "openai/gpt-6-luna")).toBe(plain);
+  });
+});
+
+describe("sokoBotToolCallTimeoutMs", () => {
+  it("gives the month writer its time, inside the sandbox runner's two minutes", () => {
+    expect(sokoBotToolCallTimeoutMs("write_month_pieces")).toBe(115_000);
+    expect(sokoBotToolCallTimeoutMs("write_month_pieces")).toBeLessThan(
+      120_000,
+    );
+    expect(sokoBotToolCallTimeoutMs("save_strategy")).toBe(90_000);
+  });
+});
 
 describe("RuntimeEventLog", () => {
   it("gives a large batch of parallel requests one slot each, under the turn's lock", async () => {
@@ -48,6 +144,7 @@ describe("RuntimeEventLog", () => {
       async (operation: (tx: unknown) => Promise<unknown>) => {
         let release = () => {};
         const tx = {
+          $queryRaw: async () => [{ now: new Date() }],
           $executeRaw: async (_sql: TemplateStringsArray, key: string) => {
             const previous = locks.get(key) ?? Promise.resolve();
             const held = new Promise<void>((resolve) => {
@@ -91,110 +188,6 @@ describe("RuntimeEventLog", () => {
     expect([...taken].sort((a, b) => a - b)).toEqual(
       Array.from({ length: 40 }, (_, index) => index),
     );
-  });
-});
-
-describe("contextBlock", () => {
-  it("states the reply language last, after the packet and the latest exchange", () => {
-    const now = Date.parse("2026-09-30T21:27:00Z");
-    const lines = contextBlock(
-      {
-        recentTurns: [
-          {
-            source: "CHAT",
-            userMessage: "Erinnere mich jeden Montag.",
-            finalAnswer: "Soll ich das so einrichten?",
-            completedAt: "2026-09-30T21:26:00Z",
-          },
-        ],
-      },
-      '{"memory":"Standup auf Deutsch"}',
-      now,
-    );
-    const language = lines.findIndex((line) =>
-      line.startsWith("Reply in the language of the owner's latest message"),
-    );
-    expect(language).toBe(lines.length - 1);
-    expect(lines.findIndex((line) => line.startsWith("You: Soll ich"))).toBe(
-      language - 2,
-    );
-  });
-});
-
-describe("latestExchange", () => {
-  const now = Date.parse("2026-09-30T18:05:14Z");
-  const offer = {
-    source: "CHAT",
-    userMessage: "Swap Gravity for a better one and update the file.",
-    finalAnswer: `${"Research table… ".repeat(60)}Want me to replace the Gravity row in competitors-r5.md?`,
-    completedAt: "2026-09-30T18:03:40Z",
-  };
-
-  it("repeats the bot's own offer in full, so a bare yes can answer it", () => {
-    const block = latestExchange({ recentTurns: [offer] }, now).join("\n");
-    expect(block).toContain("LATEST EXCHANGE");
-    expect(block).toContain(
-      "Want me to replace the Gravity row in competitors-r5.md?",
-    );
-    expect(block).toContain(`Owner: ${offer.userMessage}`);
-  });
-
-  it("repeats a post the bot made on its own, without Core's prompt", () => {
-    const block = latestExchange(
-      {
-        recentTurns: [
-          {
-            ...offer,
-            source: "INGEST",
-            userMessage: "New mail arrived that looks important…",
-            finalAnswer:
-              "DigitalOcean — masumi-payment-dev: deployment failed.",
-          },
-        ],
-      },
-      now,
-    ).join("\n");
-    expect(block).toContain(
-      "You, posted on your own (ingest): DigitalOcean — masumi-payment-dev: deployment failed.",
-    );
-    expect(block).not.toContain("Owner:");
-  });
-
-  it("repeats every post the bot made on its own since the owner last wrote", () => {
-    const post = (source: string, finalAnswer: string) => ({
-      ...offer,
-      source,
-      finalAnswer,
-    });
-    const block = latestExchange(
-      {
-        recentTurns: [
-          offer,
-          post("INGEST", "Make — s_New_Registration: two recent errors."),
-          post("INGEST", "DigitalOcean — masumi-payment-dev: deploy failed."),
-          post("SCHEDULE", "End of day: one Task completed."),
-        ],
-      },
-      now,
-    ).join("\n");
-    expect(block).not.toContain("Owner:");
-    expect(block).not.toContain("Want me to replace");
-    for (const line of [
-      "You, posted on your own (ingest): Make — s_New_Registration: two recent errors.",
-      "You, posted on your own (ingest): DigitalOcean — masumi-payment-dev: deploy failed.",
-      "You, posted on your own (schedule): End of day: one Task completed.",
-    ])
-      expect(block).toContain(line);
-  });
-
-  it("stays out when the last turn is a day old or missing", () => {
-    const exchange = (turns: unknown[]) =>
-      latestExchange({ recentTurns: turns }, now);
-    expect(
-      exchange([{ ...offer, completedAt: "2026-09-28T18:00:00Z" }]),
-    ).toEqual([]);
-    expect(exchange([])).toEqual([]);
-    expect(latestExchange({ memory: {} }, now)).toEqual([]);
   });
 });
 
@@ -244,10 +237,12 @@ describe("finishTurn", () => {
     });
   });
 
-  it("drops a message that claims an action no receipt proves", async () => {
-    const warnings = expectCoreLogWhys("warn", "Withheld a Soko Bot reply", [
-      "The reply claims a change that no action receipt confirms",
-    ]);
+  it("drops a message that is nothing but a claim no receipt proves", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
     claimsActionMock.mockResolvedValue(true);
     await finish("I created the task and assigned it to Hannah.", true);
     expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
@@ -255,9 +250,146 @@ describe("finishTurn", () => {
     });
     // Counted, never quoted.
     expect(warnings[0]?.event).toMatchObject({
-      replyWithheld: { reason: "claims_unconfirmed_change" },
+      replyChecked: { reason: "claims_unconfirmed_change" },
     });
     expect(JSON.stringify(warnings[0]?.event)).not.toContain("Hannah");
+  });
+
+  it("keeps the rest of a reply when only one sentence claims a change", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    await finish(
+      "Your Padierfind project has an X account. I created the schedule. Approve the draft when you are ready?",
+      true,
+    );
+    const narrative = buildActionResponseMock.mock.calls[0][4];
+    expect(narrative.message).toBe(
+      "Your Padierfind project has an X account. Approve the draft when you are ready?",
+    );
+    // The note is Core's, rendered beside the message, not inside it.
+    expect(narrative.replyCheck).toBe("cut");
+    expect(claimsActionMock).toHaveBeenLastCalledWith(
+      "Your Padierfind project has an X account. Approve the draft when you are ready?",
+      [],
+    );
+  });
+
+  it("keeps a blocker that negates a list of changes", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    await finish(
+      "I created the schedule. The post has not been drafted, scheduled, or published because the X account needs your approval. Nothing was posted — I drafted it.",
+      true,
+    );
+    expect(buildActionResponseMock.mock.calls[0][4].message).toBe(
+      "The post has not been drafted, scheduled, or published because the X account needs your approval.",
+    );
+  });
+
+  it("cuts only the bot's own claims and keeps what others did", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    await finish(
+      [
+        "Hannah sent the recording on Monday.",
+        "The reviewer added two comments to the Task.",
+        "I created the weekly schedule.",
+        "The draft was saved to your Project.",
+        "Drafted three options for you.",
+      ].join(" "),
+      true,
+    );
+    expect(buildActionResponseMock.mock.calls[0][4].message).toBe(
+      "Hannah sent the recording on Monday. The reviewer added two comments to the Task.",
+    );
+  });
+
+  it("does not read a comma between two verbs as one negated list", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    await finish(
+      "The review is in. Nothing was posted, drafted 3 options for you. No posts were published, saved the draft instead. It was not drafted or posted yet.",
+      true,
+    );
+    expect(buildActionResponseMock.mock.calls[0][4].message).toBe(
+      "The review is in. It was not drafted or posted yet.",
+    );
+  });
+
+  it("does not keep a claim because an earlier clause is negative", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    await finish(
+      "The research is in. No one objected, so I created the schedule. Nothing was posted, I drafted it for you.",
+      true,
+    );
+    expect(buildActionResponseMock.mock.calls[0][4].message).toBe(
+      "The research is in.",
+    );
+  });
+
+  it("shows the cut reply as unchecked when the second check cannot run", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(null);
+    await finish(
+      "Your Padierfind project has an X account. I created the schedule.",
+      true,
+    );
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: "Your Padierfind project has an X account.",
+      replyCheck: "unchecked",
+    });
+  });
+
+  it("keeps a true blocker when it cuts an unconfirmed claim", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    await finish(
+      "I sent the brief to Hannah. No posts have been drafted because the account still needs approval. I created the schedule. I scheduled the post, which needs your approval.",
+      true,
+    );
+    expect(buildActionResponseMock.mock.calls[0][4].message).toBe(
+      "No posts have been drafted because the account still needs approval.",
+    );
+  });
+
+  it("drops what is left when it still claims a change", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValue(true);
+    await finish("Hannah is on it now. I created the schedule.", true);
+    expect(buildActionResponseMock.mock.calls[0][4].message).toBeNull();
   });
 
   it("lets the message report the changes its receipts confirm", async () => {
@@ -272,15 +404,106 @@ describe("finishTurn", () => {
     );
   });
 
-  it("says so when the message could not be checked", async () => {
-    expectCoreLogWhys("warn", "Withheld a Soko Bot reply", [
-      "The check for claims of unconfirmed changes could not run",
+  it("includes completed CMO saves in confirmedChanges and ignores unwritten strategy/month results", async () => {
+    toolCallFind.mockResolvedValue([
+      { capability: "save_brand_brain", result: { saved: "brandBrain" } },
+      { capability: "save_strategy", result: { saved: "strategy" } },
+      {
+        capability: "write_strategy",
+        result: { written: true, versionId: "v2" },
+      },
+      { capability: "write_month_pieces", result: { written: 4, left: 0 } },
     ]);
-    claimsActionMock.mockResolvedValue(null);
-    await finish("Here is what I found.", true);
-    expect(buildActionResponseMock.mock.calls[0][4].message).toContain(
-      "could not be checked",
+    await finish(
+      "I updated your Brand Brain, strategy, and month pieces.",
+      true,
     );
+    expect(toolCallFind).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            {
+              capability: {
+                in: expect.arrayContaining([
+                  "save_seo_suggestions",
+                  "save_brand_brain",
+                  "save_strategy",
+                  "write_strategy",
+                  "write_month_pieces",
+                ]),
+              },
+            },
+          ]),
+        }),
+      }),
+    );
+    expect(claimsActionMock).toHaveBeenCalledWith(
+      "I updated your Brand Brain, strategy, and month pieces.",
+      ["Saved Brand Brain", "Saved marketing strategy", "Wrote month pieces"],
+    );
+
+    claimsActionMock.mockClear();
+    toolCallFind.mockResolvedValue([
+      {
+        capability: "write_strategy",
+        result: { written: false, reason: "err" },
+      },
+      { capability: "write_strategy", result: { writing: true } },
+      { capability: "write_month_pieces", result: { written: 0, left: 0 } },
+    ]);
+    await finish("Still working on your strategy.", true);
+    expect(claimsActionMock).toHaveBeenCalledWith(
+      "Still working on your strategy.",
+      [],
+    );
+  });
+
+  describe("when the check cannot run", () => {
+    beforeEach(() => {
+      expectCoreLogWhys(
+        "warn",
+        "Showed a Soko Bot reply its claim check could not check",
+        ["The check for claims of unconfirmed changes could not run"],
+      );
+      claimsActionMock.mockResolvedValue(null);
+    });
+
+    it("shows the reply, never withholds it", async () => {
+      await finish("Here is what I found: two X accounts.", true);
+      const narrative = buildActionResponseMock.mock.calls[0][4];
+      expect(narrative.message).toBe("Here is what I found: two X accounts.");
+      expect(narrative.replyCheck).toBe("unchecked");
+    });
+
+    it("never lets an unconfirmed claim through", async () => {
+      // Joseph's prod turn: only a message was sent.
+      await finish(
+        "I created the weekly schedule and drafted three posts.",
+        true,
+      );
+      expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+        message: null,
+        replyCheck: "unchecked",
+      });
+    });
+
+    it("cuts the claim from a reply at the length limit, keeping the rest", async () => {
+      const body = [
+        "I created the weekly schedule.",
+        ...Array.from(
+          { length: 160 },
+          (_, i) =>
+            `Week ${i + 1}: the team is reviewing the available time slots.`,
+        ),
+      ]
+        .join("\n")
+        .slice(0, 7_960);
+      await finish(body, true);
+      const message = buildActionResponseMock.mock.calls[0][4].message;
+      expect(message).not.toContain("I created the weekly schedule.");
+      expect(message).toContain("Week 1: the team is reviewing");
+      expect(message.length).toBeLessThanOrEqual(8_000);
+    });
   });
 
   it("checks the stored message too, which settlement shows again", async () => {
@@ -346,5 +569,264 @@ describe("sokoBotMaxSteps", () => {
     expect(sokoBotMaxSteps(15 * 60 * 1_000)).toBe(40);
     expect(sokoBotMaxSteps(60 * 60 * 1_000)).toBe(160);
     expect(sokoBotMaxSteps(60_000)).toBe(40);
+  });
+});
+
+describe("isOwnerDirected and isTaintBlocked", () => {
+  const ownerChat = {
+    id: "turn-direct",
+    sokoBotId: "bot-1",
+    workspaceId: "ws-1",
+    versionId: "v36" as string | null,
+    source: "CHAT",
+    clientTurnId: "chat:1",
+    parentTurnId: null as string | null,
+    askedByUserId: null as string | null,
+    requestedByUserId: "owner-1",
+    chainDepth: 0,
+    sokoBot: { userId: "owner-1" as string | null },
+    parentTurn: null as Record<string, unknown> | null,
+  };
+
+  it("treats direct owner CHAT turns (including chatMentionId: null) as owner-directed", async () => {
+    turnFind.mockResolvedValue(ownerChat);
+    expect(await isOwnerDirected("turn-direct")).toBe(true);
+
+    turnFind.mockResolvedValue({ ...ownerChat, askedByUserId: "owner-1" });
+    expect(await isOwnerDirected("turn-shared-member")).toBe(true);
+
+    turnFind.mockResolvedValue({ ...ownerChat, askedByUserId: "teammate-2" });
+    expect(await isOwnerDirected("turn-teammate")).toBe(false);
+
+    turnFind.mockResolvedValue({ ...ownerChat, chainDepth: 1 });
+    expect(await isOwnerDirected("turn-chained")).toBe(false);
+  });
+
+  it("requires an owner CHAT root for background children and rejects INGEST, EVENT, or cross-bot children", async () => {
+    // Background run started from owner CHAT
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      id: "child-of-chat",
+      parentTurnId: "root-chat",
+      parentTurn: { ...ownerChat, id: "root-chat" },
+    });
+    expect(await isOwnerDirected("child-of-chat")).toBe(true);
+
+    // Grandchild whose root is owner CHAT
+    turnFind
+      .mockResolvedValueOnce({
+        ...ownerChat,
+        id: "grandchild-of-chat",
+        parentTurnId: "child-1",
+        parentTurn: { ...ownerChat, id: "child-1", parentTurnId: "root-chat" },
+      })
+      .mockResolvedValueOnce({
+        ...ownerChat,
+        id: "root-chat",
+        parentTurnId: null,
+      });
+    expect(await isOwnerDirected("grandchild-of-chat")).toBe(true);
+
+    // Cross-bot or cross-workspace parent spoof fails closed
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      id: "child-cross-bot",
+      parentTurnId: "other-bot-chat",
+      parentTurn: {
+        ...ownerChat,
+        id: "other-bot-chat",
+        sokoBotId: "bot-other",
+      },
+    });
+    expect(await isOwnerDirected("child-cross-bot")).toBe(false);
+
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      id: "child-cross-ws",
+      parentTurnId: "other-ws-chat",
+      parentTurn: {
+        ...ownerChat,
+        id: "other-ws-chat",
+        workspaceId: "ws-other",
+      },
+    });
+    expect(await isOwnerDirected("child-cross-ws")).toBe(false);
+
+    // Background run started from non-owner INGEST (must stay blocked)
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      id: "child-of-ingest",
+      source: "INGEST",
+      parentTurnId: "root-ingest",
+      parentTurn: { ...ownerChat, id: "root-ingest", source: "INGEST" },
+    });
+    expect(await isOwnerDirected("child-of-ingest")).toBe(false);
+
+    // Even if a child claims source CHAT, an INGEST parent fails closed
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      id: "chat-child-of-ingest",
+      parentTurnId: "root-ingest",
+      parentTurn: { ...ownerChat, id: "root-ingest", source: "INGEST" },
+    });
+    expect(await isOwnerDirected("chat-child-of-ingest")).toBe(false);
+
+    // Grandchild whose root is INGEST fails closed
+    turnFind
+      .mockResolvedValueOnce({
+        ...ownerChat,
+        id: "grandchild-of-ingest",
+        parentTurnId: "child-1",
+        parentTurn: {
+          ...ownerChat,
+          id: "child-1",
+          parentTurnId: "root-ingest",
+        },
+      })
+      .mockResolvedValueOnce({
+        ...ownerChat,
+        id: "root-ingest",
+        source: "INGEST",
+        parentTurnId: null,
+      });
+    expect(await isOwnerDirected("grandchild-of-ingest")).toBe(false);
+
+    // Autonomous EVENT child hung under an owner CHAT (e.g. CMO production)
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      id: "event-child-of-chat",
+      source: "EVENT",
+      parentTurnId: "root-chat",
+      parentTurn: { ...ownerChat, id: "root-chat" },
+    });
+    expect(await isOwnerDirected("event-child-of-chat")).toBe(false);
+
+    // Cycle or missing parent fails closed
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      id: "self-cycle",
+      parentTurnId: "self-cycle",
+      parentTurn: {
+        ...ownerChat,
+        id: "self-cycle",
+        parentTurnId: "self-cycle",
+      },
+    });
+    expect(await isOwnerDirected("self-cycle")).toBe(false);
+  });
+
+  it("allows owner-directed tainted drafts and newsletters while blocking scheduled posts, paid investor research, outward social actions, and INGEST children", async () => {
+    runtimeEventFind.mockResolvedValue({ id: "taint-1" });
+    turnFind.mockResolvedValue(ownerChat);
+
+    for (const allowed of [
+      "create_newsletter_issue",
+      "newsletter_draft_issue",
+      "create_social_post",
+      "update_social_post",
+      "update_social_posts",
+      "upload_file",
+      "hire_agent",
+    ] as const) {
+      expect(await isTaintBlocked("turn-direct", allowed)).toBe(false);
+    }
+
+    // Input-aware taint gates: unscheduled draft allowed, scheduledAt blocked;
+    // free investor_warm_paths read allowed, paid research: true blocked.
+    expect(
+      await isTaintBlocked("turn-direct", "create_social_post", {
+        text: "Draft for owner approval",
+      }),
+    ).toBe(false);
+    expect(
+      await isTaintBlocked("turn-direct", "create_social_post", {
+        text: "Scheduled post",
+        scheduledAt: "2026-12-01T09:00:00.000Z",
+      }),
+    ).toBe(true);
+    expect(
+      await isTaintBlocked("turn-direct", "investor_warm_paths", {
+        contactId: "01960001-0001-7001-8001-000000000001",
+        research: false,
+      }),
+    ).toBe(false);
+    expect(
+      await isTaintBlocked("turn-direct", "investor_warm_paths", {
+        contactId: "01960001-0001-7001-8001-000000000001",
+        research: true,
+      }),
+    ).toBe(true);
+
+    for (const blocked of [
+      "schedule_social_post",
+      "cancel_social_post",
+      "publish_social_post",
+      "post_chat",
+      "run_integration_tool",
+      "add_newsletter_subscriber",
+    ] as const) {
+      expect(await isTaintBlocked("turn-direct", blocked)).toBe(true);
+    }
+
+    // Delegated EVENT turns (even under an owner CHAT parent) must stay
+    // blocked on social edits, and both social edit tools stay in
+    // SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES so delegated follow-up grants
+    // never inherit them (while create_social_post remains inheritable).
+    expect(SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES).toContain(
+      "update_social_post",
+    );
+    expect(SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES).toContain(
+      "update_social_posts",
+    );
+    expect(
+      SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES as readonly string[],
+    ).not.toContain("create_social_post");
+
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      id: "event-child-of-chat",
+      source: "EVENT",
+      parentTurnId: "root-chat",
+      parentTurn: { ...ownerChat, id: "root-chat" },
+    });
+    for (const blocked of [
+      "create_social_post",
+      "update_social_post",
+      "update_social_posts",
+    ] as const) {
+      expect(await isTaintBlocked("event-child-of-chat", blocked)).toBe(true);
+    }
+
+    // Background child of an INGEST turn must remain blocked on every tainted write
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      id: "child-of-ingest",
+      parentTurnId: "root-ingest",
+      parentTurn: { ...ownerChat, id: "root-ingest", source: "INGEST" },
+    });
+    for (const blocked of [
+      "send_email_draft",
+      "hire_agent",
+      "install_skill",
+      "create_newsletter_issue",
+      "create_social_post",
+      "update_social_post",
+      "update_social_posts",
+    ] as const) {
+      expect(await isTaintBlocked("child-of-ingest", blocked)).toBe(true);
+    }
+  });
+
+  it("keeps WEB_GUIDANCE aligned with SANDBOX_GUIDANCE on the owner-directed exception", () => {
+    for (const guidance of [SANDBOX_GUIDANCE, WEB_GUIDANCE]) {
+      expect(guidance).toContain(
+        "On work your owner asked for in their chat (and background runs they started)",
+      );
+      expect(guidance).toContain("drafting newsletters");
+      expect(guidance).toContain(
+        "creating or editing unapproved social post drafts still work",
+      );
+      expect(guidance).toContain("editing scheduled social posts are refused");
+    }
   });
 });

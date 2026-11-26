@@ -69,6 +69,7 @@ export async function chargeSeoChatReply(
   let consumptions;
   try {
     consumptions = await creditBucketRepository.prepareConsumption(
+      "mainnet",
       payer.userId,
       payer.organizationId,
       cents,

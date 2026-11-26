@@ -23,7 +23,10 @@ import {
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
-import { requireSeoTaskExecutionUnchanged } from "@/helpers/seo-task-execution";
+import {
+  requireSeoTaskExecutionUnchanged,
+  seoAuditTextUnchanged,
+} from "@/helpers/seo-task-execution";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import {
   type AssignedTask,
@@ -348,7 +351,7 @@ export async function createTaskForActor(
       ...creatorFields(input.actor),
       status,
       visibility,
-      priority: input.priority,
+      ...(input.priority !== undefined ? { priority: input.priority } : {}),
       grantResumeStatus: pendingGrant?.grantResumeStatus ?? null,
       pendingVendorGrantId: pendingGrant?.pendingVendorGrantId ?? null,
       runAt: input.runAt ?? null,
@@ -511,9 +514,10 @@ export async function updateTaskForActor(
       );
     }
   }
+  const { projectId, status } = input;
   const projectMoveOnly =
     input.actor.kind === "soko_bot" &&
-    input.projectId !== undefined &&
+    projectId !== undefined &&
     input.name === undefined &&
     input.description === undefined &&
     input.status === undefined &&
@@ -531,33 +535,33 @@ export async function updateTaskForActor(
   }
   if (projectMoveOnly && !input.archive) {
     const task = await findActorTask(input, tx);
-    await requireSeoTaskExecutionUnchanged(tx, task, {
-      projectId: input.projectId,
-    });
+    await requireSeoTaskExecutionUnchanged(tx, task, { projectId });
     if (
       input.expectedUpdatedAt &&
       task.updatedAt.getTime() !== input.expectedUpdatedAt.getTime()
     )
       throw conflict("Task changed; read it again");
-    await requireProjectInWorkspace(input.projectId, task.workspaceId, tx);
-    if (input.projectId !== task.projectId) {
+    await requireProjectInWorkspace(projectId, task.workspaceId, tx);
+    if (projectId !== task.projectId) {
       requireNotSubtask(task);
-      await lockProjectChange(tx, task, input.projectId);
+      await lockProjectChange(tx, task, projectId);
       await requireSubtreeCanChangeProject(tx, task.id);
     }
     return tx.task.update({
       where: { id: task.id, updatedAt: task.updatedAt },
       data: {
-        projectId: input.projectId,
-        events: input.effectEventId
+        projectId,
+        ...(input.effectEventId
           ? {
-              create: {
-                id: input.effectEventId,
-                comment: TASK_MOVED_TO_PROJECT_COMMENT,
-                ...eventActorFields(input.actor),
+              events: {
+                create: {
+                  id: input.effectEventId,
+                  comment: TASK_MOVED_TO_PROJECT_COMMENT,
+                  ...eventActorFields(input.actor),
+                },
               },
             }
-          : undefined,
+          : {}),
       },
     });
   }
@@ -574,6 +578,10 @@ export async function updateTaskForActor(
   }
 
   const task = await requireMutableTask(input, tx);
+  // Readers see a full audit's description without its request line; a write of that text keeps it.
+  const description = seoAuditTextUnchanged(task.description, input.description)
+    ? undefined
+    : input.description;
   if (
     input.expectedUpdatedAt &&
     task.updatedAt.getTime() !== input.expectedUpdatedAt.getTime()
@@ -637,7 +645,7 @@ export async function updateTaskForActor(
       ? sokoBotEditableStatuses(input.intent)
       : [TaskStatus.DRAFT, TaskStatus.QUEUED, TaskStatus.READY];
   await requireSeoTaskExecutionUnchanged(tx, task, {
-    description: input.description,
+    description,
     projectId: input.projectId,
     ...(assigneeWrite ?? {}),
   });
@@ -647,6 +655,7 @@ export async function updateTaskForActor(
     await lockProjectChange(tx, task, input.projectId);
     await requireSubtreeCanChangeProject(tx, task.id);
   }
+  const changedStatus = status !== undefined && status !== task.status;
   return tx.task.update({
     where: {
       id: task.id,
@@ -655,30 +664,27 @@ export async function updateTaskForActor(
       ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
     },
     data: {
-      name: input.name,
-      description: input.description,
-      projectId: input.projectId,
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(description !== undefined ? { description } : {}),
+      ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
       ...(assigneeWrite ?? {}),
-      status: input.status,
+      ...(status !== undefined ? { status } : {}),
       // Record a status event only for a real transition; a Soko Bot
       // re-assignment that keeps DRAFT must not spam the task timeline.
-      events:
-        input.effectEventId ||
-        (input.status !== undefined && input.status !== task.status)
-          ? {
+      ...(input.effectEventId || changedStatus
+        ? {
+            events: {
               create: {
-                id: input.effectEventId,
-                status: input.status !== task.status ? input.status : undefined,
-                comment:
-                  input.effectEventId &&
-                  (input.status === undefined || input.status === task.status)
-                    ? "Task updated"
-                    : undefined,
+                ...(input.effectEventId !== undefined
+                  ? { id: input.effectEventId }
+                  : {}),
+                ...(changedStatus ? { status } : { comment: "Task updated" }),
                 channel: input.channel ?? Channel.SOKOSUMI,
                 ...eventActorFields(input.actor),
               },
-            }
-          : undefined,
+            },
+          }
+        : {}),
     },
   });
 }

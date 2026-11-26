@@ -13,6 +13,7 @@ import {
 } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
+import { BACKGROUND_RUN_CLIENT_TURN_PREFIX } from "@/lib/soko-bot/turn-model";
 import {
   type AuthorizedSokoBotRuntime,
   SokoBotRuntimeValidationError,
@@ -108,7 +109,7 @@ export async function startBackgroundRun(
     // Cuso shares a workspace with the owner's own assistant: the run belongs
     // to the bot that started it.
     sokoBotId: authorized.turn.sokoBotId,
-    clientTurnId: `${MEMBER_RUN_PREFIX}${authorized.turn.id}:${key}`,
+    clientTurnId: `${BACKGROUND_RUN_CLIENT_TURN_PREFIX}${authorized.turn.id}:${key}`,
     message: runMessage(input.title, input.brief, shared),
     source: parent.source === "ADMIN_RETRY" ? "CHAT" : parent.source,
     versionId: authorized.turn.versionId ?? undefined,
@@ -171,16 +172,13 @@ export async function startBackgroundRun(
   };
 }
 
-/** Runs a bot started with `start_background_run` carry this in their key. */
-const MEMBER_RUN_PREFIX = "background:";
-
 /** The run a member started that is still going, if there is one. */
 function activeMemberRun(sokoBotId: string) {
   return prisma.sokoBotTurn.findFirst({
     where: {
       sokoBotId,
       parentTurnId: { not: null },
-      clientTurnId: { startsWith: MEMBER_RUN_PREFIX },
+      clientTurnId: { startsWith: BACKGROUND_RUN_CLIENT_TURN_PREFIX },
       status: { in: ["QUEUED", "STARTING", "RUNNING", "CANCEL_REQUESTED"] },
     },
     select: { id: true, backgroundTitle: true },

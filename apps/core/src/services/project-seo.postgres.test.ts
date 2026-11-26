@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { seoFullAuditPrice } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import {
   afterAll,
@@ -7,30 +8,48 @@ import {
   describe,
   expect,
   it,
+  onTestFinished,
   vi,
 } from "vitest";
-
 import { getEnv } from "@/config/env";
-
 import { forbidden } from "@/helpers/error";
+import { jsonInput } from "@/helpers/prisma-json";
+import { reportObject } from "@/helpers/project-seo-public-report";
 import { parsePublicSeoArtifact } from "@/helpers/project-seo-report";
 import { SEO_SERPS_NOT_READ } from "@/helpers/project-seo-report-serps";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { seoChatContext } from "@/lib/seo/chat-context";
 import { seoMonitorDescription } from "@/lib/seo/monitor-plan";
+import { GSC_INSPECT_TOOL } from "@/lib/seo/native-gsc-inspection";
+import { GSC_PROPERTIES_TOOL } from "@/lib/seo/native-statistics";
 import seo from "@/routes/v1/projects/[id]/seo";
+import mountTaskEvents from "@/routes/v1/tasks/[id]/events/post";
+import mountRunNow from "@/routes/v1/tasks/schedules/[id]/runs/post";
 import {
   requestSeoAnalysisSchema,
   type SeoActor,
 } from "@/schemas/project-seo.schema";
 import { type NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
+import { AUDIT_PERFORMANCE_KIND } from "@/schemas/seo-audit-performance.schema";
+import { seoAuditSearchConsoleAccessSchema } from "@/schemas/seo-task-indexing.schema";
+import { expectCoreLog } from "@/test/core-log";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 import {
   focusedRankingsReport,
   focusedReport,
   legacyReport,
   SEO_TEST_PAGE,
   serpRead,
+  siteStrategyReport,
 } from "@/test-fixtures/project-seo";
+import { searchConsoleToolDescriptors } from "@/test-fixtures/seo-search-console";
+import {
+  createTaskScheduleTestApp,
+  jsonRequest,
+} from "@/test-fixtures/task-schedule-app";
+import workerInsights from "./__tests__/fixtures/seo-seasonal-worker-insights.json";
+import * as composio from "./composio-integration-tools.service";
 import {
   addProjectSeoPage,
   createProjectSeoScope,
@@ -38,7 +57,6 @@ import {
   recordNativeSeoMetrics,
   updateProjectSeoScope,
 } from "./project-seo.service";
-
 import {
   importProjectSeoAudit,
   reconcileProjectSeoTaskFile,
@@ -57,6 +75,8 @@ import {
   requestProjectSeoAnalysis,
 } from "./project-seo-operations.service";
 import { saveProjectSeoBrandTerms } from "./project-seo-settings.service";
+import { acknowledgeSeoReview } from "./seo-action-reviews";
+import { getSeoBrief } from "./seo-audit-brief.service";
 import {
   changeTaskScheduleState,
   createTaskSchedule,
@@ -64,12 +84,26 @@ import {
   updateTaskSchedule,
 } from "./task-schedule.service";
 
+const pendingDelivery = vi.hoisted(() => [] as Promise<unknown>[]);
+vi.mock("@vercel/functions", async (original) => ({
+  ...(await original<typeof import("@vercel/functions")>()),
+  waitUntil: (work: Promise<unknown>) => pendingDelivery.push(work),
+}));
+
 // Notification and Task events publish after the test that made them: keep them off the network of later tests.
+vi.mock("@/clients/composio.client", async (original) => ({
+  ...(await original<typeof import("@/clients/composio.client")>()),
+  getComposio: () => ({}),
+}));
 vi.mock("@/helpers/notification-publish-queue", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@/helpers/notification-publish-queue")
   >()),
   scheduleNotificationPublish: vi.fn(),
+}));
+vi.mock("@/helpers/calendar-invalidation", async (original) => ({
+  ...(await original<typeof import("@/helpers/calendar-invalidation")>()),
+  deliverCalendarInvalidationsNow: async () => {},
 }));
 vi.mock("@/helpers/notification-email-dispatch", async (importOriginal) => ({
   ...(await importOriginal<
@@ -217,6 +251,7 @@ describe.skipIf(!enabled)(
         });
         const vars = {
           isAuthenticated: true,
+          networkScope: testNetworkScope(),
           authContext: {
             actor: "user" as const,
             userId,
@@ -557,6 +592,7 @@ describe.skipIf(!enabled)(
     it("refuses generic schedule creation, conversion and resume for a removed audit", async () => {
       const vars = {
         isAuthenticated: true,
+        networkScope: testNetworkScope(),
         authContext: {
           actor: "user" as const,
           userId,
@@ -637,6 +673,421 @@ describe.skipIf(!enabled)(
       ).toBe("ENDED");
     });
 
+    it("requires coverage approval before scheduling a full audit and keeps it private on Run now", async () => {
+      const page = await addProjectSeoPage(actor, {
+        url: "https://example.test/scheduled-coverage",
+        relationship: "primary",
+      });
+      const vars = {
+        isAuthenticated: true,
+        networkScope: testNetworkScope(),
+        authContext: {
+          actor: "user" as const,
+          userId,
+          organizationId: null,
+          role: "user",
+        },
+        workspaceContext: { workspaceId, userId, organizationId: null },
+      };
+      const input = {
+        operationId: randomUUID(),
+        rule: {
+          expr: "0 9 * * 1",
+          timezone: "UTC",
+          endsMode: "AFTER" as const,
+          targetRunCount: 2,
+        },
+        analysis: requestSeoAnalysisSchema.parse({
+          kind: "audit_full",
+          fullAuditPrice: seoFullAuditPrice(),
+          pageIds: [page.id],
+          countryCode: "US",
+          languageCode: "en",
+          idempotencyKey: "monitor-template",
+          searchConsolePropertyId: "sc-domain:example.test",
+        }),
+      };
+      const schedules = () =>
+        prisma.taskSchedule.count({ where: { workspaceId } });
+      const before = await schedules();
+      await expect(
+        createProjectSeoMonitor(vars, actor, input),
+      ).rejects.toMatchObject({
+        status: 409,
+        cause: { kind: "seo_gsc_not_connected" },
+      });
+      expect(await schedules()).toBe(before);
+      const limited = {
+        ...input,
+        analysis: { ...input.analysis, allowLimitedAudit: true as const },
+      };
+      const created = await createProjectSeoMonitor(vars, actor, limited);
+      expect((await createProjectSeoMonitor(vars, actor, limited)).id).toBe(
+        created.id,
+      );
+      await expect(
+        createProjectSeoMonitor(vars, actor, input),
+      ).rejects.toMatchObject({
+        cause: { kind: "schedule_operation_conflict" },
+      });
+      const schedule = await prisma.taskSchedule.findUniqueOrThrow({
+        where: { id: created.id },
+      });
+      expect(schedule.description).not.toMatch(
+        /sc-domain:|allowLimitedAudit|searchConsolePropertyId/,
+      );
+      const generic = {
+        operationId: randomUUID(),
+        name: "ordinary",
+        visibility: "PUBLIC" as const,
+        projectId,
+        assigneeId: coworkerId,
+        rule: input.rule,
+      };
+      await expect(
+        createTaskSchedule(vars, {
+          ...generic,
+          description: schedule.description,
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      const ordinary = await createTaskSchedule(vars, generic);
+      await expect(
+        updateTaskSchedule(vars, ordinary.id, {
+          expectedRevision: ordinary.revision,
+          description: schedule.description,
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      const run = await runTaskScheduleNow(vars, created.id, {
+        expectedRevision: created.revision,
+      });
+      const analysis = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+        where: { taskId: run.run.releasedTaskId! },
+      });
+      expect(analysis.request).toMatchObject({ searchConsoleAccess: null });
+      const task = await prisma.task.findUniqueOrThrow({
+        where: { id: analysis.taskId! },
+      });
+      expect(task.description).not.toMatch(/sc-domain:|searchConsoleAccess/);
+    });
+
+    it("pins the verified monitor property privately and blocks later Runs after consent is replaced", async () => {
+      const url = "https://example.test/verified-monitor";
+      const property = "sc-domain:example.test";
+      const page = await addProjectSeoPage(actor, {
+        url,
+        relationship: "primary",
+      });
+      const connection = await prisma.seoConnection.create({
+        data: {
+          workspaceId,
+          userId,
+          provider: "search_console",
+          status: "ACTIVE",
+          composioAccountId: randomUUID(),
+          entityId: randomUUID(),
+        },
+      });
+      let currentProperty = property;
+      const descriptors = vi
+        .spyOn(composio, "listIntegrationTools")
+        .mockResolvedValue(searchConsoleToolDescriptors());
+      const read = vi
+        .spyOn(composio, "readIntegrationTool")
+        .mockImplementation(async (_account, slug) =>
+          slug === GSC_PROPERTIES_TOOL
+            ? {
+                siteEntry: [
+                  { siteUrl: currentProperty, permissionLevel: "siteOwner" },
+                ],
+              }
+            : slug === GSC_INSPECT_TOOL
+              ? { inspectionResult: { indexStatusResult: { verdict: "PASS" } } }
+              : { rows: [] },
+        );
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => {
+          throw new Error("offline test");
+        }),
+      );
+      try {
+        const vars = {
+          isAuthenticated: true,
+          networkScope: testNetworkScope(),
+          authContext: {
+            actor: "user" as const,
+            userId,
+            organizationId: null,
+            role: "user",
+          },
+          workspaceContext: { workspaceId, userId, organizationId: null },
+        };
+        const input = {
+          operationId: randomUUID(),
+          rule: {
+            expr: "0 9 * * *",
+            timezone: "UTC",
+            endsMode: "AFTER" as const,
+            targetRunCount: 2,
+          },
+          analysis: requestSeoAnalysisSchema.parse({
+            kind: "audit_full",
+            includeSitemaps: true,
+            pageIds: [page.id],
+            fullAuditPrice: seoFullAuditPrice(),
+            countryCode: "US",
+            languageCode: "en",
+            idempotencyKey: "monitor-template",
+          }),
+        };
+        const monitor = await createProjectSeoMonitor(vars, actor, input);
+        const schedule = await prisma.taskSchedule.findUniqueOrThrow({
+          where: { id: monitor.id },
+        });
+        expect(schedule.description).not.toContain(property);
+        expect(schedule.description).not.toContain("includeSitemaps");
+        const saved = await prisma.projectSeoObservation.findFirstOrThrow({
+          where: {
+            sourceKey: `monitor-approval:${monitor.id}`,
+            projectId,
+            visibility: "PRIVATE",
+            ownerId: userId,
+          },
+        });
+        const access = seoAuditSearchConsoleAccessSchema.parse(
+          (saved.payload as Record<string, unknown>).searchConsoleAccess,
+        );
+        expect(access.includeSitemaps).toBe(true);
+        const workspace = await getProjectSeoWorkspace(actor, {
+          pageId: page.id,
+        });
+        for (const projection of [
+          JSON.stringify(workspace),
+          JSON.stringify(await getSeoBrief(actor)),
+          seoChatContext(workspace, "personal"),
+        ]) {
+          expect(projection).not.toContain(access.connectionVersion);
+          expect(projection).not.toContain(saved.sourceKey);
+        }
+        const runs = await prisma.taskScheduleRun.findMany({
+          where: { scheduleId: monitor.id, state: "PLANNED" },
+          orderBy: { effectiveScheduledAt: "asc" },
+        });
+        expect(runs).toHaveLength(2);
+        const release = (index: number) =>
+          prisma.$transaction((tx) =>
+            releaseSeoMonitorRun(tx, schedule, runs[index].id),
+          );
+        const first = await release(0);
+        const dispatched = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+          where: { taskId: first!.id },
+        });
+        expect(dispatched.request).toMatchObject({
+          searchConsoleAccess: {
+            propertyId: property,
+            connectionVersion: expect.stringMatching(/^[a-f0-9]{64}$/),
+            includeSitemaps: true,
+          },
+        });
+        const app = createTaskScheduleTestApp(
+          mountTaskEvents,
+          { actor: "coworker", coworkerId, vendorId },
+          null,
+        );
+        const start = (taskId = first!.id) =>
+          app.request(
+            `http://localhost/${taskId}/events/context-v1`,
+            jsonRequest("POST", {
+              status: "RUNNING",
+              expectedContext: {
+                ownerId: userId,
+                organizationId: null,
+                workspaceId,
+              },
+            }),
+          );
+        const transactions = () =>
+          prisma.transaction.count({ where: { userId } });
+        const before = await transactions();
+        read.mockResolvedValueOnce({ siteEntry: [] });
+        const rejected = await start();
+        expect(rejected.status).toBe(409);
+        const response = await rejected.json();
+        expect(response.message).toContain("Review the audit");
+        expect(JSON.stringify(response)).not.toContain(property);
+        expect(
+          (await prisma.task.findUniqueOrThrow({ where: { id: first!.id } }))
+            .status,
+        ).toBe("READY");
+        expect(await transactions()).toBe(before);
+        const repaired = await start();
+        expect(repaired.status).toBe(201);
+        expect(await transactions()).toBe(before);
+        await Promise.all(pendingDelivery.splice(0));
+        const performance = await prisma.projectSeoObservation.findFirst({
+          where: { sourceTaskId: first!.id, kind: AUDIT_PERFORMANCE_KIND },
+        });
+        expect(performance).toMatchObject({
+          ownerId: userId,
+          visibility: "PRIVATE",
+          payload: {
+            provider: "search_console",
+            propertyId: property,
+            pageUrls: [url],
+          },
+        });
+        await prisma.task.update({
+          where: { id: first!.id },
+          data: { status: "COMPLETED" },
+        });
+        const manualApp = createTaskScheduleTestApp(
+          mountRunNow,
+          vars.authContext,
+          vars.workspaceContext,
+        );
+        const manualRun = (choice: object = {}) =>
+          manualApp.request(
+            `http://localhost/schedules/${schedule.id}/runs`,
+            jsonRequest("POST", {
+              expectedRevision: schedule.revision,
+              ...choice,
+            }),
+          );
+        const runCounts = async () => ({
+          runs: await prisma.taskScheduleRun.count({
+            where: { scheduleId: schedule.id },
+          }),
+          tasks: await prisma.task.count({
+            where: { scheduleId: schedule.id },
+          }),
+          transactions: await transactions(),
+          revision: (
+            await prisma.taskSchedule.findUniqueOrThrow({
+              where: { id: schedule.id },
+            })
+          ).revision,
+        });
+        const beforeManual = await runCounts();
+        read.mockResolvedValueOnce({ siteEntry: [] });
+        const refused = await manualRun({ origin: "cmo-subscription" });
+        expect(refused.status).toBe(409);
+        expect((await refused.json()).kind).toBe("seo_gsc_property");
+        expect(await runCounts()).toEqual(beforeManual);
+        read.mockRejectedValueOnce(new Error("private upstream failure"));
+        expectCoreLog("warn", "Search Console verification failed");
+        const unavailable = await manualRun();
+        expect(unavailable.status).toBe(409);
+        const problem = await unavailable.json();
+        expect(problem.kind).toBe("seo_gsc_unavailable");
+        expect(JSON.stringify(problem)).not.toContain(
+          "private upstream failure",
+        );
+        expect(await runCounts()).toEqual(beforeManual);
+        const replaceConsent = async () => {
+          await prisma.seoConnection.update({
+            where: { id: connection.id },
+            data: {
+              composioAccountId: randomUUID(),
+              revision: { increment: 1 },
+            },
+          });
+          return {
+            siteEntry: [
+              { siteUrl: currentProperty, permissionLevel: "siteOwner" },
+            ],
+          };
+        };
+        read.mockImplementationOnce(replaceConsent);
+        const changedDuringCheck = await manualRun();
+        expect(changedDuringCheck.status).toBe(409);
+        expect((await changedDuringCheck.json()).kind).toBe(
+          "seo_gsc_unavailable",
+        );
+        expect(await runCounts()).toEqual(beforeManual);
+
+        // A new manual Run may pin a newly connected account. The recurring approval remains the original one.
+        const reconnected = await manualRun();
+        expect(reconnected.status).toBe(201);
+        const reconnectedTask = (await reconnected.json()).data.run
+          .releasedTaskId;
+        const proofFor = async (taskId: string) => {
+          const row = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+            where: { taskId },
+          });
+          return seoAuditSearchConsoleAccessSchema.parse(
+            (row.request as Record<string, unknown>).searchConsoleAccess,
+          );
+        };
+        const newAccount = await proofFor(reconnectedTask);
+        expect(newAccount.includeSitemaps).toBeUndefined();
+        expect(newAccount.propertyId).toBe(property);
+        expect(newAccount.connectionVersion).not.toBe(access.connectionVersion);
+        await prisma.task.update({
+          where: { id: reconnectedTask },
+          data: { status: "COMPLETED" },
+        });
+        currentProperty = "https://example.test/";
+        const currentRevision = schedule.revision + 1;
+        const alternate = {
+          searchConsolePropertyId: currentProperty,
+          expectedRevision: currentRevision,
+        };
+        const attempts = await Promise.all([
+          manualRun(alternate),
+          manualRun(alternate),
+        ]);
+        expect(attempts.map((r) => r.status).sort()).toEqual([201, 409]);
+        const manual = await attempts.find((r) => r.status === 201)!.json();
+        const manualTaskId = manual.data.run.releasedTaskId;
+        expect(await proofFor(manualTaskId)).toEqual({
+          ...newAccount,
+          propertyId: currentProperty,
+        });
+        expect(
+          (
+            await prisma.projectSeoObservation.findUniqueOrThrow({
+              where: { id: saved.id },
+            })
+          ).payload,
+        ).toEqual({ searchConsoleAccess: access });
+        expect(await runCounts()).toEqual({
+          ...beforeManual,
+          runs: beforeManual.runs + 2,
+          tasks: beforeManual.tasks + 2,
+          revision: schedule.revision + 2,
+        });
+        // Consent changes after the worker's first transaction and before its RUNNING write.
+        read.mockImplementationOnce(replaceConsent);
+        const stale = await start(manualTaskId);
+        expect(stale.status).toBe(409);
+        expect(await transactions()).toBe(before);
+        expect(
+          (await prisma.task.findUniqueOrThrow({ where: { id: manualTaskId } }))
+            .status,
+        ).toBe("READY");
+        await prisma.task.update({
+          where: { id: manualTaskId },
+          data: { status: "CANCELED" },
+        });
+        read.mockClear();
+        expect((await createProjectSeoMonitor(vars, actor, input)).id).toBe(
+          monitor.id,
+        );
+        await expect(release(1)).rejects.toMatchObject({
+          cause: { kind: "seo_gsc_unavailable" },
+        });
+        expect(read).not.toHaveBeenCalled();
+        expect(
+          await prisma.task.count({ where: { scheduleId: monitor.id } }),
+        ).toBe(3);
+      } finally {
+        vi.unstubAllGlobals();
+        read.mockRestore();
+        descriptors.mockRestore();
+        await prisma.seoConnection.delete({ where: { id: connection.id } });
+      }
+    });
+
     it("releases distinct frozen finite monitor Runs and refuses an unapproved assignee or manual extra Run", async () => {
       const page = await addProjectSeoPage(actor, {
         url: SEO_TEST_PAGE,
@@ -653,6 +1104,7 @@ describe.skipIf(!enabled)(
       });
       const vars = {
         isAuthenticated: true,
+        networkScope: testNetworkScope(),
         authContext: {
           actor: "user" as const,
           userId,
@@ -759,9 +1211,10 @@ describe.skipIf(!enabled)(
         analysis: requestSeoAnalysisSchema.parse({
           ...analysis,
           kind: "audit_full",
-          fullAuditCredits: 750,
+          fullAuditPrice: seoFullAuditPrice(),
           devices: ["mobile", "desktop"],
           idempotencyKey: "monitor-full-audit",
+          allowLimitedAudit: true,
         }),
       });
       const fullRun = await prisma.taskScheduleRun.findFirstOrThrow({
@@ -783,7 +1236,9 @@ describe.skipIf(!enabled)(
             where: { id: fullTask?.id ?? "missing" },
           })
         ).description,
-      ).toMatch(/^seo_audit: /);
+      ).toMatch(
+        /^Full SEO audit of \d+ selected pages?:\n[\s\S]*\nseo_audit: \{.*\}$/,
+      );
       // The step and the end date are part of the approved rule too.
       for (const tampered of [
         { intervalDays: 2 },
@@ -850,6 +1305,7 @@ describe.skipIf(!enabled)(
       });
       const vars = {
         isAuthenticated: true,
+        networkScope: testNetworkScope(),
         authContext: {
           actor: "user" as const,
           userId,
@@ -1524,6 +1980,309 @@ describe.skipIf(!enabled)(
       expect(ids).toContain(audit.id);
     });
 
+    it("rechecks a completed recommendation across 101 focused checks and 101 private syncs outside the visible history", async () => {
+      const page = await addProjectSeoPage(actor, {
+        url: "https://example.test/returning-query",
+        relationship: "primary",
+      });
+      const raw = legacyReport(),
+        keyword = "manual repair";
+      const ranked = (
+        at: string,
+        pos: number,
+        hash: string,
+        trigger: boolean,
+        decisionId = "returning",
+      ) => {
+        const snapshotId = hash.repeat(64);
+        return parsePublicSeoArtifact({
+          ...raw,
+          request: { url: page.url },
+          snapshotId,
+          header: { ...raw.header, capturedAt: at },
+          rankingData: {
+            ...raw.rankingData,
+            source: "DataForSEO Labs and Backlinks API",
+            page: {
+              ...raw.rankingData.page,
+              rankedResult: "ok",
+              ranked: {
+                rows: [
+                  {
+                    url: page.url,
+                    keyword,
+                    position: pos,
+                    intent: null,
+                    volume: 120,
+                  },
+                ],
+              },
+            },
+          },
+          strategyDecisions: trigger
+            ? [
+                {
+                  id: decisionId,
+                  kind: "content_opportunity",
+                  targetUrl: page.url,
+                  action: "Review the repair instructions.",
+                  reason: "This page ranked near the top ten.",
+                  alternative: "Keep the existing instructions.",
+                  nextCheck: "Compare the page rank on the next audit.",
+                  evidence: [snapshotId, "rankingData.page.ranked"],
+                },
+              ]
+            : [],
+          rankReviewTriggers: trigger
+            ? [
+                {
+                  decisionId,
+                  kind: "rank_crosses",
+                  keyword,
+                  position: pos,
+                  boundary: 10,
+                },
+              ]
+            : [],
+        });
+      };
+      const origin = await storeResult(
+        page.id,
+        ranked("2026-08-01T12:00:00.000Z", 13, "a", true),
+      );
+      const initial = await getProjectSeoWorkspace(actor, { pageId: page.id });
+      const action = initial.actions.find((a) => a.decision)!;
+      const task = await createProjectSeoActionTask(actor, {
+        observationId: origin.id,
+        actionId: action.id,
+        idempotencyKey: "buried-review",
+      });
+      const completedAt = new Date("2026-09-01T12:00:00.000Z");
+      await prisma.task.update({
+        where: { id: task.taskId },
+        data: {
+          status: "COMPLETED",
+          events: {
+            create: { status: "COMPLETED", userId, createdAt: completedAt },
+          },
+        },
+      });
+      const unlinked = await storeResult(
+        page.id,
+        ranked("2026-08-03T12:00:00.000Z", 13, "e", true, "unlinked"),
+      );
+      const stale = (
+        await getProjectSeoWorkspace(actor, { pageId: page.id })
+      ).actions.find((a) => a.decision && a.id !== action.id)!;
+      const check = parsePublicSeoArtifact({
+        ...focusedReport(),
+        scope: { ...focusedReport().scope, pageUrls: [page.url] },
+        checks: [],
+      });
+      const common = {
+        projectId,
+        pageIds: [page.id],
+        artifactHash: "review-noise",
+        observedAt: new Date("2026-10-01T12:00:00Z"),
+      };
+      await prisma.projectSeoObservation.createMany({
+        data: Array.from({ length: 101 }, (_, n) => [
+          {
+            ...common,
+            sourceKey: "review-check:" + n,
+            source: "seo_coworker",
+            kind: "page_check",
+            payload: check,
+          },
+          {
+            ...common,
+            sourceKey: "review-metric:" + n,
+            source: "ga4",
+            kind: "metrics",
+            ownerId: userId,
+            visibility: "PRIVATE" as const,
+            payload: metrics([page.url]),
+          },
+        ]).flat(),
+      });
+      const later = await storeResult(
+        page.id,
+        ranked("2026-11-01T12:00:00.000Z", 8, "b", false),
+      );
+      const workspace = await getProjectSeoWorkspace(actor, {
+        pageId: page.id,
+      });
+      expect(workspace.observations.map((o) => o.id)).not.toContain(origin.id);
+      expect(workspace.actions.filter((a) => a.id === action.id)).toMatchObject(
+        [
+          {
+            taskId: task.taskId,
+            status: "implemented",
+            observationId: origin.id,
+            followUpReview: {
+              baselineObservationId: origin.id,
+              observationId: later.id,
+              before: 13,
+              after: 8,
+              keyword,
+            },
+          },
+        ],
+      );
+      expect(workspace.actions.find((a) => a.id === stale.id)?.status).toBe(
+        "needs_review",
+      );
+      await expect(
+        createProjectSeoActionTask(actor, {
+          actionId: stale.id,
+          observationId: unlinked.id,
+          idempotencyKey: "stale-draft",
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      const staleReview = workspace.actions.find((a) => a.id === stale.id)!
+        .followUpReview!;
+      await acknowledgeSeoReview(actor, {
+        pageId: page.id,
+        actionId: stale.id,
+        kind: staleReview.kind,
+        baselineObservationId: staleReview.baselineObservationId,
+        observationId: staleReview.observationId,
+      });
+      const cleared = await getProjectSeoWorkspace(actor, { pageId: page.id });
+      expect(cleared.actions.some((a) => a.id === stale.id)).toBe(false);
+      expect(
+        cleared.actions.find((a) => a.id === action.id)?.followUpReview,
+      ).toBeDefined();
+      expect(
+        await prisma.projectSeoActionTask.count({
+          where: { projectId, actionId: stale.id },
+        }),
+      ).toBe(0);
+      // Even a hundred more full audits cannot push an accepted origin out of the separate tracked set.
+      const otherFull = ranked("2026-10-15T12:00:00.000Z", 18, "c", false);
+      await prisma.projectSeoObservation.createMany({
+        data: Array.from({ length: 101 }, (_, n) => ({
+          ...common,
+          sourceKey: "review-full:" + n,
+          source: "seo_coworker",
+          kind: "audit_full",
+          payload: otherFull,
+          observedAt: new Date(Date.parse(otherFull.observedAt) + n * 60000),
+        })),
+      });
+      // A private owner's row cannot undo this public review with an apparently newer rank.
+      await storeResult(
+        page.id,
+        ranked("2026-11-03T12:00:00.000Z", 16, "d", false),
+        { ownerId: otherId },
+      );
+      const beyondFullLimit = await getProjectSeoWorkspace(actor, {
+        pageId: page.id,
+      });
+      expect(
+        beyondFullLimit.actions.filter((a) => a.id === action.id),
+      ).toMatchObject([
+        {
+          taskId: task.taskId,
+          followUpReview: {
+            baselineObservationId: origin.id,
+            observationId: later.id,
+          },
+        },
+      ]);
+      const historical = await getProjectSeoWorkspace(actor, {
+        pageId: page.id,
+        to: "2026-10-15",
+      });
+      expect(historical.actions.some((a) => a.followUpReview)).toBe(false);
+      const review = beyondFullLimit.actions.find((a) => a.id === action.id)!
+        .followUpReview!;
+      const receipt = {
+        pageId: page.id,
+        actionId: action.id,
+        kind: review.kind,
+        baselineObservationId: origin.id,
+        observationId: later.id,
+      };
+      const wrongPage = await addProjectSeoPage(actor, {
+        url: "https://example.test/unrelated-review",
+        relationship: "primary",
+      });
+      await expect(
+        acknowledgeSeoReview(actor, { ...receipt, pageId: wrongPage.id }),
+      ).rejects.toThrow(/changed/);
+      await expect(
+        acknowledgeSeoReview(actor, { ...receipt, observationId: origin.id }),
+      ).rejects.toThrow(/changed/);
+      await expect(
+        acknowledgeSeoReview(
+          { ...actor, workspaceId: otherWorkspaceId, userId: otherId },
+          receipt,
+        ),
+      ).rejects.toThrow();
+      await Promise.all([
+        acknowledgeSeoReview(actor, receipt),
+        acknowledgeSeoReview(actor, receipt),
+      ]);
+      await storeResult(
+        page.id,
+        ranked("2026-11-02T12:00:00.000Z", 7, "1", false),
+      );
+      await acknowledgeSeoReview(actor, receipt);
+      const closed = await getProjectSeoWorkspace(actor, { pageId: page.id });
+      const accepted = closed.actions.find((a) => a.id === action.id)!;
+      expect(accepted.followUpReview).toBeUndefined();
+      expect(accepted.taskId).toBe(task.taskId);
+      expect(
+        closed.observations.some((o) => o.kind === "recommendation_review"),
+      ).toBe(false);
+      expect(
+        await prisma.projectSeoObservation.count({
+          where: { projectId, kind: "recommendation_review" },
+        }),
+      ).toBe(2);
+      await storeResult(
+        page.id,
+        ranked("2026-11-04T12:00:00.000Z", 16, "e", false),
+      );
+      const fresh = await storeResult(
+        page.id,
+        ranked("2026-11-06T12:00:00.000Z", 7, "f", false),
+      );
+      await acknowledgeSeoReview(actor, receipt); // a replay cannot silence the later crossing.
+      const reopened = await getProjectSeoWorkspace(actor, { pageId: page.id });
+      expect(
+        reopened.actions.find((a) => a.id === action.id)?.followUpReview
+          ?.observationId,
+      ).toBe(fresh.id);
+      // The owner can review the exact episode shown by a past-date filter even after a later reversal.
+      await storeResult(
+        page.id,
+        ranked("2026-11-08T12:00:00.000Z", 15, "9", false),
+      );
+      const view = { pageId: page.id, to: "2026-11-06" };
+      const past = await getProjectSeoWorkspace(actor, view);
+      const episode = past.actions.find((a) => a.id === action.id)!
+        .followUpReview!;
+      expect(episode.observationId).toBe(fresh.id);
+      await acknowledgeSeoReview(actor, {
+        ...receipt,
+        baselineObservationId: episode.baselineObservationId,
+        observationId: fresh.id,
+        view,
+      });
+      expect(
+        (await getProjectSeoWorkspace(actor, view)).actions.find(
+          (a) => a.id === action.id,
+        )?.followUpReview,
+      ).toBeUndefined();
+      expect(
+        await prisma.projectSeoActionTask.count({
+          where: { projectId, actionId: action.id },
+        }),
+      ).toBe(1);
+    });
+
     it("marks the history limited only when one load reaches its own cap", async () => {
       const page = await addProjectSeoPage(actor, {
         url: "https://example.test/history-split",
@@ -1616,6 +2375,444 @@ describe.skipIf(!enabled)(
       ).toBe(false);
     });
 
+    it("drafts one Task for a supported seasonal page update and reuses it after a repeat audit", async () => {
+      const project = await prisma.project.create({
+        data: { workspaceId, name: "Seasonal timing fixture" },
+      });
+      const seasonalActor: SeoActor = {
+        ...actor,
+        owner: { kind: "project", id: project.id },
+      };
+      vi.useFakeTimers({ toFake: ["Date"] });
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
+      vi.setSystemTime(new Date("2026-11-19T12:00:00Z"));
+      async function seasonalAudit(audience: string, seasonYear = 2026) {
+        const task = await prisma.task.create({
+          data: {
+            name: "Public seasonal audit",
+            ownerId: userId,
+            workspaceId,
+            status: "COMPLETED",
+            assigneeId: coworkerId,
+          },
+        });
+        const report = legacyReport();
+        const body = JSON.stringify({
+          ...report,
+          header: { ...report.header, capturedAt: new Date().toISOString() },
+          seasonalReview: {
+            status: { demand: "completed", audience: "completed" },
+            insights: workerInsights.map((row) => ({
+              ...row,
+              audience,
+              asOf: `${seasonYear}-11-01`,
+              windows: row.windows.map((w) => ({
+                ...w,
+                targetPeriod: `${seasonYear}-12`,
+                historicalPeriod: `${seasonYear - 1}-12`,
+              })),
+              demand: {
+                ...row.demand,
+                months: row.demand.months.map((m) => ({
+                  ...m,
+                  year: m.year + seasonYear - 2026,
+                })),
+              },
+              url: report.request.url,
+              country: report.header.market.country,
+              language: report.header.market.language,
+            })),
+          },
+        });
+        const file = await prisma.taskFile.create({
+          data: {
+            taskId: task.id,
+            name: `seo-report-${task.id}.json`,
+            fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${task.id}/report.json`,
+            mimeType: "application/json",
+            size: BigInt(Buffer.byteLength(body)),
+            uploadedByCoworkerId: coworkerId,
+          },
+        });
+        return importProjectSeoAudit(
+          seasonalActor,
+          { taskId: task.id, fileId: file.id },
+          { fetchImpl: async () => new Response(body) },
+        );
+      }
+      const first = await seasonalAudit("Bootsbesitzer");
+      const workspace = await getProjectSeoWorkspace(seasonalActor, {});
+      const idea = workspace.seasonalIdeas?.find((row) => row.actionId);
+      const action = workspace.actions.find((a) => a.id === idea?.actionId);
+      expect(action).toMatchObject({ observationId: first.id });
+      if (!action) return;
+      const input = {
+        observationId: action.observationId,
+        actionId: action.id,
+        idempotencyKey: "seasonal-accept",
+      };
+      vi.setSystemTime(new Date("2027-01-02T12:00:00Z"));
+      await expect(
+        createProjectSeoActionTask(seasonalActor, input),
+      ).rejects.toThrow(/seasonal window has passed/i);
+      expect(
+        (await getProjectSeoWorkspace(seasonalActor, {})).actions.find(
+          (a) => a.id === action.id,
+        ),
+      ).toBeUndefined();
+      vi.setSystemTime(new Date("2026-12-31T12:00:00Z"));
+      await expect(
+        createProjectSeoActionTask(
+          { ...seasonalActor, userId: otherId, workspaceId: otherWorkspaceId },
+          input,
+        ),
+      ).rejects.toMatchObject({ status: 404 });
+      const link = await createProjectSeoActionTask(seasonalActor, input);
+      const task = await prisma.task.findUniqueOrThrow({
+        where: { id: link.taskId },
+      });
+      expect(task).toMatchObject({ status: "DRAFT", name: action.title });
+      for (const line of action.evidence)
+        expect(task.description).toContain(line);
+      expect(task.description).not.toMatch(
+        /reviewer|bbbbbbbb|Compare a later Search Console period/,
+      );
+      const repeat = await seasonalAudit("Segler");
+      expect(repeat.id).not.toBe(first.id);
+      vi.setSystemTime(new Date("2027-01-02T12:00:00Z"));
+      expect(
+        (await createProjectSeoActionTask(seasonalActor, input)).taskId,
+      ).toBe(link.taskId);
+      const again = await getProjectSeoWorkspace(seasonalActor, {});
+      expect(again.actions.filter((a) => a.id === action.id)).toEqual([
+        expect.objectContaining({
+          taskId: link.taskId,
+          status: "task_created",
+        }),
+      ]);
+      expect(
+        (
+          await createProjectSeoActionTask(seasonalActor, {
+            ...input,
+            observationId: repeat.id,
+            idempotencyKey: "seasonal-repeat",
+          })
+        ).taskId,
+      ).toBe(link.taskId);
+      vi.setSystemTime(new Date("2027-11-19T12:00:00Z"));
+      const nextAudit = await seasonalAudit("Segler", 2027);
+      const nextWorkspace = await getProjectSeoWorkspace(seasonalActor, {});
+      const nextAction = nextWorkspace.actions.find(
+        (row) =>
+          row.observationId === nextAudit.id && row.id.startsWith("seasonal:"),
+      );
+      expect(nextAction?.status).toBe("recommended");
+      expect(nextAction!.id).not.toBe(action.id);
+      const nextTask = await createProjectSeoActionTask(seasonalActor, {
+        observationId: nextAudit.id,
+        actionId: nextAction!.id,
+        idempotencyKey: "next-season",
+      });
+      expect(nextTask.taskId).not.toBe(link.taskId);
+    });
+
+    it("stores the worker's plan with the audit and shows it on the audit's report", async () => {
+      const project = await prisma.project.create({
+        data: { workspaceId, name: "Audit plan" },
+      });
+      const owner: SeoActor = {
+        ...actor,
+        owner: { kind: "project", id: project.id },
+      };
+      const task = await prisma.task.create({
+        data: {
+          name: "Completed audit",
+          ownerId: userId,
+          workspaceId,
+          projectId: project.id,
+          status: "COMPLETED",
+          assigneeId: coworkerId,
+        },
+      });
+      const base = legacyReport();
+      const step = {
+        pageUrl: base.request.url,
+        action: "Add a title",
+        why: "The page has no title.",
+        nextCheck: "The next audit reads a title.",
+      };
+      const body = JSON.stringify({
+        ...base,
+        recommendedPlan: {
+          ...step,
+          summary: "The audit found one issue.",
+          links: [{ pageUrl: base.request.url, findings: ["finding"] }],
+          // The second step is not readable: the plan ends before it, and the audit is still stored.
+          nextSteps: [{ ...step, why: 7 }],
+        },
+      });
+      const file = await prisma.taskFile.create({
+        data: {
+          taskId: task.id,
+          name: `seo-report-${task.id}.json`,
+          fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${task.id}/report.json`,
+          mimeType: "application/json",
+          size: BigInt(Buffer.byteLength(body)),
+          uploadedByCoworkerId: coworkerId,
+        },
+      });
+      const observation = await importProjectSeoAudit(
+        owner,
+        { taskId: task.id, fileId: file.id },
+        { fetchImpl: async () => new Response(body) },
+      );
+      const workspace = await getProjectSeoWorkspace(owner);
+      const plan = workspace.observations[0]?.auditPlan;
+      expect(plan).toMatchObject({
+        summary: "The audit found one issue.",
+        steps: [{ action: "Add a title", actionIds: ["1"] }],
+      });
+      expect(
+        workspace.actions.some(
+          (row) => row.observationId === observation.id && row.id === "1",
+        ),
+      ).toBe(true);
+    });
+
+    it("recovers page speed once from the exact saved report without changing earlier conclusions", async () => {
+      const project = await prisma.project.create({
+        data: { workspaceId, name: "Page speed recovery" },
+      });
+      const owner: SeoActor = {
+        ...actor,
+        owner: { kind: "project", id: project.id },
+      };
+      const task = await prisma.task.create({
+        data: {
+          name: "Completed audit",
+          ownerId: userId,
+          workspaceId,
+          projectId: project.id,
+          status: "COMPLETED",
+          assigneeId: coworkerId,
+        },
+      });
+      const base = legacyReport();
+      const body = JSON.stringify({
+        ...base,
+        speed: {
+          mobile: {
+            lab: {
+              none: "Not checked: public worker excluded PageSpeed Insights",
+            },
+            field: {
+              none: "Not checked: public worker excluded CrUX",
+              failed: true,
+            },
+          },
+        },
+      });
+      const file = await prisma.taskFile.create({
+        data: {
+          taskId: task.id,
+          name: `seo-report-${task.id}.json`,
+          fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${task.id}/report.json`,
+          mimeType: "application/json",
+          size: BigInt(Buffer.byteLength(body)),
+          uploadedByCoworkerId: coworkerId,
+        },
+      });
+      const input = { taskId: task.id, fileId: file.id },
+        recover = { ...input, recoverPageSpeed: true as const };
+      const fetchImpl = vi.fn(async () => new Response(body));
+      const observation = await importProjectSeoAudit(owner, input, {
+        fetchImpl,
+      });
+      const { pageSpeed, ...stored } = reportObject(observation.payload)!;
+      expect(pageSpeed).toBeDefined();
+      const old = { ...stored, retainedUnrecognizedField: "preserve" };
+      await prisma.projectSeoObservation.update({
+        where: { id: observation.id },
+        data: { payload: jsonInput(old) },
+      });
+      expect(
+        (await getProjectSeoWorkspace(owner)).observations[0]
+          .pageSpeedRecoveryFileId,
+      ).toBe(file.id);
+      await expect(
+        importProjectSeoAudit(owner, recover, {
+          fetchImpl: async () => new Response(body + " "),
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      await expect(
+        importProjectSeoAudit({ ...owner, userId: otherId }, recover, {
+          fetchImpl,
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+      const result = await importProjectSeoAudit(owner, recover, { fetchImpl });
+      expect(result.payload).toEqual({ ...old, pageSpeed });
+      const count = fetchImpl.mock.calls.length;
+      await importProjectSeoAudit(owner, recover, { fetchImpl });
+      expect(fetchImpl).toHaveBeenCalledTimes(count);
+      const latest = (await getProjectSeoWorkspace(owner)).observations[0];
+      expect(latest.pageSpeed?.[0]).toMatchObject({
+        lab: { status: "not_checked" },
+        field: { status: "not_checked" },
+      });
+      expect(latest.pageSpeedRecoveryFileId).toBeUndefined();
+    });
+
+    it.each([true, false])(
+      "recovers only saved site market fields on the exact existing observation (retained %s)",
+      async (retained) => {
+        const pageUrl = `https://market-recovery.test/${randomUUID()}`;
+        const project = await prisma.project.create({
+          data: { workspaceId, name: "Market recovery test" },
+        });
+        const owner: SeoActor = {
+          ...actor,
+          owner: { kind: "project", id: project.id },
+        };
+        const task = await prisma.task.create({
+          data: {
+            name: "Completed site audit",
+            ownerId: userId,
+            workspaceId,
+            projectId: project.id,
+            status: "COMPLETED",
+            assigneeId: coworkerId,
+          },
+        });
+        const base = siteStrategyReport();
+        const page = legacyReport();
+        const marketHost = {
+          host: "market-recovery.test",
+          role: "site",
+          etv: 114,
+          fetchedAt: "2026-10-01T00:00:00Z",
+          note: null,
+        };
+        const markets = {
+          rows: [
+            {
+              country: "FR",
+              language: "fr",
+              start: false,
+              rivals: 1,
+              of: 1,
+              share: 0.5,
+              etv: 90,
+              ownShare: 0,
+              hasLanguage: false,
+              regionVersion: null,
+              candidate: true,
+            },
+          ],
+          hosts: [
+            marketHost,
+            {
+              ...marketHost,
+              role: "product",
+              host: "direct-product.test",
+              etv: 180,
+            },
+          ],
+          outside: 0.5,
+          siteVisits: true,
+        };
+        const body = JSON.stringify({
+          ...base,
+          pages: [{ ...page, request: { url: pageUrl } }],
+          selection: { pages: [{ n: 1, url: pageUrl }] },
+          strategy: {
+            ...base.strategy,
+            markets: retained ? markets : undefined,
+          },
+        });
+        const file = await prisma.taskFile.create({
+          data: {
+            taskId: task.id,
+            name: `seo-report-${task.id}.json`,
+            fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${task.id}/report.json`,
+            mimeType: "application/json",
+            size: BigInt(Buffer.byteLength(body)),
+            uploadedByCoworkerId: coworkerId,
+          },
+        });
+        const input = { taskId: task.id, fileId: file.id };
+        const recover = { ...input, recoverMarkets: true };
+        const fetchImpl = vi.fn(async () => new Response(body));
+        await expect(
+          importProjectSeoAudit(owner, recover, { fetchImpl }),
+        ).rejects.toMatchObject({ status: 404 });
+        expect(fetchImpl).not.toHaveBeenCalled();
+        const imported = await importProjectSeoAudit(owner, input, {
+          fetchImpl,
+        });
+        const payload = reportObject(imported.payload)!;
+        if (retained)
+          expect(reportObject(payload.strategy)?.markets).toMatchObject({
+            rows: markets.rows,
+          });
+        else
+          expect(reportObject(payload.strategy)?.marketNote).toBe(
+            "unavailable",
+          );
+        const {
+          markets: _markets,
+          marketNote: _note,
+          ...storedStrategy
+        } = reportObject(payload.strategy)!;
+        const legacy = {
+          ...payload,
+          otherStoredField: "preserve",
+          strategy: { ...storedStrategy, otherStoredStrategyField: "preserve" },
+        };
+        await prisma.projectSeoObservation.update({
+          where: { id: imported.id },
+          data: { payload: jsonInput(legacy) },
+        });
+        const before = await getProjectSeoWorkspace(owner);
+        expect(before.strategy?.marketRecoveryFileId).toBe(file.id);
+        await expect(
+          importProjectSeoAudit(owner, recover, {
+            fetchImpl: async () => new Response(body + " "),
+          }),
+        ).rejects.toMatchObject({ status: 409 });
+        await expect(
+          importProjectSeoAudit({ ...owner, userId: otherId }, recover, {
+            fetchImpl,
+          }),
+        ).rejects.toMatchObject({ status: 404 });
+        const [first, second] = await Promise.all([
+          importProjectSeoAudit(owner, recover, { fetchImpl }),
+          importProjectSeoAudit(owner, recover, { fetchImpl }),
+        ]);
+        expect(first.id).toBe(imported.id);
+        expect(second).toEqual(first);
+        const expectedFields = retained
+          ? { markets: reportObject(payload.strategy)!.markets }
+          : { marketNote: "unavailable" };
+        expect(first).toEqual({
+          ...imported,
+          payload: {
+            ...legacy,
+            strategy: { ...legacy.strategy, ...expectedFields },
+          },
+        });
+        const reads = fetchImpl.mock.calls.length;
+        expect(
+          await importProjectSeoAudit(owner, recover, { fetchImpl }),
+        ).toEqual(first);
+        expect(fetchImpl).toHaveBeenCalledTimes(reads);
+        const after = await getProjectSeoWorkspace(owner);
+        expect(after.strategy).toMatchObject(expectedFields);
+        expect(after.strategy?.marketRecoveryFileId).toBeUndefined();
+      },
+    );
+
     it("imports only ready owned artifacts, rechecks source authority after fetch and links each action once", async () => {
       const edit = {
         target: "head > title",
@@ -1635,6 +2832,18 @@ describe.skipIf(!enabled)(
         const report = legacyReport();
         const body = JSON.stringify({
           ...report,
+          strategyDecisions: [
+            {
+              id: "local-gap",
+              kind: "content_opportunity",
+              targetUrl: report.request.url,
+              action: "Check the missing setup step",
+              reason: "Three audited result pages describe setup.",
+              alternative: "Link the existing getting started guide.",
+              nextCheck: "Review the rendered steps after publishing.",
+              evidence: ["public-heading-record"],
+            },
+          ],
           actions: report.actions.map((action) => ({ ...action, edit })),
         });
         const file = await prisma.taskFile.create({
@@ -1680,6 +2889,37 @@ describe.skipIf(!enabled)(
         ownerId: userId,
       });
       expect(createdTask.description).toContain(JSON.stringify(edit, null, 2));
+      const workspace = await getProjectSeoWorkspace(actor, {});
+      const decision = workspace.actions.find((a) => a.decision)!;
+      const strategyTask = await createProjectSeoActionTask(actor, {
+        observationId: decision.observationId,
+        actionId: decision.id,
+        idempotencyKey: "strategy-accept",
+      });
+      const strategyRow = await prisma.task.findUniqueOrThrow({
+        where: { id: strategyTask.taskId },
+      });
+      for (const text of [
+        decision.why,
+        decision.decision!.nextCheck,
+        decision.decision!.alternative,
+        ...decision.evidence,
+      ])
+        expect(strategyRow.description).toContain(text);
+      await prisma.task.update({
+        where: { id: strategyTask.taskId },
+        data: { visibility: "PRIVATE", ownerId: otherId },
+      });
+      expect(
+        JSON.stringify(await getProjectSeoWorkspace(actor, {})),
+      ).not.toContain(strategyTask.taskId);
+      await expect(
+        createProjectSeoActionTask(actor, {
+          observationId: decision.observationId,
+          actionId: decision.id,
+          idempotencyKey: "strategy-accept",
+        }),
+      ).rejects.toMatchObject({ status: 404 });
       const changed = await source();
       await expect(
         importProjectSeoAudit(actor, changed, {
@@ -1863,7 +3103,7 @@ describe.skipIf(!enabled)(
       ]);
     });
 
-    it("imports the readable SERP reads of a rankings result and refuses a read of an unrequested keyword", async () => {
+    it("imports valid rankings evidence alongside malformed difficulty and SERP reads", async () => {
       const page = await addProjectSeoPage(actor, {
         url: "https://example.test/rank-import",
         relationship: "primary",
@@ -1894,7 +3134,9 @@ describe.skipIf(!enabled)(
           ...base,
           requestId: analysis.id,
           scope: { ...base.scope, pageUrls: [page.url] },
-          keywords: [{ ...base.keywords[0], pageUrl: page.url }],
+          keywords: [
+            { ...base.keywords[0], pageUrl: page.url, difficulty: 140 },
+          ],
           serps,
         });
         const file = await prisma.taskFile.create({
@@ -1930,7 +3172,14 @@ describe.skipIf(!enabled)(
       const stored = await prisma.projectSeoObservation.findUniqueOrThrow({
         where: { id: imported.id },
       });
-      const payload = stored.payload as { serps?: unknown[]; notes: string[] };
+      const payload = stored.payload as {
+        keywords: Array<{ keyword: string }>;
+        serps?: unknown[];
+        notes: string[];
+      };
+      expect(payload.keywords).toHaveLength(1);
+      expect(payload.keywords[0]?.keyword).toBe("example");
+      expect(payload.keywords[0]).not.toHaveProperty("difficulty");
       expect(payload.serps).toHaveLength(1);
       expect(payload.notes).toContain(SEO_SERPS_NOT_READ);
       expect(

@@ -16,6 +16,7 @@ vi.mock("next-intl", () => ({
 
 vi.mock("@/lib/actions/soko-bot/action", () => ({
   sendSokoBotTurnFeedbackAction: sendFeedbackMock,
+  getSokoBotTurnConversationAction: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({

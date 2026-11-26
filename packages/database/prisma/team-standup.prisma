@@ -1,0 +1,57 @@
+/// The organization's daily agent stand-up (one per organization). Off until
+/// an admin turns it on. Core writes every agent's line from records, the host
+/// model writes only the summary line and proposes matches.
+model TeamStandup {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  enabled   Boolean   @default(false)
+  /// The "Stand-up" channel, made when the stand-up is first turned on.
+  roomId    String?   @db.Uuid
+  room      ChatRoom? @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  /// Local time "HH:MM" in `timezone`, on `weekdays` (1 Monday … 7 Sunday).
+  timeOfDay String    @default("09:00")
+  weekdays  Int[]     @default([1, 2, 3, 4, 5])
+  timezone  String    @default("Europe/Berlin")
+  /// Week in review: one weekly thread of what people and agents did, on
+  /// this weekday (1 Monday … 7 Sunday) at `timeOfDay`.
+  weekInReviewWeekday   Int       @default(1)
+  weekInReviewNextRunAt DateTime?
+
+  /// Most a stand-up may spend on model calls and hand-offs.
+  costCapUsdMicros BigInt    @default(100000)
+  nextRunAt        DateTime?
+  lastRunAt        DateTime?
+
+  runs TeamStandupRun[]
+
+  @@index([enabled, nextRunAt])
+  @@index([enabled, weekInReviewNextRunAt])
+  @@map("team_standup")
+}
+
+model TeamStandupRun {
+  id            String      @id @default(uuid(7)) @db.Uuid
+  createdAt     DateTime    @default(now())
+  standupId     String      @db.Uuid
+  standup       TeamStandup @relation(fields: [standupId], references: [id], onDelete: Cascade)
+  /// The slot this run is for; one run per slot.
+  scheduledFor  DateTime
+  /// DAILY (the stand-up) or WEEKLY (week in review).
+  kind          String      @default("DAILY")
+  /// POSTED, QUIET (nothing new: nothing posted), SKIPPED (paused) or FAILED.
+  status        String
+  /// The thread's root message.
+  messageId     String?     @db.Uuid
+  /// `{ agent, done, today, blocked }[]` and the matches, as posted.
+  lines         Json?
+  matches       Json?
+  costUsdMicros BigInt      @default(0)
+  error         String?
+
+  @@unique([standupId, kind, scheduledFor])
+  @@map("team_standup_run")
+}

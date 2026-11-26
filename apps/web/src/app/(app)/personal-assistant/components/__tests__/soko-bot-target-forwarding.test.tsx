@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   renderHook,
@@ -42,6 +43,7 @@ vi.mock("@/lib/composio/oauth-popup-protocol", () => ({
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/personal-assistant",
 }));
 vi.mock("next-intl", () => ({
   useTranslations: () =>
@@ -54,6 +56,7 @@ vi.mock("next-intl", () => ({
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+import { TestQueryProvider } from "@/test/query-provider";
 import { ArchiveSokoBotButton } from "../archive-soko-bot-button.client";
 import { DecisionCard } from "../chat/decision-card";
 import { TurnExplain } from "../chat/turn-explain";
@@ -68,9 +71,11 @@ import { useIntegrationActions } from "../use-integration-actions";
 
 function SharedBot({ children }: { children: ReactNode }) {
   return (
-    <SokoBotTargetContext.Provider value={BOT_ID}>
-      {children}
-    </SokoBotTargetContext.Provider>
+    <TestQueryProvider>
+      <SokoBotTargetContext.Provider value={BOT_ID}>
+        {children}
+      </SokoBotTargetContext.Provider>
+    </TestQueryProvider>
   );
 }
 
@@ -169,12 +174,12 @@ describe("console panels act on the shared bot in context", () => {
   });
 
   it("schedule toggle and delete", async () => {
-    renderShared(<ScheduleRowActions scheduleId="s1" enabled />);
+    renderShared(<ScheduleRowActions scheduleId="s1" name="Weekly" enabled />);
     fireEvent.click(screen.getByRole("switch"));
     await waitFor(() =>
       expect(actions.updateSokoBotScheduleAction).toHaveBeenCalledWith(withBot),
     );
-    fireEvent.click(screen.getByRole("button", { name: "delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "deleteNamed" }));
     fireEvent.click(
       await screen.findByRole("button", { name: "deleteConfirm" }),
     );
@@ -222,13 +227,44 @@ describe("console panels act on the shared bot in context", () => {
     );
   });
 
+  it("shows the translated failure label without exposing a tool diagnostic", async () => {
+    const turn = {
+      capabilityNames: ["search_inbox"],
+      events: [
+        {
+          id: "event-1",
+          type: "actions.requested",
+          toolName: "search_inbox",
+        },
+      ],
+      toolCalls: [
+        {
+          capability: "search_inbox",
+          status: "FAILED",
+          errorKind: "provider_error",
+          errorDetail: "Raw tool provider diagnostic",
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ turn })),
+    );
+    renderShared(<TurnExplain turnId="t1" stepCount={1} />);
+    fireEvent.click(screen.getByRole("button", { name: /toggle/ }));
+
+    const failure = await screen.findByText(/^failed/);
+    expect(failure.textContent).toBe("failed");
+    expect(screen.queryByRole("button", { name: /rawResult/ })).toBeNull();
+  });
+
   it("integration connect and disconnect", async () => {
     const assign = vi.fn();
     vi.stubGlobal("location", { origin: "https://app.test", assign });
     const { result } = renderHook(() => useIntegrationActions(), {
       wrapper: SharedBot,
     });
-    result.current.connect("gmail");
+    await act(async () => result.current.connect("gmail"));
     await waitFor(() => expect(assign).toHaveBeenCalled());
     expect(actions.connectSokoBotIntegrationAction).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -237,7 +273,7 @@ describe("console panels act on the shared bot in context", () => {
       }),
     );
     expect(rememberMock).toHaveBeenCalledWith(BOT_ID);
-    result.current.disconnect("gmail");
+    await act(async () => result.current.disconnect("gmail"));
     await waitFor(() =>
       expect(actions.disconnectSokoBotIntegrationAction).toHaveBeenCalledWith(
         withBot,

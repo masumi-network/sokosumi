@@ -87,6 +87,16 @@ if (process.env.POSTGRES_TEST_DATABASE_PER_WORKER === "true" && poolId) {
 // shell would switch Better Auth to versioned keys.
 delete process.env.BETTER_AUTH_SECRETS;
 
+// Unit tests run on today's layout, every schema `public` and Preprod off,
+// whatever the shell says. A PostgreSQL run keeps the names and the flag, so it
+// can run against the split layout.
+if (process.env.RUN_DATABASE_INTEGRATION_TESTS !== "true") {
+  delete process.env.DATABASE_SCHEMA_SHARED;
+  delete process.env.DATABASE_SCHEMA_MAINNET;
+  delete process.env.DATABASE_SCHEMA_PREPROD;
+  delete process.env.NETWORK_PREPROD_ENABLED;
+}
+
 // `@sentry/node` costs ~350ms to load in every test file that reaches it, and
 // helpers import it directly to report errors. A file that asserts on Sentry
 // mocks it itself, which takes precedence over this stub.
@@ -104,6 +114,8 @@ vi.mock("@sentry/node", () => {
     init: vi.fn(),
     captureException: vi.fn(),
     captureMessage: vi.fn(),
+    captureCheckIn: vi.fn(() => "check-in-id"),
+    flush: vi.fn(async () => true),
     addBreadcrumb: vi.fn(),
     getCurrentScope: () => scope,
     getActiveSpan: () => undefined,
@@ -114,6 +126,30 @@ vi.mock("@sentry/node", () => {
       callback(undefined),
     httpIntegration: () => ({}),
     requestDataIntegration: () => ({}),
+  };
+});
+
+// Better Auth seeds the MCP resource row whenever Core's `auth` starts (ADR
+// 0076), and many route tests load `auth`. A unit run has no database, so
+// that one table answers here, as if the row exists: startup never reaches
+// the placeholder `DATABASE_URL`, which fails at error level in CI and hangs
+// locally. A file that mocks Prisma itself takes precedence; a mock without
+// `oauthResource` reads as a table not created yet, which Better Auth skips
+// quietly. A run against PostgreSQL keeps the real client.
+vi.mock("@/lib/db/prisma", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/db/prisma")>();
+  if (process.env.DATABASE_URL?.startsWith("postgres")) {
+    return actual;
+  }
+  const row = ({ where }: { where: { identifier: string } }) =>
+    Promise.resolve({ id: "mcp-resource", identifier: where.identifier });
+  const oauthResource = { findFirst: row, update: row };
+  return {
+    ...actual,
+    default: new Proxy(actual.default, {
+      get: (target, key) =>
+        key === "oauthResource" ? oauthResource : Reflect.get(target, key),
+    }),
   };
 });
 

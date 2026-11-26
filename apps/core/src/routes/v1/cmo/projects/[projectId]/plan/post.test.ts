@@ -1,3 +1,4 @@
+import { PrismaRaw } from "@sokosumi/database/client";
 import { err, ok } from "neverthrow";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -386,16 +387,19 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
       lastPaidOrderId: "order_y1",
     });
     m.prisma.$transaction.mockImplementation((run) => run(m.prisma));
-    m.prisma.$queryRaw.mockImplementation(async (sql: string[]) =>
-      sql.join("?").includes('"polar_subscription"')
-        ? [
-            {
-              endedAt: null,
-              lastPaidOrderId: "order_y1",
-              lastPaidOrderRefundedAt: null,
-            },
-          ]
-        : [],
+    m.prisma.$queryRaw.mockImplementation(
+      async (strings: TemplateStringsArray, ...values: unknown[]) =>
+        PrismaRaw.sql(strings, ...values).sql.includes(
+          'UPDATE "public"."polar_subscription"',
+        )
+          ? [
+              {
+                endedAt: null,
+                lastPaidOrderId: "order_y1",
+                lastPaidOrderRefundedAt: null,
+              },
+            ]
+          : [],
     );
     m.prisma.task.findMany.mockResolvedValue([]);
     m.prisma.transaction.create.mockResolvedValue({ id: "tx_1" });

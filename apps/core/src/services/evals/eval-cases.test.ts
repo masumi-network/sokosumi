@@ -1,12 +1,14 @@
-import { SOKO_BOT_CAPABILITIES } from "@sokosumi/soko-bot";
+import { SAVES_FILE_TOOLS, SOKO_BOT_CAPABILITIES } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
-import { EVAL_CASES, selectEvalCases } from "./eval-cases";
+import { EVAL_CASES, isJudgedEvalCase, selectEvalCases } from "./eval-cases";
 
 /** The tools a case checks the bot calls, or does not call. */
 function toolsCaseChecks(): Set<string> {
   const tools = new Set<string>();
   for (const evalCase of EVAL_CASES) {
     if (evalCase.kind === "cmo-research") tools.add("save_brand_brain");
+    // A month on cmo-v6 checks that Core wrote it (write_month_pieces).
+    if (evalCase.kind === "cmo-month") tools.add("write_month_pieces");
     if (evalCase.kind === "cmo-strategy") tools.add("save_strategy");
     if (evalCase.kind !== "scenario") continue;
     const { expect: wanted } = evalCase.scenario;
@@ -14,6 +16,7 @@ function toolsCaseChecks(): Set<string> {
       ...(wanted.tools ?? []),
       ...(wanted.anyTools ?? []),
       ...(wanted.forbiddenTools ?? []),
+      ...(wanted.savesFile ? SAVES_FILE_TOOLS : []),
     ])
       tools.add(tool);
   }
@@ -25,13 +28,11 @@ function toolsCaseChecks(): Set<string> {
  * case before it ships, and a tool that gains one leaves the list.
  */
 const NOT_YET_COVERED = new Set([
-  "ask_coworker",
   "create_ad_campaign",
   "create_project",
   "delete_ad_campaign",
   "edit_ad_campaign",
   "enrich_contact",
-  "find_people",
   "log_contact_interaction",
   "merge_contacts",
   "update_ad_campaign",
@@ -59,7 +60,6 @@ const NOT_YET_COVERED = new Set([
   "get_newsletter_analytics",
   "get_newsletter_issue",
   "get_posting_instructions",
-  "get_social_post",
   "get_video",
   "install_skill",
   "list_ad_accounts",
@@ -67,12 +67,10 @@ const NOT_YET_COVERED = new Set([
   "list_background_runs",
   "list_contact_lists",
   "list_integration_tools",
-  "list_integrations",
   "list_newsletter_issues",
   "list_newsletter_subscribers",
   "list_skills",
   "list_social_account_statistics",
-  "list_social_post_statistics",
   "list_tables",
   "manage_reminder",
   "move_file",
@@ -103,7 +101,6 @@ const NOT_YET_COVERED = new Set([
   "update_table_columns",
   "workspace_import_file",
   "workspace_list",
-  "workspace_read",
   "workspace_search",
   "write_table_rows",
   // Provider-backed SEO tools have isolated integration tests, not model cases.
@@ -205,7 +202,30 @@ describe("CMO chat setup", () => {
       return found?.kind === "scenario" ? found.prepare : undefined;
     };
     expect(prepared("cmo-change-request")).toBe("cmo-plan");
+    expect(prepared("cmo-change-reply-plain")).toBe("cmo-plan");
+    expect(prepared("cmo-funnel-aida")).toBe("cmo-plan");
+    expect(prepared("cmo-video-shapes-alsoon")).toBe("cmo-plan");
+    expect(prepared("cmo-ads-yes")).toBe("cmo-plan-ads");
     expect(prepared("cmo-comment-replies")).toBe("cmo-comments");
     expect(prepared("cmo-brand-fit")).toBe("cmo-brand");
+  });
+});
+
+describe("judged cases", () => {
+  it("are the scenario cases a judge grades, not the check-only ones", () => {
+    const byId = (id: string) => {
+      const found = EVAL_CASES.find((item) => item.id === id);
+      if (!found) throw new Error(`Missing case ${id}`);
+      return found;
+    };
+    expect(isJudgedEvalCase(byId("ambiguous-request"))).toBe(true);
+    const month = EVAL_CASES.find((item) => item.kind === "cmo-month");
+    if (!month) throw new Error("Missing month case");
+    expect(isJudgedEvalCase(month)).toBe(false);
+    expect(
+      EVAL_CASES.filter((item) => item.kind === "standup").every(
+        (item) => !isJudgedEvalCase(item),
+      ),
+    ).toBe(true);
   });
 });

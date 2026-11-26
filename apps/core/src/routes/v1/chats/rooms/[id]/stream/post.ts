@@ -50,6 +50,7 @@ import {
   ensureThreadProviderConversation,
   THREAD_PROVIDER_CONVERSATION_ID_KEY,
 } from "@/helpers/room-stream-thread";
+import { getCoworkerAuthorizationHeader } from "@/lib/coworker-request-auth";
 import prisma from "@/lib/db/prisma";
 import {
   emitCoreError,
@@ -530,9 +531,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       };
 
+      const coworkerBaseUrl = coworker.baseURL.trim();
       const sokosumiProviderOptions: SokosumiProviderCallOptions = {
         mode: "coworker",
-        coworkerBaseUrl: coworker.baseURL.trim(),
+        coworkerBaseUrl,
         coworkerSlug: coworker.slug,
         sokosumiUserId: userContext.userId,
         sokosumiOrganizationId: roomOrganizationId,
@@ -540,6 +542,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         providerConversationId,
         imageGenerationModel: null,
         webSearchEnabled: false,
+        getAuthorization: () =>
+          getCoworkerAuthorizationHeader({
+            coworkerBaseUrl,
+            userId: userContext.userId,
+            organizationId: roomOrganizationId,
+            coworkerSlug: coworker.slug,
+          }),
         onResponseStarted: async (responseId: string) => {
           responsesApiResponseIdRef.current = responseId;
           await setPendingResponseMirror(pendingResponseScope, responseId);
@@ -561,6 +570,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
 
       const result = streamText({
+        telemetry: { functionId: "chat-room-stream" },
         model: getSokosumiProvider()(null),
         messages: modelMessages,
         allowSystemInMessages: true,

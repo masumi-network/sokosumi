@@ -61,6 +61,72 @@ describe("FilterDropdownMenu", () => {
     expect(onChange).toHaveBeenCalledWith("Europe/Prague");
   });
 
+  it("shows a person's initials as the Task cards do", async () => {
+    const user = userEvent.setup();
+    render(
+      <FilterDropdownMenu
+        buttonLabel="Filter"
+        searchPlaceholder="Search..."
+        emptyResultsLabel="No results"
+        sections={[
+          {
+            id: "coworker",
+            label: "Coworker",
+            icon: Folder,
+            value: null,
+            onChange: vi.fn(),
+            options: [
+              {
+                value: "u-1",
+                label: "Mira Tester",
+                avatarLabel: "Mira Tester",
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+    await user.click(screen.getByLabelText("Filter"));
+    await user.click(screen.getByRole("button", { name: /^Coworker/ }));
+    expect(
+      screen.getByRole("option", { name: /Mira Tester/ }),
+    ).toHaveTextContent("MT");
+  });
+
+  it("ends the menu and the sheet with Reset, which resets and closes", async () => {
+    const user = userEvent.setup();
+    const onReset = vi.fn();
+    render(
+      <FilterDropdownMenu
+        buttonLabel="Filter"
+        searchPlaceholder="Search..."
+        emptyResultsLabel="No results"
+        sections={[
+          {
+            id: "status",
+            label: "Status",
+            icon: Folder,
+            value: null,
+            onChange: vi.fn(),
+            options: [{ value: "done", label: "Done" }],
+          },
+        ]}
+        resetAction={{ label: "Reset filters", onReset }}
+      />,
+    );
+    const [desktop, mobile] = screen.getAllByRole("button", { name: "Filter" });
+
+    await user.click(desktop as HTMLElement);
+    await user.click(screen.getByRole("menuitem", { name: "Reset filters" }));
+    expect(onReset).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menu")).toBeNull();
+
+    await user.click(mobile as HTMLElement);
+    await user.click(screen.getByRole("button", { name: "Reset filters" }));
+    expect(onReset).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
   it("opts mobile sheet scroll area into shrinkable content width", () => {
     expect(filterDropdownMenuSource).toContain("shrinkContent");
     expect(filterDropdownMenuSource).toContain("max-w-[100vw]");

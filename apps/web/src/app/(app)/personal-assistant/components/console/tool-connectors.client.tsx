@@ -5,10 +5,12 @@ import type {
   SokoBotIntegrations,
 } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, Loader2, Search } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useContext, useRef, useState } from "react";
 import { LoadErrorState } from "@/components/common/load-error-state";
+import { PageListSearchContext } from "@/components/page-list-search";
+import { PageSearchField } from "@/components/page-search-field";
 import { SOKO_BOT_PROVIDER_LOGOS } from "@/components/soko-bot/provider-logos";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,8 +23,10 @@ import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
+import { useTimeout } from "@/hooks/effects/use-timeout";
+import { useToolConnectorsLinkedQuerySeed } from "@/hooks/effects/use-tool-connectors-linked-query-seed";
 import { searchSokoBotIntegrationCatalogAction } from "@/lib/actions/soko-bot/action";
 import { cn } from "@/lib/utils";
 import {
@@ -56,16 +60,22 @@ interface Connector {
  * in for it, and a failed search stays failed while Try again runs.
  */
 function useCatalog(query: string, enabled: boolean) {
-  const [debounced, setDebounced] = useState(query);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(query), SEARCH_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [query]);
+  const trimmed = query.trim();
+  const [debounced, setDebounced] = useState(trimmed);
+  if (trimmed === "" && debounced !== "") {
+    setDebounced("");
+  }
+  const activeQuery = trimmed === "" ? "" : debounced;
+  useTimeout(
+    () => setDebounced(trimmed),
+    trimmed === "" || trimmed === debounced ? null : SEARCH_DELAY_MS,
+    trimmed,
+  );
   const catalog = useQuery({
-    queryKey: ["soko-bot-integration-catalog", debounced.trim()],
+    queryKey: ["soko-bot-integration-catalog", activeQuery],
     queryFn: async (): Promise<SokoBotIntegrationCatalogEntry[]> => {
       const result = await searchSokoBotIntegrationCatalogAction({
-        query: debounced.trim(),
+        query: activeQuery,
       });
       // A failed search is not an empty one; Try again is the retry.
       if (!result.ok) throw new Error("Catalog search failed");
@@ -84,7 +94,7 @@ function useCatalog(query: string, enabled: boolean) {
     catalog.isError ||
     (inFlight && catalog.errorUpdatedAt > catalog.dataUpdatedAt);
   const phase: "searching" | "failed" | "done" =
-    query.trim() !== debounced.trim()
+    trimmed !== activeQuery
       ? "searching"
       : failed
         ? "failed"
@@ -115,18 +125,24 @@ export function ToolConnectors({
   const now = useNow({ updateInterval: 60_000 });
   const { busy, connect, disconnect } = useIntegrationActions();
   // A connect link's search obeys the same limit as a typed one.
-  const [query, setQuery] = useState(() =>
-    (focusProvider ?? "").slice(0, SEARCH_MAX_LENGTH),
+  const linkedQuery = (focusProvider ?? "").slice(0, SEARCH_MAX_LENGTH);
+  const [localQuery, setLocalQuery] = useState(linkedQuery);
+  const pageSearch = useContext(PageListSearchContext);
+  const query = (pageSearch?.query ?? localQuery).slice(0, SEARCH_MAX_LENGTH);
+  useToolConnectorsLinkedQuerySeed(
+    linkedQuery,
+    readOnly,
+    integrations.configured,
   );
   const catalog = useCatalog(query, !readOnly);
   const focused = useRef<HTMLLIElement>(null);
   // A connect link never searches on a read-only bot.
   const searching = !readOnly && query.trim().length > 0;
 
-  useEffect(() => {
-    if (focusProvider && catalog.data)
-      focused.current?.scrollIntoView({ block: "center" });
-  }, [focusProvider, catalog.data]);
+  useScrollIntoViewWhen(focused, catalog.data ? focusProvider : false, {
+    block: "center",
+    resetKey: catalog.data,
+  });
 
   if (!integrations.configured) {
     return <p className="text-muted-foreground text-sm">{t("unavailable")}</p>;
@@ -173,22 +189,13 @@ export function ToolConnectors({
 
   return (
     <div className="space-y-3">
-      {readOnly ? null : (
-        <div className="relative">
-          <Search
-            aria-hidden
-            className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
-          />
-          <Input
-            type="search"
-            maxLength={SEARCH_MAX_LENGTH}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t("searchPlaceholder")}
-            aria-label={t("searchPlaceholder")}
-            className="ps-9"
-          />
-        </div>
+      {!pageSearch && !readOnly && (
+        <PageSearchField
+          maxLength={SEARCH_MAX_LENGTH}
+          value={localQuery}
+          onValueChange={setLocalQuery}
+          placeholder={t("searchPlaceholder")}
+        />
       )}
       {searching && (catalog.phase !== "done" || !catalog.data?.length) ? (
         <SearchOutcome query={query.trim()} catalog={catalog} />

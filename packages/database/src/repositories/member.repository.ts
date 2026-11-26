@@ -8,6 +8,7 @@ import {
   memberUserInclude,
 } from "../types/member.js";
 import { MemberRole } from "../types/organization.js";
+import type { SharedDb } from "../types/shared-db.js";
 
 async function getMembersWithUser(
   where: Prisma.MemberWhereInput,
@@ -77,7 +78,7 @@ export const memberRepository = {
   async getMemberByUserIdAndOrganizationId(
     userId: string,
     organizationId: string,
-    tx: Prisma.TransactionClient,
+    tx: SharedDb,
   ): Promise<Member | null> {
     return await tx.member.findUnique({
       where: {
@@ -224,8 +225,8 @@ export const memberRepository = {
         include: memberUserInclude,
         orderBy: [...memberOrderBy, { id: "asc" }],
         take: params.take,
-        skip: params.skip,
-        cursor: params.cursor ? { id: params.cursor } : undefined,
+        ...(params.skip !== undefined && { skip: params.skip }),
+        ...(params.cursor && { cursor: { id: params.cursor } }),
       }),
       tx.member.count({ where }),
     ]);

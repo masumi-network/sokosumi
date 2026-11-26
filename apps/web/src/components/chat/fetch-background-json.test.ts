@@ -1,10 +1,10 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useChatRefreshScheduler } from "@/hooks/effects/use-chat-refresh-scheduler";
 import { resetChatReadThrottleForTests } from "@/lib/chat/chat-read-throttle";
 
 import { fetchBackgroundJson } from "./fetch-background-json";
-import { useChatRefreshScheduler } from "./use-chat-refresh-scheduler";
 
 const TIMEOUT_MS = 20_000;
 
@@ -331,5 +331,25 @@ describe("fetchBackgroundJson", () => {
     expect(refresh).not.toHaveBeenCalled();
 
     unmount();
+  });
+
+  it("clears deadline and attempt timers synchronously when the caller signal aborts", async () => {
+    const stalled = Promise.withResolvers<Response>();
+    fetchMock.mockReturnValue(stalled.promise);
+    const caller = new AbortController();
+
+    const read = fetchBackgroundJson(
+      "/api/chat/rooms",
+      TIMEOUT_MS,
+      undefined,
+      caller.signal,
+    );
+    expect(vi.getTimerCount()).toBe(2);
+
+    caller.abort();
+    expect(vi.getTimerCount()).toBe(0);
+
+    stalled.reject(new DOMException("Aborted", "AbortError"));
+    await expect(read).resolves.toBeNull();
   });
 });

@@ -2,12 +2,14 @@ import { createRoute } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
+import { resolveFileActor } from "@/lib/files/actor";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
+import { studioImageModelId } from "@/lib/image-studio/catalog";
 import { imageStudioValidationHook } from "@/lib/image-studio/request-validation";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   createImageJobRequestSchema,
@@ -63,7 +65,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(
     route,
     async (c) => {
-      const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+      const userContext = requireUserAuthContext(c.var.authContext);
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
       const { id: projectId } = c.req.valid("param");
       const input = c.req.valid("json");
@@ -85,15 +87,17 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         useProductCutout: input.useProductCutout,
         reuseParentCutout: true,
         reuseParentHeadlineIfAvailable: true,
-        modelId: input.modelId,
+        modelId:
+          input.letterExistingBackdrop && input.lettering === "ideogram"
+            ? "ideogram-v3"
+            : studioImageModelId(),
         settings: { ...DEFAULT_SETTINGS, ...input.settings },
         referenceAssetIds: input.referenceAssetIds,
         referenceFileIds: input.referenceFileIds,
-        referenceFileActor: {
-          userId: userContext.userId,
-          organizationId: workspaceContext.organizationId,
-          kind: "interactive",
-        },
+        referenceFileActor: resolveFileActor(
+          { source: "session", ...userContext },
+          { organizationId: workspaceContext.organizationId },
+        ),
         parentAssetId: input.parentAssetId,
         idempotencyKey: input.idempotencyKey,
       });

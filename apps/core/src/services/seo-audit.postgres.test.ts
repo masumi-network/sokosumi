@@ -235,6 +235,77 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
     ).rejects.toMatchObject({ status: 404 });
   });
 
+  it("lists each Audit's newest check, failed when its Task ended without a result", async () => {
+    const created = await createSeoAudit(actor, {
+      name: "Last check collection",
+      firstPage: { ...firstPage, url: "https://last-check.example.test/" },
+    });
+    const auditId = created.auditId ?? "";
+    const lastCheck = async () =>
+      (await listSeoAudits(actor, { limit: 100 })).audits.find(
+        (audit) => audit.id === auditId,
+      )?.lastCheck;
+    expect(await lastCheck()).toBeNull();
+    const check = (
+      kind: string,
+      status: string,
+      createdAt: Date,
+      taskId?: string,
+    ) =>
+      prisma.projectSeoAnalysis.create({
+        data: {
+          auditId,
+          idempotencyKey: randomUUID(),
+          requestHash: "x",
+          kind,
+          status,
+          createdAt,
+          request: {},
+          requestedBy: userId,
+          ...(taskId && { taskId }),
+        },
+      });
+    await check("audit_full", "completed", new Date("2026-11-01T10:00Z"));
+    const canceled = await prisma.task.create({
+      data: {
+        name: "SEO page check",
+        workspaceId,
+        status: "CANCELED",
+        ownerId: userId,
+      },
+    });
+    await check(
+      "page_check",
+      "requested",
+      new Date("2026-11-02T10:00Z"),
+      canceled.id,
+    );
+    expect(await lastCheck()).toMatchObject({
+      kind: "page_check",
+      status: "failed",
+    });
+    // Another member's private Task: the reader sees the stored status, as on the audit page.
+    const hidden = await prisma.task.create({
+      data: {
+        name: "Private SEO check",
+        workspaceId,
+        status: "CANCELED",
+        ownerId: foreignUserId,
+        visibility: "PRIVATE",
+      },
+    });
+    await check(
+      "rankings",
+      "requested",
+      new Date("2026-11-03T10:00Z"),
+      hidden.id,
+    );
+    expect(await lastCheck()).toMatchObject({
+      kind: "rankings",
+      status: "requested",
+    });
+  });
+
   it("lists only the scoped Project's Audits and refuses a foreign Project scope", async () => {
     const project = await prisma.project.create({
       data: { workspaceId, name: "Scoped SEO Project" },
@@ -257,7 +328,7 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
     ).rejects.toMatchObject({ status: 404 });
   });
 
-  it("removes a saved Audit from links and counts while preserving the Project and a previously issued cursor", async () => {
+  it("archives and restores an Audit over HTTP without losing a page or a previously issued cursor", async () => {
     const project = await prisma.project.create({
       data: { workspaceId, name: "Audit list cursor" },
     });
@@ -266,15 +337,21 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
     }
     const scope = { projectId: project.id, limit: 1 };
     const first = await listSeoAudits(actor, scope);
-    const removed = first.audits[0];
-    expect(removed.canDelete).toBe(true);
+    const selected = first.audits[0];
     const cursor = first.pagination.nextCursor!;
     const expected = await listSeoAudits(actor, { ...scope, cursor });
-    const url = `http://localhost/seo/audits/${removed.id}`;
+    const url = `http://localhost/seo/audits/${selected.id}`;
+    const setArchived = (archived: boolean) =>
+      routeApp().request(url, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived }),
+      });
+    expect((await routeApp().request(url, { method: "DELETE" })).status).toBe(
+      404,
+    );
     for (let attempt = 0; attempt < 2; attempt++)
-      expect((await routeApp().request(url, { method: "DELETE" })).status).toBe(
-        204,
-      );
+      expect((await setArchived(true)).status).toBe(204);
     for (const path of ["", "/workspace", "/brief"])
       expect((await routeApp().request(url + path)).status).toBe(404);
     const next = await listSeoAudits(actor, { ...scope, cursor });
@@ -283,14 +360,21 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
     );
     expect(next.pagination.total).toBe(2);
     expect((await listSeoAudits(actor, scope)).audits[0].id).not.toBe(
-      removed.id,
+      selected.id,
     );
     expect(
-      await prisma.projectSeoPage.count({ where: { auditId: removed.id } }),
+      await prisma.projectSeoPage.count({ where: { auditId: selected.id } }),
     ).toBe(1);
-    expect(
-      await prisma.project.findUnique({ where: { id: project.id } }),
-    ).not.toBeNull();
+    const archivedList = await routeApp().request(
+      `http://localhost/seo/audits?projectId=${project.id}&status=archived`,
+    );
+    expect(await archivedList.json()).toMatchObject({
+      data: [{ id: selected.id }],
+    });
+    for (let attempt = 0; attempt < 2; attempt++)
+      expect((await setArchived(false)).status).toBe(204);
+    expect((await listSeoAudits(actor, scope)).audits[0].id).toBe(selected.id);
+    expect((await routeApp().request(url)).status).toBe(200);
   });
 
   it("rejects a foreign optional Project link without retaining an Audit or its first page", async () => {

@@ -1,22 +1,25 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Check, Copy, LockKeyhole } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { FundraisingLink } from "@/app/fundraising/components/fundraising-link";
 import { Button } from "@/components/ui/button";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useClipboard } from "@/hooks/use-clipboard";
+import { useClipboard } from "@/hooks/effects/use-clipboard";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import { fetchDataRoom } from "@/lib/utils/data-room.client";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import { driveQueryKeys, splitDriveQueryKey } from "@/queries/drive";
+import { useScopedQuery } from "@/queries/scoped-queries";
 import { DataRoomActivity } from "./data-room-activity";
 import { DataRoomColleagues } from "./data-room-colleagues";
+import { DataRoomCompanyPanel } from "./data-room-company";
 import { DataRoomContents } from "./data-room-contents";
 import { DataRoomPeople } from "./data-room-people";
 import { DataRoomQuestions } from "./data-room-questions";
@@ -27,6 +30,7 @@ const ROOM_TABS = [
   "activity",
   "questions",
   "contents",
+  "company",
   "settings",
 ] as const;
 
@@ -51,9 +55,9 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
   const store: FileStore = driveStoreForActiveWorkspace(
     session?.session?.activeOrganizationId ?? null,
   );
-  const query = useQuery({
-    queryKey: ["drive", "data-room", roomId, store],
-    queryFn: () => fetchDataRoom({ store, roomId }),
+  const query = useScopedQuery({
+    ...splitDriveQueryKey(driveQueryKeys.dataRoom(store, roomId)),
+    queryFn: ({ signal }) => fetchDataRoom({ store, roomId, signal }),
     enabled: Boolean(session),
   });
   const { copied, copy } = useClipboard({
@@ -83,7 +87,6 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
     typeof window === "undefined"
       ? ""
       : `${window.location.origin}/share/rooms/${encodeURIComponent(room.token)}`;
-  const refresh = () => void query.refetch();
 
   return (
     <div className="flex w-full flex-col gap-4 p-4">
@@ -105,7 +108,7 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
         </span>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-semibold">{name}</h1>
-          <p className="text-muted-foreground truncate text-sm">
+          <p className="text-muted-foreground text-sm text-pretty">
             {t(`storage.${room.storage}`)}
           </p>
         </div>
@@ -113,6 +116,8 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
           type="button"
           variant="outline"
           size="sm"
+          // An icon on a phone, so the name and privacy line keep the row.
+          className="max-md:size-10"
           disabled={!link}
           onClick={() => void copy(link)}
         >
@@ -121,8 +126,9 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
           ) : (
             <Copy aria-hidden className="size-4" />
           )}
-          {t("copyLink")}
+          <span className="max-md:sr-only">{t("copyLink")}</span>
         </Button>
+        <FundraisingLink />
       </header>
 
       <Tabs
@@ -135,7 +141,7 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
         }}
         className="gap-3"
       >
-        {/* Five tabs are wider than a phone: scroll them, or Settings is cut off. */}
+        {/* Six tabs are wider than a phone: scroll them, or Settings is cut off. */}
         <TabsList className="app-scrollbar max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="people">
             {t("tabs.people", {
@@ -145,6 +151,7 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
           <TabsTrigger value="activity">{t("tabs.activity")}</TabsTrigger>
           <TabsTrigger value="questions">{t("tabs.questions")}</TabsTrigger>
           <TabsTrigger value="contents">{t("tabs.contents")}</TabsTrigger>
+          <TabsTrigger value="company">{t("tabs.company")}</TabsTrigger>
           <TabsTrigger value="settings">{t("tabs.settings")}</TabsTrigger>
         </TabsList>
         <div className={cn(HOLDER_CLASS, "grid gap-2")}>
@@ -157,7 +164,6 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
                 makerId={room.createdByUserId}
                 colleagues={colleagues}
                 canChoose={canChooseColleagues}
-                onChanged={refresh}
               />
             ) : null}
             <DataRoomPeople
@@ -165,7 +171,6 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
               roomId={room.id}
               members={members}
               rows={rows}
-              onChanged={refresh}
               focusInvite={focusInvite}
             />
           </TabsContent>
@@ -186,20 +191,13 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
             />
           </TabsContent>
           <TabsContent value="contents">
-            <DataRoomContents
-              store={store}
-              roomId={room.id}
-              rows={rows}
-              onChanged={refresh}
-            />
+            <DataRoomContents store={store} roomId={room.id} rows={rows} />
+          </TabsContent>
+          <TabsContent value="company">
+            <DataRoomCompanyPanel store={store} room={room} rows={rows} />
           </TabsContent>
           <TabsContent value="settings">
-            <DataRoomSettingsPanel
-              store={store}
-              room={room}
-              rows={rows}
-              onChanged={refresh}
-            />
+            <DataRoomSettingsPanel store={store} room={room} rows={rows} />
           </TabsContent>
         </div>
       </Tabs>

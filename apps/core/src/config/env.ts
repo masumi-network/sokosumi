@@ -8,6 +8,11 @@ import { v4 as uuidv4 } from "uuid";
 import { emitCoreWarning, recordCoreWarning } from "@/lib/evlog";
 // The checks below report through Core's logger: started before they run.
 import "@/lib/evlog-init";
+import { invalidVariables } from "@/config/invalid-variables";
+import {
+  checkNetworkLayout,
+  networkLayoutShape,
+} from "@/config/network-layout";
 import { failStartup } from "@/lib/startup-failure";
 
 // Blank means unset, so a copied `KEY=` line does not fail startup.
@@ -78,6 +83,7 @@ const baseEnvSchema = z.object({
 
   // Database
   DATABASE_URL: z.url(),
+  ...networkLayoutShape,
 
   // Task tags use global Jev routing with enforced retention/no-training options.
   TASK_TAG_CLASSIFICATION_ENABLED: z
@@ -178,6 +184,10 @@ const baseEnvSchema = z.object({
   POLAR_WEBHOOK_SECRET: z.string().min(1).optional(),
   POLAR_ENVIRONMENT: z.enum(["sandbox", "production"]).optional(),
 
+  // Measurement Protocol secret of CMO.xyz's GA4 stream: Polar purchases,
+  // refunds and cancellations go to it. Unset sends nothing; production only.
+  GA4_MP_API_SECRET: z.string().min(1).optional(),
+
   // Project newsletters use a separate sending domain from transactional email.
   NEWSLETTER_FROM_DOMAIN: z.hostname().optional(),
   RESEND_NEWSLETTER_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -249,6 +259,28 @@ const baseEnvSchema = z.object({
     )
     .pipe(z.array(z.uuid())),
   /**
+   * Organizations whose workspace has the Fundraising pages and tools
+   * (`/v1/fundraising`). Comma-separated organization ids; empty, nobody has
+   * them.
+   */
+  FUNDRAISING_ORGANIZATION_IDS: z
+    .string()
+    .default("")
+    .transform((value: string) =>
+      value.trim() === ""
+        ? []
+        : value
+            .split(",")
+            .map((id) => id.trim())
+            .filter(Boolean),
+    ),
+  /**
+   * The most Fundraising may spend on Exa research per workspace per
+   * calendar month, in US dollars. Searches past it are refused with the
+   * amount, so a raise never runs up a bill unseen.
+   */
+  FUNDRAISING_EXA_MONTHLY_CAP_USD: z.coerce.number().min(0).default(25),
+  /**
    * A local Chrome or Chromium binary for the CMO site screenshots. Unset,
    * Core downloads the `@sparticuz/chromium-min` pack below (Vercel).
    */
@@ -256,7 +288,7 @@ const baseEnvSchema = z.object({
   CHROMIUM_EXECUTABLE_URL: z
     .url()
     .default(
-      "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar",
+      "https://github.com/Sparticuz/chromium/releases/download/v158.0.0/chromium-v158.0.0-pack.x64.tar",
     ),
   /**
    * A local ffmpeg built with libass and libx264, for the talking video edit.
@@ -266,15 +298,10 @@ const baseEnvSchema = z.object({
   /** Optional GitHub token for skill installs (raises the anonymous API rate limit). */
   GITHUB_TOKEN: z.string().min(1).optional(),
   /**
-   * Judge model for lab runs and per-turn quality scores (AI Gateway id).
-   *
-   * The judge grades every settled turn, so its mistakes become the quality
-   * signal. Measured against turns whose outcome was checked by hand, Haiku
-   * and Sonnet score the same once the transcript is complete — the errors
-   * were missing evidence, not model strength. Haiku stays the default
-   * because nothing measured says the more expensive model judges better,
-   * and this runs on every turn. `soko-bot:judge-eval` re-grades with any
-   * model, so a case for changing it can be made with numbers.
+   * Judge model (AI Gateway id) for lab runs and eval runs someone starts.
+   * The weekly eval run uses the cheaper `WEEKLY_JUDGE_MODEL`
+   * (`eval-runs.service.ts`). Production turns are not judged: a turn's
+   * quality score comes only from a lab or eval run.
    */
   SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-opus-5.5"),
   /**
@@ -597,6 +624,7 @@ export function isProductionEnvironment(
 }
 
 const envSchema = baseEnvSchema.superRefine((value, context) => {
+  checkNetworkLayout(value, context);
   if (!value.SOKO_BOT_ENABLED) return;
   // A deployed environment needs a runtime that actually runs turns.
   if (!isDeployedEnvironment(value)) return;
@@ -675,29 +703,6 @@ export function resolveWebRelatedProjectFallbackHost(
   }
 
   return params.configuredWebAppBaseUrl;
-}
-
-/**
- * What a log may keep of each failed check: the variable, the issue's path
- * and code, and Zod's message unless it quotes the variable's value. Zod 4
- * messages describe the expected value, but a refinement's own message can
- * say anything.
- */
-export function invalidVariables(
-  issues: readonly z.core.$ZodIssue[],
-  env: NodeJS.ProcessEnv,
-) {
-  return issues.map((issue) => {
-    const variable = String(issue.path[0] ?? "");
-    const value = env[variable];
-    const quotesValue = Boolean(value) && issue.message.includes(value ?? "");
-    return {
-      variable,
-      path: issue.path.join("."),
-      code: issue.code,
-      ...(quotesValue ? {} : { message: issue.message }),
-    };
-  });
 }
 
 export function validateEnv(): EnvConfig {

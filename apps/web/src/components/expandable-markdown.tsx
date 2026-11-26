@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
+import { useState } from "react";
+import type { Components } from "react-markdown";
 import { COLLAPSED_FADE_CLASS } from "@/components/collapsed-fade-class";
 import Markdown from "@/components/markdown";
+import { MarkdownClippedContext } from "@/components/markdown-clipped-context";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
 import { cn } from "@/lib/utils";
 
 const LINE_CLAMP_CLASSES: Record<number, string> = {
@@ -32,6 +34,8 @@ interface ExpandableMarkdownProps {
   /** Starts already expanded — e.g. a Completed event's summary should be
    * readable without an extra click. */
   defaultOpen?: boolean;
+  /** Replaces Markdown elements; keep the object stable, it is part of the render memo. */
+  components?: Components;
 }
 
 export function ExpandableMarkdown({
@@ -43,45 +47,42 @@ export function ExpandableMarkdown({
   fadeClassName,
   highlightTerm,
   defaultOpen = false,
+  components,
 }: ExpandableMarkdownProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [isExpandable, setIsExpandable] = useState(false);
-  const contentRef = useRef<HTMLDivElement | null>(null);
+  const [contentElement, setContentElement] = useState<HTMLDivElement | null>(
+    null,
+  );
   const effectiveLineClamp = LINE_CLAMP_CLASSES[lineClamp] ? lineClamp : 5;
   const lineClampClass = LINE_CLAMP_CLASSES[effectiveLineClamp];
 
-  useEffect(() => {
-    const element = contentRef.current;
-    if (!element) {
-      return;
-    }
-
-    const measureOverflow = () => {
-      const fullHeight = element.scrollHeight;
+  useResizeObserver(
+    contentElement,
+    () => {
+      if (!contentElement) {
+        return;
+      }
+      const fullHeight = contentElement.scrollHeight;
       // When expanded, clientHeight equals full content, so overflow would
       // always read false. Compare against the clamped height we'd use when
       // collapsed so Collapse can still appear for defaultOpen long content.
-      let collapsedHeight = element.clientHeight;
+      let collapsedHeight = contentElement.clientHeight;
       if (open) {
         const lineHeight = Number.parseFloat(
-          getComputedStyle(element).lineHeight,
+          getComputedStyle(contentElement).lineHeight,
         );
         if (Number.isFinite(lineHeight) && lineHeight > 0) {
           collapsedHeight = lineHeight * effectiveLineClamp;
         }
       }
       setIsExpandable(fullHeight > collapsedHeight + 1);
-    };
-
-    measureOverflow();
-
-    const observer = new ResizeObserver(measureOverflow);
-    observer.observe(element);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [content, effectiveLineClamp, lineClampClass, open]);
+    },
+    {
+      immediate: true,
+      resetKey: `${content}\0${effectiveLineClamp}\0${lineClampClass}\0${open}`,
+    },
+  );
 
   const shouldFade = !open && isExpandable;
 
@@ -90,7 +91,7 @@ export function ExpandableMarkdown({
       <div className="relative">
         <CollapsibleContent forceMount>
           <div
-            ref={contentRef}
+            ref={setContentElement}
             style={!open ? { maxHeight: `${effectiveLineClamp}lh` } : undefined}
             className={cn(
               !open && "overflow-hidden",
@@ -98,9 +99,15 @@ export function ExpandableMarkdown({
               shouldFade && COLLAPSED_FADE_CLASS,
             )}
           >
-            <Markdown className={className} highlightTerm={highlightTerm}>
-              {content}
-            </Markdown>
+            <MarkdownClippedContext value={shouldFade}>
+              <Markdown
+                className={className}
+                highlightTerm={highlightTerm}
+                components={components}
+              >
+                {content}
+              </Markdown>
+            </MarkdownClippedContext>
           </div>
         </CollapsibleContent>
 

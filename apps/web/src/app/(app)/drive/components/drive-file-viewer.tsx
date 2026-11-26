@@ -5,12 +5,13 @@ import { Download, ExternalLink, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
-
+import { CropForSocial } from "@/app/drive/components/crop-for-social";
 import {
   contentUrl,
   effectiveType,
 } from "@/app/drive/components/drive-file-preview";
 import { GoogleSheetBar } from "@/app/drive/components/google-sheet-bar";
+import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
 import { CapTableFileView } from "@/components/cap-table/cap-table-view";
 import { SpreadsheetFileView } from "@/components/spreadsheet/spreadsheet-view";
 import { TeamFileView } from "@/components/team/team-view";
@@ -51,6 +52,8 @@ export interface DriveFileViewerFile {
   displayName: string;
   mimeType: string | null;
   sizeBytes?: number | null;
+  /** The Drive pathname, when the file has one; offers Crop for social on images. */
+  pathname?: string | null;
 }
 
 export function DriveFileViewer({
@@ -85,7 +88,18 @@ export function DriveFileViewer({
   if (isTeamFileName(file.displayName) || capTable || sheet) {
     // Same header as every other file: a table preview still needs Download.
     return (
-      <FileMediaDialog {...media} media={null}>
+      <FileMediaDialog
+        {...media}
+        media={null}
+        action={
+          sheet === "csv" ? (
+            <TableCreateDialog
+              workspaceId={store.organizationId ?? null}
+              csvFile={{ url, name: file.displayName }}
+            />
+          ) : null
+        }
+      >
         {capTable ? (
           <CapTableFileView url={url} />
         ) : sheet ? (
@@ -105,6 +119,17 @@ export function DriveFileViewer({
         onActiveSrcChange={(src) => {
           if (src === null) onClose();
         }}
+        actions={
+          file.pathname ? (
+            <CropForSocial
+              pathname={file.pathname}
+              name={file.displayName}
+              mimeType={file.mimeType}
+              sizeBytes={file.sizeBytes ?? null}
+              store={store}
+            />
+          ) : null
+        }
       />
     );
   }
@@ -153,6 +178,8 @@ export interface FileMediaDialogProps {
   onClose: () => void;
   /** A preview to show in place of the player or the download fallback. */
   children?: ReactNode;
+  /** One more header button, before Details. */
+  action?: ReactNode;
 }
 
 /**
@@ -168,6 +195,7 @@ export function FileMediaDialog({
   media,
   onClose,
   children,
+  action,
 }: FileMediaDialogProps) {
   const t = useTranslations("App.Drive.Files");
   const sizeLabel = formatBytes(sizeBytes);
@@ -205,6 +233,7 @@ export function FileMediaDialog({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            {action}
             {detailsHref ? (
               <Button
                 asChild

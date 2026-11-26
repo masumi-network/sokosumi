@@ -1,27 +1,39 @@
 "use client";
 
+import { formatAvatarCode, randomAvatarLook } from "@sokosumi/soko-bot";
 import { ArrowLeft } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useId, useRef, useState, useTransition } from "react";
+import {
+  type ComponentProps,
+  type ReactNode,
+  type Ref,
+  useCallback,
+  useId,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import { CHAT_MOBILE_COMPOSER_SAFE_AREA_PB } from "@/app/chat/components/chat-mobile-tab-registry";
 import { BotFace, botFaceSeed } from "@/components/soko-bot/bot-face";
+import { LiveBotAvatarLazy } from "@/components/soko-bot/lazy-live-bot-avatar.client";
 import {
   SOKO_BOT_SETUP_FRAME_CLASS,
   SokoBotSetupHeader,
   SokoBotSetupSteps,
 } from "@/components/soko-bot/setup-steps";
 import { Button } from "@/components/ui/button";
+import { FormErrorText } from "@/components/ui/form";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useSokoBotCreatingBody } from "@/hooks/effects/use-soko-bot-creating-body";
 import { createSokoBotAction } from "@/lib/actions/soko-bot/action";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
@@ -33,7 +45,20 @@ import { openNewSokoBotRoom } from "./open-new-soko-bot-room";
 /** Loaded when the picture step is mounted: it carries the 16 traced animals. */
 const AvatarStudio = dynamic(
   () =>
-    import("./avatar-studio.client").then((m) => ({ default: m.AvatarStudio })),
+    import("./avatar-studio.client").then((m) => ({
+      default: function LoadedAvatarStudio({
+        studioRef,
+        ...props
+      }: ComponentProps<typeof m.AvatarStudio> & {
+        studioRef?: Ref<HTMLDivElement>;
+      }) {
+        return (
+          <div ref={studioRef} className="contents">
+            <m.AvatarStudio {...props} />
+          </div>
+        );
+      },
+    })),
   { ssr: false, loading: () => <div className="bg-muted h-96 rounded-xl" /> },
 );
 
@@ -62,8 +87,15 @@ export function CreateState({
   const [name, setName] = useState("");
   // Spaces pass the native `required` check, so say what is missing here.
   const [blank, setBlank] = useState(false);
-  // The studio reports its first look as it mounts, so Create waits for that.
+  // Generated on the client when entering the picture step so SSR stays deterministic.
   const [avatarCode, setAvatarCode] = useState<string | null>(null);
+  // True once the lazy-loaded AvatarStudio chunk has mounted its preview.
+  const [studioReady, setStudioReady] = useState(false);
+  // More details scrolls the big preview away, so the pinned bar shows a small one.
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const handleStudioRef = useCallback((node: HTMLDivElement | null) => {
+    setStudioReady(node !== null);
+  }, []);
   const [isPending, startTransition] = useTransition();
   const [created, setCreated] = useState<{
     name: string;
@@ -78,16 +110,18 @@ export function CreateState({
   // Hide the mobile tab bar for the whole flow, as the first-run setup does:
   // it covered Create, and a tap there left the flow. A body attribute, not
   // `:has`, so a hidden Activity segment cannot keep the bar hidden.
-  useMountEffect(() => {
-    document.body.dataset.sokoBotCreating = "true";
-    return () => {
-      delete document.body.dataset.sokoBotCreating;
-    };
-  });
+  useSokoBotCreatingBody();
 
   // Each step hides the form that held focus, so move it into the new step.
   function goToStep(next: "name" | "picture") {
-    flushSync(() => setStep(next));
+    flushSync(() => {
+      if (next === "picture") {
+        setAvatarCode(
+          (current) => current ?? formatAvatarCode(randomAvatarLook()),
+        );
+      }
+      setStep(next);
+    });
     (next === "name" ? nameInputRef : pictureHeadingRef).current?.focus();
   }
 
@@ -102,7 +136,7 @@ export function CreateState({
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isPending || !avatarCode) return;
+    if (isPending || !avatarCode || !studioReady) return;
     create(avatarCode);
   }
 
@@ -174,8 +208,10 @@ export function CreateState({
   return (
     <div className={SOKO_BOT_SETUP_FRAME_CLASS}>
       <SokoBotSetupSteps current={step === "name" ? 1 : 2} />
+      {/* noValidate: an empty name gets the same inline error as a blank one, not the browser's bubble. */}
       <form
         hidden={step !== "name"}
+        noValidate
         onSubmit={handleContinue}
         className={step === "name" ? "flex flex-col gap-8" : "hidden"}
       >
@@ -199,13 +235,9 @@ export function CreateState({
             aria-describedby={blank ? `${nameId}-error` : undefined}
           />
           {blank ? (
-            <p
-              id={`${nameId}-error`}
-              role="alert"
-              className="text-destructive text-xs"
-            >
+            <FormErrorText id={`${nameId}-error`} role="alert">
               {t("nameRequired")}
-            </p>
+            </FormErrorText>
           ) : null}
         </div>
         <div className="flex flex-col gap-2">
@@ -236,7 +268,13 @@ export function CreateState({
           className={cn(HOLDER_CLASS, "min-w-0 [&_button]:scroll-mb-40")}
         >
           <div className={cn(HOLDER_ITEM_CLASS, "p-3")}>
-            <AvatarStudio compact initialCode={null} onChange={setAvatarCode} />
+            <AvatarStudio
+              compact
+              code={avatarCode}
+              onChange={setAvatarCode}
+              onMoreDetailsChange={setDetailsOpen}
+              studioRef={handleStudioRef}
+            />
           </div>
         </fieldset>
         {/* Pinned to the foot at every size, so Create stays in reach above the pictures.
@@ -247,21 +285,34 @@ export function CreateState({
             CHAT_MOBILE_COMPOSER_SAFE_AREA_PB,
           )}
         >
+          {/* Same look as the preview above; decorative, the preview carries the name.
+              Flush against Back's icon, so mini and icon take no more room than Back with its label. */}
+          {detailsOpen && avatarCode ? (
+            <LiveBotAvatarLazy
+              code={avatarCode}
+              state="idle"
+              size={40}
+              className="ring-border -me-2 size-10 rounded-full ring-1"
+            />
+          ) : null}
+          {/* While the mini shows, Back keeps only its icon, so Create keeps
+              the width it has with More details closed and a long name fits. */}
           <Button
             type="button"
             variant="ghost"
+            size={detailsOpen ? "icon" : "default"}
             disabled={isPending}
             onClick={() => goToStep("name")}
           >
             <ArrowLeft aria-hidden />
-            {t("back")}
+            <span className={cn(detailsOpen && "sr-only")}>{t("back")}</span>
           </Button>
           <Button
             type="submit"
             variant="primary"
             className="min-w-0 flex-1"
-            // Locked while it creates, so a second submit cannot race the first.
-            disabled={isPending || !avatarCode}
+            // Locked while it creates or while the preview chunk loads, so a second submit cannot race the first.
+            disabled={isPending || !avatarCode || !studioReady}
             loading={isPending}
           >
             {/* Buttons do not wrap: a long name would push the phone page sideways. */}

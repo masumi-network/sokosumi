@@ -36,6 +36,14 @@ import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { toChatMessageSignalDto } from "@/lib/chat-signals/derive";
 import prisma from "@/lib/db/prisma";
 import {
+  readLegacyBackgroundFailure,
+  readLegacyBackgroundFailureSnapshot,
+} from "@/lib/soko-bot/background-failure";
+import {
+  isStandupHostMessage,
+  STANDUP_ROOM_NAME,
+} from "@/lib/team-standup/standup-text";
+import {
   type ChatRoom,
   type ChatRoomMessageQuote,
   type ChatRoomMessageSkill,
@@ -777,7 +785,9 @@ export function mapChatRoomMessage(
    */
   threadUnreadReplyCount?: number,
 ) {
-  const sender = mapChatRoomMessageSender(message, currentUserId);
+  const sender = isStandupHostMessage(message)
+    ? { type: "system" as const, name: STANDUP_ROOM_NAME }
+    : mapChatRoomMessageSender(message, currentUserId);
 
   const reactionCounts = new Map<
     string,
@@ -805,14 +815,30 @@ export function mapChatRoomMessage(
     reactionCounts.set(reaction.emoji, current);
   }
 
-  const metadata = (message.metadata as Record<string, unknown> | null) ?? null;
   const isDeleted = message.deletedAt != null;
+  const storedMetadata =
+    (message.metadata as Record<string, unknown> | null) ?? null;
+  const legacyFailure =
+    !isDeleted && message.senderSokoBotId
+      ? readLegacyBackgroundFailure(message.content, storedMetadata)
+      : null;
+  const metadata = legacyFailure?.metadata ?? storedMetadata;
+  const quote = isDeleted ? null : readQuoteFromMetadata(metadata);
+  const rawQuote = metadata?.quote;
+  const publicMetadata =
+    quote &&
+    rawQuote &&
+    typeof rawQuote === "object" &&
+    "snippet" in rawQuote &&
+    rawQuote.snippet !== quote.snippet
+      ? { ...metadata, quote }
+      : metadata;
 
   return {
     id: message.id,
     roomId: message.roomId,
     parentMessageId: message.parentMessageId,
-    content: isDeleted ? "" : message.content,
+    content: isDeleted ? "" : (legacyFailure?.content ?? message.content),
     createdAt: message.createdAt,
     deletedAt: message.deletedAt ?? null,
     editedAt: isDeleted ? null : (message.editedAt ?? null),
@@ -840,7 +866,7 @@ export function mapChatRoomMessage(
     ...(threadUnreadReplyCount === undefined ? {} : { threadUnreadReplyCount }),
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,
     threadRepliers: mapThreadRepliers(message.replies, currentUserId),
-    metadata: isDeleted ? null : publicChatRoomMessageMetadata(metadata),
+    metadata: isDeleted ? null : publicChatRoomMessageMetadata(publicMetadata),
     ...(isDeleted || !metadata?.[RESULT_SNAPSHOTS_KEY]
       ? {}
       : {
@@ -848,7 +874,7 @@ export function mapChatRoomMessage(
             metadata?.[RESULT_SNAPSHOTS_KEY],
           ),
         }),
-    quote: isDeleted ? null : readQuoteFromMetadata(metadata),
+    quote,
     membership: isDeleted ? null : readMembershipFromMetadata(metadata),
     groupNameChange: isDeleted
       ? null
@@ -971,12 +997,17 @@ export function readQuoteFromMetadata(
   ) {
     return null;
   }
-  const attachment = readQuoteAttachmentFromMetadata(candidate);
-  const attachments = readQuoteAttachmentsFromMetadata(candidate, attachment);
+  const safeSnippet = readLegacyBackgroundFailureSnapshot(candidate.snippet);
+  const attachment = safeSnippet
+    ? null
+    : readQuoteAttachmentFromMetadata(candidate);
+  const attachments = safeSnippet
+    ? []
+    : readQuoteAttachmentsFromMetadata(candidate, attachment);
   return {
     messageId: candidate.messageId,
     authorName: candidate.authorName,
-    snippet: candidate.snippet,
+    snippet: safeSnippet ?? candidate.snippet,
     ...(attachment !== undefined ? { attachment } : {}),
     ...(attachments !== undefined ? { attachments } : {}),
     ...(typeof candidate.roomId === "string"
@@ -1009,8 +1040,11 @@ export function buildRoomQuoteSnapshot(
 ): ChatRoomMessageQuote {
   assertChatRoomContentMessage(quoted.metadata);
 
+  const legacyFailure = quoted.senderSokoBot
+    ? readLegacyBackgroundFailure(quoted.content, quoted.metadata)
+    : null;
   const { snippet, attachment, attachments } = buildRoomQuoteSnippetParts(
-    quoted.content,
+    legacyFailure?.content ?? quoted.content,
   );
 
   return {

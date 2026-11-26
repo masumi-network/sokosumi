@@ -373,6 +373,7 @@ describe.runIf(enabled)("contact search on PostgreSQL", () => {
     expect(result.total).toBe(1);
     expect(result.contacts[0]).toEqual({
       id: ids.lena,
+      link: `/contacts?contact=${ids.lena}&workspace=${workspaceId}`,
       name: "Lena Fox",
       kind: "PERSON",
       organization: null,

@@ -4,7 +4,12 @@ import { ArchiveRestore } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { primaryEmail } from "@/app/contacts/contacts-view";
 import { Button } from "@/components/ui/button";
-import { ContactAvatar, ReplyChip } from "./contact-visuals";
+import { cn } from "@/lib/utils";
+import {
+  CONTACT_AVATAR_FILL_CLASS,
+  ContactAvatar,
+  ReplyChip,
+} from "./contact-visuals";
 
 /**
  * The contacts as a plain list for phones, where a spreadsheet only shows a
@@ -53,7 +58,7 @@ export function ContactsList({
                   src={contact.avatarUrl}
                   email={email}
                   kind={contact.kind}
-                  className="size-8"
+                  className={cn("size-8", CONTACT_AVATAR_FILL_CLASS)}
                 />
                 <span className="grid min-w-0 flex-1">
                   <span className="truncate text-sm font-medium">

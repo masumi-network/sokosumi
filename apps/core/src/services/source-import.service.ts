@@ -101,11 +101,14 @@ export const sourceImportService = {
     if (fileLinks.length > 0) {
       try {
         await blobRepository.createOutputBlobs(
-          fileLinks.map((url) => ({
-            eventId: jobEventId,
-            sourceUrl: url,
-            name: getUrlBasename(url) ?? undefined,
-          })),
+          fileLinks.map((url) => {
+            const name = getUrlBasename(url);
+            return {
+              eventId: jobEventId,
+              sourceUrl: url,
+              ...(name ? { name } : {}),
+            };
+          }),
           prisma,
         );
       } catch (error) {

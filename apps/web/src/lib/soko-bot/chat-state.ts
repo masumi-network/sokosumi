@@ -96,6 +96,8 @@ export interface ChatTurn {
   requestedBy: { id: string; name: string | null; image: string | null } | null;
   /** Room a chat-started turn came from. */
   chatRoom: { id: string; name: string | null; kind: string } | null;
+  /** Schedule a scheduled turn ran for; null otherwise or once deleted. */
+  schedule: { name: string; systemKey: string | null } | null;
   /** Judge model's 1–5 overall score, once graded. */
   qualityScore: number | null;
 }
@@ -153,6 +155,7 @@ export interface ChatBot {
   avatarCode?: string | null;
   versionId: string | null;
   followWholeBoard: boolean;
+  joinsTeamStandup: boolean;
   mailAutoRead: boolean;
   ingestTimezone: string;
   proactivePaused: boolean;
@@ -257,6 +260,7 @@ function toChatTurn(turn: SokoBotTurn): ChatTurn {
     decisions: (turn.pendingDecisions ?? []).map(toDecision),
     requestedBy: turn.requestedBy ?? null,
     chatRoom: turn.chatRoom ?? null,
+    schedule: turn.schedule ?? null,
     qualityScore: turn.qualityScore ?? null,
   };
 }
@@ -314,6 +318,7 @@ function toChatBot(bot: SokoBot): ChatBot {
     avatarCode: bot.avatarCode ?? null,
     versionId: bot.versionId ?? null,
     followWholeBoard: bot.followWholeBoard ?? false,
+    joinsTeamStandup: bot.joinsTeamStandup ?? true,
     mailAutoRead: bot.mailAutoRead ?? false,
     ingestTimezone: bot.ingestTimezone ?? "Europe/Berlin",
     proactivePaused: bot.proactivePaused ?? false,

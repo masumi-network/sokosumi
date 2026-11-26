@@ -7,6 +7,7 @@ import {
   brandFontName,
   brandFonts,
   designMdBrandLook,
+  designMdLogo,
   designMdPalette,
   distinctColors,
   isNeutral,
@@ -92,6 +93,7 @@ Primary #5850ec drives every call to action.
       colors: ["#5850ec", "#374151"],
       fonts: [],
       tone: "plain, factual and confident",
+      voice: "Favouring short declarative claims over hype.",
     });
     expect(
       designMdBrandLook(
@@ -101,6 +103,7 @@ Primary #5850ec drives every call to action.
       colors: [],
       fonts: ["Inter"],
       tone: "formal, impersonal and precise",
+      voice: "Written as a notice.",
     });
   });
 
@@ -116,6 +119,8 @@ Primary #5850ec drives every call to action.
       colors: ["#2b5c78", "#6400ff"],
       fonts: ["Inter"],
       tone: "plain, professional and colleague-like",
+      voice:
+        'Coworkers are introduced by name and role, briefs are described as plain language, and the product is framed as work that "arrives as a file." Example sentence: "You write one briefing. They do the rest."',
     });
   });
 
@@ -177,6 +182,60 @@ Primary #5850ec drives every call to action.
     expect(designMdBrandLook("The voice is a mix of styles.").tone).toBeNull();
     expect(designMdBrandLook("# Brand").tone).toBeNull();
   });
+
+  it("states no voice when nothing follows the tone", () => {
+    expect(
+      designMdBrandLook("The voice is plain and calm.\n\nMore.").voice,
+    ).toBeNull();
+    expect(designMdBrandLook("The voice is a mix of styles.").voice).toBeNull();
+  });
+
+  it("reads no tone or voice from a list that runs on into the sentence", () => {
+    // "plain and easy" is not the whole list, and "to read." no guideline.
+    expect(
+      designMdBrandLook("The voice is plain and easy to read."),
+    ).toMatchObject({ tone: null, voice: null });
+  });
+
+  it("reads no tone from a hyphenated word cut short", () => {
+    expect(
+      designMdBrandLook("The voice is plain and detail-oriented in reports."),
+    ).toMatchObject({ tone: null, voice: null });
+    expect(
+      designMdBrandLook(
+        "The voice is plain and detail-oriented. Short claims.",
+      ),
+    ).toMatchObject({
+      tone: "plain and detail-oriented",
+      voice: "Short claims.",
+    });
+  });
+
+  // The rest of the line, unsplit: a full stop can't tell a sentence end
+  // from "e.g." or "U.S.", so none is guessed.
+  it.each([
+    "Use e.g. short examples. Never hype.",
+    "Use e.g. CEO quotes. Never hype.",
+    "Use U.S. English. Never hype.",
+    "Prefer **short sentences.** Avoid hype.",
+  ])("keeps the voice line whole: %j", (voice) => {
+    expect(
+      designMdBrandLook(`The voice is plain and calm. ${voice}\n\n## Colors`)
+        .voice,
+    ).toBe(voice);
+  });
+
+  it.each([
+    ["The voice is plain and confident: short sentences, no hype."],
+    ["The voice is plain and confident \u2014 short sentences, no hype."],
+    ["The voice is plain and confident (short sentences, no hype)."],
+    ["The voice is plain and confident - short sentences, no hype."],
+  ])("drops the separator before the voice in %j", (content) => {
+    expect(designMdBrandLook(content)).toMatchObject({
+      tone: "plain and confident",
+      voice: "Short sentences, no hype.",
+    });
+  });
 });
 
 describe("designMdPalette", () => {
@@ -219,6 +278,34 @@ describe("designMdPalette", () => {
     ).toEqual(["#6400ff", "#ff6a00", "#0a7d4f", "#fafafa", "#111111"]);
   });
 
+  it("takes a Material DESIGN.md's primary container as its accent, and no tertiary that is its error colour", () => {
+    // entry.fyi, 2026-11-25: 63 of 68 pictures were refused for the acid-lime
+    // accent its own DESIGN.md names, while its error red counted as brand.
+    expect(
+      designMdPalette(
+        [
+          "colors:",
+          "  primary: '#143a2e'",
+          "  primary-container: '#d6f46a'",
+          "  secondary: '#3c403b'",
+          "  secondary-container: '#dde8e1'",
+          "  tertiary: '#b8321f'",
+          "  error: '#b8321f'",
+          "  background: '#ffffff'",
+          "  on-background: '#121513'",
+        ].join("\n"),
+      ),
+    ).toEqual(["#143a2e", "#d6f46a", "#ffffff"]);
+  });
+
+  it("leaves out a grey primary container", () => {
+    expect(
+      designMdPalette(
+        "colors:\n  primary: '#6400ff'\n  primary-container: '#e5e5e5'\n  background: '#ffffff'",
+      ),
+    ).toEqual(["#6400ff", "#ffffff"]);
+  });
+
   it("gives a block without roles in its order, status entries left out", () => {
     expect(
       designMdPalette(
@@ -231,5 +318,37 @@ describe("designMdPalette", () => {
     expect(
       designMdPalette("a { color: #6400ff } b { color: #6400ff }"),
     ).toEqual(["#6400ff"]);
+  });
+});
+
+describe("designMdLogo", () => {
+  it("reads the logo block of the front matter", () => {
+    expect(
+      designMdLogo(
+        [
+          "---",
+          "name: Acme",
+          "logo:",
+          "  src: https://acme.io/logo.svg",
+          "  srcDark: 'https://acme.io/logo-white.svg'",
+          "  alt: Acme home",
+          "colors:",
+          "  primary: '#ff6a00'",
+          "---",
+          "",
+          "src: https://elsewhere.example/x.svg",
+        ].join("\n"),
+      ),
+    ).toEqual({
+      src: "https://acme.io/logo.svg",
+      srcDark: "https://acme.io/logo-white.svg",
+    });
+  });
+
+  it("is null without a logo, or with one that is not an http address", () => {
+    expect(designMdLogo("---\nname: Acme\n---\n")).toBeNull();
+    expect(
+      designMdLogo("---\nlogo:\n  src: data:image/svg+xml;utf8,<svg/>\n---\n"),
+    ).toBeNull();
   });
 });

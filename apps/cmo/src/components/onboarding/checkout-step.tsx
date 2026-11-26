@@ -1,58 +1,110 @@
 "use client";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
-import { cmoMonthAtLevel, cmoVolumeLevelForTier } from "@sokosumi/utils";
+import {
+  cmoMonthAtLevel,
+  cmoMonthFloor,
+  cmoVolumeLevelForTier,
+} from "@sokosumi/utils";
 import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
-
-import { AGENT_NAME } from "../../lib/agent";
+import { usePlansViewed } from "../../hooks/effects/use-analytics";
+import { beginCheckout, planItem, track } from "../../lib/analytics";
 import { channelLabel } from "../../lib/calendar";
-import { channelKey, formatMedia } from "../../lib/channels";
-import { joinNames } from "../../lib/names";
-import { money, PACES } from "../strategy-core";
+import { channelInfo, channelKey } from "../../lib/channels";
+import { postsGoingOut } from "../../lib/strategy";
+import { ChannelIcon } from "../channel-icon";
+import { ShortLegalNotice } from "../legal-notice";
+import { money } from "../strategy-core";
 import { type SkipSubscription, SkipSubscriptionButton } from "../top-up";
 import { CusoScene } from "./cuso-scene";
 import type { CheckoutPhase } from "./step";
 
 type Interval = CmoSubscriptionPlan["interval"];
 type Strategy = NonNullable<CmoOverview["strategy"]>;
-type Pace = NonNullable<Strategy["pace"]>["level"];
 
-/** The plan each pace fits, by its place among the plans from cheapest up. */
-const PACE_PLAN: Record<Pace, number> = { steady: 0, active: 1, all_in: 2 };
-
-/**
- * What a plan makes of this strategy a month: the month is written at the
- * top volume, and each plan makes its share of it (Core makes the same).
- */
-function planMakes(strategy: Strategy, tier: string) {
-  return cmoMonthAtLevel(
-    strategy.calendar,
-    strategy.channels,
-    cmoVolumeLevelForTier(tier),
-  );
-}
-
-function makesLine({
-  posts,
-  pictures,
-  videos,
-}: ReturnType<typeof planMakes>): string {
-  const counted = (count: number, one: string, many: string) =>
-    `${count} ${count === 1 ? one : many}`;
-  return `${counted(posts, "post", "posts")}, ${counted(pictures, "picture", "pictures")} and ${counted(videos, "video", "videos")} a month from your strategy`;
-}
-
-/** What each plan posts, as the landing page says it, when there is no strategy yet. */
-const PLAN_LINES = [
-  "One post a day on each account you connect.",
-  "Two posts a day on each account you connect.",
-  "Up to three posts a day on each account you connect.",
+/** The networks CMO posts on, for a page without a strategy. */
+const NETWORKS = [
+  "x",
+  "youtube",
+  "instagram",
+  "tiktok",
+  "linkedin",
+  "facebook",
 ];
 
+/** What a plan posts on all six networks, as the landing page says it, when there is no strategy yet. */
+function planLine(tier: string): string {
+  const { total } = cmoMonthFloor(
+    NETWORKS.map((channel) => ({ channel })),
+    cmoVolumeLevelForTier(tier),
+  );
+  return `About ${Math.round(total / 10) * 10} posts a month on six networks`;
+}
+
 /** The top plan's extra, as the landing page says it. */
-const TEAM_CHECK =
-  "Plus: our team checks every post for you before it goes out.";
+const TEAM_CHECK = "Our team checks every post before it goes out.";
+
+/**
+ * How a plan is framed beside its name: Growth as the start, Scale as the
+ * plan with everything. Judgements, not counts: nothing says how many pick
+ * a plan.
+ */
+const PLAN_FRAMES: Record<string, string> = {
+  growth: "Strong start",
+  scale: "Everything included",
+};
+
+/**
+ * What credits buy, from `CMO_PIECE_CREDITS`: a picture 1 to 4 (Muse Image is
+ * 1, remakes cost more), a short video up to 14, a talking video 134 to 251
+ * (its script, the site behind the presenter, B-roll and music). Cuso's own
+ * work is paid from the same credits, so this names prices, never a count a
+ * plan makes.
+ */
+const CREDITS_BUY =
+  "Credits pay for everything Cuso makes: a picture costs 1 to 4 credits, a short video about 10 to 15, a talking video about 150 to 250.";
+
+/** The guarantee, as plainly as it can be said. */
+const REFUND = "Not happy in the first 14 days? Full refund.";
+
+/** Who says so, verbatim (approved by the owner, 2026-11-25). */
+const QUOTE = {
+  text: "CMO.xyz complements and connects our established agency offerings. Agentic services enable interaction, and with it the thread that ties together all of our AI applications and services.",
+  name: "Florian Haller",
+  role: "CEO, Serviceplan Group",
+  photo: "/florian-haller.webp",
+};
+
+/** A plan's monthly credits, in plain words. */
+function creditsLine(credits: number): string {
+  return `${credits.toLocaleString("en")} AI credits a month`;
+}
+
+/**
+ * How many posts a plan makes of this strategy a month, as they go out (a
+ * short video is a post on each network): the month is written at the top
+ * volume, and each plan makes its share of it (Core makes the same).
+ */
+function planPosts(strategy: Strategy, tier: string): number {
+  // cmo-v22: Core writes the month after payment, so each plan promises
+  // its floor, from the strategy's networks alone.
+  if (strategy.monthWriter)
+    return cmoMonthFloor(strategy.channels, cmoVolumeLevelForTier(tier)).total;
+  const { made } = cmoMonthAtLevel(
+    strategy.calendar,
+    cmoVolumeLevelForTier(tier),
+  );
+  return postsGoingOut(strategy.calendar, made);
+}
+
+/** What a plan makes of the month, in one plain line. */
+function postsLine(posts: number, most: number, floor: boolean): string {
+  if (floor) return `At least ${posts} posts a month`;
+  if (posts >= most) return `All ${posts} posts a month`;
+  const about = posts >= 20 ? Math.round(posts / 10) * 10 : posts;
+  return `About ${about} posts a month`;
+}
 
 /** A plan's price in its currency's main unit. */
 function price(plan: CmoSubscriptionPlan, months = 1): string {
@@ -62,6 +114,48 @@ function price(plan: CmoSubscriptionPlan, months = 1): string {
 /** The tier's slug is Polar's; only its first letter is ours. */
 function tierName(tier: string): string {
   return tier.charAt(0).toUpperCase() + tier.slice(1);
+}
+
+/**
+ * The switch's word for the yearly saving: whole free months when every plan's
+ * year costs a whole number of its months less than twelve, else a percent.
+ */
+function yearlyLabel(plans: CmoSubscriptionPlan[]): string | null {
+  const free = plans
+    .filter((plan) => plan.interval === "year")
+    .flatMap((year) => {
+      const month = monthlyOf(plans, year.tier);
+      return month ? [12 - year.priceAmount / month.priceAmount] : [];
+    });
+  const months = free[0];
+  if (
+    months !== undefined &&
+    Number.isInteger(months) &&
+    months >= 1 &&
+    free.every((each) => each === months)
+  ) {
+    return months === 1 ? "1 month free" : `${months} months free`;
+  }
+  const saving = yearlySaving(plans);
+  return saving > 0 ? `Save ${saving}%` : null;
+}
+
+function monthlyOf(
+  plans: CmoSubscriptionPlan[],
+  tier: string,
+): CmoSubscriptionPlan | undefined {
+  return plans.find((plan) => plan.interval === "month" && plan.tier === tier);
+}
+
+/** A tier's year paid at once against twelve months of it, in minor units. */
+function savedInAYear(plans: CmoSubscriptionPlan[], tier: string): number {
+  const month = monthlyOf(plans, tier);
+  const year = plans.find(
+    (plan) => plan.interval === "year" && plan.tier === tier,
+  );
+  return month && year
+    ? Math.max(0, month.priceAmount * 12 - year.priceAmount)
+    : 0;
 }
 
 /** What paying a year at once saves against twelve months, in whole percent. */
@@ -77,25 +171,23 @@ function yearlySaving(plans: CmoSubscriptionPlan[]): number {
   return Math.max(0, Math.round(Math.max(0, ...savings) * 100));
 }
 
-/** What the approved plan makes in a month, in the person's terms. */
-function monthOf(strategy: Strategy) {
-  const media = strategy.calendar.map((entry) =>
-    formatMedia(entry.channel, entry.format),
-  );
-  const channels = [
+/** The networks the approved month posts on; ads are not a network here. */
+function strategyNetworks(strategy: Strategy | null): string[] {
+  // cmo-v22: the calendar holds a few examples; the plan's networks are its own.
+  if (strategy?.monthWriter)
+    return NETWORKS.filter((network) =>
+      strategy.channels.some((entry) => channelKey(entry.channel) === network),
+    );
+  const live = strategy?.calendar.filter((entry) => entry.status !== "skipped");
+  if (!live?.length) return NETWORKS;
+  return [
     ...new Set(
-      strategy.calendar.map(
-        (entry) => channelKey(entry.channel) ?? entry.channel,
-      ),
+      live
+        .filter((entry) => channelInfo(entry.channel)?.group !== "ads")
+        .flatMap((entry) => [entry.channel, ...(entry.alsoOn ?? [])])
+        .map((channel) => channelKey(channel) ?? channel),
     ),
-  ].map(channelLabel);
-  return {
-    pieces: strategy.calendar.length,
-    channels,
-    pictures: media.filter((kind) => kind === "image" || kind === "images")
-      .length,
-    videos: media.filter((kind) => kind === "video").length,
-  };
+  ];
 }
 
 interface CheckoutStepProps {
@@ -116,10 +208,10 @@ interface CheckoutStepProps {
 }
 
 /**
- * Hiring's step after the approved plan (ADR 0068): what the month holds,
- * the CMO plans with the one that fits its pace picked, then Polar's hosted
- * checkout. Back from Polar it waits for the payment's confirmation; the
- * accounts and Launch come next.
+ * Hiring's step after the approved plan (ADR 0068): the month's networks,
+ * the CMO plans with the smallest one that makes all of it picked, then
+ * Polar's hosted checkout. Back from Polar it waits for the payment's
+ * confirmation; the accounts and Launch come next.
  */
 export function CheckoutStep({
   plans,
@@ -129,10 +221,14 @@ export function CheckoutStep({
   onShowPlans,
   skip = null,
 }: CheckoutStepProps) {
-  const [interval, setInterval] = useState<Interval>("month");
+  // Yearly first, as it costs less a month; monthly is one tap away.
+  const [interval, setInterval] = useState<Interval>(() =>
+    plans.some((plan) => plan.interval === "year") ? "year" : "month",
+  );
   const [picked, setPicked] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [opening, startOpening] = useTransition();
+  usePlansViewed(phase === "choosing", plans, interval);
 
   if (phase === "confirming") {
     return (
@@ -159,31 +255,32 @@ export function CheckoutStep({
   const offered = plans
     .filter((plan) => plan.interval === interval)
     .sort((a, b) => a.priceAmount - b.priceAmount);
-  const pace = strategy?.pace?.level;
+  const planned = strategy && strategy.calendar.length > 0 ? strategy : null;
   const makes = new Map(
-    strategy
-      ? offered.map((plan) => [plan.tier, planMakes(strategy, plan.tier)])
+    planned
+      ? offered.map((plan) => [plan.tier, planPosts(planned, plan.tier)])
       : [],
   );
-  const most = Math.max(0, ...[...makes.values()].map((made) => made.posts));
-  // The smallest plan that makes the whole strategy; without one, the pace's.
-  const whole = strategy
-    ? offered.find((plan) => makes.get(plan.tier)?.posts === most)?.tier
+  const most = Math.max(0, ...makes.values());
+  // The smallest plan that makes the whole strategy. A cmo-v22 strategy has
+  // no whole month yet, only floors: the top one is picked, never named so.
+  const floors = Boolean(planned?.monthWriter);
+  const whole = planned
+    ? offered.find((plan) => makes.get(plan.tier) === most)?.tier
     : undefined;
-  const fits =
-    whole ??
-    offered[Math.min(pace ? PACE_PLAN[pace] : 0, offered.length - 1)]?.tier;
-  // The plan that fits the pace until the person picks one; a pick carries
-  // over to the other interval, which sells the same tiers.
+  // That plan until the person picks one; a pick carries over to the other
+  // interval, which sells the same tiers.
   const tier =
     offered.find((plan) => plan.tier === picked)?.tier ??
-    fits ??
+    whole ??
     offered[0]?.tier;
   const chosen = offered.find((plan) => plan.tier === tier);
-  const saving = yearlySaving(plans);
-  const month =
-    strategy && strategy.calendar.length > 0 ? monthOf(strategy) : null;
-  const paceName = PACES.find((option) => option.level === pace)?.name;
+  const yearly = yearlyLabel(plans);
+  const networks = strategyNetworks(strategy);
+  const months = interval === "year" ? 12 : 1;
+  // Every card keeps the frame's row when any has one, so the rows line up.
+  const framed =
+    offered.length > 1 && offered.some((plan) => PLAN_FRAMES[plan.tier]);
 
   function checkout(chosenTier: string) {
     setError(null);
@@ -191,6 +288,10 @@ export function CheckoutStep({
       try {
         const result = await onCheckout(interval, chosenTier);
         if (result.url) {
+          const plan = offered.find(
+            (candidate) => candidate.tier === chosenTier,
+          );
+          if (plan) track(...beginCheckout(plan));
           window.location.assign(result.url);
           return;
         }
@@ -207,47 +308,17 @@ export function CheckoutStep({
         <CusoScene scene="subscribe" />
         <h1 className="ob-h1">Your strategy is ready.</h1>
         <p className="muted">Pick a plan and I start right away.</p>
-      </div>
-
-      {month ? (
-        <ul className="card ob-gets" aria-label="What you get">
-          <li>
-            <Check size={16} aria-hidden="true" />
-            <span>
-              <b>{month.pieces} posts</b> from your strategy
-              {month.channels.length > 0
-                ? ` for ${joinNames(month.channels)}`
-                : ""}
-              , written in your voice
-            </span>
-          </li>
-          {month.pictures + month.videos > 0 ? (
-            <li>
-              <Check size={16} aria-hidden="true" />
-              <span>
-                {[
-                  month.pictures > 0
-                    ? `${month.pictures} ${month.pictures === 1 ? "picture" : "pictures"}`
-                    : "",
-                  month.videos > 0
-                    ? `${month.videos} ${month.videos === 1 ? "video" : "videos"}`
-                    : "",
-                ]
-                  .filter(Boolean)
-                  .join(" and ")}{" "}
-                made from your brand
-              </span>
+        <ul
+          className="ob-networks-row"
+          aria-label={`Posts on ${networks.map(channelLabel).join(", ")}`}
+        >
+          {networks.map((network) => (
+            <li key={network} title={channelLabel(network)}>
+              <ChannelIcon channel={network} size={22} />
             </li>
-          ) : null}
-          <li>
-            <Check size={16} aria-hidden="true" />
-            <span>
-              Every day {AGENT_NAME} answers comments and watches the news;
-              every week he checks the numbers
-            </span>
-          </li>
+          ))}
         </ul>
-      ) : null}
+      </div>
 
       {plans.length === 0 ? (
         <p className="alert" role="alert">
@@ -255,65 +326,146 @@ export function CheckoutStep({
         </p>
       ) : (
         <>
-          <div className="ob-tabs" role="group" aria-label="Billing">
+          <div className="ob-tabs ob-billing" role="group" aria-label="Billing">
             <button
               type="button"
               aria-pressed={interval === "month"}
-              onClick={() => setInterval("month")}
+              onClick={() => {
+                setInterval("month");
+                track("billing_period_select", { billing_period: "month" });
+              }}
             >
               Monthly
             </button>
             <button
               type="button"
               aria-pressed={interval === "year"}
-              onClick={() => setInterval("year")}
+              onClick={() => {
+                setInterval("year");
+                track("billing_period_select", { billing_period: "year" });
+              }}
             >
-              Yearly{saving > 0 ? ` · save ${saving}%` : ""}
+              Yearly
+              {yearly ? <span className="ob-save">{yearly}</span> : null}
             </button>
           </div>
 
           <div className="ob-plan-options" role="group" aria-label="Plan">
-            {offered.map((plan, place) => (
-              <button
-                key={plan.tier}
-                type="button"
-                aria-pressed={plan.tier === tier}
-                className="card ob-plan-option"
-                onClick={() => setPicked(plan.tier)}
-              >
-                {plan.tier === whole && offered.length > 1 ? (
-                  <span className="ob-plan-fit">Makes all of it</span>
-                ) : plan.tier === fits && paceName && !whole ? (
-                  <span className="ob-plan-fit">Fits your {paceName} pace</span>
-                ) : null}
-                <span className="ob-plan-name">{tierName(plan.tier)}</span>
-                <span className="ob-value">
-                  {price(plan, interval === "year" ? 12 : 1)}{" "}
-                  <span className="ob-small muted">a month</span>
-                </span>
-                {makes.get(plan.tier) ? (
-                  <span className="ob-small">
-                    {makesLine(
-                      makes.get(plan.tier) as ReturnType<typeof planMakes>,
-                    )}
+            {offered.map((plan, place) => {
+              const monthly = plans.find(
+                (other) =>
+                  other.interval === "month" && other.tier === plan.tier,
+              );
+              const posts = makes.get(plan.tier);
+              const saved = savedInAYear(plans, plan.tier);
+              const top = offered.length > 1 && place === offered.length - 1;
+              const frame = framed ? PLAN_FRAMES[plan.tier] : undefined;
+              return (
+                <button
+                  key={plan.tier}
+                  type="button"
+                  aria-pressed={plan.tier === tier}
+                  className={
+                    top
+                      ? "card ob-plan-option ob-plan-top"
+                      : "card ob-plan-option"
+                  }
+                  onClick={() => {
+                    setPicked(plan.tier);
+                    track("select_item", {
+                      item_list_id: `plans_${interval}`,
+                      items: [planItem(plan)],
+                    });
+                  }}
+                >
+                  {plan.tier === whole && offered.length > 1 && !floors ? (
+                    <span className="ob-plan-fit">Makes all of it</span>
+                  ) : null}
+                  <span className="ob-plan-name">{tierName(plan.tier)}</span>
+                  {framed ? (
+                    frame ? (
+                      <span
+                        className={
+                          top
+                            ? "ob-plan-frame ob-plan-frame-top"
+                            : "ob-plan-frame"
+                        }
+                      >
+                        {frame}
+                      </span>
+                    ) : (
+                      <span className="ob-plan-frame-room" aria-hidden="true" />
+                    )
+                  ) : null}
+                  {/* Both intervals fill the same lines, so switching never moves the cards. */}
+                  {interval === "year" && monthly ? (
+                    <s className="ob-small muted ob-swap">
+                      {price(monthly)} a month
+                    </s>
+                  ) : (
+                    <span className="ob-small" aria-hidden="true">
+                      {"\u00a0"}
+                    </span>
+                  )}
+                  <span key={interval} className="ob-value ob-swap">
+                    {price(plan, months)}{" "}
+                    <span className="ob-small muted">a month</span>
                   </span>
-                ) : PLAN_LINES[place] ? (
-                  <span className="ob-small">{PLAN_LINES[place]}</span>
-                ) : null}
-                {place === PLAN_LINES.length - 1 ? (
-                  <span className="ob-small">{TEAM_CHECK}</span>
-                ) : null}
-                <span className="ob-small muted">
-                  {plan.credits.toLocaleString("en")} credits a month
-                </span>
-                {interval === "year" ? (
-                  <span className="ob-small muted">
-                    {price(plan)} billed once a year
+                  <span
+                    key={`${interval}-billed`}
+                    className="ob-small muted ob-swap"
+                  >
+                    {interval === "year"
+                      ? `${price(plan)} billed yearly`
+                      : "Billed monthly"}
                   </span>
-                ) : null}
-              </button>
-            ))}
+                  {posts !== undefined ? (
+                    <span className="ob-small">
+                      {postsLine(posts, most, floors)}
+                    </span>
+                  ) : (
+                    <span className="ob-small">{planLine(plan.tier)}</span>
+                  )}
+                  <span className="ob-small">{creditsLine(plan.credits)}</span>
+                  {saved > 0 ? (
+                    <span
+                      key={`${interval}-saved`}
+                      className="ob-small ob-swap"
+                    >
+                      {interval === "year"
+                        ? `You save ${money(saved / 100, plan.currency.toUpperCase())} a year`
+                        : `Yearly saves ${money(saved / 100, plan.currency.toUpperCase())}`}
+                    </span>
+                  ) : null}
+                  {top ? (
+                    <span className="ob-small ob-plan-extra">
+                      <Check size={14} aria-hidden="true" />
+                      {TEAM_CHECK}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
           </div>
+
+          <p className="ob-small muted ob-credits-buy">{CREDITS_BUY}</p>
+
+          <figure className="ob-quote">
+            <blockquote>“{QUOTE.text}”</blockquote>
+            <figcaption>
+              <img
+                className="ob-quote-avatar"
+                src={QUOTE.photo}
+                alt={QUOTE.name}
+                width={40}
+                height={40}
+              />
+              <span>
+                <span className="ob-quote-name">{QUOTE.name}</span>
+                <span className="muted">{QUOTE.role}</span>
+              </span>
+            </figcaption>
+          </figure>
 
           {error ? (
             <p className="alert" role="alert">
@@ -321,27 +473,33 @@ export function CheckoutStep({
             </p>
           ) : null}
 
-          <button
-            type="button"
-            className="button ob-wide"
-            disabled={opening || !tier}
-            onClick={() => tier && checkout(tier)}
-          >
-            {opening
-              ? "Opening checkout…"
-              : chosen
-                ? `Start ${tierName(chosen.tier)} for ${price(chosen, interval === "year" ? 12 : 1)} a month`
-                : "Continue to payment"}
-            {opening ? null : <ArrowRight size={16} aria-hidden="true" />}
-          </button>
-          <ul className="ob-trust">
-            <li>Change or cancel any time in Settings</li>
-            <li>Discount codes work at checkout</li>
-            <li>Secure payment with Polar</li>
+          {/* On a phone this bar stays on screen while the plans scroll. */}
+          <div className="ob-start">
+            <button
+              type="button"
+              className="button ob-wide"
+              disabled={opening || !tier}
+              onClick={() => tier && checkout(tier)}
+            >
+              {opening
+                ? "Opening checkout…"
+                : chosen
+                  ? `Start ${tierName(chosen.tier)} for ${price(chosen)} ${chosen.interval === "year" ? "a year" : "a month"}`
+                  : "Continue to payment"}
+              {opening ? null : <ArrowRight size={16} aria-hidden="true" />}
+            </button>
+          </div>
+          <ul className="ob-assure">
+            <li>
+              <Check size={14} aria-hidden="true" />
+              Cancel any time.
+            </li>
+            <li>
+              <Check size={14} aria-hidden="true" />
+              {REFUND}
+            </li>
           </ul>
-          <p className="ob-small muted">
-            Nothing goes out until you connect your accounts, next.
-          </p>
+          <ShortLegalNotice />
           {skip ? <SkipSubscriptionButton skip={skip} /> : null}
         </>
       )}

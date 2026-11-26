@@ -19,7 +19,7 @@ export function isView(value: string): value is View {
 type Plan = NonNullable<CmoOverview["strategy"]>;
 type Entry = Plan["calendar"][number];
 
-const PICTURE = "/cuso/walking.png";
+const PICTURE = "/cuso/walking.svg";
 
 function entry(
   day: number,
@@ -125,6 +125,7 @@ export const overview: CmoOverview = cmoOverview({
   websiteUrl: "https://acme.io",
   projectLogo: PICTURE,
   presenterSet: false,
+  upgrade: null,
   brandBrain: {
     ...richBrain,
     questions: [],
@@ -168,6 +169,7 @@ export const overview: CmoOverview = cmoOverview({
   brandBrainUpdatedAt: at("01T09:01:00"),
   brandBrainConfirmedAt: at("01T09:05:00"),
   strategy: plan,
+  strategyShort: null,
   approvedStrategy: plan,
   onboardingStep: "done",
   botStatus: "IDLE",
@@ -202,6 +204,10 @@ export const overview: CmoOverview = cmoOverview({
     level: "active",
     // Growth: the month's third X post and last LinkedIn post wait for Scale.
     beyondPlan: ["e18-x", "e27-linkedin"],
+    withoutPicture: [],
+    retryAt: null,
+    writerFailed: false,
+    floor: null,
   },
   timeZone: "Europe/Berlin",
   routines: [
@@ -247,6 +253,42 @@ export const overview: CmoOverview = cmoOverview({
     ),
   ),
   mailingListSize: 128,
+  comments: [
+    {
+      id: "cmt-1",
+      network: "x",
+      status: "replied",
+      author: "@wutzebaer1",
+      text: "+1, metadata is where it usually goes wrong for first-time drops.",
+      reply:
+        "Agreed. The Studio checks your metadata before the mint, so a typo never reaches the chain.",
+      note: null,
+      handledAt: "2026-11-22T08:05:00.000Z",
+      postUrl: "https://x.com/acme/status/1",
+    },
+    {
+      id: "cmt-2",
+      network: "linkedin",
+      status: "owner",
+      author: "Ana Ruiz",
+      text: "We were charged twice this month. Who can help?",
+      reply: null,
+      note: "Billing question: charged twice",
+      handledAt: "2026-11-22T08:06:00.000Z",
+      postUrl: null,
+    },
+    {
+      id: "cmt-3",
+      network: "instagram",
+      status: "replied",
+      author: "lena.makes",
+      text: "Does this work with Shopify?",
+      reply: "Yes, it connects to Shopify in a few clicks.",
+      note: null,
+      handledAt: "2026-11-21T08:07:00.000Z",
+      postUrl: "https://instagram.com/p/1",
+    },
+  ],
   billing: cmoBilling({
     tier: "growth",
     interval: "month",
@@ -338,13 +380,13 @@ export const overview: CmoOverview = cmoOverview({
     {
       provider: "google_analytics",
       name: "Google Analytics",
-      measures: "Visits, where they come from and conversions",
+      measures: "Visits, where they come from, and sign-ups or sales",
       status: "connected",
     },
     {
       provider: "google_search_console",
       name: "Google Search Console",
-      measures: "Searches, clicks and rankings",
+      measures: "What people search on Google, and where you show up",
       status: "none",
     },
     {
@@ -462,6 +504,66 @@ const media = {
   turnId: null,
 };
 
+/** A full month: five or six posts a day on five networks (150 in all). */
+export const busyOverview: CmoOverview = (() => {
+  const networks = ["x", "linkedin", "instagram", "facebook", "youtube", "x"];
+  const titles = [
+    "Why we built it",
+    "Inside the test stand",
+    "What a slipped launch costs",
+    "Meet the crew",
+    "How we plan a launch window",
+    "Three, two, one",
+  ];
+  const calendar = Array.from({ length: 30 }, (_, index) => index + 1).flatMap(
+    (day) =>
+      Array.from({ length: 4 + (day % 3) }, (_, slot) => {
+        const channel = networks[(day + slot) % networks.length] ?? "x";
+        const id = `busy-${day}-${slot}`;
+        // One post X refused yesterday: Today and the Calendar say so.
+        const refused = id === "busy-20-4";
+        return {
+          ...entry(day, channel, titles[(day + slot) % titles.length] ?? ""),
+          id,
+          time: `${String(8 + slot * 2).padStart(2, "0")}:00`,
+          status: refused
+            ? ("draft" as const)
+            : day < 19
+              ? ("published" as const)
+              : ("scheduled" as const),
+          ...(refused
+            ? {
+                notSent:
+                  "X paused our posting for a day. Ask Cuso to post it again.",
+              }
+            : {}),
+        };
+      }),
+  );
+  const strategy = { ...plan, calendar };
+  return { ...overview, strategy, approvedStrategy: strategy };
+})();
+
+/**
+ * Nothing to show and nothing to do: a month with no posts yet, nothing that
+ * needs the owner, and a business whose name runs long.
+ */
+export const quietOverview: CmoOverview = (() => {
+  const strategy = { ...plan, calendar: [] };
+  return {
+    ...overview,
+    businessName: "Northern Lights Handmade Ceramics and Studio Pottery",
+    brandVisual: overview.brandVisual
+      ? { ...overview.brandVisual, siteName: null }
+      : null,
+    strategy,
+    approvedStrategy: strategy,
+    drafts: [],
+    posts: { draft: 0, scheduled: 0, published: 0, failed: 0 },
+    production: { ...overview.production, state: "ready" as const },
+  };
+})();
+
 /**
  * The chat page's own state: a long German message, to check how the thread
  * wraps, and Cuso at work, so the typing row shows above the composer.
@@ -493,7 +595,7 @@ export const chat = {
       state: "ready",
       at: new Date("2026-11-04T10:20:10Z"),
       title: "The launch on a phone",
-      url: "/cuso/walking.png",
+      url: "/cuso/walking.svg",
     },
     {
       ...media,
@@ -518,7 +620,7 @@ export const chat = {
       state: "ready",
       at: new Date("2026-11-04T10:21:00Z"),
       title: "Launch brief.md",
-      url: "/cuso/walking.png",
+      url: "/cuso/walking.svg",
       readable: true,
     },
     {
@@ -550,7 +652,7 @@ export const chat = {
       by: "Market Scout",
       text: "Three trends stand out this quarter: loyalty passes replace one-off drops, brands mint on their own site, and buyers pay by card.",
       readable: true,
-      files: [{ name: "market-scan.pdf", url: "/cuso/walking.png" }],
+      files: [{ name: "market-scan.pdf", url: "/cuso/walking.svg" }],
     },
     {
       ...media,
@@ -637,6 +739,56 @@ export const chat = {
       by: "The SEO specialist",
       text: "86 of 110 checks passed. 5 things to fix are in your SEO tab.",
     },
+    {
+      ...media,
+      id: "w14",
+      kind: "seo_saved",
+      state: "ready",
+      at: new Date("2026-11-04T10:32:00Z"),
+      title: "Saved to your SEO page",
+      suggestions: [
+        {
+          id: "0198c0de-0000-7000-8000-0000000000a1",
+          kind: "page_change",
+          source: "cuso",
+          title: "Say minting platform in the homepage title",
+          keyword: "nft minting platform",
+          pageUrl: "https://nmkr.io/",
+          why: "Seen 1,300 times at position 7; the title never says it.",
+          body: "Replace the homepage title.",
+          newText: "NFT Minting Platform for Cardano | NMKR",
+          currentText: "NMKR | The Leading Web3 Platform",
+          element: "title",
+          draft: null,
+          sources: [],
+          evidence: [],
+          status: "open",
+          createdAt: new Date("2026-11-04T10:32:00Z"),
+          doneAt: null,
+          verifiedAt: null,
+        },
+        {
+          id: "0198c0de-0000-7000-8000-0000000000a2",
+          kind: "article",
+          source: "cuso",
+          title: "How to launch an NFT collection on Cardano",
+          keyword: "cardano nft marketplace",
+          pageUrl: null,
+          why: "Google showed nmkr.io 115 times at 8.1; no page answers it yet.",
+          body: "## Plan the collection\n## Mint it\n## List it",
+          newText: null,
+          currentText: null,
+          element: null,
+          draft: null,
+          sources: [],
+          evidence: [],
+          status: "open",
+          createdAt: new Date("2026-11-04T10:32:00Z"),
+          doneAt: null,
+          verifiedAt: null,
+        },
+      ],
+    },
   ] satisfies ChatWork[],
 };
 
@@ -654,6 +806,8 @@ export const seo: CmoSeo = {
     running: false,
     skipped: [],
     lastFailedAt: null,
+    retryAt: null,
+    failedTries: 0,
     latest: {
       observedAt: seoAt("2026-11-16T06:12:00Z"),
       checked: 110,
@@ -711,6 +865,12 @@ export const seo: CmoSeo = {
     to: "2026-11-13",
     observedAt: seoAt("2026-11-17T08:00:00Z"),
     totals: { clicks: 412, impressions: 18_940, ctr: 0.0218, position: 14.6 },
+    previousTotals: {
+      clicks: 368,
+      impressions: 17_210,
+      ctr: 0.0214,
+      position: 15.9,
+    },
     nearFirstPage: [
       {
         query: "team booking software",
@@ -743,6 +903,8 @@ export const seo: CmoSeo = {
       why: "The page ranks 11 for the search that sells Teams; its title never says team booking.",
       body: "Replace the page title.",
       newText: "Team Booking Software for Sales and Support | Acme",
+      currentText: "Teams | Acme: scheduling infrastructure for everyone",
+      element: "title",
       draft: null,
       sources: [],
       evidence: [
@@ -778,6 +940,8 @@ export const seo: CmoSeo = {
       why: "The Finding RN-01 shows that 1 of the 17 script and style files the page's main frame requested during rendering failed: https://js-eu1.hs-scripts.com/27172445.js returned net::ERR_BLOCKED_BY_ORB. This is the HubSpot tracking/chat script. Since the page cannot rely on this file loading, check why the response is blocked: an ORB block usually means the file is served with a wrong Content-Type, is redirected to a non-script response (for example an HTML error page, a consent/cookie-walled response, or a bot-block), or is served from a region/CDN path that returns an unexpected body. Verify the URL returns the JavaScript directly (correct Content-Type: application/javascript, HTTP 200, no redirect to HTML), and if the HubSpot snippet is outdated, update it to the current embed code from the HubSpot account for portal ID 27172445. If the script is not intended to load for non-browser or non-EU contexts, make sure the page degrades gracefully without it. Note: the loading check for the 20 file URLs on hosts whose robots.txt the run did not read was limited to loading only, so robots.txt on those hosts was not checked.",
       body: "Once the script loads correctly, the page's render is complete and any HubSpot chat or tracking behavior works as intended for visitors and for Googlebot's render of the page. This removes the render error itself; no rank or traffic change can be forecast from it.",
       newText: null,
+      currentText: null,
+      element: null,
       draft: null,
       sources: [],
       evidence: [
@@ -808,6 +972,8 @@ export const seo: CmoSeo = {
       why: "Buyers comparing tools search this every month, and no page of yours answers it.",
       body: "## Who needs an alternative\n## Acme and Calendly side by side\n## How to switch in a day",
       newText: null,
+      currentText: null,
+      element: null,
       draft: null,
       sources: [],
       evidence: [
@@ -845,6 +1011,8 @@ export const seo: CmoSeo = {
       why: "880 people a month search this while they choose, and your search ad for it has no page that answers them.",
       body: "",
       newText: null,
+      currentText: null,
+      element: null,
       draft:
         "# Calendly alternative for teams that want their own booking page\n\nLooking for a Calendly alternative? Acme gives every teammate a booking page on your own domain, free for one person.\n\n## What you get\n\n- A booking page on your domain\n- Round-robin for the whole team\n\n## Acme and Calendly side by side\n\nCalendly's Standard plan costs $12 per seat a month, billed yearly. Acme is free for one person.\n\nIf you only need one meeting type, Calendly's free plan may be all you need.",
       sources: [
@@ -884,6 +1052,8 @@ export const seo: CmoSeo = {
           intent: "commercial",
           position: 11.4,
           positionSource: "search_console",
+          impressions: 412,
+          clicks: 9,
         },
         {
           keyword: "free team booking software",
@@ -892,6 +1062,8 @@ export const seo: CmoSeo = {
           intent: "commercial",
           position: null,
           positionSource: null,
+          impressions: null,
+          clicks: null,
         },
         {
           keyword: "team booking app free",
@@ -900,6 +1072,8 @@ export const seo: CmoSeo = {
           intent: "commercial",
           position: null,
           positionSource: null,
+          impressions: null,
+          clicks: null,
         },
         {
           keyword: "booking software for sales teams",
@@ -908,6 +1082,8 @@ export const seo: CmoSeo = {
           intent: null,
           position: null,
           positionSource: null,
+          impressions: null,
+          clicks: null,
         },
       ],
     },

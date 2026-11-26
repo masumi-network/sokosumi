@@ -10,6 +10,11 @@ import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organizati
 import { getRememberedPinnedRooms } from "@/components/chat/remembered-pinned-rooms";
 import { chatReadThrottleResumeInMs } from "@/lib/chat/chat-read-throttle";
 import { isListedInWorkspace } from "@/lib/chat/room-workspace-scope";
+import { chatQueryKeys } from "@/queries/chat";
+import {
+  filterTopLevelChatRoomMessages,
+  isTopLevelChatRoomMessage,
+} from "./chat-room-message-scope";
 import { isOutboundLocalMessage } from "./outbound-room-message";
 import {
   emptyRoomTranscript,
@@ -75,15 +80,31 @@ function reconcile(
     : mergeRoomHeadPage(retained, page);
 }
 
+function normalizeTopLevelTranscript(
+  transcript: RoomTranscript,
+): RoomTranscript {
+  if (transcript.messages.every(isTopLevelChatRoomMessage)) {
+    return transcript;
+  }
+  return {
+    ...transcript,
+    messages: filterTopLevelChatRoomMessages(transcript.messages),
+  };
+}
+
 /** Query cache owns data; this session owns scroll positions, request coalescing and fences. */
 export class RoomTranscriptCache {
-  readonly prefix: readonly string[];
+  readonly prefix: ReturnType<typeof chatQueryKeys.transcripts>;
   private valid = true;
+  private controller = new AbortController();
   private readonly revoked = new Set<string>();
   /** Whether the cache was cleared before, so what read it needs a repaint. */
   activate() {
     const cleared = !this.valid;
     this.valid = true;
+    if (this.controller.signal.aborted) {
+      this.controller = new AbortController();
+    }
     return cleared;
   }
   available(roomId: string) {
@@ -113,13 +134,9 @@ export class RoomTranscriptCache {
     private readonly userId: string,
     private readonly workspaceId: string | null,
   ) {
-    this.prefix = [
-      "room-transcript",
-      userId,
-      workspaceId ?? "personal-workspace",
-    ];
+    this.prefix = chatQueryKeys.transcripts({ userId, workspaceId });
     // Defaults belong to the room query type, not an accumulating auth scope.
-    client.setQueryDefaults(["room-transcript"], {
+    client.setQueryDefaults(chatQueryKeys.anyTranscript(), {
       gcTime: ROOM_RETENTION_MS,
       staleTime: Infinity,
       enabled: false,
@@ -162,7 +179,10 @@ export class RoomTranscriptCache {
   }
 
   key(roomId: string) {
-    return [...this.prefix, roomId];
+    return chatQueryKeys.transcript(
+      { userId: this.userId, workspaceId: this.workspaceId },
+      roomId,
+    );
   }
   get(roomId: string) {
     return this.client.getQueryData<RoomTranscriptEntry>(this.key(roomId));
@@ -184,15 +204,11 @@ export class RoomTranscriptCache {
     const roomId = props.selectedRoomId ?? "";
     const existing = this.get(roomId);
     if (existing) return existing;
-    const resolved =
-      !props.messagesPromise &&
-      !props.loadHistoryOnClient &&
-      !props.messageLoadFailed;
+    const resolved = !props.loadHistoryOnClient && !props.messageLoadFailed;
     return {
       bootstrap: {
         ...props,
         messages: [],
-        messagesPromise: undefined,
         loadHistoryOnClient: true,
       },
       transcript: resolved
@@ -215,9 +231,12 @@ export class RoomTranscriptCache {
     update: (entry: RoomTranscriptEntry) => RoomTranscriptEntry,
   ) {
     if (!this.current(roomId, lifetime)) return;
-    this.client.setQueryData<RoomTranscriptEntry>(this.key(roomId), (entry) =>
-      entry ? update(entry) : undefined,
-    );
+    this.client.setQueryData<RoomTranscriptEntry>(this.key(roomId), (entry) => {
+      if (!entry) return undefined;
+      const next = update(entry);
+      const transcript = normalizeTopLevelTranscript(next.transcript);
+      return transcript === next.transcript ? next : { ...next, transcript };
+    });
   }
 
   setTranscript(
@@ -232,7 +251,9 @@ export class RoomTranscriptCache {
         transcript: {
           ...transcript,
           messages: transcript.messages.filter(
-            (message) => !isOutboundLocalMessage(message),
+            (message) =>
+              !isOutboundLocalMessage(message) &&
+              isTopLevelChatRoomMessage(message),
           ),
         },
         revision: entry.revision + 1,
@@ -390,6 +411,7 @@ export class RoomTranscriptCache {
   }
   clear() {
     this.valid = false;
+    this.controller.abort();
     this.reads.clear();
     this.prefetched.clear();
     this.prefetchedUnread.clear();
@@ -407,13 +429,17 @@ export class RoomTranscriptCache {
     if (existing) return existing;
     const prefetched = options ? undefined : this.prefetched.get(roomId);
     if (prefetched) this.prefetched.delete(roomId);
+    const signal = this.controller.signal;
     // A prefetched page is only as new as the transcript it was started
     // against. A failed one reads again, now with the room's access handling.
     const promise = (
       prefetched &&
       prefetched.revision === revision &&
       this.fitsOpen(prefetched.at)
-        ? prefetched.page.then((page) => page ?? this.fetch(roomId, options))
+        ? prefetched.page.then(
+            (page) =>
+              page ?? (signal.aborted ? null : this.fetch(roomId, options)),
+          )
         : this.fetch(roomId, options)
     ).finally(() => {
       if (this.reads.get(key) === promise) this.reads.delete(key);
@@ -433,14 +459,19 @@ export class RoomTranscriptCache {
   ) {
     if (chatReadThrottleResumeInMs() > 0) return Promise.resolve(null);
     const lifetime = this.get(roomId)?.lifetime;
-    return fetchRoomMessages(roomId, null, options, (status) => {
-      if (!lifetime || !this.current(roomId, lifetime)) return;
-      if (status === 401) {
-        window.dispatchEvent(new Event("chat-session-ended"));
-      } else {
-        notifyOrganizationChatRoomsChanged({ removedRoomId: roomId });
-      }
-    });
+    return fetchRoomMessages(
+      roomId,
+      null,
+      { ...options, signal: this.controller.signal },
+      (status) => {
+        if (!lifetime || !this.current(roomId, lifetime)) return;
+        if (status === 401) {
+          window.dispatchEvent(new Event("chat-session-ended"));
+        } else {
+          notifyOrganizationChatRoomsChanged({ removedRoomId: roomId });
+        }
+      },
+    );
   }
 
   /**

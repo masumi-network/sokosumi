@@ -7,7 +7,8 @@ import {
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { imageStudioValidationHook } from "@/lib/image-studio/request-validation";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { studioVideoModelId } from "@/lib/image-studio/video-catalog";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   createVideoJobRequestSchema,
@@ -54,7 +55,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(
     route,
     async (c) => {
-      const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+      const userContext = requireUserAuthContext(c.var.authContext);
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
       const { id: projectId } = c.req.valid("param");
       const input = c.req.valid("json");
@@ -65,7 +66,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         userId: userContext.userId,
         sessionId: input.sessionId,
         prompt: input.prompt,
-        modelId: input.modelId,
+        modelId: studioVideoModelId(input.sourceAssetId ? "image" : "text"),
         settings: input.settings,
         sourceAssetId: input.sourceAssetId,
         idempotencyKey: input.idempotencyKey,

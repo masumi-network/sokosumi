@@ -2,6 +2,7 @@ import type { Coworker } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { PageSearchRows } from "@/components/page-list-search";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
@@ -20,43 +21,54 @@ export async function DeveloperCoworkersList({
 
   return (
     <ul className="divide-border divide-y rounded-lg border">
-      {coworkers.map((coworker) => {
-        const imageUrl = coworker.image
-          ? resolveIpfsOrHttpUrl(coworker.image)
-          : undefined;
+      <PageSearchRows
+        rows={coworkers.map((coworker) => {
+          const imageUrl = coworker.image
+            ? resolveIpfsOrHttpUrl(coworker.image)
+            : undefined;
 
-        return (
-          <li
-            key={coworker.id}
-            className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div className="flex min-w-0 items-start gap-3">
-              <Avatar className="size-10 shrink-0">
-                {imageUrl ? (
-                  <AvatarImage src={imageUrl} alt={coworker.name} />
-                ) : null}
-                <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                  {coworker.name.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 space-y-1">
-                <p className="truncate font-medium">{coworker.name}</p>
-                <p className="text-muted-foreground truncate text-sm">
-                  {coworker.caption?.trim() || t("List.noCaption")}
-                </p>
-                <p className="text-muted-foreground font-mono text-xs">
-                  {coworker.slug}
-                </p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" asChild className="shrink-0">
-              <Link href={`/developer/coworkers/${coworker.id}`}>
-                {t("List.edit")}
-              </Link>
-            </Button>
-          </li>
-        );
-      })}
+          return {
+            primary: [coworker.name, coworker.slug],
+            secondary: [coworker.caption],
+            content: (
+              <li
+                key={coworker.id}
+                className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <Avatar className="size-10 shrink-0">
+                    {imageUrl ? (
+                      <AvatarImage src={imageUrl} alt={coworker.name} />
+                    ) : null}
+                    <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                      {coworker.name.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 space-y-1">
+                    <p className="truncate font-medium">{coworker.name}</p>
+                    <p className="text-muted-foreground truncate text-sm">
+                      {coworker.caption?.trim() || t("List.noCaption")}
+                    </p>
+                    <p className="text-muted-foreground font-mono text-xs">
+                      {coworker.slug}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="shrink-0"
+                >
+                  <Link href={`/developer/coworkers/${coworker.id}`}>
+                    {t("List.edit")}
+                  </Link>
+                </Button>
+              </li>
+            ),
+          };
+        })}
+      />
     </ul>
   );
 }

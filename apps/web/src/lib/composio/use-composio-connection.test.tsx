@@ -75,7 +75,11 @@ describe("useComposioConnection", () => {
       connectionId: "ca_1",
       sessionUri: "https://backend.composio.dev/session/one",
     });
-    expect(finalize).toHaveBeenCalledWith("ca_1", undefined);
+    expect(finalize).toHaveBeenCalledWith("ca_1", {
+      callbackProof: undefined,
+      pendingDataToken: undefined,
+      connectToken: undefined,
+    });
   });
 
   it.each([
@@ -99,7 +103,11 @@ describe("useComposioConnection", () => {
       await expect(connect()).resolves.toMatchObject({ kind });
       expect(completeComposioAuthCallbackAction).not.toHaveBeenCalled();
       if (kind === "connected")
-        expect(finalize).toHaveBeenCalledExactlyOnceWith("zernio:p1", "proof");
+        expect(finalize).toHaveBeenCalledExactlyOnceWith("zernio:p1", {
+          callbackProof: "proof",
+          pendingDataToken: undefined,
+          connectToken: undefined,
+        });
       else expect(finalize).not.toHaveBeenCalled();
     },
   );

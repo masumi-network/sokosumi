@@ -55,6 +55,7 @@ import { randomUUID } from "node:crypto";
 import { FileResultWindowKind } from "@sokosumi/database";
 import { Hono } from "hono";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testSchemaNames } from "@/test/split-layout";
 
 const { acquire, release, pending, env } = vi.hoisted(() => ({
   acquire: vi.fn(),
@@ -80,7 +81,9 @@ const { acquire, release, pending, env } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("@/config/env", () => ({ getEnv: () => env }));
+vi.mock("@/config/env", () => ({
+  getEnv: () => ({ ...env, ...testSchemaNames() }),
+}));
 vi.mock("@/services/sync-lock.service", () => ({
   syncLockService: { acquireLock: acquire, releaseLock: release },
 }));

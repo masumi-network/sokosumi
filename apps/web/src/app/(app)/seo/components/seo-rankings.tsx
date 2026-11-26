@@ -9,8 +9,10 @@ import {
 import { cn } from "@/lib/utils";
 import { SeoCompetitors } from "./seo-competitors";
 import { SeoKeywordMap } from "./seo-keyword-map";
-import { keywordGroups } from "./seo-keyword-rows-model";
-import { SeoKeywords, SeoQueryFilter } from "./seo-keywords";
+import { workspaceKeywordGroups } from "./seo-keyword-rows-model";
+import { SeoKeywords } from "./seo-keywords";
+import { SeoMarkets } from "./seo-markets";
+import { SeoQueryFilter } from "./seo-query-filter";
 import { SeoShareOfVoice } from "./seo-share-of-voice";
 import { type SeoRankingsSection, seoSectionClass } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -21,8 +23,9 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
  */
 export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
-  const groups = keywordGroups(model.data.keywords);
-  const ideas = groups.ideas.length;
+  const groups = workspaceKeywordGroups(model.data);
+  const filtered = workspaceKeywordGroups(model.data, model.filteredKeywords);
+  const ideas = groups.ideas.length + (model.data.seasonalIdeas?.length ?? 0);
   // With ideas and no checked keyword, the Keywords list is empty: the tab opens on the ideas.
   const [chosen, setSection] = useState<SeoRankingsSection>(() =>
     ideas && !groups.checked.length ? "ideas" : "keywords",
@@ -39,7 +42,7 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
     ? chosen
     : "keywords";
   return (
-    <div className="stagger space-y-6">
+    <div className="stagger min-w-0 space-y-6">
       {/* The switch and the filter of its list share one line; on a phone the filter is the line under it. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {/* One control with three parts: three framed buttons read as three things. The look is the app's
@@ -78,32 +81,40 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
           <SeoQueryFilter
             model={model}
             // The list in view decides: 16 keywords need no filter box, 71 ideas do.
-            rows={
-              section === "ideas" ? groups.ideas.length : groups.checked.length
-            }
+            rows={section === "ideas" ? ideas : groups.checked.length}
           />
         </div>
       </div>
       {/* Over the list, the map of the list in view: which keywords are worth the work, at one look (owner,
           after pass 59). The competitors list has no use for the map. */}
-      {section === "competitors" ? null : (
+      {section === "ideas" && (
         <SeoKeywordMap
+          key="ideas"
           model={model}
-          groups={
-            section === "ideas"
-              ? { checked: [], ideas: groups.ideas }
-              : { checked: groups.checked, ideas: [] }
-          }
+          comparisonIdeas={groups.ideas}
+          groups={{ checked: [], ideas: filtered.ideas }}
         />
       )}
-      {/* The site against its confirmed competitors over the tracked keywords: no use on the list of ideas. */}
-      {section === "ideas" ? null : (
-        <SeoShareOfVoice shareOfVoice={model.data.shareOfVoice} />
+      {section === "keywords" && (
+        <SeoKeywordMap
+          key="keywords"
+          model={model}
+          groups={{ checked: filtered.checked, ideas: [] }}
+        />
       )}
       <SeoKeywords model={model} section={section} />
-      <div className={seoSectionClass(section === "competitors")}>
+      <div
+        className={cn("space-y-6", seoSectionClass(section === "competitors"))}
+      >
         <SeoCompetitors model={model} />
+        {/* The site against its confirmed competitors over the tracked keywords: no use on the list of ideas. */}
+        {section === "competitors" && (
+          <SeoShareOfVoice shareOfVoice={model.data.shareOfVoice} />
+        )}
       </div>
+      {section === "competitors" && (
+        <SeoMarkets data={model.data} pageId={model.filters.pageId} />
+      )}
     </div>
   );
 }

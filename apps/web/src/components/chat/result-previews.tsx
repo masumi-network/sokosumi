@@ -73,9 +73,13 @@ import { withBotIdParam } from "@/lib/soko-bot/bot-id-param";
 import { SOKO_BOT_ROUTE, sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
+import { chatQueryKeys } from "@/queries/chat";
 import { ProjectSelectionMessage } from "./project-selection-message";
 import { loadRoomMessageResults } from "./room-message-results";
 import { selectChatProjectAction } from "./select-project-action";
+
+/** A card's label sits above its value until the card is wide enough for two columns, so a date or repeat rule is not split mid-value. */
+const DETAIL_ROW_CLASS = "flex min-w-0 flex-col gap-0.5 @sm:contents";
 
 const icons = {
   task: ListTodo,
@@ -258,7 +262,7 @@ export function ResultPreviewCard({
       onClick={openSource}
       onAuxClick={openSource}
       className={cn(
-        "relative isolate w-full min-w-0 cursor-pointer rounded-lg",
+        "relative isolate w-full min-w-0 cursor-pointer rounded-lg @container",
         nativeTask ? "max-w-sm" : "max-w-xl",
         !nativeTask && "bg-background rounded-lg border p-4",
       )}
@@ -325,7 +329,7 @@ export function ResultPreviewCard({
           </p>
         ) : null}
         {!nativeTask && (
-          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
+          <dl className="flex flex-col gap-2 text-xs @sm:grid @sm:grid-cols-[auto_minmax(0,1fr)] @sm:gap-x-3 @sm:gap-y-1">
             {(
               [
                 ["assignee", nativeTask || jobStatus ? null : result.assignee],
@@ -334,7 +338,7 @@ export function ResultPreviewCard({
               ] as const
             ).map(([label, value]) =>
               value ? (
-                <div key={label} className="contents">
+                <div key={label} className={DETAIL_ROW_CLASS}>
                   <dt className="text-muted-foreground">{t(label)}</dt>
                   <dd className="flex items-center gap-2 wrap-break-word">
                     {label === "project" && result.projectInfo ? (
@@ -350,7 +354,10 @@ export function ResultPreviewCard({
               ) : null,
             )}
             {result.details?.map((detail, index) => (
-              <div key={`${detail.label}-${index}`} className="contents">
+              <div
+                key={`${detail.label}-${index}`}
+                className={DETAIL_ROW_CLASS}
+              >
                 <dt className="text-muted-foreground">{detail.label}</dt>
                 <dd className="min-w-0 wrap-break-word">
                   <DetailValue value={detail.value} />
@@ -358,7 +365,7 @@ export function ResultPreviewCard({
               </div>
             ))}
             {result.scheduledAt ? (
-              <div className="contents">
+              <div className={DETAIL_ROW_CLASS}>
                 <dt className="text-muted-foreground">{t("scheduled")}</dt>
                 <dd className="wrap-break-word">
                   <time dateTime={new Date(result.scheduledAt).toISOString()}>
@@ -377,7 +384,7 @@ export function ResultPreviewCard({
               </div>
             ) : null}
             {result.recurrence ? (
-              <div className="contents">
+              <div className={DETAIL_ROW_CLASS}>
                 <dt className="text-muted-foreground">{t("recurrence")}</dt>
                 <dd
                   className={cn("wrap-break-word", !recurrence && "font-mono")}
@@ -673,13 +680,14 @@ function AuthorizedResultPreviews({
   const source =
     "turnId" in givenSource && botId ? { ...givenSource, botId } : givenSource;
   const query = useQuery({
-    queryKey: [
-      "chat-results",
-      viewerId,
-      session?.session.activeOrganizationId,
+    queryKey: chatQueryKeys.results(
+      {
+        userId: viewerId,
+        workspaceId: session?.session.activeOrganizationId,
+      },
       source,
       descriptors.map((d) => d.id),
-    ],
+    ),
     enabled: !!viewerId,
     queryFn: async ({ signal }) => {
       if (!("turnId" in source))

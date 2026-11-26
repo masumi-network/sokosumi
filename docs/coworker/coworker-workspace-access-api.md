@@ -187,6 +187,8 @@ Same database transaction as the status flip for DB writes.
 
 ### Workspace owner side
 
+Approve needs a browser session: an API key, an OAuth or MCP token, a Coworker or a Soko Bot gets 403 `person_approval_required` with `webUrl` (`/account`, or the organization's settings) ([ADR 0077](../adr/0077-agents-draft-and-stop-a-person-publishes-sends-and-starts-ad-spend.md)). Deny and revoke stay open to the owner's own credentials.
+
 | Method | Route                                                       | Auth                                                                                         | Behavior                                       |
 | ------ | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | `GET`  | `/v1/users/{id}/coworker-access`                            | Personal workspace owner (self); platform admin may access concrete user ids they may manage | List access rows for user’s personal workspace |

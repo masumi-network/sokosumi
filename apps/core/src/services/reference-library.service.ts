@@ -6,15 +6,21 @@
  * style with the brand's own logo, colours and DESIGN.md.
  */
 
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import type { REFERENCE_KINDS, REFERENCE_PURPOSES } from "@sokosumi/soko-bot";
 import { get } from "@vercel/blob";
 import { getEnv } from "@/config/env";
 import { vectorLiteral } from "@/lib/contacts/embeddings";
 import prisma from "@/lib/db/prisma";
 import { type EmbedTexts, embedTexts } from "@/lib/embeddings";
+import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
 
-/** References below this are blank, damaged or mostly text. */
-const MIN_USABLE = 3;
+/**
+ * References below this are blank, damaged, a book spread or a photo of a
+ * print. On NMKR's 40 styled pictures (2026-11-20) only 2 references were
+ * rated 5, and the library still holds over 22,000 at 4 or 5.
+ */
+const MIN_USABLE = 4;
 const MAX_RESULTS = 8;
 
 export type ReferenceKind = (typeof REFERENCE_KINDS)[number];
@@ -37,6 +43,17 @@ export function referenceLibraryAvailable(): boolean {
   return Boolean(getEnv().REFERENCE_LIBRARY_READ_WRITE_TOKEN);
 }
 
+/** The purposes a picture that shows numbers has: the only ones an infographic suits. */
+const INFOGRAPHIC_PURPOSES: readonly ReferencePurpose[] = [
+  "data",
+  "comparison",
+];
+
+/** Whether a picture for this purpose may take an infographic (cmo-v8). */
+export function infographicSuits(purpose: ReferencePurpose | undefined) {
+  return purpose !== undefined && INFOGRAPHIC_PURPOSES.includes(purpose);
+}
+
 /**
  * The library images whose look best fits what the piece is about, by
  * meaning; `kinds` and `purpose` narrow it (an infographic for data, a
@@ -48,25 +65,78 @@ export async function findStyleReferences(
     kinds?: ReferenceKind[];
     purpose?: ReferencePurpose;
     limit?: number;
+    /** References already taken, left out of the results. */
+    exclude?: readonly string[];
+    /**
+     * False leaves infographics out, whatever kinds asks for. An infographic
+     * that is offered is figure-led: a page mostly of text (24 of NMKR's 40
+     * references were) lends a picture nothing but paragraphs to imitate.
+     */
+    infographics?: boolean;
   },
   embed: EmbedTexts = embedTexts,
 ): Promise<StyleReference[]> {
-  const [embedding] = (await embed([input.about])).embeddings;
-  if (!embedding) return [];
-  const vector = vectorLiteral(embedding);
+  // Stored vectors come from the Gateway model, so a plan run (whose local
+  // vectors are a different method) ranks by usability instead of meaning.
+  let vector: string | null = null;
+  if (!localChatGptPlanEnabled()) {
+    const [embedding] = (await embed([input.about])).embeddings;
+    if (!embedding) return [];
+    vector = vectorLiteral(embedding);
+  }
   const kinds = input.kinds?.length ? input.kinds : null;
+  const leftOut = input.infographics === false ? ["infographic"] : [];
   const limit = Math.min(input.limit ?? 5, MAX_RESULTS);
+  const exclude = [...(input.exclude ?? [])];
   return prisma.$queryRaw<StyleReference[]>`
     SELECT "id"::text AS id, "kind", "era", "description", "technique",
       "layout", "lettering", "palette", "suits"
-    FROM "reference_image"
+    FROM ${sharedTable("reference_image")}
     WHERE "embedding" IS NOT NULL
       AND "usable" >= ${MIN_USABLE}
+      AND "textAmount" <> 'lots'
       AND (${kinds}::text[] IS NULL OR "kind" = ANY(${kinds}::text[]))
+      AND NOT ("kind" = ANY(${leftOut}::text[]))
       AND (${input.purpose ?? null}::text IS NULL OR ${input.purpose ?? null} = ANY("suits"))
-    ORDER BY "embedding" <=> ${vector}::vector
+      AND NOT ("id"::text = ANY(${exclude}::text[]))
+    ORDER BY "embedding" <=> ${vector}::vector NULLS LAST, "usable" DESC, "id"
     LIMIT ${limit}
   `;
+}
+
+/**
+ * The references a Project's approved month already gives its pieces. Each
+ * piece takes its own, and the search kept offering taken ones: on NMKR's
+ * 171-piece month (2026-11-20) 58 of 381 results were taken, and 8 saves
+ * of up to 12 pieces were refused for it.
+ */
+export async function monthStyleReferenceIds(
+  projectId: string,
+): Promise<string[]> {
+  const approved = await prisma.marketingStrategy.findFirst({
+    where: { projectId, approvedAt: { not: null } },
+    select: { id: true, plan: true },
+  });
+  if (!approved) return [];
+  const posts = await prisma.socialPost.findMany({
+    where: { marketingStrategyId: approved.id, status: { not: "CANCELED" } },
+    select: { planning: true },
+  });
+  const calendar =
+    (approved.plan as { calendar?: unknown } | null)?.calendar ?? [];
+  const entries = [
+    ...posts.map((post) => post.planning),
+    ...(Array.isArray(calendar) ? calendar : []),
+  ];
+  return [
+    ...new Set(
+      entries.flatMap((entry) => {
+        const id = (entry as { styleReferenceId?: unknown } | null)
+          ?.styleReferenceId;
+        return typeof id === "string" ? [id] : [];
+      }),
+    ),
+  ];
 }
 
 /** The image a reference names, as bytes for the image model. */
@@ -87,4 +157,24 @@ export async function readReferenceImage(
     contentType: result.blob.contentType ?? "image/jpeg",
     description: row.description,
   };
+}
+
+/** What a reference is, as the catalogue describes it, for the picture's prompt. */
+export type StyleTraits = Pick<
+  StyleReference,
+  "kind" | "era" | "technique" | "layout" | "lettering"
+>;
+
+/** A reference's own technique, layout and lettering, named in the prompt. */
+export async function readStyleTraits(id: string): Promise<StyleTraits | null> {
+  return prisma.referenceImage.findUnique({
+    where: { id },
+    select: {
+      kind: true,
+      era: true,
+      technique: true,
+      layout: true,
+      lettering: true,
+    },
+  });
 }

@@ -1,4 +1,6 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/back-link", () => ({
@@ -89,6 +91,27 @@ function signedInWithOrg() {
   });
 }
 
+function renderWithQueryClient(ui: ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
+  const result = render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+  );
+  return {
+    ...result,
+    rerender: (nextUi: ReactElement) =>
+      result.rerender(
+        <QueryClientProvider client={queryClient}>
+          {nextUi}
+        </QueryClientProvider>,
+      ),
+  };
+}
+
 describe("FileDetailClient", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -99,7 +122,7 @@ describe("FileDetailClient", () => {
     useSessionMock.mockReturnValue({ data: undefined, isPending: true });
     fetchFileResourceMock.mockResolvedValue(resource);
 
-    render(<FileDetailClient resourceId="resource-1" />);
+    renderWithQueryClient(<FileDetailClient resourceId="resource-1" />);
 
     // Asking now would ask the personal drive for an organization file.
     expect(fetchFileResourceMock).not.toHaveBeenCalled();
@@ -109,7 +132,7 @@ describe("FileDetailClient", () => {
     signedInWithOrg();
     fetchFileResourceMock.mockResolvedValue(resource);
 
-    render(<FileDetailClient resourceId="resource-1" />);
+    renderWithQueryClient(<FileDetailClient resourceId="resource-1" />);
 
     await waitFor(() => expect(fetchFileResourceMock).toHaveBeenCalled());
     expect(fetchFileResourceMock.mock.calls[0][0].store).toEqual({
@@ -122,7 +145,7 @@ describe("FileDetailClient", () => {
     signedInWithOrg();
     fetchFileResourceMock.mockResolvedValue(resource);
 
-    render(<FileDetailClient resourceId="resource-1" />);
+    renderWithQueryClient(<FileDetailClient resourceId="resource-1" />);
 
     expect(await screen.findByTestId("file-detail")).toBeInTheDocument();
     expect(screen.getByTestId("file-preview")).toBeInTheDocument();
@@ -147,7 +170,9 @@ describe("FileDetailClient", () => {
       .mockReturnValueOnce(stale)
       .mockResolvedValueOnce(resource);
 
-    const { rerender } = render(<FileDetailClient resourceId="resource-1" />);
+    const { rerender } = renderWithQueryClient(
+      <FileDetailClient resourceId="resource-1" />,
+    );
     await waitFor(() => expect(fetchFileResourceMock).toHaveBeenCalledTimes(1));
     expect(fetchFileResourceMock.mock.calls[0][0].store).toEqual({
       scope: "me",
@@ -207,7 +232,7 @@ describe("FileDetailClient", () => {
         ],
       });
 
-      render(<FileDetailClient resourceId="resource-1" />);
+      renderWithQueryClient(<FileDetailClient resourceId="resource-1" />);
 
       // Rejected labels were filtered out of every response, so a removed label
       // simply vanished and the tombstone barring it was unreachable.
@@ -236,12 +261,12 @@ describe("FileDetailClient", () => {
       });
       updateFileMetadataMock.mockResolvedValue({ ...resource, rejected: [] });
 
-      render(<FileDetailClient resourceId="resource-1" />);
+      renderWithQueryClient(<FileDetailClient resourceId="resource-1" />);
 
       const button = await waitFor(() =>
         screen.getByTestId("file-detail-allow-again"),
       );
-      button.click();
+      await act(async () => button.click());
 
       await waitFor(() => {
         expect(updateFileMetadataMock).toHaveBeenCalled();
@@ -276,7 +301,7 @@ describe("FileDetailClient", () => {
         ],
       });
 
-      render(<FileDetailClient resourceId="resource-1" />);
+      renderWithQueryClient(<FileDetailClient resourceId="resource-1" />);
 
       await waitFor(() => {
         expect(screen.getByTestId("file-detail")).toBeVisible();
@@ -312,7 +337,7 @@ describe("FileDetailClient", () => {
         extractionState: "PARTIAL",
         extractionCoverage,
       });
-      render(<FileDetailClient resourceId="resource-1" />);
+      renderWithQueryClient(<FileDetailClient resourceId="resource-1" />);
     }
 
     it("says the share that was read", async () => {
@@ -416,7 +441,7 @@ describe("FileDetailClient", () => {
         extractionState: "INDEXED",
         extractionCoverage: 1,
       });
-      render(<FileDetailClient resourceId="resource-1" />);
+      renderWithQueryClient(<FileDetailClient resourceId="resource-1" />);
 
       expect(await screen.findByText("processingIndexed")).toBeInTheDocument();
     });

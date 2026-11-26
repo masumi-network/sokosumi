@@ -15,7 +15,7 @@ import {
   CLI_COMMANDS,
   formatCliCommandHelpLines,
   formatUnknownCommandUsage,
-} from "../../src/cli/commands/discover.js";
+} from "../../src/cli/commands/catalog.js";
 import {
   GLOBAL_BOOLEAN_FLAG_BY_TOKEN,
   GLOBAL_VALUE_OPTIONS,

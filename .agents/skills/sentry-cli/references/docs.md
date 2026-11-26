@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-docs
-version: 0.49.0
+version: 0.50.0
 description: Search and query current Sentry documentation
 requires:
   bins: ["sentry"]
@@ -17,11 +17,12 @@ Find Sentry documentation pages by keyword
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument        | Description            |
+| --------------- | ---------------------- |
 | `<keywords...>` | Documentation keywords |
 
 **Flags:**
+
 - `-n, --limit <value> - Maximum matches to return (1-20) - (default: "8")`
 
 **Examples:**
@@ -43,8 +44,8 @@ Ask a cited question about Sentry documentation
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument        | Description                    |
+| --------------- | ------------------------------ |
 | `<question...>` | Natural-language docs question |
 
 **Examples:**

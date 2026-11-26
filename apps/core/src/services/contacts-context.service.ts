@@ -3,10 +3,82 @@
  * meetings and in its daily brief: who they are, who on the team knows them,
  * the last touchpoint and their lists. Unknown addresses get nothing.
  */
+import type { MailAddress } from "@/lib/contacts/capture-extract";
 import { contactReplyState } from "@/lib/contacts/reply-state";
 import prisma from "@/lib/db/prisma";
 
 const MAX_KNOWN_BY = 3;
+
+interface MeetingContact {
+  id: string;
+  role: string | null;
+}
+
+/** An email channel is unique per workspace. A channel match alone does not identify an invitee by name. */
+export async function meetingContactMailboxes(
+  workspaceId: string,
+  emails: readonly string[],
+) {
+  if (!emails.length) return [];
+  return prisma.contactChannel.findMany({
+    where: {
+      workspaceId,
+      type: "EMAIL",
+      value: { in: [...new Set(emails)] },
+      contact: {
+        workspaceId,
+        mergedIntoId: null,
+        archivedAt: null,
+      },
+    },
+    select: {
+      value: true,
+      contact: {
+        select: {
+          id: true,
+          kind: true,
+          name: true,
+          role: true,
+          organization: true,
+        },
+      },
+    },
+  });
+}
+
+export function inviteNamesPerson(
+  inviteName: string | null | undefined,
+  contact: { name: string; kind: string },
+): inviteName is string {
+  return (
+    !!inviteName &&
+    contact.kind === "PERSON" &&
+    inviteName.trim().toLowerCase() === contact.name.trim().toLowerCase()
+  );
+}
+
+/** Add a role and detail link only when Contacts and this invitation identify the same person. */
+export async function confirmedMeetingContacts(
+  workspaceId: string,
+  guests: readonly MailAddress[],
+): Promise<Map<string, MeetingContact>> {
+  const names = new Map(
+    guests.flatMap(({ email, name }) => (name ? [[email, name] as const] : [])),
+  );
+  const matches = new Map<string, MeetingContact>();
+  if (!names.size) return matches;
+  const channels = await meetingContactMailboxes(workspaceId, [
+    ...names.keys(),
+  ]);
+  for (const { value, contact } of channels) {
+    if (!inviteNamesPerson(names.get(value), contact)) continue;
+    const role = [contact.role, contact.organization]
+      .filter(Boolean)
+      .join(" @ ");
+    matches.set(value, { id: contact.id, role: role || null });
+  }
+  return matches;
+}
 
 function shortDate(date: Date, timeZone: string): string {
   return new Intl.DateTimeFormat("en-GB", {

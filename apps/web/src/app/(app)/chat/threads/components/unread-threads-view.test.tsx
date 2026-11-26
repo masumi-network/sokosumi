@@ -1,11 +1,21 @@
 import type { ChatRoom } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
-import { makeRoom } from "@/components/chat/__tests__/chat-room-fixtures";
+import {
+  makeRoom,
+  makeUser,
+} from "@/components/chat/__tests__/chat-room-fixtures";
+import { SearchablePageContent } from "@/components/searchable-page-content";
 import type { ChatUnreadThreadsPage } from "@/lib/services/chat-room.service";
 
 import { UnreadThreadsView } from "./unread-threads-view";
@@ -81,16 +91,25 @@ function renderView(
     <QueryClientProvider
       client={
         new QueryClient({
-          defaultOptions: { queries: { retry: false, staleTime } },
+          defaultOptions: {
+            queries: {
+              retry: false,
+              staleTime,
+              gcTime: Number.POSITIVE_INFINITY,
+            },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
         })
       }
     >
       <NextIntlClientProvider locale="en" messages={messages}>
-        <UnreadThreadsView
-          initialPage={initialPage}
-          initialRooms={[sokosumi, design]}
-          currentUserId="user-1"
-        />
+        <SearchablePageContent>
+          <UnreadThreadsView
+            initialPage={initialPage}
+            initialRooms={[sokosumi, design]}
+            currentUserId="user-1"
+          />
+        </SearchablePageContent>
       </NextIntlClientProvider>
     </QueryClientProvider>,
   );
@@ -120,6 +139,50 @@ describe("UnreadThreadsView", () => {
     expect(rows[1]).toHaveTextContent("1 mention");
   });
 
+  it("ranks a resolved parent mention ahead of a direct room display name in both groups", async () => {
+    const member = {
+      ...makeUser("019fc7e4-e4bd-7005-900c-66e44d33f5e4"),
+      name: "Avery",
+    };
+    const userMembers = [makeUser("user-1"), member];
+    liveRooms.current = [
+      { ...sokosumi, userMembers },
+      { ...design, kind: "direct", userMembers },
+    ];
+    const [direct, channel] = page().threads;
+    const unread = {
+      threads: [
+        { ...direct, parentContent: "Review notes" },
+        { ...channel, parentContent: `Ask @${member.id}:old-name` },
+      ],
+      nextCursor: null,
+    };
+    fetchUnreadThreadsMock.mockResolvedValue(unread);
+    fetchEarlierThreadsMock.mockResolvedValue({
+      threads: unread.threads.map((thread) => ({
+        roomId: thread.roomId,
+        parentMessageId: thread.parentMessageId,
+        parentContent: thread.parentContent,
+        replyCount: 1,
+        lastReplyAt: thread.lastUnreadAt,
+        lastReplyId: thread.firstUnreadReplyId,
+      })),
+      nextCursor: null,
+    });
+    renderView(unread);
+    await screen.findByTestId("earlier-threads-list");
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "Avery" },
+    });
+    for (const group of ["unread-threads-list", "earlier-threads-list"]) {
+      const links = within(screen.getByTestId(group)).getAllByRole("link");
+      expect(links).toHaveLength(2);
+      expect(links[0]).toHaveTextContent("Ask @Avery");
+      expect(links[1]).toHaveTextContent("Review notes");
+      expect(links[1]).toHaveTextContent("Avery");
+    }
+  });
+
   it("says the reader is caught up once the rooms hold no unread Thread", () => {
     liveRooms.current = [
       { ...sokosumi, unreadThreadCount: 0, threadUnreadCount: 0 },
@@ -127,7 +190,10 @@ describe("UnreadThreadsView", () => {
     ];
     renderView();
 
-    expect(screen.getByText("All caught up")).toBeInTheDocument();
+    expect(screen.getByText("You're all caught up")).toBeInTheDocument();
+    expect(
+      screen.getByText("New replies in threads you're part of show up here."),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Unread threads" })).toBeNull();
     // The live rooms already said so; Core is not asked.
     expect(fetchUnreadThreadsMock).not.toHaveBeenCalled();
@@ -139,7 +205,10 @@ describe("UnreadThreadsView", () => {
     liveRooms.current = [];
     renderView();
 
-    expect(screen.getByText("All caught up")).toBeInTheDocument();
+    expect(screen.getByText("You're all caught up")).toBeInTheDocument();
+    expect(
+      screen.getByText("New replies in threads you're part of show up here."),
+    ).toBeInTheDocument();
   });
 
   it("drops a Thread whose room the reader has muted since", async () => {
@@ -173,7 +242,14 @@ describe("UnreadThreadsView", () => {
       );
     }
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: 60_000 } },
+      defaultOptions: {
+        queries: {
+          retry: false,
+          staleTime: 60_000,
+          gcTime: Number.POSITIVE_INFINITY,
+        },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     const { rerender } = render(
       <QueryClientProvider client={client}>
@@ -229,7 +305,7 @@ describe("UnreadThreadsView with a filtered page", () => {
       nextCursor: "p-left",
     });
 
-    expect(screen.queryByText("All caught up")).toBeNull();
+    expect(screen.queryByText("You're all caught up")).toBeNull();
     expect(screen.getByTestId("thread-list-load-more")).toBeInTheDocument();
   });
 });

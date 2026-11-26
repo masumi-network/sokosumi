@@ -6,6 +6,9 @@ describe("getVisibleAdminSections", () => {
   it("shows the ad evals link to allowed admins", () => {
     expect(getVisibleAdminSections(true)).toEqual(ADMIN_SECTIONS);
     expect(getVisibleAdminSections(true)).toContainEqual(
+      expect.objectContaining({ key: "seoAlerts", href: "/admin/seo-alerts" }),
+    );
+    expect(getVisibleAdminSections(true)).toContainEqual(
       expect.objectContaining({ key: "adEvals", href: "/admin/ad-evals" }),
     );
   });

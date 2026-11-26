@@ -4,8 +4,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
-import type { AuthenticationContext } from "@/middleware/auth";
+import type {
+  AuthenticationContext,
+  UserAuthenticationContext,
+} from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
+import {
+  agentCredentials,
+  expectPersonApprovalRequired,
+} from "@/test-fixtures/person-approval";
 
 import mountAnswer from "./[strategyId]/answers/post";
 import mountApprove from "./[strategyId]/approve/post";
@@ -78,7 +85,7 @@ const WORKSPACE_ID = "22222222-2222-4222-8222-222222222222";
 const OLD_ID = "33333333-3333-4333-8333-333333333333";
 const NEW_ID = "44444444-4444-4444-8444-444444444444";
 const AT = new Date("2026-10-28T10:00:00Z");
-const AUTH: AuthenticationContext = {
+const AUTH: UserAuthenticationContext = {
   actor: "user",
   userId: "user_1",
   organizationId: "organization_1",
@@ -126,14 +133,17 @@ function version(
   };
 }
 
-function createApp(workspace: WorkspaceContext = WORKSPACE) {
+function createApp(
+  workspace: WorkspaceContext = WORKSPACE,
+  authContext: AuthenticationContext = AUTH,
+) {
   const app = new OpenAPIHono<EnvVariables>({
     defaultHook: defaultValidationHook,
   });
   app.use("*", async (c, next) => {
     c.set("requestId", "marketing_strategy_test");
     c.set("isAuthenticated", true);
-    c.set("authContext", AUTH);
+    c.set("authContext", authContext);
     c.set("workspaceContext", workspace);
     await next();
   });
@@ -223,6 +233,9 @@ describe("Marketing strategy routes", () => {
       nextCursor: NEW_ID,
       total: 3,
     });
+
+    expect(m.strategyFindMany.mock.lastCall?.[0]).not.toHaveProperty("cursor");
+    expect(m.strategyFindMany.mock.lastCall?.[0]).not.toHaveProperty("skip");
 
     m.strategyFindMany.mockResolvedValue([older]);
     await createApp().request(`${BASE}?limit=1&cursor=${NEW_ID}`);
@@ -469,6 +482,24 @@ describe("Marketing strategy routes", () => {
     expect(m.memberFindFirst).not.toHaveBeenCalled();
   });
 
+  // ADR 0077: agents write a strategy; a person approves it.
+  it.each(agentCredentials(AUTH))(
+    "sends %s to the Project in Sokosumi",
+    async (_, authContext) => {
+      const response = await createApp(WORKSPACE, authContext).request(
+        `${BASE}/${NEW_ID}/approve`,
+        { method: "POST" },
+      );
+
+      await expectPersonApprovalRequired(
+        response,
+        `https://example.com/projects/${PROJECT_ID}`,
+      );
+      expect(m.projectFindFirst).not.toHaveBeenCalled();
+      expect(m.strategyUpdate).not.toHaveBeenCalled();
+    },
+  );
+
   it("refuses with 409 while Cuso writes a new version", async () => {
     m.turnFindFirst.mockResolvedValue({
       id: "turn-1",
@@ -508,6 +539,28 @@ describe("Marketing strategy routes", () => {
         }),
       },
     });
+  });
+
+  it("clears the stored note when a strategy answer changes to yes", async () => {
+    m.strategyFindFirst.mockResolvedValue(
+      version(OLD_ID, null, {
+        ...PLAN,
+        questions: PLAN.questions.map((question) => ({
+          ...question,
+          answer: "no",
+          note: "Most come from referrals.",
+        })),
+      }),
+    );
+    const response = await post(`${OLD_ID}/answers`, {
+      questionId: "q1",
+      answer: "yes",
+    });
+
+    expect(response.status).toBe(200);
+    const [question] = m.strategyUpdate.mock.lastCall?.[0].data.plan.questions;
+    expect(question).toHaveProperty("answer", "yes");
+    expect(question).not.toHaveProperty("note");
   });
 
   it("is not found for a question the version does not have", async () => {

@@ -3,7 +3,6 @@
 import { useTranslations } from "next-intl"
 import * as React from "react"
 
-import { useMountEffect } from "@/hooks/use-mount-effect"
 import { cn } from "@/lib/utils"
 
 type AnnounceLoading = (label: string) => () => void
@@ -92,10 +91,12 @@ function ButtonLoadingBar({
   const announce = React.useContext(ButtonLoadingAnnouncerContext)
   const ref = React.useRef<HTMLSpanElement>(null)
 
-  useMountEffect(() =>
-    announce?.(
-      label ?? accessibleLabel(ref.current?.closest('[data-slot="button"]'))
-    )
+  React.useEffect(
+    () =>
+      announce?.(
+        label ?? accessibleLabel(ref.current?.closest('[data-slot="button"]'))
+      ),
+    []
   )
 
   return (

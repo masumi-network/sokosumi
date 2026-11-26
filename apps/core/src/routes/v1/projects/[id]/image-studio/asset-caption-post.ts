@@ -1,14 +1,20 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { notFound, serviceUnavailable } from "@/helpers/error";
+import {
+  aiBudgetUnavailable,
+  notFound,
+  serviceUnavailable,
+} from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireProjectAccess } from "@/lib/image-studio/access";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { limitAgentWriting } from "@/lib/image-studio/agent-writing-limit";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   imageStudioAssetParamsSchema,
@@ -32,6 +38,7 @@ const route = withOrganizationSlugHeaderParameter(
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
       409: jsonErrorResponse("CMO project is read-only"),
+      429: jsonErrorResponse("An agent reached its hourly limit"),
       503: jsonErrorResponse("Service Unavailable"),
     },
   }),
@@ -39,7 +46,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+    const userContext = requireUserAuthContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, assetId } = c.req.valid("param");
 
@@ -49,10 +56,14 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       userId: userContext.userId,
     });
 
+    await limitAgentWriting(userContext, workspaceContext.workspaceId);
+
     let result: Awaited<ReturnType<typeof writeStudioAssetCaption>>;
     try {
       result = await writeStudioAssetCaption({ projectId, assetId });
-    } catch {
+    } catch (error) {
+      if (error instanceof AiGatewayBudgetError)
+        throw aiBudgetUnavailable(error);
       throw serviceUnavailable("Could not write a caption");
     }
     if (result.isErr()) {

@@ -309,7 +309,7 @@ export function BrandProfileSection({
                 type="submit"
                 disabled={isBusy || !form.formState.isDirty}
                 loading={form.formState.isSubmitting}
-                className="w-full"
+                className="ms-auto"
               >
                 {t("submit")}
               </Button>

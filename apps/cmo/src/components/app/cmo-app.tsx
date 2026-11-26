@@ -6,28 +6,34 @@ import "../onboarding/onboarding.css";
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { ArrowUp, CalendarDays } from "lucide-react";
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useCallback, useRef, useState, useTransition } from "react";
+import { useAnalytics, useAppEvents } from "../../hooks/effects/use-analytics";
+import { useCmoAppInitialUrl } from "../../hooks/effects/use-cmo-app-initial-url";
+import { useCmoAppPoll } from "../../hooks/effects/use-cmo-app-poll";
+import { useEventListener } from "../../hooks/effects/use-event-listener";
+import { useScrollIntoViewWhen } from "../../hooks/effects/use-scroll-into-view-when";
 import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
 import type { ChatTable, ChatWork } from "../../lib/chat-work";
-import { productionShare, productionSteps } from "../../lib/production";
+import { pageLead } from "../../lib/page-lead";
+import {
+  productionShare,
+  productionSteps,
+  stoppedNote,
+  withoutPictureLine,
+} from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
-import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
+import { buildThread, type ThreadItem } from "../../lib/thread";
+import { monthMade, needsYou } from "../../lib/today";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
-import { CusoAvatar, type Pose } from "../cuso";
+import { CusoFace } from "../cuso";
 import { HowIGotHere, Working } from "../cuso-trace";
 import { LocalStamp } from "../local-day";
 import { StatusText } from "../status";
 import { type StartTopUp, skipOffer, TopUpButton, topUpOffer } from "../top-up";
+import { BrandMenu } from "./brand-menu";
 import { CalendarPage } from "./calendar-page";
 import {
   BrandBrainCard,
@@ -42,6 +48,7 @@ import { MadeInChat } from "./chat-work";
 import { type CompetitorActions, CompetitorsPage } from "./competitors-page";
 import type { DraftActions, DraftResult, TikTokSettings } from "./draft-post";
 import { MessageText } from "./message-text";
+import { PageLead } from "./page-lead";
 import {
   type AddMailingList,
   BrandBrainPage,
@@ -52,11 +59,13 @@ import {
   SettingsPage,
 } from "./pages";
 import { cmoPause, PausedBanner } from "./paused";
-import { initial, Sidebar, VIEWS } from "./sidebar";
+import { type PictureActions, PicturesPage } from "./pictures-page";
+import { initial, Sidebar } from "./sidebar";
 import { StrategyPage } from "./strategy-page";
 import { type ChangePlan, type OpenPortal } from "./subscription-card";
-
-const POLL_MS = 4_000;
+import { TabBar } from "./tab-bar";
+import { TodayPage } from "./today-page";
+import { UpgradeNotice } from "./upgrade-notice";
 
 export interface CmoAppActions
   extends AdActions,
@@ -75,6 +84,11 @@ export interface CmoAppActions
   /** The words of a piece kept in the owner's Files. */
   loadPieceText: (entryId: string) => Promise<string | null>;
   approveStrategy: (versionId?: string) => Promise<CmoOverview>;
+  /** A whole new strategy, written as a new hire's first one. */
+  requestStrategy: () => Promise<{
+    overview: CmoOverview | null;
+    error: string | null;
+  }>;
   /** The owner's own monthly ad budget; Cuso re-plans around it. */
   setAdBudget: (
     monthly: number,
@@ -103,18 +117,21 @@ export interface CmoAppActions
     text: string,
   ) => Promise<DraftResult>;
   competitors: CompetitorActions;
+  pictures: PictureActions;
   connectChannel: ConnectChannel;
   /** Signs in again to put another account in a connection's place. */
   changeChannel?: (socialConnectionId: string) => ReturnType<ConnectChannel>;
   addMailingList: AddMailingList;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],
-    from: "onboarding" | "app" | "seo",
+    from: "app" | "seo" | "channels",
   ) => Promise<{ url: string | null; error: string | null }>;
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
   /** Moves Cuso's routines to this time zone; a refusal comes back as text. */
   setTimeZone: (timeZone: string) => Promise<string | null>;
+  /** The member closed the dialog that says what Cuso's newer version changed. */
+  markUpgradeSeen: (versionId: string) => Promise<void>;
   /** Starts the checkout for a Project top-up of this Cuso. */
   startTopUp: StartTopUp;
   /** Starts the CMO plan checkout, for a paused Cuso or from Settings. */
@@ -134,10 +151,16 @@ interface CmoAppProps {
   work?: ChatWork[];
   name: string;
   email: string;
+  /** The account's picture, when it has one. */
+  image?: string | null;
   /** Where a redirect (a channel connection) returns to. */
   initialView?: View;
   /** Why the channel connection that sent the founder back did not finish. */
   connectError?: string | null;
+  /** Why the ad-account connection that sent the founder back did not finish. */
+  adsError?: string | null;
+  /** Why the measurement connection that sent the founder back did not finish. */
+  measureError?: string | null;
   /** The CMO plans, for Settings' plan change; empty unless the viewer manages billing. */
   plans?: CmoSubscriptionPlan[];
   /** The person has another Cuso, for the sidebar's "Your Cusos". */
@@ -226,41 +249,79 @@ export function CmoApp({
   work: initialWork = [],
   name,
   email,
-  initialView = "chat",
+  image = null,
+  initialView = "today",
   connectError = null,
+  adsError = null,
+  measureError = null,
   plans = [],
   manyCusos = false,
   mayHire = false,
-  actions,
+  actions: untracked,
 }: CmoAppProps) {
   const [overview, setOverview] = useState(initialOverview);
+  useAnalytics(overview);
+  const actions = useAppEvents(untracked, overview);
   const [messages, setMessages] = useState(initialMessages);
   const [work, setWork] = useState(initialWork);
-  const [view, setView] = useState<View>(initialView);
+  const [nav, setNav] = useState({
+    view: initialView,
+    connectError,
+    adsError,
+    measureError,
+  });
+  const { view } = nav;
+  // Leaving the landing view consumes its one-shot OAuth return notice so
+  // returning later on the clean URL does not show it again.
+  const selectView = useCallback((next: View) => {
+    setNav((current) =>
+      current.view === next
+        ? current
+        : {
+            view: next,
+            connectError:
+              current.view === "channels" ? null : current.connectError,
+            adsError: current.view === "channels" ? null : current.adsError,
+            measureError:
+              current.view === "results" || current.view === "channels"
+                ? null
+                : current.measureError,
+          },
+    );
+  }, []);
+  const [focusEntry, setFocusEntry] = useState<string | null>(null);
   // Each page has its own address, so reload, Back and new tabs land on it.
-  const go = useCallback((next: View) => {
-    setView(next);
-    if (window.location.pathname !== VIEW_PATHS[next]) {
-      window.history.pushState(null, "", VIEW_PATHS[next]);
-    }
-  }, []);
-  useEffect(() => {
-    const onPop = () =>
-      setView(viewFromPath(window.location.pathname) ?? "chat");
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-  }, []);
+  const go = useCallback(
+    (next: View) => {
+      setFocusEntry(null);
+      selectView(next);
+      if (window.location.pathname !== VIEW_PATHS[next]) {
+        window.history.pushState(null, "", VIEW_PATHS[next]);
+      }
+    },
+    [selectView],
+  );
+  useEventListener("window", "popstate", () => {
+    setFocusEntry(null);
+    selectView(viewFromPath(window.location.pathname) ?? "today");
+  });
+  // A post picked on Today or Pictures opens on the Calendar, once: any
+  // other way onto the Calendar opens it with nothing selected.
+  const openOnCalendar = useCallback(
+    (entryId: string) => {
+      go("calendar");
+      setFocusEntry(entryId);
+    },
+    [go],
+  );
   const [draft, setDraft] = useState("");
   const [sending, startSending] = useTransition();
+  const [sendFailed, setSendFailed] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const end = useRef<HTMLDivElement>(null);
 
   // A connection redirect lands on /?step=connect; show the page's own address.
-  useEffect(() => {
-    if (window.location.search) {
-      window.history.replaceState(null, "", VIEW_PATHS[initialView]);
-    }
-  }, [initialView]);
+  useCmoAppInitialUrl(initialView);
 
   const refresh = useCallback(async () => {
     // On its own: the chat still shows when one of the two reads fails.
@@ -274,30 +335,17 @@ export function CmoApp({
     setMessages(state.messages);
   }, [actions]);
 
-  useEffect(() => {
-    const poll = () => {
-      if (document.visibilityState === "visible") void refresh();
-    };
-    const timer = window.setInterval(poll, POLL_MS);
-    document.addEventListener("visibilitychange", poll);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", poll);
-    };
-  }, [refresh]);
+  useCmoAppPoll(refresh);
 
   const thread = buildThread(overview, messages, work);
   const threadLength = thread.length;
   // What Cuso is doing sits under the thread, so it scrolls into view too.
   const working =
-    overview.botStatus === "RUNNING"
-      ? `${overview.activity?.step}\n${overview.activity?.reasoning}`
-      : null;
-  useEffect(() => {
-    if (view === "chat" && threadLength > 0) {
-      end.current?.scrollIntoView({ block: "end" });
-    }
-  }, [threadLength, view, working]);
+    overview.botStatus === "RUNNING" ? (overview.activity?.step ?? "") : null;
+  useScrollIntoViewWhen(end, view === "chat" && threadLength > 0, {
+    block: "end",
+    resetKey: `${threadLength}:${working === null ? "idle" : `busy:${working}`}`,
+  });
 
   const compose = useCallback(
     (text: string) => {
@@ -359,12 +407,14 @@ export function CmoApp({
     const content = draft.trim();
     if (!content) return;
     setDraft("");
+    setSendFailed(false);
     startSending(async () => {
       // A message that did not send comes back to the box, not lost.
       try {
         await actions.sendMessage(content);
       } catch {
         setDraft(content);
+        setSendFailed(true);
         return;
       }
       await refresh();
@@ -382,7 +432,18 @@ export function CmoApp({
     );
   }
 
-  const status = cusoStatus(overview);
+  // Closed at once; the next overview read no longer carries it.
+  const [closedUpgrade, setClosedUpgrade] = useState<string | null>(null);
+  const upgrade =
+    overview.upgrade && overview.upgrade.versionId !== closedUpgrade
+      ? overview.upgrade
+      : null;
+  const closeUpgrade = (versionId: string) => {
+    setClosedUpgrade(versionId);
+    void actions.markUpgradeSeen(versionId).catch(() => undefined);
+  };
+
+  const lead = pageLead(view, overview);
   const outOfCredits =
     strategyApproved(overview) && overview.billing.availableCredits <= 0;
   const pause = strategyApproved(overview) ? cmoPause(overview) : null;
@@ -396,41 +457,15 @@ export function CmoApp({
         onSelect={go}
         name={name}
         email={email}
+        image={image}
         signOut={actions.signOut}
       />
 
-      <main className="main">
-        <div className="vhead">
-          <h2>{VIEWS.find(([id]) => id === view)?.[1]}</h2>
-          {view === "chat" ? (
-            <span className="status">
-              <span
-                className={
-                  overview.botStatus === "RUNNING" ? "dot live" : "dot"
-                }
-                aria-hidden="true"
-              />
-              {status}
-            </span>
-          ) : null}
-          {view === "strategy" && overview.strategy ? (
-            strategyApproved(overview) ? (
-              <StatusText>Approved</StatusText>
-            ) : (
-              <span className="muted">Draft</span>
-            )
-          ) : null}
-          <span className="sp" />
-          {view === "strategy" &&
-          overview.strategy &&
-          !strategyApproved(overview) &&
-          overview.viewerCanApprove ? (
-            <ApproveDraft
-              approve={async () => setOverview(await actions.approveStrategy())}
-            />
-          ) : null}
-        </div>
-
+      <main className={view === "chat" ? "main main-chat" : "main"}>
+        {/* A phone has no sidebar: the brand's menu sits in a top bar. */}
+        <header className="phonebar">
+          <BrandMenu overview={overview} view={view} onSelect={go} />
+        </header>
         {pause ? (
           <PausedBanner
             pause={pause}
@@ -455,12 +490,13 @@ export function CmoApp({
                     actions={cardActions}
                     name={name || email}
                     openCalendar={() => go("calendar")}
+                    openSeo={() => go("seo")}
                     loadText={actions.loadChatWorkText}
                     loadTable={actions.loadChatWorkTable}
                   />
                 ))}
                 {overview.botStatus === "RUNNING" ? (
-                  <CusoSays pose="thinking">
+                  <CusoSays>
                     <Working activity={overview.activity} />
                   </CusoSays>
                 ) : null}
@@ -481,6 +517,11 @@ export function CmoApp({
                   </button>
                 ))}
               </div>
+              {sendFailed ? (
+                <p className="note" role="alert">
+                  Your message didn't send. Try again.
+                </p>
+              ) : null}
               <form className="composer" onSubmit={send}>
                 <textarea
                   ref={input}
@@ -509,22 +550,42 @@ export function CmoApp({
         ) : (
           // A new element per page, so each page opens at its top.
           <div className="scroll" key={view}>
-            <div className={view === "strategy" ? undefined : "page"}>
-              {PAGE_LEADS[view] ? (
+            <div className={`page page-${view}`}>
+              {lead &&
+              view !== "seo" &&
+              view !== "competitors" &&
+              view !== "pictures" ? (
                 <PageLead
-                  title={PAGE_LEADS[view].title}
+                  {...lead}
                   line={
                     view === "results" ? (
                       <ResultsLead overview={overview} />
                     ) : (
-                      PAGE_LEADS[view].line
+                      lead.line
                     )
                   }
-                />
+                >
+                  {view === "strategy" ? (
+                    <StrategyLeadAside
+                      overview={overview}
+                      approve={async () =>
+                        setOverview(await actions.approveStrategy())
+                      }
+                    />
+                  ) : null}
+                </PageLead>
               ) : null}
-              {view === "calendar" ? (
+              {view === "today" ? (
+                <TodayPage
+                  overview={overview}
+                  firstName={name.trim().split(/\s+/)[0] ?? ""}
+                  open={go}
+                  openEntry={openOnCalendar}
+                />
+              ) : view === "calendar" ? (
                 <CalendarPage
                   overview={overview}
+                  initialOpenId={focusEntry}
                   drafts={draftActions}
                   onConnect={() => go("channels")}
                   loadText={actions.loadPieceText}
@@ -554,12 +615,19 @@ export function CmoApp({
                 <StrategyPage
                   overview={overview}
                   onOpenCalendar={() => go("calendar")}
-                  connectMeasurement={(provider) =>
-                    actions.connectMeasurement(provider, "app")
-                  }
+                  onSetAds={async (monthly, currency) => {
+                    const result = await actions.setAdBudget(monthly, currency);
+                    if (result.overview) setOverview(result.overview);
+                    return result.error;
+                  }}
                   onApprove={async (versionId) =>
                     setOverview(await actions.approveStrategy(versionId))
                   }
+                  onWriteNew={async () => {
+                    const result = await actions.requestStrategy();
+                    if (result.overview) setOverview(result.overview);
+                    return result.error;
+                  }}
                 />
               ) : view === "seo" ? (
                 <SeoPage
@@ -581,9 +649,16 @@ export function CmoApp({
                   connectMeasurement={(provider) =>
                     actions.connectMeasurement(provider, "app")
                   }
+                  measureError={nav.measureError}
                   ads={actions}
                   onChange={setOverview}
                   openView={go}
+                />
+              ) : view === "pictures" ? (
+                <PicturesPage
+                  projectId={overview.projectId}
+                  actions={actions.pictures}
+                  openPost={openOnCalendar}
                 />
               ) : view === "competitors" ? (
                 <CompetitorsPage
@@ -611,12 +686,14 @@ export function CmoApp({
                   connectAds={actions.connectAds}
                   addMailingList={actions.addMailingList}
                   onChange={setOverview}
-                  connectError={connectError}
+                  connectError={nav.connectError}
+                  adsError={nav.adsError}
                   change={actions.changeChannel}
                   openSeo={() => go("seo")}
-                  connectSearchConsole={() =>
-                    actions.connectMeasurement("google_search_console", "seo")
+                  connectMeasurement={(provider) =>
+                    actions.connectMeasurement(provider, "channels")
                   }
+                  measureError={nav.measureError}
                 />
               ) : (
                 <SettingsPage
@@ -633,50 +710,44 @@ export function CmoApp({
                   changePlan={changePlan}
                   openPortal={actions.openPortal}
                   subscribe={actions.subscribe}
+                  openPictures={() => go("pictures")}
                 />
               )}
             </div>
           </div>
         )}
       </main>
+      {upgrade ? (
+        <UpgradeNotice
+          upgrade={upgrade}
+          onClose={() => closeUpgrade(upgrade.versionId)}
+        />
+      ) : null}
+      <TabBar
+        view={view}
+        onSelect={go}
+        needs={needsYou(overview).length}
+        manyCusos={manyCusos}
+        signOut={actions.signOut}
+      />
     </div>
   );
 }
 
-/** The head of a page, as onboarding's steps lead: what it is, in one line. */
-const PAGE_LEADS: Partial<Record<View, { title: string; line: string }>> = {
-  calendar: {
-    title: "Your month",
-    line: `Every post ${AGENT_NAME} makes. Each one opens once it is made.`,
-  },
-  seo: {
-    title: "Found on Google",
-    line: "A full audit of your site every week, what to change, and what to write next.",
-  },
-  results: {
-    title: "How it's going",
-    line: "Real numbers from your accounts, checked every week.",
-  },
-  competitors: {
-    title: "Your competitors",
-    line: "I check each one every week and tell you what moved, with the source.",
-  },
-  channels: {
-    title: "Where I post",
-    line: "Connect a network and I post there on your strategy's schedule.",
-  },
-  settings: {
-    title: "Settings",
-    line: `Your plan, your credits and when ${AGENT_NAME} works.`,
-  },
-};
-
-function PageLead({ title, line }: { title: string; line: ReactNode }) {
-  return (
-    <header className="page-lead">
-      <h1 className="ob-h1">{title}</h1>
-      <p className="muted">{line}</p>
-    </header>
+/** Strategy's status beside its lead, and the approval while it is a draft. */
+function StrategyLeadAside({
+  overview,
+  approve,
+}: {
+  overview: CmoOverview;
+  approve: () => Promise<void>;
+}) {
+  if (!overview.strategy) return null;
+  if (strategyApproved(overview)) return <StatusText>Approved</StatusText>;
+  return overview.strategyShort || !overview.viewerCanApprove ? (
+    <span className="muted">Draft</span>
+  ) : (
+    <ApproveDraft approve={approve} />
   );
 }
 
@@ -708,6 +779,7 @@ function ThreadEntry({
   actions,
   name,
   openCalendar,
+  openSeo,
   loadText,
   loadTable,
 }: {
@@ -716,6 +788,7 @@ function ThreadEntry({
   actions: CardActions;
   name: string;
   openCalendar: () => void;
+  openSeo: () => void;
   loadText: (id: string) => Promise<string | null>;
   loadTable: (id: string) => Promise<ChatTable | null>;
 }) {
@@ -758,6 +831,7 @@ function ThreadEntry({
           compose={actions.compose}
           loadText={loadText}
           loadTable={loadTable}
+          openSeo={openSeo}
         />
       </CusoSays>
     );
@@ -795,6 +869,8 @@ function ThreadEntry({
         return (
           <ProductionCard
             production={overview.production}
+            month={monthMade(overview)}
+            timeZone={overview.timeZone}
             openCalendar={openCalendar}
           />
         );
@@ -857,12 +933,20 @@ function ApproveDraft({ approve }: { approve: () => Promise<void> }) {
  */
 function ProductionCard({
   production,
+  month,
+  timeZone,
   openCalendar,
 }: {
   production: CmoOverview["production"];
+  /** The month's posts and how many are made, as Today and the Calendar say. */
+  month: { ready: number; total: number };
+  timeZone: string;
   openCalendar: () => void;
 }) {
+  const noPicture = withoutPictureLine(production);
   const ready = production.state === "ready";
+  // cmo-v22: Core plans every post of the paid month before any is made.
+  const planning = production.state === "planning";
   const share = productionShare(production);
   // Between two runs the month is partly made: only a month with no words
   // yet is about to start.
@@ -871,21 +955,27 @@ function ProductionCard({
   return (
     <div className="production">
       <p className="production-head">
-        {production.state === "running" ? (
+        {production.state === "running" || planning ? (
           <span className="dot live" aria-hidden="true" />
         ) : null}
         <b>
           {ready
             ? "Your month is ready"
-            : production.state === "stuck"
-              ? "Most of your month is ready"
-              : notStarted
-                ? `${AGENT_NAME} is about to make your month`
-                : `${AGENT_NAME} is making your month`}
+            : planning
+              ? `${AGENT_NAME} is planning your month`
+              : production.state === "stuck"
+                ? "Making your month stopped"
+                : production.state === "blocked"
+                  ? `${AGENT_NAME} couldn't start your month`
+                  : notStarted
+                    ? `${AGENT_NAME} is about to make your month`
+                    : `${AGENT_NAME} is making your month`}
         </b>
-        <span className="note num">
-          {production.ready} of {production.total} ready
-        </span>
+        {planning ? null : (
+          <span className="note num">
+            {month.ready} of {month.total} ready
+          </span>
+        )}
       </p>
       <span
         className="uprogress"
@@ -899,14 +989,19 @@ function ProductionCard({
       </span>
       <p className="note">
         {ready
-          ? "Every post, picture, article and email is made. Each goes out on its day."
-          : production.state === "stuck"
-            ? `A few posts didn't finish. ${AGENT_NAME} tries them again on his next round.`
-            : notStarted
-              ? "He starts shortly: first every post's words, then the pictures."
-              : production.state === "starting"
-                ? `${productionSteps(production)}. He makes the rest shortly.`
-                : `${productionSteps(production)}. First the words, then the pictures.`}
+          ? (noPicture ??
+            "Every post, picture, article and email is made. Each goes out on its day.")
+          : planning
+            ? "He plans every post your plan makes, topic by topic, then makes them. This takes a few minutes."
+            : production.state === "stuck"
+              ? stoppedNote(production, month.total, timeZone)
+              : production.state === "blocked"
+                ? "Something on our side keeps him from starting. He tries again every ten minutes."
+                : notStarted
+                  ? "He starts shortly: first every post's words, then the pictures."
+                  : production.state === "starting"
+                    ? `${productionSteps(production, month.total)}. He makes the rest shortly.`
+                    : `${productionSteps(production, month.total)}. First the words, then the pictures.`}
       </p>
       <button
         type="button"
@@ -922,15 +1017,13 @@ function ProductionCard({
 
 interface CusoSaysProps {
   at?: string;
-  /** Working shows him thinking; everything else he has already said. */
-  pose?: Pose;
   children: React.ReactNode;
 }
 
-function CusoSays({ at, pose = "done", children }: CusoSaysProps) {
+function CusoSays({ at, children }: CusoSaysProps) {
   return (
     <div className="msg">
-      <CusoAvatar pose={pose} size={36} />
+      <CusoFace size={36} />
       <div className="mbody">
         <MessageMeta author={AGENT_NAME} at={at} />
         {children}

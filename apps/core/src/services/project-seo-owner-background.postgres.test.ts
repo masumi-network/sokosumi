@@ -1,28 +1,31 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { parseSeoMonitorPlan } from "@/lib/seo/monitor-plan";
+import { registerTaskFileFromUploadCompleted } from "@/lib/task-file-upload-completed";
 import {
   requestSeoAnalysisSchema,
   type SeoActor,
 } from "@/schemas/project-seo.schema";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 import { focusedReport, SEO_TEST_PAGE } from "@/test-fixtures/project-seo";
 import {
   addProjectSeoPage,
   getProjectSeoWorkspace,
 } from "./project-seo.service";
-import {
-  importProjectSeoAudit,
-  reconcileProjectSeoTaskFile,
-} from "./project-seo-import.service";
+import { importProjectSeoAudit } from "./project-seo-import.service";
 import {
   createProjectSeoMonitor,
   listProjectSeoMonitors,
   releaseSeoMonitorRun,
 } from "./project-seo-monitor.service";
 import { requestProjectSeoAnalysis } from "./project-seo-operations.service";
+
+vi.mock("@vercel/blob", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/blob")>()),
+  head: async () => ({ size: 1 }),
+}));
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -138,21 +141,74 @@ describe.skipIf(!enabled)("Independent Audit background ownership", () => {
     });
     expect(task.projectId).toBeNull();
     const body = JSON.stringify({ ...focusedReport(), requestId: analysis.id });
-    const file = await prisma.taskFile.create({
-      data: {
-        taskId: task.id,
-        name: `seo-report-${task.id}.json`,
-        fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${task.id}/report.json`,
-        mimeType: "application/json",
-        size: BigInt(Buffer.byteLength(body)),
-        uploadedByCoworkerId: coworkerId,
-      },
-    });
+    const upload = (extension: string, contentType: string) => {
+      const name = `seo-report-${task.id}.${extension}`;
+      const pathname = `tasks/${task.id}/${name}`;
+      const url = `https://seo-test.public.blob.vercel-storage.com/${pathname}`;
+      return registerTaskFileFromUploadCompleted({
+        blob: {
+          url,
+          pathname,
+          contentType,
+          contentDisposition: "attachment",
+          downloadUrl: url,
+          etag: '"test"',
+        },
+        blobToken: "test",
+        contextBound: true,
+        tokenPayload: JSON.stringify({
+          taskId: task.id,
+          name,
+          size: Buffer.byteLength(body),
+          mimeType: contentType,
+          uploadedByUserId: null,
+          uploadedByCoworkerId: coworkerId,
+          contextBinding: {
+            contextVersion: 1,
+            coworkerId,
+            vendorId,
+            expectedContext: {
+              ownerId: userId,
+              workspaceId,
+              organizationId: null,
+            },
+          },
+        }),
+      });
+    };
     const fetchArtifact = vi.fn(async () => new Response(body));
     vi.stubGlobal("fetch", fetchArtifact);
     try {
-      await reconcileProjectSeoTaskFile(task.id, file.id);
-      await reconcileProjectSeoTaskFile(task.id, file.id);
+      await upload("pdf", "application/pdf");
+      await upload("pdf", "application/pdf");
+      expect(
+        await prisma.taskFile.findMany({
+          where: { taskId: task.id },
+          select: { name: true, mimeType: true, uploadedByCoworkerId: true },
+        }),
+      ).toEqual([
+        {
+          name: `seo-report-${task.id}.pdf`,
+          mimeType: "application/pdf",
+          uploadedByCoworkerId: coworkerId,
+        },
+      ]);
+      expect
+        .soft(
+          (
+            await prisma.projectSeoAnalysis.findUniqueOrThrow({
+              where: { id: analysis.id },
+            })
+          ).status,
+        )
+        .toBe(analysis.status);
+      expect(fetchArtifact).not.toHaveBeenCalled();
+      await upload("data.json", "application/json");
+      expect.soft(fetchArtifact).toHaveBeenCalledTimes(1);
+      await upload("data.json", "application/json");
+      const file = await prisma.taskFile.findFirstOrThrow({
+        where: { taskId: task.id, mimeType: "application/json" },
+      });
       expect(fetchArtifact).toHaveBeenCalledTimes(1);
       await expect(
         importProjectSeoAudit(otherActor, { taskId: task.id, fileId: file.id }),
@@ -178,6 +234,7 @@ describe.skipIf(!enabled)("Independent Audit background ownership", () => {
     });
     const vars = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: {
         actor: "user" as const,
         userId,

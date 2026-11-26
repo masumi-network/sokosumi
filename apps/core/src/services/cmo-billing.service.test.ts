@@ -81,6 +81,7 @@ vi.mock("@/clients/polar.client", () => ({ listPolarProducts }));
 
 import {
   cmoExecutionRefusal,
+  cmoPlanLevel,
   maySkipCmoSubscription,
   readCmoBilling,
 } from "./cmo-billing.service";
@@ -257,5 +258,34 @@ describe("maySkipCmoSubscription", () => {
       },
     ]);
     expect(await maySkipCmoSubscription("user-1", "project-1")).toBe(true);
+  });
+});
+
+describe("how much of the month a plan makes", () => {
+  const CREDIT = 10_000_000_000n;
+  const NOW = new Date("2026-11-19T21:00:00Z");
+  const testerCredits = () =>
+    creditBucketFindMany.mockResolvedValue([
+      { amount: 10_000n * CREDIT, consumptions: [{ amount: 1_000n * CREDIT }] },
+    ]);
+
+  it("makes the whole month for a Cuso nobody pays for yet", async () => {
+    expect(await cmoPlanLevel("project-1", NOW)).toBe("all_in");
+  });
+
+  it("makes the whole month on Tester credits, also beside a smaller plan", async () => {
+    testerCredits();
+    polarSubscriptionFindFirst.mockResolvedValue({ tier: "starter" });
+    expect(await cmoPlanLevel("project-1", NOW)).toBe("all_in");
+  });
+
+  it("makes an active plan's share, and asks only for an active one", async () => {
+    polarSubscriptionFindFirst.mockResolvedValue({ tier: "starter" });
+    expect(await cmoPlanLevel("project-1", NOW)).toBe("steady");
+    expect(polarSubscriptionFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: "active", endedAt: null }),
+      }),
+    );
   });
 });

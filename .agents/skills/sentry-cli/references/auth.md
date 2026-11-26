@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-auth
-version: 0.49.0
+version: 0.50.0
 description: Authenticate with Sentry
 requires:
   bins: ["sentry"]
@@ -17,18 +17,18 @@ List stored accounts
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Account ID |
-| `active` | boolean | Whether commands use this account |
-| `host` | string | Sentry server URL |
-| `userId` | string | User ID |
-| `email` | string | User email |
-| `username` | string | Username |
-| `name` | string | User display name |
-| `usable` | boolean | Whether the credential can still be used or refreshed |
-| `expiresAt` | number | Token expiry (Unix milliseconds) |
-| `envVar` | string | Env var providing the token, if not stored |
+| Field       | Type    | Description                                           |
+| ----------- | ------- | ----------------------------------------------------- |
+| `id`        | string  | Account ID                                            |
+| `active`    | boolean | Whether commands use this account                     |
+| `host`      | string  | Sentry server URL                                     |
+| `userId`    | string  | User ID                                               |
+| `email`     | string  | User email                                            |
+| `username`  | string  | Username                                              |
+| `name`      | string  | User display name                                     |
+| `usable`    | boolean | Whether the credential can still be used or refreshed |
+| `expiresAt` | number  | Token expiry (Unix milliseconds)                      |
+| `envVar`    | string  | Env var providing the token, if not stored            |
 
 **Examples:**
 
@@ -43,11 +43,12 @@ Authenticate with Sentry
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument    | Description                                                                                                                                           |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `[<email>]` | Email of the account to add or log in to again (&lt;email&gt;:&lt;server&gt; also sets --url); the login is refused if you approve it as someone else |
 
 **Flags:**
+
 - `--token <value> - Authenticate using an API token instead of OAuth`
 - `--timeout <value> - Timeout for OAuth flow in seconds - (default: "900")`
 - `--force - Replace the stored login for this server without prompting, instead of adding another account`
@@ -91,18 +92,19 @@ sentry auth login jane@example.com:sentry.example.com
 Authenticate using a one-time setup code
 
 **Flags:**
+
 - `--force - Replace the stored login`
 - `--url <value> - Explicit issuing Sentry instance URL`
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `method` | string |  |
-| `configPath` | string | Path to the stored CLI credentials |
-| `user` | object |  |
-| `expiresIn` | number |  |
-| `refreshEnabled` | boolean |  |
+| Field            | Type    | Description                        |
+| ---------------- | ------- | ---------------------------------- |
+| `method`         | string  |                                    |
+| `configPath`     | string  | Path to the stored CLI credentials |
+| `user`           | object  |                                    |
+| `expiresIn`      | number  |                                    |
+| `refreshEnabled` | boolean |                                    |
 
 ### `sentry auth logout <account...>`
 
@@ -110,11 +112,12 @@ Log out of Sentry
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument       | Description                                                                                 |
+| -------------- | ------------------------------------------------------------------------------------------- |
 | `<account...>` | Accounts to log out of (email, username, user ID, or account ID; comma-separated), or 'all' |
 
 **Flags:**
+
 - `--url <value> - Only match accounts on this server (disambiguates the same email on several servers)`
 
 **Examples:**
@@ -141,6 +144,7 @@ sentry auth logout all
 Refresh your OAuth access token
 
 **Flags:**
+
 - `--force - Force refresh even if the access token is still valid`
 - `--read-only - Re-authenticate with read-only OAuth scopes (project:read, org:read, event:read, member:read, team:read)`
 - `-s, --scope <value>... - Re-authenticate with specific OAuth scopes (repeatable, comma-separated). E.g. --scope project:read --scope org:read`
@@ -169,6 +173,7 @@ sentry auth refresh --json
 View authentication status
 
 **Flags:**
+
 - `--show-token - Show the stored token (masked by default)`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 
@@ -188,11 +193,12 @@ Switch the active account
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument      | Description                                          |
+| ------------- | ---------------------------------------------------- |
 | `[<account>]` | Email, username, user ID, or account ID to switch to |
 
 **Flags:**
+
 - `--url <value> - Only consider accounts on this server (disambiguates the same email on several servers)`
 
 **Examples:**
@@ -224,6 +230,7 @@ sentry auth token
 Show the currently authenticated identity
 
 **Flags:**
+
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 
 **Examples:**

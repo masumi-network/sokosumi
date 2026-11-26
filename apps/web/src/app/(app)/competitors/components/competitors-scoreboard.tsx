@@ -3,6 +3,7 @@ import type {
   ProjectCompetitors,
 } from "@sokosumi/core-client";
 import { getFormatter, getTranslations } from "next-intl/server";
+import { PageSearchRows } from "@/components/page-list-search";
 
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import {
@@ -92,23 +93,28 @@ export async function CompetitorsScoreboard({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.scoreboard.map((row) => (
-              <TableRow key={row.competitorId ?? "own"}>
-                <TableCell className="font-medium">
-                  {row.name}
-                  {row.competitorId ? null : (
-                    <span className="text-muted-foreground font-normal">
-                      {" "}
-                      {t("you")}
-                    </span>
-                  )}
-                </TableCell>
-                <Cell format={format} measure={row.postsPerWeek} />
-                <Cell format={format} measure={row.engagementPerPost} />
-                <Cell format={format} measure={row.followers} />
-                <Cell format={format} measure={row.followerGrowth} signed />
-              </TableRow>
-            ))}
+            <PageSearchRows
+              rows={data.scoreboard.map((row) => ({
+                primary: [row.name],
+                content: (
+                  <TableRow key={row.competitorId ?? "own"}>
+                    <TableCell className="font-medium">
+                      {row.name}
+                      {row.competitorId ? null : (
+                        <span className="text-muted-foreground font-normal">
+                          {" "}
+                          {t("you")}
+                        </span>
+                      )}
+                    </TableCell>
+                    <Cell format={format} measure={row.postsPerWeek} />
+                    <Cell format={format} measure={row.engagementPerPost} />
+                    <Cell format={format} measure={row.followers} />
+                    <Cell format={format} measure={row.followerGrowth} signed />
+                  </TableRow>
+                ),
+              }))}
+            />
           </TableBody>
         </Table>
       </div>

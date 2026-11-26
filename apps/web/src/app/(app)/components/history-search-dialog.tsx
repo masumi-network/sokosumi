@@ -1,14 +1,25 @@
 "use client";
 
 import type {
+  Contact,
   FileResource,
   HistoryItem,
   TaskListItem,
   WorkspaceLabel,
 } from "@sokosumi/core-client";
-import { FileText, ListTodo } from "lucide-react";
+import { Copy, FileText, ListTodo, SquarePen, TextSearch } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import {
+  GoToSearchList,
+  type GoToSearchState,
+} from "@/app/components/go-to-search-groups";
 import {
   HistorySearchItemIcon,
   HistorySearchItemOwner,
@@ -16,21 +27,29 @@ import {
 } from "@/app/components/history-search-item";
 import { getHistorySearchItemHref } from "@/app/components/history-search-item-href";
 import { HistorySearchItemStatus } from "@/app/components/history-search-item-status";
+import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
+import { useContactSearchGroup } from "@/app/components/use-contact-search-group";
 import { useFileSearchGroup } from "@/app/components/use-file-search-group";
 import { useHistorySearchCorpus } from "@/app/components/use-history-search-corpus";
 import { useTagSearchGroup } from "@/app/components/use-tag-search-group";
+import { ContactAvatar } from "@/app/contacts/components/contact-visuals";
+import { primaryEmail } from "@/app/contacts/contacts-view";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { TaskTagDot } from "@/app/tasks/components/task-tag-colors";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import {
   CommandDialog,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
-  CommandList,
 } from "@/components/ui/command";
+import { copyTextWithToast } from "@/hooks/effects/use-clipboard";
+import {
+  matchesMediaQuery,
+  subscribeMediaQuery,
+} from "@/hooks/effects/use-media-query";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
+import { escapeMarkdownDisplayText } from "@/lib/utils/mention-parser";
 
 interface HistorySearchDialogLabels {
   dialogTitle: string;
@@ -42,11 +61,22 @@ interface HistorySearchDialogLabels {
   created: string;
   filesGroup: string;
   filesSeeAll: string;
+  tasksSeeAll: (query: string) => string;
   filesFilenameMatch: string;
+  peopleGroup: string;
+  copyEmail: (email: string) => string;
+  emailCopied: string;
+  emailCopyFailed: string;
+  mentionInTask: (name: string) => string;
   tagsGroup: string;
   tagTasksGroup: (tag: string) => string;
   tagsError: string;
   tagTasksError: string;
+  projectsGroup: string;
+  channelsGroup: string;
+  schedulesGroup: string;
+  coworkersGroup: string;
+  newTask: string;
 }
 
 interface HistorySearchDialogProps {
@@ -67,7 +97,7 @@ export function HistorySearchDialog({
   const router = useRouter();
   const { formatDateWithYear } = useLocalizedDateTime();
   const showOwner = activeOrganizationId !== null;
-  const { query, setQuery, history, error, isLoading, reset } =
+  const { query, debouncedQuery, setQuery, history, error, isLoading, reset } =
     useHistorySearchCorpus({
       open,
       activeOrganizationId,
@@ -80,19 +110,30 @@ export function HistorySearchDialog({
     activeOrganizationId,
     debouncedQuery: query,
   });
+  const { contacts, isLoading: contactsLoading } = useContactSearchGroup({
+    open,
+    activeOrganizationId,
+    debouncedQuery,
+  });
+  // Until the debounce settles, People still shows the previous query's
+  // contacts: they open, but their quick actions wait.
+  const contactsStale = query.trim() !== debouncedQuery.trim();
+  const wizard = useOptionalNewTaskWizard();
   const { tags, tagsState, topTag, tasks, tasksState } = useTagSearchGroup({
     open,
     activeOrganizationId,
     debouncedQuery: query,
   });
-  // Tags still loading or failed never read as "No results found".
-  const searching = isLoading || tagsState === "loading";
+  // Tags or People still loading, or Tags failed, never read as "No
+  // results found".
+  const searching = [isLoading, contactsLoading, tagsState === "loading"].some(
+    Boolean,
+  );
+  const offerTasksSearch = query.trim() !== "" && !searching && !contactsStale;
   const nothingFound =
     !searching &&
-    history.length === 0 &&
-    tags.length === 0 &&
-    files.length === 0 &&
-    tagsState !== "error";
+    tagsState !== "error" &&
+    [history, tags, files, contacts].every((group) => group.length === 0);
 
   const { listRef, listMaxHeight } = useListFitsVisibleViewport(open);
 
@@ -135,6 +176,44 @@ export function HistorySearchDialog({
     );
   }
 
+  function handleSeeAllTasks() {
+    closeAndGo(`/tasks?q=${encodeURIComponent(query.trim())}`);
+  }
+
+  function handleSelectContact(contact: Contact) {
+    closeAndGo(`/contacts?contact=${encodeURIComponent(contact.id)}`);
+  }
+
+  function handleCopyEmail(email: string) {
+    void copyTextWithToast(email, {
+      copySuccessMessage: labels.emailCopied,
+      copyErrorMessage: labels.emailCopyFailed,
+    });
+  }
+
+  function handleMentionInTask(contact: Contact) {
+    if (!wizard) return;
+    // Absolute, since a Coworker reading the Task is not inside the app.
+    const href = new URL(
+      `/contacts?contact=${encodeURIComponent(contact.id)}`,
+      window.location.origin,
+    );
+    // Focus belongs to the new Task draft, not the Search button.
+    navigatingRef.current = true;
+    handleOpenChange(false);
+    wizard.openNewTaskWizard({
+      prompt: `[${escapeMarkdownDisplayText(contact.name)}](${href}) `,
+    });
+  }
+
+  function handleNewTaskWith(coworkerId: string) {
+    if (!wizard) return;
+    // Focus belongs to the new Task draft, not the Search button.
+    navigatingRef.current = true;
+    handleOpenChange(false);
+    wizard.openNewTaskWizard({ assigneeId: coworkerId });
+  }
+
   function handleSelectTag(tag: WorkspaceLabel) {
     closeAndGo(`/tasks?tag=${encodeURIComponent(tag.id)}`);
   }
@@ -167,23 +246,26 @@ export function HistorySearchDialog({
         value={query}
         onValueChange={setQuery}
       />
-      <CommandList ref={listRef} style={{ maxHeight: listMaxHeight }}>
-        {searching && history.length === 0 ? (
-          <div className="text-muted-foreground px-2 py-6 text-center text-sm">
-            {labels.loading}
-          </div>
-        ) : null}
-
-        {nothingFound && error ? (
-          <div className="text-muted-foreground px-2 py-6 text-center text-sm">
-            {error}
-          </div>
-        ) : null}
-
-        {nothingFound && !error ? (
-          <CommandEmpty>{labels.empty}</CommandEmpty>
-        ) : null}
-
+      <GoToSearchList
+        query={query}
+        activeOrganizationId={activeOrganizationId}
+        labels={labels}
+        onSelect={closeAndGo}
+        onNewTaskWith={wizard ? handleNewTaskWith : undefined}
+        listRef={listRef}
+        listStyle={{ maxHeight: listMaxHeight }}
+        renderStatus={(goTo) => (
+          <SearchStatus
+            searching={searching}
+            nothingFound={nothingFound}
+            offersTasksSearch={offerTasksSearch}
+            hasHistory={history.length > 0}
+            error={error}
+            goTo={goTo}
+            labels={labels}
+          />
+        )}
+      >
         <TagSearchGroups
           tags={tags}
           tagsState={tagsState}
@@ -195,6 +277,15 @@ export function HistorySearchDialog({
           formatShortDate={formatDateWithYear}
           onSelectTag={handleSelectTag}
           onSelectTask={handleSelectTask}
+        />
+
+        <PeopleSearchGroup
+          contacts={contacts}
+          labels={labels}
+          actionsDisabled={contactsStale}
+          onSelect={handleSelectContact}
+          onCopyEmail={handleCopyEmail}
+          onMentionInTask={wizard ? handleMentionInTask : undefined}
         />
 
         {history.length > 0 ? (
@@ -254,8 +345,66 @@ export function HistorySearchDialog({
             </CommandItem>
           </CommandGroup>
         ) : null}
-      </CommandList>
+        {/* History lists titles only; the Tasks search also reads results.
+            Last, and only once the typed search settles, so Enter never
+            picks it over a result still loading. */}
+        {offerTasksSearch ? (
+          <CommandItem
+            value="tasks:see-all"
+            onSelect={handleSeeAllTasks}
+            className="flex items-center gap-2"
+          >
+            <TextSearch aria-hidden className="size-4" />
+            <span className="min-w-0 truncate">
+              {labels.tasksSeeAll(query.trim())}
+            </span>
+          </CommandItem>
+        ) : null}
+      </GoToSearchList>
     </CommandDialog>
+  );
+}
+
+/**
+ * Loading, failed or empty, across every group, in one status region that
+ * stays mounted while Search is open so each change is announced. "No
+ * results found" waits for every source, and a failed read says so.
+ */
+function SearchStatus({
+  searching,
+  nothingFound,
+  offersTasksSearch,
+  hasHistory,
+  error,
+  goTo,
+  labels,
+}: {
+  searching: boolean;
+  nothingFound: boolean;
+  /** The Tasks search row is the way on: "No results found" would contradict it. */
+  offersTasksSearch: boolean;
+  hasHistory: boolean;
+  error: string | null;
+  goTo: GoToSearchState;
+  labels: Pick<HistorySearchDialogLabels, "loading" | "empty" | "error">;
+}) {
+  let message: string | null = null;
+  if ((searching || goTo.pending) && !hasHistory && goTo.count === 0) {
+    message = labels.loading;
+  } else if (nothingFound && goTo.count === 0) {
+    message =
+      error ??
+      (goTo.failed ? labels.error : offersTasksSearch ? null : labels.empty);
+  }
+  return (
+    <div
+      role="status"
+      className={
+        message ? "text-muted-foreground px-2 py-6 text-center text-sm" : ""
+      }
+    >
+      {message}
+    </div>
   );
 }
 
@@ -366,6 +515,104 @@ function TagSearchGroups({
   );
 }
 
+/**
+ * Contacts matching the query; picking one opens its panel in Contacts.
+ * Copy email and Mention in a new Task sit beside each row as their own
+ * options, so arrow keys reach them and nothing interactive nests.
+ */
+function PeopleSearchGroup({
+  contacts,
+  labels,
+  actionsDisabled,
+  onSelect,
+  onCopyEmail,
+  onMentionInTask,
+}: {
+  contacts: Contact[];
+  labels: Pick<
+    HistorySearchDialogLabels,
+    "peopleGroup" | "copyEmail" | "mentionInTask"
+  >;
+  actionsDisabled: boolean;
+  onSelect: (contact: Contact) => void;
+  onCopyEmail: (email: string) => void;
+  onMentionInTask?: (contact: Contact) => void;
+}) {
+  if (contacts.length === 0) return null;
+  const actionClassName = "size-10 shrink-0 justify-center px-0 md:size-8";
+  return (
+    <CommandGroup heading={labels.peopleGroup}>
+      {contacts.map((contact) => {
+        const email = primaryEmail(contact.channels);
+        return (
+          <div key={contact.id} className="flex items-center gap-1">
+            <CommandItem
+              value={`contact:${contact.id}`}
+              onSelect={() => onSelect(contact)}
+              className="min-w-0 flex-1"
+            >
+              <PersonRow contact={contact} email={email} />
+            </CommandItem>
+            {email ? (
+              <CommandItem
+                value={`contact-email:${contact.id}`}
+                aria-label={labels.copyEmail(email)}
+                title={labels.copyEmail(email)}
+                disabled={actionsDisabled}
+                onSelect={() => onCopyEmail(email)}
+                className={actionClassName}
+              >
+                <Copy aria-hidden />
+              </CommandItem>
+            ) : null}
+            {onMentionInTask ? (
+              <CommandItem
+                value={`contact-task:${contact.id}`}
+                aria-label={labels.mentionInTask(contact.name)}
+                title={labels.mentionInTask(contact.name)}
+                disabled={actionsDisabled}
+                onSelect={() => onMentionInTask(contact)}
+                className={actionClassName}
+              >
+                <SquarePen aria-hidden />
+              </CommandItem>
+            ) : null}
+          </div>
+        );
+      })}
+    </CommandGroup>
+  );
+}
+
+/** Avatar, name, then role and company. */
+function PersonRow({
+  contact,
+  email,
+}: {
+  contact: Contact;
+  email: string | null;
+}) {
+  return (
+    <>
+      <ContactAvatar
+        name={contact.name}
+        src={contact.avatarUrl}
+        email={email}
+        kind={contact.kind}
+        className="size-5"
+      />
+      <div className="min-w-0 flex-1">
+        <span className="block truncate">{contact.name}</span>
+        {contact.organization || contact.role ? (
+          <span className="text-muted-foreground block truncate text-xs">
+            {[contact.role, contact.organization].filter(Boolean).join(" · ")}
+          </span>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
 /** One result's body: icon, title over its date, then owner and status. */
 function SearchResultRow({
   icon,
@@ -427,6 +674,10 @@ const LIST_KEYBOARD_GAP_PX = 8;
 /** Tailwind `max-sm`, where the dialog is pinned to the top. */
 const PHONE_LAYOUT_QUERY = "(width < 40rem)";
 
+function getServerListMaxHeight(): undefined {
+  return undefined;
+}
+
 /**
  * Phone layout only: caps the results list at the bottom of the visual
  * viewport, which the on-screen keyboard shrinks, so every row stays
@@ -437,32 +688,43 @@ const PHONE_LAYOUT_QUERY = "(width < 40rem)";
 function useListFitsVisibleViewport(open: boolean) {
   // State, not a ref: the dialog portal mounts the list after the first effect.
   const [list, listRef] = useState<HTMLDivElement | null>(null);
-  const [listMaxHeight, setListMaxHeight] = useState<number>();
 
-  useEffect(() => {
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      const viewport = window.visualViewport;
+      if (!open || !viewport || !list) return () => {};
+
+      viewport.addEventListener("resize", onStoreChange);
+      viewport.addEventListener("scroll", onStoreChange);
+      const unsubscribeMedia = subscribeMediaQuery(
+        PHONE_LAYOUT_QUERY,
+        onStoreChange,
+      );
+      return () => {
+        viewport.removeEventListener("resize", onStoreChange);
+        viewport.removeEventListener("scroll", onStoreChange);
+        unsubscribeMedia();
+      };
+    },
+    [open, list],
+  );
+
+  const getSnapshot = useCallback((): number | undefined => {
     const viewport = window.visualViewport;
-    if (!open || !viewport || !list) return;
-
-    function fit() {
-      if (!list || !viewport) return;
-      if (!window.matchMedia(PHONE_LAYOUT_QUERY).matches) {
-        setListMaxHeight(undefined);
-        return;
-      }
-      const visibleBottom = viewport.offsetTop + viewport.height;
-      const room =
-        visibleBottom - list.getBoundingClientRect().top - LIST_KEYBOARD_GAP_PX;
-      setListMaxHeight(Math.min(LIST_MAX_HEIGHT_PX, Math.max(0, room)));
+    if (!open || !viewport || !list || !matchesMediaQuery(PHONE_LAYOUT_QUERY)) {
+      return undefined;
     }
-
-    fit();
-    viewport.addEventListener("resize", fit);
-    viewport.addEventListener("scroll", fit);
-    return () => {
-      viewport.removeEventListener("resize", fit);
-      viewport.removeEventListener("scroll", fit);
-    };
+    const visibleBottom = viewport.offsetTop + viewport.height;
+    const room =
+      visibleBottom - list.getBoundingClientRect().top - LIST_KEYBOARD_GAP_PX;
+    return Math.min(LIST_MAX_HEIGHT_PX, Math.max(0, room));
   }, [open, list]);
+
+  const listMaxHeight = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerListMaxHeight,
+  );
 
   return { listRef, listMaxHeight };
 }

@@ -7,6 +7,8 @@ import {
 import {
   convertCentsToCredits,
   MAX_STUDIO_BATCH_IMAGES,
+  type ShortVideoFormat,
+  type VideoShape,
 } from "@sokosumi/utils";
 import { get } from "@vercel/blob";
 
@@ -21,6 +23,12 @@ import {
   type ImageJobFailureReason,
   readImageJobFailureReason,
 } from "@/lib/image-studio/failure-reason";
+import {
+  assetSelect,
+  jobSelect,
+  olderStudioRows,
+  type StudioPageCursor,
+} from "@/lib/image-studio/list-query";
 import { readTalkingVideoSettings } from "@/lib/image-studio/talking-video";
 import type {
   StudioAdHeadline,
@@ -72,37 +80,6 @@ export interface AssetView extends StudioAssetRating {
   createdAt: Date;
   jobId: string;
 }
-
-const assetSelect = {
-  id: true,
-  projectId: true,
-  project: { select: { name: true } },
-  settings: true,
-  rootId: true,
-  parentId: true,
-  version: true,
-  prompt: true,
-  model: true,
-  width: true,
-  height: true,
-  bytes: true,
-  contentType: true,
-  mediaType: true,
-  aiGenerated: true,
-  durationSeconds: true,
-  createdAt: true,
-  jobId: true,
-  headline: { select: { text: true, revision: true } },
-  job: {
-    select: {
-      lettering: true,
-      productId: true,
-      productName: true,
-      batchId: true,
-      batchSlot: { select: { batchId: true } },
-    },
-  },
-} as const;
 
 function productView(job: {
   productId?: string | null;
@@ -188,7 +165,7 @@ interface ListScope {
 interface ListAssetOptions extends ListScope {
   limit: number;
   /** Return versions older than this cursor instead of the newest page. */
-  before?: { createdAt: Date; id: string };
+  before?: StudioPageCursor;
   /** Always include this version, whatever its age. */
   pinnedAssetId?: string;
   sort?: "newest" | "best";
@@ -312,17 +289,7 @@ export async function listAssets(options: ListAssetOptions): Promise<{
   const page = await prisma.projectImageAsset.findMany({
     where: {
       ...where,
-      ...(options.before
-        ? {
-            OR: [
-              { createdAt: { lt: options.before.createdAt } },
-              {
-                createdAt: options.before.createdAt,
-                id: { lt: options.before.id },
-              },
-            ],
-          }
-        : {}),
+      ...olderStudioRows(options.before),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: options.limit + 1,
@@ -601,6 +568,9 @@ export interface JobView {
     siteShots: boolean;
     broll: boolean;
     music: boolean;
+    format: ShortVideoFormat | null;
+    shape: VideoShape;
+    sourceJobId: string | null;
   };
   /** The versions this job referenced, so a retry keeps all of them. */
   referenceAssetIds: string[];
@@ -650,35 +620,7 @@ export async function getJob(options: {
   await requireProjectAccess(options);
   const job = await prisma.projectImageJob.findFirst({
     where: { id: options.jobId, projectId: options.projectId },
-    select: {
-      id: true,
-      projectId: true,
-      status: true,
-      kind: true,
-      model: true,
-      prompt: true,
-      settings: true,
-      referenceAssetIds: true,
-      referenceFileIds: true,
-      useProductCutout: true,
-      lettering: true,
-      exportHeadline: true,
-      productId: true,
-      productName: true,
-      error: true,
-      failureReason: true,
-      parentAssetId: true,
-      createdAt: true,
-      submittedAt: true,
-      settledAt: true,
-      cancelRequestedAt: true,
-      chargedCents: true,
-      transactionId: true,
-      asset: { select: { id: true } },
-      templateId: true,
-      creativeDirection: true,
-      variationIndex: true,
-    },
+    select: jobSelect,
   });
   return job ? toJobView(job) : null;
 }
@@ -698,50 +640,49 @@ export async function listAssetsOfJobs(
 }
 
 export async function listJobs(
-  options: ListScope & { limit: number; kind?: ProjectImageJobKind },
+  options: ListScope & {
+    limit: number;
+    kind?: ProjectImageJobKind;
+    before?: StudioPageCursor;
+  },
 ): Promise<JobView[]> {
-  const where = { ...(await scopeWhere(options)), kind: options.kind };
+  const where = {
+    ...(await scopeWhere(options)),
+    ...olderStudioRows(options.before),
+    ...(options.kind !== undefined ? { kind: options.kind } : {}),
+  };
   const jobs = await prisma.projectImageJob.findMany({
     where,
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: options.limit,
-    select: {
-      id: true,
-      projectId: true,
-      status: true,
-      kind: true,
-      model: true,
-      prompt: true,
-      settings: true,
-      referenceAssetIds: true,
-      referenceFileIds: true,
-      useProductCutout: true,
-      lettering: true,
-      exportHeadline: true,
-      productId: true,
-      productName: true,
-      error: true,
-      failureReason: true,
-      parentAssetId: true,
-      createdAt: true,
-      submittedAt: true,
-      settledAt: true,
-      cancelRequestedAt: true,
-      chargedCents: true,
-      transactionId: true,
-      asset: { select: { id: true } },
-      templateId: true,
-      creativeDirection: true,
-      variationIndex: true,
-    },
+    select: jobSelect,
   });
   return jobs.map(toJobView);
 }
 
 function talkingVideoView(settings: unknown): JobView["talkingVideo"] {
-  const { voice, presenterId, languageCode, siteShots, broll, music } =
-    readTalkingVideoSettings(settings);
-  return { voice, presenterId, languageCode, siteShots, broll, music };
+  const {
+    voice,
+    presenterId,
+    languageCode,
+    siteShots,
+    broll,
+    music,
+    format,
+    shape,
+    sourceJobId,
+  } = readTalkingVideoSettings(settings);
+  return {
+    voice,
+    presenterId,
+    languageCode,
+    siteShots,
+    broll,
+    music,
+    format,
+    shape,
+    sourceJobId,
+  };
 }
 
 export function toJobView(job: {

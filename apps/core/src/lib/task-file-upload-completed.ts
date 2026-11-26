@@ -3,6 +3,7 @@ import {
   clampTaskFileName,
   isOwnedTaskFileUrl,
   resolveTaskFileContentType,
+  seoReportFileFormat,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "@sokosumi/utils";
 import { del, head, type PutBlobResult } from "@vercel/blob";
@@ -111,11 +112,24 @@ export async function registerTaskFileFromUploadCompleted(params: {
       where: {
         taskId_fileUrl: { taskId: payload.taskId, fileUrl: params.blob.url },
       },
-      select: { id: true },
+      select: {
+        id: true,
+        name: true,
+        mimeType: true,
+        uploadedByCoworkerId: true,
+      },
     });
     // A retry after a Task move must retain history and resume a failed import.
     if (existing) {
-      await reconcileProjectSeoTaskFile(payload.taskId, existing.id);
+      if (
+        existing.uploadedByCoworkerId &&
+        seoReportFileFormat(
+          payload.taskId,
+          existing.name,
+          existing.mimeType,
+        ) === "json"
+      )
+        await reconcileProjectSeoTaskFile(payload.taskId, existing.id);
       return;
     }
     if (
@@ -162,8 +176,8 @@ export async function registerTaskFileFromUploadCompleted(params: {
   const displayName = clampTaskFileName(payload.name || "file");
   const isSeoReport =
     !!payload.uploadedByCoworkerId &&
-    displayName === `seo-report-${payload.taskId}.json` &&
-    resolvedContentType === "application/json";
+    seoReportFileFormat(payload.taskId, displayName, resolvedContentType) ===
+      "json";
 
   let taskFileId: string;
   try {

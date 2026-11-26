@@ -6,10 +6,12 @@ import type {
   TikTokPostSettings,
 } from "@sokosumi/core-client";
 import { Clock } from "lucide-react";
-import { useEffect, useId, useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
+import { useTikTokCreator } from "../../hooks/effects/use-tiktok-creator";
 import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { ChannelIcon } from "../channel-icon";
+import { cusoArt } from "../cuso";
 import { LocalStamp } from "../local-day";
 import { StatusDisc } from "../status";
 
@@ -124,8 +126,6 @@ function TikTokConfirm({
   pending: boolean;
   post: (settings: TikTokSettings) => void;
 }) {
-  const [creator, setCreator] = useState<CmoTikTokCreator | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [allow, setAllow] = useState({
     comment: false,
     duet: false,
@@ -133,21 +133,7 @@ function TikTokConfirm({
   });
   const [confirmed, setConfirmed] = useState(false);
   const readCreator = actions.tikTokCreator;
-  useEffect(() => {
-    let current = true;
-    readCreator(draft.id)
-      .then((read) => {
-        if (!current) return;
-        setCreator(read.creator);
-        setError(read.error);
-      })
-      .catch(() => {
-        if (current) setError("TikTok could not be read. Try again.");
-      });
-    return () => {
-      current = false;
-    };
-  }, [readCreator, draft.id]);
+  const { creator, error } = useTikTokCreator(draft.id, readCreator);
 
   if (error) {
     return (
@@ -261,6 +247,8 @@ export function DraftPost({
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  // The owner's yes gets its moment: Cuso's check mark until the card moves on.
+  const [approved, setApproved] = useState(false);
   const [text, setText] = useState(draft.text);
   const textId = useId();
   const waiting = draft.status === "NEEDS_APPROVAL";
@@ -307,7 +295,28 @@ export function DraftPost({
           <p className="txt">{draft.text}</p>
         )}
       </div>
-      {editing ? (
+      {approved ? (
+        <div className="cf draft-done" role="status">
+          <img
+            className="draft-done-cuso"
+            src={cusoArt("correct")}
+            alt=""
+            width={48}
+            height={48}
+          />
+          <span>
+            <b>Approved.</b>{" "}
+            {draft.scheduledAt ? (
+              <>
+                It goes out on {network}{" "}
+                <LocalStamp at={new Date(draft.scheduledAt).toISOString()} />.
+              </>
+            ) : (
+              `It goes out on ${network} in about two minutes.`
+            )}
+          </span>
+        </div>
+      ) : editing ? (
         <div className="cf">
           <button
             type="button"
@@ -343,7 +352,10 @@ export function DraftPost({
               actions={actions}
               pending={pending}
               post={(settings) =>
-                run(() => actions.approve(draft.id, draft.revision, settings))
+                run(
+                  () => actions.approve(draft.id, draft.revision, settings),
+                  () => setApproved(true),
+                )
               }
             />
           ) : (
@@ -352,7 +364,10 @@ export function DraftPost({
               className="button button-small"
               disabled={pending}
               onClick={() =>
-                run(() => actions.approve(draft.id, draft.revision))
+                run(
+                  () => actions.approve(draft.id, draft.revision),
+                  () => setApproved(true),
+                )
               }
             >
               {pending ? "Working…" : "Approve"}

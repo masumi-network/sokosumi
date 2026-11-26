@@ -9,6 +9,13 @@ const PROVIDERS: CmoMeasurement["provider"][] = [
   "shopify",
 ];
 
+/** The app page a connect started on, which the founder returns to. */
+const IN_APP = new Map([
+  ["app", "/results"],
+  ["seo", "/seo"],
+  ["channels", "/channels"],
+]);
+
 function isProvider(value: string | null): value is CmoMeasurement["provider"] {
   return PROVIDERS.includes(value as CmoMeasurement["provider"]);
 }
@@ -28,17 +35,9 @@ export async function GET(request: NextRequest) {
         )
       : false;
   const from = params.get("from");
-  const back =
-    from === "app"
-      ? new URL("/results", request.nextUrl)
-      : from === "seo"
-        ? new URL("/seo", request.nextUrl)
-        : new URL("/", request.nextUrl);
+  const page = from ? IN_APP.get(from) : undefined;
   // From Launch the founder returns to Launch, which is where Core has them.
-  if (from !== "app" && from !== "seo" && from !== "launch") {
-    back.searchParams.set("step", "results");
-    back.searchParams.set("from", "onboarding");
-  }
+  const back = new URL(page ?? "/", request.nextUrl);
   if (!connected) back.searchParams.set("measure", "failed");
   if (project) back.searchParams.set("project", project);
   return NextResponse.redirect(back);

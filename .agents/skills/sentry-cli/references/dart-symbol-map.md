@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-dart-symbol-map
-version: 0.49.0
+version: 0.50.0
 description: Work with Dart/Flutter symbol maps
 requires:
   bins: ["sentry"]
@@ -17,11 +17,12 @@ Upload a Dart/Flutter symbol map to Sentry
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument | Description                           |
+| -------- | ------------------------------------- |
 | `<path>` | Path to the dart symbol map JSON file |
 
 **Flags:**
+
 - `-d, --debug-id <value> - Debug ID (UUID) from the companion native debug file`
 - `--no-upload - Validate the file without uploading (dry-run)`
 

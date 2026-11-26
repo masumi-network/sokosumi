@@ -1,0 +1,8 @@
+{
+  "operations": {
+    "GET /history": {
+      "cli": "history list",
+      "mcp": "history_list"
+    }
+  }
+}

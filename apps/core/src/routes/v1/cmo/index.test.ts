@@ -137,6 +137,7 @@ function overview() {
     viewerCanApprove: true,
     brandBrain: null,
     strategy: null,
+    strategyShort: null,
     approvedStrategy: null,
     strategyVersions: [
       {
@@ -162,6 +163,7 @@ function overview() {
     brandMedia: null,
     projectLogo: null,
     presenterSet: false,
+    upgrade: null,
     routines: [],
     timeZone: "Europe/Berlin",
     updates: [
@@ -199,8 +201,13 @@ function overview() {
       pillars: null,
       level: "all_in",
       beyondPlan: [],
+      withoutPicture: [],
+      retryAt: null,
+      writerFailed: false,
+      floor: null,
     },
     mailingListSize: 0,
+    comments: [],
     billing: {
       tier: null,
       interval: null,

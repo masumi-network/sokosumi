@@ -1,0 +1,43 @@
+diff --git a/lib/window/BrowserWindow.js b/lib/window/BrowserWindow.js
+index 70b08346cabf28259bdd00700e332d907cb7dde7..6332f86ab0db4703db9d368a6ead1089507db559 100644
+--- a/lib/window/BrowserWindow.js
++++ b/lib/window/BrowserWindow.js
+@@ -696,7 +696,7 @@ export default class BrowserWindow extends EventTarget {
+     #outerWidth = null;
+     #outerHeight = null;
+     #devicePixelRatio = null;
+-    #zeroDelayTimeout = { timeouts: null };
++    #zeroDelayTimeout = { timeouts: null, timer: null };
+     #timerLoopStacks = [];
+     #timerLoopLimits = [];
+     /**
+@@ -1935,6 +1935,10 @@ export default class BrowserWindow extends EventTarget {
+         // It also makes the async task manager more stable as many timeouts may cause waitUntilComplete() to be resolved too early.
+         if (!delay) {
+             const zeroDelayTimeout = this.#zeroDelayTimeout;
++            if (zeroDelayTimeout.timeouts && zeroDelayTimeout.timer?._destroyed === true) {
++                zeroDelayTimeout.timeouts = null;
++                zeroDelayTimeout.timer = null;
++            }
+             if (!zeroDelayTimeout.timeouts) {
+                 const useTryCatch = !settings ||
+                     (!settings.disableErrorCapturing &&
+@@ -1942,8 +1946,9 @@ export default class BrowserWindow extends EventTarget {
+                 const id = TIMER.setTimeout(() => {
+                     // We need to call endTimer() before the callback as the callback might throw an error.
+                     this.#browserFrame[PropertySymbol.asyncTaskManager].endTimer(id);
+-                    const timeouts = zeroDelayTimeout.timeouts;
++                    const timeouts = zeroDelayTimeout.timeouts ?? [];
+                     zeroDelayTimeout.timeouts = null;
++                    zeroDelayTimeout.timer = null;
+                     for (const timeout of timeouts) {
+                         if (useTryCatch) {
+                             let result;
+@@ -1963,6 +1968,7 @@ export default class BrowserWindow extends EventTarget {
+                     }
+                 }, 0);
+                 zeroDelayTimeout.timeouts = [];
++                zeroDelayTimeout.timer = id;
+                 this.#browserFrame[PropertySymbol.asyncTaskManager].startTimer(id);
+             }
+             const timeout = new Timeout(() => callback(...args));

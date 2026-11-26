@@ -78,14 +78,15 @@ export const SOKO_BOT_SLACK_CAPTURE_TOOLS = {
 } as const;
 
 /**
- * X the same way: whom the owner writes with in direct messages, and who
- * follows them.
+ * X the same way: whom the owner writes with in direct messages, who follows
+ * them and whom they follow.
  */
 export const SOKO_BOT_X_CAPTURE_TOOLS = {
   provider: "twitter",
   me: "TWITTER_USER_LOOKUP_ME",
   dmEvents: "TWITTER_GET_RECENT_DM_EVENTS",
   followers: "TWITTER_FOLLOWERS_BY_USER_ID",
+  following: "TWITTER_FOLLOWING_BY_USER_ID",
 } as const;
 
 /** Toolkits whose mail is ingested and read through the dedicated inbox tools only. */
@@ -176,7 +177,11 @@ export interface SokoBotCalendarEvent {
   allDay: boolean;
   location: string | null;
   attendees: string[];
+  /** The provider omitted invitees or the list was shortened for this response. */
+  attendeesIncomplete?: boolean;
   organizer: string | null;
+  /** Authorized chat tool evidence. The link identifies a saved mailbox. A name requires agreement with the invite. */
+  contactReferences?: { email: string; link: string; name?: string }[];
   description: string | null;
   link: string | null;
 }

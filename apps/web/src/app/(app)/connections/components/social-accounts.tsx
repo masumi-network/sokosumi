@@ -5,6 +5,7 @@ import { Plug, Unplug } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
+import { usePageListSearch } from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth.client";
 import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
@@ -32,6 +33,19 @@ export function SocialAccounts({ accounts }: SocialAccountsProps) {
   const [loading, setLoading] = useState(false);
   const [account, setAccount] = useState<Account | null>(null);
 
+  const providers = SOCIAL_PROVIDERS.map((provider) => {
+    const account = socialAccounts.find(
+      (entry) => entry.providerId === provider,
+    );
+    const name = SOCIAL_PROVIDER_NAMES[provider];
+    const label = t(account ? "connected" : "notConnected", { provider: name });
+    return { provider, account, name, label };
+  });
+  const visible = usePageListSearch(providers, (entry) => ({
+    primary: [entry.name],
+    secondary: [entry.label],
+  }));
+
   const handleConnectAccount = async (provider: AccountProvider) => {
     setLoading(true);
     const result = await authClient.linkSocial({
@@ -51,45 +65,33 @@ export function SocialAccounts({ accounts }: SocialAccountsProps) {
   };
 
   return (
-    <div className="flex flex-col divide-y rounded-xl border py-2">
-      {SOCIAL_PROVIDERS.map((provider) => {
-        const account = socialAccounts.find(
-          (account) => account.providerId === provider,
-        );
-
-        return (
-          <div key={provider} className="flex items-center gap-2 px-4 py-4">
-            {SOCIAL_PROVIDER_ICONS[provider]}
-            <p className="min-w-0 flex-1">
-              {account
-                ? t("connected", { provider: SOCIAL_PROVIDER_NAMES[provider] })
-                : t("notConnected", {
-                    provider: SOCIAL_PROVIDER_NAMES[provider],
-                  })}
-            </p>
-            {/* Bordered Connect, quiet Disconnect: a filled button marks a
+    <div className="bg-background flex flex-col divide-y rounded-xl border py-2">
+      {visible.map(({ provider, account, label }) => (
+        <div key={provider} className="flex items-center gap-2 px-4 py-4">
+          {SOCIAL_PROVIDER_ICONS[provider]}
+          <p className="min-w-0 flex-1">{label}</p>
+          {/* Bordered Connect, quiet Disconnect: a filled button marks a
                 view's one primary action, and two providers would share it. */}
-            <Button
-              disabled={loading}
-              variant={account ? "ghost" : "default"}
-              className={cn("shrink-0", loading && "animate-pulse")}
-              aria-label={t(account ? "disconnect" : "connect", {
-                provider: SOCIAL_PROVIDER_NAMES[provider],
-              })}
-              onClick={() => {
-                if (account) {
-                  handleDisconnectAccount(account);
-                } else {
-                  handleConnectAccount(provider);
-                }
-              }}
-            >
-              {account ? <Unplug aria-hidden /> : <Plug aria-hidden />}
-              {t(account ? "disconnectAction" : "connectAction")}
-            </Button>
-          </div>
-        );
-      })}
+          <Button
+            disabled={loading}
+            variant={account ? "ghost" : "default"}
+            className={cn("shrink-0", loading && "animate-pulse")}
+            aria-label={t(account ? "disconnect" : "connect", {
+              provider: SOCIAL_PROVIDER_NAMES[provider],
+            })}
+            onClick={() => {
+              if (account) {
+                handleDisconnectAccount(account);
+              } else {
+                handleConnectAccount(provider);
+              }
+            }}
+          >
+            {account ? <Unplug aria-hidden /> : <Plug aria-hidden />}
+            {t(account ? "disconnectAction" : "connectAction")}
+          </Button>
+        </div>
+      ))}
       {account && (
         <DisconnectModal
           account={account}

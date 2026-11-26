@@ -42,8 +42,23 @@ describe("EntrySheet", () => {
       />,
     );
     expect(html).toContain(
-      "Instagram · Talking video · video by Cuso · also on YouTube, Facebook",
+      "Instagram · Talking Reel · video by Cuso · also on YouTube, Facebook",
     );
+  });
+
+  it("names a video's other shapes by network and shape", () => {
+    const html = renderToStaticMarkup(
+      <EntrySheet
+        entry={{
+          ...entry,
+          channel: "instagram",
+          format: "talking_video",
+          alsoOn: ["youtube", "instagram_feed", "x"],
+        }}
+        onClose={() => {}}
+      />,
+    );
+    expect(html).toContain("also on YouTube, Instagram 4:5, X 16:9");
   });
 
   it("shows an image with the piece's title as its text", () => {

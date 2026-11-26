@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { socialPostQuotedPostSchema } from "@/schemas/social-post.schema";
 import {
+  cancelUnpublishedSocialPosts,
   flagSocialPostQuotes,
   isSocialPostWaitingForQuote,
   mapSocialPostQuote,
@@ -505,6 +506,59 @@ describe("quote dependents", () => {
       },
       data: { status: "FAILED", lastError: QUOTED_POST_CANCELLED },
     });
+  });
+});
+
+describe("canceling unpublished posts", () => {
+  it("cancels what the filter picks among unsent posts and flags their quotes", async () => {
+    findMany
+      .mockResolvedValueOnce([{ id: "post_1" }, { id: "post_2" }])
+      .mockResolvedValue([]);
+
+    const canceled = await cancelUnpublishedSocialPosts(prisma, {
+      creatorSokoBotId: "bot",
+    });
+
+    expect(canceled).toBe(2);
+    expect(findMany.mock.calls[0]?.[0]).toEqual({
+      where: {
+        creatorSokoBotId: "bot",
+        status: {
+          in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED", "FAILED", "MISSED"],
+        },
+      },
+      select: { id: true },
+    });
+    expect(updateMany.mock.calls[0]?.[0]).toEqual({
+      where: { id: { in: ["post_1", "post_2"] } },
+      data: {
+        status: "CANCELED",
+        canceledAt: expect.any(Date),
+        revision: { increment: 1 },
+      },
+    });
+    // Each canceled post's quotes are looked up to be flagged.
+    expect(findMany.mock.calls.slice(1).map(([args]) => args.where)).toEqual([
+      expect.objectContaining({ quotedPostId: "post_1" }),
+      expect.objectContaining({ quotedPostId: "post_2" }),
+    ]);
+  });
+
+  it("takes only the statuses it is given, and writes nothing when none match", async () => {
+    findMany.mockResolvedValue([]);
+
+    const canceled = await cancelUnpublishedSocialPosts(
+      prisma,
+      { projectId: "project" },
+      ["SCHEDULED"],
+    );
+
+    expect(canceled).toBe(0);
+    expect(findMany.mock.calls[0]?.[0].where).toEqual({
+      projectId: "project",
+      status: { in: ["SCHEDULED"] },
+    });
+    expect(updateMany).not.toHaveBeenCalled();
   });
 });
 

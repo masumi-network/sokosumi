@@ -2,6 +2,7 @@ import "./rooms-client-harness";
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import {
   act,
+  cleanup,
   fireEvent,
   screen,
   waitFor,
@@ -132,7 +133,12 @@ vi.mock("../thread-panel", () => ({
 }));
 
 vi.mock("../thread-list-panel", () => ({
-  ThreadListPanel: () => <aside data-testid="thread-list-panel" />,
+  ThreadListPanel: ({ labels }: { labels: { emptyHint?: string } }) => (
+    <aside
+      data-testid="thread-list-panel"
+      data-empty-hint={labels.emptyHint ?? ""}
+    />
+  ),
 }));
 
 vi.mock("../edit-channel-dialog", () => ({
@@ -260,11 +266,14 @@ function rowFor(content: string) {
 }
 
 describe("RoomsClient read-only Direct updates", () => {
-  afterEach(() => clearMembershipVisibleRoomsSnapshot());
+  afterEach(() => {
+    cleanup();
+    clearMembershipVisibleRoomsSnapshot();
+  });
 
   it("replaces the composer when the sidebar refresh learns the peer left", async () => {
     const room = humanDirectRoom();
-    renderRoom(room);
+    await act(async () => renderRoom(room));
     expect(screen.getByTestId("room-session-composer")).toBeInTheDocument();
 
     act(() => {
@@ -298,14 +307,16 @@ describe("RoomsClient read-only Direct updates", () => {
 
   it("restores the composer when a later room fetch includes the returning peer", async () => {
     const room = humanDirectRoom();
-    renderRoom({
-      ...room,
-      isReadOnly: true,
-      userMembers: [participant("user-1", "Ada")],
-      formerUserMembers: [
-        { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
-      ],
-    });
+    await act(async () =>
+      renderRoom({
+        ...room,
+        isReadOnly: true,
+        userMembers: [participant("user-1", "Ada")],
+        formerUserMembers: [
+          { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
+        ],
+      }),
+    );
     expect(screen.queryByTestId("room-session-composer")).toBeNull();
 
     act(() => {
@@ -318,7 +329,7 @@ describe("RoomsClient read-only Direct updates", () => {
     });
   });
 
-  it("uses a refreshed page roster ahead of a stale read-only sidebar snapshot", () => {
+  it("uses a refreshed page roster ahead of a stale read-only sidebar snapshot", async () => {
     const room = humanDirectRoom();
     const readOnlyRoom = {
       ...room,
@@ -328,27 +339,31 @@ describe("RoomsClient read-only Direct updates", () => {
         { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
       ],
     };
-    const view = renderRoom(readOnlyRoom);
+    const view = await act(async () => renderRoom(readOnlyRoom));
     act(() => {
       publishMembershipVisibleRooms([readOnlyRoom], organization.id, "user-1");
     });
-    view.rerender(<RoomsClient {...roomClientProps(room)} />);
+    await act(async () =>
+      view.rerender(<RoomsClient {...roomClientProps(room)} />),
+    );
 
     expect(screen.getByTestId("room-session-composer")).toBeInTheDocument();
     expect(screen.queryByText("readOnlyDirectNotice")).toBeNull();
   });
 
-  it("ignores attention-only updates to the sidebar's older roster", () => {
+  it("ignores attention-only updates to the sidebar's older roster", async () => {
     const room = humanDirectRoom();
     publishMembershipVisibleRooms([room], organization.id, "user-1");
-    renderRoom({
-      ...room,
-      isReadOnly: true,
-      userMembers: [participant("user-1", "Ada")],
-      formerUserMembers: [
-        { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
-      ],
-    });
+    await act(async () =>
+      renderRoom({
+        ...room,
+        isReadOnly: true,
+        userMembers: [participant("user-1", "Ada")],
+        formerUserMembers: [
+          { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
+        ],
+      }),
+    );
 
     act(() => {
       publishMembershipVisibleRooms(
@@ -362,42 +377,51 @@ describe("RoomsClient read-only Direct updates", () => {
     expect(screen.getByText("readOnlyDirectNotice")).toBeInTheDocument();
   });
 
-  it("keeps a fresh read-only page disabled when the sidebar still has the old roster", () => {
+  it("keeps a fresh read-only page disabled when the sidebar still has the old roster", async () => {
     const room = humanDirectRoom();
     publishMembershipVisibleRooms([room], organization.id, "user-1");
-    renderRoom({
-      ...room,
-      isReadOnly: true,
-      userMembers: [participant("user-1", "Ada")],
-      formerUserMembers: [
-        { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
-      ],
-    });
-
-    expect(screen.queryByTestId("room-session-composer")).toBeNull();
-    expect(screen.getByText("readOnlyDirectNotice")).toBeInTheDocument();
-    expect(screen.getByTestId("room-open-title")).toHaveTextContent("Bob");
-  });
-  it("offers no Quote, Reaction or new Thread on a read-only Direct", () => {
-    renderRoom(
-      {
-        ...humanDirectRoom(),
+    await act(async () =>
+      renderRoom({
+        ...room,
         isReadOnly: true,
         userMembers: [participant("user-1", "Ada")],
         formerUserMembers: [
           { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
         ],
-      },
-      {
-        messages: [
-          { ...sampleMessage("no replies", "msg-1"), roomId: "room-direct" },
-          {
-            ...sampleMessage("has replies", "msg-2"),
-            roomId: "room-direct",
-            threadReplyCount: 2,
-          },
-        ],
-      },
+      }),
+    );
+
+    expect(screen.queryByTestId("room-session-composer")).toBeNull();
+    expect(screen.getByText("readOnlyDirectNotice")).toBeInTheDocument();
+    expect(screen.getByTestId("room-open-title")).toHaveTextContent("Bob");
+  });
+  it("offers no Quote, Reaction or new Thread on a read-only Direct", async () => {
+    await act(async () =>
+      renderRoom(
+        {
+          ...humanDirectRoom(),
+          isReadOnly: true,
+          userMembers: [participant("user-1", "Ada")],
+          formerUserMembers: [
+            {
+              id: "user-2",
+              name: "Bob",
+              email: "bob@example.com",
+              image: null,
+            },
+          ],
+        },
+        {
+          messages: [
+            { ...sampleMessage("no replies", "msg-1"), roomId: "room-direct" },
+            {
+              ...sampleMessage("has replies", "msg-2"),
+              roomId: "room-direct",
+              threadReplyCount: 2,
+            },
+          ],
+        },
+      ),
     );
 
     const plain = rowFor("no replies");
@@ -413,25 +437,62 @@ describe("RoomsClient read-only Direct updates", () => {
     expect(withReplies).toHaveAttribute("data-can-open-thread", "true");
     expect(withReplies).toHaveAttribute("data-can-quote", "false");
     expect(withReplies).toHaveAttribute("data-can-react", "false");
-    fireEvent.click(screen.getByLabelText("open thread msg-2"));
+    await act(async () =>
+      fireEvent.click(screen.getByLabelText("open thread msg-2")),
+    );
     expect(screen.getByTestId("thread-panel")).toHaveAttribute(
       "data-can-quote",
       "false",
     );
   });
 
-  it("keeps Quote, Reactions and Threads on a writable Direct", () => {
-    renderRoom(humanDirectRoom(), {
-      messages: [
-        { ...sampleMessage("no replies", "msg-1"), roomId: "room-direct" },
-      ],
-    });
+  it("gives a read-only Direct's empty Threads no hint to start one", async () => {
+    const user = userEvent.setup();
+    await act(async () =>
+      renderRoom({
+        ...humanDirectRoom(),
+        isReadOnly: true,
+        userMembers: [participant("user-1", "Ada")],
+        formerUserMembers: [
+          { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
+        ],
+      }),
+    );
+
+    await user.click(screen.getByTestId("unread-threads-trigger"));
+    expect(screen.getByTestId("thread-list-panel")).toHaveAttribute(
+      "data-empty-hint",
+      "",
+    );
+  });
+
+  it("tells a writable Direct's empty Threads how one starts", async () => {
+    const user = userEvent.setup();
+    await act(async () => renderRoom(humanDirectRoom()));
+
+    await user.click(screen.getByTestId("unread-threads-trigger"));
+    expect(screen.getByTestId("thread-list-panel")).toHaveAttribute(
+      "data-empty-hint",
+      "UnreadThreads.emptyHint",
+    );
+  });
+
+  it("keeps Quote, Reactions and Threads on a writable Direct", async () => {
+    await act(async () =>
+      renderRoom(humanDirectRoom(), {
+        messages: [
+          { ...sampleMessage("no replies", "msg-1"), roomId: "room-direct" },
+        ],
+      }),
+    );
 
     const row = rowFor("no replies");
     expect(row).toHaveAttribute("data-can-quote", "true");
     expect(row).toHaveAttribute("data-can-react", "true");
     expect(row).toHaveAttribute("data-can-open-thread", "true");
-    fireEvent.click(screen.getByLabelText("open thread msg-1"));
+    await act(async () =>
+      fireEvent.click(screen.getByLabelText("open thread msg-1")),
+    );
     expect(screen.getByTestId("thread-panel")).toHaveAttribute(
       "data-can-quote",
       "true",
@@ -538,6 +599,36 @@ describe("RoomsClient room header chrome", () => {
     expect(screen.getByTestId("edit-channel-dialog-probe")).toBeTruthy();
   });
 
+  // Screen readers list headings and the route announcer reads the first
+  // one; without it a room was "Sokosumi - Chat" like every other room.
+  it("makes the room name the page's heading", () => {
+    renderRoom(channelRoom());
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "general",
+    );
+
+    cleanup();
+    renderRoom(humanDirectRoom());
+    const direct = screen.getByRole("heading", { level: 1 });
+    expect(direct).toHaveTextContent("Bob");
+    // A heading holds phrasing content only.
+    expect(direct.querySelector("div, p")).toBeNull();
+
+    // The self Direct's face is decoration: its initials stay out of the name.
+    cleanup();
+    renderRoom({
+      ...humanDirectRoom(),
+      isSelfDirect: true,
+      isGroupDirect: false,
+      groupName: null,
+      userMembers: [participant("user-1", "Ada")],
+      organizationId: null,
+    });
+    const self = screen.getByRole("heading", { level: 1 });
+    expect(self).toHaveAccessibleName("SelfDirect.youNamed");
+    expect(self.querySelector("div, p")).toBeNull();
+  });
+
   it("opens the members panel from a plain member's channel title", async () => {
     const user = userEvent.setup();
     renderRoom(channelRoom());
@@ -565,7 +656,10 @@ describe("RoomsClient room header chrome", () => {
     expect(title).toHaveAccessibleName("general");
     expect(title).toHaveAttribute("title", "editChannel");
     expect(subtitle).toHaveAttribute("title", "Weekly launch planning");
-    expect(title.parentElement).toContainElement(subtitle);
+    // Beside the heading, not in it: the topic is not part of the room's name.
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading).not.toContainElement(subtitle);
+    expect(heading.parentElement).toContainElement(subtitle);
     expect(subtitle.tagName).not.toBe("BUTTON");
     expect(
       screen.queryByRole("button", { name: "Weekly launch planning" }),
@@ -615,6 +709,21 @@ describe("RoomsClient room header chrome", () => {
     );
     expect(screen.queryByText("Should stay hidden")).toBeNull();
     expect(screen.getByTestId("room-open-title").tagName).not.toBe("BUTTON");
+  });
+
+  it("shows a 1:1 Direct's face beside its name on a phone, not in the heading's name", () => {
+    renderRoom(humanDirectRoom());
+
+    const heading = screen.getByRole("heading", { level: 1 });
+    const face = screen.getByTestId("room-title-face");
+    expect(heading).toContainElement(face);
+    expect(face).toHaveClass("md:hidden");
+    expect(face).toHaveAttribute("aria-hidden", "true");
+    expect(heading).toHaveAccessibleName("Bob");
+    // Only the face: presence or a bot's status hidden here would be seen
+    // but never heard, so none of it is drawn.
+    expect(face.querySelector("[data-testid^='dm-sidebar-']")).toBeNull();
+    expect(face.textContent).toBe("BO");
   });
 
   it("names a self Direct on the second line", () => {
@@ -776,6 +885,35 @@ describe("RoomsClient room header chrome", () => {
       expect(screen.queryByTestId("room-decisions-panel")).toBeNull(),
     );
     expect(menu).toHaveFocus();
+  });
+
+  it("opens the decisions log only once the mobile menu has closed", async () => {
+    const user = userEvent.setup();
+    renderRoom(channelRoom());
+
+    await user.click(screen.getByTestId("room-header-menu-trigger"));
+    // The menu animates out, as in the browser, so it lingers after the pick.
+    screen.getByRole("menu").style.animationName = "menu-exit";
+    await user.click(
+      screen.getByRole("menuitem", { name: "Signals.Decisions.open" }),
+    );
+    // A mouse leaving the picked item hands focus back to the closing menu.
+    // A log already open then takes that as focus outside and closes.
+    const menu = screen.getByRole("menu", { hidden: true });
+    expect(screen.queryByTestId("room-decisions-panel")).toBeNull();
+
+    fireEvent.animationEnd(menu, { animationName: "menu-exit" });
+    expect(await screen.findByTestId("room-decisions-panel")).toBeTruthy();
+  });
+
+  it("keeps the fix-a-tag note out of an empty decisions log", async () => {
+    const user = userEvent.setup();
+    renderRoom(channelRoom());
+
+    await user.click(await screen.findByTestId("room-decisions-trigger"));
+    const panel = await screen.findByTestId("room-decisions-panel");
+    expect(await within(panel).findByText(/Decisions\.empty$/)).toBeTruthy();
+    expect(within(panel).queryByText(/Decisions\.note$/)).toBeNull();
   });
 
   it("offers only threads in a 1:1 Direct's mobile menu", async () => {

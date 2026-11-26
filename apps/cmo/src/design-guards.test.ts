@@ -165,6 +165,25 @@ describe("voice", () => {
   });
 });
 
+describe("logo", () => {
+  /**
+   * design-system.md, Logo: each lockup only on the background the brand
+   * guide approves for it. `Logo` pairs the files, so nothing else names one.
+   */
+  it("shows the logo files only through Logo", () => {
+    const outside = findLines(
+      SOURCE.filter(
+        (file) =>
+          file.rel !== "components/logo.tsx" &&
+          !file.rel.startsWith("test-fixtures/"),
+      ),
+      /\/logo\//,
+    );
+
+    expect(outside).toEqual([]);
+  });
+});
+
 describe("accessibility", () => {
   it("gives every image an alt attribute", () => {
     const missing: string[] = [];
@@ -213,6 +232,7 @@ const FONT_SIZE_DECLARATION = /(?<![\w-])font-size\s*:\s*([^;}]*)/;
 /** The type scale's sizes in rem (design-system.md), plus sizes relative to the parent. */
 const SCALE_SIZES = new Set([
   "4.5rem",
+  "2.75rem",
   "2.25rem",
   "1.75rem",
   "1.5rem",
@@ -326,7 +346,7 @@ const CASTS_SHADOW = [
   /\.button(?:-small|-secondary)?(?![\w-])/,
   /\[aria-(?:pressed|selected)/,
   // Classes that are only ever set on a <button>.
-  /^\.(?:chip|who-button|ob-who-button|ob-side-close|cal-filter|ob-plan-option)(?![\w-])/,
+  /^\.(?:chip|who-button|brand-button|ob-who-button|ob-side-close|cal-filter|ob-plan-option)(?![\w-])/,
   // The chat's composer: the frame around its textarea.
   /^\.composer$/,
   /^\.ob-who-menu$/,
@@ -600,5 +620,101 @@ describe("visual system", () => {
       );
       expect(GRADIENT.test("  background: var(--surface);")).toBe(false);
     });
+  });
+});
+
+describe("Cuso on every page", () => {
+  const css = FILES.find((file) => file.rel === STYLESHEET)?.text ?? "";
+  const rule = (selector: string) =>
+    css.match(
+      new RegExp(`\\n${selector.replace(/[.*]/g, "\\$&")} \\{([^}]*)\\}`),
+    )?.[1] ?? "";
+
+  it("never takes a press: only his bubble does", () => {
+    expect(rule(".cuso-figure")).toContain("pointer-events: none");
+  });
+
+  it("stands in his light pool in both themes, so his black line reads", () => {
+    expect(rule(".cuso-ground")).toContain("background: var(--stage)");
+    expect(rule(".cuso-ground")).toContain("border-radius: 50%");
+  });
+
+  it("keeps every pose inside the sidebar, where the stage clips him", () => {
+    const px = (name: string) =>
+      Number(css.match(new RegExp(`${name}: (\\d+)px;`))?.[1]);
+    // The figure is a square centred on the sidebar; each pose's box fills it.
+    expect(rule(".cuso-figure")).toMatch(
+      /\n\s*left: 50%;[\s\S]*translate: -50% 0;/,
+    );
+    const largest = Number(
+      rule(".cuso-figure").match(/\n\s*height: min\((\d+)px/)?.[1],
+    );
+    const svg = readFileSync(
+      path.join(SRC_ROOT, "../public/cuso/poses.svg"),
+      "utf8",
+    );
+    const poses = svg.split('<svg data-pose="').slice(1);
+    expect(poses.length).toBeGreaterThan(5);
+    for (const pose of poses) {
+      const [x, , size] = (pose.match(/viewBox="([^"]+)"/)?.[1] ?? "")
+        .split(" ")
+        .map(Number);
+      // The rightmost point any of its paths reaches, in the pose's units.
+      const right = Math.max(
+        ...[...pose.matchAll(/ d="([^"]*)"/g)].flatMap((d) =>
+          [...d[1].matchAll(/(-?[\d.]+)[ ,]-?[\d.]+/g)].map((m) =>
+            Number(m[1]),
+          ),
+        ),
+      );
+      const past =
+        (largest * (right - x)) / size - largest / 2 - px("--side-width") / 2;
+      expect(past, pose.slice(0, pose.indexOf('"'))).toBeLessThanOrEqual(0);
+    }
+  });
+
+  it("sizes his stage without a container query, which restarts his motion on every page", () => {
+    expect(rule(".cuso-status")).not.toMatch(/container/);
+    expect(css).not.toMatch(/@container stage/);
+  });
+
+  it("draws the person's avatar flat: a menu button with hover and focus, no shadow", () => {
+    expect(rule(".who-button .avatar")).not.toContain("box-shadow");
+    expect(css).toMatch(/\.who-button:hover \.avatar-ring/);
+    expect(css).toMatch(/\.who-button:focus-visible \{[^}]*outline: 2px solid/);
+  });
+
+  it("draws the pill's working dot itself, in the pill's text colour", () => {
+    // onboarding.css, which sizes .ob-box-dot elsewhere, is not on app pages.
+    const dot = rule(".cuso-says .ob-box-dot");
+    expect(dot).toContain("width: 8px");
+    expect(dot).toContain("background: currentColor");
+  });
+
+  it("opens Today from a pill that shows where focus is", () => {
+    expect(css).toMatch(/a\.cuso-says:focus-visible \{[^}]*outline: 2px solid/);
+  });
+
+  it("moves only through his rig, which reduced motion never starts", () => {
+    // A CSS animation on him would run under reduced motion and fight the rig.
+    expect(css).not.toMatch(/\.cuso-(poses|rig|figure)[^{]*\{[^}]*animation/);
+  });
+
+  it("steps back while a sheet or dialog is open", () => {
+    expect(css).toMatch(
+      /\.app:has\(\.sheet-scrim, \[role="dialog"\]\) \.cuso-figure \{[^}]*opacity: 0/,
+    );
+  });
+});
+
+describe("hire screen on a phone", () => {
+  it("keeps the label right of Cuso inside the screen's 16px gutter", () => {
+    const css = FILES.find(
+      (file) => file.rel === "components/onboarding/onboarding.css",
+    )?.text;
+    const phone = css?.slice(css.indexOf("The labels would hang off a phone"));
+    const rule = phone?.match(/\.ob-tilt-b\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(rule).toContain("left: auto");
+    expect(rule).toMatch(/right:\s*calc\(16px - \(100vw - 200px\) \/ 2\)/);
   });
 });

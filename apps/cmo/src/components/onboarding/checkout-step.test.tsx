@@ -102,69 +102,123 @@ async function render({
 }
 
 describe("CheckoutStep", () => {
-  it("shows the three monthly plans by name, price and monthly credits, cheapest first", async () => {
+  it("opens on Yearly, with Monthly one tap away", async () => {
     await render();
+    expect(button("Yearly").getAttribute("aria-pressed")).toBe("true");
+    expect(button("Start Starter for $2,000 a year")).toBeTruthy();
+    await press("Monthly");
+    expect(button("Monthly").getAttribute("aria-pressed")).toBe("true");
+    expect(button("Start Starter for $200 a month")).toBeTruthy();
+  });
+
+  it("opens on Monthly when there is no yearly plan", async () => {
+    await render({
+      plans: cmoPlans.filter((plan) => plan.interval === "month"),
+    });
+    expect(button("Monthly").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("shows the three monthly plans by name and price, cheapest first", async () => {
+    await render();
+    await press("Monthly");
     expect(cards()).toHaveLength(3);
     expect(cards()[0]).toContain("Starter");
     expect(cards()[0]).toContain("$200");
-    expect(cards()[0]).toContain("10,000 credits a month");
     expect(cards()[1]).toContain("$500");
-    expect(cards()[1]).toContain("25,000 credits a month");
     expect(cards()[2]).toContain("$1,000");
-    expect(cards()[2]).toContain("50,000 credits a month");
     expect(text()).not.toContain("(monthly)");
-    expect(text()).not.toContain("$2,000");
+    expect(text()).not.toContain("billed yearly");
   });
 
   it("says what each plan posts as the landing page does, and the team check on the top plan only", async () => {
     await render();
-    expect(cards()[0]).toContain("One post a day on each account you connect.");
-    expect(cards()[1]).toContain(
-      "Two posts a day on each account you connect.",
-    );
-    expect(cards()[2]).toContain(
-      "Up to three posts a day on each account you connect.",
-    );
-    expect(cards()[2]).toContain("our team checks every post");
-    expect(cards()[1]).not.toContain("our team checks every post");
+    expect(cards()[0]).toContain("About 360 posts a month on six networks");
+    expect(cards()[1]).toContain("About 530 posts a month on six networks");
+    expect(cards()[2]).toContain("About 900 posts a month on six networks");
+    expect(cards()[2]).toContain("Our team checks every post");
+    expect(cards()[1]).not.toContain("Our team checks every post");
   });
 
-  it("says what the approved month holds before the price", async () => {
-    await render({ plan: planAt("active") });
-    const gets = container.querySelector(".ob-gets")?.textContent ?? "";
-    expect(gets).toContain("5 posts");
-    expect(gets).toContain("1 picture and 1 video");
+  it("shows the month's networks as their marks, without counts or ads", async () => {
+    const base = planAt("active");
+    await render({
+      plan: {
+        ...base,
+        calendar: [
+          ...base.calendar,
+          {
+            id: "ad-1",
+            date: "2026-10-09",
+            channel: "google_ads",
+            title: "Try it",
+            format: "search_ad",
+            status: "idea",
+          },
+        ],
+      },
+    });
+    const row = container.querySelector(".ob-networks-row");
+    expect(row?.getAttribute("aria-label")).toContain("X");
+    expect(row?.getAttribute("aria-label")).toContain("LinkedIn");
+    expect(row?.getAttribute("aria-label")).not.toContain("Google Ads");
+    expect(text()).not.toMatch(/\d+ (pictures|videos)/);
   });
 
-  it("says what each plan makes of the strategy, and marks the smallest that makes all of it", async () => {
-    // Three X posts a day for a week: Starter makes one a day, Growth two, Scale three.
+  it("shows every network CMO posts on without a strategy", async () => {
+    await render();
+    expect(container.querySelectorAll(".ob-networks-row li")).toHaveLength(6);
+  });
+
+  it("says how many posts each plan makes a month, and marks the smallest that makes all of it", async () => {
+    // Six X posts a day for a week: Starter makes three a day, Growth four, Scale six.
     const week: Strategy = {
       ...strategy,
-      channels: [{ channel: "x", cadence: "3 a day", role: "main" }],
+      channels: [{ channel: "x", cadence: "6 a day", role: "main" }],
       calendar: Array.from({ length: 7 }, (_, day) =>
-        ["a", "b", "c"].map((slot, place) => ({
+        ["a", "b", "c", "d", "e", "f"].map((slot, place) => ({
           id: `x-${day}-${slot}`,
           date: `2026-10-${String(5 + day).padStart(2, "0")}`,
           channel: "x",
           title: `Post ${day} ${slot}`,
-          format: place === 2 ? "image" : "post",
+          format: place >= 4 ? "image" : "post",
           status: "idea" as const,
         })),
       ).flat(),
     };
     await render({ plan: week });
-    expect(cards()[0]).toContain(
-      "7 posts, 0 pictures and 0 videos a month from your strategy",
-    );
-    expect(cards()[1]).toContain(
-      "14 posts, 0 pictures and 0 videos a month from your strategy",
-    );
-    expect(cards()[2]).toContain(
-      "21 posts, 7 pictures and 0 videos a month from your strategy",
-    );
+    expect(cards()[0]).toContain("About 20 posts a month");
+    expect(cards()[1]).toContain("About 30 posts a month");
+    expect(cards()[2]).toContain("All 42 posts a month");
     expect(cards()[2]).toContain("Makes all of it");
     expect(cards()[1]).not.toContain("Makes all of it");
-    expect(button("Start Scale for $1,000 a month")).toBeTruthy();
+    expect(button("Start Scale for $10,000 a year")).toBeTruthy();
+  });
+
+  // cmo-v22: the month is written after payment, so each plan says its floor.
+  it("promises each plan at least its networks' rates for a strategy with examples", async () => {
+    await render({
+      plan: {
+        ...strategy,
+        channels: [
+          { channel: "x", cadence: "6 a day", role: "main" },
+          { channel: "linkedin", cadence: "1 a day", role: "main" },
+        ],
+        calendar: strategy.calendar.slice(0, 3),
+        monthWriter: { state: "examples", attempts: 0 },
+      },
+    });
+    expect(cards()[0]).toContain("At least 104 posts a month");
+    expect(cards()[1]).toContain("At least 140 posts a month");
+    expect(cards()[2]).toContain("At least 196 posts a month");
+    expect(text()).not.toContain("About ");
+    // The plan's networks, not the examples' networks.
+    expect(
+      document
+        .querySelector('[aria-label^="Posts on"]')
+        ?.getAttribute("aria-label"),
+    ).toBe("Posts on X, LinkedIn");
+    // No month is written yet, so no plan "makes all of it".
+    expect(text()).not.toContain("Makes all of it");
   });
 
   it("marks the plan that already makes a smaller strategy whole", async () => {
@@ -185,7 +239,7 @@ describe("CheckoutStep", () => {
       },
     });
     expect(cards()[0]).toContain("Makes all of it");
-    expect(button("Start Starter for $200 a month")).toBeTruthy();
+    expect(button("Start Starter for $2,000 a year")).toBeTruthy();
   });
 
   it("checks out the plan the person picks, over the one marked", async () => {
@@ -196,19 +250,99 @@ describe("CheckoutStep", () => {
     await act(async () =>
       container.querySelectorAll<HTMLElement>(".ob-plan-option")[2]?.click(),
     );
-    expect(button("Start Scale for $1,000 a month")).toBeTruthy();
+    expect(button("Start Scale for $10,000 a year")).toBeTruthy();
     await press("Start Scale");
-    expect(onCheckout).toHaveBeenCalledWith("month", "scale");
+    expect(onCheckout).toHaveBeenCalledWith("year", "scale");
   });
 
   it("shows the yearly saving and the yearly price per month", async () => {
     await render();
-    expect(button("Yearly").textContent).toBe("Yearly · save 17%");
+    expect(container.querySelector(".ob-save")?.textContent).toBe(
+      "2 months free",
+    );
     await press("Yearly");
     expect(button("Yearly").getAttribute("aria-pressed")).toBe("true");
+    expect(cards()[0]).toContain("$200");
     expect(cards()[0]).toContain("$167 a month");
-    expect(cards()[0]).toContain("$2,000 billed once a year");
-    expect(cards()[0]).toContain("10,000 credits a month");
+    expect(cards()[0]).toContain("$2,000 billed yearly");
+    expect(button("Start Starter for $2,000 a year")).toBeTruthy();
+  });
+
+  it("fills the same lines on both intervals, so switching never moves the cards", async () => {
+    await render();
+    const lines = () =>
+      [...container.querySelectorAll(".ob-plan-option")].map(
+        (card) => card.children.length,
+      );
+    const yearly = lines();
+    await press("Monthly");
+    expect(lines()).toEqual(yearly);
+    expect(cards()[0]).toContain("Billed monthly");
+  });
+
+  it("says each plan's AI credits a month, on both intervals", async () => {
+    await render();
+    expect(cards()[0]).toContain("10,000 AI credits a month");
+    expect(cards()[1]).toContain("25,000 AI credits a month");
+    expect(cards()[2]).toContain("50,000 AI credits a month");
+    await press("Monthly");
+    expect(cards()[2]).toContain("50,000 AI credits a month");
+  });
+
+  it("frames Growth as the start and Scale as everything, Scale standing out unpicked", async () => {
+    await render();
+    await press("Starter");
+    expect(cards()[0]).not.toMatch(/Strong start|Everything included/);
+    expect(cards()[1]).toContain("Strong start");
+    expect(cards()[2]).toContain("Everything included");
+    const top = container.querySelectorAll(".ob-plan-option")[2];
+    expect(top?.classList.contains("ob-plan-top")).toBe(true);
+    expect(top?.getAttribute("aria-pressed")).toBe("false");
+    expect(text()).not.toMatch(/most popular|most picked/i);
+  });
+
+  it("says each plan's yearly saving in dollars, from the real prices", async () => {
+    await render();
+    expect(cards()[0]).toContain("You save $400 a year");
+    expect(cards()[1]).toContain("You save $1,000 a year");
+    expect(cards()[2]).toContain("You save $2,000 a year");
+    await press("Monthly");
+    expect(cards()[2]).toContain("Yearly saves $2,000");
+  });
+
+  it("falls back to a percent when the yearly prices are not whole free months", async () => {
+    await render({
+      plans: cmoPlans.map((plan) =>
+        plan.interval === "year"
+          ? { ...plan, priceAmount: Math.round(plan.priceAmount * 1.05) }
+          : plan,
+      ),
+    });
+    expect(container.querySelector(".ob-save")?.textContent).toBe("Save 13%");
+  });
+
+  it("puts the quote, the guarantee and Cancel any time by the button, said once", async () => {
+    await render();
+    expect(container.querySelector(".ob-quote blockquote")?.textContent).toBe(
+      "“CMO.xyz complements and connects our established agency offerings. Agentic services enable interaction, and with it the thread that ties together all of our AI applications and services.”",
+    );
+    expect(
+      container.querySelector(".ob-quote figcaption")?.textContent,
+    ).toContain("Florian HallerCEO, Serviceplan Group");
+    const photo = container.querySelector<HTMLImageElement>(".ob-quote img");
+    expect(photo?.getAttribute("src")).toBe("/florian-haller.webp");
+    expect(photo?.getAttribute("alt")).toBe("Florian Haller");
+    const assure = container.querySelector(".ob-assure")?.textContent ?? "";
+    expect(assure).toContain("Cancel any time.");
+    expect(assure).toContain("Not happy in the first 14 days? Full refund.");
+    expect(text().split("Cancel any time").length - 1).toBe(1);
+  });
+
+  it("says what credits buy in prices, not a count of what a plan makes", async () => {
+    await render();
+    expect(container.querySelector(".ob-credits-buy")?.textContent).toBe(
+      "Credits pay for everything Cuso makes: a picture costs 1 to 4 credits, a short video about 10 to 15, a talking video about 150 to 250.",
+    );
   });
 
   it("sends the person to Polar with the interval and the plan they picked", async () => {
@@ -228,16 +362,19 @@ describe("CheckoutStep", () => {
     const onCheckout = vi.fn(async () => ({ url: null, error: null }));
     await render({ onCheckout });
     await press("Start Starter");
-    expect(onCheckout).toHaveBeenCalledWith("month", "starter");
+    expect(onCheckout).toHaveBeenCalledWith("year", "starter");
   });
 
-  it("names only what is true about paying", async () => {
+  it("keeps the fine print to one line", async () => {
     await render();
-    expect(text()).toContain("Change or cancel any time in Settings");
-    expect(text()).toContain("Discount codes work at checkout");
-    expect(text()).toContain(
-      "Nothing goes out until you connect your accounts",
-    );
+    const legal = container.querySelector(".legal-notice");
+    expect(legal?.textContent).not.toContain("Cancel any time.");
+    expect(
+      [...(legal?.querySelectorAll("a") ?? [])].map((link) => link.textContent),
+    ).toEqual(["Terms", "Privacy", "DPA", "Imprint"]);
+    expect(text()).not.toContain("Discount codes");
+    expect(text()).not.toContain("Polar");
+    expect(text()).not.toContain("(testers)");
   });
 
   it("says why the checkout did not open and stays on the plans", async () => {

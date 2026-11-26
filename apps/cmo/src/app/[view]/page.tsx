@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { viewFromPath } from "../../lib/views";
 import { Home, type HomeSearchParams } from "../home";
 
-/** Strategy, Calendar, Results, Brand Brain, Channels and Settings, each at its own address. */
+/** The chat, Strategy, Calendar, Results, Brand Brain, Channels and Settings, each at its own address. */
 export default async function ViewPage({
   params,
   searchParams,
@@ -12,6 +12,6 @@ export default async function ViewPage({
   searchParams: Promise<HomeSearchParams>;
 }) {
   const view = viewFromPath(`/${(await params).view}`);
-  if (!view || view === "chat") notFound();
+  if (!view || view === "today") notFound();
   return Home({ searchParams, view });
 }

@@ -7,7 +7,7 @@ import {
   type Pose as CusoPose,
   cusoArt,
 } from "../../components/cuso";
-import { Logo } from "../../components/logo";
+import { type Lockup, Logo } from "../../components/logo";
 import { StatusDisc } from "../../components/status";
 import { AGENT_NAME } from "../../lib/agent";
 import { previewOnly } from "./fixture-frame";
@@ -20,6 +20,13 @@ import { PartsPreview } from "./parts-preview";
  */
 
 type Scheme = "light" | "dark";
+
+const LOCKUPS: [Lockup, string][] = [
+  ["stacked", "Stacked: the header"],
+  ["primary", "Primary: the pages around sign in"],
+  ["framed", "Framed panel: the 404"],
+  ["block", "Knockout block: the error page"],
+];
 
 const RULES = [
   "Thick lines do the work.",
@@ -98,10 +105,11 @@ const SHADOWS = [
 
 const ART: CusoArt[] = [
   "walking",
+  "friendly",
   "pointing",
   "thinking",
-  "thumbs-up",
-  "searching",
+  "correct",
+  "researching",
 ];
 
 const POSES: Pose[] = [
@@ -146,12 +154,17 @@ function Board({ scheme }: BoardProps) {
       </Section>
 
       <Section title="Logo">
-        <p className="ds-logo">
-          <Logo />
-        </p>
+        <ul className="ds-logos">
+          {LOCKUPS.map(([lockup, use]) => (
+            <li key={lockup}>
+              <Logo lockup={lockup} />
+              <span className="ds-t-small ds-muted">{use}</span>
+            </li>
+          ))}
+        </ul>
         <p className="ds-t-small ds-muted">
-          The approved stacked-text lockup: black on a light page, white on a
-          dark one.
+          Each lockup on the background the brand guide approves: the file for
+          white on a light page, the one for black on a dark page.
         </p>
       </Section>
 

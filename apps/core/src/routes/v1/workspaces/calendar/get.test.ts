@@ -1004,8 +1004,13 @@ describe("GET /workspaces/calendar", () => {
       expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalled();
     },
   );
-  it("rejects automation opt-in to Social post calendar data", async () => {
-    const response = await createApp(USER_AUTH_CONTEXT).request(
+  it("rejects a Coworker's opt-in to Social post calendar data", async () => {
+    vendorGrantFindUniqueMock.mockResolvedValue({
+      id: "grant_123",
+      status: VendorGrantStatus.GRANTED,
+      permission: "workspace",
+    });
+    const response = await createApp(COWORKER_AUTH_CONTEXT).request(
       `/calendar?from=${FROM}&to=${TO}&includeSocialPosts=true`,
     );
     expect(response.status).toBe(403);

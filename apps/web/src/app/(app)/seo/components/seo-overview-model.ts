@@ -1,4 +1,5 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { seoIssueKey } from "@sokosumi/utils";
 
 const ISSUE_SEVERITIES = { critical: 0, major: 1, minor: 2 } as const;
 /** Issue severities, worst first. */
@@ -45,25 +46,18 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
     .filter((finding) => issueRank(finding) < NON_ISSUE_RANK)
     .toSorted((left, right) => issueRank(left) - issueRank(right));
   // One rule that fails on mobile and on desktop is one issue on that page; the row names its devices.
-  const issues = [
-    ...Map.groupBy(failed, (finding) =>
-      JSON.stringify([
-        finding.observationId,
-        finding.rowId,
-        finding.pageUrl,
-        finding.relatedPageUrl,
-      ]),
-    ).values(),
-  ].map((group) => ({
-    ...group[0],
-    // Only rows with an issue severity reach this list.
-    severity: group[0].severity as SeoIssueSeverity,
-    findingIds: group.map(({ id }) => id),
-    devices: [
-      ...new Set(group.flatMap(({ device }) => (device ? [device] : []))),
-    ],
-    evidence: [...new Set(group.flatMap(({ evidence }) => evidence))],
-  }));
+  const issues = [...Map.groupBy(failed, seoIssueKey).values()].map(
+    (group) => ({
+      ...group[0],
+      // Only rows with an issue severity reach this list.
+      severity: group[0].severity as SeoIssueSeverity,
+      findingIds: group.map(({ id }) => id),
+      devices: [
+        ...new Set(group.flatMap(({ device }) => (device ? [device] : []))),
+      ],
+      evidence: [...new Set(group.flatMap(({ evidence }) => evidence))],
+    }),
+  );
   // Each device of one check can report the same measurement; one check shows it once.
   const diagnostics = [
     ...new Map(
@@ -93,8 +87,42 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
       ...action.findingIds.map((id) => findingRanks.get(id) ?? NON_ISSUE_RANK),
     );
   // Preserve strategic proposals without findings and all existing Task history.
+  const experiments = new Set(
+    (workspace.seasonalIdeas ?? [])
+      .filter((idea) => idea.contentPlan?.experiment && idea.actionId)
+      .map((idea) => idea.actionId),
+  );
+  const landing = workspace.landingPages;
+  const goalPages = new Set(
+    landing?.channel === "organic"
+      ? landing.rows
+          .filter(
+            (row) =>
+              row.sessions > 0 &&
+              row.keyEvents > 0 &&
+              new URL(row.pageUrl).hostname === landing.verifiedHost &&
+              !landing.skippedUrls?.includes(row.pageUrl),
+          )
+          .map((row) => row.pageUrl)
+      : [],
+  );
+  const hasMeasuredGoal = (action: Action) =>
+    action.status === "recommended" && goalPages.has(action.pageUrl);
+  const isExperiment = (action: Action) =>
+    Boolean(action.decision) || experiments.has(action.id);
+  const priority = (action: Action) => {
+    const severity = SEO_ISSUE_SEVERITY_NAMES[actionRank(action)];
+    if (severity === "critical") return 0;
+    if (severity === "major") return 1;
+    if (isExperiment(action) && action.status === "recommended") return 2;
+    if (severity === "minor") return 3;
+    if (action.kind === "fix") return 4;
+    return 5;
+  };
   const actions = workspace.actions.toSorted(
-    (left, right) => actionRank(left) - actionRank(right),
+    (left, right) =>
+      priority(left) - priority(right) ||
+      Number(hasMeasuredGoal(right)) - Number(hasMeasuredGoal(left)),
   );
   // The worst issue an action fixes; an action from search data alone has none.
   const actionSeverity = (action: Action) =>
@@ -139,9 +167,6 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
   const recommendedActions = actions.filter(
     (action) => action.status === "recommended",
   );
-  const recentChecks = workspace.analyses.filter(
-    (analysis) => analysis.status !== "completed",
-  );
   const hasCheckedEvidence = workspace.observations.some(
     (observation) => observation.coverage.checked > 0,
   );
@@ -165,10 +190,11 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
     diagnostics,
     actions,
     actionSeverity,
+    hasMeasuredGoal,
+    isExperiment,
     actionProblem,
     unplanned,
     recommendedActions,
-    recentChecks,
     hasFailedChecks,
     emptyState,
   };
@@ -191,6 +217,7 @@ export const SEO_ACTION_FILTERS = [
   "high",
   "low",
   "suggestions",
+  "reviews",
 ] as const;
 /** The message key of each filter's label: the impact groups use the words of the impact marks. */
 export const SEO_ACTION_FILTER_LABEL = {
@@ -198,6 +225,7 @@ export const SEO_ACTION_FILTER_LABEL = {
   high: "severity.major",
   low: "severity.minor",
   suggestions: "actions.filter.suggestions",
+  reviews: "actions.reviewAgain",
 } as const satisfies Record<(typeof SEO_ACTION_FILTERS)[number], string>;
 
 export type SeoActionFilter = (typeof SEO_ACTION_FILTERS)[number];
@@ -206,11 +234,20 @@ export type SeoActionFilter = (typeof SEO_ACTION_FILTERS)[number];
  * The worklist of the Actions tab: the count of each group, and the filters worth offering. A filter that
  * shows every row or none says nothing, so only the filters that split the list are offered.
  */
-export function seoActionWorklist<Action extends { kind: string }>(
-  actions: readonly Action[],
-  bucket: (action: Action) => SeoActionBucket,
-) {
-  const counts = { all: actions.length, high: 0, low: 0, suggestions: 0 };
+export function seoActionWorklist<
+  Action extends { kind: string; followUpReview?: unknown },
+>(actions: readonly Action[], bucket: (action: Action) => SeoActionBucket) {
+  const reviewRows = actions.filter((action) => action.followUpReview);
+  const ordered = reviewRows.length
+    ? [...reviewRows, ...actions.filter((action) => !action.followUpReview)]
+    : actions;
+  const counts = {
+    all: actions.length,
+    high: 0,
+    low: 0,
+    suggestions: 0,
+    reviews: reviewRows.length,
+  };
   for (const action of actions) counts[bucket(action)] += 1;
   const filters = SEO_ACTION_FILTERS.filter(
     (key) => key === "all" || (counts[key] > 0 && counts[key] < actions.length),
@@ -220,8 +257,10 @@ export function seoActionWorklist<Action extends { kind: string }>(
     filters,
     rows: (filter: SeoActionFilter) =>
       filter === "all"
-        ? actions
-        : actions.filter((action) => bucket(action) === filter),
+        ? ordered
+        : filter === "reviews"
+          ? reviewRows
+          : ordered.filter((action) => bucket(action) === filter),
   };
 }
 
@@ -310,11 +349,177 @@ type PageDetailRow = {
   evidence: readonly string[];
 };
 
+/** A row's lines without the provenance lines ("Source: …"), which fold once under page details. */
+export function pageDetailLines(evidence: readonly string[]) {
+  return evidence.filter((line) => !line.startsWith(SOURCE_LINE_PREFIX));
+}
+
 /** The check's guidance shown under a row's value: its later evidence lines, without provenance. */
 export function pageDetailGuidance(evidence: readonly string[]) {
   return evidence
     .slice(1)
     .filter((line) => !line.startsWith(SOURCE_LINE_PREFIX));
+}
+
+/**
+ * A line naming one flagged image, e.g. "camera file name: https://example.com/img_1631.jpg" (seo-bot O-21, O-18).
+ * Only these labels: other rows write "label: value" lines that are page facts, not lists.
+ */
+const ITEM_LINE = /^(camera file name|img without alt): (.+)$/;
+/** A link the check read and the site's answer, e.g. "https://example.com/a/ → 404" (seo-bot IL-04). */
+const LINK_STATUS_LINE = /^(https?:\/\/\S+) → (.+)$/;
+/** The message key of each item label, so the list's caption is in the reader's language. */
+export const ITEM_LABEL_KEYS = {
+  "camera file name": "cameraFileName",
+  "img without alt": "imgWithoutAlt",
+  "link status": "linkStatus",
+} as const;
+
+/** One flagged item: a file or link, and the site's answer when the check read one. */
+export type PageDetailItem = { value: string; status?: string };
+/** The bot's count of the items it left out after its first ten, e.g. "+2 more". */
+const MORE_LINE = /^\+(\d+) more$/;
+
+/**
+ * A row's later lines split into the items the check flagged, grouped by their label, and its guidance.
+ * Items belong to their page, so they show on every row; guidance shows once per rule.
+ */
+export function pageDetailItems(lines: readonly string[]) {
+  type Group = { values: PageDetailItem[]; more: number };
+  const groups = new Map<string, Group>();
+  const guidance: string[] = [];
+  let last: Group | undefined;
+  const add = (label: string, item: PageDetailItem) => {
+    last = groups.get(label) ?? { values: [], more: 0 };
+    last.values.push(item);
+    groups.set(label, last);
+  };
+  for (const line of lines) {
+    const item = ITEM_LINE.exec(line);
+    const link = LINK_STATUS_LINE.exec(line);
+    const more = MORE_LINE.exec(line);
+    if (item) add(item[1], { value: item[2] });
+    else if (link) add("link status", { value: link[1], status: link[2] });
+    else if (more && last) last.more += Number(more[1]);
+    else {
+      // A "+N more" after guidance is not the list's.
+      last = undefined;
+      guidance.push(line);
+    }
+  }
+  return {
+    groups: [...groups].map(([label, group]) => ({
+      label: ITEM_LABEL_KEYS[label as keyof typeof ITEM_LABEL_KEYS],
+      ...group,
+    })),
+    guidance,
+  };
+}
+
+function decoded(text: string) {
+  try {
+    return decodeURIComponent(text);
+  } catch {
+    return text;
+  }
+}
+
+/**
+ * An item as people scan it: a URL's file name, e.g. "img_1631-1.jpg", not its host and query.
+ * Null for an image written into the page (a data: URL), which has no name.
+ */
+export function pageDetailItemName(value: string) {
+  if (value.startsWith("data:")) return null;
+  const path = URL.canParse(value)
+    ? new URL(value).pathname
+    : value.split(/[?#]/)[0];
+  const last = path.split("/").filter(Boolean).pop();
+  return last ? decoded(last) : value;
+}
+
+/**
+ * A link as people scan it: its path on the page's own site ("/haefen/"), else its host and path.
+ * The bot already cut a long line ("…"), so the name keeps that mark.
+ */
+export function pageDetailLinkName(value: string, pageUrl: string) {
+  if (!URL.canParse(value)) return value;
+  const url = new URL(value);
+  const sameSite = URL.canParse(pageUrl) && new URL(pageUrl).host === url.host;
+  // The query stays: "/search?q=a" and "/search?q=b" are different links.
+  const path = `${url.pathname}${url.search}`;
+  return decoded(sameSite ? path : `${url.host}${path}`);
+}
+
+/**
+ * An item's link: only a web address, never another scheme such as javascript:.
+ * None for a value the bot cut at its line length ("…"): that address is not the file's.
+ */
+export function pageDetailItemHref(value: string) {
+  if (value.endsWith("…")) return undefined;
+  const url = URL.canParse(value) ? new URL(value) : null;
+  return url && (url.protocol === "https:" || url.protocol === "http:")
+    ? url.href
+    : undefined;
+}
+
+/** The share line of a multi-item note, e.g. "6 of 23 image file names": how many items failed of how many. */
+export function noteShare(line: string) {
+  const share = /^(\d+) of (\d+) /.exec(line);
+  return share ? { found: Number(share[1]), total: Number(share[2]) } : null;
+}
+
+/**
+ * The rule IDs (seo-bot rows) whose note gets its own plain words: a title and why it matters. The check's
+ * lines alone ("6 of 23 image file names", "meta keywords in head: …") do not say what is wrong.
+ */
+const PLAIN_NOTES = {
+  "O-21": "cameraFileNames",
+  "IL-04": "brokenLinks",
+  "IN-04": "xDefault",
+  "O-10": "metaKeywords",
+  "P-23": "twoWayFacts",
+  "SD-05": "retiredMarkup",
+  "SN-02": "titlePerDevice",
+  "EX-02": "noFieldData",
+  "RN-02": "rawRenderedDiff",
+  "AI-04": "googleExtended",
+  "AC-15": "canonicalTarget",
+  "SN-18": "siteName",
+  "O-13": "queryWords",
+  "MC-01": "shopping",
+  "C-09": "authorship",
+  "AC-19": "sitemap",
+  "IL-08": "moneyLinked",
+  "K-13": "twoForKeyword",
+  "O-15": "noH1",
+  "AC-22": "aiSearchBots",
+} as const;
+type PlainNoteKey = (typeof PLAIN_NOTES)[keyof typeof PLAIN_NOTES];
+/** Every plain-note message key, so a test can check each language has its words. */
+export const PLAIN_NOTE_KEYS: readonly PlainNoteKey[] =
+  Object.values(PLAIN_NOTES);
+/** Notes whose first line counts items ("6 of 23 …"): their heading says that count in words. */
+const SHARE_NOTES = ["cameraFileNames", "brokenLinks"] as const;
+type ShareNoteKey = (typeof SHARE_NOTES)[number];
+
+/**
+ * A note's plain words: with a share line, its count; else its title, with the check's lines in a fold.
+ * Null for a rule with no plain words yet: the row shows the check's own finding.
+ */
+export function plainNote(
+  rowId: string,
+  first: string | undefined,
+):
+  | { kind: "share"; key: ShareNoteKey; found: number; total: number }
+  | { kind: "title"; key: PlainNoteKey }
+  | null {
+  const key: PlainNoteKey | undefined =
+    PLAIN_NOTES[rowId as keyof typeof PLAIN_NOTES];
+  if (!key) return null;
+  const share = first === undefined ? null : noteShare(first);
+  return share && (SHARE_NOTES as readonly string[]).includes(key)
+    ? { kind: "share", key: key as ShareNoteKey, ...share }
+    : { kind: "title", key };
 }
 
 /**
@@ -326,7 +531,7 @@ export function pageDetailGuidanceRows(
 ) {
   const first = new Map<string, string>();
   for (const row of rows) {
-    const guidance = pageDetailGuidance(row.evidence);
+    const { guidance } = pageDetailItems(pageDetailGuidance(row.evidence));
     const key = [row.name, ...guidance].join("\n");
     if (guidance.length && !first.has(key)) first.set(key, row.id);
   }
@@ -459,4 +664,21 @@ export function measuresOutsideToolRanges(diagnostics: readonly Finding[]) {
       });
   }
   return [...found.values()];
+}
+
+/**
+ * The page-detail rows that ask something of the owner: every note, every measurement no tool range
+ * can judge, and every value some tool range leaves out. A value inside every range asks nothing.
+ * Core already drops an older row a newer check of the same page, rule, device and market replaced.
+ */
+export function actionablePageDetails(diagnostics: readonly Finding[]) {
+  return diagnostics.filter((finding) => {
+    const first = finding.evidence[0];
+    if (finding.severity !== "measure" || first === undefined) return true;
+    const fit = toolRangeFit(
+      measureValue(checkName(finding.title), first),
+      pageDetailGuidance(finding.evidence),
+    );
+    return fit === null || fit.outside.length > 0;
+  });
 }

@@ -92,8 +92,8 @@ export const organizationRepository = {
         },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: params.take,
-        skip: params.skip,
-        cursor: params.cursor ? { id: params.cursor } : undefined,
+        ...(params.skip !== undefined && { skip: params.skip }),
+        ...(params.cursor && { cursor: { id: params.cursor } }),
       }),
       tx.organization.count({ where }),
     ]);

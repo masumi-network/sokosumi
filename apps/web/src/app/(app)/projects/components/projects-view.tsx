@@ -16,6 +16,7 @@ import {
   type ProjectsListProject,
   type ProjectsListState,
 } from "@/app/projects/constants";
+import { PageSearchActions } from "@/components/page-search-actions";
 import { Button } from "@/components/ui/button";
 import { ButtonLoadingBar } from "@/components/ui/button-loading-bar";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,11 @@ export interface ProjectsViewLabels {
     description: string;
   };
   emptyHidden: {
+    title: string;
+    description: string;
+  };
+  /** The Open view when Hidden has projects too (Closed may). */
+  noOpen: {
     title: string;
     description: string;
   };
@@ -90,8 +96,8 @@ interface ProjectsViewProps {
   nextCursor: string | null;
   query: string;
   state: ProjectsListState;
-  /** Open view only: an empty Open list says so when Closed has projects. */
-  hasClosedProjects?: boolean;
+  /** Empty, unfiltered Open view only: the other views that hold projects. */
+  otherViews?: ProjectsListState[];
   /** Other views the filter matches when this one has none. */
   otherMatches?: ProjectsListState[];
   initialCreateProjectOpen: boolean;
@@ -132,7 +138,7 @@ export function ProjectsView({
   nextCursor,
   query,
   state,
-  hasClosedProjects = false,
+  otherViews = [],
   otherMatches = [],
   initialCreateProjectOpen,
   createProjectModalResetKey,
@@ -178,17 +184,25 @@ export function ProjectsView({
         ? labels.emptyClosed
         : state === "hidden"
           ? labels.emptyHidden
-          : hasClosedProjects
-            ? {
-                ...labels.onlyClosed,
-                actions: [
-                  {
-                    label: labels.onlyClosed.action,
-                    href: projectsHref("closed", ""),
-                  },
-                ],
-              }
-            : labels.empty;
+          : otherViews.length === 0
+            ? labels.empty
+            : otherViews.includes("hidden")
+              ? {
+                  ...labels.noOpen,
+                  actions: otherViews.map((other) => ({
+                    label: labels.showIn[other],
+                    href: projectsHref(other, ""),
+                  })),
+                }
+              : {
+                  ...labels.onlyClosed,
+                  actions: [
+                    {
+                      label: labels.onlyClosed.action,
+                      href: projectsHref("closed", ""),
+                    },
+                  ],
+                };
 
   function handleLoadMore() {
     if (!cursor || isPending) return;
@@ -216,19 +230,21 @@ export function ProjectsView({
           data-testid="projects-toolbar"
           className={PROJECTS_BROWSE_HEADER_ROW_CLASS}
         >
-          <ProjectsFilter
-            labels={labels.filter}
-            startTransition={startSwitch}
-          />
           <ProjectsStateToggle
             labels={labels.state}
             pending={isSwitching}
             startTransition={startSwitch}
           />
-          <AddProjectButton
-            label={labels.newProject}
-            className="hidden md:inline-flex"
-          />
+          <PageSearchActions>
+            <ProjectsFilter
+              labels={labels.filter}
+              startTransition={startSwitch}
+            />
+            <AddProjectButton
+              label={labels.newProject}
+              className="hidden md:inline-flex"
+            />
+          </PageSearchActions>
         </div>
         {/* The column comes first in source and on screen: stacked above the
             grid when narrow, on its leading side from xl. */}

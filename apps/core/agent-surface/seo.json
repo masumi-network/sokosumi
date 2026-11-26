@@ -1,0 +1,133 @@
+{
+  "operations": {
+    "GET /seo/audits": {
+      "cli": "seo list-audits",
+      "mcp": "seo_list_audits"
+    },
+    "POST /seo/audits": {
+      "cli": "seo create-audit",
+      "mcp": "seo_create_audit"
+    },
+    "GET /seo/audits/{id}/workspace": {
+      "cli": "seo audit-workspace",
+      "mcp": "seo_audit_workspace"
+    },
+    "PATCH /seo/audits/{id}": {
+      "cli": "seo audit-archive",
+      "mcp": "seo_audit_archive"
+    },
+    "GET /seo/audits/{id}/chat": {
+      "cli": "seo audit-chat",
+      "mcp": "seo_audit_chat"
+    },
+    "POST /seo/audits/{id}/chat": {
+      "cli": "seo audit-ask",
+      "mcp": "seo_audit_ask"
+    },
+    "GET /seo/audits/{id}": {
+      "cli": "seo audit-get",
+      "mcp": "seo_audit_get"
+    },
+    "POST /seo/audits/{id}/pages": {
+      "cli": "seo audit-add-page",
+      "mcp": "seo_audit_add_page"
+    },
+    "POST /seo/audits/{id}/scopes": {
+      "cli": "seo audit-create-scope",
+      "mcp": "seo_audit_create_scope"
+    },
+    "PUT /seo/audits/{id}/scopes/{scopeId}": {
+      "cli": "seo audit-update-scope",
+      "mcp": "seo_audit_update_scope"
+    },
+    "POST /seo/audits/{id}/imports": {
+      "cli": "seo audit-import-report",
+      "mcp": "seo_audit_import_report"
+    },
+    "POST /seo/audits/{id}/analyses": {
+      "cli": "seo audit-analyze",
+      "mcp": "seo_audit_analyze"
+    },
+    "POST /seo/audits/{id}/keywords": {
+      "cli": "seo audit-save-keyword",
+      "mcp": "seo_audit_save_keyword"
+    },
+    "POST /seo/audits/{id}/competitors": {
+      "cli": "seo audit-save-competitor",
+      "mcp": "seo_audit_save_competitor"
+    },
+    "POST /seo/audits/{id}/actions": {
+      "cli": "seo audit-create-task",
+      "mcp": "seo_audit_create_task"
+    },
+    "POST /seo/audits/{id}/monitors": {
+      "cli": "seo audit-create-monitor",
+      "mcp": "seo_audit_create_monitor"
+    },
+    "POST /seo/audits/{id}/actions/reviews": {
+      "cli": "seo audit-review-action",
+      "mcp": "seo_audit_review_action"
+    },
+    "GET /seo/audits/{id}/statistics/properties": {
+      "cli": "seo audit-properties",
+      "mcp": "seo_audit_properties"
+    },
+    "POST /seo/audits/{id}/statistics/sync": {
+      "cli": "seo audit-sync-statistics",
+      "mcp": "seo_audit_sync_statistics"
+    },
+    "POST /seo/audits/{id}/statistics/traffic": {
+      "cli": false,
+      "mcp": false,
+      "reason": "First-party app only (requireFirstPartyUserAuthContext): API keys and MCP tokens get 403."
+    },
+    "POST /seo/audits/{id}/page-changes": {
+      "cli": "seo audit-record-change",
+      "mcp": "seo_audit_record_change"
+    },
+    "PUT /seo/audits/{id}/brand-terms": {
+      "cli": "seo audit-set-brand-terms",
+      "mcp": "seo_audit_set_brand_terms"
+    },
+    "GET /seo/audits/{id}/brief": {
+      "cli": "seo audit-brief",
+      "mcp": "seo_audit_brief"
+    },
+    "PUT /seo/audits/{id}/brief": {
+      "cli": "seo audit-save-brief",
+      "mcp": "seo_audit_save_brief"
+    },
+    "GET /seo/audits/{id}/brief/suggestion": {
+      "cli": "seo audit-suggest-brief",
+      "mcp": "seo_audit_suggest_brief"
+    },
+    "GET /seo/audits/{id}/console-exports/{taskId}": {
+      "cli": "seo audit-console-exports",
+      "mcp": "seo_audit_console_exports"
+    },
+    "POST /seo/audits/{id}/console-exports/{taskId}": {
+      "cli": "seo audit-import-console-export",
+      "mcp": "seo_audit_import_console_export"
+    },
+    "GET /seo/connections/{provider}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "First-party app only (requireFirstPartyUserAuthContext): API keys and MCP tokens get 403."
+    },
+    "POST /seo/connections/{provider}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Connecting a Search Console account is the person's step in the browser (ADR 0077); the route answers the first-party app only."
+    },
+    "POST /seo/connections/{provider}/finalize": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Connecting a Search Console account is the person's step in the browser (ADR 0077); the route answers the first-party app only."
+    },
+    "DELETE /seo/connections/{provider}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "First-party app only (requireFirstPartyUserAuthContext): API keys and MCP tokens get 403."
+    }
+  }
+}

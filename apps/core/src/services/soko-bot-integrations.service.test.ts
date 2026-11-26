@@ -85,6 +85,7 @@ import {
 import {
   activeIntegrationsForBot,
   createInboxDraft,
+  fetchCalendarEvents,
   fetchInboxAttachment,
   fetchInboxMessage,
   fetchInboxMessages,
@@ -160,6 +161,141 @@ beforeEach(() => {
   mocks.getRawComposioTools.mockResolvedValue([]);
 });
 
+describe("ordinary calendar reads", () => {
+  it("uses the address for both invite roles when their names conflict", async () => {
+    const start = { dateTime: "2026-11-19T15:00:00Z" };
+    const email = "shared@studio.example";
+    const organizer = { email, displayName: "Mira" };
+    const otherName = { email, displayName: "Avery" };
+    const raw = [
+      { id: "organizer-conflict", start, organizer, attendees: [otherName] },
+      {
+        id: "duplicate-conflict",
+        start,
+        organizer,
+        attendees: [organizer, otherName],
+      },
+    ];
+    mocks.findMany.mockResolvedValue([
+      { ...existing, provider: "googlecalendar" },
+    ]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ successful: true, data: { items: raw } }),
+      }),
+    );
+    const [integration] = await activeIntegrationsForBot("bot", "calendar");
+    const events = await fetchCalendarEvents(integration, {
+      from: new Date("2026-11-19T00:00:00Z"),
+      to: new Date("2026-11-20T00:00:00Z"),
+      limit: 10,
+    });
+    expect(
+      events.map(({ organizer, attendees }) => ({ organizer, attendees })),
+    ).toEqual([
+      { organizer: email, attendees: [email] },
+      { organizer: email, attendees: [email] },
+    ]);
+  });
+
+  it.each([
+    {
+      provider: "googlecalendar",
+      organizer: { displayName: "Jules", email: "jules@studio.example" },
+      attendees: [
+        { displayName: "Alex", email: "alex@studio.example" },
+        { displayName: "Ren", email: "ren#office@studio.example" },
+        { email: "müller@studio.example" },
+        { email: "guest@studio.example" },
+        { email: "shared@studio.example", displayName: "Robin" },
+        { email: "shared@studio.example", displayName: "Lee" },
+      ],
+    },
+    {
+      provider: "outlook",
+      organizer: {
+        emailAddress: { name: "Jules", address: "jules@studio.example" },
+      },
+      attendees: [
+        { emailAddress: { name: "Alex", address: "alex@studio.example" } },
+        { emailAddress: { name: "Ren", address: "ren#office@studio.example" } },
+        { emailAddress: { address: "müller@studio.example" } },
+        { emailAddress: "guest@studio.example" },
+        { emailAddress: { address: "shared@studio.example", name: "Robin" } },
+        { emailAddress: { address: "shared@studio.example", name: "Lee" } },
+      ],
+    },
+  ])(
+    "returns explicit $provider invite names and uses the address for missing or conflicting names",
+    async ({ provider, organizer, attendees }) => {
+      mocks.findMany.mockResolvedValue([{ ...existing, provider }]);
+      const startsAt = "2026-11-19T15:00:00.000Z";
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            successful: true,
+            data: {
+              items: [
+                {
+                  id: "review",
+                  start: { dateTime: startsAt },
+                  organizer,
+                  attendees,
+                },
+                {
+                  id: "partial",
+                  start: { dateTime: startsAt },
+                  ...(provider === "googlecalendar"
+                    ? {
+                        attendeesOmitted: true,
+                        attendees: attendees.slice(0, 1),
+                      }
+                    : {
+                        attendees: Array.from({ length: 21 }, (_, index) => ({
+                          emailAddress: {
+                            address: `guest${index}@studio.example`,
+                          },
+                        })),
+                      }),
+                },
+              ],
+            },
+          }),
+        }),
+      );
+      const [integration] = await activeIntegrationsForBot("bot", "calendar");
+      const events = await fetchCalendarEvents(integration, {
+        from: new Date("2026-11-19T00:00:00Z"),
+        to: new Date("2026-11-20T00:00:00Z"),
+        limit: 10,
+      });
+
+      expect(events).toMatchObject([
+        {
+          id: "review",
+          organizer: "Jules <jules@studio.example>",
+          attendees: [
+            "Alex <alex@studio.example>",
+            "Ren <ren#office@studio.example>",
+            "müller@studio.example",
+            "guest@studio.example",
+            "shared@studio.example",
+          ],
+        },
+        { id: "partial", attendeesIncomplete: true },
+      ]);
+      expect(events[0]?.attendeesIncomplete).toBeFalsy();
+      expect(events[1]?.attendees).toHaveLength(
+        provider === "googlecalendar" ? 1 : 20,
+      );
+    },
+  );
+});
+
 describe("Soko Bot OAuth replacement", () => {
   it("starts OAuth despite an existing active account and preserves its selection until completion", async () => {
     await expect(connectSokoBotIntegration(input)).resolves.toEqual({
@@ -201,6 +337,39 @@ describe("Soko Bot OAuth replacement", () => {
     ).rejects.toThrow("changed");
     expect(mocks.get).not.toHaveBeenCalled();
     expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("finishes the first attempt Composio verified when a second click left another pending", async () => {
+    mocks.find.mockResolvedValue({
+      ...existing,
+      status: "PENDING",
+      pendingComposioAccountId: "second-click",
+    });
+    mocks.get.mockResolvedValue({
+      id: "selected",
+      status: "ACTIVE",
+      toolkit: { slug: "gmail" },
+      isDisabled: false,
+    });
+    await expect(
+      finalizeSokoBotIntegration({
+        ...input,
+        expectedComposioAccountId: "selected",
+      }),
+    ).resolves.toBe("ACTIVE");
+    expect(mocks.get).toHaveBeenCalledWith("selected");
+    const update = mocks.updateMany.mock.calls[0][0];
+    expect(update.where).toEqual({
+      id: "integration",
+      composioAccountId: "selected",
+      pendingComposioAccountId: "second-click",
+    });
+    expect(update.data).toMatchObject({
+      status: "ACTIVE",
+      pendingComposioAccountId: null,
+    });
+    expect(update.data).not.toHaveProperty("composioAccountId");
+    expect(mocks.remove).toHaveBeenCalledExactlyOnceWith("second-click");
   });
 
   it("switches only to the pending ID after verification and resets mailbox ingest state", async () => {
@@ -1352,12 +1521,23 @@ describe("ad toolkits stay off the Soko Bot", () => {
       { slug: "TIKTOK", name: "TikTok", ...managed },
       { slug: "GOOGLEADS", name: "Google Ads", ...managed },
       { slug: "metaads", name: "Meta Ads", ...managed },
+      {
+        slug: "webhooks",
+        name: "Webhooks",
+        meta: { description: "Works with GitHub" },
+        ...managed,
+      },
       { slug: "github", name: "GitHub", ...managed },
       // Needs the owner's own OAuth app or API key: no one-click connect.
       { slug: "selfhosted", name: "Self-hosted", authSchemes: ["API_KEY"] },
     ]);
     const entries = await searchSokoBotIntegrationCatalog("");
-    expect(entries.map((entry) => entry.provider)).toEqual(["github"]);
+    expect(entries.map((entry) => entry.provider)).toEqual([
+      "webhooks",
+      "github",
+    ]);
+    const matched = await searchSokoBotIntegrationCatalog("github", 1);
+    expect(matched.map((entry) => entry.provider)).toEqual(["github"]);
   });
 
   it("refuses to list an ad toolkit's tools", async () => {

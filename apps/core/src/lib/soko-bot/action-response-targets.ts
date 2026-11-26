@@ -1,6 +1,31 @@
 import type { Prisma } from "@sokosumi/database";
-import { SOKO_BOT_SEO_WRITE_CAPABILITIES } from "@sokosumi/soko-bot";
+import {
+  ACTION_LABELS,
+  SOKO_BOT_SEO_WRITE_CAPABILITIES,
+} from "@sokosumi/soko-bot";
 import { z } from "zod";
+
+/** A comment that also changed the status says which change it was. */
+export function actionLabel(call: {
+  capability: string;
+  result?: unknown;
+}): string {
+  const reply = z
+    .object({ statusChanged: z.literal(true), status: z.string() })
+    .safeParse(call.result);
+  if (call.capability === "reply_to_task" && reply.success)
+    return reply.data.status === "CANCELED"
+      ? "Canceled task"
+      : reply.data.status === "COMPLETED"
+        ? "Completed task"
+        : "Resumed task";
+  if (
+    call.capability === "upload_file" &&
+    z.object({ replaced: z.literal(true) }).safeParse(call.result).success
+  )
+    return "Updated file";
+  return ACTION_LABELS[call.capability] ?? call.capability;
+}
 
 const NEWSLETTER_ISSUE_CAPABILITIES = new Set([
   "create_newsletter_issue",

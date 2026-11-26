@@ -1,3 +1,6 @@
+import { execFileSync } from "node:child_process";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import type { CoreHttpClient } from "../../api/http-client.js";
 import {
   type CommandContext,
@@ -15,6 +18,7 @@ import {
  *   sokosumi evals run --suite cmo --repeats 1 --wait
  *   sokosumi evals run --cases ambiguous-request,chat-post --wait --tick
  *   sokosumi evals show RUN_ID --markdown
+ *   sokosumi evals show RUN_ID --summary-md --slug cmo-v8
  */
 interface EvalsCommandContext extends CommandContext {
   subcommand?: string;
@@ -46,6 +50,7 @@ interface EvalRun {
   suites: string[];
   repeats: number;
   commitSha: string | null;
+  commitMessage?: string | null;
   prNumber: number | null;
   environment: string;
   models: Record<string, string | null>;
@@ -60,12 +65,19 @@ interface EvalCaseReport {
   states: string[];
   passRate: number | null;
   baselinePassRate: number | null;
+  costUsd: number | null;
+  usualCostUsd: number | null;
+  costlier: boolean;
+  durationMs: number | null;
+  usualDurationMs: number | null;
+  slower: boolean;
   results: {
     repeat: number;
     status: string;
     error: string | null;
     checks: { label: string; pass: boolean; actual: string }[];
-    judge: { verdict?: string; issues?: string[] } | null;
+    judge: { verdict?: string; rationale?: string; issues?: string[] } | null;
+    judgeModel?: string | null;
   }[];
 }
 
@@ -74,6 +86,10 @@ interface EvalRunReport {
   baseline: { id: string; createdAt: string; prNumber: number | null } | null;
   summary: {
     counts: Record<string, number>;
+    costlier: number;
+    slower: number;
+    /** Every case counts once, whatever its repeats. */
+    passRate: number | null;
     passed: number;
     scored: number;
     open: number;
@@ -116,6 +132,30 @@ function needsALook(evalCase: EvalCaseReport): boolean {
   return !["passing", "pending", "skipped"].includes(evalCase.outcome);
 }
 
+function money(usd: number | null): string {
+  return usd === null ? "–" : `$${usd.toFixed(2)}`;
+}
+
+function minutes(ms: number | null): string {
+  return ms === null ? "–" : `${(ms / 60_000).toFixed(1)} min`;
+}
+
+/** Cases that cost or took more than 1.3 times their usual weekly run. */
+function usageLines(report: EvalRunReport): string[] {
+  return report.cases.flatMap((evalCase) => [
+    ...(evalCase.costlier
+      ? [
+          `- Costlier \`${evalCase.caseId}\`: ${money(evalCase.costUsd)}, usually ${money(evalCase.usualCostUsd)}`,
+        ]
+      : []),
+    ...(evalCase.slower
+      ? [
+          `- Slower \`${evalCase.caseId}\`: ${minutes(evalCase.durationMs)}, usually ${minutes(evalCase.usualDurationMs)}`,
+        ]
+      : []),
+  ]);
+}
+
 function sorted(cases: EvalCaseReport[]): EvalCaseReport[] {
   return [...cases].sort(
     (a, b) =>
@@ -131,10 +171,9 @@ function counts(report: EvalRunReport): string {
 
 function formatReportText(report: EvalRunReport): string[] {
   const { run, summary } = report;
-  const rate = summary.scored ? summary.passed / summary.scored : null;
   return [
     `Eval run ${run.id} · ${run.trigger.toLowerCase()} · ${run.environment} · ${runRef(run)} · ${run.status.toLowerCase()}`,
-    `${percent(rate)} passed (${summary.passed} of ${summary.scored})${summary.open ? `, ${summary.open} to go` : ""} · $${summary.costUsd.toFixed(2)}`,
+    `${percent(summary.passRate)} passed (${summary.passed} of ${summary.scored} repeats)${summary.open ? `, ${summary.open} to go` : ""} · $${summary.costUsd.toFixed(2)}`,
     report.baseline
       ? `Compared with the weekly run of ${report.baseline.createdAt} (${runRef({ prNumber: report.baseline.prNumber, commitSha: null })})`
       : "No weekly run before this one to compare with.",
@@ -145,6 +184,7 @@ function formatReportText(report: EvalRunReport): string[] {
         (evalCase) =>
           `${evalCase.outcome.toUpperCase().padEnd(9)} ${evalCase.caseId} ${percent(evalCase.passRate)} (was ${percent(evalCase.baselinePassRate)})  ${caseReason(evalCase)}`,
       ),
+    ...usageLines(report).map((line) => line.slice(2)),
   ];
 }
 
@@ -181,8 +221,166 @@ function formatReportMarkdown(report: EvalRunReport): string[] {
           `- ${evalCase.outcome === "regressed" ? "▼" : "▲"} \`${evalCase.caseId}\` ${percent(evalCase.baselinePassRate)} → ${percent(evalCase.passRate)}${evalCase.outcome === "regressed" ? `: ${caseReason(evalCase)}` : ""}`,
       ),
     );
-  lines.push("", `Cost $${summary.costUsd.toFixed(2)} · run \`${run.id}\``);
+  const usage = usageLines(report);
+  if (usage.length) lines.push("", ...usage);
+  lines.push(
+    "",
+    `Cost $${summary.costUsd.toFixed(2)} · ${summary.costlier} costlier, ${summary.slower} slower than usual · run \`${run.id}\``,
+  );
   return lines;
+}
+
+function bots(models: EvalRun["models"]): string {
+  const bot = (name: string, version?: string | null, model?: string | null) =>
+    version ? `${name} ${version}${model ? ` (${model})` : ""}` : null;
+  return (
+    [
+      bot("Soko Bot", models.sokoBotVersionId, models.sokoBotModel),
+      bot("Cuso", models.cusoVersionId, models.cusoModel),
+    ]
+      .filter(Boolean)
+      .join(", ") || "not recorded"
+  );
+}
+
+function failedCaseLines(evalCase: EvalCaseReport): string[] {
+  const checks = new Set(
+    evalCase.results.flatMap((result) =>
+      result.checks
+        .filter((check) => !check.pass)
+        .map((check) => `${check.label}: ${check.actual}`),
+    ),
+  );
+  const judges = new Set(
+    evalCase.results.flatMap((result) =>
+      result.judge?.verdict && result.judge.verdict !== "pass"
+        ? [
+            `${result.judge.verdict}, ${result.judge.rationale ?? result.judge.issues?.[0] ?? ""}`,
+          ]
+        : [],
+    ),
+  );
+  const errors = new Set(
+    evalCase.results.flatMap((result) => (result.error ? [result.error] : [])),
+  );
+  return [
+    `### \`${evalCase.caseId}\`: ${evalCase.title}`,
+    "",
+    ...[...checks].map((check) => `- Failed check: ${check}`),
+    ...[...judges].map((judge) => `- Judge: ${judge}`),
+    ...[...errors].map((error) => `- Error: ${error}`),
+    "",
+  ];
+}
+
+/** The run as a file for docs/evals/runs; the agent fills in the last sections. */
+function formatSummaryMarkdown(report: EvalRunReport, slug: string): string[] {
+  const { run } = report;
+  const judges = [
+    ...new Set(
+      report.cases.flatMap((evalCase) =>
+        evalCase.results.flatMap((result) =>
+          result.judgeModel ? [result.judgeModel] : [],
+        ),
+      ),
+    ),
+  ];
+  const changed = sorted(report.cases).filter(
+    (evalCase) => evalCase.passRate !== evalCase.baselinePassRate,
+  );
+  const failed = sorted(report.cases).filter((evalCase) =>
+    evalCase.states.some((state) => state === "FAILED" || state === "ERROR"),
+  );
+  const commit = run.commitSha
+    ? `\`${run.commitSha.slice(0, 7)}\`${run.commitMessage ? ` ${run.commitMessage}` : ""}`
+    : "not recorded";
+  return [
+    `# Eval run: ${slug}`,
+    "",
+    `- Date: ${run.createdAt.slice(0, 10)}`,
+    `- Run: \`${run.id}\` (${run.trigger.toLowerCase()}, ${run.status.toLowerCase()})`,
+    `- Environment: ${run.environment}`,
+    `- Commit: ${commit}${run.prNumber ? `, PR #${run.prNumber}` : ""}`,
+    `- Bots: ${bots(run.models)}`,
+    `- Judge: ${judges.join(", ") || "none recorded"}`,
+    `- Repeats: ${run.repeats}`,
+    `- Cost: $${report.summary.costUsd.toFixed(2)}`,
+    "",
+    "## Results",
+    "",
+    ...formatReportMarkdown(report),
+    "",
+    "## Before and after",
+    "",
+    ...(report.baseline
+      ? [
+          `Baseline: weekly run ${report.baseline.id} of ${report.baseline.createdAt.slice(0, 10)} (${runRef({ prNumber: report.baseline.prNumber, commitSha: null })}).`,
+          "",
+          ...(changed.length
+            ? [
+                "| Case | Before | After | Outcome |",
+                "| --- | --- | --- | --- |",
+                ...changed.map(
+                  (evalCase) =>
+                    `| \`${evalCase.caseId}\` | ${percent(evalCase.baselinePassRate)} | ${percent(evalCase.passRate)} | ${evalCase.outcome} |`,
+                ),
+              ]
+            : ["Every case passed as often as in the baseline."]),
+        ]
+      : ["No baseline: no weekly run before this one on this environment."]),
+    "",
+    "## Failed cases",
+    "",
+    ...(failed.length ? failed.flatMap(failedCaseLines) : ["None.", ""]),
+    "## Why the failures happened",
+    "",
+    "_To fill in: the cause of each failure, or why it does not matter._",
+    "",
+    "## Verdict",
+    "",
+    "_To fill in: ship or don't ship, because …_",
+    "",
+    "## Links",
+    "",
+    "_Sheets, screenshots, the PR._",
+  ];
+}
+
+function currentBranch(): string | null {
+  try {
+    return (
+      execFileSync("git", ["branch", "--show-current"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim() || null
+    );
+  } catch {
+    return null;
+  }
+}
+
+function summarySlug(report: EvalRunReport, options?: CommandOptions): string {
+  const slug =
+    optionString(options, "slug") ??
+    (report.run.prNumber ? `pr-${report.run.prNumber}` : currentBranch()) ??
+    report.run.id.slice(0, 8);
+  return slug
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+async function writeSummary(
+  context: EvalsCommandContext,
+  report: EvalRunReport,
+) {
+  const slug = summarySlug(report, context.options);
+  const path =
+    optionString(context.options, "out") ??
+    join("docs/evals/runs", `${report.run.createdAt.slice(0, 10)}-${slug}.md`);
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, `${formatSummaryMarkdown(report, slug).join("\n")}\n`);
+  writeText(context.stdout, [`Wrote ${path}`]);
 }
 
 function validate(context: EvalsCommandContext) {
@@ -194,7 +392,9 @@ function validate(context: EvalsCommandContext) {
       "Usage: sokosumi evals run|show|list|cases [options]. See sokosumi --help.",
     );
   if (subcommand === "show" && !context.positionalId)
-    throw new Error("Usage: sokosumi evals show RUN_ID [--markdown]");
+    throw new Error(
+      "Usage: sokosumi evals show RUN_ID [--markdown | --summary-md [--slug S] [--out PATH]]",
+    );
   if (subcommand !== "show" && context.positionalId)
     throw new Error(`Unexpected argument: ${context.positionalId}`);
   return subcommand;
@@ -258,8 +458,13 @@ async function waitForRun(
   }
 }
 
-function writeReport(context: EvalsCommandContext, report: EvalRunReport) {
-  if (context.json) writeJson(context.stdout, report);
+async function writeReport(
+  context: EvalsCommandContext,
+  report: EvalRunReport,
+) {
+  if (option(context.options, "summary-md") === true)
+    await writeSummary(context, report);
+  else if (context.json) writeJson(context.stdout, report);
   else if (option(context.options, "markdown") === true)
     writeText(context.stdout, formatReportMarkdown(report));
   else writeText(context.stdout, formatReportText(report));
@@ -332,7 +537,7 @@ export async function runEvalsCommand(
         context.signal,
       ),
     );
-    writeReport(context, report);
+    await writeReport(context, report);
     return;
   }
   const run = data<EvalRun>(
@@ -352,5 +557,5 @@ export async function runEvalsCommand(
     return;
   }
   if (!json) writeText(stdout, [`Started eval run ${run.id}. Waiting for it…`]);
-  writeReport(context, await waitForRun(client, run.id, context));
+  await writeReport(context, await waitForRun(client, run.id, context));
 }

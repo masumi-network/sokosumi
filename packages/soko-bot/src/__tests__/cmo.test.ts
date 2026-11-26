@@ -15,22 +15,49 @@ import {
   SOKO_BOT_CMO_SCHEDULES,
 } from "../cmo.js";
 import {
+  isSokoBotCmoReadCapability,
   SOKO_BOT_CMO_CAPABILITIES,
+  SOKO_BOT_CMO_READ_CAPABILITIES,
   SOKO_BOT_COMPETITOR_CAPABILITIES,
 } from "../policy.js";
 import {
   cmoCalendarEntrySchema,
   marketingStrategyPlanSchema,
+  socialPostPlanningSchema,
 } from "../project-marketing.js";
 import { CMO_SCENARIOS, evaluateScenario } from "../scenarios.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
-import { CMO_SKILLS } from "../versions/cmo-skills.js";
+import {
+  CMO_BATCHED_PRODUCTION_SKILL,
+  CMO_PICKED_PIECE_WRITING_GUIDE,
+  CMO_PIECE_WRITING_GUIDE,
+  CMO_SCENE_PIECE_WRITING_GUIDE,
+  CMO_SKILLS,
+  CMO_VARIED_PIECE_WRITING_GUIDE,
+  cmoWritesMonthAtOnce,
+} from "../versions/cmo-skills.js";
+import { cmoV6 } from "../versions/cmo-v6.js";
+import { cmoV7 } from "../versions/cmo-v7.js";
+import {
+  CMO_CLAIMS_STRATEGY_SKILL,
+  CMO_VARIED_PRODUCTION_SKILL,
+} from "../versions/cmo-v8-skills.js";
+import { CMO_SCENE_PRODUCTION_SKILL } from "../versions/cmo-v9-skills.js";
+import { CMO_PICKED_PRODUCTION_SKILL } from "../versions/cmo-v11-skills.js";
+import {
+  CMO_SEO_REPORTS_SKILL,
+  cmoReportsSeo,
+} from "../versions/cmo-v12-skills.js";
+import { CMO_PART_PATCH_STRATEGY_SKILL } from "../versions/cmo-v13-skills.js";
+import { CMO_CHANNEL_FIT_STRATEGY_SKILL } from "../versions/cmo-v14-skills.js";
+import { CMO_PLAIN_WORDS_STRATEGY_SKILL } from "../versions/cmo-v15-skills.js";
 import {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,
   composeSystemPrompt,
   DEFAULT_SOKO_BOT_VERSION_ID,
+  getSokoBotSkill,
   getSokoBotVersion,
   SOKO_BOT_VERSIONS,
 } from "../versions/index.js";
@@ -111,8 +138,300 @@ describe("CMO version", () => {
     );
   });
 
+  it("gives Core's month writer only to a Cuso whose production skill calls it", () => {
+    expect(
+      applyVersionCapabilities(getSokoBotVersion("cmo-v6"), ["read_memory"]),
+    ).toContain("write_month_pieces");
+    for (const id of ["cmo-v5", "cmo-v1", DEFAULT_SOKO_BOT_VERSION_ID])
+      expect(
+        applyVersionCapabilities(getSokoBotVersion(id), [
+          "read_memory",
+          "write_month_pieces",
+        ]),
+      ).not.toContain("write_month_pieces");
+  });
+
+  it("keeps cmo-v5's month and has cmo-v6 call the writer first, on the same writing rules", () => {
+    const skillOf = (id: string) =>
+      getSokoBotVersion(id).skills.find((skill) =>
+        skill.startsWith("cmo-production"),
+      );
+    expect(skillOf("cmo-v5")).toBe("cmo-production");
+    expect(skillOf("cmo-v6")).toBe(CMO_BATCHED_PRODUCTION_SKILL);
+    const batched = getSokoBotSkill(CMO_BATCHED_PRODUCTION_SKILL).content;
+    expect(batched).toContain("## Core writes first");
+    expect(batched).toContain("write_month_pieces");
+    const sections = (content: string) =>
+      content.split("\n## ").map((section) => section.split("\n")[0]);
+    // The same sections in the same order, one more first, and an end that
+    // leaves Core's pieces to Jev's review.
+    expect(sections(batched)).toEqual(
+      sections(getSokoBotSkill("cmo-production").content).flatMap((name) =>
+        name === "Before the first piece"
+          ? ["Core writes first", name]
+          : [name],
+      ),
+    );
+    expect(batched).toContain("do not read them back or rewrite them");
+    expect(getSokoBotSkill("cmo-production").content).not.toContain(
+      "do not read them back",
+    );
+    // The writer works from the same copy rules, without the tool steps.
+    expect(CMO_PIECE_WRITING_GUIDE).toContain("## Hooks and copy");
+    expect(CMO_PIECE_WRITING_GUIDE).not.toMatch(
+      /list_project_social_accounts|update_social_post|save_strategy/,
+    );
+  });
+
+  // Owner, 2026-11-23: this week's changes in one version, the live test a rehire.
+  it("makes cmo-v20 the version a new hire gets", () => {
+    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v23");
+  });
+
+  it("has cmo-v8 build on cmo-v7 with claims, varied pictures and LinkedIn openings", () => {
+    const v7 = getSokoBotVersion("cmo-v7");
+    const v8 = getSokoBotVersion("cmo-v8");
+    expect(v8.systemPrompt).toBe(v7.systemPrompt);
+    expect(v8.skills).toEqual(
+      v7.skills.map((skill) =>
+        skill === "cmo-strategy-every-network"
+          ? CMO_CLAIMS_STRATEGY_SKILL
+          : skill === CMO_BATCHED_PRODUCTION_SKILL
+            ? CMO_VARIED_PRODUCTION_SKILL
+            : skill,
+      ),
+    );
+    // Core still writes the month at once.
+    expect(
+      applyVersionCapabilities(v8, ["read_memory", "write_month_pieces"]),
+    ).toContain("write_month_pieces");
+
+    const strategy = getSokoBotSkill(CMO_CLAIMS_STRATEGY_SKILL).content;
+    expect(strategy).toContain(
+      "also has claim: the one sentence the piece argues",
+    );
+    expect(strategy).toContain(
+      "A correction (an owner's no, a Brand Brain fix",
+    );
+    expect(strategy.length).toBeGreaterThan(
+      getSokoBotSkill("cmo-strategy-every-network").content.length,
+    );
+
+    const production = getSokoBotSkill(CMO_VARIED_PRODUCTION_SKILL).content;
+    expect(production).not.toContain("infographics for data and how-to");
+    expect(production).toContain(
+      "An infographic only for a picture that shows numbers",
+    );
+    expect(production).toContain("A LinkedIn post opens with a result");
+    expect(production).toContain("## Core writes first");
+
+    expect(CMO_VARIED_PIECE_WRITING_GUIDE).toContain(
+      "- purpose, with styleLook",
+    );
+    expect(CMO_VARIED_PIECE_WRITING_GUIDE).toContain(
+      "argues its entry's claim",
+    );
+    expect(CMO_PIECE_WRITING_GUIDE).not.toContain("purpose, with styleLook");
+  });
+
+  // Owner, 2026-11-21: styled pictures that look like the print, as the
+  // 16 Nov reference test made them.
+  it("has cmo-v9 build on cmo-v8 with scene-only visuals for styled pictures", () => {
+    const v8 = getSokoBotVersion("cmo-v8");
+    const v9 = getSokoBotVersion("cmo-v9");
+    expect(v9.systemPrompt).toBe(v8.systemPrompt);
+    expect(v9.skills).toEqual(
+      v8.skills.map((skill) =>
+        skill === CMO_VARIED_PRODUCTION_SKILL
+          ? CMO_SCENE_PRODUCTION_SKILL
+          : skill,
+      ),
+    );
+    expect(cmoWritesMonthAtOnce(v9.skills)).toBe(true);
+
+    const production = getSokoBotSkill(CMO_SCENE_PRODUCTION_SKILL).content;
+    expect(production).toContain(
+      "A styled picture's visual is one concrete scene",
+    );
+    expect(production).toContain('no "no …" or "avoid …" list');
+    expect(production).not.toContain(
+      "the style (a photo, a flat graphic, a screen close-up), the framing",
+    );
+    // cmo-v8's rules stay.
+    expect(production).toContain(
+      "An infographic only for a picture that shows numbers",
+    );
+    expect(production).toContain("A LinkedIn post opens with a result");
+
+    expect(CMO_SCENE_PIECE_WRITING_GUIDE).toContain(
+      "A styled picture's visual is one concrete scene",
+    );
+    expect(CMO_SCENE_PIECE_WRITING_GUIDE).toContain(
+      "- purpose, with styleLook",
+    );
+    expect(CMO_VARIED_PIECE_WRITING_GUIDE).not.toContain("one concrete scene");
+  });
+
+  it("has cmo-v10 run cmo-v9 word for word with a stronger model for hard work", () => {
+    const v9 = getSokoBotVersion("cmo-v9");
+    const v10 = getSokoBotVersion("cmo-v10");
+    expect(v10.profile).toBe("cmo");
+    expect(v10.model).toBe(v9.model);
+    expect(v10.systemPrompt).toBe(v9.systemPrompt);
+    expect(v10.skills).toEqual(v9.skills);
+    expect(v10.strongModel).toBe("openai/gpt-6.2-sol");
+    expect(v9.strongModel).toBeUndefined();
+  });
+
+  // Owner, 2026-11-21: "take the layout and adapt the style"; Core picks the
+  // best of five alternatives.
+  it("has cmo-v11 build on cmo-v10 with layout-only pictures in a varied kind", () => {
+    const v10 = getSokoBotVersion("cmo-v10");
+    const v11 = getSokoBotVersion("cmo-v11");
+    expect(v11.systemPrompt).toBe(v10.systemPrompt);
+    // cmo-v10's stronger model for hard work carries over.
+    expect(v11.strongModel).toBe(v10.strongModel);
+    expect(v11.strongModel).toBeTruthy();
+    expect(v11.skills).toEqual(
+      v10.skills.map((skill) =>
+        skill === CMO_SCENE_PRODUCTION_SKILL
+          ? CMO_PICKED_PRODUCTION_SKILL
+          : skill,
+      ),
+    );
+    expect(cmoWritesMonthAtOnce(v11.skills)).toBe(true);
+    const production = getSokoBotSkill(CMO_PICKED_PRODUCTION_SKILL).content;
+    expect(production).toContain("borrows the layout of an old print");
+    expect(production).toContain("pictureKind");
+    expect(production).toContain("Core makes five alternatives");
+    expect(production).not.toContain("takes the look of an old print");
+    // cmo-v9's scene rule stays.
+    expect(production).toContain(
+      "A styled picture's visual is one concrete scene",
+    );
+    expect(CMO_PICKED_PIECE_WRITING_GUIDE).toContain(
+      "- pictureKind, with styleLook",
+    );
+    expect(CMO_PICKED_PIECE_WRITING_GUIDE).not.toContain("Isotype pictograms");
+    expect(
+      cmoCalendarEntrySchema.parse({
+        id: "e1",
+        date: "2026-11-21",
+        channel: "x",
+        title: "t",
+        format: "image",
+        status: "idea",
+        pictureKind: "bold graphic",
+      }).pictureKind,
+    ).toBe("bold graphic");
+    // Not the hire default until the owner has seen the month sheet.
+    expect(CMO_SOKO_BOT_VERSION_ID).not.toBe("cmo-v11");
+  });
+
+  // Owner, 2026-11-21: one Cuso with routing, picked pictures, SEO reports
+  // and part patches.
+  it("has cmo-v13 carry cmo-v11's pictures and model, cmo-v12's SEO and part patches", () => {
+    const v11 = getSokoBotVersion("cmo-v11");
+    const v13 = getSokoBotVersion("cmo-v13");
+    expect(v13.systemPrompt).toBe(v11.systemPrompt);
+    expect(v13.strongModel).toBe("openai/gpt-6.2-sol");
+    expect(v13.skills).toEqual(
+      v11.skills.map((skill) =>
+        skill === "cmo-seo"
+          ? CMO_SEO_REPORTS_SKILL
+          : skill === CMO_CLAIMS_STRATEGY_SKILL
+            ? CMO_PART_PATCH_STRATEGY_SKILL
+            : skill,
+      ),
+    );
+    expect(v13.skills).toContain(CMO_PICKED_PRODUCTION_SKILL);
+    expect(cmoReportsSeo(v13.skills)).toBe(true);
+    expect(cmoWritesMonthAtOnce(v13.skills)).toBe(true);
+    const strategy = getSokoBotSkill(CMO_PART_PATCH_STRATEGY_SKILL).content;
+    expect(strategy).toContain("never the whole calendar");
+    expect(strategy).toContain("claim:");
+  });
+
+  // Owner, 2026-11-21, on NMKR's month: too few on X, too many on LinkedIn,
+  // not enough pictures, TikToks or Reels, and the platforms' own names.
+  it("has cmo-v14 be cmo-v13 with each network at its own rate", () => {
+    const v13 = getSokoBotVersion("cmo-v13");
+    const v14 = getSokoBotVersion("cmo-v14");
+    expect(v14.systemPrompt).toBe(v13.systemPrompt);
+    expect(v14.strongModel).toBe(v13.strongModel);
+    expect(v14.skills).toEqual(
+      v13.skills.map((skill) =>
+        skill === CMO_PART_PATCH_STRATEGY_SKILL
+          ? CMO_CHANNEL_FIT_STRATEGY_SKILL
+          : skill,
+      ),
+    );
+    const strategy = getSokoBotSkill(CMO_CHANNEL_FIT_STRATEGY_SKILL).content;
+    expect(strategy).toContain("six a day on X");
+    expect(strategy).toContain("one a day on LinkedIn, never more");
+    expect(strategy).toContain("seven short videos a day");
+    expect(strategy).toContain("Never a buyer's inner thought");
+    expect(strategy).toContain("never the whole calendar");
+    expect(strategy).toContain(
+      "Leave a network out only when the owner asked you to",
+    );
+    expect(strategy).not.toContain("three a day on X");
+    expect(strategy).not.toContain("plan at most four a month, only where");
+  });
+
+  // Owner, 2026-11-22, on NMKR's cmo-v14 strategy: "crystal clear and
+  // understandable for non-marketing people. EASY."
+  it("has cmo-v15 be cmo-v14 in plain words, in the strategy and the chat", () => {
+    const v14 = getSokoBotVersion("cmo-v14");
+    const v15 = getSokoBotVersion("cmo-v15");
+    expect(v15.strongModel).toBe(v14.strongModel);
+    expect(v15.skills).toEqual(
+      v14.skills.map((skill) =>
+        skill === CMO_CHANNEL_FIT_STRATEGY_SKILL
+          ? CMO_PLAIN_WORDS_STRATEGY_SKILL
+          : skill,
+      ),
+    );
+    expect(v15.systemPrompt.startsWith(v14.systemPrompt.slice(0, 200))).toBe(
+      true,
+    );
+    expect(v15.systemPrompt).toContain(
+      '"impressions" → how many people saw it',
+    );
+    expect(v15.systemPrompt).toContain(
+      "never ask them to send you the calendar",
+    );
+    const strategy = getSokoBotSkill(CMO_PLAIN_WORDS_STRATEGY_SKILL).content;
+    expect(strategy).toContain(
+      getSokoBotSkill(CMO_CHANNEL_FIT_STRATEGY_SKILL).content,
+    );
+    expect(strategy).toContain("# Words for an owner who is not a marketer");
+    expect(strategy).toContain(
+      '"funnel" → the steps from first hearing of you to buying',
+    );
+  });
+
+  it("keeps a piece's claim on its plan entry and its Social post", () => {
+    const entry = {
+      id: "e1",
+      date: "2026-11-21",
+      channel: "x",
+      title: "Mint without code",
+      format: "post",
+      status: "idea",
+      claim: "Minting takes no code",
+    };
+    expect(cmoCalendarEntrySchema.parse(entry).claim).toBe(
+      "Minting takes no code",
+    );
+    expect(socialPostPlanningSchema.parse(entry).claim).toBe(
+      "Minting takes no code",
+    );
+  });
+
   it("gives CMO tools to Cuso on every route and to nobody else", () => {
-    const cmo = getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID);
+    // A version before the organized context, whose packet holds the reads.
+    const cmo = getSokoBotVersion("cmo-v22");
     const assistant = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
     // Cuso also always carries the competitor tools, routed or not, once.
     for (const routed of [
@@ -121,9 +440,19 @@ describe("CMO version", () => {
     ])
       expect(applyVersionCapabilities(cmo, routed)).toEqual([
         "read_memory",
-        ...SOKO_BOT_CMO_CAPABILITIES,
+        ...SOKO_BOT_CMO_CAPABILITIES.filter(
+          (capability) =>
+            !isSokoBotCmoReadCapability(capability) &&
+            capability !== "write_strategy",
+        ),
         ...SOKO_BOT_COMPETITOR_CAPABILITIES,
       ]);
+    // Only a version with an organized context reads the rest on demand.
+    expect(
+      applyVersionCapabilities(getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID), [
+        "read_memory",
+      ]),
+    ).toEqual(expect.arrayContaining([...SOKO_BOT_CMO_READ_CAPABILITIES]));
     // Another bot gets them only from its route; Core then asks whether a
     // Project it works in has the weekly check on.
     expect(
@@ -608,6 +937,46 @@ describe("CMO scenarios", () => {
   });
 });
 
+describe("a strategy change with more work", () => {
+  const scenario = CMO_SCENARIOS.find(
+    (entry) => entry.id === "cmo-change-then-drafts",
+  );
+  const turn = (drafts: number) => ({
+    status: "COMPLETED",
+    route: "MANAGE_WORK",
+    finalAnswer: "LinkedIn is weekly now, and three X drafts wait for you.",
+    toolCalls: [
+      { capability: "write_strategy", status: "COMPLETED", result: {} },
+      { capability: "save_strategy", status: "COMPLETED", result: {} },
+      ...Array.from({ length: drafts }, () => ({
+        capability: "create_social_post",
+        status: "COMPLETED",
+        result: {},
+      })),
+    ],
+    events: [],
+    delegations: [],
+    decisions: [],
+  });
+
+  it("fails a turn that ends after the strategy change", () => {
+    if (!scenario) throw new Error("missing scenario");
+    const failed = evaluateScenario(scenario, turn(0)).checks.filter(
+      (check) => !check.pass,
+    );
+    expect(failed.map((check) => check.label)).toEqual([
+      "Completes create_social_post at least 3 times",
+    ]);
+  });
+
+  it("passes the change and three saved drafts", () => {
+    if (!scenario) throw new Error("missing scenario");
+    expect(
+      evaluateScenario(scenario, turn(3)).checks.filter((check) => !check.pass),
+    ).toEqual([]);
+  });
+});
+
 describe("Brand Brain research", () => {
   it("looks for the brand's own story, prices on shop pages, and keeps sister brands out of competitors", async () => {
     const { CMO_SKILLS } = await import("../versions/cmo-skills.js");
@@ -727,5 +1096,22 @@ describe("what Cuso is told a talking video costs", () => {
     expect(SOKO_BOT_TOOL_DESCRIPTIONS.generate_talking_video).toContain(
       `a 150-character script costs about ${credits(150)})`,
     );
+  });
+});
+
+describe("cmo-v7", () => {
+  it("answers a change without repeating the card or naming internals", () => {
+    expect(cmoV6.systemPrompt).toContain("then answer in one or two sentences");
+    expect(cmoV7.systemPrompt).not.toContain(
+      "then answer in one or two sentences",
+    );
+    expect(cmoV7.systemPrompt).toContain(
+      "never says what changed or what stayed the same",
+    );
+    expect(cmoV7.systemPrompt).toContain(
+      "Never name your tools, saves, checks or reviews",
+    );
+    // The month written at once comes with it.
+    expect(cmoV7.skills).toEqual(cmoV6.skills);
   });
 });

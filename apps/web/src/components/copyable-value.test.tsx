@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { COPY_SUCCESS_TIMEOUT } from "@/hooks/use-clipboard";
+import { COPY_SUCCESS_TIMEOUT } from "@/hooks/effects/use-clipboard";
 
 import { CopyableValue } from "./copyable-value";
 

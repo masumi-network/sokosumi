@@ -213,6 +213,24 @@ describe("authorized chat results", () => {
       ],
     );
   });
+  it("summarizes an SEO Task without its machine request line", async () => {
+    readTask.mockResolvedValue({
+      id: "task-1",
+      name: "SEO audit full",
+      status: "READY",
+      description:
+        'Full SEO audit of 1 selected page:\n\nseo_audit: {"version":1}',
+      number: 12,
+      schedule: null,
+      events: [],
+    });
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "task", id: "task-1" },
+      actor,
+    });
+    expect(snapshot.data.summary).toBe("Full SEO audit of 1 selected page:");
+  });
+
   it("shows tags added after the turn while keeping the reported status", async () => {
     const snapshot = await resolveChatResultReference({
       reference: { kind: "task", id: "task-1" },
@@ -324,6 +342,39 @@ describe("authorized chat results", () => {
     expect(
       await hydrateChatResultSnapshots([followUp], "someone-else"),
     ).toEqual([{ id: followUp.data.id, state: "unavailable" }]);
+  });
+  it("hides a schedule's full-audit request line, also on a card saved before", async () => {
+    taskSchedule.mockResolvedValue({
+      id: "schedule-1",
+      name: "Weekly audit",
+      state: "ACTIVE",
+      description:
+        'Full SEO audit of 2 selected pages:\n\nseo_audit: {"version":1}',
+      nextRunAt: capturedAt,
+      timezone: "Europe/Prague",
+      expr: "0 9 * * 1",
+    });
+    const card = await resolveChatResultReference({
+      reference: { kind: "task_schedule", id: "schedule-1" },
+      actor,
+    });
+    expect(card.data).toMatchObject({
+      summary: "Full SEO audit of 2 selected pages:",
+    });
+    const [hydrated] = await hydrateChatResultSnapshots(
+      [
+        {
+          ...card,
+          data: { ...card.data, summary: 'seo_monitor: {"version":2}' },
+        },
+      ],
+      "owner",
+    );
+    // The card keeps what it showed when saved, as a sentence, not the raw plan.
+    expect(hydrated).toMatchObject({
+      summary:
+        "SEO monitor. Review its saved plan before the next scheduled run.",
+    });
   });
   it("reads scheduled posts through project access outside the Ads beta", async () => {
     socialPost.mockResolvedValue({

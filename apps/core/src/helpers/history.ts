@@ -6,8 +6,13 @@ import {
   TaskVisibility,
 } from "@sokosumi/database";
 import { computeJobStatus } from "@sokosumi/database/helpers";
+import { sharedTable, sharedType } from "@sokosumi/database/sql-tables";
 import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
-import { convertCentsToCredits, SokosumiJobStatus } from "@sokosumi/utils";
+import {
+  convertCentsToCredits,
+  hideSeoAuditRequest,
+  SokosumiJobStatus,
+} from "@sokosumi/utils";
 import { getAgentIcon, getAgentName } from "@/helpers/agent";
 import type prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
@@ -252,9 +257,9 @@ export async function findJobHistoryEntityIdsMatchingStatuses(
 
   const rows = await prismaClient.$queryRaw<Array<{ entityId: string }>>`
     SELECT h."entityId"
-    FROM "history" h
+    FROM ${sharedTable("history")} h
     WHERE h."archivedAt" IS NULL
-      AND h."kind" = 'JOB'::"HistoryKind"
+      AND h."kind" = 'JOB'::${sharedType("HistoryKind")}
       AND h."workspaceId" = ${workspaceContext.workspaceId}::uuid
       AND (${owned} = false OR h."userId" = ${userContext.userId})
       AND (
@@ -283,6 +288,8 @@ async function findJobIdsWithResultMatching(
   { q, scope, userContext, workspaceContext }: BuildHistoryWhereParams,
   prismaClient: Pick<HistoryPrismaClient, "job">,
 ): Promise<string[]> {
+  if (!q) return [];
+
   const jobs = await prismaClient.job.findMany({
     where: {
       workspaceId: workspaceContext.workspaceId,
@@ -626,7 +633,7 @@ export function mapHistoryRow(
   const baseItem = {
     id: row.entityId,
     title: row.title,
-    description: row.description,
+    description: hideSeoAuditRequest(row.description),
     status,
     createdAt: row.sortAt.toISOString(),
     archivedAt: row.archivedAt?.toISOString() ?? null,

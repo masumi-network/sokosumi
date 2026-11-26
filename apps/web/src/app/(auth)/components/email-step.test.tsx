@@ -79,6 +79,25 @@ describe("EmailStep", () => {
     );
   });
 
+  // A phone's field cuts a long address short, so the notice that asks for a
+  // typo check shows the whole address it checked.
+  it("shows the checked address in the no-account notice", async () => {
+    emailStatusMock.mockResolvedValue({
+      data: { exists: false, hasPassword: false, captchaPass: CAPTCHA_PASS },
+      error: null,
+    });
+    renderStep();
+
+    await continueWith("lena.vasquez-brandt@example.com");
+
+    const notice = screen.getByTestId("email-step-detour");
+    await waitFor(() => expect(notice).toHaveAttribute("data-state", "open"));
+    expect(notice).toHaveTextContent("lena.vasquez-brandt@example.com");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "title. lena.vasquez-brandt@example.com. description",
+    );
+  });
+
   it("tells Continue an account without a password has none", async () => {
     emailStatusMock.mockResolvedValue({
       data: { exists: true, hasPassword: false, captchaPass: CAPTCHA_PASS },

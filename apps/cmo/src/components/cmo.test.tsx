@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   calendarKind,
-  entryReadiness,
   planRange,
   planWeeks,
   relativeDay,
@@ -114,12 +113,6 @@ describe("calendar", () => {
     );
   });
 
-  it("says why an entry is not executed yet", () => {
-    expect(entryReadiness("linkedin", ["linkedin"])).toBe("ready");
-    expect(entryReadiness("linkedin", [])).toBe("connect");
-    expect(entryReadiness("website", ["linkedin"])).toBe("soon");
-  });
-
   it("names nearby days", () => {
     expect(relativeDay("2026-10-05", "2026-10-05")).toBe("Today");
     expect(relativeDay("2026-10-06", "2026-10-05")).toBe("Tomorrow");
@@ -204,6 +197,10 @@ describe("thread", () => {
           pillars: null,
           level: "all_in",
           beyondPlan: [],
+          withoutPicture: [],
+          retryAt: null,
+          writerFailed: false,
+          floor: null,
         },
         updates: [
           round("r1", "2026-10-01T10:00:00Z"),
@@ -512,7 +509,8 @@ describe("cards", () => {
 
 describe("pages", () => {
   it("gives every page its own address", () => {
-    expect(viewFromPath("/")).toBe("chat");
+    expect(viewFromPath("/")).toBe("today");
+    expect(viewFromPath("/chat")).toBe("chat");
     expect(viewFromPath("/brand-brain")).toBe("brain");
     expect(viewFromPath("/strategy/")).toBe("strategy");
     expect(viewFromPath("/brain")).toBeNull();
@@ -531,12 +529,12 @@ describe("pages", () => {
           },
         })}
         onOpenCalendar={() => {}}
-        connectMeasurement={async () => ({ url: null, error: null })}
+        onSetAds={async () => null}
       />,
     );
-    expect(html).toContain(strategy.summary);
     expect(html).toContain("40 trial sign-ups");
-    expect(html).toContain("in your calendar");
+    expect(html).not.toContain("Up to");
+    expect(html).toContain("See your month in the calendar");
     expect(html).not.toContain("Week 1");
     // Parts an older plan does not have stay out instead of showing empty.
     expect(html).not.toContain("What stops people buying");
@@ -558,7 +556,9 @@ describe("pages", () => {
         onChange={() => {}}
       />,
     );
-    expect(html).toContain("Drafts");
+    expect(html).toContain("This month");
+    // The fixture's one written post waits for LinkedIn.
+    expect(html).toContain("1 post waits for LinkedIn.");
     expect(html).toContain("Shopify");
     expect(html).toContain("once you connect an account");
     expect(html).not.toContain("Sokosumi");
@@ -631,6 +631,52 @@ describe("pages", () => {
     expect(html).toContain('<a href="/channels">Channels</a>');
   });
 
+  it("shows no approval card that would only say No ads", () => {
+    const html = renderToStaticMarkup(
+      <StrategyPage
+        overview={overview({
+          ...cmoStrategyVersion(new Date("2026-11-02T09:00:00Z")),
+          strategy: {
+            ...strategy,
+            questions: [],
+            ads: {
+              monthly: 0,
+              currency: "USD",
+              expect: "Nothing paid.",
+              without: "Posts bring the visits.",
+              setByOwner: false,
+            },
+          },
+        })}
+        onOpenCalendar={() => {}}
+        onSetAds={async () => null}
+      />,
+    );
+    expect(html).not.toContain("What you approved");
+    expect(html).not.toContain("No ads");
+  });
+
+  it("shows no post count, even when the plan makes fewer than planned", () => {
+    const base = overview(cmoStrategyVersion(new Date("2026-11-02T09:00:00Z")));
+    const [first] = strategy.calendar;
+    if (!first) throw new Error("fixture has an entry");
+    const calendar = [first, { ...first, id: "beyond" }];
+    const html = renderToStaticMarkup(
+      <StrategyPage
+        overview={{
+          ...base,
+          strategy: { ...strategy, calendar },
+          production: { ...base.production, beyondPlan: ["beyond"] },
+        }}
+        onOpenCalendar={() => {}}
+        onSetAds={async () => null}
+      />,
+    );
+    // No post counts on the Strategy page (owner, 2026-11-23).
+    expect(html).not.toContain("2 planned, 1 in your plan");
+    expect(html).not.toMatch(/\d+ posts?\b/);
+  });
+
   it("lists only answered questions as approved", () => {
     const html = renderToStaticMarkup(
       <StrategyPage
@@ -656,7 +702,7 @@ describe("pages", () => {
           },
         })}
         onOpenCalendar={() => {}}
-        connectMeasurement={async () => ({ url: null, error: null })}
+        onSetAds={async () => null}
       />,
     );
     expect(html).toContain("What you approved");
@@ -706,7 +752,7 @@ describe("pages", () => {
         connectAds={async () => ({ url: null, error: null })}
         addMailingList={async () => ({ overview: null, error: null })}
         openSeo={() => {}}
-        connectSearchConsole={async () => ({ url: null, error: null })}
+        connectMeasurement={async () => ({ url: null, error: null })}
         onChange={() => {}}
       />,
     );
@@ -737,7 +783,7 @@ describe("pages", () => {
           connectAds={async () => ({ url: null, error: null })}
           addMailingList={async () => ({ overview: null, error: null })}
           openSeo={() => {}}
-          connectSearchConsole={async () => ({ url: null, error: null })}
+          connectMeasurement={async () => ({ url: null, error: null })}
           onChange={() => {}}
         />,
       );
@@ -756,7 +802,7 @@ describe("pages", () => {
           connectAds={async () => ({ url: null, error: null })}
           addMailingList={async () => ({ overview: null, error: null })}
           openSeo={() => {}}
-          connectSearchConsole={async () => ({ url: null, error: null })}
+          connectMeasurement={async () => ({ url: null, error: null })}
           onChange={() => {}}
         />,
       );
@@ -778,7 +824,7 @@ describe("pages", () => {
         connectAds={async () => ({ url: null, error: null })}
         addMailingList={async () => ({ overview: null, error: null })}
         openSeo={() => {}}
-        connectSearchConsole={async () => ({ url: null, error: null })}
+        connectMeasurement={async () => ({ url: null, error: null })}
         onChange={() => {}}
       />,
     );
@@ -797,7 +843,7 @@ describe("pages", () => {
           connectAds={async () => ({ url: null, error: null })}
           addMailingList={async () => ({ overview: null, error: null })}
           openSeo={() => {}}
-          connectSearchConsole={async () => ({ url: null, error: null })}
+          connectMeasurement={async () => ({ url: null, error: null })}
           onChange={() => {}}
         />,
       );
@@ -1001,7 +1047,8 @@ describe("calendar", () => {
     );
     for (const entry of live) expect(html).toContain(entry.title);
     expect(html).toContain("Week 1");
-    expect(html).toContain(`${live.length} posts this month`);
+    // The month's total is the page title's; the line under it says how far it is.
+    expect(html).toMatch(/class="note num">\d+ ready/);
     expect(html).toContain('aria-pressed="true"');
     // Where a post stands is words, not a pill that looks like a button.
     expect(html).toContain('class="state"');

@@ -1,11 +1,17 @@
+import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { EvalRunsTable } from "@/components/admin/evals/eval-runs-table";
 import { EvalTrends } from "@/components/admin/evals/eval-trend";
-import { RunEvalsDialog } from "@/components/admin/evals/run-evals-dialog.client";
+import {
+  type EvalVersionChoices,
+  RunEvalsDialog,
+} from "@/components/admin/evals/run-evals-dialog.client";
+import { versionChoices } from "@/components/admin/soko-bots/version-choices";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { adminEvalsService } from "@/lib/services/admin-evals.service";
+import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
 import { cn } from "@/lib/utils";
 
 export const instant = false;
@@ -21,11 +27,19 @@ export const metadata: Metadata = {
  * trend reads PR by PR; a run's page says what got better or worse.
  */
 export default async function AdminEvalsPage() {
-  const [t, runs, cases] = await Promise.all([
+  const [t, runs, cases, versions] = await Promise.all([
     getTranslations("App.Admin.Evals"),
     adminEvalsService.listRuns(60),
     adminEvalsService.listCases(),
+    adminSokoBotService.listVersions(),
   ]);
+  const evalChoices = (currentVersionId: string | null): EvalVersionChoices => {
+    const choices = versionChoices(currentVersionId, versions);
+    return {
+      defaultId: choices.defaultVersionId,
+      ids: choices.versions.map((version) => version.id),
+    };
+  };
   const caseCount = (suite: string) =>
     cases.filter((evalCase) => evalCase.suite === suite).length;
   return (
@@ -49,7 +63,10 @@ export default async function AdminEvalsPage() {
           >
             {t("labLink")}
           </Link>
-          <RunEvalsDialog />
+          <RunEvalsDialog
+            sokoBotVersions={evalChoices(null)}
+            cusoVersions={evalChoices(CMO_SOKO_BOT_VERSION_ID)}
+          />
         </div>
       </div>
       <EvalTrends runs={runs} />

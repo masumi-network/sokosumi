@@ -6,8 +6,8 @@ import type {
   Prisma,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import slugify from "slugify";
-
 import {
   conflict,
   notFound,
@@ -22,6 +22,8 @@ import {
   isPrismaRecordNotFoundError,
   isPrismaUniqueViolation,
 } from "@/helpers/prisma";
+import { jsonInput } from "@/helpers/prisma-json";
+import { escapeLikeText } from "@/helpers/query-params";
 import prisma from "@/lib/db/prisma";
 import { parseNewsletterCsv } from "@/lib/newsletter/csv";
 import { allowNewsletterSignup } from "@/lib/newsletter/signup-limit";
@@ -90,6 +92,7 @@ export async function putNewsletter(
   await requireScopedProject(scope, { client });
   const data = {
     ...input,
+    brand: jsonInput(input.brand),
     welcomeSubject: input.welcomeSubject ?? null,
     welcomeBody: input.welcomeBody ?? null,
   };
@@ -126,33 +129,40 @@ export async function listNewsletterSubscribers(
   query: ListNewsletterSubscribersQuery,
 ) {
   const newsletter = await getNewsletter(scope);
-  const { cursor, take, skip } = parseCursorPagination(query);
+  const { cursor, take } = parseCursorPagination(query);
+  const match = query.search
+    ? { contains: escapeLikeText(query.search), mode: "insensitive" as const }
+    : null;
   const where: Prisma.NewsletterSubscriberWhereInput = {
     newsletterId: newsletter.id,
-    status: query.status,
-    OR: query.search
-      ? [
-          { email: { contains: query.search, mode: "insensitive" } },
-          {
-            contact: { name: { contains: query.search, mode: "insensitive" } },
-          },
-          // Contact merges flatten all tombstones to the surviving person.
-          {
-            contact: {
-              mergedInto: {
-                name: { contains: query.search, mode: "insensitive" },
+    ...(query.status !== undefined ? { status: query.status } : {}),
+    ...(match
+      ? {
+          OR: [
+            { email: match },
+            { contactId: null, name: match },
+            {
+              contact: {
+                name: match,
               },
             },
-          },
-        ]
-      : undefined,
+            // Contact merges flatten all tombstones to the surviving person.
+            {
+              contact: {
+                mergedInto: {
+                  name: match,
+                },
+              },
+            },
+          ],
+        }
+      : {}),
   };
   const [subscribers, total, counts] = await Promise.all([
     prisma.newsletterSubscriber.findMany({
       where,
-      cursor: cursor ? { id: cursor } : undefined,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       take: take + 1,
-      skip,
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     }),
     prisma.newsletterSubscriber.count({ where }),
@@ -266,7 +276,7 @@ export async function patchNewsletterSubscriber(
         ...(input.status ? { status: subscriber.status } : {}),
       },
       data: {
-        name: input.name,
+        ...(input.name !== undefined ? { name: input.name } : {}),
         ...(unsubscribed
           ? {
               status: "UNSUBSCRIBED",
@@ -631,7 +641,7 @@ async function createSubscriberChunk(
         if (!contact) throw notFound("Contact not found");
         return {
           email: subscriber.email,
-          name: subscriber.name,
+          ...(subscriber.name !== undefined ? { name: subscriber.name } : {}),
           newsletterId: newsletter.id,
           contactId: contact.id,
           status: consent === "ASK" ? "PENDING" : "ACTIVE",
@@ -655,7 +665,7 @@ async function createSubscriberChunk(
     // Suppressed rows remain untouched; only fill missing links on current subscriptions.
     if (existing.length)
       await tx.$executeRaw(PrismaRaw.sql`
-        UPDATE "newsletter_subscriber" AS subscriber
+        UPDATE ${sharedTable("newsletter_subscriber")} AS subscriber
         SET "contactId" = links."contactId"
         FROM (VALUES ${PrismaRaw.join([...contacts].map(([email, contact]) => PrismaRaw.sql`(${email}, ${contact.id}::uuid)`))}) AS links(email, "contactId")
         WHERE subscriber."newsletterId" = ${newsletter.id}::uuid

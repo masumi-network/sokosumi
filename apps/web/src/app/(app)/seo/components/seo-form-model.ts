@@ -5,9 +5,7 @@ import type {
 } from "@sokosumi/core-client";
 import {
   normalizeWebsiteUrl,
-  SEO_FULL_AUDIT_CREDITS,
   SEO_FULL_AUDIT_MAX_SECONDS,
-  SEO_MIN_AUDIT_USD,
   seoMaxCredits,
 } from "@sokosumi/utils";
 import type { SeoCommand } from "@/lib/actions/seo/types";
@@ -79,13 +77,8 @@ export const SEO_NO_RELATED_PAGE = "no-related-page";
 export const SEO_MAX_KEYWORDS = 20;
 export const SEO_MAX_KEYWORD_LENGTH = 80;
 export const SEO_MAX_PROVIDER_CALLS = 100;
-/** Core's bounds of a multi-page audit's USD limit (fullAuditLimits.usd); the minimum comes from utils. */
-const SEO_MAX_AUDIT_USD = 50;
-/** Core's bounds of a multi-page audit's time limit in whole seconds (fullAuditLimits.seconds). */
-const SEO_MIN_AUDIT_SECONDS = 60;
-const SEO_MAX_AUDIT_SECONDS = SEO_FULL_AUDIT_MAX_SECONDS;
 /**
- * The limits every multi-page full audit sends. The reader does not see them: the price shows in credits, and the
+ * The limits every full audit sends, also one of a single page. The reader does not see them: the price shows in credits, and the
  * time limit only keeps a stuck check from running on (owner, 2026-11-13).
  */
 export const SEO_FULL_AUDIT_LIMITS = {
@@ -324,9 +317,14 @@ export function analysisSeoBody(
     throw new RangeError("The selected checks exceed the data request limit");
   return {
     kind,
-    ...(kind === "audit_full"
-      ? { fullAuditCredits: SEO_FULL_AUDIT_CREDITS }
-      : {}),
+    ...(kind === "audit_full" &&
+      formText(form, "publicSitemapUrl") && {
+        publicSitemapUrl: formText(form, "publicSitemapUrl"),
+      }),
+    ...(kind === "audit_full" &&
+      form.has("sitemapPageHints") && {
+        sitemapPageHints: form.getAll("sitemapPageHints").map(String),
+      }),
     ...(workspace.scope.id
       ? {
           scopeId: workspace.scope.id,
@@ -339,35 +337,20 @@ export function analysisSeoBody(
     devices,
     competitorUrls,
     ...(kind === "audit_lite" ? { analyses } : {}),
-    ...(kind === "audit_full" && workspace.scope.pageIds.length > 1
-      ? {
-          fullAuditLimits: { ...SEO_FULL_AUDIT_LIMITS },
-        }
-      : kind === "audit_full"
-        ? {}
-        : { maxProviderCalls }),
+    ...(kind === "audit_full"
+      ? { fullAuditLimits: { ...SEO_FULL_AUDIT_LIMITS } }
+      : { maxProviderCalls }),
   };
 }
 
 /**
- * The most the check can charge, in whole credits, as Core and the check service compute it (seoMaxCredits).
- * Null while a limit field holds a value Core refuses.
+ * The most a focused check can charge, in whole credits, as Core and the check service compute it (seoMaxCredits).
+ * Null while a field holds a value Core refuses. A full audit has no maximum.
  */
 export function seoAnalysisMaxCredits(
   limits: SeoAnalysisLimits,
 ): number | null {
   if (limits.kind === "free") return 0;
-  if (limits.kind === "standard")
-    return seoMaxCredits({ kind: "audit_full", pages: 1 });
-  if (limits.kind === "full")
-    // "full" is the multi-page audit; any page count above one reads the USD limit.
-    return limits.usd >= SEO_MIN_AUDIT_USD &&
-      limits.usd <= SEO_MAX_AUDIT_USD &&
-      Number.isInteger(limits.seconds) &&
-      limits.seconds >= SEO_MIN_AUDIT_SECONDS &&
-      limits.seconds <= SEO_MAX_AUDIT_SECONDS
-      ? seoMaxCredits({ kind: "audit_full", pages: 2, usd: limits.usd })
-      : null;
   return Number.isSafeInteger(limits.count) &&
     limits.count >= 0 &&
     limits.count <= SEO_MAX_PROVIDER_CALLS

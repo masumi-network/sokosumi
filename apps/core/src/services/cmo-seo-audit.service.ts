@@ -7,6 +7,7 @@ import {
   type PublicSeoPayload,
   publicSeoPayloadSchema,
 } from "@/helpers/project-seo-report";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { isEvalCusoProject } from "@/lib/evals/eval-guard";
 import { recordCoreWarning } from "@/lib/evlog";
@@ -50,6 +51,12 @@ const WEEKLY_AUDIT_RULE = {
 const SKIP_WINDOW_MS = 60 * 60 * 1000;
 /** A new Cuso gets his first audit at once unless the weekly Run is this close. */
 const FIRST_AUDIT_GAP_MS = 2 * 24 * 60 * 60 * 1000;
+/**
+ * A failed first audit runs again this long after each failed try started:
+ * after an hour, then after six; then the weekly Run takes over (Patrick,
+ * 2026-11-20).
+ */
+const FIRST_AUDIT_RETRY_WAITS_MS = [60 * 60 * 1000, 6 * 60 * 60 * 1000];
 /** A test copy starts no audit while its family had one this recently (ADR 0073). */
 const TEST_COPY_AUDIT_GAP_MS = 7 * 24 * 60 * 60 * 1000;
 /** Monitors `cmoSeoMonitors` reads per Project, so the generations a Project can have. */
@@ -95,7 +102,9 @@ function runnerVars(
       authenticationMethod: "session",
     },
     workspaceContext: { workspaceId, userId: null, organizationId },
-  } as EnvVariables["Variables"];
+    // CMO runs on Mainnet only.
+    networkScope: createNetworkScope("mainnet"),
+  };
 }
 
 export async function cmoSeoActor(cuso: Cuso): Promise<SeoActor | null> {
@@ -168,22 +177,27 @@ export async function keepCmoSeoAudit(
     const page = await cmoSeoHomePage(cuso, actor);
     const market = await cmoSeoMarket(cuso);
     // Short of 750 credits: no monitor yet; a later sync starts it once they cover a week.
-    const monitor = await createProjectSeoMonitor(vars, actor, {
-      operationId: operationIdFor(cuso.projectId, monitors.length),
-      rule: WEEKLY_AUDIT_RULE,
-      analysis: {
-        kind: "audit_full",
-        pageIds: [page.id],
-        keywords: [],
-        countryCode: market.countryCode,
-        languageCode: market.languageCode,
-        devices: ["mobile", "desktop"],
-        competitorUrls: [],
-        maxProviderCalls: 20,
-        fullAuditCredits: SEO_FULL_AUDIT_CREDITS,
-        idempotencyKey: "monitor-template",
+    const monitor = await createProjectSeoMonitor(
+      vars,
+      actor,
+      {
+        operationId: operationIdFor(cuso.projectId, monitors.length),
+        rule: WEEKLY_AUDIT_RULE,
+        analysis: {
+          kind: "audit_full",
+          pageIds: [page.id],
+          keywords: [],
+          countryCode: market.countryCode,
+          languageCode: market.languageCode,
+          devices: ["mobile", "desktop"],
+          competitorUrls: [],
+          maxProviderCalls: 20,
+          fullAuditCredits: SEO_FULL_AUDIT_CREDITS,
+          idempotencyKey: "monitor-template",
+        },
       },
-    }).catch((error: unknown) => {
+      "cmo-subscription",
+    ).catch((error: unknown) => {
       if (!isRefusal(error)) throw error;
       return null;
     });
@@ -196,14 +210,61 @@ export async function keepCmoSeoAudit(
       next &&
       next.getTime() - now.getTime() > FIRST_AUDIT_GAP_MS
     )
-      await runTaskScheduleNow(vars, monitor.id, {
-        expectedRevision: monitor.revision,
-      }).catch((error: unknown) => {
+      await runTaskScheduleNow(
+        vars,
+        monitor.id,
+        {
+          expectedRevision: monitor.revision,
+        },
+        "cmo-subscription",
+      ).catch((error: unknown) => {
         if (!isRefusal(error)) throw error;
       });
     return;
   }
+  if (live.state === "ACTIVE") {
+    const { retryAt } = await firstAuditRetry(cuso.projectId, live, now);
+    if (retryAt && retryAt <= now) {
+      await runTaskScheduleNow(
+        vars,
+        live.id,
+        { expectedRevision: live.revision },
+        "cmo-subscription",
+      ).catch((error: unknown) => {
+        if (!isRefusal(error)) throw error;
+      });
+      return;
+    }
+  }
   await skipUnaffordableWeek(live, actor, vars, now);
+}
+
+/**
+ * When a first audit that failed runs again. Only while no audit of the
+ * Project ever finished and every try failed; none once the tries are used
+ * up, or when the weekly Run comes first.
+ */
+export async function firstAuditRetry(
+  projectId: string,
+  monitor: { nextRunAt: Date | null },
+  now: Date,
+): Promise<{ failedTries: number; retryAt: Date | null }> {
+  if (await latestCmoSeoAudit(projectId))
+    return { failedTries: 0, retryAt: null };
+  const runs = await listCmoSeoAuditRuns(projectId, new Date(0), now);
+  if (!runs.length || runs.some((run) => run.state !== "failed"))
+    return { failedTries: 0, retryAt: null };
+  const wait = FIRST_AUDIT_RETRY_WAITS_MS[runs.length - 1];
+  const retryAt = wait ? new Date(runs[0].startedAt.getTime() + wait) : null;
+  const weeklyFirst =
+    retryAt &&
+    monitor.nextRunAt &&
+    monitor.nextRunAt.getTime() <=
+      retryAt.getTime() + FIRST_AUDIT_RETRY_WAITS_MS[0];
+  return {
+    failedTries: runs.length,
+    retryAt: weeklyFirst ? null : retryAt,
+  };
 }
 
 /**
@@ -458,6 +519,10 @@ export async function readCmoSeoAudit(cuso: Cuso): Promise<CmoSeoAudit> {
     (last.status === "failed" ||
       task?.status === "FAILED" ||
       task?.status === "CANCELED");
+  const retry =
+    live?.state === "ACTIVE" && failed
+      ? await firstAuditRetry(cuso.projectId, live, new Date())
+      : { failedTries: 0, retryAt: null };
   return {
     creditsPerAudit: SEO_FULL_AUDIT_CREDITS,
     status:
@@ -474,6 +539,32 @@ export async function readCmoSeoAudit(cuso: Cuso): Promise<CmoSeoAudit> {
     skipped: skipped.map((run) => run.effectiveScheduledAt.toISOString()),
     latest: latest ? cmoAuditSummary(latest.observedAt, latest.payload) : null,
     lastFailedAt: failed ? last.updatedAt.toISOString() : null,
+    retryAt: retry.retryAt?.toISOString() ?? null,
+    failedTries: retry.failedTries,
+  };
+}
+
+/**
+ * The weekly SEO audit as one of Cuso's routines in Settings. Core starts it
+ * on the monitor's clock (Mondays 06:00 UTC), never a model turn, so it never
+ * skips or runs twice; its result comes to the chat as the audit's card and
+ * Cuso's report. Null where audits are off or the brand has no site.
+ */
+export async function cmoSeoAuditRoutine(cuso: Cuso, timeZone: string) {
+  const { enabled, executor } = getSeoAnalysisExecution();
+  if (!enabled || !executor?.canSchedule || !cuso.websiteUrl) return null;
+  const live = (await cmoSeoMonitors(cuso.projectId)).find(
+    (schedule) => schedule.state !== "ENDED",
+  );
+  return {
+    key: "cmo-weekly-seo-audit",
+    name: "Weekly search check",
+    when: "Every Monday morning",
+    description:
+      "Checks your site the way Google reads it and tells you in the chat what to fix.",
+    nextRunAt: live?.state === "ACTIVE" ? live.nextRunAt : null,
+    // The clock is UTC; its next run reads in the time zone Cuso works in.
+    timezone: timeZone,
   };
 }
 
@@ -588,19 +679,30 @@ export function pageText(html: string): string {
   return flat(parts.join(""));
 }
 
+/**
+ * Whether the page carries the text (its title, description or heading
+ * included); null when the page could not be read.
+ */
+export async function pageCarriesText(
+  pageUrl: string,
+  text: string,
+): Promise<boolean | null> {
+  const response = await ssrfSafeFetch(pageUrl, {
+    maxResponseBytes: PAGE_BYTES,
+    headers: { "user-agent": "Mozilla/5.0 (compatible; CMO.XYZ page check)" },
+    signal: AbortSignal.timeout(15_000),
+  }).catch(() => null);
+  if (!response?.ok) return null;
+  const wanted = flat(text).slice(0, 160);
+  return !!wanted && pageText(await response.text()).includes(wanted);
+}
+
 /** Whether the page now carries the new text (its title, description or heading included). */
 export async function pageShowsText(
   pageUrl: string,
   text: string,
 ): Promise<boolean> {
-  const response = await ssrfSafeFetch(pageUrl, {
-    maxResponseBytes: PAGE_BYTES,
-    headers: { "user-agent": "Mozilla/5.0 (compatible; CMO.XYZ page check)" },
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (!response.ok) return false;
-  const wanted = flat(text).slice(0, 160);
-  return !!wanted && pageText(await response.text()).includes(wanted);
+  return (await pageCarriesText(pageUrl, text)) === true;
 }
 
 /**

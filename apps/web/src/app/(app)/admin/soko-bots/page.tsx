@@ -8,6 +8,7 @@ import { FleetHealthSummary } from "@/components/admin/soko-bots/fleet-health-su
 import { QualityOverview } from "@/components/admin/soko-bots/quality-overview";
 import { SokoBotFleetTable } from "@/components/admin/soko-bots/soko-bot-fleet-table.client";
 import { SokoBotKillSwitch } from "@/components/admin/soko-bots/soko-bot-kill-switch.client";
+import { StandupPauseSwitch } from "@/components/admin/soko-bots/standup-pause-switch.client";
 import { Button } from "@/components/ui/button";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
 
@@ -43,6 +44,7 @@ export default async function AdminSokoBotsPage({
       disabled: false,
       disabledAt: null,
       disabledReason: null,
+      standupPaused: false,
     })),
     adminSokoBotService.fleetDays(FLEET_DAYS).catch(() => null),
   ]);
@@ -64,6 +66,7 @@ export default async function AdminSokoBotsPage({
             {availability.disabled ? null : (
               <SokoBotKillSwitch initial={availability} />
             )}
+            <StandupPauseSwitch initial={availability} />
           </div>
           <div className="flex gap-2">
             <Button asChild variant="outline" size="sm">
@@ -90,7 +93,7 @@ export default async function AdminSokoBotsPage({
         {availability.disabled ? (
           <SokoBotKillSwitch initial={availability} />
         ) : null}
-        <FleetHealthSummary items={list.items} />
+        <FleetHealthSummary summary={list.summary} />
         {fleetDays ? <FleetDays fleet={fleetDays} /> : null}
         <QualityOverview
           quality={quality}

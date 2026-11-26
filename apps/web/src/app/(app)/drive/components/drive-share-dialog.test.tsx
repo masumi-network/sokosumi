@@ -132,4 +132,35 @@ describe("DriveShareDialog", () => {
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("saveFailed"));
   });
+
+  it("aborts the pending share load and shows no toast when the dialog closes", async () => {
+    const pending = Promise.withResolvers<typeof share | null>();
+    let capturedSignal: AbortSignal | undefined;
+    api.fetchDriveShare.mockImplementation(
+      (input: { signal?: AbortSignal }) => {
+        capturedSignal = input.signal;
+        return pending.promise;
+      },
+    );
+
+    const { rerender } = render(
+      <DriveShareDialog store={store} item={item} onOpenChange={() => {}} />,
+    );
+
+    expect(api.fetchDriveShare).toHaveBeenCalledTimes(1);
+    expect(capturedSignal).toBeDefined();
+    expect(capturedSignal?.aborted).toBe(false);
+
+    rerender(
+      <DriveShareDialog store={store} item={null} onOpenChange={() => {}} />,
+    );
+
+    expect(capturedSignal?.aborted).toBe(true);
+
+    pending.reject(new DOMException("Aborted", "AbortError"));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(toast.error).not.toHaveBeenCalled();
+  });
 });

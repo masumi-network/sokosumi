@@ -11,6 +11,15 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
+let hasSessionCookieMock = true;
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => new Headers()),
+}));
+
+vi.mock("@/lib/auth/session-cookie", () => ({
+  hasSessionCookie: () => hasSessionCookieMock,
+}));
+
 vi.mock("@/middleware/auth-middleware", () => ({
   withSession:
     <TParams extends Record<string, unknown>, TResult>(
@@ -340,10 +349,7 @@ describe("task link actions", () => {
   });
 
   it("rethrows Core 404 Project not found from createTask (SOKOSUMI-QA)", async () => {
-    expectConsole(
-      "error",
-      "Failed to create task CoreApiRequestError: Project not found",
-    );
+    const errorCalls = expectConsole("error", "Failed to create task");
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     const { createTask } = await import("./action");
 
@@ -366,6 +372,7 @@ describe("task link actions", () => {
       message: "Project not found",
       status: 404,
     });
+    expect(errorCalls[0]?.[1]).toBe(projectMissing);
   });
 
   it("archives the created task when creating the link fails after task creation", async () => {
@@ -886,6 +893,27 @@ describe("createTask Run at", () => {
       expect.objectContaining({ status: TaskStatus.DRAFT }),
     );
   });
+
+  it("passes priority and due date through, and leaves them out when unset", async () => {
+    const { createTask } = await import("./action");
+    const base = {
+      description: "Draft task",
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      status: TaskStatus.DRAFT,
+    } as const;
+
+    await createTask({ ...base, priority: "HIGH", dueOn: "2026-12-04" });
+    await createTask(base);
+
+    expect(taskServiceMock.createTask.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ priority: "HIGH", dueOn: "2026-12-04" }),
+    );
+    const unset = taskServiceMock.createTask.mock.calls[1]?.[0];
+    expect(unset).not.toHaveProperty("priority");
+    expect(unset).not.toHaveProperty("dueOn");
+  });
 });
 
 describe("task participant actions", () => {
@@ -1157,5 +1185,34 @@ describe("setTaskDueOn", () => {
       dueOn: null,
     });
     expect(result).toEqual({ ok: true, value: { taskId: "task-1" } });
+  });
+});
+
+describe("revalidateTasksAfterArchive", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    hasSessionCookieMock = true;
+  });
+
+  it("revalidates /tasks without calling Core when a session cookie is present", async () => {
+    const { revalidatePath } = await import("next/cache");
+    const { revalidateTasksAfterArchive } = await import("./action");
+
+    await expect(revalidateTasksAfterArchive()).resolves.toBe(true);
+
+    expect(revalidatePath).toHaveBeenCalledTimes(1);
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks");
+    expect(taskServiceMock.deleteTask).not.toHaveBeenCalled();
+  });
+
+  it("skips revalidation when no session cookie is present", async () => {
+    hasSessionCookieMock = false;
+    const { revalidatePath } = await import("next/cache");
+    const { revalidateTasksAfterArchive } = await import("./action");
+
+    await expect(revalidateTasksAfterArchive()).resolves.toBe(false);
+
+    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(taskServiceMock.deleteTask).not.toHaveBeenCalled();
   });
 });

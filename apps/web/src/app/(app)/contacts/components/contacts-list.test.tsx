@@ -53,6 +53,7 @@ const contact = (overrides: Partial<Contact>): Contact => ({
   ],
   lists: [],
   knownBy: [],
+  user: null,
   ...overrides,
 });
 
@@ -116,14 +117,13 @@ describe("ContactsFilterBar", () => {
     const onFilter = vi.fn();
     render(
       <ContactsFilterBar
-        search=""
-        onSearch={vi.fn()}
         filters={{
           stage: null,
           replyState: "NO_REPLY",
           kind: null,
           knownBy: null,
           source: null,
+          xFollow: null,
         }}
         onFilter={onFilter}
         teammates={[]}

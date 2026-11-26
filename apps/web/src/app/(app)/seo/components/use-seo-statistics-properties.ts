@@ -25,6 +25,8 @@ export function useSeoStatisticsProperties(
   workspace: ProjectSeoWorkspace,
   provider: SeoStatisticsProvider,
   enabled: boolean,
+  selectionContext?: string,
+  additionalPageUrls: readonly string[] = [],
 ) {
   const { data: session } = useSession();
   const client = useQueryClient();
@@ -37,6 +39,13 @@ export function useSeoStatisticsProperties(
     owner.kind,
     owner.id,
     provider,
+    ...(selectionContext ? [selectionContext] : []),
+    ...(provider === "search_console"
+      ? [
+          connection.data?.connectionVersion,
+          [...workspace.scope.pageIds].sort(),
+        ]
+      : []),
   ];
   const selection = useQuery<string>({
     queryKey: selectionKey,
@@ -88,6 +97,11 @@ export function useSeoStatisticsProperties(
       ? available.filter(
           (property) =>
             pages.length > 0 &&
+            pages.length === workspace.scope.pageIds.length &&
+            additionalPageUrls.every(
+              (url) =>
+                seoMatchingProperty(provider, [property], url) === property.id,
+            ) &&
             pages.every(
               (page) =>
                 seoMatchingProperty(provider, [property], page.url) ===
@@ -97,10 +111,15 @@ export function useSeoStatisticsProperties(
       : available;
   const wanted =
     selection.data ||
-    savedSeoStatistics(workspace.metrics, provider)?.propertyId;
+    (provider === "search_console"
+      ? workspace.searchConsolePropertyId
+      : savedSeoStatistics(workspace.metrics, provider)?.propertyId);
+  const requestedGscProperty = provider === "search_console" && Boolean(wanted);
   const propertyId = candidates.some((property) => property.id === wanted)
     ? (wanted ?? "")
-    : seoMatchingProperty(provider, candidates, pages[0]?.url);
+    : requestedGscProperty
+      ? ""
+      : seoMatchingProperty(provider, candidates, pages[0]?.url);
   const sitesWithoutProperty =
     provider === "search_console" &&
     !properties.isError &&
@@ -113,6 +132,7 @@ export function useSeoStatisticsProperties(
     eligibleProperties: candidates,
     sitesWithoutProperty,
     propertyId,
+    selectedPropertyId: selection.data,
     setPropertyId: (value: string) => client.setQueryData(selectionKey, value),
     propertiesUnavailable:
       properties.isError || properties.data?.status === "unavailable",

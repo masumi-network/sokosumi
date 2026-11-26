@@ -8,7 +8,7 @@ import {
   within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { SearchablePageContent } from "@/components/searchable-page-content";
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
 import { isActive, type StudioAsset, type StudioJob } from "./types";
@@ -27,6 +27,7 @@ import { isActive, type StudioAsset, type StudioJob } from "./types";
 const mocks = vi.hoisted(() => ({
   cancel: vi.fn(),
   refresh: vi.fn().mockResolvedValue(undefined),
+  loadOlder: vi.fn().mockResolvedValue(undefined),
   listBatchAssets: vi.fn(),
   saveHeadline: vi.fn(),
   loadBrandKit: vi.fn().mockResolvedValue({ approvedLines: [] }),
@@ -71,20 +72,25 @@ vi.mock("@/lib/actions/image-studio/brand-kit", async (importOriginal) => ({
   getStudioBrandKit: mocks.loadBrandKit,
 }));
 
-vi.mock("./studio-headline-image", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./studio-headline-image")>()),
-  useStudioHeadlineImage: (
-    _asset: StudioAsset,
-    _ratio: string,
-    _logo: StudioLogoPosition | undefined,
-    headline: string | undefined,
-  ) => ({
-    result: headline
-      ? { status: "ready", blob: new Blob([headline]), url: "blob:studio-ad" }
-      : null,
-    retry: vi.fn(),
+vi.mock(
+  "@/hooks/effects/use-studio-headline-image",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/hooks/effects/use-studio-headline-image")
+    >()),
+    useStudioHeadlineImage: (
+      _asset: StudioAsset,
+      _ratio: string,
+      _logo: StudioLogoPosition | undefined,
+      headline: string | undefined,
+    ) => ({
+      result: headline
+        ? { status: "ready", blob: new Blob([headline]), url: "blob:studio-ad" }
+        : null,
+      retry: vi.fn(),
+    }),
   }),
-}));
+);
 
 vi.mock("./studio-ad-download", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./studio-ad-download")>()),
@@ -100,7 +106,11 @@ vi.mock("./use-studio-state", () => ({
   useStudioState: ({
     initialState,
   }: {
-    initialState: { assets: StudioAsset[]; jobs: StudioJob[] };
+    initialState: {
+      assets: StudioAsset[];
+      jobs: StudioJob[];
+      nextCursor?: { id: string };
+    };
   }) => ({
     state: initialState,
     selectedAsset: initialState.assets[0] ?? null,
@@ -110,8 +120,8 @@ vi.mock("./use-studio-state", () => ({
     // its notice.
     activeJobs: initialState.jobs.filter((job) => isActive(job)),
     refresh: mocks.refresh,
-    loadOlder: vi.fn(),
-    hasOlder: false,
+    loadOlder: mocks.loadOlder,
+    hasOlder: Boolean(initialState.nextCursor),
     error: null,
   }),
 }));
@@ -427,7 +437,14 @@ describe("a gallery with work in it", () => {
     const first = "A slower morning.";
     const second = "Pour with precision.";
     mocks.listBatchAssets.mockResolvedValue([open, older]);
-    mocks.loadBrandKit.mockResolvedValue({ approvedLines: [first, second] });
+    const look = {
+      colors: ["#A33421", "#F5EBDD"],
+      fonts: ["Playfair Display"],
+    };
+    mocks.loadBrandKit.mockResolvedValue({
+      approvedLines: [first, second],
+      ...look,
+    });
     mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
 
     mount([open]);
@@ -470,6 +487,7 @@ describe("a gallery with work in it", () => {
         undefined,
         { [open.id]: first, [older.id]: second },
         [],
+        { p: look },
       ),
     );
   });
@@ -508,6 +526,47 @@ describe("a gallery with work in it", () => {
         [],
       ),
     );
+  });
+
+  it("searches the assistant in a narrow window and restores gallery search after closing it", () => {
+    const nativeMatch = window.matchMedia.bind(window);
+    vi.spyOn(window, "matchMedia").mockImplementation((query) => {
+      const media = nativeMatch(query);
+      if (query === "(min-width: 64rem)")
+        Object.defineProperty(media, "matches", { value: false });
+      return media;
+    });
+    render(
+      <SearchablePageContent>
+        <ImageStudio
+          catalog={TEST_CATALOG}
+          initialSelectedAssetId={null}
+          initialState={
+            {
+              assets: [{ ...ASSET, myReasons: [] }],
+              jobs: [],
+              sessions: [],
+              nextCursor: { id: "older" },
+            } as never
+          }
+          labels={TEST_LABELS}
+          projectId="p"
+        />
+      </SearchablePageContent>,
+    );
+    const field = screen.getByRole("searchbox", { name: "filter" });
+    fireEvent.click(screen.getByRole("button", { name: "Assistant.title" }));
+    fireEvent.change(field, { target: { value: "sample" } });
+    const panel = screen.getByRole("complementary", {
+      name: "Assistant.title",
+    });
+    expect(panel).toBeVisible();
+    expect(field).toHaveAccessibleName("find");
+    expect(mocks.loadOlder).not.toHaveBeenCalled();
+    fireEvent.click(within(panel).getByRole("button", { name: "close" }));
+    expect(field).toHaveAccessibleName("filter");
+    expect(field).toHaveValue("sample");
+    expect(mocks.loadOlder).toHaveBeenCalledOnce();
   });
 
   it("hands the selected ad to the assistant and keeps the generation draft", () => {
@@ -666,6 +725,15 @@ describe("a gallery with work in it", () => {
     expect(
       within(alert).getByRole("button", { name: TEST_LABELS.close }),
     ).toBeInTheDocument();
+  });
+
+  it("shows a terminal vector failure without offering a paid retry", () => {
+    mount([], [job("failed", "FAILED", undefined, "invalid_vector_image")]);
+    const alert = screen.getByRole("status");
+    expect(alert).toHaveTextContent("invalid_vector_image");
+    expect(
+      within(alert).queryByRole("button", { name: TEST_LABELS.tryAgain }),
+    ).toBeNull();
   });
 
   it("keeps the reason behind the line when the provider said nothing", () => {

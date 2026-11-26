@@ -1,8 +1,12 @@
 "use client";
 
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { SEO_KEYWORD_SUGGESTION_LIMIT } from "./seo-search-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -17,17 +21,18 @@ export function SeoKeywordSuggestions({
   rows: QueryRow[];
 }) {
   const t = useTranslations("App.Seo");
-  const format = useFormatter();
+  const result = useSeoResultTranslations("App.Seo");
+  const format = useSeoResultFormatter();
   const shown = rows.slice(0, SEO_KEYWORD_SUGGESTION_LIMIT);
   const more = rows.length - shown.length;
   return (
     <div className={HOLDER_ITEM_CLASS} data-testid="seo-keyword-suggestions">
       <div className="space-y-0.5 p-4">
         <p className="font-medium">
-          {t("keywords.suggest.title", { count: rows.length })}
+          {result("keywords.suggest.title", { count: rows.length })}
         </p>
         <p className="text-muted-foreground text-sm">
-          {t("keywords.suggest.body")}
+          {result("keywords.suggest.body")}
         </p>
       </div>
       <ul className="divide-y border-t">
@@ -41,7 +46,7 @@ export function SeoKeywordSuggestions({
               <bdi>{row.query}</bdi>
             </p>
             <span className="text-muted-foreground text-sm tabular-nums">
-              {t("keywords.suggest.position", {
+              {result("keywords.suggest.position", {
                 position: format.number(row.averagePosition, {
                   minimumFractionDigits: 1,
                   maximumFractionDigits: 1,

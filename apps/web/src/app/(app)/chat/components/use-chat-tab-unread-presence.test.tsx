@@ -1,6 +1,7 @@
 import type { ChatRoom } from "@sokosumi/core-client";
 import {
   act,
+  cleanup,
   render as renderInTest,
   screen,
   waitFor,
@@ -13,6 +14,10 @@ import { setAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-stor
 let mockPathname = "/chat";
 let mockUserId = "user-1";
 let mockOrganizationId: string | null = "org-1";
+
+vi.mock("@/app/components/project-scope/use-project-scope", () => ({
+  useProjectScope: () => ({ hrefFor: (href: string) => href }),
+}));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
@@ -80,7 +85,7 @@ vi.mock("@/app/chat/components/chat-mobile-bottom-nav", () => ({
 }));
 
 import { AppMobileChrome } from "@/app/components/app-mobile-chrome.client";
-import { SidebarToggle } from "@/app/components/header/sidebar-toggle.client";
+import { GlobalRail } from "@/app/components/sidebar/components/global-rail.client";
 
 import { ChatControlListBridge } from "@/components/chat/chat-control-list-bridge";
 import {
@@ -252,7 +257,7 @@ describe("Elsewhere rooms in the unread signals", () => {
     await waitFor(() => expect(document.title).toBe("(2) Sokosumi - Chat"));
   });
 
-  describe("the sidebar toggle's dot, for a pinned room", () => {
+  describe("the rail's Chats dot, for a pinned room", () => {
     const starredAt = new Date("2026-08-01T00:00:00.000Z");
 
     beforeEach(() => {
@@ -266,7 +271,7 @@ describe("Elsewhere rooms in the unread signals", () => {
     function renderToggle() {
       render(
         <SidebarProvider defaultOpen={false}>
-          <SidebarToggle />
+          <GlobalRail />
           <SidebarList />
         </SidebarProvider>,
       );
@@ -279,7 +284,9 @@ describe("Elsewhere rooms in the unread signals", () => {
 
       renderToggle();
 
-      expect(await screen.findByText("unreadChats")).toBeTruthy();
+      expect(
+        await screen.findByRole("button", { name: "chats, chatsUnread" }),
+      ).toBeTruthy();
     });
 
     it("stays dark for a read one", async () => {
@@ -296,9 +303,11 @@ describe("Elsewhere rooms in the unread signals", () => {
 
       await waitFor(() => expect(listElsewhereMock).toHaveBeenCalled());
       await act(async () => {});
-      // The toggle itself is up, so its dot had the chance to show.
-      expect(screen.getByRole("button", { name: "show" })).toBeTruthy();
-      expect(screen.queryByText("unreadChats")).toBeNull();
+      // The rail itself is up, so its dot had the chance to show.
+      expect(screen.getByRole("button", { name: "chats" })).toBeTruthy();
+      expect(
+        screen.queryByRole("button", { name: "chats, chatsUnread" }),
+      ).toBeNull();
     });
   });
 
@@ -579,7 +588,7 @@ describe("Elsewhere rooms in the unread signals", () => {
     expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
   });
 
-  it("carries the hidden sidebar toggle's dot", async () => {
+  it("carries the rail's Chats dot while the sidebar is collapsed", async () => {
     vi.stubGlobal("innerWidth", 1280);
     listRoomsMock.mockResolvedValue({
       ok: true,
@@ -589,13 +598,16 @@ describe("Elsewhere rooms in the unread signals", () => {
 
     render(
       <SidebarProvider defaultOpen={false}>
-        <SidebarToggle />
+        <GlobalRail />
         <SidebarList />
       </SidebarProvider>,
     );
 
-    const dot = await screen.findByText("unreadChats");
-    expect(dot.closest('[data-slot="sidebar-toggle-unread-dot"]')).toBeTruthy();
+    const chats = await screen.findByRole("button", {
+      name: "chats, chatsUnread",
+    });
+    expect(chats).toHaveAttribute("aria-pressed", "false");
+    expect(chats).toHaveAttribute("aria-current", "location");
   });
 });
 
@@ -617,6 +629,7 @@ describe("useChatTabUnreadPresence", () => {
   });
 
   afterEach(() => {
+    cleanup();
     clearRoomReadOverlays();
     clearMembershipVisibleRoomsSnapshot();
     vi.restoreAllMocks();
@@ -768,6 +781,7 @@ describe("useChatTabUnreadPresence", () => {
       "user-1",
     );
 
+    listRoomsMock.mockReturnValueOnce(new Promise(() => {}));
     render(<Harness />);
 
     expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
@@ -784,6 +798,7 @@ describe("useChatTabUnreadPresence", () => {
       markedUnread: false,
     });
 
+    listRoomsMock.mockReturnValueOnce(new Promise(() => {}));
     render(<Harness />);
 
     expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");

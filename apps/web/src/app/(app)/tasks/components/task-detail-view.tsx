@@ -1,6 +1,7 @@
 import type { Task } from "@sokosumi/core-client";
 import {
   isTaskEditableStatus,
+  removeSeoTaskRequest,
   removeTaskContextAttachmentLinks,
   type TaskAssigneeKind,
 } from "@sokosumi/utils";
@@ -149,6 +150,11 @@ export async function TaskDetailView({
               // own board is not the likely next page there.
               loadBoardOnMount={!forceReadOnly}
               calendarBackLabel={t("backToCalendar")}
+              seoAudit={task.seoAudit}
+              seoAuditLabels={{
+                audit: t("openSeoAudit"),
+                project: t("openSeoProjectWorkspace"),
+              }}
               parentLink={
                 task.ancestors?.length ? (
                   <nav
@@ -430,7 +436,7 @@ async function TaskDescriptionSection({
     getTranslations("App.Tasks.Detail"),
   ]);
   const descriptionBody = task.description
-    ? removeTaskContextAttachmentLinks(task.description)
+    ? removeSeoTaskRequest(removeTaskContextAttachmentLinks(task.description))
     : null;
 
   return (
@@ -566,6 +572,7 @@ async function TaskDetailActionsSlot({
         tTasks("personalAssistant"),
       )}
       initialDesignMdAttachment={initialDesignMdAttachment}
+      workspaceId={task.workspace.id}
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
       hasPersonalWorkspace={workspaceAccess?.hasPersonalWorkspace ?? false}
@@ -582,8 +589,13 @@ async function TaskDetailActionsSlot({
               name: task.name,
               tags: task.tags,
               workspaceTags: task.workspaceTags,
+              // A full audit's request line holds its approved price terms, which no reader sees. A focused
+              // check's line carries no price and lets the repeated Task start, so it stays.
               description: task.description
-                ? removeTaskContextAttachmentLinks(task.description)
+                ? removeSeoTaskRequest(
+                    removeTaskContextAttachmentLinks(task.description),
+                    ["seo_audit"],
+                  )
                 : null,
               projectId: task.projectId,
               visibility: task.visibility,

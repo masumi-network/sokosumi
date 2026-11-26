@@ -1,7 +1,10 @@
 import { capabilitiesForClassification } from "@sokosumi/soko-bot";
 import { describe, expect, it, vi } from "vitest";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
+import { databaseNow } from "@/lib/db/database-now";
 import {
   type ClassifierContextSummary,
+  classifierAttemptTimeoutMs,
   JevTurnClassifier,
   type RouteEvaluator,
   routeQuestions,
@@ -10,6 +13,19 @@ import {
 } from "@/lib/soko-bot/classifier";
 import { expectCoreLogWhys } from "@/test/core-log";
 import { jevRoute } from "@/test/jev-routes";
+
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: vi.fn(async () => new Date()),
+}));
+
+describe("classifierAttemptTimeoutMs", () => {
+  it("waits for the plan's stand-in longer than for Jev", () => {
+    expect(classifierAttemptTimeoutMs({})).toBe(3_500);
+    expect(
+      classifierAttemptTimeoutMs({ SOKO_BOT_LOCAL_CHATGPT_PLAN: "1" }),
+    ).toBeGreaterThanOrEqual(30_000);
+  });
+});
 
 describe("unwrapTitleTags", () => {
   it("unwraps bracket tags Jev reads as placeholders, not links", () => {
@@ -89,11 +105,47 @@ describe("Jev route selection", () => {
     });
   });
 
+  it("reads how complex the work is, for the turn's model", async () => {
+    const evaluation = jevRoute("DELEGATE_TASK");
+    const result = await new JevTurnClassifier(
+      answering({
+        ...evaluation,
+        answers: {
+          ...(evaluation.answers as object),
+          complexity: {
+            choice: "COMPLEX",
+            probabilities: { SIMPLE: 0.05, NORMAL: 0.25, COMPLEX: 0.7 },
+          },
+        },
+      }),
+    ).classify("plan the launch across the team", EMPTY_CONTEXT);
+    expect(result.classification.complexity).toEqual({
+      label: "COMPLEX",
+      probabilities: { SIMPLE: 0.05, NORMAL: 0.25, COMPLEX: 0.7 },
+    });
+  });
+
+  it("leaves complexity out when Jev names no known label", async () => {
+    const evaluation = jevRoute("DIRECT_RESPONSE");
+    const result = await new JevTurnClassifier(
+      answering({
+        ...evaluation,
+        answers: {
+          ...(evaluation.answers as object),
+          complexity: { choice: "HUGE" },
+        },
+      }),
+    ).classify("hi", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("DIRECT_RESPONSE");
+    expect(result.classification.complexity).toBeUndefined();
+  });
+
   it("asks Jev every signal question alongside the route", () => {
     expect(Object.keys(routeQuestions(false))).toEqual(
       expect.arrayContaining([
         "route",
         "writeScope",
+        "complexity",
         "refersToEarlier",
         "statesPreference",
         "aboutMail",
@@ -453,6 +505,42 @@ describe("pending proposals", () => {
     expect(result.classification.selectedIntentId).toBeUndefined();
   });
 
+  it.each([
+    { host: "ahead", skew: 60_000, expiresIn: 30_000, expected: true },
+    { host: "behind", skew: -60_000, expiresIn: -30_000, expected: false },
+  ])(
+    "uses PostgreSQL to filter pending proposals when the host is $host",
+    async ({ skew, expiresIn, expected }) => {
+      const now = new Date("2026-11-19T12:00:00.000Z");
+      const evaluate = answering(
+        jevRoute("CLARIFY", { confirmsPending: 0.95 }),
+      );
+      vi.mocked(databaseNow).mockResolvedValueOnce(now);
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(now.getTime() + skew);
+      try {
+        const result = await new JevTurnClassifier(evaluate).classify("yes", {
+          ...EMPTY_CONTEXT,
+          pendingIntents: [
+            {
+              ...intent,
+              expiresAt: new Date(now.getTime() + expiresIn).toISOString(),
+            },
+          ],
+        });
+        expect(evaluate).toHaveBeenCalledWith(
+          expect.objectContaining({ hasPendingProposals: expected }),
+        );
+        expect(result.classification.selectedIntentId).toBe(
+          expected ? intent.id : undefined,
+        );
+      } finally {
+        vi.useRealTimers();
+        vi.mocked(databaseNow).mockReset();
+      }
+    },
+  );
+
   it("marks a withdrawal of the pending proposal and keeps the new route", async () => {
     const result = await new JevTurnClassifier(
       answering(
@@ -507,6 +595,29 @@ describe("failing closed", () => {
     expect(result.failed).toBe(false);
   });
 
+  it("stops on a budget refusal and falls back to read-only clarification", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "The Soko Bot classifier failed, so the request became a clarification",
+      ["The routing model call failed, or its answer did not parse"],
+    );
+    const evaluate = vi
+      .fn<RouteEvaluator>()
+      .mockRejectedValue(new AiGatewayBudgetError());
+
+    const result = await new JevTurnClassifier(evaluate).classify(
+      "Hire an agent",
+      EMPTY_CONTEXT,
+    );
+
+    expect(evaluate).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({
+      failed: true,
+      usage: null,
+      classification: { route: "CLARIFY", confidence: 0 },
+    });
+  });
+
   it("reads only when Jev is unreachable", async () => {
     const warn = expectCoreLogWhys(
       "warn",
@@ -544,7 +655,7 @@ describe("failing closed", () => {
     ).classify("Do it", EMPTY_CONTEXT);
     expect(result.failed).toBe(true);
     expect(result.classification.route).toBe("CLARIFY");
-    expect(result.usage).toEqual({
+    expect(result.usage).toMatchObject({
       inputTokens: 300,
       outputTokens: 20,
       costUsd: 0.00001,

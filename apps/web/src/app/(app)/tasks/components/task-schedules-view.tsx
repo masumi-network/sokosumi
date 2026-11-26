@@ -4,14 +4,19 @@ import { type TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
 import { CalendarSync, Plus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
+import { parseAsString, useQueryState } from "nuqs";
 import { useOptimistic, useRef, useState, useTransition } from "react";
-import { loadMoreTaskSchedules } from "@/app/tasks/actions";
-import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
+import {
+  taskScheduleAssigneeId,
+  taskSchedulePath,
+} from "@/app/tasks/utils/task-schedule-view";
 import {
   parseTaskScheduleStateFilter,
   TASK_SCHEDULE_STATE_PARAM,
 } from "@/app/tasks/utils/task-schedules-filters";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import { PageSearchActions } from "@/components/page-search-actions";
+import { PageSearchField } from "@/components/page-search-field";
 import { Button } from "@/components/ui/button";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
@@ -23,33 +28,20 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
-import { useMountEffect } from "@/hooks/use-mount-effect";
-import type { TaskSchedulesPage } from "@/lib/services/task-schedule.service";
+import { useLoadWhenVisible } from "@/hooks/effects/use-load-when-visible";
+import { useTaskSchedulesPagination } from "@/hooks/effects/use-task-schedules-pagination";
+import { useTaskSchedulesShowAllFocus } from "@/hooks/effects/use-task-schedules-show-all-focus";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import {
   type SchedulesViewMode,
   serializeSchedulesViewModeCookie,
 } from "@/lib/ui-preferences/schedules-view-mode";
 import { cn } from "@/lib/utils";
+import { rankPageItems } from "@/lib/utils/page-search";
 import { TaskScheduleDialog } from "./task-schedule-dialog";
 import { TaskScheduleRow } from "./task-schedule-row";
 
 const ALL_STATES = "all";
-
-/**
- * Where a "Show all schedules" click is headed. The button unmounts with the
- * empty state and the new filter remounts this view (the page keys it by
- * filter), so the request to land on the All tab outlives the instance that
- * made it. Only a view mounted at this URL uses it; every mount, any other
- * filter change and leaving for another URL drop it, so a stale request never
- * moves focus (focusing a Radix tab selects it).
- */
-let showAllDestination: string | null = null;
-
-function currentUrl(): string {
-  return `${window.location.pathname}${window.location.search}`;
-}
 
 interface TaskSchedulesViewProps {
   defaultViewMode?: SchedulesViewMode;
@@ -88,34 +80,37 @@ export function TaskSchedulesView({
 }: TaskSchedulesViewProps) {
   const t = useTranslations("App.Tasks.Schedules");
   const formatter = useFormatter();
+  const tSearch = useTranslations("App.PageSearch");
+  const [query, setQuery] = useQueryState("q", parseAsString.withDefault(""));
+  const searching = Boolean(query.trim());
   const [viewMode, setViewMode] = useState(defaultViewMode);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [more, setMore] = useState<TaskSchedulesPage | null>(null);
-  const additionalPage = more ?? { schedules: [], nextCursor };
-  const pageGeneration = useRef(0);
-  const [isRefreshing, startRefreshing] = useTransition();
-  const [isLoadingMore, startLoadingMore] = useTransition();
-  const [hasFailed, setHasFailed] = useState(false);
   const boundaryRef = useRef<HTMLDivElement | null>(null);
   const allTabRef = useRef<HTMLButtonElement | null>(null);
   // The filter is server state; show the pick until the navigation lands.
   const [shownState, setShownState] = useOptimistic(selectedState);
   const [, startFiltering] = useTransition();
 
+  const { armShowAllFocus, clearShowAllFocus } =
+    useTaskSchedulesShowAllFocus(allTabRef);
+
   function handleStateChange(next: string): string {
-    showAllDestination = null;
+    clearShowAllFocus();
     const params = new URLSearchParams(searchParams.toString());
+    // Preserve the latest keystroke even if the shallow URL update is pending.
+    if (query) params.set("q", query);
+    else params.delete("q");
     const nextState = parseTaskScheduleStateFilter(next);
     if (nextState) {
       params.set(TASK_SCHEDULE_STATE_PARAM, nextState);
     } else {
       params.delete(TASK_SCHEDULE_STATE_PARAM);
     }
-    const query = params.toString();
-    const href = query ? `${pathname}?${query}` : pathname;
+    const search = params.toString();
+    const href = search ? `${pathname}?${search}` : pathname;
     startFiltering(() => {
       setShownState(nextState);
       router.replace(href);
@@ -123,76 +118,54 @@ export function TaskSchedulesView({
     return href;
   }
 
-  useMountEffect(() => {
-    const arrived = showAllDestination === currentUrl();
-    showAllDestination = null;
-    if (arrived) allTabRef.current?.focus();
-    return () => {
-      // Unmounted for anything but the Show all landing: drop the request.
-      if (showAllDestination !== currentUrl()) showAllDestination = null;
-    };
+  function handleShowAll() {
+    armShowAllFocus(handleStateChange(ALL_STATES));
+  }
+
+  const {
+    loaded,
+    nextCursor: additionalNextCursor,
+    isRefreshing,
+    isLoadingMore,
+    hasFailed,
+    handleScheduleChanged,
+    handleLoadMore,
+  } = useTaskSchedulesPagination({
+    schedules,
+    nextCursor,
+    selectedProjectId,
+    selectedState,
+    searching,
+    router,
   });
 
-  function handleShowAll() {
-    showAllDestination = handleStateChange(ALL_STATES);
-  }
-
-  function handleScheduleChanged() {
-    pageGeneration.current += 1;
-    setHasFailed(false);
-    startRefreshing(() => {
-      setMore(null);
-      router.refresh();
-    });
-  }
-
-  function handleLoadMore() {
-    const cursor = additionalPage.nextCursor;
-    if (!cursor || isRefreshing || isLoadingMore) return;
-    const generation = pageGeneration.current;
-    setHasFailed(false);
-    startLoadingMore(async () => {
-      try {
-        const page = await loadMoreTaskSchedules({
-          cursor,
-          projectId: selectedProjectId,
-          state: selectedState,
-        });
-        if (generation !== pageGeneration.current) return;
-        setMore((current) => ({
-          schedules: [...(current?.schedules ?? []), ...page.schedules],
-          nextCursor: page.nextCursor,
-        }));
-      } catch {
-        // Stop loading on its own until the reader asks again, rather than
-        // hammering a server that just said no.
-        if (generation === pageGeneration.current) setHasFailed(true);
-      }
-    });
-  }
-
-  // A refresh can bring back rows a "Load more" already appended.
-  const rows = [
-    ...schedules,
-    ...additionalPage.schedules.filter(
-      (extra) => !schedules.some((row) => row.id === extra.id),
-    ),
-  ];
+  const rows = rankPageItems(loaded, query, (schedule) => ({
+    primary: [schedule.name],
+    secondary: [
+      schedule.description,
+      t(`state.${schedule.state}`),
+      projectOptions.find((project) => project.id === schedule.projectId)?.name,
+      assigneeDisplayOptions.find(
+        (person) => person.id === taskScheduleAssigneeId(schedule),
+      )?.name,
+    ],
+  }));
 
   const shownValue = shownState ?? ALL_STATES;
   // The first-use text stays for a workspace with no schedules at all.
   const otherStates = otherStateCounts.filter(({ count }) => count > 0);
   const isFilteredEmpty =
-    rows.length === 0 && selectedState !== null && otherStates.length > 0;
+    loaded.length === 0 && selectedState !== null && otherStates.length > 0;
 
   useLoadWhenVisible(boundaryRef, {
     armed:
-      Boolean(additionalPage.nextCursor) &&
+      !searching &&
+      Boolean(additionalNextCursor) &&
       !isLoadingMore &&
       !isRefreshing &&
       !hasFailed,
     // A new last row means a moved boundary, which asks for the next page.
-    boundaryKey: rows.at(-1)?.id ?? "",
+    boundaryKey: loaded.at(-1)?.id ?? "",
     onVisible: handleLoadMore,
   });
 
@@ -202,7 +175,7 @@ export function TaskSchedulesView({
       onValueChange={handleStateChange}
       value={shownValue}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="@container/page-toolbar flex flex-wrap items-center justify-between gap-3">
         <TabsList
           aria-label={t("stateFilter")}
           className={cn(
@@ -227,23 +200,33 @@ export function TaskSchedulesView({
             </TabsTrigger>
           ))}
         </TabsList>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <ListGridViewSwitch
-            value={viewMode}
-            data-testid="schedules-view-mode-switch"
-            onChange={(next) => {
-              setViewMode(next);
-              document.cookie = serializeSchedulesViewModeCookie(next);
-            }}
-            labels={{ list: t("viewList"), grid: t("viewGrid") }}
+        <PageSearchActions>
+          <PageSearchField
+            inHeader
+            placeholder={tSearch("schedules")}
+            value={query}
+            onValueChange={setQuery}
           />
-          {canCreate ? (
-            <Button size="sm" onClick={() => setIsCreateOpen(true)}>
-              <Plus className="size-4" aria-hidden />
-              {t("newSchedule")}
-            </Button>
-          ) : null}
-        </div>
+
+          {/* Phone: search takes its row; view switch and create share the next. */}
+          <div className="flex w-full items-center justify-between gap-2 sm:w-auto">
+            <ListGridViewSwitch
+              value={viewMode}
+              data-testid="schedules-view-mode-switch"
+              onChange={(next) => {
+                setViewMode(next);
+                document.cookie = serializeSchedulesViewModeCookie(next);
+              }}
+              labels={{ list: t("viewList"), grid: t("viewGrid") }}
+            />
+            {canCreate ? (
+              <Button size="sm" onClick={() => setIsCreateOpen(true)}>
+                <Plus className="size-4" aria-hidden />
+                {t("newSchedule")}
+              </Button>
+            ) : null}
+          </div>
+        </PageSearchActions>
       </div>
 
       {/* One panel, always the shown state's, so the list is its tab's panel. */}
@@ -251,7 +234,18 @@ export function TaskSchedulesView({
         className={cn(HOLDER_CLASS, "flex flex-col gap-4")}
         value={shownValue}
       >
-        {isFilteredEmpty ? (
+        {searching && rows.length === 0 ? (
+          <p
+            className="text-muted-foreground p-4 text-center text-sm"
+            role="status"
+          >
+            {additionalNextCursor
+              ? hasFailed
+                ? null
+                : tSearch("searching")
+              : tSearch("noMatches")}
+          </p>
+        ) : isFilteredEmpty ? (
           <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 flex flex-col items-center gap-2 px-4 py-16 text-center duration-200 ease-out">
             <CalendarSync
               className="text-muted-foreground size-6"
@@ -314,7 +308,7 @@ export function TaskSchedulesView({
           </ul>
         )}
 
-        {additionalPage.nextCursor ? (
+        {additionalNextCursor ? (
           // Loads on its own as it scrolls into view, and stays a button so a
           // click works where no observer runs.
           <div

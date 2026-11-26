@@ -1,5 +1,6 @@
 import { type Prisma } from "@sokosumi/database";
 import {
+  type BrandBrain,
   CMO_PRODUCTION_TURN_PREFIX,
   cmoStrategySaveClears,
   cmoStrategySavePart,
@@ -10,10 +11,13 @@ import {
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
+import { jsonInput } from "@/helpers/prisma-json";
+import { COMPETITOR_CHECK_MODEL } from "@/lib/competitors/model";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { EMBEDDING_MODEL } from "@/lib/embeddings";
 import { recordCoreWarning, tryUseLogger } from "@/lib/evlog";
+import { failOpen } from "@/lib/fail-open";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
 import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
@@ -33,9 +37,16 @@ import {
 import { syncTrackedCompetitorsFromBrandBrain } from "@/services/cmo-competitors.service";
 import {
   CmoNotFoundError,
+  cmoSiteAccountNetworks,
+  findCusoForBot,
   requireCuso,
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
+import { cmoIndustryPillarProblems } from "@/services/cmo-industry.service";
+import {
+  cmoMakesVariedMonth,
+  cmoWritesSceneVisuals,
+} from "@/services/cmo-media-maker.service";
 import {
   CMO_CALENDAR_REVIEWS_PER_TURN,
   CMO_PLAN_REVIEWS_PER_TURN,
@@ -44,23 +55,41 @@ import {
   type CmoPlanReview,
   cmoCalendarLanguage,
   cmoCalendarRepeats,
+  cmoCalendarWeeks,
+  cmoDistinctClaims,
   cmoDraftProblems,
+  cmoNewNetworkProblems,
+  cmoPillarFactProblems,
+  cmoPillarFacts,
   cmoPlanDrift,
   cmoPlanProblemsSince,
+  cmoRejectedTermProblems,
+  cmoRejectedTerms,
   cmoReplySafety,
   cmoSideChannelFit,
-  WEEKLY_STRATEGY_SKILL,
+  cmoSpreadPoints,
+  cmoStrategyRules,
 } from "@/services/cmo-plan-review.service";
+import {
+  cmoPraiseOnly,
+  cmoProofPoints,
+} from "@/services/cmo-production.service";
 import { reportCmoUpdate } from "@/services/cmo-reports.service";
+import {
+  cmoSiteFacts,
+  readCmoSitePages,
+} from "@/services/cmo-site-pages.service";
 import {
   cmoTurnExecutesPlan,
   saveCmoStrategy,
 } from "@/services/cmo-strategy.service";
 import {
   approvedMarketingStrategy,
+  cmoChangeKind,
   isMarketingFilePiece,
   parseMarketingPlan,
   readMarketingPlan,
+  STRATEGY_TURN_PREFIX,
 } from "@/services/marketing-strategy.service";
 import {
   handleSocialComment,
@@ -173,6 +202,23 @@ export async function chargeCheck(
   );
 }
 
+/** A plan check that could not run; the save goes on without its gate. */
+function planCheckSkipped<T>(
+  fallback: T,
+  turnId: string,
+  check: string,
+): (error: unknown) => T {
+  return failOpen(
+    fallback,
+    { operation: "cmo_plan_review", turn: { id: turnId }, planCheck: check },
+    {
+      message: "A CMO plan check was skipped",
+      why: "The check threw, so the strategy was saved without that gate",
+      fix: "Read planCheck and the failure fields. Until it runs again, pillars may miss their industry topics or Brand Brain facts.",
+    },
+  );
+}
+
 /**
  * The plan's review while it waits for approval: the strategy skill's hard
  * rules, and whether it sells the main offer. Bounded per turn, so a plan
@@ -193,9 +239,11 @@ export async function reviewCmoPlan(
     planSent: boolean;
     /** This save is part calendar. */
     calendarSent: boolean;
+    /** The version this save landed in. */
+    versionId?: string;
   },
 ): Promise<CmoPlanReview | null> {
-  const { strategy } = plan;
+  let { strategy } = plan;
   if (!strategy || plan.approved) return null;
   // Only saves that landed count: a refused save saved nothing to review.
   const landedBefore = {
@@ -222,14 +270,54 @@ export async function reviewCmoPlan(
     ? CMO_CALENDAR_REVIEWS_PER_TURN
     : CMO_PLAN_REVIEWS_PER_TURN;
   // A weekly Cuso saves a long month in four calendar calls first.
-  const weekly = getSokoBotVersion(authorized.turn.versionId).skills.includes(
-    WEEKLY_STRATEGY_SKILL,
+  const rules = cmoStrategyRules(
+    getSokoBotVersion(authorized.turn.versionId).skills,
   );
+  const weekly = rules.weekly === true;
   // Jev reads the first saves only; the rule checks cost nothing and run on
   // a few more, so a late save still hears about a repeated title. Past
   // that the review stops, so a plan that cannot be fixed still ends.
+  // A cmo-v8 Cuso also fixes his repeated claims in short patches after the
+  // month is in: his last saves were past the cap and never heard the list.
   const ruleChecks =
-    2 * budget + (weekly && plan.calendarSent ? CMO_WEEKLY_EXTRA_REVIEWS : 0);
+    2 * budget +
+    (weekly && plan.calendarSent ? CMO_WEEKLY_EXTRA_REVIEWS : 0) +
+    (rules.claims && plan.calendarSent ? CMO_WEEKLY_EXTRA_REVIEWS : 0);
+  // cmo-v8: once the month is in, Core gives each repeated claim's later
+  // pieces their own claim on the saved version, on every save: a month of
+  // twenty saves once used up the reviews before its fourth week was in.
+  if (
+    rules.claims &&
+    plan.versionId &&
+    cmoCalendarWeeks(strategy.calendar) >= 4
+  ) {
+    // Points the month makes too often, across every network: the later
+    // pieces move onto points of their own, from the Brand Brain's facts.
+    const owner = await prisma.sokoBot.findUnique({
+      where: { id: authorized.turn.sokoBotId },
+      select: { projectId: true },
+    });
+    const brain = owner?.projectId
+      ? parseBrandBrain((await getBrandBrain(owner.projectId))?.body)
+      : null;
+    const praise = await cmoPraiseOnly(cmoProofPoints(brain));
+    await chargeCheck(input, SOKO_BOT_JEV_MODEL, praise.costUsd);
+    const facts = cmoPointFacts(brain, praise.points);
+    const spread = await cmoSpreadPoints(strategy.calendar, facts);
+    await chargeCheck(input, COMPETITOR_CHECK_MODEL, spread.costUsd);
+    if (spread.pieces.size > 0)
+      strategy = await withEntries(plan.versionId, spread.pieces, strategy);
+    for (let pass = 0; pass < DISTINCT_CLAIM_PASSES; pass++) {
+      const distinct = await cmoDistinctClaims(strategy.calendar);
+      await chargeCheck(input, COMPETITOR_CHECK_MODEL, distinct.costUsd);
+      if (distinct.claims.size === 0) break;
+      strategy = await withEntries(
+        plan.versionId,
+        new Map([...distinct.claims].map(([id, claim]) => [id, { claim }])),
+        strategy,
+      );
+    }
+  }
   if (reviewed >= ruleChecks) return null;
   // The plan this turn built on, as it was before the turn touched it.
   const before =
@@ -246,7 +334,67 @@ export async function reviewCmoPlan(
       select: { plan: true },
     }));
   const earlier = parseMarketingPlan(before?.plan);
-  const problems = cmoPlanProblemsSince(strategy, earlier, { weekly });
+  // A new month (a plan or finish turn, not an owner's change) is held to
+  // the top volume whatever the month before it had.
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: authorized.turn.id },
+    select: { clientTurnId: true, userMessage: true, source: true },
+  });
+  const fresh =
+    turn?.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX) === true &&
+    cmoChangeKind(turn.clientTurnId) === null &&
+    !turn.userMessage.includes("The owner asked: ");
+  // cmo-v14: a network the business connected is never left out.
+  // Its other Cuso's accounts for the same website count too.
+  const cuso = rules.channelFit
+    ? await findCusoForBot(authorized.turn.sokoBotId)
+    : null;
+  const connectedNetworks = cuso ? await cmoSiteAccountNetworks(cuso) : [];
+  const problems = cmoPlanProblemsSince(strategy, earlier, {
+    ...rules,
+    fresh,
+    connectedNetworks,
+  });
+  // cmo-v8: what the owner's correction rejected is gone from every field.
+  if (
+    rules.claims &&
+    turn &&
+    (cmoChangeKind(turn.clientTurnId) !== null || turn.source === "CHAT")
+  ) {
+    const rejected = await cmoRejectedTerms(
+      authorized.turn.id,
+      turn.userMessage,
+      earlier,
+    );
+    await chargeCheck(input, COMPETITOR_CHECK_MODEL, rejected.costUsd);
+    problems.push(...cmoRejectedTermProblems(strategy, rejected.terms));
+  }
+  // Titles, stories and claims that say one thing in other words, by
+  // meaning; like the rules above, only those this change brought.
+  // Embeddings are cached, so the earlier calendar costs nothing new. A
+  // cmo-v8 Cuso saves a month in four calendar calls: each of them hears the
+  // repeats among the entries it sent, and once all four weeks are in he
+  // hears every one. Named all at once on every weekly save, they kept him
+  // fixing old weeks and his months came out short.
+  const monthIn = cmoCalendarWeeks(strategy.calendar) >= 4;
+  const whole = reviewed < budget || (rules.claims === true && monthIn);
+  if (whole || rules.claims) {
+    const [repeats, had] = await Promise.all([
+      cmoCalendarRepeats(strategy.calendar),
+      earlier && earlier.calendar.length > 0
+        ? cmoCalendarRepeats(earlier.calendar)
+        : { problems: [], costUsd: 0 },
+    ]);
+    await chargeCheck(input, EMBEDDING_MODEL, repeats.costUsd + had.costUsd);
+    const known = new Set(had.problems);
+    const sent = sentEntryIds(input.input);
+    problems.push(
+      ...repeats.problems.filter(
+        (problem) =>
+          !known.has(problem) && (whole || namesAnyEntry(problem, sent)),
+      ),
+    );
+  }
   if (reviewed >= budget) {
     return {
       save: saves,
@@ -255,18 +403,6 @@ export async function reviewCmoPlan(
       problems,
     };
   }
-  // Titles and stories that say one thing in other words, by meaning; like
-  // the rules above, only those this change brought. Embeddings are cached,
-  // so the earlier calendar costs nothing new.
-  const [repeats, had] = await Promise.all([
-    cmoCalendarRepeats(strategy.calendar),
-    earlier && earlier.calendar.length > 0
-      ? cmoCalendarRepeats(earlier.calendar)
-      : { problems: [], costUsd: 0 },
-  ]);
-  await chargeCheck(input, EMBEDDING_MODEL, repeats.costUsd + had.costUsd);
-  const known = new Set(had.problems);
-  problems.push(...repeats.problems.filter((problem) => !known.has(problem)));
   if (plan.calendarSent) {
     const language = await cmoCalendarLanguage(strategy, earlier);
     problems.push(...language.problems);
@@ -278,15 +414,53 @@ export async function reviewCmoPlan(
     problems.push(...fit.problems);
     await chargeCheck(input, SOKO_BOT_JEV_MODEL, fit.costUsd);
   }
-  const bot = plan.planSent
-    ? await prisma.sokoBot.findUnique({
-        where: { id: authorized.turn.sokoBotId },
-        select: { projectId: true },
-      })
-    : null;
+  // Every save, a patch or the calendar too: the rules read the plan as
+  // saved, so a patch cannot drop a fix the last review asked for.
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: authorized.turn.sokoBotId },
+    select: { projectId: true },
+  });
   const brain = bot?.projectId
     ? parseBrandBrain((await getBrandBrain(bot.projectId))?.body)
     : null;
+  if (rules.everyNetwork && brain)
+    problems.push(...cmoNewNetworkProblems(strategy, brain, connectedNetworks));
+  // cmo-v21: every pillar is an industry topic resting on the research.
+  const topics =
+    rules.industryTopics && plan.planSent && bot?.projectId
+      ? await cmoIndustryPillarProblems(bot.projectId, strategy).catch(
+          planCheckSkipped(null, authorized.turn.id, "industry_pillars"),
+        )
+      : null;
+  if (topics) {
+    await chargeCheck(input, COMPETITOR_CHECK_MODEL, topics.costUsd);
+    problems.push(...topics.problems);
+  }
+  // cmo-v20: every pillar rests on at least three Brand Brain facts.
+  if (
+    !topics &&
+    rules.pillarFacts &&
+    plan.planSent &&
+    brain &&
+    bot?.projectId
+  ) {
+    const pillars = await cmoPillarFacts(
+      strategy,
+      brain,
+      undefined,
+      cmoSiteFacts(
+        (
+          await readCmoSitePages(bot.projectId).catch(
+            planCheckSkipped(null, authorized.turn.id, "site_pages"),
+          )
+        )?.pages ?? [],
+      ),
+    ).catch(planCheckSkipped(null, authorized.turn.id, "pillar_facts"));
+    if (pillars) {
+      await chargeCheck(input, COMPETITOR_CHECK_MODEL, pillars.costUsd);
+      problems.push(...cmoPillarFactProblems(pillars.pillars));
+    }
+  }
   let mainOffer: CmoPlanOfferVerdict = "skipped";
   if (plan.planSent && brain) {
     const drift = await cmoPlanDrift({ strategy, brain });
@@ -310,6 +484,76 @@ export async function reviewCmoPlan(
     },
   });
   return review;
+}
+
+/** New claims, checked again: a rewrite can land close to another claim. */
+const DISTINCT_CLAIM_PASSES = 3;
+
+/** What a point needs from the Brand Brain: its proof, products and offers. */
+function cmoPointFacts(
+  brain: BrandBrain | null,
+  proof: readonly string[],
+): string[] {
+  if (!brain) return [];
+  return [
+    ...proof,
+    ...brain.products,
+    ...(brain.offers ?? []).map(
+      (offer) => `${offer.name}: ${offer.what} (${offer.price})`,
+    ),
+  ].slice(0, 60);
+}
+
+/** The saved version with these entries' fields replaced; `fallback` when it is gone. */
+async function withEntries(
+  versionId: string,
+  changes: ReadonlyMap<
+    string,
+    Partial<MarketingStrategyPlan["calendar"][number]>
+  >,
+  fallback: MarketingStrategyPlan,
+): Promise<MarketingStrategyPlan> {
+  const version = await prisma.marketingStrategy.findUnique({
+    where: { id: versionId },
+    select: { plan: true, approvedAt: true },
+  });
+  const stored = parseMarketingPlan(version?.plan);
+  if (!stored || version?.approvedAt) return fallback;
+  const plan = {
+    ...stored,
+    calendar: stored.calendar.map((entry) => {
+      const change = changes.get(entry.id);
+      return change ? { ...entry, ...change } : entry;
+    }),
+  };
+  await prisma.marketingStrategy.update({
+    where: { id: versionId },
+    data: { plan: jsonInput(plan) },
+  });
+  return plan;
+}
+
+/** The calendar entries one save_strategy call sends, by id. */
+function sentEntryIds(input: unknown): Set<string> {
+  const calendar = (input as { strategy?: { calendar?: unknown } } | null)
+    ?.strategy?.calendar;
+  return new Set(
+    Array.isArray(calendar)
+      ? calendar.flatMap((entry) => {
+          const id = (entry as { id?: unknown } | null)?.id;
+          return typeof id === "string" ? [id] : [];
+        })
+      : [],
+  );
+}
+
+/** Whether a review problem's list of entries names one of `ids`. */
+export function namesAnyEntry(
+  problem: string,
+  ids: ReadonlySet<string>,
+): boolean {
+  const named = problem.split(/ (?:say|argue|tell) one /)[0] ?? "";
+  return named.split(", ").some((id) => ids.has(id.trim()));
 }
 
 export async function saveCmoRecord(
@@ -368,6 +612,7 @@ export async function saveCmoRecord(
           });
           return saveBrandBrain(bot.projectId, save, tx, {
             briefedAt: turn?.createdAt,
+            by: "cuso",
           });
         });
         if (save.brandBrain) scheduleCmoBrandMedia(authorized.turn.sokoBotId);
@@ -460,6 +705,8 @@ export async function saveCmoRecord(
               part,
               executing,
               clear: cmoStrategySaveClears(input.input),
+              pictureKinds: cmoMakesVariedMonth(authorized.turn.versionId),
+              sceneVisuals: cmoWritesSceneVisuals(authorized.turn.versionId),
               // A plan, change or patch that breaks a hard rule is refused
               // at save time. A rhythm's save sees only 31 days of the
               // calendar, so the review only advises it.
@@ -501,6 +748,7 @@ export async function saveCmoRecord(
           strategy: stored,
           planSent: sent.summary !== undefined,
           calendarSent: part === "calendar",
+          versionId: saved.id,
         });
         // Once the plan runs, the drafts are checked against the copy rules,
         // a filed piece's words as sent (the calendar holds only its file).
@@ -543,7 +791,7 @@ export async function saveCmoRecord(
               : draftProblems.length > 0
                 ? {
                     problems: draftProblems,
-                    next: "Rewrite these drafts: a Social post (by its id) with update_social_post, any other piece with save_strategy part pieces.",
+                    next: "Rewrite these drafts: the Social posts (by their ids) together in one update_social_posts call, any other piece with save_strategy part pieces.",
                   }
                 : {}),
           },

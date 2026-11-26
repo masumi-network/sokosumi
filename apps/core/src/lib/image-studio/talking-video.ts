@@ -1,12 +1,18 @@
 import { SOKO_BOT_VOICEOVER_VOICES } from "@sokosumi/soko-bot";
 import {
+  creditsPerShortVideoCents,
   creditsPerTalkingVideoCents,
+  SHORT_VIDEO_FORMATS,
+  type ShortVideoFormat,
   TALKING_VIDEO_PRICE,
   TALKING_VIDEO_PRICE_VERIFIED_AT,
   TALKING_VIDEO_SCRIPT_MAX_LENGTH,
   TALKING_VIDEO_SCRIPT_MIN_LENGTH,
   type TalkingVideoExtras,
   type TalkingVideoPriceFigures,
+  VIDEO_SHAPE_FRAMES,
+  VIDEO_SHAPES,
+  type VideoShape,
 } from "@sokosumi/utils";
 import sharp from "sharp";
 
@@ -83,7 +89,7 @@ const MODELS: TalkingVideoModel[] = [
     price: {
       ...TALKING_VIDEO_PRICE,
       basis:
-        "$0.05 per started second of video at 1080p, as fal's billing events show, plus the voice ($0.08 per 1,000 characters) and timing its words for the captions ($0.008 per minute). Showing the brand's site behind the presenter adds the cut-out (about $0.01 per second, as fal billed a measured clip). Optional: a B-roll clip in the hook ($0.50) and a music bed ($0.10), as fal billed them. The edit itself is made by Core and costs nothing.",
+        "$0.05 per started second of video at 1080p, as fal's billing events show, plus the voice ($0.08 per 1,000 characters) and timing its words for the captions ($0.008 per minute). Showing the brand's site behind the presenter adds the cut-out (about $0.01 per second, as fal billed a measured clip). Optional: a B-roll clip in the hook ($0.50) and a music bed ($0.10), as fal billed them. The edit itself is made by Core and costs nothing, and so does each other shape (4:5, 1:1, 16:9): Core cuts it from the same voice, presenter, B-roll and music.",
       sourceUrl: "https://fal.ai/models/heygen/avatar-6/turbo/image-to-video",
       verifiedAt: TALKING_VIDEO_PRICE_VERIFIED_AT,
     },
@@ -99,7 +105,11 @@ export interface TalkingVideoPresenter {
   description: string;
   /** A public 9:16 portrait. Generated: no presenter is a real person. */
   imageUrl: string;
+  /** The stock voice that sounds like this presenter, picked with them. */
+  voice: TalkingVideoVoice;
 }
+
+type TalkingVideoVoice = (typeof SOKO_BOT_VOICEOVER_VOICES)[number];
 
 const PRESENTER_BASE_URL =
   "https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/vendor/talking-video/presenters";
@@ -108,19 +118,61 @@ function presenter(
   id: string,
   name: string,
   description: string,
+  voice: TalkingVideoVoice,
 ): TalkingVideoPresenter {
-  return { id, name, description, imageUrl: `${PRESENTER_BASE_URL}/${id}.jpg` };
+  return {
+    id,
+    name,
+    description,
+    imageUrl: `${PRESENTER_BASE_URL}/${id}.jpg`,
+    voice,
+  };
 }
 
 export const TALKING_VIDEO_PRESENTERS: TalkingVideoPresenter[] = [
-  presenter("maya", "Maya", "Woman in her late twenties, casual, at home."),
-  presenter("jonas", "Jonas", "Man in his thirties, casual, in a home office."),
-  presenter("aisha", "Aisha", "Woman in her thirties, smart, in an office."),
-  presenter("leo", "Leo", "Man in his early twenties, relaxed, in a studio."),
-  presenter("elena", "Elena", "Woman in her forties, warm, in a kitchen."),
-  presenter("david", "David", "Man in his fifties, calm, in a workshop."),
-  presenter("mei", "Mei", "Woman in her twenties, bright, in a café."),
-  presenter("omar", "Omar", "Man in his forties, friendly, in a shop."),
+  presenter(
+    "maya",
+    "Maya",
+    "Woman in her late twenties, casual, at home.",
+    "Sarah",
+  ),
+  presenter(
+    "jonas",
+    "Jonas",
+    "Man in his thirties, casual, in a home office.",
+    "Chris",
+  ),
+  presenter(
+    "aisha",
+    "Aisha",
+    "Woman in her thirties, smart, in an office.",
+    "Alice",
+  ),
+  presenter(
+    "leo",
+    "Leo",
+    "Man in his early twenties, relaxed, in a studio.",
+    "Liam",
+  ),
+  presenter(
+    "elena",
+    "Elena",
+    "Woman in her forties, warm, in a kitchen.",
+    "Matilda",
+  ),
+  presenter(
+    "david",
+    "David",
+    "Man in his fifties, calm, in a workshop.",
+    "Brian",
+  ),
+  presenter(
+    "mei",
+    "Mei",
+    "Woman in her twenties, bright, in a café.",
+    "Jessica",
+  ),
+  presenter("omar", "Omar", "Man in his forties, friendly, in a shop.", "Eric"),
 ];
 
 export const DEFAULT_TALKING_VIDEO_VOICE =
@@ -211,7 +263,19 @@ export function posesAsCustomerTestimonial(script: string): boolean {
 export const TALKING_VIDEO_TESTIMONIAL_MESSAGE =
   "A talking video shows a generated presenter, so it cannot speak as a customer. Write it in the brand's own voice.";
 
-/** A talking video's stored settings: a video's, plus who speaks and how. */
+/** Credits (= cents) for one short of this script in this format. */
+export function creditsPerShortVideo(
+  script: string,
+  format: ShortVideoFormat,
+): number {
+  return creditsPerShortVideoCents(TALKING_VIDEO_PRICE, script, format);
+}
+
+/**
+ * A talking video's stored settings: a video's, plus who speaks and how. A
+ * short is stored the same way, without a presenter: its `format` is set, its
+ * one paid request is its music, and its pictures are copied in.
+ */
 export interface TalkingVideoSettings extends VideoSettings {
   voice: string;
   /** A stock presenter, or null when the photo is the job's reference File. */
@@ -232,6 +296,27 @@ export interface TalkingVideoSettings extends VideoSettings {
   /** Generated music plays under the voice; its provider request, once sent. */
   music: boolean;
   musicRequestId: string | null;
+  /** A short's format, or null for a video with a presenter. */
+  format: ShortVideoFormat | null;
+  /** A short's pictures in the studio's store, once copied in. */
+  picturePathnames: string[];
+  /** The shape this job's video is cut in. */
+  shape: VideoShape;
+  /**
+   * The other shapes wanted. Each is its own job, started once this one is
+   * delivered, cut from the same voice, presenter, B-roll and music.
+   */
+  shapes: VideoShape[];
+  /** The job whose paid parts this shape is cut from, or null for the first. */
+  sourceJobId: string | null;
+  /** The site as a desktop shows it, for a widescreen shape. */
+  siteDesktopPagePathname: string | null;
+}
+
+function readShape(value: unknown): VideoShape | null {
+  return (VIDEO_SHAPES as readonly unknown[]).includes(value)
+    ? (value as VideoShape)
+    : null;
 }
 
 function readSpokenWords(value: unknown): SpokenWord[] {
@@ -252,8 +337,9 @@ export function readTalkingVideoSettings(value: unknown): TalkingVideoSettings {
     typeof value === "object" && value !== null && !Array.isArray(value)
       ? (value as Record<string, unknown>)
       : {};
+  const shape = readShape(raw.shape) ?? "9:16";
   return {
-    aspectRatio: TALKING_VIDEO_ASPECT_RATIO,
+    aspectRatio: shape,
     durationSeconds:
       typeof raw.durationSeconds === "number" ? raw.durationSeconds : 0,
     resolution: TALKING_VIDEO_RESOLUTION,
@@ -275,7 +361,73 @@ export function readTalkingVideoSettings(value: unknown): TalkingVideoSettings {
     music: raw.music === true,
     musicRequestId:
       typeof raw.musicRequestId === "string" ? raw.musicRequestId : null,
+    format: (SHORT_VIDEO_FORMATS as readonly unknown[]).includes(raw.format)
+      ? (raw.format as ShortVideoFormat)
+      : null,
+    picturePathnames: Array.isArray(raw.picturePathnames)
+      ? raw.picturePathnames.filter(
+          (pathname): pathname is string => typeof pathname === "string",
+        )
+      : [],
+    shape,
+    shapes: Array.isArray(raw.shapes)
+      ? raw.shapes.flatMap((value) => {
+          const each = readShape(value);
+          return each && each !== shape ? [each] : [];
+        })
+      : [],
+    sourceJobId: typeof raw.sourceJobId === "string" ? raw.sourceJobId : null,
+    siteDesktopPagePathname:
+      typeof raw.siteDesktopPagePathname === "string"
+        ? raw.siteDesktopPagePathname
+        : null,
   };
+}
+
+/**
+ * One of a short's pictures fitted to a shape's frame. A picture of about the
+ * frame's shape, or any picture in a vertical frame, is cropped around what
+ * draws the eye; one far off it (a portrait in a widescreen frame) is shown
+ * whole over a blurred copy, so no head or product is cut away.
+ */
+export async function fitVideoPicture(
+  bytes: Uint8Array,
+  shape: VideoShape,
+): Promise<Uint8Array> {
+  const { width, height } = VIDEO_SHAPE_FRAMES[shape];
+  const source = sharp(bytes).rotate();
+  const meta = await sharp(await source.clone().toBuffer()).metadata();
+  const pictureAspect = (meta.width ?? width) / (meta.height ?? height);
+  const ratio = pictureAspect / (width / height);
+  // Vertical keeps the crop shorts have always had.
+  if (shape === "9:16" || (ratio > 0.65 && ratio < 1.55)) {
+    return await source
+      .resize(width, height, { fit: "cover", position: "attention" })
+      .jpeg({ quality: 92 })
+      .toBuffer();
+  }
+  const [backdrop, whole] = await Promise.all([
+    source
+      .clone()
+      .resize(width, height, { fit: "cover" })
+      .blur(40)
+      .modulate({ brightness: 0.8 })
+      .toBuffer(),
+    source.clone().resize(width, height, { fit: "inside" }).toBuffer(),
+  ]);
+  return await sharp(backdrop)
+    .composite([{ input: whole, gravity: "centre" }])
+    .jpeg({ quality: 92 })
+    .toBuffer();
+}
+
+/** A picture kept as it was taken, only made small enough for any frame. */
+export async function keepVideoPicture(bytes: Uint8Array): Promise<Uint8Array> {
+  return await sharp(bytes)
+    .rotate()
+    .resize(2160, 2160, { fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 92 })
+    .toBuffer();
 }
 
 /**

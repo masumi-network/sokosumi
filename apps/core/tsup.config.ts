@@ -15,7 +15,9 @@ export default defineConfig([
     // compiled into the bundle. Its Prisma drivers stay external: `pg` is
     // CommonJS and dies at import when inlined, and keeping `@prisma/client`
     // external stops the wasm query compiler being embedded as base64.
-    noExternal: ["@sokosumi/database"],
+    // `@sokosumi/mcp-ui` is the MCP views as HTML strings (ADR 0083): bundled,
+    // so the function needs no file from the package at runtime.
+    noExternal: ["@sokosumi/database", "@sokosumi/mcp-ui"],
     external: ["pg", "@prisma/client", "@prisma/adapter-pg"],
     // `@hono/zod-openapi` adds `.openapi()` only to zod schemas built after it
     // loads. Code splitting can hoist a chunk that loads `@sokosumi/soko-bot`

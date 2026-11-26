@@ -1,12 +1,22 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
+import {
+  JobsListHeaderSkeleton,
+  JobsPanesSkeleton,
+} from "@/app/agents/[agentId]/jobs/components/jobs-loading";
+import {
+  APP_MAIN_MOBILE_PT_CLASS,
+  APP_SHELL_BELOW_HEADER_MIN_HEIGHT_CLASS,
+} from "@/app/components/app-shell-safe-area";
 import { MarkAgentUnavailable } from "@/app/components/unavailable-agent.client";
-import DefaultLoading from "@/components/default-loading";
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/auth.server";
 import { agentService } from "@/lib/services/agent.service";
 import { createUnavailableCoreAgent } from "@/lib/types/core-dto";
+import { cn } from "@/lib/utils";
+
+import AgentFullbleedEffect from "../components/agent-fullbleed-effect";
 
 import { getCachedMyJobs } from "./_lib/get-cached-my-jobs";
 import { JobsHeaderContext } from "./components/jobs-header-context";
@@ -38,12 +48,35 @@ export default async function JobLayout({
   right,
   params,
 }: JobLayoutProps) {
+  // Full-bleed (no main padding, visible overflow) so the panes can stick.
+  // Only the jobs screens need it; the agent profile keeps the app gutter.
   return (
-    <Suspense fallback={<JobLayoutSkeleton />}>
-      <JobLayoutInner modal={modal} right={right} params={params}>
-        {children}
-      </JobLayoutInner>
-    </Suspense>
+    <div
+      data-agent-fullbleed
+      className={cn(
+        "flex flex-1 flex-col",
+        APP_SHELL_BELOW_HEADER_MIN_HEIGHT_CLASS,
+        APP_MAIN_MOBILE_PT_CLASS,
+        "md:pt-0",
+      )}
+    >
+      <AgentFullbleedEffect />
+      <Suspense
+        fallback={
+          <JobsPanesSkeleton
+            header={
+              <Suspense fallback={<JobsListHeaderSkeleton />}>
+                <LoadingJobsListHeader params={params} />
+              </Suspense>
+            }
+          />
+        }
+      >
+        <JobLayoutInner modal={modal} right={right} params={params}>
+          {children}
+        </JobLayoutInner>
+      </Suspense>
+    </div>
   );
 }
 
@@ -133,12 +166,21 @@ async function JobLayoutInner({
   );
 }
 
-function JobLayoutSkeleton() {
-  return (
-    <div className="flex flex-col lg:h-[calc(100dvh-6rem)]">
-      <div className="mt-6 flex flex-1">
-        <DefaultLoading className="size-full min-h-[300px] flex-1 p-8" />
-      </div>
-    </div>
-  );
+/**
+ * Names the agent while its jobs still load. The agent read is one call and
+ * the jobs take several, so the header usually lands first; until then, and
+ * if the read fails, the header's bones stay.
+ */
+async function LoadingJobsListHeader({
+  params,
+}: Pick<JobLayoutProps, "params">) {
+  const { agentId } = await params;
+  const agent = await getCoreAgentById(agentId).catch((error: unknown) => {
+    unstable_rethrow(error);
+    return null;
+  });
+  if (!agent) {
+    return <JobsListHeaderSkeleton />;
+  }
+  return <JobsListHeader agent={agent} />;
 }

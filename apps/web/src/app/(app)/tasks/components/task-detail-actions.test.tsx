@@ -2,9 +2,17 @@ import type { MemberWithOrganization } from "@sokosumi/core-client";
 import { TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
 import { expectConsole } from "@sokosumi/utils/test-console";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
+  Activity,
   type ComponentProps,
   cloneElement,
   createContext,
@@ -24,7 +32,11 @@ import {
 } from "@/app/tasks/components/task-detail-optimistic";
 import { TaskDetailLinksProvider } from "@/app/tasks/components/task-detail-optimistic-links";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
-import { isTaskArchived } from "@/app/tasks/utils/archived-task-ids";
+import {
+  isTaskArchived,
+  isTaskArchivePending,
+  unmarkTaskArchived,
+} from "@/app/tasks/utils/archived-task-ids";
 import {
   MAX_SUBTASK_DEPTH,
   SUBTASK_LIST_LIMIT,
@@ -35,6 +47,7 @@ import {
   createTaskAndLink,
   createTaskLink,
   deleteTaskLink,
+  revalidateTasksAfterArchive,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
@@ -151,7 +164,7 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   useIsMobile: isMobileMock,
 }));
 
@@ -401,6 +414,7 @@ vi.mock("@/lib/services/task.client", () => ({
 }));
 
 vi.mock("@/lib/actions/task/action", () => ({
+  revalidateTasksAfterArchive: vi.fn(),
   setTaskStatusFromDrag: vi.fn(),
   moveTaskToWorkspace: vi.fn(),
   createTaskLink: vi.fn(),
@@ -416,6 +430,15 @@ vi.mock("@/lib/actions/task/subtask-action", () => ({
   createSubtask: createSubtaskMock,
   moveSubtask: vi.fn(),
   setTaskParent: setTaskParentMock,
+}));
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({
+    data: {
+      user: { id: "user-1" },
+      session: { activeOrganizationId: null },
+    },
+  }),
 }));
 
 vi.mock("@/lib/clients/core.browser.client", () => {
@@ -746,7 +769,12 @@ const coworkerOptions = [
 ];
 
 /** The app's query cache; the sub-task checklist reads and writes it. */
-let queryClient = new QueryClient();
+let queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { gcTime: Number.POSITIVE_INFINITY },
+    mutations: { gcTime: Number.POSITIVE_INFINITY },
+  },
+});
 
 function renderActionsElement(
   props?: Partial<ComponentProps<typeof TaskDetailActions>>,
@@ -807,7 +835,14 @@ function renderActions(
 describe("TaskDetailActions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    queryClient = new QueryClient();
+    pushMock.mockReset();
+    refreshMock.mockReset();
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     createRelatedVisibilityMock.current = undefined;
     isMobileMock.mockReturnValue(false);
     browserCoreClientMock.getTasks.mockReset();
@@ -815,6 +850,8 @@ describe("TaskDetailActions", () => {
     vi.mocked(createTaskLink).mockReset();
     vi.mocked(createTaskAndLink).mockReset();
     archiveMock.mockReset().mockResolvedValue(undefined);
+    vi.mocked(revalidateTasksAfterArchive).mockReset().mockResolvedValue(true);
+    unmarkTaskArchived("task-1");
     vi.mocked(deleteTaskLink).mockReset();
   });
 
@@ -1039,19 +1076,95 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
   });
 
-  it("marks the task archived for the board before leaving", async () => {
+  it("shows Tasks Activity while archive DELETE is held, blocks a second click, and revalidates once on resolve", async () => {
     const user = userEvent.setup();
-    renderActions({
-      status: "GRANT_PENDING" as TaskStatus,
-      organizations: undefined,
-      isTaskOwner: true,
-      isReadOnly: true,
-    });
+    const pendingDelete = Promise.withResolvers<void>();
+    const pendingRevalidate = Promise.withResolvers<boolean>();
+    archiveMock.mockReturnValueOnce(pendingDelete.promise);
+    vi.mocked(revalidateTasksAfterArchive).mockReturnValueOnce(
+      pendingRevalidate.promise,
+    );
+
+    function TwoRouteHarness() {
+      const [route, setRoute] = useState<"/tasks/task-1" | "/tasks">(
+        "/tasks/task-1",
+      );
+      pushMock.mockImplementation((next: string) => {
+        if (next === "/tasks") setRoute("/tasks");
+      });
+      return (
+        <>
+          <Activity mode={route === "/tasks" ? "visible" : "hidden"}>
+            <div data-testid="tasks-route">Tasks board</div>
+          </Activity>
+          <Activity mode={route === "/tasks/task-1" ? "visible" : "hidden"}>
+            {renderActionsElement({
+              status: "GRANT_PENDING" as TaskStatus,
+              organizations: undefined,
+              isTaskOwner: true,
+              isReadOnly: true,
+            })}
+          </Activity>
+        </>
+      );
+    }
+
+    render(<TwoRouteHarness />);
+    expect(screen.getByTestId("tasks-route")).not.toBeVisible();
 
     await user.click(screen.getByRole("button", { name: labels.archive }));
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/tasks"));
+    expect(pushMock).toHaveBeenCalledWith("/tasks");
+    expect(screen.getByTestId("tasks-route")).toBeVisible();
+    expect(archiveMock).toHaveBeenCalledTimes(1);
+    expect(archiveMock).toHaveBeenCalledWith("task-1");
+    expect(revalidateTasksAfterArchive).not.toHaveBeenCalled();
     expect(isTaskArchived("task-1")).toBe(true);
+    expect(isTaskArchivePending("task-1")).toBe(true);
+    expect(refreshMock).not.toHaveBeenCalled();
+
+    // A second click while DELETE is pending sends no second DELETE.
+    const hiddenArchiveButton = screen.getByRole("button", {
+      name: labels.archive,
+      hidden: true,
+    });
+    expect(hiddenArchiveButton).toBeDisabled();
+    fireEvent.click(hiddenArchiveButton);
+    expect(archiveMock).toHaveBeenCalledTimes(1);
+
+    pendingDelete.resolve();
+    await waitFor(() =>
+      expect(revalidateTasksAfterArchive).toHaveBeenCalledTimes(1),
+    );
+    expect(isTaskArchivePending("task-1")).toBe(true);
+
+    pendingRevalidate.resolve(true);
+    await waitFor(() => expect(isTaskArchivePending("task-1")).toBe(false));
+    expect(isTaskArchived("task-1")).toBe(true);
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores a second Archive click while still on the task page and re-enables on failure", async () => {
+    expectConsole("error", "Failed to archive task");
+    const user = userEvent.setup();
+    const pendingDelete = Promise.withResolvers<void>();
+    archiveMock.mockReturnValueOnce(pendingDelete.promise);
+    renderActions({ organizations: undefined });
+
+    const archiveButton = screen.getByRole("button", { name: labels.archive });
+    await user.click(archiveButton);
+
+    expect(archiveButton).toBeDisabled();
+    fireEvent.click(archiveButton);
+    expect(archiveMock).toHaveBeenCalledTimes(1);
+
+    pendingDelete.reject(new Error("nope"));
+    await waitFor(() => expect(isTaskArchived("task-1")).toBe(false));
+    expect(isTaskArchivePending("task-1")).toBe(false);
+    expect(archiveButton).toBeEnabled();
+    expect(revalidateTasksAfterArchive).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(labels.archiveError);
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("shows the task again on the board when the archive fails", async () => {
@@ -1064,7 +1177,25 @@ describe("TaskDetailActions", () => {
 
     expect(pushMock).toHaveBeenCalledWith("/tasks");
     await waitFor(() => expect(isTaskArchived("task-1")).toBe(false));
+    expect(revalidateTasksAfterArchive).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith(labels.archiveError);
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the task archived and falls back to router.refresh if revalidation fails after DELETE succeeds", async () => {
+    expectConsole("error", "Failed to revalidate tasks after archive");
+    const user = userEvent.setup();
+    vi.mocked(revalidateTasksAfterArchive).mockRejectedValueOnce(
+      new Error("skew"),
+    );
+    renderActions({ organizations: undefined });
+
+    await user.click(screen.getByRole("button", { name: labels.archive }));
+
+    await waitFor(() => expect(isTaskArchivePending("task-1")).toBe(false));
+    expect(isTaskArchived("task-1")).toBe(true);
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(refreshMock).toHaveBeenCalledTimes(1);
   });
 
   it("reports a stale status list instead of opening the upgrade modal", async () => {

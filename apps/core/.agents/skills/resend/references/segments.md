@@ -6,23 +6,23 @@ Group contacts for broadcast targeting. Segments replaced legacy "audiences" —
 
 ### Node.js
 
-| Operation | Method |
-|-----------|--------|
-| Create | `resend.segments.create(params)` |
-| Get | `resend.segments.get(id)` |
-| Update | `resend.segments.update(id, { name })` — rename only |
-| List | `resend.segments.list(params?)` |
-| Delete | `resend.segments.remove(id)` — not `.delete()` |
+| Operation | Method                                               |
+| --------- | ---------------------------------------------------- |
+| Create    | `resend.segments.create(params)`                     |
+| Get       | `resend.segments.get(id)`                            |
+| Update    | `resend.segments.update(id, { name })` — rename only |
+| List      | `resend.segments.list(params?)`                      |
+| Delete    | `resend.segments.remove(id)` — not `.delete()`       |
 
 ### Python
 
-| Operation | Method |
-|-----------|--------|
-| Create | `resend.Segments.create(params)` |
-| Get | `resend.Segments.get(id)` |
-| Update | `resend.Segments.update(id, params)` — rename only |
-| List | `resend.Segments.list(params?)` |
-| Delete | `resend.Segments.remove(id)` |
+| Operation | Method                                             |
+| --------- | -------------------------------------------------- |
+| Create    | `resend.Segments.create(params)`                   |
+| Get       | `resend.Segments.get(id)`                          |
+| Update    | `resend.Segments.update(id, params)` — rename only |
+| List      | `resend.Segments.list(params?)`                    |
+| Delete    | `resend.Segments.remove(id)`                       |
 
 ## Create Segment
 
@@ -86,8 +86,8 @@ await resend.broadcasts.create({
 
 ## Common Mistakes
 
-| Mistake | Fix |
-|---------|-----|
-| Using `audienceId` | Audiences are deprecated — use `segmentId` |
-| Calling `.delete()` | SDK method is `.remove()` |
+| Mistake                       | Fix                                                             |
+| ----------------------------- | --------------------------------------------------------------- |
+| Using `audienceId`            | Audiences are deprecated — use `segmentId`                      |
+| Calling `.delete()`           | SDK method is `.remove()`                                       |
 | Expecting contacts auto-added | Contacts must be explicitly added via `contacts.segments.add()` |

@@ -1,15 +1,17 @@
 "use client";
 
 import type { DataRoomQuestion, DataRoomTreeRow } from "@sokosumi/core-client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { cn } from "@/lib/utils";
 import {
   answerDataRoomQuestion,
@@ -17,7 +19,13 @@ import {
   fetchDataRoomQuestions,
 } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import {
+  driveQueryKeys,
+  invalidateDrive,
+  splitDriveQueryKey,
+} from "@/queries/drive";
 import { NEEDS_YOU_DATA_ROOM_QUESTIONS_QUERY_KEY } from "@/queries/needs-you-data-room-questions";
+import { useScopedQuery } from "@/queries/scoped-queries";
 import { rowLabel } from "./data-room-activity";
 
 /** Viewers' questions about documents, each answerable in place. */
@@ -35,9 +43,9 @@ export function DataRoomQuestions({
 }) {
   const t = useTranslations("App.Drive.DataRoom.Questions");
   const queryClient = useQueryClient();
-  const query = useQuery({
-    queryKey: ["drive", "data-room", roomId, "questions", store],
-    queryFn: () => fetchDataRoomQuestions({ store, roomId }),
+  const query = useScopedQuery({
+    ...splitDriveQueryKey(driveQueryKeys.dataRoomQuestions(store, roomId)),
+    queryFn: ({ signal }) => fetchDataRoomQuestions({ store, roomId, signal }),
   });
 
   if (query.isError)
@@ -64,7 +72,7 @@ export function DataRoomQuestions({
           label={rowLabel(rows, question.path)}
           focused={question.id === focusQuestionId}
           onAnswered={() => {
-            void query.refetch();
+            void invalidateDrive(queryClient, store);
             // Needs you lists this question until it has an answer.
             void queryClient.invalidateQueries({
               queryKey: NEEDS_YOU_DATA_ROOM_QUESTIONS_QUERY_KEY,
@@ -101,11 +109,8 @@ function QuestionItem({
 
   // Opened from Needs you: bring the question into view with its answer box
   // ready, once, when it first renders.
-  useEffect(() => {
-    if (!focused) return;
-    answerRef.current?.scrollIntoView({ block: "center" });
-    answerRef.current?.focus({ preventScroll: true });
-  }, [focused]);
+  useScrollIntoViewWhen(answerRef, focused, { block: "center" });
+  useFocusWhen(answerRef, focused, { preventScroll: true });
 
   return (
     <li

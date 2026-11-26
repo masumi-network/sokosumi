@@ -27,13 +27,20 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { type ReactNode, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  type RefObject,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import {
   correctChatSignalTagAction,
   setChatSignalLoopAction,
   suggestChatCoworkersAction,
 } from "@/app/chat/signal-actions";
+import { CHAT_DECISIONS_PATH } from "@/app/chat/utils/chat-route-base";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import {
   CHAT_SIGNAL_TAG_ORDER,
@@ -42,6 +49,7 @@ import {
   chipTags,
   signalChips,
 } from "@/components/chat/signals/signal-chips";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Popover,
@@ -49,6 +57,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { useMediaQuery } from "@/hooks/effects/use-media-query";
 import { cn } from "@/lib/utils";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 
@@ -77,6 +94,25 @@ function chipTone(chip: ChatSignalChip): string {
   return "bg-muted text-muted-foreground";
 }
 
+/** A chip's name; a dated commitment carries its day. */
+function signalChipLabel(
+  chip: ChatSignalChip,
+  signal: Pick<ChatMessageSignal, "commitmentDueAt">,
+  t: ReturnType<typeof useTranslations<"App.Channels.Signals">>,
+  format: ReturnType<typeof useFormatter>,
+): string {
+  if (chip !== "commitment" || !signal.commitmentDueAt) {
+    return t(`Chips.${chip}`);
+  }
+  return t("Chips.commitmentDue", {
+    date: format.dateTime(signal.commitmentDueAt, {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    }),
+  });
+}
+
 interface MessageSignalBarProps {
   message: ChatRoomMessage;
   currentUserId?: string;
@@ -89,7 +125,8 @@ interface MessageSignalBarProps {
  * things a reader can do about it (make a Task of a commitment, hand a work
  * request to a Coworker). A guide, not a verdict: one click on a chip's `×`
  * removes it, and the tag button edits every tag. Corrections apply for
- * every reader.
+ * every reader. On a touch screen the whole chip is the target: a tap opens
+ * its actions in a sheet, so a stray tap never removes a tag.
  */
 export function MessageSignalBar({
   message,
@@ -102,6 +139,14 @@ export function MessageSignalBar({
   const [override, setOverride] = useState<ChatMessageSignal | null>(null);
   const [isSaving, startSaving] = useTransition();
   const wizard = useOptionalNewTaskWizard();
+  const touch = useMediaQuery("(hover: none)");
+  const [sheetChip, setSheetChip] = useState<ChatSignalChip | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  // Where focus goes when the sheet closes: the chip that opened it.
+  const openerRef = useRef<HTMLButtonElement | null>(null);
+  // Where focus goes after a removal: a row control that outlives the bar,
+  // which goes with its last chip.
+  const restoreRef = useRef<HTMLElement | null>(null);
   const signal = override ?? message.signal ?? null;
   if (!signal) return null;
   const chips = signalChips(signal, currentUserId);
@@ -127,6 +172,9 @@ export function MessageSignalBar({
       }
     });
   }
+
+  const chipLabel = (chip: ChatSignalChip) =>
+    signalChipLabel(chip, signal, t, format);
 
   function taskPrompt(): string {
     const names = new Map(
@@ -178,42 +226,33 @@ export function MessageSignalBar({
       data-testid="message-signal-bar"
       className="mt-1 flex flex-wrap items-center gap-1"
     >
-      {chips.map((chip) => {
-        const Icon = CHIP_ICONS[chip];
-        const label =
-          chip === "commitment" && signal.commitmentDueAt
-            ? t("Chips.commitmentDue", {
-                date: format.dateTime(signal.commitmentDueAt, {
-                  weekday: "short",
-                  day: "numeric",
-                  month: "short",
-                }),
-              })
-            : t(`Chips.${chip}`);
-        return (
-          <span
-            key={chip}
-            data-chip={chip}
-            className={cn(
-              "group/chip inline-flex h-6 items-center gap-1 rounded-md ps-1.5 pe-0.5 text-xs font-medium",
-              chipTone(chip),
-            )}
-          >
-            <Icon className="size-3 shrink-0" aria-hidden />
-            <span>{label}</span>
-            <button
-              type="button"
-              disabled={isSaving}
-              aria-label={t("removeTag", { tag: label })}
-              title={t("removeTag", { tag: label })}
-              className="hit-area hover:bg-background grid size-4 place-items-center rounded-sm opacity-60 hover:opacity-100 focus-visible:opacity-100"
-              onClick={() => correct(chipTags(chip, signal), false)}
-            >
-              <X className="size-3" aria-hidden />
-            </button>
-          </span>
-        );
-      })}
+      {chips.map((chip) => (
+        <SignalChip
+          key={chip}
+          chip={chip}
+          label={chipLabel(chip)}
+          touch={touch}
+          disabled={isSaving}
+          onOpen={(opener) => {
+            openerRef.current = opener;
+            setSheetChip(chip);
+            setSheetOpen(true);
+          }}
+          onRemove={() => correct(chipTags(chip, signal), false)}
+        />
+      ))}
+      <TagActionsSheet
+        chip={sheetChip}
+        labelFor={chipLabel}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        openerRef={openerRef}
+        restoreRef={restoreRef}
+        onRemove={(chip) => {
+          setSheetOpen(false);
+          correct(chipTags(chip, signal), false);
+        }}
+      />
       {loopClosed ? (
         signal.loopTaskId ? (
           <Link
@@ -257,6 +296,170 @@ export function MessageSignalBar({
         />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * One chip. With a pointer its `×` removes the tag; on a touch screen the
+ * whole chip opens the tag's actions instead, so a tap alone keeps it.
+ */
+function SignalChip({
+  chip,
+  label,
+  touch,
+  disabled,
+  onOpen,
+  onRemove,
+}: {
+  chip: ChatSignalChip;
+  label: string;
+  touch: boolean;
+  disabled: boolean;
+  onOpen: (opener: HTMLButtonElement) => void;
+  onRemove: () => void;
+}) {
+  const t = useTranslations("App.Channels.Signals");
+  const Icon = CHIP_ICONS[chip];
+  const chipClass = cn(
+    "group/chip inline-flex h-6 items-center gap-1 rounded-md ps-1.5 text-xs font-medium",
+    chipTone(chip),
+  );
+  if (touch) {
+    return (
+      <button
+        type="button"
+        data-chip={chip}
+        aria-haspopup="dialog"
+        disabled={disabled}
+        className={cn(chipClass, "press pe-1.5 disabled:opacity-50")}
+        onClick={(event) => onOpen(event.currentTarget)}
+      >
+        <Icon className="size-3 shrink-0" aria-hidden />
+        <span>{label}</span>
+      </button>
+    );
+  }
+  return (
+    <span data-chip={chip} className={cn(chipClass, "pe-0.5")}>
+      <Icon className="size-3 shrink-0" aria-hidden />
+      <span>{label}</span>
+      <button
+        type="button"
+        disabled={disabled}
+        aria-label={t("removeTag", { tag: label })}
+        title={t("removeTag", { tag: label })}
+        className="hit-area hover:bg-background grid size-4 place-items-center rounded-sm opacity-60 hover:opacity-100 focus-visible:opacity-100"
+        onClick={onRemove}
+      >
+        <X className="size-3" aria-hidden />
+      </button>
+    </span>
+  );
+}
+
+/**
+ * The message row's own actions button, which every row with actions keeps
+ * mounted; else the row itself.
+ */
+function survivingRowControl(from: HTMLElement | null): HTMLElement | null {
+  const row = from?.closest("article");
+  if (!row) return null;
+  const actions = row.querySelector<HTMLElement>(
+    "[data-message-actions-trigger]",
+  );
+  if (actions) return actions;
+  row.tabIndex = -1;
+  return row;
+}
+
+/** A touch chip's actions, in the same bottom sheet as a message's own. */
+function TagActionsSheet({
+  chip,
+  labelFor,
+  open,
+  onOpenChange,
+  openerRef,
+  restoreRef,
+  onRemove,
+}: {
+  /** Null until a chip is tapped; it stays set while the sheet closes. */
+  chip: ChatSignalChip | null;
+  labelFor: (chip: ChatSignalChip) => string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** The chip that opened the sheet, where focus returns. */
+  openerRef: RefObject<HTMLButtonElement | null>;
+  /** Set on removal to a row control that survives the chip and the bar. */
+  restoreRef: RefObject<HTMLElement | null>;
+  onRemove: (chip: ChatSignalChip) => void;
+}) {
+  const t = useTranslations("App.Channels.Signals");
+  const tChannels = useTranslations("App.Channels");
+  const removed = useRef(false);
+  if (!chip) return null;
+
+  function returnFocus(event: Event) {
+    event.preventDefault();
+    const target = removed.current ? restoreRef.current : openerRef.current;
+    removed.current = false;
+    target?.focus();
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        showCloseButton={false}
+        onCloseAutoFocus={returnFocus}
+        className="gap-0 rounded-t-2xl pb-[max(1rem,env(safe-area-inset-bottom))]"
+      >
+        <SheetHeader className="items-center gap-2 pt-5 pb-3">
+          <SheetTitle>{t("tagSheetTitle", { tag: labelFor(chip) })}</SheetTitle>
+          <SheetDescription className="sr-only">
+            {t("editTagsNote")}
+          </SheetDescription>
+        </SheetHeader>
+        <div className="border-border flex flex-col gap-1 border-t px-2 py-2">
+          {chip === "decisionMade" ? (
+            <Button
+              asChild
+              variant="ghost"
+              className="h-11 justify-start gap-3 px-3"
+            >
+              <Link
+                href={CHAT_DECISIONS_PATH}
+                onClick={() => onOpenChange(false)}
+              >
+                <Gavel className="size-4 shrink-0" aria-hidden />
+                {t("openInDecisions")}
+              </Link>
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            className="text-destructive hover:text-destructive h-11 justify-start gap-3 px-3"
+            onClick={() => {
+              removed.current = true;
+              restoreRef.current = survivingRowControl(openerRef.current);
+              onRemove(chip);
+            }}
+          >
+            <X className="size-4 shrink-0" aria-hidden />
+            {t("removeTagAction")}
+          </Button>
+          <SheetClose asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 justify-center px-3"
+            >
+              {tChannels("Actions.cancel")}
+            </Button>
+          </SheetClose>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 

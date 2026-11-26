@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { toCusoMessages } from "../lib/chat-messages";
 import { cmoChatMessage, cmoOverview } from "../test-fixtures/cmo";
 import { CmoApp, type CmoAppActions } from "./app/cmo-app";
-import { ReasoningLine, Working } from "./cuso-trace";
+import { Working } from "./cuso-trace";
 
 const reply = cmoChatMessage({
   metadata: {
@@ -17,6 +17,7 @@ const reply = cmoChatMessage({
 function chat(overview = cmoOverview(), messages = [reply]) {
   return renderToStaticMarkup(
     <CmoApp
+      initialView="chat"
       overview={overview}
       messages={toCusoMessages(messages)}
       name="Alice"
@@ -27,7 +28,7 @@ function chat(overview = cmoOverview(), messages = [reply]) {
 }
 
 describe("Working", () => {
-  it("shows the step Cuso is on and his latest reasoning", () => {
+  it("shows the step Cuso is on, never his reasoning", () => {
     const html = renderToStaticMarkup(
       <Working
         activity={{
@@ -37,24 +38,13 @@ describe("Working", () => {
       />,
     );
     expect(html).toContain("Looking for a picture style");
-    expect(html).toContain("Calm, few colours.");
-    expect(html).not.toContain("**");
+    expect(html).not.toContain("Calm, few colours.");
   });
 
   it("says he is working before his first step, with no reasoning line", () => {
     const html = renderToStaticMarkup(<Working activity={null} />);
     expect(html).toContain("Cuso is working");
     expect(html).not.toContain("working-why");
-  });
-});
-
-describe("ReasoningLine", () => {
-  it("renders nothing without a summary", () => {
-    expect(
-      renderToStaticMarkup(
-        <ReasoningLine activity={{ step: "Planning", reasoning: null }} />,
-      ),
-    ).toBe("");
   });
 });
 
@@ -70,7 +60,7 @@ describe("chat", () => {
       }),
     );
     expect(html).toContain("Reading acme.io/pricing");
-    expect(html).toContain("The pricing page says who it is for.");
+    expect(html).not.toContain("The pricing page says who it is for.");
   });
 
   it("folds the steps and reasoning under his reply", () => {

@@ -423,9 +423,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      const automaticTags =
-        copiedTags?.automatic ??
-        (canPersistWorkspaceTags ? suggestedTags?.tags : undefined);
+      // Only a classified source's tags are current. Any other copy keeps the
+      // insert's `pending` state, so the queue classifies it.
+      const automaticTags = copySource
+        ? copySource.tagClassificationState === "complete"
+          ? copiedTags?.automatic
+          : undefined
+        : canPersistWorkspaceTags
+          ? suggestedTags?.tags
+          : undefined;
       const topicCorrections =
         copiedTags || body.dismissedTopicIds?.length
           ? dismissTaskTopics(

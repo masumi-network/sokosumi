@@ -2,6 +2,7 @@ import type {
   ProjectSummary,
   Task,
   TaskEvent,
+  TaskOpenSubtask,
   TaskPriority,
   TaskShare,
   TaskSubtaskProgress,
@@ -63,8 +64,12 @@ export interface TaskWithCoworker {
   statusSince?: string;
   /** Direct sub-tasks done of all. Absent on saved chat result snapshots. */
   subtaskProgress?: TaskSubtaskProgress;
+  /** The first open direct sub-tasks. Absent from Cores that predate it. */
+  openSubtasks?: TaskOpenSubtask[];
   /** A comment mentions the reader and the reader has not commented since. */
   hasUnansweredMention?: boolean;
+  /** Text around a search match found only in the Task's result. */
+  resultMatch?: string;
 }
 
 export type KanbanColumnId =

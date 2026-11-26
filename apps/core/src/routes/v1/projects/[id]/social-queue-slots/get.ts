@@ -22,7 +22,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/{id}/social-queue-slots",
     description:
-      "List a Project's weekly posting-queue times. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access.",
+      "List a Project's weekly posting-queue times. Open to a person by any sign-in (browser, API key or OAuth token) or an authorized task-capable Coworker with user context and Calendar beta access.",
     tags: ["Projects"],
     request: { params: socialQueueSlotProjectParamsSchema },
     responses: {

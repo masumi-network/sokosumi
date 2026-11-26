@@ -1,4 +1,8 @@
 import type { Prisma, Task } from "@sokosumi/database";
+import {
+  hideSeoAuditRequest,
+  removeTaskContextAttachmentLinks,
+} from "@sokosumi/utils";
 
 import { conflict } from "./error";
 
@@ -44,4 +48,24 @@ export async function requireNoSeoTaskExecution(
     select: { id: true },
   });
   if (analysis) throw conflict(SEO_EXECUTION_FROZEN_MESSAGE);
+}
+
+const sameLines = (text: string) => text.replace(/\r\n/g, "\n").trim();
+
+/**
+ * True when an edit sends back a full audit's description as people read it:
+ * without its request line, with the same text otherwise.
+ */
+export function seoAuditTextUnchanged(
+  stored: string | null,
+  edited: string | null | undefined,
+): boolean {
+  const shown = hideSeoAuditRequest(stored);
+  if (!stored || typeof edited !== "string" || shown === stored) return false;
+  // The Edit page leaves out Context links; a link the edit adds is a change.
+  const text = sameLines(edited);
+  return (
+    text === sameLines(shown ?? "") ||
+    text === sameLines(removeTaskContextAttachmentLinks(shown ?? ""))
+  );
 }

@@ -4,7 +4,10 @@ import type {
   TaskEvent,
   TaskListItem,
 } from "@sokosumi/core-client";
-import { removeTaskContextAttachmentLinks } from "@sokosumi/utils";
+import {
+  removeSeoTaskRequest,
+  removeTaskContextAttachmentLinks,
+} from "@sokosumi/utils";
 import type {
   TaskAssigneeView,
   TaskWithCoworker,
@@ -174,7 +177,9 @@ export function mapTaskToTaskWithCoworker(
     namedDescription === null
       ? null
       : stripMarkdownToText(
-          removeTaskContextAttachmentLinks(namedDescription),
+          removeSeoTaskRequest(
+            removeTaskContextAttachmentLinks(namedDescription),
+          ),
         )?.slice(0, 200);
   // Context-only descriptions strip to "". Treat that as absent so cards do
   // not render blank space and lists do not skip the "—" fallback.
@@ -203,8 +208,10 @@ export function mapTaskToTaskWithCoworker(
     dueOn: task.dueOn,
     statusSince: statusSince.toISOString(),
     subtaskProgress: task.subtaskProgress,
+    openSubtasks: "openSubtasks" in task ? task.openSubtasks : undefined,
     hasUnansweredMention:
       "hasUnansweredMention" in task && task.hasUnansweredMention === true,
+    resultMatch: "resultMatch" in task ? task.resultMatch : undefined,
     jobsCount: "jobsCount" in task ? task.jobsCount : task.jobs.length,
     assignee,
     participants: task.participants.map(({ user }) => ({

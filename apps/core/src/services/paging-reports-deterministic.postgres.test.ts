@@ -28,6 +28,7 @@
  * page one. Whether the fallback should also be carried across is a judgement
  * call the test stays out of, and a fix that carries both still passes.
  */
+
 import { randomUUID } from "node:crypto";
 import {
   FileResourceLifecycle,
@@ -35,10 +36,13 @@ import {
   FileSourceScope,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testSchemaNames } from "@/test/split-layout";
 
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
+    ...testSchemaNames(),
     DATABASE_URL: process.env.DATABASE_URL,
     DATABASE_URL_UNPOOLED: process.env.DATABASE_URL_UNPOOLED,
     AI_GATEWAY_API_KEY: "test-key",
@@ -130,7 +134,7 @@ async function seedDoc(name: string): Promise<void> {
   });
   const text = `passage mentioning ${TERM} in ${name}`;
   await prisma.$executeRaw(PrismaRaw.sql`
-    INSERT INTO file_chunk (id,"createdAt","versionId","chunkId",ordinal,text,
+    INSERT INTO ${sharedTable("file_chunk")} (id,"createdAt","versionId","chunkId",ordinal,text,
       "evidenceScopeId","scopeVersion","inputDigest",search_vector)
     VALUES (gen_random_uuid(), now(), ${version.id}::uuid, 'c1', 1, ${text},
       ${scope.id}::uuid, 1, 'repro', to_tsvector('simple', ${text}))`);

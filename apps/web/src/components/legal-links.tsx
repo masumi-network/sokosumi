@@ -17,25 +17,33 @@ interface LegalLinksProps {
 }
 
 /**
- * The policy links under sign-up, log in and setup, the same on each. Each
- * link is at least 24px tall, so a thumb can hit it on a phone. CMO.XYZ has
- * an imprint of its own; its other policies are still Sokosumi's.
+ * The policy links under sign-up, log in and setup, the same on each, at
+ * caption size like the consent line above them. Each link is at least 24px
+ * tall, so a thumb can hit it on a phone. CMO.XYZ has its own legal pages;
+ * other products keep the platform policies.
  */
 export function LegalLinks({ brand }: LegalLinksProps) {
   const t = useTranslations("Auth.Footer");
+  const links =
+    brand === "cmo"
+      ? ([
+          ["termsOfServices", LEGAL_URLS.CMO_TERMS],
+          ["privacyPolicy", LEGAL_URLS.CMO_PRIVACY],
+          ["imprint", LEGAL_URLS.CMO_IMPRINT],
+          ["acceptableUse", `${LEGAL_URLS.CMO_TERMS}#acceptable-use`],
+        ] as const)
+      : LEGAL_LINKS;
 
   return (
     // Wraps: German labels at enlarged text overflow a 320px phone in one row.
     <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-center">
-      {LEGAL_LINKS.map(([key, href]) => (
+      {links.map(([key, href]) => (
         <Link
           key={key}
-          href={
-            brand === "cmo" && key === "imprint" ? LEGAL_URLS.CMO_IMPRINT : href
-          }
+          href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-muted-foreground hover:text-foreground inline-flex min-h-6 items-center text-sm"
+          className="text-muted-foreground hover:text-foreground inline-flex min-h-6 items-center text-xs"
         >
           {t(key)}
         </Link>

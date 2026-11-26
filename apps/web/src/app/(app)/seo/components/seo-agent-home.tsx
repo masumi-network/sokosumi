@@ -1,13 +1,19 @@
 "use client";
 
 import { Play } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
+import { useSeoAgentLeadFocusRecovery } from "@/hooks/effects/use-seo-agent-lead-focus-recovery";
+import { useSeoAgentVerdictFocus } from "@/hooks/effects/use-seo-agent-verdict-focus";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { SeoAgentFigures } from "./seo-agent-figures";
 import { SeoAgentGraphics } from "./seo-agent-graphics";
@@ -23,18 +29,26 @@ import {
   SeoActionsLinkRow,
   SeoStepRow,
 } from "./seo-agent-steps";
+import { currentDiscoveryResult } from "./seo-audit-discovery";
 import { useSeoChatIdentity } from "./seo-chat-panel";
 import { SeoGettingStarted } from "./seo-getting-started";
 import { SeoAutomation } from "./seo-monitors";
 import { seoOverviewModel } from "./seo-overview-model";
 import { seoRarelyShown } from "./seo-performance-model";
+import { SeoPlanMessage } from "./seo-plan-message";
+import { seoPlanMessage } from "./seo-plan-message-model";
+import { SeoPlanPdfLink } from "./seo-plan-pdf-link";
+import { SeoPropertyPerformance } from "./seo-property-performance";
+import { SeoReportPlan } from "./seo-report-plan";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
-import { seoCheckRunning } from "./seo-setup-model";
+import { seoCheckRunning, seoRunAction } from "./seo-setup-model";
 import { SEO_ROW_LIST_CLASS, SeoDate } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
 import { lastRuleCheck, seoSummary } from "./seo-summary-model";
+import { seoWorklistEvidence } from "./seo-worklist-evidence";
+import { useSelectedSeoPlan } from "./use-selected-seo-plan";
 import { useSeoAnalyticsLine } from "./use-seo-analytics-line";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
@@ -72,16 +86,27 @@ function SeoAgentPanel({
       (step) => step.kind === "connect" && step.provider === "ga4",
     ),
   );
-  const format = useFormatter();
+  const report = useSeoResultTranslations("App.Seo");
+  const reportFormat = useSeoResultFormatter();
   // "No issues" holds only for the newest check, and only if it measured something.
   const lastCheckMeasured = (brief.lastCheck?.checked ?? 0) > 0;
+  const check = lastRuleCheck(model.data);
   const runsShown = seoRunsDateCheck(
     model.data,
     model.filters,
-    lastRuleCheck(model.data)?.id ?? null,
+    check?.id ?? null,
   );
   // How the pages do in search sits next to whether they are healthy.
-  const traffic = seoSearchTraffic(model.data.metrics);
+  const auditReport =
+    !model.filters.pageId &&
+    !model.filters.scopeId &&
+    !model.filters.from &&
+    check?.sourceTaskId
+      ? model.data.auditSearchConsole?.find(
+          (row) => row.taskId === check.sourceTaskId && row.propertyTotals,
+        )
+      : undefined;
+  const traffic = auditReport ? null : seoSearchTraffic(model.data.metrics);
   const rarelyShown = Boolean(
     traffic && seoRarelyShown(traffic.impressions, traffic.period),
   );
@@ -94,10 +119,7 @@ function SeoAgentPanel({
   // The button that started the check leaves with the setup card. Focus that
   // fell to the page moves to the result; focus anywhere else is left alone.
   const verdict = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    if (checkSeen && !checkRunning && document.activeElement === document.body)
-      verdict.current?.focus();
-  }, [checkSeen, checkRunning]);
+  useSeoAgentVerdictFocus(verdict, checkSeen, checkRunning);
   // The action whose card is open in the dialog. It is read from the data, so a Task for it shows in the card.
   const [dialogKey, setDialogKey] = useState<string | null>(null);
   const dialogRow = useRef<HTMLButtonElement | null>(null);
@@ -106,6 +128,13 @@ function SeoAgentPanel({
     : undefined;
   // An action that leaves the data closes its dialog for good: a later refetch that brings it back opens nothing.
   if (dialogKey && !dialogAction) setDialogKey(null);
+  const openAction = (
+    action: Parameters<typeof seoActionKey>[0],
+    button: HTMLButtonElement,
+  ) => {
+    dialogRow.current = button;
+    setDialogKey(seoActionKey(action));
+  };
   // Missing search statistics are a banner over the result, not one of the steps.
   const statisticsStep = brief.steps.find(
     (step) => step.kind === "connect" && step.provider === "search_console",
@@ -117,10 +146,23 @@ function SeoAgentPanel({
   );
   // Until the first check has a result, the setup card is the one thing to do: no step shows with it. A failed
   // sync has its alert and Retry in the verdict card, so the refresh step would say it twice.
+  const selectedPlan = useSelectedSeoPlan(model);
+  const { actionSeverity, actions } = seoOverviewModel(model.data);
+  // The plan the SEO worker wrote for the report in view. It takes the place of the plan block and of the verdict
+  // with its figures and its actions. An earlier report keeps the plan block: its actions may be gone.
+  const message =
+    setup || selectedPlan.historical
+      ? null
+      : seoPlanMessage(model.data, selectedPlan.report, actionSeverity);
   const steps = setup
     ? []
     : brief.steps.filter(
         (step) =>
+          !(
+            step.kind === "action" &&
+            // The written plan names its actions and counts the rest.
+            (message || selectedPlan.actionKeys.has(seoActionKey(step.action)))
+          ) &&
           step !== statisticsStep &&
           step !== analyticsStep &&
           !(step.kind === "refresh" && statisticsSync.state === "failed"),
@@ -138,8 +180,8 @@ function SeoAgentPanel({
             ? false
             : step.kind !== "action" || (canEdit && !step.action.taskId),
       );
-  // The lead step opens the list of steps in the verdict card.
-  const lead = primary === -1 ? undefined : steps[primary];
+  // The lead step opens the list of steps in the verdict card. With a written plan there is no verdict card.
+  const lead = message || primary === -1 ? undefined : steps[primary];
   // A Task for the lead action takes it out of the card, and its button with it. Focus that fell to the
   // page moves to the verdict, where the next first step now stands.
   const leadKey = lead
@@ -148,29 +190,29 @@ function SeoAgentPanel({
       : lead.kind
     : null;
   // Only focus that was in the list of steps counts: a page nobody has entered also has its focus on the body.
-  const leadSeen = useRef(leadKey);
-  const leadFocused = useRef(false);
-  useEffect(() => {
-    if (leadSeen.current === leadKey) return;
-    leadSeen.current = leadKey;
-    if (leadFocused.current && document.activeElement === document.body)
-      verdict.current?.focus();
-    leadFocused.current = false;
-  }, [leadKey]);
+  const leadFocused = useSeoAgentLeadFocusRecovery(verdict, leadKey);
   const periodId = useId();
   const numbers = seoSummary(model.data);
   // The headline carries the severities, so the Agent tab needs no issues tile.
-  const severitySplit = numbers.issues
-    ? `: ${format.list(
+  const severitySplit = numbers.issues?.parts.length
+    ? `: ${reportFormat.list(
         numbers.issues.parts.map((part) =>
-          t("summary.severityCount", {
+          report("summary.severityCount", {
             count: part.count,
             severity: part.severity,
           }),
         ),
       )}`
     : "";
-  const { actionSeverity } = seoOverviewModel(model.data);
+  const evidence = seoWorklistEvidence(
+    model.data,
+    currentDiscoveryResult(
+      model.data,
+      Boolean(model.filters.pageId || model.filters.scopeId),
+    ),
+    actions,
+    report,
+  ).filter((item) => !item.strategy && !item.place);
   // During setup the banner waits until the first check runs: then the statistics are the next useful thing.
   // The setup card now keeps its own Google control while a check runs; the banner waits until setup ends.
   const banner =
@@ -198,7 +240,7 @@ function SeoAgentPanel({
       />
     ) : step.kind === "strategy" ? (
       <SeoActionsLinkRow key="strategy" model={model}>
-        {t("agent.steps.strategy", {
+        {report("agent.steps.strategy", {
           count: step.count,
           places: step.places ? "yes" : "no",
         })}
@@ -213,7 +255,7 @@ function SeoAgentPanel({
       />
     );
   const trafficLine = traffic
-    ? t("agent.traffic", {
+    ? report("agent.traffic", {
         impressions: traffic.impressions,
         clicks: traffic.clicks,
         // Every Search Console read is filtered to the Audit's pages.
@@ -231,6 +273,8 @@ function SeoAgentPanel({
   // No check has saved a result in this view, and the reader can run one.
   const firstCheck =
     !brief.lastCheck &&
+    !brief.ruleCheckOutsideSelection &&
+    !seoRunAction(model.data) &&
     !model.waitingForGoogle &&
     canRequestAnalysis &&
     !model.filters.from &&
@@ -273,11 +317,54 @@ function SeoAgentPanel({
       {/* The pictures come first: the keyword searches say what the site can win before the verdict says
           what to fix. */}
       {setup ? null : <SeoAgentGraphics model={model} />}
+      {setup ? null : message ? (
+        <SeoPlanMessage
+          selected={selectedPlan}
+          model={model}
+          message={message}
+          titleRef={verdict}
+          onOpen={openAction}
+          pdf={
+            selectedPlan.report?.sourceTaskId ? (
+              <SeoPlanPdfLink
+                key={selectedPlan.report.id}
+                model={model}
+                taskId={selectedPlan.report.sourceTaskId}
+                observedAt={selectedPlan.report.observedAt}
+              />
+            ) : null
+          }
+          status={
+            <>
+              <SeoCheckRunning workspace={model.data} />
+              {upkeep}
+            </>
+          }
+          figures={
+            <>
+              {auditReport && <SeoPropertyPerformance evidence={auditReport} />}
+              <SeoAgentFigures
+                model={model}
+                traffic={traffic}
+                periodId={periodId}
+                trafficLead={false}
+              />
+            </>
+          }
+        />
+      ) : (
+        <SeoReportPlan
+          selected={selectedPlan}
+          model={model}
+          onOpen={openAction}
+        />
+      )}
       {setup ? (
         <SeoSetupCard model={model} setup={setup} />
-      ) : (
+      ) : message ? null : (
         <div className={cn(HOLDER_ITEM_CLASS, "content-rise space-y-2 p-4")}>
           <h3
+            lang="en"
             ref={verdict}
             tabIndex={-1}
             className="focus-visible:outline-ring rounded-sm text-lg font-semibold text-balance focus-visible:outline-2"
@@ -286,34 +373,43 @@ function SeoAgentPanel({
             aria-describedby={trafficLead ? periodId : undefined}
           >
             {brief.issues
-              ? `${t("agent.verdict.issues", { count: brief.issues })}${severitySplit}`
+              ? `${report("agent.verdict.issues", { count: brief.issues })}${severitySplit}`
               : brief.fixes
-                ? t("agent.verdict.fixes", { count: brief.fixes })
+                ? report("agent.verdict.fixes", { count: brief.fixes })
                 : brief.opportunities
-                  ? t("agent.verdict.waiting", { count: brief.opportunities })
-                  : brief.emptyState === "no_fixes" && lastCheckMeasured
-                    ? rarelyShown
-                      ? t("agent.verdict.clearRarelyShown", {
-                          pages: brief.lastCheck?.pages ?? 1,
-                        })
-                      : t("agent.verdict.clear")
-                    : brief.lastCheck
-                      ? t("actions.checksIncomplete")
-                      : // No call to run a check where no check can run: lead with what is known.
-                        canRequestAnalysis
-                        ? t("agent.verdict.noCheck")
-                        : trafficLead
-                          ? trafficLine
-                          : t("agent.verdict.noCheckOff")}
+                  ? report("agent.verdict.waiting", {
+                      count: brief.opportunities,
+                    })
+                  : brief.earlierIssues
+                    ? report("overview.earlierFindings", {
+                        count: brief.earlierIssues,
+                      })
+                    : brief.checkClear && lastCheckMeasured
+                      ? rarelyShown
+                        ? report("agent.verdict.clearRarelyShown", {
+                            pages: brief.lastCheck?.pages ?? 1,
+                          })
+                        : report("agent.verdict.clear")
+                      : brief.lastCheck
+                        ? report("actions.checksIncomplete")
+                        : brief.ruleCheckOutsideSelection
+                          ? report("agent.verdict.noPageCheckInView")
+                          : // No call to run a check where no check can run: lead with what is known.
+                            canRequestAnalysis
+                            ? report("agent.verdict.noCheck")
+                            : trafficLead
+                              ? trafficLine
+                              : report("agent.verdict.noCheckOff")}
           </h3>
           {/* The runs row over the tabs names the day of the check in view. */}
           {brief.lastCheck && !runsShown ? (
-            <p className="text-muted-foreground text-sm">
-              {t("agent.lastCheckOn")}{" "}
-              <SeoDate day value={brief.lastCheck.at} />
+            <p lang="en" className="text-muted-foreground text-sm">
+              {report("agent.lastCheckOn")}{" "}
+              <SeoDate report day value={brief.lastCheck.at} />
             </p>
           ) : null}
           <SeoStrategyLine strategy={model.data.strategy} />
+          {auditReport && <SeoPropertyPerformance evidence={auditReport} />}
           <SeoAgentFigures
             model={model}
             traffic={traffic}
@@ -345,7 +441,7 @@ function SeoAgentPanel({
             // it in one list. The first step leads, with its button.
             <ul
               role="list"
-              aria-label={t("agent.nextTitle")}
+              aria-label={report("agent.nextTitle")}
               className={cn(
                 SEO_ROW_LIST_CLASS,
                 "-mx-4 -mb-4 rounded-none rounded-b-lg border-0 border-t bg-transparent [&>li:first-child]:rounded-t-none [&>li:first-child>button]:rounded-t-none",
@@ -380,27 +476,40 @@ function SeoAgentPanel({
           verdict card. */}
       {lead || ((setup || banner) && !steps.length) ? null : steps.length ? (
         <div className="space-y-2">
-          {brief.issues ? null : (
-            <h3 className="px-2 text-sm font-semibold">
-              {t("agent.nextTitle")}
+          {/* The verdict names the issues its steps fix. A written plan has no verdict, so the list has its title. */}
+          {brief.issues && !message ? null : (
+            <h3 lang="en" className="px-2 text-sm font-semibold">
+              {report("agent.nextTitle")}
             </h3>
           )}
           <ul
             role="list"
-            aria-label={t("agent.nextTitle")}
+            aria-label={report("agent.nextTitle")}
             className={SEO_ROW_LIST_CLASS}
           >
             {steps.map((step, index) => stepItem(step, index))}
           </ul>
         </div>
-      ) : (analyticsStep &&
+      ) : message ||
+        selectedPlan.plan ||
+        (analyticsStep &&
           (!analyticsLine.hidden || analyticsLine.analytics !== "unknown")) ||
-        statisticsSync.state === "failed" ? null : (
+        statisticsSync.state === "failed" ||
+        evidence.length ? null : (
         // The Analytics line, a sync that runs or failed, each still ask for something: "nothing is waiting"
         // would be wrong. Only a hidden line with no cause to name asks for nothing.
-        <p className="text-muted-foreground max-w-prose px-2 text-sm">
-          {t("agent.nothingNext")}
+        <p lang="en" className="text-muted-foreground max-w-prose px-2 text-sm">
+          {report("agent.nothingNext")}
         </p>
+      )}
+      {!setup && evidence.length > 0 && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => void model.setFilters({ tab: "actions" })}
+        >
+          {t("agent.reviewEvidence", { count: evidence.length })}
+        </Button>
       )}
       <SeoAutomation model={model} />
       <SeoActionDialog

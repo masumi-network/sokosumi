@@ -93,7 +93,7 @@ vi.mock("@/services/social-post-publisher.service", () => ({
 }));
 
 vi.mock("@/services/social-account-sync", () => ({
-  collectSocialPerformance: vi.fn().mockResolvedValue({
+  runDueSocialAccountSync: vi.fn().mockResolvedValue({
     accountsProcessed: 0,
     pagesCollected: 0,
     accountsCompleted: 0,
@@ -102,12 +102,12 @@ vi.mock("@/services/social-account-sync", () => ({
     accountsSkippedBackoff: 0,
     rateLimitHits: 0,
   }),
-  runDueSocialAccountSync: vi.fn(),
   scheduleSocialAccountRefresh: vi.fn(),
   requestSocialAccountRefresh: vi.fn(),
 }));
 
 const refreshSkillCatalogMock = vi.hoisted(() => vi.fn());
+const failSeoAnalysesOfEndedTasksMock = vi.hoisted(() => vi.fn(async () => 0));
 vi.mock("@/services/skill-catalog.service", () => ({
   refreshSkillCatalog: refreshSkillCatalogMock,
 }));
@@ -181,10 +181,13 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   };
 });
 
+const networkClients = vi.hoisted(() => ({ mainnet: { side: "mainnet" } }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
   },
+  networkPrisma: (network: keyof typeof networkClients) =>
+    networkClients[network],
 }));
 
 vi.mock("@/services/polar-yearly-grant-sync.service", () => ({
@@ -247,6 +250,10 @@ vi.mock("@/services/calendar-invalidation-outbox.service", () => ({
   calendarInvalidationOutboxService: {
     syncInvalidations: syncCalendarInvalidationsMock,
   },
+}));
+
+vi.mock("@/services/project-seo-import.service", () => ({
+  failSeoAnalysesOfEndedTasks: failSeoAnalysesOfEndedTasksMock,
 }));
 
 vi.mock("@vercel/functions", () => ({
@@ -492,7 +499,7 @@ describe("sync routes", () => {
     expect(syncJobsMock).not.toHaveBeenCalled();
   });
 
-  it("releases due Task Schedules, then Run ats, then Calendar invalidations", async () => {
+  it("releases due Task Schedules, then Run ats, then Calendar invalidations, then fails SEO analyses of ended Tasks", async () => {
     const app = createApp();
 
     const response = await app.request("http://localhost/sync/task-schedules", {
@@ -520,6 +527,9 @@ describe("sync routes", () => {
     expect(releaseDueRunAtsMock.mock.invocationCallOrder[0]).toBeLessThan(
       syncCalendarInvalidationsMock.mock.invocationCallOrder[0],
     );
+    expect(
+      syncCalendarInvalidationsMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(failSeoAnalysesOfEndedTasksMock.mock.invocationCallOrder[0]);
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
 
@@ -1240,7 +1250,8 @@ describe("sync routes", () => {
     await flushMicrotasks();
     expect(purgeExpiredTaskX402PaymentHeadersMock).toHaveBeenCalledTimes(1);
     expect(purgeExpiredTaskX402PaymentHeadersMock).toHaveBeenCalledWith(
-      expect.objectContaining({ abortSignal: expect.any(AbortSignal) }),
+      networkClients.mainnet,
+      { abortSignal: expect.any(AbortSignal) },
     );
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });

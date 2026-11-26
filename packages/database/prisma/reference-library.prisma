@@ -29,10 +29,47 @@ model ReferenceImage {
   textAmount  String
   /// 1 blank or damaged, 5 a striking, clear design; search leaves out low ones.
   usable      Int
+  /// Its composition as an abstract layout (where the headline, the subject
+  /// and the empty space sit), written by a vision model the first time a
+  /// picture borrows its layout (cmo-v11); null until then.
+  composition String?
   embedding   Unsupported("vector(768)")?
   createdAt   DateTime                   @default(now())
 
   @@index([kind])
   @@index([usable])
   @@map("reference_image")
+}
+
+/// How Core chose one picture of a Cuso piece (cmo-v11): it made several
+/// alternatives at once, checked each, and the check model picked one side by
+/// side against the brief, the layout and the brand's look. Each alternative
+/// is a `project_image_job` whose `error` holds its own verdict. A remake on a
+/// stronger model is recorded the same way when none passed.
+model CmoPicturePick {
+  id                  String    @id @default(uuid(7)) @db.Uuid
+  projectId           String    @db.Uuid
+  project             Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// The approved Marketing strategy version the piece belongs to.
+  marketingStrategyId String    @db.Uuid
+  pieceId             String
+  slot                Int
+  /// The piece's visual key when it was made; a new visual starts a new pick.
+  visualKey           String
+  /// The jobs it chose among, in the order they were started.
+  candidateJobIds     String[]  @db.Uuid
+  /// Null when no alternative passed.
+  chosenJobId         String?   @db.Uuid
+  /// Why the chosen one won, or why none could be chosen.
+  reason              String
+  /// The first alternative's start, and when the pick was made.
+  startedAt           DateTime
+  pickedAt            DateTime  @default(now())
+  /// The picker call's metered cost, in US dollars.
+  costUsd             Float     @default(0)
+  createdAt           DateTime  @default(now())
+
+  @@unique([marketingStrategyId, pieceId, slot, visualKey])
+  @@index([projectId, pickedAt])
+  @@map("cmo_picture_pick")
 }

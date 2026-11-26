@@ -1,4 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
+
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useSeoFocusHandoffDialogReturn } from "@/hooks/effects/use-seo-focus-handoff-dialog-return";
+import { useSeoFocusHandoffTarget } from "@/hooks/effects/use-seo-focus-handoff-target";
 
 /**
  * A control that leaves with its cause (a connect that finished) takes the focus with it: the next cause the
@@ -24,42 +28,21 @@ export function useSeoFocusHandoff(
   // over. Not in a dialog: the line's own control opens one, and the work there is the same step, in its
   // menus, confirms and popovers too, which sit outside it in a portal. Its overlay is outside: a press there
   // is a cancel.
-  useEffect(() => {
-    const drop = (event: Event) => {
-      if (
-        (event.target as Element | null)?.closest?.(
-          '[role="dialog"], [role="alertdialog"], [role="menu"], [data-radix-popper-content-wrapper]',
-        )
+  const drop = (event: Event) => {
+    if (
+      (event.target as Element | null)?.closest?.(
+        '[role="dialog"], [role="alertdialog"], [role="menu"], [data-radix-popper-content-wrapper]',
       )
-        return;
-      handoff.current = false;
-    };
-    document.addEventListener("pointerdown", drop, true);
-    document.addEventListener("focusin", drop, true);
-    return () => {
-      document.removeEventListener("pointerdown", drop, true);
-      document.removeEventListener("focusin", drop, true);
-    };
-  }, []);
-  useEffect(() => {
-    if (!handoff.current || hidden) return;
+    )
+      return;
     handoff.current = false;
-    // The page stays where the reader scrolled it.
-    if (document.activeElement === document.body)
-      target.current?.focus({ preventScroll: true });
-  }, [key, hidden]);
+  };
+  useEventListener("document", "pointerdown", drop, true);
+  useEventListener("document", "focusin", drop, true);
+  useSeoFocusHandoffTarget(handoff, target, key, hidden);
   // The dialog has no trigger to give the focus back to. A control still in place after it closed means nothing
   // changed: the focus goes back to it, as to a trigger, and the handoff is over.
-  const wasOpen = useRef(dialogOpen);
-  useEffect(() => {
-    const closed = wasOpen.current && !dialogOpen;
-    wasOpen.current = dialogOpen;
-    if (!closed || !handoff.current) return;
-    const control = box.current?.querySelector<HTMLElement>("button");
-    if (!control || document.activeElement !== document.body) return;
-    handoff.current = false;
-    control.focus({ preventScroll: true });
-  }, [dialogOpen]);
+  useSeoFocusHandoffDialogReturn(handoff, box, dialogOpen);
   // A control that opens a dialog hands the focus over too: the dialog gives it back to a control that may be
   // gone by then.
   const arm = () => {

@@ -2,6 +2,7 @@
 
 import { resolveAccountDisplayName, type SessionUser } from "@sokosumi/utils";
 import {
+  Binoculars,
   Bot,
   CalendarDays,
   Clapperboard,
@@ -46,7 +47,7 @@ import { PresenceDot } from "@/components/chat/presence-dot";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useSelfPresence } from "@/hooks/use-self-presence";
+import { useSelfPresence } from "@/hooks/effects/use-self-presence";
 import { getInitials } from "@/lib/utils/text";
 
 const ADMIN_HREF = "/admin";
@@ -114,7 +115,7 @@ export function YouPageClient({
   }
 
   return (
-    <div className="w-full py-6 md:py-8" data-testid="you-page">
+    <div className="w-full pb-6 md:pb-8" data-testid="you-page">
       <div className="space-y-6">
         <header className="flex items-start gap-4">
           <YouPageAvatar sessionUser={sessionUser} displayName={displayName} />
@@ -236,6 +237,13 @@ export function YouPageClient({
               icon={<Megaphone className="size-4 shrink-0" aria-hidden />}
               label={tMenu("ads")}
               testId="you-ads"
+            />
+            {/* The sidebar's Competitors row, scoped to the project like it. */}
+            <YouRowLink
+              href={hrefFor("/competitors")}
+              icon={<Binoculars className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("competitors")}
+              testId="you-competitors"
             />
             {newsletterEnabled ? (
               <YouRowLink

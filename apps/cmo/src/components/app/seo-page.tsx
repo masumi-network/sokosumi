@@ -6,18 +6,40 @@ import type {
   CmoSeoEvidence,
   CmoSeoSuggestion,
 } from "@sokosumi/core-client";
-import { Check, Copy, Download, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { Download, Loader2 } from "lucide-react";
+import { useCallback, useState } from "react";
+import { useSeoPageRefresh } from "../../hooks/effects/use-seo-page-refresh";
 import { AGENT_NAME } from "../../lib/agent";
+import { seoLead } from "../../lib/page-lead";
 import {
   pageChangeCopy,
   plainIssueDetail,
   withoutAuditIds,
 } from "../../lib/seo-copy";
+import {
+  changeText,
+  isSiteFix,
+  NEXT_SHOWN,
+  positionChangeText,
+  type SeoStep,
+  seoSteps,
+  siteFixes,
+} from "../../lib/seo-next";
 import { DraftText } from "../draft-text";
 import { LocalDay } from "../local-day";
 import { StatusText } from "../status";
 import { SubmitButton } from "../submit-button";
+import { PageLead } from "./page-lead";
+
+import { BeforeAfter, CopyButton } from "./seo-before-after";
+import { KeywordSearch, SearchConsoleCard } from "./seo-research";
+import {
+  count,
+  day,
+  intentWords,
+  NOT_KNOWN,
+  pagePath,
+} from "./seo-research-format";
 
 export interface SeoActions {
   loadSeo: () => Promise<CmoSeo | null>;
@@ -33,27 +55,19 @@ export interface SeoActions {
     id: string,
     url: string,
   ) => Promise<{ note: string | null; error: string | null }>;
-  /** No id: more article ideas; an id: the full article. */
-  askCusoForArticles: (articleId?: string) => Promise<string | null>;
+  /** No id: more article ideas, or with write one new article in full; an id: that article in full. */
+  askCusoForArticles: (
+    articleId?: string,
+    write?: boolean,
+  ) => Promise<string | null>;
   connectSearchConsole: () => Promise<{
     url: string | null;
     error: string | null;
   }>;
 }
 
-/** While the tab is open it reads again this often, so Cuso's new ideas show up. */
-const REFRESH_MS = 20_000;
-
-const day = (iso: string | Date) =>
-  new Date(iso).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-
-const count = (value: number) => value.toLocaleString("en-US");
-
-const NOT_KNOWN = "Not known";
+/** What writing one article costs: about $0.015 of model time in the cmo-v12 eval run (1,085 words), at 100 credits a dollar. */
+const ARTICLE_COST = "Each article uses about 2 credits of your plan.";
 
 const SOURCE: Record<CmoSeoEvidence["source"], string> = {
   keyword_research: "Keyword research",
@@ -70,9 +84,9 @@ function evidenceText(e: CmoSeoEvidence): string {
     case "difficulty":
       return `difficulty ${e.value} of 100`;
     case "intent":
-      return `${e.value} intent`;
+      return `they want ${intentWords(e.value)}`;
     case "position":
-      return `${/^\d/.test(e.value) ? "position " : ""}${e.value}${on}`;
+      return `${/^\d/.test(e.value) ? "place " : ""}${e.value} on Google${on}`;
     case "clicks":
       return `${e.value} clicks${on}`;
     case "impressions":
@@ -103,28 +117,6 @@ function Evidence({ items }: { items: CmoSeoEvidence[] }) {
   );
 }
 
-function CopyButton({ text, label }: { text: string; label: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      className="button button-secondary button-small"
-      onClick={async () => {
-        await navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }}
-    >
-      {copied ? (
-        <Check size={14} aria-hidden="true" />
-      ) : (
-        <Copy size={14} aria-hidden="true" />
-      )}
-      {copied ? "Copied" : label}
-    </button>
-  );
-}
-
 function DownloadButton({ text, title }: { text: string; title: string }) {
   const name = `${title
     .toLowerCase()
@@ -141,16 +133,6 @@ function DownloadButton({ text, title }: { text: string; title: string }) {
       Download
     </a>
   );
-}
-
-function pagePath(url: string | null): string {
-  if (!url) return "";
-  try {
-    const parsed = new URL(url);
-    return `${parsed.hostname.replace(/^www\./, "")}${parsed.pathname === "/" ? "" : parsed.pathname}`;
-  } catch {
-    return url;
-  }
 }
 
 function AuditCard({ seo, timeZone }: { seo: CmoSeo; timeZone: string }) {
@@ -192,7 +174,17 @@ function AuditCard({ seo, timeZone }: { seo: CmoSeo; timeZone: string }) {
       {audit.lastFailedAt ? (
         <p className="alert" role="status">
           The audit on {day(audit.lastFailedAt)} did not finish, so nothing was
-          charged. The next one runs on schedule.
+          charged.{" "}
+          {audit.retryAt ? (
+            <>
+              It runs again on{" "}
+              <LocalDay at={audit.retryAt} serverZone={timeZone} time />.
+            </>
+          ) : audit.failedTries > 1 ? (
+            `It failed ${audit.failedTries} times in a row, so the next try is the weekly audit.`
+          ) : (
+            "The next one runs on schedule."
+          )}
         </p>
       ) : null}
       {latest ? (
@@ -297,132 +289,12 @@ function AuditReadings({
   );
 }
 
-function SearchConsoleCard({
-  seo,
-  connect,
-}: {
-  seo: CmoSeo;
-  connect: SeoActions["connectSearchConsole"];
-}) {
-  const gsc = seo.searchConsole;
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-  const start = async () => {
-    setPending(true);
-    const { url, error } = await connect();
-    if (url) window.location.assign(url);
-    else {
-      setError(error);
-      setPending(false);
-    }
-  };
-  if (gsc.status !== "connected")
-    return (
-      <section className="card card-focus">
-        <h3>Google Search Console</h3>
-        <p className="muted">
-          {gsc.status === "no_property"
-            ? `The Google account you connected has no Search Console property for ${pagePath(seo.websiteUrl)}. Add the site in Search Console, or connect the account that has it.`
-            : gsc.status === "unavailable"
-              ? "Search Console did not answer just now. It is read again on your next visit."
-              : `Connect it and ${AGENT_NAME} sees the searches that already find your site: clicks, how often you show up and where you rank. Everything here works without it, with less to go on.`}
-        </p>
-        {error ? (
-          <p className="alert" role="alert">
-            {error}
-          </p>
-        ) : null}
-        <div>
-          <button
-            type="button"
-            className="button button-secondary button-small"
-            disabled={pending}
-            onClick={start}
-          >
-            {pending ? (
-              <Loader2 size={14} className="spin" aria-hidden="true" />
-            ) : null}
-            {gsc.status === "not_connected" ? "Connect" : "Reconnect"}
-          </button>
-        </div>
-      </section>
-    );
-  const rows = (
-    title: string,
-    items: CmoSeo["searchConsole"]["nearFirstPage"],
-    empty: string,
-  ) => (
-    <div className="stack-sm">
-      <span className="label">{title}</span>
-      {items.length === 0 ? (
-        <p className="note">{empty}</p>
-      ) : (
-        <ul className="list">
-          {items.map((row) => (
-            <li key={`${row.query}-${row.pageUrl}`} className="li">
-              <span className="grow">
-                <b>{row.query}</b>
-                <br />
-                <span className="note">{pagePath(row.pageUrl)}</span>
-              </span>
-              <span className="note num">
-                {row.position === null
-                  ? ""
-                  : `position ${row.position.toFixed(1)} · `}
-                seen {count(row.impressions)} · {count(row.clicks)} clicks
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-  return (
-    <section className="card">
-      <h3>Google Search Console</h3>
-      <p className="muted">
-        {gsc.from && gsc.to
-          ? `${day(gsc.from)} to ${day(gsc.to)}, the last 28 days Google has settled.`
-          : null}
-      </p>
-      {gsc.totals ? (
-        <div className="grid4">
-          <div className="kpi">
-            <span className="label">Clicks</span>
-            <span className="v num">{count(gsc.totals.clicks)}</span>
-          </div>
-          <div className="kpi">
-            <span className="label">Seen in search</span>
-            <span className="v num">{count(gsc.totals.impressions)}</span>
-          </div>
-          <div className="kpi">
-            <span className="label">Average position</span>
-            <span className="v num">
-              {gsc.totals.position?.toFixed(1) ?? NOT_KNOWN}
-            </span>
-          </div>
-          <div className="kpi">
-            <span className="label">Clicked</span>
-            <span className="v num">
-              {gsc.totals.ctr === null
-                ? NOT_KNOWN
-                : `${(gsc.totals.ctr * 100).toFixed(1)}%`}
-            </span>
-          </div>
-        </div>
-      ) : null}
-      {rows(
-        "Close to page one",
-        gsc.nearFirstPage,
-        "No search ranks 8 to 20 yet.",
-      )}
-      {rows(
-        "Seen near the top, rarely clicked",
-        gsc.lowClickRate,
-        "No top result is being skipped.",
-      )}
-    </section>
-  );
+/** A technical fix as the owner forwards it: what, where, and the audit's reasons. */
+function forBuilder(change: CmoSeoSuggestion): string {
+  const copy = pageChangeCopy(change);
+  return [copy.title, change.pageUrl, copy.what, copy.why, copy.detail]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function PageChange({
@@ -433,13 +305,51 @@ function PageChange({
   setStatus: (status: "open" | "done" | "dismissed") => Promise<void>;
 }) {
   const copy = pageChangeCopy(change);
+  const detail = copy.detail?.split("\n\n") ?? [];
+  // A technical fix keeps the audit's words for whoever builds the site,
+  // one click deeper, and copies whole.
+  const technical = isSiteFix(change) && change.status === "open";
+  if (technical)
+    return (
+      <li className="li seo-item">
+        <div className="grow stack-sm">
+          <b>{copy.title}</b>
+          <span className="note">{pagePath(change.pageUrl)}</span>
+          <div>
+            <CopyButton text={forBuilder(change)} label="Copy for them" />
+          </div>
+          <details>
+            <summary className="note">What it says</summary>
+            {[copy.what, copy.why, ...detail].filter(Boolean).map((part) => (
+              <p key={part} className="note">
+                {part}
+              </p>
+            ))}
+            <Evidence items={change.evidence} />
+          </details>
+        </div>
+        <div className="seo-actions">
+          <form action={() => setStatus("done")}>
+            <SubmitButton className="button button-small">Done</SubmitButton>
+          </form>
+          <button
+            type="button"
+            className="button button-ghost button-small"
+            onClick={() => setStatus("dismissed")}
+          >
+            Skip
+          </button>
+        </div>
+      </li>
+    );
   return (
     <li className="li seo-item">
       <div className="grow stack-sm">
         <b>{copy.title}</b>
         <span className="note">{pagePath(change.pageUrl)}</span>
-        <p>{copy.what}</p>
-        {change.newText ? (
+        {change.newText && change.currentText ? (
+          <BeforeAfter change={change} newText={change.newText} />
+        ) : change.newText ? (
           <div className="seo-copy">
             <span className="label">New text</span>
             <p>{change.newText}</p>
@@ -447,19 +357,20 @@ function PageChange({
               <CopyButton text={change.newText} label="Copy" />
             </div>
           </div>
-        ) : null}
+        ) : (
+          <p>{copy.what}</p>
+        )}
         <p className="note">{copy.why}</p>
-        {copy.detail ? (
-          <details>
-            <summary className="note">More detail</summary>
-            {copy.detail.split("\n\n").map((part) => (
-              <p key={part} className="note">
-                {part}
-              </p>
-            ))}
-          </details>
-        ) : null}
-        <Evidence items={change.evidence} />
+        <details>
+          <summary className="note">More detail</summary>
+          {change.newText ? <p className="note">{copy.what}</p> : null}
+          {detail.map((part) => (
+            <p key={part} className="note">
+              {part}
+            </p>
+          ))}
+          <Evidence items={change.evidence} />
+        </details>
       </div>
       <div className="seo-actions">
         {change.status === "verified" && change.verifiedAt ? (
@@ -514,11 +425,11 @@ function Article({
           <span className="note">For the search "{article.keyword}"</span>
         ) : null}
         <p className="note">{article.why}</p>
-        <Evidence items={article.evidence} />
         <details>
           <summary className="note">
-            {article.draft ? "Read the article" : "Outline"}
+            {article.draft ? "Read the article" : "Outline and numbers"}
           </summary>
+          <Evidence items={article.evidence} />
           <DraftText text={article.draft ?? article.body} />
         </details>
       </div>
@@ -666,116 +577,97 @@ function LandingPage({
   );
 }
 
-function KeywordResults({ search }: { search: CmoKeywordSearch }) {
-  return (
-    <div className="stack-sm">
-      <p className="note">
-        "{search.topic}": Google in {search.countryCode},{" "}
-        {search.languageCode.toUpperCase()}, {day(search.observedAt)}
-      </p>
-      {search.ideas.length === 0 ? (
-        <p className="note">No searches found for this topic.</p>
-      ) : (
-        <div className="seo-table-wrap">
-          <table className="seo-table">
-            <thead>
-              <tr>
-                <th scope="col">Search</th>
-                <th scope="col">A month</th>
-                <th scope="col">Difficulty</th>
-                <th scope="col">Intent</th>
-                <th scope="col">You rank</th>
-              </tr>
-            </thead>
-            <tbody>
-              {search.ideas.map((idea) => (
-                <tr key={idea.keyword}>
-                  <td>{idea.keyword}</td>
-                  <td className="num">
-                    {idea.searchVolume === null
-                      ? NOT_KNOWN
-                      : count(idea.searchVolume)}
-                  </td>
-                  <td className="num">{idea.difficulty ?? NOT_KNOWN}</td>
-                  <td>{idea.intent ?? NOT_KNOWN}</td>
-                  <td className="num">
-                    {idea.position === null ? "Not yet" : idea.position}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+/** The four numbers that say how the site does on Google, with their trend. */
+function GoogleNumbers({ seo }: { seo: CmoSeo }) {
+  const { totals, previousTotals: before } = seo.searchConsole;
+  const latest = seo.audit.latest;
+  if (!totals && !latest) return null;
+  const kpi = (label: string, value: string, change: string | null) => (
+    <div className="kpi" key={label}>
+      <span className="label">{label}</span>
+      <span className="v num">{value}</span>
+      {change ? <span className="note">{change}</span> : null}
     </div>
+  );
+  return (
+    <section className="card">
+      <h3>{totals ? "Google, last 28 days" : "Your site"}</h3>
+      <div className="grid4">
+        {totals
+          ? [
+              kpi(
+                "Clicks",
+                count(totals.clicks),
+                changeText(totals.clicks, before?.clicks),
+              ),
+              kpi(
+                "Seen in search",
+                count(totals.impressions),
+                changeText(totals.impressions, before?.impressions),
+              ),
+              kpi(
+                "Average place on Google",
+                totals.position?.toFixed(1) ?? NOT_KNOWN,
+                positionChangeText(totals.position, before?.position),
+              ),
+            ]
+          : null}
+        {latest
+          ? kpi(
+              "Site checks",
+              `${latest.passed} of ${latest.checked}`,
+              `passed on ${day(latest.observedAt)}`,
+            )
+          : null}
+      </div>
+    </section>
   );
 }
 
-function KeywordSearch({
+function ConnectStep({
   seo,
-  search,
-  onSearched,
+  connect,
 }: {
   seo: CmoSeo;
-  search: SeoActions["searchKeywords"];
-  onSearched: () => Promise<void>;
+  connect: SeoActions["connectSearchConsole"];
 }) {
-  const [shown, setShown] = useState<CmoKeywordSearch | null>(
-    seo.keywordSearches[0] ?? null,
-  );
   const [error, setError] = useState<string | null>(null);
+  const { status } = seo.searchConsole;
   return (
-    <section className="card">
-      <h3>Keyword search</h3>
-      <p className="muted">
-        Type a topic and see what people search for: searches a month, how hard
-        it is to rank, what they want, and where you rank today. You can also
-        ask {AGENT_NAME} in the chat.
-      </p>
-      <form
-        className="seo-search"
-        action={async (form) => {
-          const topic = String(form.get("topic") ?? "").trim();
-          if (topic.length < 2) return;
-          const result = await search(topic);
-          setError(result.error);
-          if (result.search) setShown(result.search);
-          await onSearched();
-        }}
-      >
-        <input
-          aria-label="Topic"
-          name="topic"
-          placeholder="team scheduling software"
-          minLength={2}
-          maxLength={80}
-          required
-        />
-        <SubmitButton className="button">Search</SubmitButton>
-      </form>
-      <p className="note">{seo.keywordSearchesLeft} searches left today.</p>
-      {error ? (
-        <p className="alert" role="alert">
-          {error}
+    <li className="li seo-item">
+      <div className="grow stack-sm">
+        <b>
+          {status === "not_connected"
+            ? "Connect Google Search Console"
+            : "Reconnect Google Search Console"}
+        </b>
+        <p className="note">
+          {status === "no_property"
+            ? `The Google account you connected has no Search Console property for ${pagePath(seo.websiteUrl)}. Add the site in Search Console, or connect the account that has it.`
+            : status === "unavailable"
+              ? "Search Console did not answer just now. It is read again on your next visit."
+              : `Then ${AGENT_NAME} sees which searches already find your site, and builds every change and article on them.`}
         </p>
-      ) : null}
-      {seo.keywordSearches.length > 1 ? (
-        <div className="seo-recent">
-          {seo.keywordSearches.map((recent) => (
-            <button
-              key={recent.topic}
-              type="button"
-              className="chip"
-              aria-pressed={shown?.topic === recent.topic}
-              onClick={() => setShown(recent)}
-            >
-              {recent.topic}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      {shown ? <KeywordResults search={shown} /> : null}
-    </section>
+        {error ? (
+          <p className="alert" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </div>
+      <div className="seo-actions">
+        <form
+          action={async () => {
+            const { url, error } = await connect();
+            if (url) window.location.assign(url);
+            else setError(error);
+          }}
+        >
+          <SubmitButton className="button button-small">
+            {status === "not_connected" ? "Connect" : "Reconnect"}
+          </SubmitButton>
+        </form>
+      </div>
+    </li>
   );
 }
 
@@ -799,26 +691,25 @@ export function SeoPage({
       setFailed(true);
     }
   }, [actions]);
-  useEffect(() => {
-    void refresh();
-    const timer = setInterval(() => void refresh(), REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [refresh]);
+  useSeoPageRefresh(refresh);
 
   if (!seo)
     return (
-      <div className="page-body">
-        {failed ? (
-          <p className="alert" role="alert">
-            The SEO tab could not load. It tries again in a moment.
-          </p>
-        ) : (
-          <div className="empty">
-            <Loader2 size={20} className="spin" aria-hidden="true" />
-            <span>Loading</span>
-          </div>
-        )}
-      </div>
+      <>
+        <PageLead kicker="SEO" title="Reading your audit." />
+        <div className="page-body">
+          {failed ? (
+            <p className="alert" role="alert">
+              The SEO tab could not load. It tries again in a moment.
+            </p>
+          ) : (
+            <div className="empty">
+              <Loader2 size={20} className="spin" aria-hidden="true" />
+              <span>Loading</span>
+            </div>
+          )}
+        </div>
+      </>
     );
 
   const setStatus =
@@ -827,11 +718,11 @@ export function SeoPage({
       setNote(error);
       await refresh();
     };
-  const ask = async (articleId?: string) => {
-    const error = await actions.askCusoForArticles(articleId);
+  const ask = async (articleId?: string, write = false) => {
+    const error = await actions.askCusoForArticles(articleId, write);
     setNote(
       error ??
-        (articleId
+        (articleId || write
           ? `${AGENT_NAME} is writing it. It shows here when it is done, and he tells you in the chat.`
           : `${AGENT_NAME} is looking for new ideas. They show here in a few minutes, and he tells you in the chat.`),
     );
@@ -842,100 +733,206 @@ export function SeoPage({
     await refresh();
   };
   const landingPages = seo.landingPages.filter((p) => p.status !== "dismissed");
-  const changes = seo.pageChanges.filter((c) => c.status !== "dismissed");
-  const open = changes.filter((c) => c.status === "open");
-  const articles = seo.articles.filter((a) => a.status !== "dismissed");
+  const steps = seoSteps(seo);
+  const fixes = siteFixes(seo);
+  const next = steps.slice(0, NEXT_SHOWN);
+  const later = steps.slice(NEXT_SHOWN);
+  const closed = seo.pageChanges.filter(
+    (c) => c.status === "done" || c.status === "verified",
+  );
+  const shown = new Set(
+    next.flatMap((step) => (step.kind === "connect" ? [] : [step.item.id])),
+  );
+  const articles = seo.articles.filter(
+    (a) => a.status !== "dismissed" && !shown.has(a.id),
+  );
+  const latest = seo.audit.latest;
+  const step = (item: SeoStep) =>
+    item.kind === "connect" ? (
+      <ConnectStep
+        key="connect"
+        seo={seo}
+        connect={actions.connectSearchConsole}
+      />
+    ) : item.kind === "change" ? (
+      <PageChange
+        key={item.item.id}
+        change={item.item}
+        setStatus={setStatus(item.item.id)}
+      />
+    ) : (
+      <Article
+        key={item.item.id}
+        article={item.item}
+        write={() => ask(item.item.id)}
+        setStatus={setStatus(item.item.id)}
+      />
+    );
 
   return (
-    <div className="page-body">
-      {note ? (
-        <p className="alert" role="status">
-          {note}
-        </p>
-      ) : null}
-      <AuditCard seo={seo} timeZone={timeZone} />
-      <section className={open.length > 0 ? "card card-focus" : "card"}>
-        <h3>Page changes</h3>
-        <p className="muted">
-          What to change on your site, with the exact new text to copy. Mark one
-          done once it is live and the next weekly audit checks it.
-        </p>
-        {changes.length === 0 ? (
-          <p className="note">
-            Nothing to change yet. The weekly audit and Search Console add
-            changes here.
+    <>
+      <PageLead {...seoLead(seo, timeZone)} />
+      <div className="page-body">
+        {note ? (
+          <p className="alert" role="status">
+            {note}
           </p>
-        ) : (
-          <ul className="list">
-            {changes.map((change) => (
-              <PageChange
-                key={change.id}
-                change={change}
-                setStatus={setStatus(change.id)}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
-      <section className="card">
-        <div className="seo-head">
-          <h3>Articles to write</h3>
-          <form action={() => ask()}>
-            <SubmitButton className="button button-secondary button-small">
-              More article ideas
-            </SubmitButton>
-          </form>
-        </div>
-        <p className="muted">
-          Articles people search for, each built on real search numbers.{" "}
-          {AGENT_NAME} writes the full text when you ask, ready to copy into
-          your site.
-        </p>
-        {articles.length === 0 ? (
-          <p className="note">
-            No article ideas yet. Ask for some and {AGENT_NAME} researches what
-            your buyers search for.
-          </p>
-        ) : (
-          <ul className="list">
-            {articles.map((article) => (
-              <Article
-                key={article.id}
-                article={article}
-                write={() => ask(article.id)}
-                setStatus={setStatus(article.id)}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
-      {landingPages.length > 0 ? (
-        <section className="card">
-          <h3>Landing pages</h3>
-          <p className="muted">
-            Pages for people comparing you with a competitor, each with the
-            search in its heading and first paragraph. Publish one on your site,
-            then say where it is live: the search ad for that search sends
-            people there from then on.
-          </p>
-          <ul className="list">
-            {landingPages.map((page) => (
-              <LandingPage
-                key={page.id}
-                page={page}
-                markLive={markLive(page.id)}
-                setStatus={setStatus(page.id)}
-              />
-            ))}
-          </ul>
+        ) : null}
+        <GoogleNumbers seo={seo} />
+        <section className={next.length > 0 ? "card card-focus" : "card"}>
+          <h3>
+            {next.length > 1 ? `Next ${next.length} things to do` : "Next"}
+          </h3>
+          {next.length === 0 ? (
+            <p className="note">
+              {fixes.length > 0
+                ? "Nothing for you to write right now. Send the fixes below on."
+                : `Nothing to do right now. The weekly audit and ${AGENT_NAME} add the next change here.`}
+            </p>
+          ) : (
+            <ol className="list">{next.map(step)}</ol>
+          )}
+          {later.length > 0 ? (
+            <details>
+              <summary className="note">{later.length} more</summary>
+              <ul className="list">{later.map(step)}</ul>
+            </details>
+          ) : null}
+          {closed.length > 0 ? (
+            <details>
+              <summary className="note">Done ({closed.length})</summary>
+              <ul className="list">
+                {closed.map((change) => (
+                  <PageChange
+                    key={change.id}
+                    change={change}
+                    setStatus={setStatus(change.id)}
+                  />
+                ))}
+              </ul>
+            </details>
+          ) : null}
         </section>
-      ) : null}
-      <KeywordSearch
-        seo={seo}
-        search={actions.searchKeywords}
-        onSearched={refresh}
-      />
-      <SearchConsoleCard seo={seo} connect={actions.connectSearchConsole} />
-    </div>
+        {fixes.length > 0 ? (
+          <section className="card">
+            <h3>For whoever builds your site</h3>
+            <p className="muted">
+              The audit found{" "}
+              {fixes.length === 1
+                ? "1 technical fix"
+                : `${fixes.length} technical fixes`}
+              . You don't need to follow {fixes.length === 1 ? "it" : "them"}:
+              copy {fixes.length === 1 ? "it" : "each one"} and send it to
+              whoever builds your site, then mark it Done.
+            </p>
+            <ul className="list">
+              {fixes.map((change) => (
+                <PageChange
+                  key={change.id}
+                  change={change}
+                  setStatus={setStatus(change.id)}
+                />
+              ))}
+            </ul>
+          </section>
+        ) : null}
+        <section className="card">
+          <div className="seo-head">
+            <h3>Articles</h3>
+            <div className="seo-actions">
+              <form action={() => ask()}>
+                <SubmitButton className="button button-ghost button-small">
+                  More ideas
+                </SubmitButton>
+              </form>
+              <form action={() => ask(undefined, true)}>
+                <SubmitButton className="button button-secondary button-small">
+                  Write an article
+                </SubmitButton>
+              </form>
+            </div>
+          </div>
+          <p className="muted">
+            {AGENT_NAME} picks a search your buyers make and writes the whole
+            article, ready to copy into your site. {ARTICLE_COST}
+          </p>
+          {articles.length === 0 &&
+          !seo.articles.some((a) => shown.has(a.id)) ? (
+            <p className="note">
+              No article ideas yet. Ask for some and {AGENT_NAME} looks at what
+              your buyers search for.
+            </p>
+          ) : null}
+          {articles.length > 0 ? (
+            <ul className="list">
+              {articles.map((article) => (
+                <Article
+                  key={article.id}
+                  article={article}
+                  write={() => ask(article.id)}
+                  setStatus={setStatus(article.id)}
+                />
+              ))}
+            </ul>
+          ) : null}
+        </section>
+        <div className="seo-folds">
+          <details className="seo-fold">
+            <summary>
+              Weekly site audit
+              {latest ? (
+                <span className="note">
+                  {latest.passed} of {latest.checked} checks passed
+                </span>
+              ) : null}
+            </summary>
+            <AuditCard seo={seo} timeZone={timeZone} />
+          </details>
+          {seo.searchConsole.status === "connected" ? (
+            <details className="seo-fold">
+              <summary>Your searches on Google</summary>
+              <SearchConsoleCard
+                seo={seo}
+                connect={actions.connectSearchConsole}
+              />
+            </details>
+          ) : null}
+          <details className="seo-fold">
+            <summary>What people search for</summary>
+            <KeywordSearch
+              seo={seo}
+              search={actions.searchKeywords}
+              onSearched={refresh}
+            />
+          </details>
+          {landingPages.length > 0 ? (
+            <details className="seo-fold">
+              <summary>
+                Pages for competitor searches
+                <span className="note">{landingPages.length}</span>
+              </summary>
+              <section className="card">
+                <p className="muted">
+                  Pages for people comparing you with a competitor, each with
+                  the search in its heading and first paragraph. Publish one on
+                  your site, then say where it is live: the search ad for that
+                  search sends people there from then on.
+                </p>
+                <ul className="list">
+                  {landingPages.map((page) => (
+                    <LandingPage
+                      key={page.id}
+                      page={page}
+                      markLive={markLive(page.id)}
+                      setStatus={setStatus(page.id)}
+                    />
+                  ))}
+                </ul>
+              </section>
+            </details>
+          ) : null}
+        </div>
+      </div>
+    </>
   );
 }

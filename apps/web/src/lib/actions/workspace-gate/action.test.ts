@@ -126,17 +126,19 @@ describe("ensureOAuthWorkspaceAction", () => {
   });
 
   it("returns an error when workspace access cannot be checked", async () => {
-    expectConsole(
+    const errorCalls = expectConsole(
       "error",
-      "Failed to prepare workspace for OAuth CoreApiRequestError: Core backend timeout",
+      "Failed to prepare workspace for OAuth",
     );
-    getMyWorkspacesMock.mockRejectedValue(
-      new CoreApiRequestError("Core backend timeout", { status: 503 }),
-    );
+    const error = new CoreApiRequestError("Core backend timeout", {
+      status: 503,
+    });
+    getMyWorkspacesMock.mockRejectedValue(error);
 
     try {
       const result = await ensureOAuthWorkspaceAction({});
 
+      expect(errorCalls[0]?.[1]).toBe(error);
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error.code).toBe(CommonErrorCode.INTERNAL_SERVER_ERROR);
@@ -169,19 +171,19 @@ describe("createPersonalWorkspaceAction", () => {
   });
 
   it("maps Core 409 to PERSONAL_WORKSPACE_ALREADY_EXISTS", async () => {
-    expectConsole(
+    const errorCalls = expectConsole(
       "error",
-      "Failed to create personal workspace CoreApiRequestError: Personal workspace already exists",
+      "Failed to create personal workspace",
     );
-    createMyWorkspaceMock.mockRejectedValue(
-      new CoreApiRequestError("Personal workspace already exists", {
-        status: 409,
-      }),
-    );
+    const error = new CoreApiRequestError("Personal workspace already exists", {
+      status: 409,
+    });
+    createMyWorkspaceMock.mockRejectedValue(error);
 
     try {
       const result = await createPersonalWorkspaceAction({});
 
+      expect(errorCalls[0]?.[1]).toBe(error);
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error).toMatchObject({
@@ -194,17 +196,19 @@ describe("createPersonalWorkspaceAction", () => {
   });
 
   it("maps unexpected Core failures to INTERNAL_SERVER_ERROR", async () => {
-    expectConsole(
+    const errorCalls = expectConsole(
       "error",
-      "Failed to create personal workspace CoreApiRequestError: Core backend timeout",
+      "Failed to create personal workspace",
     );
-    createMyWorkspaceMock.mockRejectedValue(
-      new CoreApiRequestError("Core backend timeout", { status: 503 }),
-    );
+    const error = new CoreApiRequestError("Core backend timeout", {
+      status: 503,
+    });
+    createMyWorkspaceMock.mockRejectedValue(error);
 
     try {
       const result = await createPersonalWorkspaceAction({});
 
+      expect(errorCalls[0]?.[1]).toBe(error);
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error.code).toBe(CommonErrorCode.INTERNAL_SERVER_ERROR);
@@ -262,19 +266,22 @@ describe("deletePersonalWorkspaceAction", () => {
   });
 
   it("maps Core last-workspace 409", async () => {
-    expectConsole(
+    const errorCalls = expectConsole(
       "error",
-      "Failed to delete personal workspace CoreApiRequestError: Cannot delete the user's last",
+      "Failed to delete personal workspace",
     );
-    deleteMyWorkspaceMock.mockRejectedValue(
-      new CoreApiRequestError("Cannot delete the user's last workspace", {
+    const error = new CoreApiRequestError(
+      "Cannot delete the user's last workspace",
+      {
         status: 409,
         kind: "last_workspace",
-      }),
+      },
     );
+    deleteMyWorkspaceMock.mockRejectedValue(error);
 
     try {
       const result = await deletePersonalWorkspaceAction({});
+      expect(errorCalls[0]?.[1]).toBe(error);
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error.code).toBe(WorkspaceGateErrorCode.LAST_WORKSPACE);
@@ -284,22 +291,22 @@ describe("deletePersonalWorkspaceAction", () => {
   });
 
   it("maps Core dependents 409", async () => {
-    expectConsole(
+    const errorCalls = expectConsole(
       "error",
-      "Failed to delete personal workspace CoreApiRequestError: Cannot delete a personal",
+      "Failed to delete personal workspace",
     );
-    deleteMyWorkspaceMock.mockRejectedValue(
-      new CoreApiRequestError(
-        "Cannot delete a personal workspace that still has jobs or tasks",
-        {
-          status: 409,
-          kind: "workspace_has_dependents",
-        },
-      ),
+    const error = new CoreApiRequestError(
+      "Cannot delete a personal workspace that still has jobs or tasks",
+      {
+        status: 409,
+        kind: "workspace_has_dependents",
+      },
     );
+    deleteMyWorkspaceMock.mockRejectedValue(error);
 
     try {
       const result = await deletePersonalWorkspaceAction({});
+      expect(errorCalls[0]?.[1]).toBe(error);
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error.code).toBe(
@@ -311,16 +318,16 @@ describe("deletePersonalWorkspaceAction", () => {
   });
 
   it("does not treat an unclassified 409 as last workspace", async () => {
-    expectConsole(
+    const errorCalls = expectConsole(
       "error",
-      "Failed to delete personal workspace CoreApiRequestError: Conflict",
+      "Failed to delete personal workspace",
     );
-    deleteMyWorkspaceMock.mockRejectedValue(
-      new CoreApiRequestError("Conflict", { status: 409 }),
-    );
+    const error = new CoreApiRequestError("Conflict", { status: 409 });
+    deleteMyWorkspaceMock.mockRejectedValue(error);
 
     try {
       const result = await deletePersonalWorkspaceAction({});
+      expect(errorCalls[0]?.[1]).toBe(error);
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error.code).toBe(CommonErrorCode.INTERNAL_SERVER_ERROR);

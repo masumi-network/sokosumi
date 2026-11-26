@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-integration
-version: 0.49.0
+version: 0.50.0
 description: Work with Sentry integrations
 requires:
   bins: ["sentry"]
@@ -17,27 +17,28 @@ List installed integrations
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument          | Description                                                                                                                       |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `[<org/project>]` | &lt;org&gt;/ (all), &lt;org&gt;/&lt;name&gt; or &lt;name&gt; (a project, else matching names), or a name glob (&lt;org&gt;/web-*) |
 
 **Flags:**
+
 - `-n, --limit <value> - Maximum number of integrations to list - (default: "25")`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 - `-c, --cursor <value> - Navigate pages: "next", "prev", "first" (or raw cursor string)`
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Integration ID |
-| `name` | string | Integration name (e.g. GitHub org) |
-| `domainName` | string \| null | External domain (e.g. github.com/getsentry) |
-| `provider` | object | Provider |
-| `status` | string | Integration status |
-| `organizationIntegrationStatus` | string | Status of the install in this organization |
-| `externalId` | string | Provider-side installation ID |
-| `orgSlug` | string | Organization slug |
+| Field                           | Type           | Description                                 |
+| ------------------------------- | -------------- | ------------------------------------------- |
+| `id`                            | string         | Integration ID                              |
+| `name`                          | string         | Integration name (e.g. GitHub org)          |
+| `domainName`                    | string \| null | External domain (e.g. github.com/getsentry) |
+| `provider`                      | object         | Provider                                    |
+| `status`                        | string         | Integration status                          |
+| `organizationIntegrationStatus` | string         | Status of the install in this organization  |
+| `externalId`                    | string         | Provider-side installation ID               |
+| `orgSlug`                       | string         | Organization slug                           |
 
 **Examples:**
 
@@ -69,11 +70,12 @@ Remove an installed integration
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                   | Description                                                  |
+| -------------------------- | ------------------------------------------------------------ |
 | `[<org>/]<integration-id>` | [&lt;org&gt;/]&lt;integration-id&gt; - Integration to remove |
 
 **Flags:**
+
 - `-y, --yes - Skip confirmation prompt`
 - `-f, --force - Force the operation without confirmation`
 - `-n, --dry-run - Show what would happen without making changes`

@@ -45,14 +45,22 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "open_direct_chat",
   // The question is a prompt for a Coworker; a page must not write it.
   "ask_coworker",
+  // Core refuses it to a person or a room; to a Coworker or an assistant it
+  // is a question, as ask_coworker is.
+  "send_message",
   "reply_to_task",
   "assign_task",
   "update_assigned_task",
   "create_schedule",
   "update_schedule",
   "manage_reminder",
+  // A Task Schedule hands a Coworker paid work on every run; a page must not
+  // write, change or remove one.
+  "save_task_schedule",
+  "delete_task_schedule",
   "create_social_post",
   "update_social_post",
+  "update_social_posts",
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",
@@ -76,16 +84,20 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
  * are neither: see SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES.
  */
 /**
- * The one Social tool a tainted turn may still use on work the owner asked
- * for: "research the launch, cut a video and schedule it" is one piece of
- * work, done as one new post carrying its words, media and time. The post
- * waits for a person's approval. Changing, rescheduling, cancelling or
- * publishing a post stay refused (see the outward list): a script in the
- * turn can call these tools too, and an approved post must not change
- * under it.
+ * Social tools a tainted turn may still use on work the owner asked for:
+ * creating a new post (which waits for a person's approval) and editing
+ * unapproved drafts (`DRAFT` or `NEEDS_APPROVAL`; Core refuses tainted edits
+ * to `SCHEDULED` or other posts). `isTaintBlocked` checks this list before
+ * `SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES`, while `update_social_post` and
+ * `update_social_posts` intentionally stay in the outward set below so
+ * delegated follow-up grants (which exclude outward capabilities) never
+ * inherit existing-post edits. Rescheduling, cancelling or publishing a post
+ * stay refused everywhere.
  */
 export const SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES = [
   "create_social_post",
+  "update_social_post",
+  "update_social_posts",
 ] as const satisfies readonly (typeof SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES)[number][];
 
 export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
@@ -93,6 +105,7 @@ export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
   "post_chat",
   "open_direct_chat",
   "update_social_post",
+  "update_social_posts",
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",

@@ -1,0 +1,196 @@
+{
+  "operations": {
+    "GET /users/registered": {
+      "cli": "users registered",
+      "mcp": false,
+      "reason": "Answers only a Coworker or Soko Bot key; an MCP caller is a person."
+    },
+    "GET /users/{id}": {
+      "cli": "auth whoami",
+      "mcp": "users_get"
+    },
+    "PATCH /users/{id}": {
+      "cli": "users update",
+      "mcp": "users_update"
+    },
+    "GET /users/{id}/credits": {
+      "cli": "workspaces credits",
+      "mcp": "workspaces_credits"
+    },
+    "GET /users/{id}/deletion": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Account lifecycle: a person deletes their account in the web app."
+    },
+    "PUT /users/{id}/design-md": {
+      "cli": "users set-design-md",
+      "mcp": "users_set_design_md"
+    },
+    "GET /users/{id}/members": {
+      "cli": "organizations memberships",
+      "mcp": "organizations_memberships"
+    },
+    "GET /users/{id}/organizations": {
+      "cli": "workspaces list",
+      "mcp": "organizations_list"
+    },
+    "GET /users/{id}/organizations/{organizationId}/credits": {
+      "cli": "organizations credits",
+      "mcp": "organizations_credits"
+    },
+    "GET /users/{id}/organizations/{organizationId}/member": {
+      "cli": "organizations membership",
+      "mcp": "organizations_membership"
+    },
+    "GET /users/{id}/preferences": {
+      "cli": "users preferences",
+      "mcp": "users_preferences"
+    },
+    "PATCH /users/{id}/preferences": {
+      "cli": "users update-preferences",
+      "mcp": "users_update_preferences"
+    },
+    "DELETE /users/{id}/oauth-consents/{consentId}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Credential management: revoking an OAuth client's tokens stays in the browser."
+    },
+    "GET /users/{id}/sessions": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Interactive browser session only: sessions are credentials."
+    },
+    "DELETE /users/{id}/sessions/{sessionId}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Interactive browser session only: sessions are credentials."
+    },
+    "GET /users/{id}/workspaces": {
+      "cli": "workspaces list",
+      "mcp": "workspaces_list"
+    },
+    "POST /users/{id}/workspaces": {
+      "cli": "workspaces create",
+      "mcp": "workspaces_create"
+    },
+    "GET /users/{id}/workspaces/preferred": {
+      "cli": "users preferred-workspace",
+      "mcp": "users_preferred_workspace"
+    },
+    "PUT /users/{id}/workspaces/preferred": {
+      "cli": "users set-preferred-workspace",
+      "mcp": "users_set_preferred_workspace"
+    },
+    "DELETE /users/{id}/workspaces/{workspaceId}": {
+      "cli": "users delete-workspace",
+      "mcp": "users_delete_workspace"
+    },
+    "GET /users/{id}/pending-organization-invitations": {
+      "cli": "organizations pending-invitations",
+      "mcp": "organizations_pending_invitations"
+    },
+    "GET /users/{id}/notices/pending": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Account lifecycle: notices such as updated legal terms are for the person to read and accept in the web app."
+    },
+    "POST /users/{id}/notices/{noticeId}/acknowledge": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Account lifecycle: acknowledging a notice, such as updated legal terms, is the person's acceptance."
+    },
+    "GET /users/{id}/badge-campaigns": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Web app UI only: the New badges the app shows the person."
+    },
+    "POST /users/{id}/badge-campaigns/{campaignId}/seen": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Web app UI only: records that the person opened a feature with a New badge."
+    },
+    "GET /users/{id}/files": {
+      "cli": "users files",
+      "mcp": "users_files"
+    },
+    "POST /users/{id}/files": {
+      "cli": "users file-upload",
+      "mcp": false,
+      "reason": "The upload ends with an HTTP PUT of the file bytes to Blob storage, which an MCP client cannot send."
+    },
+    "POST /users/{id}/utm-attribution": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Onboarding: sign-up attribution the web app records."
+    },
+    "POST /users/{id}/sign-up-conversion": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Onboarding: the sign-up page claims it, in an interactive session only."
+    },
+    "GET /users/{id}/sign-up": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Onboarding: the sign-up origin the web app records."
+    },
+    "GET /users/{id}/coworker-access": {
+      "cli": "users coworker-access",
+      "mcp": "users_coworker_access"
+    },
+    "POST /users/{id}/coworker-access/{accessId}/approve": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves access (ADR 0077): an agent could approve its own Coworker or vendor."
+    },
+    "POST /users/{id}/coworker-access/{accessId}/deny": {
+      "cli": "users deny-coworker-access",
+      "mcp": "users_deny_coworker_access"
+    },
+    "POST /users/{id}/coworker-access/{accessId}/revoke": {
+      "cli": "users revoke-coworker-access",
+      "mcp": "users_revoke_coworker_access"
+    },
+    "GET /users/{id}/vendor-grants": {
+      "cli": "users vendor-grants",
+      "mcp": "users_vendor_grants"
+    },
+    "POST /users/{id}/vendor-grants": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves access (ADR 0077): an agent could approve its own Coworker or vendor."
+    },
+    "POST /users/{id}/vendor-grants/{grantId}/approve": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves access (ADR 0077): an agent could approve its own Coworker or vendor."
+    },
+    "POST /users/{id}/vendor-grants/{grantId}/deny": {
+      "cli": "users deny-vendor-grant",
+      "mcp": "users_deny_vendor_grant"
+    },
+    "POST /users/{id}/vendor-grants/{grantId}/revoke": {
+      "cli": "users revoke-vendor-grant",
+      "mcp": "users_revoke_vendor_grant"
+    },
+    "GET /users/{id}/stripe-customer": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Billing: a person manages payment details and plans in the web app."
+    },
+    "POST /users/{id}/stripe-customer": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Billing: a person manages payment details and plans in the web app."
+    },
+    "GET /users/{id}/billing-details": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Billing: a person manages payment details and plans in the web app."
+    },
+    "GET /users/{id}/subscription": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Billing: a person manages payment details and plans in the web app."
+    }
+  }
+}

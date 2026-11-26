@@ -2,14 +2,14 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
+import { useLoadWhenVisible } from "@/hooks/effects/use-load-when-visible";
 
 import {
   ThreadListLoadMore,
   type ThreadListLoadMoreStatus,
 } from "./thread-list-load-more";
 
-vi.mock("@/hooks/use-load-when-visible", () => ({
+vi.mock("@/hooks/effects/use-load-when-visible", () => ({
   useLoadWhenVisible: vi.fn(),
 }));
 

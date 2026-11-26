@@ -31,16 +31,18 @@ import type {
   ReplaceSocialQueueSlotsRequest,
   ResumeSocialPostThreadRequest,
   ScheduleSocialPostRequest,
+  SocialAccountChoices,
   SocialPost,
   SocialPostStatus,
   SocialQueueSlots,
   StarredProject,
   TaskListItem,
   UpdateSocialPostRequest,
-  WorkspaceSocialPost,
 } from "@sokosumi/core-client";
 import type { CoreApiPagination } from "@/lib/clients/core.client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+
+import { listWorkspaceSocialPosts } from "./workspace-social-posts";
 
 interface ListProjectsParams {
   cursor?: string | null;
@@ -333,15 +335,11 @@ export const projectService = (() => {
   async function finalizeSocialConnection(
     projectId: string,
     input: FinalizeProjectSocialConnectionRequest,
-  ): Promise<ProjectSocialConnection> {
+  ): Promise<ProjectSocialConnection | SocialAccountChoices> {
     const result = await coreClient.postProjectsByIdSocialConnectionsFinalize(
       projectId,
       input,
     );
-    // Core answers with choices only to a caller that sent `offerChoice`.
-    if ("choices" in result.data) {
-      throw new Error("Core asked for an account pick nobody offered");
-    }
     return result.data;
   }
 
@@ -378,20 +376,6 @@ export const projectService = (() => {
     return {
       posts: result.data,
       nextCursor: result.meta?.pagination?.nextCursor ?? null,
-    };
-  }
-
-  /** Posts of every Project in the active workspace, newest change first. */
-  async function listWorkspaceSocialPosts(
-    statuses: readonly SocialPostStatus[],
-  ): Promise<{ items: WorkspaceSocialPost[]; hasMore: boolean }> {
-    const result = await coreClient.getWorkspacesSocialPosts({
-      status: statuses.join(","),
-      limit: 50,
-    });
-    return {
-      items: result.data,
-      hasMore: Boolean(result.meta?.pagination?.nextCursor),
     };
   }
 

@@ -27,8 +27,18 @@ import { stripeCustomerBillingService } from "@/services/stripe-customer-billing
  * (`cmoCheckoutMetadataSchema`). `productsFor` refuses what the Cuso may not
  * buy and lists the products, the preselected one first.
  */
+/** CMO.xyz's GA4 ids for a checkout made with analytics consent. */
+export interface CheckoutAnalytics {
+  clientId: string;
+  sessionId?: string | undefined;
+}
+
 export async function startCmoCheckout(
-  input: CusoTarget & { returnUrl: string; backUrl: string },
+  input: CusoTarget & {
+    returnUrl: string;
+    backUrl: string;
+    analytics?: CheckoutAnalytics | undefined;
+  },
   kind: "plan" | "top-up",
   productsFor: (cuso: Cuso) => Promise<string[]>,
 ): Promise<{ url: string }> {
@@ -45,11 +55,24 @@ export async function startCmoCheckout(
     organizationId,
     input.userId,
   );
-  const metadata: CmoCheckoutMetadata & { kind: typeof kind } = {
+  const metadata: CmoCheckoutMetadata & {
+    kind: typeof kind;
+    ga_client_id?: string;
+    ga_session_id?: string;
+  } = {
     kind,
     projectId: cuso.projectId,
     organizationId,
     userId: input.userId,
+    // Read back by `reportPolarEventToGa4` when the order is paid.
+    ...(input.analytics
+      ? {
+          ga_client_id: input.analytics.clientId,
+          ...(input.analytics.sessionId
+            ? { ga_session_id: input.analytics.sessionId }
+            : {}),
+        }
+      : {}),
   };
   const url = await createPolarCheckout({
     productIds,
@@ -153,6 +176,7 @@ export async function startCmoPlanCheckout(
     returnUrl: string;
     /** Polar's back link: without the success marker of `returnUrl`. */
     backUrl: string;
+    analytics?: CheckoutAnalytics | undefined;
   },
 ): Promise<{ url: string }> {
   return await startCmoCheckout(input, "plan", async (cuso) => {

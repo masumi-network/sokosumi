@@ -199,7 +199,7 @@ describe("workspace switcher", () => {
 
       await switchToOrgOne();
 
-      expect(replaceMock).toHaveBeenCalledWith("/");
+      expect(replaceMock).toHaveBeenCalledWith("/chat");
     });
 
     // Its Pinned row lists it in every workspace (ADR-0062).
@@ -314,6 +314,7 @@ describe("workspace switcher", () => {
   it.each([
     ["11223344-55aa-7111-8123-456789012345", "/tasks?status=READY"],
     ["research", null],
+    ["research&scope=owned", "/tasks?tag=research&status=READY"],
   ])(
     "keeps portable filters when switching a board filtered by %s",
     async (tag, redirect) => {

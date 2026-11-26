@@ -2,15 +2,16 @@ import { z } from "@hono/zod-openapi";
 import { SOKO_BOT_VOICEOVER_VOICES } from "@sokosumi/soko-bot";
 import {
   MAX_STUDIO_HEADLINE_LENGTH,
+  SHORT_VIDEO_FORMATS,
+  SHORT_VIDEO_MAX_PICTURES,
   TALKING_VIDEO_SCRIPT_MAX_LENGTH,
   TALKING_VIDEO_SCRIPT_MIN_LENGTH,
+  VIDEO_SHAPES,
 } from "@sokosumi/utils";
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
-import { getImageCatalog } from "@/lib/image-studio/catalog";
 import { IMAGE_JOB_FAILURE_REASONS } from "@/lib/image-studio/failure-reason";
 import {
-  DEFAULT_IMAGE_MODEL_ID,
   IMAGE_ASPECT_RATIOS,
   IMAGE_OUTPUT_FORMATS,
   IMAGE_PROVIDER_FIELDS,
@@ -18,11 +19,14 @@ import {
 } from "@/lib/image-studio/image-model";
 import { IMAGE_PROMPT_MAX_LENGTH } from "@/lib/image-studio/request-validation";
 import { DEFAULT_TALKING_VIDEO_VOICE } from "@/lib/image-studio/talking-video";
-import { getVideoCatalog } from "@/lib/image-studio/video-catalog";
 import {
   VIDEO_ASPECT_RATIOS,
   VIDEO_DURATIONS_SECONDS,
 } from "@/lib/image-studio/video-model";
+import {
+  imageStudioRouteSchema,
+  studioRouterArmSchema,
+} from "./image-studio-route.schema";
 import { studioLogoPositionSchema } from "./studio-logo-position.schema";
 import { studioProductIdentitySchema } from "./studio-product.schema";
 
@@ -123,8 +127,33 @@ export const imageStudioTalkingVideoSchema = z
     broll: z.boolean(),
     /** Generated music plays under the voice. */
     music: z.boolean(),
+    /** A short without a presenter, in this format. Null for a presenter video. */
+    format: z.union([z.enum(SHORT_VIDEO_FORMATS), z.null()]),
+    /** The shape this video is cut in. */
+    shape: z.enum(VIDEO_SHAPES),
+    /**
+     * The job this shape was cut from, or null for the first shape of a
+     * video. Each other shape is its own job, made once the first is
+     * delivered, from the same paid parts, at no extra cost.
+     */
+    sourceJobId: z.string().nullable(),
   })
   .openapi("ProjectTalkingVideo");
+
+/**
+ * The shapes to cut a video in: 9:16 (TikTok, Reels, Shorts), 4:5
+ * (Instagram and Facebook feed), 1:1 (square) or 16:9 (YouTube, LinkedIn and
+ * X on a desktop). Omitted, 9:16 alone. The first in that order is made and
+ * charged; each other shape is its own job, cut from the same voice,
+ * presenter, B-roll and music once the first is delivered, at no extra cost.
+ * A shape the kind of video does not read well in (a website tour in 1:1) is
+ * left out.
+ */
+const videoShapesSchema = z
+  .array(z.enum(VIDEO_SHAPES))
+  .min(1)
+  .max(VIDEO_SHAPES.length)
+  .optional();
 
 export const IMAGE_STUDIO_MEDIA_TYPES = ["IMAGE", "VIDEO"] as const;
 
@@ -319,27 +348,8 @@ export const imageStudioSessionSchema = z
 
 export const createImageJobRequestSchema = z
   .object({
-    /**
-     * A catalog model id.
-     *
-     * Not a Zod enum, because the catalog is read from fal and moves without a
-     * deploy: a fixed list compiled into the schema would reject a model the
-     * studio is already offering. The refinement reads the *resolved* catalog at
-     * parse time instead, so a model that appeared in the last refresh is
-     * accepted and an unknown id is still a 400 rather than reaching the
-     * reservation. `resolveImageSettings` checks it again before anything is
-     * charged, because the schema is not the only way into that code.
-     */
-    modelId: z
-      .string()
-      .trim()
-      .min(1)
-      .max(200)
-      .default(DEFAULT_IMAGE_MODEL_ID)
-      .refine(
-        (id) => getImageCatalog().models.some((model) => model.id === id),
-        { message: "Unknown image model. Choose one from the studio catalog." },
-      ),
+    /** Repeat the approved lettering step on an existing backdrop. */
+    letterExistingBackdrop: z.boolean().optional(),
     prompt: z.string().trim().min(1).max(IMAGE_PROMPT_MAX_LENGTH),
     templateId: z.string().trim().min(1).max(100).optional(),
     creativeDirection: z.string().trim().min(1).max(100).optional(),
@@ -368,23 +378,6 @@ export const createImageJobRequestSchema = z
 
 export const createVideoJobRequestSchema = z
   .object({
-    /**
-     * A video catalog model id. Omitted, the studio's default for the input:
-     * text-to-video, or image-to-video when `sourceAssetId` is set. Checked
-     * against the resolved catalog, for the same reason as `modelId` above.
-     */
-    modelId: z
-      .string()
-      .trim()
-      .min(1)
-      .max(200)
-      .optional()
-      .refine(
-        (id) =>
-          id === undefined ||
-          getVideoCatalog().models.some((model) => model.id === id),
-        { message: "Unknown video model. Choose one from the studio catalog." },
-      ),
     prompt: z.string().trim().min(1).max(IMAGE_PROMPT_MAX_LENGTH),
     /** Missing fields take the model's defaults: 9:16, 5 seconds, its first resolution. */
     settings: z
@@ -454,9 +447,55 @@ export const createTalkingVideoJobRequestSchema = z
     broll: z.boolean().default(false),
     /** Lay generated instrumental music under the voice. Off by default. */
     music: z.boolean().default(false),
+    shapes: videoShapesSchema,
     idempotencyKey: z.string().trim().min(8).max(200),
   })
   .openapi("CreateProjectTalkingVideoJobRequest");
+
+export const createShortVideoJobRequestSchema = z
+  .object({
+    /**
+     * How the short tells it: a voice over the brand's pictures and site
+     * (`voiceover`), a voice walking through the site (`site_tour`), a voice
+     * giving three numbered points (`top_three`), or pictures to music with
+     * a line on each (`slideshow`).
+     */
+    format: z.enum(SHORT_VIDEO_FORMATS),
+    /**
+     * What the voice says, in sentences. A `top_three` script is a first
+     * sentence naming the list, one sentence per point, then the next step.
+     * A `slideshow` script is its lines, one per picture, one per row.
+     */
+    script: z
+      .string()
+      .trim()
+      .min(TALKING_VIDEO_SCRIPT_MIN_LENGTH)
+      .max(TALKING_VIDEO_SCRIPT_MAX_LENGTH),
+    /** The words over the first seconds. Omitted, they are written from the script. */
+    hookLine: z.string().trim().min(1).max(48).optional(),
+    voice: z
+      .enum(SOKO_BOT_VOICEOVER_VOICES)
+      .default(DEFAULT_TALKING_VIDEO_VOICE),
+    /** ISO 639-1 language of the script. */
+    languageCode: z
+      .string()
+      .trim()
+      .regex(/^[a-z]{2}$/)
+      .default("en"),
+    /** Studio pictures to show, in order. */
+    pictureAssetIds: z
+      .array(z.string().uuid())
+      .max(SHORT_VIDEO_MAX_PICTURES)
+      .default([]),
+    /** Images in Files to show, after the studio pictures. */
+    pictureFileIds: z
+      .array(z.string().uuid())
+      .max(SHORT_VIDEO_MAX_PICTURES)
+      .default([]),
+    shapes: videoShapesSchema,
+    idempotencyKey: z.string().trim().min(8).max(200),
+  })
+  .openapi("CreateProjectShortVideoJobRequest");
 
 export const imageStudioStateQuerySchema = z.object({
   sort: z.enum(["newest", "best"]).default("newest"),
@@ -486,6 +525,8 @@ export const writeTalkingVideoScriptsRequestSchema = z
   .object({
     /** What the videos should be about. Omitted, the brand picks. */
     topic: z.string().trim().min(1).max(500).optional(),
+    /** Write for a short in this format. Omitted, for a presenter to speak. */
+    format: z.enum(SHORT_VIDEO_FORMATS).optional(),
     /** ISO 639-1 language to write in. */
     languageCode: z
       .string()
@@ -503,6 +544,8 @@ export const talkingVideoScriptsSchema = z
         hook: z.string(),
         /** The whole script, hook included, as it is spoken. */
         script: z.string(),
+        /** A short's words on screen over its first seconds. */
+        hookLine: z.string().optional(),
       }),
     ),
   })
@@ -642,6 +685,8 @@ export const imageStudioTalkingVideoCatalogSchema = z
         name: z.string(),
         description: z.string(),
         imageUrl: z.string(),
+        /** The stock voice that sounds like this presenter. */
+        voice: z.string(),
       }),
     ),
     defaultVoice: z.string(),
@@ -804,3 +849,18 @@ export const recordImageStudioInitialTurnSchema = z.object({
   /** The lease granted by a `claim`, presented on every later transition. */
   deliveryToken: z.string().nullable(),
 });
+
+export const createAgentImageJobSchema = createImageJobRequestSchema
+  .omit({
+    exportHeadline: true,
+    useProductCutout: true,
+    letterExistingBackdrop: true,
+  })
+  .extend({
+    route: imageStudioRouteSchema.optional(),
+    experimentArm: studioRouterArmSchema.optional(),
+    catalogProductId: z.string().uuid().optional(),
+    modelId: z
+      .enum(["gemini-pro", "ideogram-v3", "recraft-v4-1-text-to-vector"])
+      .default("gemini-pro"),
+  });

@@ -11,7 +11,7 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   workspaceCalendarEntrySchema,
@@ -54,7 +54,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = await requireAuthorizedUserContext(c.var.authContext);
     const query = c.req.valid("query");
     if (requestsFeatures(query)) {
-      requireInteractiveUserAuthContext(c.var.authContext);
+      requireUserAuthContext(c.var.authContext);
     }
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const calendarQuery = parseWorkspaceCalendarQuery(query);

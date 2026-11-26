@@ -1,7 +1,8 @@
 "use client";
 
 import { useLocale } from "next-intl";
-import { useLayoutEffect } from "react";
+
+import { useDocumentLocaleLang } from "@/hooks/effects/use-document-locale-lang";
 
 /**
  * Root `<html lang>` stays on `DEFAULT_LOCALE` so the document shell can stay
@@ -11,9 +12,7 @@ import { useLayoutEffect } from "react";
 export function DocumentLocale() {
   const locale = useLocale();
 
-  useLayoutEffect(() => {
-    document.documentElement.lang = locale;
-  }, [locale]);
+  useDocumentLocaleLang(locale);
 
   return null;
 }

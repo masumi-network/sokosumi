@@ -1713,11 +1713,15 @@ const SUSPENSE_WRAPPED = new Set([
   "(app)/drive/data-rooms/[id]/page.tsx",
   "(app)/drive/files/[resourceId]/page.tsx",
   "(app)/agents/[agentId]/jobs/layout.tsx",
+  "(app)/agents/coworkers/[coworkerId]/page.tsx",
+  "(app)/agents/soko-bots/[botId]/page.tsx",
   "(app)/chat/rooms/[roomId]/page.tsx",
   "(app)/projects/(root)/page.tsx",
   "(app)/schedules/[scheduleId]/page.tsx",
   "(app)/schedules/page.tsx",
   "(app)/tasks/(root)/page.tsx",
+  "(app)/tasks/archived/[taskId]/page.tsx",
+  "(app)/tasks/archived/page.tsx",
 ]);
 
 /**
@@ -1738,7 +1742,7 @@ const INSTANT_WORKLIST = new Set([
   "(app)/billing/page.tsx",
   "(app)/chat/invites/[id]/page.tsx",
   "(app)/chat/join/[token]/page.tsx",
-  "(app)/chat/page.tsx",
+  "(app)/chat/rooms/page.tsx",
   "(app)/connections/page.tsx",
   "(app)/developer/coworkers/[id]/page.tsx",
   "(app)/developer/page.tsx",

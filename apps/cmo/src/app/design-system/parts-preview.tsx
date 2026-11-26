@@ -4,7 +4,7 @@ import "../../components/onboarding/onboarding.css";
 
 import { CusoStatus } from "../../components/app/cuso-status";
 import { Sidebar } from "../../components/app/sidebar";
-import { CusoAvatar } from "../../components/cuso";
+import { CusoFace } from "../../components/cuso";
 import { Checklist, SkeletonTile } from "../../components/onboarding/checklist";
 import {
   AssumptionChip,
@@ -144,17 +144,24 @@ export function PartsPreview() {
         <p className="ds-t-small muted">{AGENT_NAME} status, by pose</p>
         <div className="ds-statuses">
           {STATUS_CARDS.map((card) => (
-            <CusoStatus key={card.label} overview={card.overview} now={AT} />
+            <div key={card.label} className="ds-stage">
+              <CusoStatus
+                overview={card.overview}
+                view="today"
+                now={AT}
+                onOpen={noop}
+              />
+            </div>
           ))}
         </div>
       </div>
 
       <div className="ds-part">
-        <p className="ds-t-small muted">{AGENT_NAME} avatar sizes</p>
+        <p className="ds-t-small muted">{AGENT_NAME} profile picture sizes</p>
         <div className="ds-avatars">
-          <CusoAvatar pose="thinking" size={36} />
-          <CusoAvatar pose="reporting" size={48} />
-          <CusoAvatar pose="done" size={96} />
+          <CusoFace size={26} />
+          <CusoFace size={36} />
+          <CusoFace size={48} />
         </div>
       </div>
     </div>

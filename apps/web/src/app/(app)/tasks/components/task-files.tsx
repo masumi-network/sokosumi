@@ -7,11 +7,12 @@ import type {
 } from "@sokosumi/core-client";
 import { DownloadIcon, FileIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useLayoutEffect, useState } from "react";
+import { useId } from "react";
 import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { TaskFileStatusBadge } from "@/components/tasks/task-file-status-badge";
 import { Button } from "@/components/ui/button";
-import { useFilesArchiveDownload } from "@/hooks/use-files-archive-download";
+import { useFilesArchiveDownload } from "@/hooks/effects/use-files-archive-download";
+import { useTaskFilesExpanded } from "@/hooks/effects/use-task-files-expanded";
 import type { ArchiveFile } from "@/lib/files-archive";
 
 export type TaskFileListItem =
@@ -56,11 +57,8 @@ function TaskFilesContent({
   downloadAllName,
   className,
 }: TaskFilesProps) {
-  const [expanded, setExpanded] = useState(false);
   // Next retains inactive routes in Activity; reset when hidden, not on refresh.
-  useLayoutEffect(() => {
-    return () => setExpanded(false);
-  }, []);
+  const { expanded, toggle } = useTaskFilesExpanded();
   const contentId = useId();
   const isExpandable = files.length > 3;
   const visibleFiles = expanded ? files : files.slice(0, 3);
@@ -124,7 +122,7 @@ function TaskFilesContent({
             className="h-7 rounded-full px-3 text-xs font-semibold"
             aria-expanded={expanded}
             aria-controls={contentId}
-            onClick={() => setExpanded((value) => !value)}
+            onClick={toggle}
           >
             {expanded ? collapseLabel : expandLabel}
           </Button>

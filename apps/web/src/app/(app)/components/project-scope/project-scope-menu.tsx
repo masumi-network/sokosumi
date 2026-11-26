@@ -1,6 +1,15 @@
 "use client";
 
-import { Check, Layers, Pin, Plus } from "lucide-react";
+import {
+  Check,
+  FolderKanban,
+  Layers,
+  Maximize2,
+  Pin,
+  Plus,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
@@ -12,12 +21,22 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-import { type ScopeProject, useScopeProjects } from "./use-scope-projects";
+import {
+  type ScopeProject,
+  useIsUnknownScopeProject,
+  useScopeProjects,
+} from "./use-scope-projects";
 
 const CREATE_VALUE = "__create_project__";
 const ALL_PROJECTS_VALUE = "__all_projects__";
+const OVERVIEW_VALUE = "__project_overview__";
 
 /**
  * The trigger of the popover, sheet or dialog that holds the menu. Radix links
@@ -57,7 +76,7 @@ interface ProjectScopeMenuProps {
  * narrows that same list and asks Core, so the list filters itself off. All
  * projects leads the list when the host offers it (`onSelectAll`), so the way
  * back to the list is in the same place as every project; the trigger's ×
- * does the same.
+ * does the same. With a project picked, its Overview comes first there.
  */
 export function ProjectScopeMenu({
   selectedProjectId,
@@ -72,6 +91,13 @@ export function ProjectScopeMenu({
   const [search, setSearch] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
   const projects = useScopeProjects({ search, selectedProjectId });
+  const router = useRouter();
+  // A deleted or foreign project has no page to open.
+  const isUnknownProject = useIsUnknownScopeProject(selectedProjectId);
+  const overviewHref =
+    selectedProjectId !== null && !isUnknownProject
+      ? `/projects/${encodeURIComponent(selectedProjectId)}`
+      : null;
 
   function choose(projectId: string) {
     onSelect(projectId);
@@ -193,73 +219,128 @@ export function ProjectScopeMenu({
           </Button>
         ) : null}
       </div>
-      <CommandList
-        label={t("all")}
-        aria-busy={busy || undefined}
+      <div
         className={cn(
-          "flex min-h-0 max-h-96 flex-col overflow-visible [&_[cmdk-list-sizer]]:flex [&_[cmdk-list-sizer]]:min-h-0 [&_[cmdk-list-sizer]]:flex-col",
+          "relative flex min-h-0 max-h-96 flex-auto flex-col",
           statusText && "shrink-0",
         )}
       >
-        <div
-          className="app-scrollbar min-h-0 overflow-y-auto overscroll-contain scroll-py-1.5"
-          role="presentation"
+        <CommandList
+          label={t("all")}
+          aria-busy={busy || undefined}
+          className="flex min-h-0 max-h-none flex-1 flex-col overflow-visible [&_[cmdk-list-sizer]]:flex [&_[cmdk-list-sizer]]:min-h-0 [&_[cmdk-list-sizer]]:flex-1 [&_[cmdk-list-sizer]]:flex-col"
         >
-          {onSelectAll && !projects.isSearching ? (
-            <CommandGroup className="border-b">
-              <CommandItem
-                value={ALL_PROJECTS_VALUE}
-                data-testid="project-scope-all"
-                className={cn(
-                  "min-h-11 gap-3 px-2.5 py-2 md:min-h-9 md:py-1.5",
-                  selectedProjectId === null && "font-medium",
-                )}
-                onSelect={() => {
-                  onSelectAll();
-                  onDone?.();
-                }}
-              >
-                <span
-                  aria-hidden
-                  className="flex size-6 shrink-0 items-center justify-center"
-                >
-                  <Layers className="size-4" />
-                </span>
-                <span className="min-w-0 flex-1 break-words leading-normal">
-                  {t("allProjects")}
-                </span>
-                {selectedProjectId === null ? <CurrentMark /> : null}
-              </CommandItem>
-            </CommandGroup>
-          ) : null}
-          {rows.length > 0 ? (
-            <CommandGroup>{rows.map(row)}</CommandGroup>
-          ) : null}
-        </div>
-        <CommandGroup forceMount className="shrink-0 border-t">
-          <CommandItem
-            forceMount
-            className="min-h-11 gap-3 px-2.5 py-2 md:min-h-9 md:py-1.5"
-            value={CREATE_VALUE}
-            data-testid="project-scope-create"
-            onSelect={() => {
-              const opener = openerOf(menuRef.current);
-              // Create first: it takes over a page's request for a project,
-              // which closing the selector would otherwise dismiss.
-              onCreate(opener);
-              onDone?.();
-            }}
+          <div
+            className="app-scrollbar min-h-0 overflow-y-auto overscroll-contain scroll-py-1.5"
+            role="presentation"
           >
-            <span
-              className="flex size-6 shrink-0 items-center justify-center"
-              aria-hidden
+            {onSelectAll && !projects.isSearching ? (
+              <CommandGroup className="border-b">
+                {overviewHref ? (
+                  <CommandItem
+                    value={OVERVIEW_VALUE}
+                    data-testid="project-scope-overview"
+                    className="min-h-11 gap-3 px-2.5 py-2 md:min-h-9 md:py-1.5"
+                    onSelect={() => {
+                      router.push(overviewHref);
+                      onDone?.();
+                    }}
+                  >
+                    <span
+                      aria-hidden
+                      className="flex size-6 shrink-0 items-center justify-center"
+                    >
+                      <FolderKanban className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1 break-words leading-normal">
+                      {t("overview")}
+                    </span>
+                  </CommandItem>
+                ) : null}
+                <CommandItem
+                  value={ALL_PROJECTS_VALUE}
+                  data-testid="project-scope-all"
+                  className={cn(
+                    "min-h-11 gap-3 px-2.5 py-2 md:min-h-9 md:py-1.5",
+                    selectedProjectId === null && "font-medium",
+                  )}
+                  onSelect={() => {
+                    onSelectAll();
+                    onDone?.();
+                  }}
+                >
+                  <span
+                    aria-hidden
+                    className="flex size-6 shrink-0 items-center justify-center"
+                  >
+                    <Layers className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1 break-words leading-normal">
+                    {t("allProjects")}
+                  </span>
+                  {selectedProjectId === null ? <CurrentMark /> : null}
+                </CommandItem>
+              </CommandGroup>
+            ) : null}
+            {rows.length > 0 ? (
+              <CommandGroup>{rows.map(row)}</CommandGroup>
+            ) : null}
+          </div>
+          <CommandGroup forceMount className="mt-auto shrink-0 border-t">
+            <CommandItem
+              forceMount
+              className={cn(
+                "min-h-11 gap-3 px-2.5 py-2 md:min-h-9 md:py-1.5",
+                onSelectAll && "me-12 md:me-10",
+              )}
+              value={CREATE_VALUE}
+              data-testid="project-scope-create"
+              onSelect={() => {
+                const opener = openerOf(menuRef.current);
+                // Create first: it takes over a page's request for a project,
+                // which closing the selector would otherwise dismiss.
+                onCreate(opener);
+                onDone?.();
+              }}
             >
-              <Plus className="size-4" />
-            </span>
-            <span className="min-w-0 flex-1 break-words">{t("create")}</span>
-          </CommandItem>
-        </CommandGroup>
-      </CommandList>
+              <span
+                className="flex size-6 shrink-0 items-center justify-center"
+                aria-hidden
+              >
+                <Plus className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1 break-words">{t("create")}</span>
+            </CommandItem>
+          </CommandGroup>
+        </CommandList>
+        {onSelectAll ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                asChild
+                size="icon"
+                variant="ghost"
+                className="text-muted-foreground absolute end-1.5 bottom-1.5 size-11 md:size-9"
+              >
+                <Link
+                  href="/projects"
+                  aria-label={t("openProjectsPage")}
+                  onNavigate={onDone}
+                  onKeyDown={(event) => {
+                    // cmdk handles Enter on the highlighted project.
+                    if (event.key === "Enter") event.stopPropagation();
+                  }}
+                >
+                  <Maximize2 aria-hidden />
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" sideOffset={6} className="max-w-64">
+              {t("openProjectsPageHint")}
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+      </div>
     </Command>
   );
 }

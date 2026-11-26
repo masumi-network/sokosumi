@@ -128,11 +128,12 @@ vi.mock("@/app/chat/components/create-channel-dialog", () => ({
 }));
 
 vi.mock("@/app/chat/components/create-direct-dialog", () => ({
-  CreateDirectDialog: () => (
-    <button type="button" aria-label="App.Channels.Draft.title">
-      +
-    </button>
-  ),
+  CreateDirectDialog: ({ trigger }: { trigger?: ReactNode }) =>
+    trigger ?? (
+      <button type="button" aria-label="App.Channels.Draft.title">
+        +
+      </button>
+    ),
 }));
 
 // Every Direct reads "room" but the Self Direct, which keeps its real name.
@@ -143,6 +144,7 @@ vi.mock("@/app/chat/components/room-helpers", async (importActual) => {
     getRoomDisplayName: (
       ...args: Parameters<typeof actual.getRoomDisplayName>
     ) => (args[0].isSelfDirect ? actual.getRoomDisplayName(...args) : "room"),
+    getRoomParticipantPreviews: actual.getRoomParticipantPreviews,
   };
 });
 
@@ -150,6 +152,7 @@ vi.mock("@/components/chat/chat-room-sidebar-row", () => ({
   ChatRoomSidebarRow: ({
     label,
     subtitle,
+    status,
     reorderHandle,
     itemProps,
     ...props
@@ -157,6 +160,7 @@ vi.mock("@/components/chat/chat-room-sidebar-row", () => ({
     room: ChatRoom;
     label: string;
     subtitle?: string;
+    status?: ReactNode;
     reorderHandle?: ReactNode;
     itemProps?: ComponentProps<"li">;
   }) => {
@@ -165,6 +169,7 @@ vi.mock("@/components/chat/chat-room-sidebar-row", () => ({
       <li {...itemProps} data-testid="room-row">
         <span>{label}</span>
         {subtitle ? <span>{subtitle}</span> : null}
+        {status}
         {reorderHandle}
       </li>
     );
@@ -389,7 +394,12 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
 export const emptyRooms: ChatRoom[] = [];
 
 function makeQueryClient() {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
 }
 
 /** One per test, as the app has one per tab, so a test's rooms stay its own. */

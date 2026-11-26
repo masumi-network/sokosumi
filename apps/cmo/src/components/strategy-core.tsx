@@ -11,16 +11,16 @@ import {
   Search,
   ShoppingBag,
 } from "lucide-react";
-import { type ReactNode, useEffect, useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 
 import { channelLabel } from "../lib/calendar";
 import { channelKey } from "../lib/channels";
+import { stageShares } from "../lib/strategy";
 import { ChannelIcon } from "./channel-icon";
 import { StatusText } from "./status";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Stage = NonNullable<Strategy["funnel"]>[number];
-type Pace = NonNullable<Strategy["pace"]>["level"];
 type Source = CmoOverview["measurement"][number];
 
 const SOURCE_ICONS = {
@@ -104,9 +104,15 @@ export function OfferLadder({
   );
 }
 
-/** The classic funnel step each stage is, and what people do there. */
+/**
+ * The classic funnel step each stage is, and what people do there. Cuso
+ * writes AIDA's four; the last three are stages of strategies saved before.
+ */
 const STAGES: Record<Stage["stage"], { label: string; people: string }> = {
-  awareness: { label: "Awareness", people: "People who could buy hear of you" },
+  awareness: { label: "Awareness", people: "People find out about you" },
+  interest: { label: "Interest", people: "They look at what you offer" },
+  desire: { label: "Desire", people: "They want it" },
+  action: { label: "Action", people: "They sign up, buy or book" },
   consideration: { label: "Consideration", people: "They weigh you up" },
   conversion: { label: "Conversion", people: "They buy or sign up" },
   loyalty: { label: "Loyalty", people: "They come back" },
@@ -118,204 +124,100 @@ export function stageLabel(stage: Stage["stage"]): string {
 }
 
 /**
- * The funnel, one card a stage: the classic step, the goal, what Cuso does
- * there on which channels, the owner's part, and the number that shows it
- * works with how that number is known. Nothing is folded away.
+ * The funnel: one drawing at fixed proportions, a slice per stage narrowing
+ * to the sale, beside the steps in the same order. Each step says its goal
+ * and about how much of the month serves it; every network carries every
+ * step, so the networks stay in "Where it shows up".
  */
 export function FunnelPlan({
   stages,
-  improvements,
+  calendar,
 }: {
   stages: Stage[];
-  improvements: NonNullable<Strategy["improvements"]>;
+  calendar: Strategy["calendar"];
 }) {
+  const shares = stageShares(calendar);
   return (
-    <ol className="sc-funnel">
-      {stages.map((stage, index) => {
-        const { label, people } = STAGES[stage.stage];
-        return (
-          <li key={stage.stage} className="sc-stage">
-            <FunnelSegment index={index} of={stages.length}>
-              <span className="sc-stage-number num">{index + 1}</span>
-              <h3 className="sc-stage-name">{label}</h3>
-              <span className="sc-stage-people">{people}</span>
-            </FunnelSegment>
-            <div className="sc-stage-body">
+    <div className="sc-funnel-wrap">
+      <FunnelShape stages={stages} />
+      <ol className="sc-funnel">
+        {stages.map((stage, index) => {
+          const { label, people } = STAGES[stage.stage];
+          const share = shares?.get(stage.stage);
+          return (
+            <li key={stage.stage} className="sc-stage">
+              <div className="sc-stage-head">
+                <span
+                  className={`sc-stage-number num ${sliceFill(index, stages.length)}`}
+                >
+                  {index + 1}
+                </span>
+                <h3 className="sc-stage-name">{label}</h3>
+                <span className="sc-stage-people">{people}</span>
+              </div>
               <p className="sc-goal">{stage.goal}</p>
-              <dl className="sc-stage-parts">
-                <div>
-                  <dt>What {AGENT_NAME} does</dt>
-                  <dd>
-                    <CusoPart stage={stage} />
-                  </dd>
-                </div>
-                <div>
-                  <dt>What you do</dt>
-                  <dd>
-                    <OwnerPart stage={stage} improvements={improvements} />
-                  </dd>
-                </div>
-                <div>
-                  <dt>How we know it works</dt>
-                  <dd>
-                    <MeasurePart stage={stage} />
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
-/** How wide the funnel still is, in percent, where its last stage ends. */
-const FUNNEL_END = 40;
-/** A stage's fill, top to bottom; the last one, the sale, is always green. */
-const SEGMENT_FILLS = ["paper", "iris", "yellow"] as const;
-
-/**
- * One stage's slice of the funnel: as wide at its top as the stage above
- * ends, narrower at its bottom, so the stages stack into one funnel.
- */
-function FunnelSegment({
-  index,
-  of,
-  children,
-}: {
-  index: number;
-  of: number;
-  children: ReactNode;
-}) {
-  const edge = (at: number) =>
-    ((100 - FUNNEL_END) / 2) * (at / Math.max(of, 1));
-  const [top, bottom] = [edge(index), edge(index + 1)];
-  const fill = index === of - 1 ? "green" : (SEGMENT_FILLS[index] ?? "yellow");
-  return (
-    <div
-      className={`sc-segment ${fill}`}
-      style={{ ["--sc-inset" as string]: `${bottom}%` }}
-    >
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        <polygon
-          points={`${top},0 ${100 - top},0 ${100 - bottom},100 ${bottom},100`}
-          vectorEffect="non-scaling-stroke"
-        />
-      </svg>
-      <div className="sc-segment-text">{children}</div>
+              {share !== undefined ? (
+                <p className="sc-share">
+                  About <b className="num">{share}%</b> of this month's posts
+                </p>
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
 
-/** Cuso's work at a stage, one line a channel. */
-function CusoPart({ stage }: { stage: Stage }) {
-  const plays = stage.plays ?? [];
-  if (plays.length > 0) {
-    return (
-      <ul className="sc-plays">
-        {plays.map((play) => (
-          <li key={`${play.channel}:${play.what}`}>
-            <span className="sc-play-channel">
-              <ChannelIcon
-                channel={channelKey(play.channel) ?? play.channel}
-                size={16}
-              />
-              {channelLabel(play.channel)}
-            </span>
-            <span>{play.what}</span>
-          </li>
-        ))}
-      </ul>
-    );
-  }
-  const channels = stage.channels ?? [];
-  if (stage.owner === "you" || channels.length === 0) {
-    return <p>Nothing here. This step is yours.</p>;
-  }
-  return (
-    <ul className="sc-plays">
-      {channels.map((channel) => (
-        <li key={channel}>
-          <span className="sc-play-channel">
-            <ChannelIcon channel={channelKey(channel) ?? channel} size={16} />
-            {channelLabel(channel)}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
+/** How wide the funnel still is, in percent, where its last stage ends. */
+const FUNNEL_END = 36;
+/** One slice's height in the drawing, where the funnel is 100 wide. */
+const SLICE_HEIGHT = 24;
+/** A stage's fill, top to bottom; the last one, the sale, is always green. */
+const SLICE_FILLS = ["paper", "iris", "yellow"] as const;
 
-/** The owner's part: their own pages at the sale, with Cuso's ideas for them. */
-function OwnerPart({
-  stage,
-  improvements,
-}: {
-  stage: Stage;
-  improvements: NonNullable<Strategy["improvements"]>;
-}) {
-  const owner = stage.owner ?? "cuso";
-  if (owner === "cuso") return <p>Nothing. {AGENT_NAME} runs this step.</p>;
-  const ideas =
-    stage.stage === "conversion"
-      ? improvements.filter((item) =>
-          ["landing", "pricing", "checkout"].includes(item.area),
-        )
-      : [];
-  if (ideas.length === 0) {
-    return (
-      <p>
-        {owner === "you"
-          ? "This step happens on your own pages, product or sales."
-          : `Your pages and offer do the rest. ${AGENT_NAME} suggests changes, you decide.`}
-      </p>
-    );
-  }
-  return (
-    <ul className="sc-ideas">
-      {ideas.map((item) => (
-        <li key={item.idea}>
-          <span>{item.idea}</span>
-          <span className="note">{item.why}</span>
-        </li>
-      ))}
-    </ul>
-  );
+function sliceFill(index: number, of: number): string {
+  return index === of - 1 ? "green" : (SLICE_FILLS[index] ?? "yellow");
 }
 
 /**
- * A value short enough to stand as a big number: "About 400 a month". A
- * sentence ("X has 33.4K followers; visits are not reported.") reads as words.
+ * The funnel drawn once in its own proportions (the viewBox keeps them), so
+ * it never stretches with the text beside it: each slice as wide at its top
+ * as the one above ends, narrower at its bottom.
  */
-function isFigure(value: string): boolean {
-  return value.trim().split(/\s+/).length <= 5;
-}
-
-/** The stage's number, today's value and whether it is measured or estimated. */
-function MeasurePart({ stage }: { stage: Stage }) {
-  const { measure } = stage;
+function FunnelShape({ stages }: { stages: Stage[] }) {
+  const of = Math.max(stages.length, 1);
+  const height = of * SLICE_HEIGHT;
+  const edge = (at: number) => ((100 - FUNNEL_END) / 2) * (at / of);
   return (
-    <div className="sc-measure">
-      <span>{stage.metric}</span>
-      {measure?.value && measure.basis !== "unknown" ? (
-        isFigure(measure.value) ? (
-          <b className="num">{measure.value}</b>
-        ) : (
-          <span>{measure.value}</span>
-        )
-      ) : null}
-      {measure?.basis === "measured" ? (
-        <StatusText>
-          {measure.source ? `Measured in ${measure.source}` : "Measured"}
-        </StatusText>
-      ) : (
-        <span className="note">
-          {measure?.basis === "estimated"
-            ? `${AGENT_NAME}'s estimate`
-            : "Not measured yet"}
+    <div
+      className="sc-funnel-shape"
+      style={{ aspectRatio: `100 / ${height}` }}
+      aria-hidden="true"
+    >
+      <svg viewBox={`0 0 100 ${height}`}>
+        {stages.map((stage, index) => {
+          const [top, bottom] = [edge(index), edge(index + 1)];
+          const [y0, y1] = [index * SLICE_HEIGHT, (index + 1) * SLICE_HEIGHT];
+          return (
+            <polygon
+              key={stage.stage}
+              className={`sc-segment ${sliceFill(index, stages.length)}`}
+              points={`${top},${y0} ${100 - top},${y0} ${100 - bottom},${y1} ${bottom},${y1}`}
+              vectorEffect="non-scaling-stroke"
+            />
+          );
+        })}
+      </svg>
+      {stages.map((stage, index) => (
+        <span
+          key={stage.stage}
+          className={`sc-slice-label ${sliceFill(index, stages.length)}`}
+          style={{ top: `${((index + 0.5) / of) * 100}%` }}
+        >
+          {STAGES[stage.stage].label}
         </span>
-      )}
+      ))}
     </div>
   );
 }
@@ -352,16 +254,6 @@ export function BeforeAfter({
   );
 }
 
-export const PACES: { level: Pace; name: string; does: string }[] = [
-  { level: "steady", name: "Steady", does: "One a day on each network" },
-  { level: "active", name: "Active", does: "Two a day on each network" },
-  {
-    level: "all_in",
-    name: "All-in",
-    does: "Up to three a day on each network",
-  },
-];
-
 export function money(amount: number, currency: string): string {
   try {
     return new Intl.NumberFormat("en", {
@@ -375,89 +267,122 @@ export function money(amount: number, currency: string): string {
 }
 
 /**
- * Paid ads, the only part that costs more: Cuso's amount and what it should
- * bring, what happens without it, and the owner's own figure.
+ * Ads cost the owner money on top of their plan, so they are a Yes or No of
+ * their own. Until the owner answers, neither is picked and Cuso's
+ * suggestion is said in words; the budget only shows after a Yes. Saving a
+ * budget asks him to plan the ads, and No takes them out again.
  */
-export function AdBudget({
+export function AdsChoice({
   ads,
   onSetAds,
+  approved = false,
 }: {
   ads: NonNullable<Strategy["ads"]>;
   onSetAds?: (monthly: number, currency: string) => Promise<void>;
+  /** The plan is approved: a new budget writes a version to approve. */
+  approved?: boolean;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [amount, setAmount] = useState(String(ads.monthly));
+  const on = ads.monthly > 0;
+  const [wants, setWants] = useState<boolean | null>(
+    on ? true : ads.setByOwner ? false : null,
+  );
+  const [amount, setAmount] = useState(
+    String(on ? ads.monthly : (ads.suggest?.monthly ?? "")),
+  );
   const [saving, setSaving] = useState(false);
   const value = Number(amount.replace(/[^\d.]/g, ""));
+  const suggested = ads.suggest;
+  const questionId = useId();
+
+  async function save(monthly: number) {
+    if (!onSetAds) return;
+    setSaving(true);
+    try {
+      await onSetAds(monthly, ads.currency);
+    } catch {
+      // The host shows the refusal; the choice stays to try again.
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <div className="sc-ads">
-      <p className="sc-ads-amount">
-        <b className="num">{money(ads.monthly, ads.currency)}</b>
-        <span className="note">
-          a month
-          {ads.setByOwner ? ", your budget" : `, ${AGENT_NAME}'s suggestion`}
-        </span>
+    <div className="sc-budget">
+      <p id={questionId} className="sc-budget-question">
+        Do you want ads?
       </p>
-      <p>{ads.monthly > 0 ? ads.expect : ads.without}</p>
-      {ads.monthly > 0 ? (
-        <p className="note">Without ads: {ads.without}</p>
+      {suggested && !on && wants !== false ? (
+        <p>
+          {AGENT_NAME} suggests {money(suggested.monthly, ads.currency)} a month
+          on {channelLabel(suggested.channel)}. {ads.expect}
+        </p>
+      ) : on ? (
+        <p>
+          {money(ads.monthly, ads.currency)} a month. {ads.expect}
+        </p>
       ) : null}
       <p className="note">
-        Ads are the only extra cost. You pay the ad networks directly;{" "}
-        {AGENT_NAME}
-        never spends more than this.
+        Ads are extra to your plan: you pay the ad network directly, and{" "}
+        {AGENT_NAME} never spends more than the budget you set.
       </p>
-      {onSetAds ? (
-        editing ? (
-          <form
-            className="sc-ads-form"
-            onSubmit={async (event) => {
-              event.preventDefault();
-              if (!Number.isFinite(value) || value < 0) return;
-              setSaving(true);
-              try {
-                await onSetAds(value, ads.currency);
-                setEditing(false);
-              } catch {
-                // The host shows the refusal; the amount stays to try again.
-              } finally {
-                setSaving(false);
-              }
-            }}
-          >
-            <label className="sc-ads-input">
-              <span>{ads.currency}</span>
-              <input
-                inputMode="decimal"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                aria-label={`Monthly ad budget in ${ads.currency}`}
-              />
-            </label>
-            <button
-              type="submit"
-              className="button button-secondary button-small"
-              disabled={saving}
-            >
-              {saving ? "Saving…" : "Set budget"}
-            </button>
-            <button
-              type="button"
-              className="button button-ghost button-small"
-              onClick={() => setEditing(false)}
-            >
-              Cancel
-            </button>
-          </form>
-        ) : (
+      {/* Ad blockers hide anything labelled "Ads" (Brave hid these buttons, 2026-11-24). */}
+      <div className="ob-tabs" role="group" aria-labelledby={questionId}>
+        <button
+          type="button"
+          aria-pressed={wants === true}
+          disabled={!onSetAds || saving}
+          onClick={() => setWants(true)}
+        >
+          Yes
+        </button>
+        <button
+          type="button"
+          aria-pressed={wants === false}
+          disabled={!onSetAds || saving}
+          onClick={() => {
+            setWants(false);
+            if (on || !ads.setByOwner) void save(0);
+          }}
+        >
+          No
+        </button>
+      </div>
+      {wants && approved ? (
+        <p className="note">
+          {AGENT_NAME} plans the ads into a new version of your strategy. They
+          start once you approve it.
+        </p>
+      ) : null}
+      {wants ? (
+        <form
+          className="sc-budget-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!Number.isFinite(value) || value <= 0) return;
+            void save(value);
+          }}
+        >
+          <label className="sc-budget-input">
+            <span>{ads.currency}</span>
+            <input
+              inputMode="decimal"
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              aria-label={`Monthly ad budget in ${ads.currency}`}
+              disabled={!onSetAds}
+            />
+            <span className="note">a month</span>
+          </label>
           <button
-            type="button"
-            className="sc-link"
-            onClick={() => setEditing(true)}
+            type="submit"
+            className="button button-secondary button-small"
+            disabled={!onSetAds || saving || (on && value === ads.monthly)}
           >
-            Set your own budget
+            {saving ? "Saving…" : on ? "Change budget" : "Start ads"}
           </button>
-        )
+        </form>
+      ) : wants === false ? (
+        <p className="note">No ads. {ads.without}</p>
       ) : null}
     </div>
   );
@@ -485,20 +410,30 @@ export function Improvements({
     <ul className="sc-improve">
       {items.map((item) => (
         <li key={item.idea}>
-          <span className="label">{AREAS[item.area]}</span>
-          {item.now ? <span className="note">Now: {item.now}</span> : null}
+          <p className="sc-improve-area">
+            {AREAS[item.area]}
+            {item.url ? (
+              <>
+                {" · "}
+                <a href={item.url} target="_blank" rel="noreferrer">
+                  {item.url
+                    .replace(/^https?:\/\/(www\.)?/, "")
+                    .replace(/\/$/, "")}
+                </a>
+              </>
+            ) : null}
+          </p>
           <b>{item.idea}</b>
-          <span className="note">{item.why}</span>
-          {item.url ? (
-            <a
-              href={item.url}
-              target="_blank"
-              rel="noreferrer"
-              className="note"
-            >
-              {item.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
-            </a>
-          ) : null}
+          <dl className="sc-improve-facts">
+            {item.now ? (
+              <>
+                <dt>Today</dt>
+                <dd>{item.now}</dd>
+              </>
+            ) : null}
+            <dt>Why</dt>
+            <dd>{item.why}</dd>
+          </dl>
         </li>
       ))}
     </ul>
@@ -512,23 +447,20 @@ export function Improvements({
 export function MeasureFunnel({
   sources,
   onConnect,
+  measureError = null,
+  connectedLinks = {},
 }: {
   sources: Source[];
+  /** What a connected source leads to, beside its "Connected". */
+  connectedLinks?: Partial<Record<Source["provider"], React.ReactNode>>;
   onConnect: (
     provider: Source["provider"],
   ) => Promise<{ url: string | null; error: string | null }>;
+  measureError?: string | null;
 }) {
   const [pending, setPending] = useState<Source["provider"] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(measureError);
   const [, startTransition] = useTransition();
-
-  useEffect(() => {
-    if (
-      new URLSearchParams(window.location.search).get("measure") === "failed"
-    ) {
-      setError("That connection didn't finish. Try again.");
-    }
-  }, []);
 
   function connect(provider: Source["provider"]) {
     setPending(provider);
@@ -563,7 +495,10 @@ export function MeasureFunnel({
                 <span className="note">{source.measures}</span>
               </span>
               {source.status === "connected" ? (
-                <StatusText>Connected</StatusText>
+                <span className="sc-source-status">
+                  <StatusText>Connected</StatusText>
+                  {connectedLinks[source.provider]}
+                </span>
               ) : (
                 <button
                   type="button"

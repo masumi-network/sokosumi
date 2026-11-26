@@ -19,6 +19,7 @@ import {
   featureOptions,
   formatAvatarCode,
   isReadable,
+  originalAvatarLook,
   parseAvatarCode,
   randomAvatarLook,
 } from "@sokosumi/soko-bot";
@@ -27,8 +28,8 @@ import { useTranslations } from "next-intl";
 import {
   type ReactNode,
   useCallback,
-  useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -46,6 +47,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  matchesMediaQuery,
+  REDUCED_MOTION_MEDIA_QUERY,
+} from "@/hooks/effects/use-media-query";
 import { setSokoBotAvatarCodeAction } from "@/lib/actions/soko-bot/action";
 import { stillSrc } from "@/lib/bot-avatar/load";
 import { cn } from "@/lib/utils";
@@ -165,39 +170,56 @@ function withAnimal(look: AvatarLook, animal: AvatarAnimal): AvatarLook {
   };
 }
 
+function resolveInitialAvatarCode(initialCode: string | null): string {
+  const parsed = initialCode ? parseAvatarCode(initialCode) : null;
+  return formatAvatarCode(parsed ?? randomAvatarLook());
+}
+
 /**
  * Builds a Soko Bot's look: a live preview in any state, and the pickers that make up its code.
- * `onChange` gets the code on mount and after every change.
+ * Controlled by `code` (null while the caller has not picked a look yet); `onChange` fires on user edits.
  */
 export function AvatarStudio({
-  initialCode,
+  code: value,
   onChange,
   compact = false,
+  onMoreDetailsChange,
 }: {
-  initialCode: string | null;
+  code: string | null;
   onChange: (code: string) => void;
   /** Setup: the preview, Shuffle and animals first, the rest under "More details", no preview states. */
   compact?: boolean;
+  /** Setup: More details opened or closed, which scrolls the preview away or back. */
+  onMoreDetailsChange?: (open: boolean) => void;
 }) {
   const t = useTranslations("App.SokoBot.AvatarStudio");
-  const [look, setLook] = useState<AvatarLook>(
-    () =>
-      (initialCode ? parseAvatarCode(initialCode) : null) ?? randomAvatarLook(),
+  const look = useMemo(
+    () => (value ? parseAvatarCode(value) : null) ?? originalAvatarLook("fox"),
+    [value],
   );
   const [state, setState] = useState<AvatarState>("idle");
+  // Setup pins Create to the foot, right under More details, so its fold opens
+  // below the screen. Once the fold has its height, bring it up.
+  const moreDetailsRef = useRef<HTMLButtonElement>(null);
+  const showMoreDetails = (behavior: ScrollBehavior) =>
+    moreDetailsRef.current?.scrollIntoView({ block: "start", behavior });
   const code = formatAvatarCode(look);
-  useEffect(() => onChange(code), [code, onChange]);
-  const set = (patch: Partial<AvatarLook>) => setLook({ ...look, ...patch });
+  const updateLook = (next: AvatarLook) => onChange(formatAvatarCode(next));
+  const set = (patch: Partial<AvatarLook>) => updateLook({ ...look, ...patch });
   const features = featureOptions(look.animal);
   // Thumbnails wear the current colours and features, so each shows what choosing it gives.
   const thumbs = useMemo(
     () =>
-      AVATAR_ANIMALS.map((animal) => ({
-        animal,
-        src: stillSrc(withAnimal(look, animal)),
-      })),
-    [look],
+      value
+        ? AVATAR_ANIMALS.map((animal) => ({
+            animal,
+            src: stillSrc(withAnimal(look, animal)),
+          }))
+        : [],
+    [look, value],
   );
+
+  if (!value) return null;
 
   const details = (
     <>
@@ -314,7 +336,7 @@ export function AvatarStudio({
           <Button
             type="button"
             variant={compact ? "default" : "ghost"}
-            onClick={() => setLook(randomAvatarLook())}
+            onClick={() => updateLook(randomAvatarLook())}
           >
             <Shuffle aria-hidden />
             {t("shuffle")}
@@ -330,7 +352,7 @@ export function AvatarStudio({
                   aria-pressed={animal === look.animal}
                   aria-label={t(`animals.${animal}`)}
                   title={t(`animals.${animal}`)}
-                  onClick={() => setLook(withAnimal(look, animal))}
+                  onClick={() => updateLook(withAnimal(look, animal))}
                   className={cn(
                     "focus-visible:ring-ring aspect-square overflow-hidden rounded-xl outline-none focus-visible:ring-2",
                     animal === look.animal &&
@@ -343,8 +365,18 @@ export function AvatarStudio({
             </div>
           </Group>
           {compact ? (
-            <Collapsible>
-              <DisclosureTrigger className="w-full">
+            <Collapsible
+              onOpenChange={(open) => {
+                onMoreDetailsChange?.(open);
+                // Without motion there is no animation to wait for.
+                if (open && matchesMediaQuery(REDUCED_MOTION_MEDIA_QUERY))
+                  requestAnimationFrame(() => showMoreDetails("auto"));
+              }}
+            >
+              <DisclosureTrigger
+                ref={moreDetailsRef}
+                className="w-full scroll-mt-4"
+              >
                 <span className="flex flex-col">
                   <span className="text-sm font-medium">
                     {t("moreDetails")}
@@ -355,7 +387,16 @@ export function AvatarStudio({
                 </span>
               </DisclosureTrigger>
               {/* Room in the fold's own clip box for the 4 px selected and focus rings. */}
-              <DisclosureContent className="-mx-2 px-2">
+              <DisclosureContent
+                className="-mx-2 px-2"
+                onAnimationEnd={(event) => {
+                  if (
+                    event.target === event.currentTarget &&
+                    event.currentTarget.dataset.state === "open"
+                  )
+                    showMoreDetails("smooth");
+                }}
+              >
                 <div className="flex flex-col gap-5 pt-4 pb-2">{details}</div>
               </DisclosureContent>
             </Collapsible>
@@ -388,8 +429,18 @@ export function AvatarStudioDialog({
   onSaved?: () => void | Promise<void>;
 }) {
   const t = useTranslations("App.SokoBot");
-  const [code, setCode] = useState(initialCode);
+  const [code, setCode] = useState<string>(() =>
+    resolveInitialAvatarCode(initialCode),
+  );
   const [taken, setTaken] = useState(false);
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (open) {
+      setCode(resolveInitialAvatarCode(initialCode));
+      setTaken(false);
+    }
+  }
   const [isSaving, startSaving] = useTransition();
 
   const onChange = useCallback((next: string) => {
@@ -419,7 +470,7 @@ export function AvatarStudioDialog({
           <DialogTitle>{t("AvatarStudio.title")}</DialogTitle>
           <DialogDescription>{t("AvatarStudio.description")}</DialogDescription>
         </DialogHeader>
-        <AvatarStudio initialCode={initialCode} onChange={onChange} />
+        <AvatarStudio code={code} onChange={onChange} />
         <DialogFooter className="items-center gap-3 sm:justify-between">
           <p role="status" className="text-destructive text-sm">
             {taken ? t("AvatarStudio.taken") : null}

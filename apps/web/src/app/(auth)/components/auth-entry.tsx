@@ -62,7 +62,7 @@ export async function renderAuthEntry(
         </>
       }
     >
-      <TermsNotice />
+      <TermsNotice brand={oauthRequest?.client?.brand} />
     </AuthFlow>
   );
 }

@@ -1,5 +1,11 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
 
@@ -24,7 +30,7 @@ vi.mock("@/hooks/use-is-apple-platform", () => ({
   default: () => platform.isApple,
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   useIsMobile: () => platform.isMobile,
 }));
 
@@ -175,7 +181,8 @@ describe("RoomSearchPanel", () => {
 
       openSearch();
       typeQuery("budget");
-      fireEvent.click(await screen.findByTestId("room-search-result"));
+      const hit = await screen.findByTestId("room-search-result");
+      await act(async () => fireEvent.click(hit));
       await waitFor(() => {
         expect(
           screen.queryByTestId("room-search-panel"),
@@ -406,7 +413,7 @@ describe("RoomSearchPanel", () => {
         bubbles: true,
         cancelable: true,
       });
-      window.dispatchEvent(secondPress);
+      act(() => window.dispatchEvent(secondPress));
 
       expect(secondPress.defaultPrevented).toBe(true);
       await waitFor(() => {
@@ -467,13 +474,14 @@ describe("RoomSearchPanel", () => {
 
       openSearch();
       typeQuery("budget");
-      fireEvent.click(await screen.findByTestId("room-search-result"));
+      const hit = await screen.findByTestId("room-search-result");
+      await act(async () => fireEvent.click(hit));
       await waitFor(() => {
         expect(
           screen.queryByTestId("room-search-panel"),
         ).not.toBeInTheDocument();
       });
-      screen.getByTestId("room-search-input").blur();
+      act(() => screen.getByTestId("room-search-input").blur());
 
       const reopen = new KeyboardEvent("keydown", {
         key: "f",
@@ -481,7 +489,7 @@ describe("RoomSearchPanel", () => {
         bubbles: true,
         cancelable: true,
       });
-      window.dispatchEvent(reopen);
+      act(() => window.dispatchEvent(reopen));
 
       expect(reopen.defaultPrevented).toBe(true);
       await waitFor(() => {
@@ -520,7 +528,8 @@ describe("RoomSearchPanel", () => {
 
       openSearch();
       typeQuery("budget");
-      fireEvent.click(await screen.findByTestId("room-search-result"));
+      const hit = await screen.findByTestId("room-search-result");
+      await act(async () => fireEvent.click(hit));
 
       await waitFor(() => {
         expect(
@@ -536,13 +545,16 @@ describe("RoomSearchPanel", () => {
 
       openSearch();
       typeQuery("budget");
-      fireEvent.click(await screen.findByTestId("room-search-result"));
+      const hit = await screen.findByTestId("room-search-result");
+      await act(async () => fireEvent.click(hit));
       await waitFor(() => {
         expect(
           screen.queryByTestId("room-search-panel"),
         ).not.toBeInTheDocument();
       });
 
+      const refreshed = Promise.withResolvers<{ data: ChatRoomMessage[] }>();
+      getChatRoomMessagesMock.mockReturnValueOnce(refreshed.promise);
       openSearch();
 
       // Assert the surface is actually back, or the "no results" check below
@@ -550,6 +562,10 @@ describe("RoomSearchPanel", () => {
       expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
       expect(screen.queryAllByTestId("room-search-result")).toHaveLength(0);
       expect(screen.queryByTestId("room-search-empty")).not.toBeInTheDocument();
+      await act(async () => refreshed.resolve({ data: [message()] }));
+      expect(
+        await screen.findByTestId("room-search-result"),
+      ).toBeInTheDocument();
     });
 
     it("clears the query with Escape after the surface has closed", async () => {
@@ -557,7 +573,8 @@ describe("RoomSearchPanel", () => {
 
       openSearch();
       typeQuery("budget");
-      fireEvent.click(await screen.findByTestId("room-search-result"));
+      const hit = await screen.findByTestId("room-search-result");
+      await act(async () => fireEvent.click(hit));
       await waitFor(() => {
         expect(
           screen.queryByTestId("room-search-panel"),
@@ -583,7 +600,7 @@ describe("RoomSearchPanel", () => {
 
       const elsewhere = document.createElement("input");
       document.body.append(elsewhere);
-      elsewhere.focus();
+      act(() => elsewhere.focus());
       fireEvent.focusIn(elsewhere);
 
       await waitFor(() => {
@@ -600,7 +617,8 @@ describe("RoomSearchPanel", () => {
 
       openSearch();
       typeQuery("budget");
-      fireEvent.click(await screen.findByTestId("room-search-result"));
+      const hit = await screen.findByTestId("room-search-result");
+      await act(async () => fireEvent.click(hit));
       onJumpToMessage.mockClear();
 
       fireEvent.keyDown(screen.getByTestId("room-search-input"), {
@@ -615,15 +633,18 @@ describe("RoomSearchPanel", () => {
 
       openSearch();
       typeQuery("budget");
-      fireEvent.click(await screen.findByTestId("room-search-result"));
+      const hit = await screen.findByTestId("room-search-result");
+      await act(async () => fireEvent.click(hit));
       await waitFor(() => {
         expect(
           screen.queryByTestId("room-search-panel"),
         ).not.toBeInTheDocument();
       });
 
-      fireEvent.keyDown(screen.getByTestId("room-search-input"), {
-        key: "ArrowDown",
+      await act(async () => {
+        fireEvent.keyDown(screen.getByTestId("room-search-input"), {
+          key: "ArrowDown",
+        });
       });
 
       expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
@@ -635,7 +656,8 @@ describe("RoomSearchPanel", () => {
 
       openSearch();
       typeQuery("budget");
-      fireEvent.click(await screen.findByTestId("room-search-result"));
+      const hit = await screen.findByTestId("room-search-result");
+      await act(async () => fireEvent.click(hit));
 
       await waitFor(() => {
         expect(screen.getByTestId("room-search-input")).toHaveFocus();

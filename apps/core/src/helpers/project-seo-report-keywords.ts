@@ -1,5 +1,33 @@
-import { seoDeviceSchema } from "@/schemas/project-seo.schema";
+import { z } from "@hono/zod-openapi";
+import {
+  SEO_AUDIT_IDEA_LIMIT,
+  seoConversionSchema,
+  seoDeviceSchema,
+} from "@/schemas/project-seo.schema";
 import type { LegacySeoReport, PublicSeoPayload } from "./project-seo-report";
+
+export const FEATURE_CHARS = 200;
+// DataForSEO keyword_difficulty: 0 to 100. A value Core cannot read is dropped: it must not fail the import.
+export const difficulty = z
+  .number()
+  .finite()
+  .min(0)
+  .max(100)
+  .nullable()
+  .optional()
+  .catch(undefined);
+
+// A page Report's estimate for a keyword. A value Core cannot read is dropped: it must not fail the import.
+export const estimate = {
+  conversion: seoConversionSchema.optional().catch(undefined),
+  feature: z
+    .string()
+    .trim()
+    .min(1)
+    .max(FEATURE_CHARS)
+    .optional()
+    .catch(undefined),
+};
 
 const keywordKey = (keyword: string) => keyword.normalize("NFKC").toLowerCase();
 
@@ -50,8 +78,10 @@ export function legacyReportKeywords(
           volume: row.volume,
           difficulty: difficultyOf(row.keyword),
           intent: row.intent,
-          conversion: row.conversion,
-          feature: row.feature,
+          ...(row.conversion !== undefined
+            ? { conversion: row.conversion }
+            : {}),
+          ...(row.feature !== undefined ? { feature: row.feature } : {}),
           source: "focus",
           sourceRef: result.snapshotId,
           observedAt: at,
@@ -74,6 +104,7 @@ export function legacyReportKeywords(
         sourceRef: result.snapshotId,
         observedAt: at,
       });
+  const broad = !!result.keywordOpportunities?.editorialResearch;
   for (const row of result.rankingData?.gaps ?? [])
     keywords.push({
       keyword: row.keyword,
@@ -86,10 +117,13 @@ export function legacyReportKeywords(
       difficulty: difficultyOf(row.keyword),
       intent: null,
       source: "gap",
+      ...(broad && { ideaRank: null }),
       sourceRef: result.snapshotId,
       observedAt: at,
     });
-  for (const row of result.keywordOpportunities?.list ?? [])
+  const ideas = result.keywordOpportunities?.list ?? [];
+  const eligible = broad ? ideas.slice(0, SEO_AUDIT_IDEA_LIMIT) : ideas;
+  for (const [index, row] of eligible.entries())
     keywords.push({
       keyword: row.keyword,
       pageUrl,
@@ -100,9 +134,11 @@ export function legacyReportKeywords(
       volume: row.volume,
       difficulty: row.difficulty ?? null,
       intent: row.intent,
-      conversion: row.conversion,
-      feature: row.feature,
+      ...(row.conversion !== undefined ? { conversion: row.conversion } : {}),
+      ...(row.feature !== undefined ? { feature: row.feature } : {}),
+      ...(row.editorial && { editorial: row.editorial }),
       source: "opportunity",
+      ...(broad && { ideaRank: index + 1 }),
       sourceRef: result.snapshotId,
       observedAt: at,
     });

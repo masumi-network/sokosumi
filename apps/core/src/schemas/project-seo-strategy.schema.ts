@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
-
 import { dateTimeSchema } from "@/helpers/datetime";
+import { seoMarketNote, seoMarkets } from "./project-seo-markets.schema";
 
 /** The longest text field of a stored strategy. */
 export const SEO_STRATEGY_TEXT_MAX_LENGTH = 20_000;
@@ -142,9 +142,14 @@ const forumQuestion = z.object({
 const seoForumQuestions = z.array(forumQuestion).max(maxForumQuestions);
 export const importedSeoForumQuestions = z
   .array(
-    forumQuestion.extend({
-      url: forumSource.optional().catch(undefined),
-    }),
+    forumQuestion
+      .extend({
+        url: forumSource.optional().catch(undefined),
+      })
+      .transform(({ url, ...question }) => ({
+        ...question,
+        ...(url !== undefined ? { url } : {}),
+      })),
   )
   .max(maxForumQuestions);
 
@@ -164,6 +169,8 @@ const strategyGroupsMax = 1000;
 
 /** The strategy results of a site audit that Core keeps. The helper checks each URL at import. */
 const seoStrategyFields = z.object({
+  markets: seoMarkets.optional(),
+  marketNote: seoMarketNote.optional(),
   verdict: label,
   why: text,
   purpose: seoStrategyPurpose.optional(),
@@ -219,6 +226,8 @@ const {
   missingDemandByIntent,
 } = seoStrategyFields.shape;
 export const seoStrategyPayloadSchema = seoStrategyFields.extend({
+  markets: seoStrategyFields.shape.markets.catch(undefined),
+  marketNote: seoStrategyFields.shape.marketNote.catch(undefined),
   purpose: purpose.catch(undefined),
   purposeSource: purposeSource.catch(undefined),
   purposeOpportunity: purposeOpportunity.catch(undefined),
@@ -237,6 +246,7 @@ export type SeoStrategyPayload = z.infer<typeof seoStrategyPayloadSchema>;
 
 export const seoStrategySchema = seoStrategyFields
   .extend({
+    marketRecoveryFileId: z.string().min(1).max(128).optional(),
     observationId: z.string().uuid(),
     observedAt: dateTimeSchema,
     /** The Market of the audit: its keyword numbers hold for this Market only. */

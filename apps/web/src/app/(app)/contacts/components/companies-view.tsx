@@ -1,21 +1,20 @@
 "use client";
 import type { ContactCompany, ContactCompanyList } from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowDown,
-  Building2,
-  ListMinus,
-  ListPlus,
-  Search,
-  X,
-} from "lucide-react";
+import { ArrowDown, Building2, ListMinus, ListPlus, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useDebounce } from "use-debounce";
-import { coreErrorOf, LIST_COLOR_DOT } from "@/app/contacts/contacts-view";
+import {
+  coreErrorOf,
+  LIST_COLOR_DOT,
+  replaceVisibleSelection,
+} from "@/app/contacts/contacts-view";
 import { EmptyState } from "@/components/common/empty-state";
+import { PageSearchActions } from "@/components/page-search-actions";
+import { PageSearchField } from "@/components/page-search-field";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,7 +37,6 @@ import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -93,7 +91,7 @@ export function CompaniesView({
     getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
   );
   const [sort, setSort] = useState<CompanySort>("people");
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selectedIds, setSelected] = useState<string[]>([]);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const lists = useCompanyLists();
   const allLists = lists.data ?? [];
@@ -108,6 +106,10 @@ export function CompaniesView({
   const rows = companies.data?.companies ?? [];
   const total = companies.data?.total ?? 0;
   const listsById = new Map(allLists.map((list) => [list.id, list]));
+  const selection = new Set(selectedIds);
+  const selected = rows
+    .filter((row) => selection.has(row.id))
+    .map((row) => row.id);
   const allSelected = rows.length > 0 && selected.length === rows.length;
 
   function changeList(next: string | null) {
@@ -156,55 +158,28 @@ export function CompaniesView({
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        {selected.length ? (
-          <div
-            role="toolbar"
-            aria-label={t("bulkLabel")}
-            className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
-          >
-            <span className="me-2 shrink-0 text-sm font-medium tabular-nums">
-              {t("selected", { count: selected.length })}
-            </span>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className={cn(CONTROL, "shrink-0")}
-                >
-                  <ListPlus aria-hidden className="size-4" />
-                  {t("addToList")}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {allLists.map((list) => (
-                  <DropdownMenuItem
-                    key={list.id}
-                    onClick={() =>
-                      void changeMembers(
-                        list,
-                        { add: selected },
-                        t("addedToList", {
-                          count: selected.length,
-                          list: list.name,
-                        }),
-                      )
-                    }
-                  >
-                    <Dot className={LIST_COLOR_DOT[list.color]} />
-                    {list.name}
-                  </DropdownMenuItem>
-                ))}
-                {allLists.length === 0 ? (
-                  <DropdownMenuItem onClick={() => setDialog({ kind: "list" })}>
-                    <ListPlus aria-hidden className="size-4" />
-                    {t("newList")}
-                  </DropdownMenuItem>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {removable.length ? (
+      <div className="@container/page-toolbar flex min-w-0 flex-wrap items-center gap-2">
+        <span className="text-muted-foreground shrink-0 text-sm tabular-nums">
+          {companies.isPending ? null : t("count", { count: total })}
+        </span>
+        <PageSearchActions>
+          <PageSearchField
+            inHeader
+            aria-label={t("search")}
+            placeholder={t("searchPlaceholder")}
+            value={search}
+            maxLength={200}
+            onValueChange={setSearch}
+          />
+          {selected.length ? (
+            <div
+              role="toolbar"
+              aria-label={t("bulkLabel")}
+              className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
+            >
+              <span className="me-2 shrink-0 text-sm font-medium tabular-nums">
+                {t("selected", { count: selected.length })}
+              </span>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -212,19 +187,19 @@ export function CompaniesView({
                     variant="ghost"
                     className={cn(CONTROL, "shrink-0")}
                   >
-                    <ListMinus aria-hidden className="size-4" />
-                    {t("removeFromList")}
+                    <ListPlus aria-hidden className="size-4" />
+                    {t("addToList")}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  {removable.map((list) => (
+                  {allLists.map((list) => (
                     <DropdownMenuItem
                       key={list.id}
                       onClick={() =>
                         void changeMembers(
                           list,
-                          { remove: selected },
-                          t("removedFromList", {
+                          { add: selected },
+                          t("addedToList", {
                             count: selected.length,
                             list: list.name,
                           }),
@@ -235,63 +210,85 @@ export function CompaniesView({
                       {list.name}
                     </DropdownMenuItem>
                   ))}
+                  {allLists.length === 0 ? (
+                    <DropdownMenuItem
+                      onClick={() => setDialog({ kind: "list" })}
+                    >
+                      <ListPlus aria-hidden className="size-4" />
+                      {t("newList")}
+                    </DropdownMenuItem>
+                  ) : null}
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : null}
-            <Button
-              size="sm"
-              variant="ghost"
-              className={cn(CONTROL, "shrink-0")}
-              onClick={() => setSelected([])}
-            >
-              <X aria-hidden className="size-4" />
-              {t("clearSelection")}
-            </Button>
-          </div>
-        ) : (
-          <>
-            <div className="relative order-last w-full sm:order-none sm:w-56">
-              <Search
-                aria-hidden
-                className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
-              />
-              <Input
-                type="search"
-                aria-label={t("search")}
-                placeholder={t("searchPlaceholder")}
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setSelected([]);
-                }}
-                className={cn(CONTROL, "ps-9")}
-              />
-            </div>
-            <ListsMenu
-              companies
-              view={listId ?? ""}
-              onViewChange={changeList}
-              lists={allLists}
-              onNewList={() => setDialog({ kind: "list" })}
-              onEditList={(list) => setDialog({ kind: "list", list })}
-              onDeleteList={(list) => setDialog({ kind: "deleteList", list })}
-            />
-            {currentList ? (
+              {removable.length ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className={cn(CONTROL, "shrink-0")}
+                    >
+                      <ListMinus aria-hidden className="size-4" />
+                      {t("removeFromList")}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {removable.map((list) => (
+                      <DropdownMenuItem
+                        key={list.id}
+                        onClick={() =>
+                          void changeMembers(
+                            list,
+                            { remove: selected },
+                            t("removedFromList", {
+                              count: selected.length,
+                              list: list.name,
+                            }),
+                          )
+                        }
+                      >
+                        <Dot className={LIST_COLOR_DOT[list.color]} />
+                        {list.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
               <Button
                 size="sm"
                 variant="ghost"
-                className={CONTROL}
-                onClick={() => changeList(null)}
+                className={cn(CONTROL, "shrink-0")}
+                onClick={() => setSelected([])}
               >
                 <X aria-hidden className="size-4" />
-                {t("allCompanies")}
+                {t("clearSelection")}
               </Button>
-            ) : null}
-          </>
-        )}
-        <span className="text-muted-foreground ms-auto shrink-0 text-sm tabular-nums">
-          {companies.isPending ? null : t("count", { count: total })}
-        </span>
+            </div>
+          ) : (
+            <>
+              <ListsMenu
+                companies
+                view={listId ?? ""}
+                onViewChange={changeList}
+                lists={allLists}
+                onNewList={() => setDialog({ kind: "list" })}
+                onEditList={(list) => setDialog({ kind: "list", list })}
+                onDeleteList={(list) => setDialog({ kind: "deleteList", list })}
+              />
+              {currentList ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={CONTROL}
+                  onClick={() => changeList(null)}
+                >
+                  <X aria-hidden className="size-4" />
+                  {t("allCompanies")}
+                </Button>
+              ) : null}
+            </>
+          )}
+        </PageSearchActions>
       </div>
       {currentList?.description ? (
         <p className="text-muted-foreground -mt-1 truncate text-sm">
@@ -347,8 +344,12 @@ export function CompaniesView({
                             : false
                       }
                       onCheckedChange={(checked) =>
-                        setSelected(
-                          checked === true ? rows.map((row) => row.id) : [],
+                        setSelected((current) =>
+                          replaceVisibleSelection(
+                            current,
+                            selected,
+                            checked === true ? rows.map((row) => row.id) : [],
+                          ),
                         )
                       }
                     />
@@ -386,7 +387,7 @@ export function CompaniesView({
                   <CompanyRow
                     key={company.id}
                     company={company}
-                    selected={selected.includes(company.id)}
+                    selected={selection.has(company.id)}
                     onSelect={(checked) =>
                       setSelected((current) =>
                         checked

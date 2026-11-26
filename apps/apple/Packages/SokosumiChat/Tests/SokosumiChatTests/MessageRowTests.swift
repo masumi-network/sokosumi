@@ -29,6 +29,15 @@ struct MessageRowTests {
     return shell
   }
 
+  private static func sokoBotMessage(content: String = "", metadata: [String: any Sendable]) throws -> Message {
+    var message = Self.message(id: "bot-message", content: content)
+    message.sender = .case3(.init(_type: .sokoBot, sokoBot: .init(
+      id: "bot_1", name: "Soko", caption: nil, image: nil, avatarSeed: "orb:ada", ownerUserId: "ada", scope: .personal, presence: .online
+    )))
+    message.metadata = try .init(additionalProperties: metadata.mapValues { try OpenAPIValueContainer(unvalidatedValue: $0) })
+    return message
+  }
+
   private static func room(kind: Components.Schemas.ChatRoom.KindPayload = .channel, selfDirect: Bool = false,
                            readOnly: Bool = false) -> Components.Schemas.ChatRoom {
     .init(
@@ -310,13 +319,42 @@ struct MessageRowTests {
 
   @Test func aFailedShellIsItsFailureAndAThinkingOneItsThought() throws {
     let failed = try Self.row(Self.coworkerShell(["mention_id": "mention_1", "mention_failed": true]))
-    #expect(failed.body == [.failedMention])
+    #expect(failed.body == [.failedMention(aiBudgetExceeded: false)])
     let thinking = try Self.coworkerShell(["streaming": true, "mention_id": "mention_1"])
     #expect(Self.row(thinking).body == [.thought(startedAt: thinking.createdAt, shellWorking: true)])
     let started = try Self.coworkerShell([
       "streaming": true, "mention_id": "mention_1", "thought_timing_ms": ["start": 1_790_000_100_000]
     ])
     #expect(Self.row(started).body == [.thought(startedAt: Date(timeIntervalSince1970: 1_790_000_100), shellWorking: true)])
+  }
+
+  @Test(arguments: [("ai_budget_exceeded", true), ("unknown", false)])
+  func aFailedShellIdentifiesUsageLimitFailures(kind: String, aiBudgetExceeded: Bool) throws {
+    let failed = try Self.coworkerShell([
+      "mention_id": "mention_1", "mention_failed": true, "mention_failure": ["kind": kind]
+    ])
+    #expect(Self.row(failed).body == [.failedMention(aiBudgetExceeded: aiBudgetExceeded)])
+  }
+
+  @Test(arguments: [("GatewayInternalServerError", false), ("turn_cancelled", true)])
+  func aSokoBotShellDistinguishesCancellationFromAnUnknownFailure(kind: String, isCancelled: Bool) throws {
+    let failed = try Self.sokoBotMessage(metadata: [
+      "mention_id": "mention_1", "mention_failed": true,
+      "mention_failure": ["kind": kind, "message": "Raw provider diagnostic"]
+    ])
+    #expect(Self.row(failed).body == [.failedMention(aiBudgetExceeded: false, isSokoBot: true, isCancelled: isCancelled)])
+  }
+
+  @Test(arguments: ["@ada Raw provider diagnostic", "Raw provider diagnostic @ada"])
+  func aFailedBackgroundRunDrawsTheNoticeMentionAndSafeFailure(content: String) throws {
+    let failed = try Self.sokoBotMessage(content: content, metadata: [
+      "soko_bot": ["turn_id": "turn_1", "background_run_title": "Review", "background_failure_kind": "unknown"]
+    ])
+    let noticeMention = content.hasPrefix("@") ? "@ada" : nil
+    #expect(Self.row(failed).body == [
+      .thought(startedAt: failed.createdAt, shellWorking: false),
+      .backgroundFailure(title: "Review", kind: .unknown, noticeMention: noticeMention)
+    ])
   }
 
   /// A coworker's settled answer keeps its Thought header above the text, with no shell working.

@@ -1,6 +1,7 @@
 import { createGateway, stepCountIs, tool } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { incrementRedisRateLimit } from "@/lib/redis-rate-limit";
 import {
   MODEL_CALL_MAX_MS,
   MODEL_STREAM_IDLE_MS,
@@ -15,6 +16,8 @@ const envState = vi.hoisted(() => ({
 
 const {
   authorizeMock,
+  getContextMock,
+  storedTurnMock,
   createEventMock,
   executeToolMock,
   grantUploadMock,
@@ -38,6 +41,8 @@ const {
   toolCallUpsertMock: vi.fn(),
   toolCallUpdateManyMock: vi.fn(),
   authorizeMock: vi.fn(),
+  getContextMock: vi.fn(),
+  storedTurnMock: vi.fn().mockResolvedValue({ userMessage: "Hello" }),
   createEventMock: vi.fn(),
   executeToolMock: vi.fn(),
   grantUploadMock: vi.fn(),
@@ -49,17 +54,22 @@ const {
 vi.mock("@/config/env", () => ({
   getEnv: () => envState.value,
 }));
+vi.mock("@/lib/redis-rate-limit", () => ({
+  incrementRedisRateLimit: vi.fn(),
+}));
 vi.mock("@/lib/db/prisma", () => {
   const client = {
+    $queryRaw: async () => [{ now: new Date() }],
     sokoBotRuntimeEvent: {
       create: createEventMock,
       findFirst: findFirstEventMock,
       count: countEventMock,
     },
     evalLane: { findUnique: vi.fn().mockResolvedValue(null) },
+    sokoBotModelCall: { create: vi.fn().mockResolvedValue({}) },
     sokoBotTurn: {
       findUnique: turnFindUniqueMock,
-      findUniqueOrThrow: vi.fn().mockResolvedValue({ userMessage: "Hello" }),
+      findUniqueOrThrow: storedTurnMock,
       updateMany: turnUpdateManyMock,
     },
     sokoBotToolCall: {
@@ -72,7 +82,10 @@ vi.mock("@/lib/db/prisma", () => {
       ...client,
       // The event log's locked append: the same models, plus the lock.
       $transaction: async (operation: (tx: unknown) => Promise<unknown>) => {
-        const result = await operation({ ...client, $executeRaw: vi.fn() });
+        const result = await operation({
+          ...client,
+          $executeRaw: vi.fn(),
+        });
         const waiting = afterCommit.next;
         afterCommit.next = null;
         await waiting?.();
@@ -84,6 +97,7 @@ vi.mock("@/lib/db/prisma", () => {
 vi.mock("@/services/soko-bot-runtime.service", () => ({
   sokoBotRuntimeService: {
     authorize: authorizeMock,
+    getContext: getContextMock,
     executeTool: executeToolMock,
     grantWorkspaceUpload: grantUploadMock,
   },
@@ -93,6 +107,7 @@ vi.mock("@/services/soko-bot-version.service", () => ({
   resolveRunnableSokoBotVersion: vi.fn().mockResolvedValue({
     model: "google/gemini-3.6-flash",
     inferenceRegion: "eu",
+    skills: [],
   }),
 }));
 vi.mock("@/lib/soko-bot/sandbox/sandbox-runtime", () => ({
@@ -108,9 +123,11 @@ import {
   failSandboxTurn,
   grantSandboxUpload,
   proxySandboxModelCall,
+  reasoningSummaryOptions,
   recordSandboxAction,
   recordSandboxActionResult,
   runSandboxTool,
+  startSandboxTurn,
 } from "./soko-bot-sandbox-turn.service";
 
 const claims = {
@@ -194,6 +211,32 @@ describe("sandbox turn service", () => {
     });
   });
 
+  it("gives the sandbox only the prepared meeting evidence and recipient", async () => {
+    const userMessage = "The guest confirmed the planning meeting.";
+    authorizeMock.mockResolvedValueOnce({
+      turn: { id: claims.turnId },
+      grant: { capabilities: [] },
+      meetingPrep: true,
+    });
+    getContextMock.mockResolvedValueOnce({
+      version: { id: "v16", name: "v16", systemPrompt: "Be useful." },
+      packet: {
+        actor: { name: "Recipient" },
+        memory: { markdown: "other-project" },
+      },
+    });
+    storedTurnMock.mockResolvedValueOnce({
+      userMessage,
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+    });
+    const start = await startSandboxTurn(claims);
+    expect(start.message).toBe(userMessage);
+    expect(start.system).toContain("Recipient");
+    expect(start.system).not.toContain("other-project");
+    expect(start.capabilities).toEqual([]);
+  });
+
   it("marks the 409 of a turn that is no longer active, so the runner stops", async () => {
     authorizeMock.mockRejectedValueOnce(new Error("Turn was cancelled"));
     await expect(
@@ -222,6 +265,38 @@ describe("sandbox turn service", () => {
       ),
     ).rejects.toThrow("not this turn's");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("alerts once per Gateway key or team budget in the shared Redis window", async () => {
+    expectCoreLog("error", "AI Gateway budget exhausted", 3);
+    expectCoreLog("warn", "AI Gateway budget exhausted", 2);
+    const counts = new Map<string, number>();
+    const increment = vi.mocked(incrementRedisRateLimit);
+    increment.mockImplementation(async (key) => {
+      const count = (counts.get(key) ?? 0) + 1;
+      counts.set(key, count);
+      return count;
+    });
+    for (const [apiKey, message] of [
+      ["first-key", "API key budget exceeded. Limit: $400."],
+      ["first-key", "API key budget exceeded. Limit: $400."],
+      ["second-key", "API key budget exceeded. Limit: $200."],
+      ["first-key", "Team budget exceeded. Limit: $1000."],
+      ["second-key", "Team budget exceeded. Limit: $1000."],
+      ["second-key", "Temporary upstream failure"],
+    ]) {
+      envState.value = { AI_GATEWAY_API_KEY: apiKey };
+      const body = { error: { type: "internal_server_error", message } };
+      fetchMock.mockResolvedValueOnce(Response.json(body, { status: 500 }));
+      await expect(
+        proxySandboxModelCall(claims, modelRequest()),
+      ).resolves.toMatchObject({ status: 500, body: JSON.stringify(body) });
+    }
+    expect(increment.mock.calls.map(([, ttl]) => ttl)).toEqual(
+      Array(5).fill(3_600),
+    );
+    expect([...counts.values()]).toEqual([2, 1, 2]);
+    expect([...counts.keys()].join()).not.toMatch(/first-key|second-key/);
   });
 
   it.each([
@@ -601,57 +676,25 @@ describe("sandbox turn service", () => {
     );
   });
 
-  it("drops zero retention only for the Gateway-run search call", async () => {
-    const { resolveRunnableSokoBotVersion } = await import(
-      "@/services/soko-bot-version.service"
-    );
-    const luna = { model: "openai/gpt-6-luna", inferenceRegion: undefined };
-    for (let call = 0; call < 3; call++)
-      vi.mocked(resolveRunnableSokoBotVersion).mockResolvedValueOnce(
-        luna as never,
-      );
+  it("thinks less on a chat turn Jev read as simple or normal, never on others", async () => {
     fetchMock.mockImplementation(async () => gatewayAnswer());
-    const lunaHeaders = { "ai-language-model-id": "openai/gpt-6-luna" };
-    const search = modelRequest(lunaHeaders);
-    const searchCall = {
-      prompt: [
-        {
-          role: "user",
-          content: [{ type: "text", text: "Search the web for: TOKEN2049" }],
-        },
-      ],
-      tools: [
-        {
-          type: "provider",
-          name: "perplexity_search",
-          id: "gateway.perplexity_search",
-          args: { maxResults: 5 },
-        },
-      ],
-      toolChoice: { type: "tool", toolName: "perplexity_search" },
-    };
-    search.body = JSON.stringify(searchCall);
-    // The same tool with the conversation around it is not a search call.
-    const disguised = modelRequest(lunaHeaders);
-    disguised.body = JSON.stringify({
-      ...searchCall,
-      prompt: [
-        { role: "system", content: "Owner memory: …" },
-        ...searchCall.prompt,
-      ],
+    const authorized = (complexity?: string) => ({
+      turn: { id: claims.turnId, versionId: "v16" },
+      grant: { capabilities: [] },
+      ...(complexity ? { complexity } : {}),
     });
-    await proxySandboxModelCall(claims, search);
-    await proxySandboxModelCall(claims, modelRequest(lunaHeaders));
-    await proxySandboxModelCall(claims, disguised);
-    const [searchBody, turnBody, disguisedBody] = fetchMock.mock.calls.map(
-      ([, init]) => JSON.parse(String(init?.body)),
+    authorizeMock
+      .mockResolvedValueOnce(authorized("SIMPLE"))
+      .mockResolvedValueOnce(authorized("COMPLEX"))
+      .mockResolvedValueOnce(authorized());
+    for (let call = 0; call < 3; call++)
+      await proxySandboxModelCall(claims, modelRequest());
+    const [simple, complex, scheduled] = fetchMock.mock.calls.map(
+      ([, init]) => JSON.parse(String(init?.body)).providerOptions,
     );
-    expect(searchBody.providerOptions.gateway).toEqual({
-      disallowPromptTraining: true,
-    });
-    const both = { zeroDataRetention: true, disallowPromptTraining: true };
-    expect(turnBody.providerOptions.gateway).toEqual(both);
-    expect(disguisedBody.providerOptions.gateway).toEqual(both);
+    expect(simple.openai).toEqual({ reasoningEffort: "low" });
+    expect(complex.openai).toBeUndefined();
+    expect(scheduled.openai).toBeUndefined();
   });
 
   it("marks the turn once the Gateway ran a web search", async () => {
@@ -829,6 +872,16 @@ describe("sandbox turn service", () => {
     ).rejects.toThrow("Unknown Sokosumi tool");
   });
 
+  it("answers a short-form save without saving, so the runner offers the full tool", async () => {
+    const result = await runSandboxTool(claims, {
+      capability: "save_strategy",
+      toolCallId: "short",
+      toolInput: { shortForm: true, what: "move Friday's post" },
+    });
+    expect(result).toMatchObject({ saved: false });
+    expect(executeToolMock).not.toHaveBeenCalled();
+  });
+
   it("gives a script's read its own call id and the bare result", async () => {
     executeToolMock.mockResolvedValue({ messages: [], nextPageToken: null });
     const result = await runSandboxTool(claims, {
@@ -867,11 +920,17 @@ describe("sandbox turn service", () => {
   it("lets work the owner asked for brief a Coworker after reading the web", async () => {
     findFirstEventMock.mockResolvedValue({ id: "taint" });
     turnFindUniqueMock.mockResolvedValue({
+      id: claims.turnId,
+      sokoBotId: "bot",
+      workspaceId: "ws",
+      versionId: "v36",
       source: "CHAT",
       parentTurnId: null,
       askedByUserId: null,
+      requestedByUserId: "owner",
       chainDepth: 0,
       chatMentionId: "mention",
+      sokoBot: { userId: "owner" },
     });
     executeToolMock.mockResolvedValue({ ok: true });
     await runSandboxTool(claims, {
@@ -885,11 +944,29 @@ describe("sandbox turn service", () => {
   it("lets a background run save to Files after running a command, but not post to others", async () => {
     findFirstEventMock.mockResolvedValue({ id: "taint" });
     turnFindUniqueMock.mockResolvedValue({
+      id: claims.turnId,
+      sokoBotId: "bot",
+      workspaceId: "ws",
+      versionId: "v36",
       source: "CHAT",
       parentTurnId: "parent",
       askedByUserId: null,
+      requestedByUserId: "owner",
       chainDepth: 0,
       chatMentionId: null,
+      sokoBot: { userId: "owner" },
+      parentTurn: {
+        id: "parent",
+        sokoBotId: "bot",
+        workspaceId: "ws",
+        versionId: "v36",
+        source: "CHAT",
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: "owner",
+        chainDepth: 0,
+        sokoBot: { userId: "owner" },
+      },
     });
     executeToolMock.mockResolvedValue({ ok: true });
     await runSandboxTool(claims, {
@@ -910,12 +987,17 @@ describe("sandbox turn service", () => {
   it("grants no upload where upload_file would be refused, nor past the cap", async () => {
     findFirstEventMock.mockResolvedValue({ id: "taint" });
     turnFindUniqueMock.mockResolvedValue({
+      id: claims.turnId,
+      sokoBotId: "bot",
+      workspaceId: "ws",
+      versionId: "v36",
       source: "SCHEDULE",
       parentTurnId: null,
       askedByUserId: null,
       requestedByUserId: "owner",
       chainDepth: 0,
       chatMentionId: null,
+      sokoBot: { userId: "owner" },
     });
     await expect(
       grantSandboxUpload(claims, { filename: "a.mp4", size: 10 }),
@@ -934,15 +1016,20 @@ describe("sandbox turn service", () => {
     expect(grantUploadMock).not.toHaveBeenCalled();
   });
 
-  it("lets a member's own request to a shared bot make posts after a command", async () => {
+  it("allows sandbox preflight for a member's own request on a shared bot after a command", async () => {
     findFirstEventMock.mockResolvedValue({ id: "taint" });
     turnFindUniqueMock.mockResolvedValue({
+      id: claims.turnId,
+      sokoBotId: "bot",
+      workspaceId: "ws",
+      versionId: "v36",
       source: "CHAT",
       parentTurnId: null,
       askedByUserId: "member",
       requestedByUserId: "member",
       chainDepth: 0,
       chatMentionId: "mention",
+      sokoBot: { userId: null },
     });
     executeToolMock.mockResolvedValue({ ok: true });
     await runSandboxTool(claims, {
@@ -990,11 +1077,17 @@ describe("sandbox turn service", () => {
 
   describe("Social posts after running a command", () => {
     const ownerTurn = {
+      id: claims.turnId,
+      sokoBotId: "bot",
+      workspaceId: "ws",
+      versionId: "v36",
       source: "CHAT",
       parentTurnId: null,
       askedByUserId: null,
+      requestedByUserId: "owner",
       chainDepth: 0,
       chatMentionId: "mention",
+      sokoBot: { userId: "owner" },
     };
     const postId = "01a0f600-0000-7000-8000-000000000001";
     beforeEach(() => {
@@ -1003,17 +1096,37 @@ describe("sandbox turn service", () => {
       executeToolMock.mockResolvedValue({ ok: true });
     });
 
-    it("lets the owner's request create a post", async () => {
-      await runSandboxTool(claims, {
-        capability: "create_social_post",
-        toolCallId: "c10",
-        toolInput: {},
-      });
-      expect(executeToolMock).toHaveBeenCalledOnce();
+    it.each([
+      "create_social_post",
+      "update_social_post",
+      "update_social_posts",
+    ] as const)(
+      "lets the owner's request run %s (draft-state enforced in social.ts)",
+      async (capability) => {
+        await runSandboxTool(claims, {
+          capability,
+          toolCallId: `c10-${capability}`,
+          toolInput: capability === "create_social_post" ? {} : { postId },
+        });
+        expect(executeToolMock).toHaveBeenCalledOnce();
+      },
+    );
+
+    it("refuses create_social_post with scheduledAt after running a command", async () => {
+      await expect(
+        runSandboxTool(claims, {
+          capability: "create_social_post",
+          toolCallId: "c11-scheduled",
+          toolInput: {
+            text: "Launch post",
+            scheduledAt: "2026-12-01T09:00:00.000Z",
+          },
+        }),
+      ).rejects.toThrow("without scheduledAt");
+      expect(executeToolMock).not.toHaveBeenCalled();
     });
 
     it.each([
-      "update_social_post",
       "schedule_social_post",
       "cancel_social_post",
       "publish_social_post",
@@ -1028,7 +1141,11 @@ describe("sandbox turn service", () => {
       expect(executeToolMock).not.toHaveBeenCalled();
     });
 
-    it("keeps a scheduled run from creating posts", async () => {
+    it.each([
+      "create_social_post",
+      "update_social_post",
+      "update_social_posts",
+    ] as const)("keeps a scheduled run from running %s", async (capability) => {
       turnFindUniqueMock.mockResolvedValue({
         ...ownerTurn,
         source: "SCHEDULE",
@@ -1036,9 +1153,9 @@ describe("sandbox turn service", () => {
       });
       await expect(
         runSandboxTool(claims, {
-          capability: "create_social_post",
-          toolCallId: "c13",
-          toolInput: {},
+          capability,
+          toolCallId: `c13-${capability}`,
+          toolInput: capability === "create_social_post" ? {} : { postId },
         }),
       ).rejects.toThrow("ask the owner in chat");
       expect(executeToolMock).not.toHaveBeenCalled();
@@ -1343,5 +1460,35 @@ describe("sandbox turn service", () => {
         expect(stopSandboxMock).toHaveBeenCalled();
       },
     );
+  });
+});
+
+describe("reasoningSummaryOptions", () => {
+  it("passes a prompt cache key through with the longest cache life, and nothing else", () => {
+    expect(
+      reasoningSummaryOptions(
+        {
+          openai: {
+            reasoningSummary: "auto",
+            promptCacheKey: "cmo-v24:0123456789abcdef",
+            store: true,
+          },
+          gateway: { only: ["openai"] },
+        },
+        "openai/gpt-6-luna",
+      ),
+    ).toEqual({
+      openai: {
+        reasoningSummary: "auto",
+        promptCacheKey: "cmo-v24:0123456789abcdef",
+        promptCacheOptions: { ttl: "12h" },
+      },
+    });
+    expect(
+      reasoningSummaryOptions(
+        { openai: { promptCacheKey: "anything else" } },
+        "openai/gpt-6-luna",
+      ),
+    ).toEqual({});
   });
 });

@@ -61,6 +61,9 @@ model User {
   // Whether Jev may tag this person's person-to-person Directs (chat signals).
   // Off by default; a Direct is tagged only when every human in it opted in.
   tagDirectMessages   Boolean @default(false)
+  // Whether the person left their week out of the stand-up's week in review.
+  // Included by default; stored as "hide" so false means included (ADR-0038).
+  hideWeekFromStandup Boolean @default(false)
 
   // UTM Attribution
   utmAttribution UTMAttribution?
@@ -85,9 +88,13 @@ model User {
   assignedTaskSchedules   TaskSchedule[]           @relation("TaskScheduleAssigneeUser")
   contactInteractions     ContactInteraction[]     @relation("ContactInteractionUser")
   contactScores           ContactScore[]           @relation("ContactScoreUser")
+  linkedInConnections ContactLinkedInConnection[] @relation("ContactLinkedInConnectionUser")
+  contactSelves           Contact[]                @relation("ContactUser")
+  contactXFollows         ContactXFollow[]         @relation("ContactXFollowUser")
   taskParticipations      TaskParticipant[]        @relation("TaskParticipantUser")
   taskEventMentions       TaskEventMention[]       @relation("TaskEventMentionUser")
   taskFollows             TaskFollower[]           @relation("TaskFollowerUser")
+  taskViewPreferences     TaskViewPreference[]     @relation("TaskViewPreferenceUser")
   taskMomentDeliveries    TaskMomentDelivery[]     @relation("TaskMomentDeliveryUser")
   taskEvents              TaskEvent[]
   uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByUser")
@@ -127,6 +134,7 @@ model User {
   noticeAcknowledgments            NoticeAcknowledgment[]
   badgeCampaignsCreated            BadgeCampaign[]               @relation("BadgeCampaignCreatedBy")
   badgeCampaignsSeen               BadgeCampaignSeen[]
+  cmoUpgradesSeen                  CmoUpgradeSeen[]
   projectStars                     ProjectStar[]
   projectHides                     ProjectHide[]
   confirmedBrandBrains             BrandBrain[]                  @relation("BrandBrainConfirmedBy")

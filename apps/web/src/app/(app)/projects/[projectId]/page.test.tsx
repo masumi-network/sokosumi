@@ -282,10 +282,10 @@ describe("ProjectDetailPage", () => {
     expect(
       screen.getByRole("heading", { name: "Launch plan" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /example.com/ })).toHaveAttribute(
-      "href",
-      "https://example.com/about",
-    );
+    // The rail from xl, the Properties line below it: both link the site.
+    for (const link of screen.getAllByRole("link", { name: /example.com/ })) {
+      expect(link).toHaveAttribute("href", "https://example.com/about");
+    }
     expect(
       screen.getByRole("heading", { name: "App.Projects.Detail.briefing" }),
     ).toBeInTheDocument();
@@ -485,7 +485,10 @@ describe("ProjectDetailPage", () => {
     expect(done).toHaveTextContent("App.Projects.Detail.stats.done14");
     // Each opens the project's board, where its column shows that number.
     for (const link of [running, waiting, done]) {
-      expect(link).toHaveAttribute("href", "/tasks?projectId=project-1");
+      expect(link).toHaveAttribute(
+        "href",
+        "/tasks?projectId=project-1&scope=workspace",
+      );
     }
     expect(screen.queryByTestId("project-status-open")).toBeNull();
   });

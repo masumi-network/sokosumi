@@ -2,9 +2,10 @@ import {
   parseSokoBotMemory,
   type SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
-
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, recordCoreWarning } from "@/lib/evlog";
+import { failOpen } from "@/lib/fail-open";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 import { evaluateWithJev, type JevAnswer, SOKO_BOT_JEV_MODEL } from "./jev";
@@ -290,6 +291,7 @@ export async function triageMail(input: {
  */
 async function ownerMailContext(sokoBotId: string): Promise<OwnerMailContext> {
   try {
+    const now = await databaseNow();
     const [memory, flagged] = await Promise.all([
       prisma.sokoBotMemoryRevision.findFirst({
         where: { sokoBotId },
@@ -300,7 +302,7 @@ async function ownerMailContext(sokoBotId: string): Promise<OwnerMailContext> {
         where: {
           sokoBotId,
           source: "INGEST",
-          createdAt: { gte: new Date(Date.now() - FLAGGED_WINDOW_MS) },
+          createdAt: { gte: new Date(now.getTime() - FLAGGED_WINDOW_MS) },
           deliveries: { some: { purpose: "FINAL", status: "PUBLISHED" } },
         },
         orderBy: { createdAt: "desc" },
@@ -318,8 +320,16 @@ async function ownerMailContext(sokoBotId: string): Promise<OwnerMailContext> {
         turn.finalAnswer ? [turn.finalAnswer.slice(0, FIELD_LENGTH * 2)] : [],
       ),
     };
-  } catch {
-    return { preferences: [], rules: [], alreadyFlaggedToday: [] };
+  } catch (error) {
+    return failOpen<OwnerMailContext>(
+      { preferences: [], rules: [], alreadyFlaggedToday: [] },
+      { operation: "soko_bot_mail_triage", sokoBot: { id: sokoBotId } },
+      {
+        message: "Mail triage ran without the owner's preferences",
+        why: "Reading the bot's memory or today's flagged mail threw",
+        fix: "This check may flag muted senders or repeat today's posts. Read the failure fields; the next triage reads them again.",
+      },
+    )(error);
   }
 }
 
@@ -363,6 +373,8 @@ export function triagedMailLines(input: {
   mail: readonly TriagedMail[];
   /** Shown as `N+` when the fetch stopped at this many. */
   limit: number;
+  /** The section's heading; X direct messages use their own. */
+  title?: string;
 }): string[] {
   if (input.mail.length === 0) return [];
   const of = (tag: MailTriageTag | null) =>
@@ -373,7 +385,7 @@ export function triagedMailLines(input: {
         (tag === "URGENT" || !item.matchesRule),
     );
   const lines = [
-    `## Mail (${input.mail.length}${input.mail.length >= input.limit ? "+" : ""}), triaged by Jev`,
+    `## ${input.title ?? "Mail"} (${input.mail.length}${input.mail.length >= input.limit ? "+" : ""}), triaged by Jev`,
   ];
   const section = (
     title: string,

@@ -1,20 +1,12 @@
 "use client";
 
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { createContext, type ReactNode, useContext, useState } from "react";
 
-interface ClampedOverflowState {
-  cacheKey: string;
-  resetKey: string;
-  expanded: boolean;
-  overflows: boolean;
-}
+import {
+  type ClampedOverflowState,
+  useClampedOverflowCacheSync,
+} from "@/hooks/effects/use-clamped-overflow-cache-sync";
+import { useLayoutResizeObserver } from "@/hooks/effects/use-resize-observer";
 
 const ClampedOverflowContext = createContext<Map<
   string,
@@ -52,7 +44,9 @@ export function useClampedOverflow({
     setState(current);
   }
   const { expanded, overflows } = current;
-  const contentRef = useRef<HTMLDivElement | null>(null);
+  const [contentElement, setContentElement] = useState<HTMLDivElement | null>(
+    null,
+  );
 
   function toggleExpanded() {
     setState((previous) => ({ ...previous, expanded: !previous.expanded }));
@@ -60,34 +54,24 @@ export function useClampedOverflow({
 
   // Keep only the latest version per body or quote, including when no text
   // element is mounted (for example, a message containing only jumbo emoji).
-  useLayoutEffect(() => {
-    states?.set(cacheKey, current);
-  }, [cacheKey, current, states]);
+  useClampedOverflowCacheSync(states, cacheKey, current);
 
-  useLayoutEffect(() => {
-    const node = contentRef.current;
-    if (!node || expanded) {
-      return;
-    }
-
-    function measureOverflow() {
-      const el = contentRef.current;
-      if (!el) {
+  useLayoutResizeObserver(
+    expanded ? null : contentElement,
+    () => {
+      if (!contentElement) {
         return;
       }
-      const overflows = el.scrollHeight > el.clientHeight + 1;
+      const nextOverflows =
+        contentElement.scrollHeight > contentElement.clientHeight + 1;
       setState((previous) =>
-        previous.overflows === overflows
+        previous.overflows === nextOverflows
           ? previous
-          : { ...previous, overflows },
+          : { ...previous, overflows: nextOverflows },
       );
-    }
+    },
+    { immediate: true, resetKey: `${cacheKey}\0${resetKey}` },
+  );
 
-    measureOverflow();
-    const observer = new ResizeObserver(measureOverflow);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [cacheKey, expanded, resetKey]);
-
-  return { expanded, toggleExpanded, overflows, contentRef };
+  return { expanded, toggleExpanded, overflows, contentRef: setContentElement };
 }

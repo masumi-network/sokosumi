@@ -1,8 +1,8 @@
 "use client";
 
-import { Info } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import {
@@ -13,24 +13,29 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SEO_RESULT_LOCALE } from "@/i18n/seo-result-messages";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
+import { SeoContentPlanning } from "./seo-content-planning";
 import { SeoExportMenu } from "./seo-export-menu";
-import { seoKeywordsTableExport } from "./seo-export-model";
-import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
+import { seoKeywordIdeasExport } from "./seo-export-model";
 import {
   SEO_DIFFICULTY_COLUMN_CLASS,
   SeoDifficultyCell,
 } from "./seo-keyword-difficulty";
+import { SeoKeywordDraftDetails } from "./seo-keyword-draft-details";
+import { type SeoKeywordGroup } from "./seo-keyword-rows-model";
 import {
-  SEO_IDEA_SOURCES,
-  type SeoKeywordGroup,
-} from "./seo-keyword-rows-model";
+  assessKeywordIdeas,
+  type IdeaAssessment,
+  priorityFirst,
+} from "./seo-keyword-shortlist";
+import { SEO_LIST_PAGE_SIZE } from "./seo-list-model";
 import {
   SEO_COMPACT_ROWS_CLASS,
   SeoBarNumber,
   SeoPageText,
   SeoSection,
   SeoShowMore,
-  seoFoldCount,
   seoIsOnlyPrimary,
   seoMarketName,
 } from "./seo-shared";
@@ -40,28 +45,33 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function SeoKeywordIdeas({
   model,
   ideas,
+  comparisonIdeas = ideas,
 }: {
   model: SeoWorkspaceModel;
   ideas: SeoKeywordGroup[];
+  comparisonIdeas?: SeoKeywordGroup[];
 }) {
   const t = useTranslations("App.Seo");
-  const locale = useLocale();
+  const result = useSeoResultTranslations("App.Seo");
   const [expanded, setExpanded] = useState(false);
   if (!ideas.length) return null;
   // A search already narrows the list; it shows every match.
-  const visible = seoFoldCount(ideas.length);
+  const assessments = assessKeywordIdeas(ideas, comparisonIdeas);
+  const assess = (group: SeoKeywordGroup) => assessments.get(group.lead.id)!;
+  const ordered = ideas.toSorted((a, b) => priorityFirst(assess(a), assess(b)));
+  const priorityCount = ordered.filter(
+    (group) => assess(group).reason === "priority",
+  ).length;
+  const visible = priorityCount || SEO_LIST_PAGE_SIZE;
   const rows =
-    expanded || model.keywordSearch ? ideas : ideas.slice(0, visible);
-  const reasonsOf = (sources: string[]) =>
-    SEO_IDEA_SOURCES.filter((source) => sources.includes(source));
+    expanded || model.keywordSearch ? ordered : ordered.slice(0, visible);
   const shown = {
     volume: ideas.some((group) => group.volume !== null),
     // Only a check that reads keyword difficulty fills the column.
     difficulty: ideas.some((group) => group.difficulty !== null),
     // Only a check that estimates conversion fills the column.
-    conversion: ideas.some((group) => group.conversion !== null),
+    gain: ideas.some((group) => group.clicks != null),
     // One reason on every row in view tells no idea from another: "Related search" stood on ten of ten rows.
-    why: new Set(rows.map(({ sources }) => reasonsOf(sources).join())).size > 1,
   };
   // A row names its page only when it is not the primary page: the header says "and its page" only when a row in
   // view names one.
@@ -87,20 +97,22 @@ export function SeoKeywordIdeas({
         // Every idea the search matches, not only the rows in view, with the difficulty of each.
         <SeoExportMenu
           name="keyword-ideas"
-          title={t("keywords.ideas.name")}
+          titleKey="keywords.ideas.name"
           workspace={model.data}
-          table={() => seoKeywordsTableExport(ideas, t)}
+          table={(report) =>
+            seoKeywordIdeasExport(ordered, assessments, report)
+          }
         />
       }
       // The one Track sentence: it names the next position check, so it has no place where none can run.
       // The Keywords list has none, because a check tracks its keywords from the start.
       description={
-        model.data.availableActions.canEdit &&
-        model.data.availableActions.canUsePaidSearchData === true
-          ? t("keywords.help")
-          : undefined
+        priorityCount
+          ? result("keywords.shortlist.summary", { count: priorityCount })
+          : result("keywords.shortlist.none")
       }
     >
+      <SeoContentPlanning groups={ideas} model={model} />
       <div className={HOLDER_ITEM_CLASS}>
         <Table className={SEO_COMPACT_ROWS_CLASS}>
           <TableHeader>
@@ -118,8 +130,10 @@ export function SeoKeywordIdeas({
                   {t("keywords.difficulty.title")}
                 </TableHead>
               ) : null}
-              {shown.conversion ? (
-                <TableHead>{t("keywords.conversion.title")}</TableHead>
+              {shown.gain ? (
+                <TableHead className="text-right">
+                  {t("keywords.shortlist.gain")}
+                </TableHead>
               ) : null}
               <TableHead>
                 <span className="sr-only">{t("queries.rowActions")}</span>
@@ -127,91 +141,27 @@ export function SeoKeywordIdeas({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map(
-              ({ lead, volume, sources, conversion, feature, difficulty }) => (
-                <TableRow key={lead.id}>
-                  <TableCell className="min-w-48 whitespace-normal">
-                    {shown.why ? (
-                      <SeoIdeaReason
-                        keyword={lead.keyword}
-                        reasons={reasonsOf(sources)}
-                      />
-                    ) : (
-                      <p className="font-medium break-words">
-                        <bdi>{lead.keyword}</bdi>
-                      </p>
-                    )}
-                    {manyMarkets ? (
-                      <p className="text-muted-foreground text-xs">
-                        {seoMarketName(
-                          locale,
-                          lead.countryCode,
-                          lead.languageCode,
-                        )}
-                      </p>
-                    ) : null}
-                    {manyPages && lead.pageUrl ? (
-                      <SeoPageText
-                        url={lead.pageUrl}
-                        workspace={model.data}
-                        skipPrimary
-                        oneLine
-                      />
-                    ) : null}
-                  </TableCell>
-                  {shown.volume ? (
-                    <TableCell
-                      className="text-right tabular-nums"
-                      // No number, no unit: the label names the empty value.
-                      data-label={
-                        volume === null ? t("keywords.volume") : undefined
-                      }
-                    >
-                      {volume === null ? (
-                        <span className="text-muted-foreground">
-                          {t("none")}
-                        </span>
-                      ) : (
-                        <SeoBarNumber
-                          value={volume}
-                          max={mostSearched}
-                          unit={t("keywords.volumeUnit", { count: volume })}
-                        />
-                      )}
-                    </TableCell>
-                  ) : null}
-                  {shown.difficulty ? (
-                    <SeoDifficultyCell difficulty={difficulty} />
-                  ) : null}
-                  {shown.conversion ? (
-                    <SeoConversionCell
-                      conversion={conversion}
-                      feature={feature}
-                    />
-                  ) : null}
-                  <TableCell>
-                    {model.data.availableActions.canEdit ? (
-                      <div className="flex justify-end">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={model.pending}
-                          onClick={() => {
-                            void model.toggleKeyword(lead);
-                          }}
-                        >
-                          {t("keywords.save")}
-                        </Button>
-                      </div>
-                    ) : null}
-                  </TableCell>
-                </TableRow>
-              ),
-            )}
+            {rows.map((group) => (
+              <SeoIdeaRow
+                key={group.lead.id}
+                assessment={assess(group)}
+                group={group}
+                model={model}
+                shown={shown}
+                manyMarkets={manyMarkets}
+                manyPages={manyPages}
+                mostSearched={mostSearched}
+              />
+            ))}
           </TableBody>
         </Table>
-        {shown.conversion ? <SeoConversionNote /> : null}
       </div>
+      {model.data.availableActions.canEdit &&
+        model.data.availableActions.canUsePaidSearchData && (
+          <p className="text-muted-foreground px-2 text-xs">
+            {result("keywords.help")}
+          </p>
+        )}
       {ideas.length > visible && !model.keywordSearch ? (
         <SeoShowMore
           more={t("keywords.ideas.more", {
@@ -229,42 +179,158 @@ export function SeoKeywordIdeas({
  * The keyword with a small info button: a click opens why the idea is listed under it, a second click closes it.
  * A line on every row made the list busy (owner, 2026-11-13).
  */
-function SeoIdeaReason({
-  keyword,
-  reasons,
+function SeoIdeaRow({
+  assessment,
+  group,
+  model,
+  shown,
+  manyMarkets,
+  manyPages,
+  mostSearched,
 }: {
-  keyword: string;
-  reasons: (typeof SEO_IDEA_SOURCES)[number][];
+  group: SeoKeywordGroup;
+  model: SeoWorkspaceModel;
+  assessment: IdeaAssessment;
+  shown: { volume: boolean; difficulty: boolean; gain: boolean };
+  manyMarkets: boolean;
+  manyPages: boolean;
+  mostSearched: number;
 }) {
   const t = useTranslations("App.Seo");
+  const result = useSeoResultTranslations("App.Seo");
   const [open, setOpen] = useState(false);
+  const toggle = useRef<HTMLButtonElement>(null);
   const id = useId();
+  const { lead, volume, difficulty } = group;
   return (
     <>
-      <p className="flex items-center gap-1 font-medium break-words">
-        <bdi>{keyword}</bdi>
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls={id}
-          aria-label={t("keywords.ideas.why")}
-          onClick={() => setOpen((value) => !value)}
-          // 32 px to hit around a 14 px icon, pulled back so the row keeps its height.
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring -my-2 inline-flex size-8 shrink-0 items-center justify-center rounded-md focus-visible:ring-2 focus-visible:outline-none"
-        >
-          <Info className="size-3.5" aria-hidden />
-        </button>
-      </p>
-      {open ? (
-        <p id={id} className="text-muted-foreground text-xs">
-          {reasons.map((source, index) => (
-            <span key={source}>
-              {index ? " · " : null}
-              <span>{t(`keywords.ideas.source.${source}`)}</span>
+      <TableRow
+        data-state={open ? "selected" : undefined}
+        className="cursor-pointer"
+        onClick={(event) => {
+          if (
+            event.target instanceof Element &&
+            event.target.closest("button, a")
+          )
+            return;
+          if (window.getSelection()?.toString()) return;
+          setOpen((value) => !value);
+        }}
+      >
+        <TableCell className="min-w-48 whitespace-normal">
+          <button
+            ref={toggle}
+            type="button"
+            aria-expanded={open}
+            aria-controls={open ? id : undefined}
+            onClick={() => setOpen((value) => !value)}
+            // 32 px to hit around a 14 px icon, pulled back so the row keeps its height.
+            className="focus-visible:ring-ring inline-flex min-h-8 items-center gap-2 rounded-sm text-start font-medium focus-visible:ring-2"
+          >
+            <ChevronDown
+              aria-hidden
+              className={
+                open ? "size-3.5 shrink-0" : "size-3.5 shrink-0 -rotate-90"
+              }
+            />
+            <bdi lang={lead.languageCode ?? ""}>{lead.keyword}</bdi>
+          </button>
+          {assessment.reason === "priority" && (
+            <span className="ms-2 inline-block text-xs font-medium text-muted-foreground">
+              {t("keywords.shortlist.label")}
             </span>
-          ))}
-        </p>
-      ) : null}
+          )}
+          {manyMarkets ? (
+            <p className="text-muted-foreground text-xs">
+              {seoMarketName(
+                SEO_RESULT_LOCALE,
+                lead.countryCode,
+                lead.languageCode,
+              )}
+            </p>
+          ) : null}
+          {manyPages && lead.pageUrl ? (
+            <SeoPageText
+              url={lead.pageUrl}
+              workspace={model.data}
+              skipPrimary
+              oneLine
+            />
+          ) : null}
+        </TableCell>
+        {shown.volume ? (
+          <TableCell
+            className="text-right tabular-nums"
+            // No number, no unit: the label names the empty value.
+            data-label={volume === null ? t("keywords.volume") : undefined}
+          >
+            {volume === null ? (
+              <span className="text-muted-foreground">{result("none")}</span>
+            ) : (
+              <SeoBarNumber
+                value={volume}
+                max={mostSearched}
+                unit={result("keywords.volumeUnit", { count: volume })}
+              />
+            )}
+          </TableCell>
+        ) : null}
+        {shown.difficulty ? (
+          <SeoDifficultyCell difficulty={difficulty} />
+        ) : null}
+        {shown.gain ? (
+          <TableCell
+            className="text-right tabular-nums"
+            data-label={t("keywords.shortlist.gain")}
+          >
+            {assessment.extra !== null
+              ? result("keywords.shortlist.clicks", { count: assessment.extra })
+              : result("none")}
+          </TableCell>
+        ) : null}
+        <TableCell>
+          {model.data.availableActions.canEdit ? (
+            <div className="flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={model.pending}
+                onClick={() => {
+                  void model.toggleKeyword(lead);
+                }}
+              >
+                {t(lead.saved ? "keywords.unsave" : "keywords.save")}
+              </Button>
+            </div>
+          ) : null}
+        </TableCell>
+      </TableRow>
+      {open && (
+        <TableRow className="bg-muted hover:bg-muted">
+          <TableCell
+            id={id}
+            colSpan={
+              2 +
+              Number(shown.volume) +
+              Number(shown.difficulty) +
+              Number(shown.gain)
+            }
+            className="whitespace-normal"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setOpen(false);
+                toggle.current?.focus();
+              }
+            }}
+          >
+            <SeoKeywordDraftDetails
+              assessment={assessment}
+              group={group}
+              model={model}
+            />
+          </TableCell>
+        </TableRow>
+      )}
     </>
   );
 }

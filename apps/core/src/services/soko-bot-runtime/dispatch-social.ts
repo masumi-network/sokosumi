@@ -1,18 +1,16 @@
-import {
-  renderWritingSkill,
-  SOKO_BOT_TOOL_INPUT_SCHEMAS,
-  sanitizeSokoBotMemoryMarkdown,
-  WRITING_SKILLS,
-} from "@sokosumi/soko-bot";
-import prisma from "@/lib/db/prisma";
+import { SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
 import { readSocialProfile } from "@/lib/social-profile";
 import {
   RuntimeEventLog,
   runtimeEvent,
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
+import { findCusoForBot } from "@/services/cmo-cuso.service";
+import { cmoMakesVariedMonth } from "@/services/cmo-media-maker.service";
 import {
   findStyleReferences,
+  infographicSuits,
+  monthStyleReferenceIds,
   referenceLibraryAvailable,
 } from "@/services/reference-library.service";
 import { collectNewSocialComments } from "@/services/social-comments.service";
@@ -21,8 +19,9 @@ import {
   type ExecuteSokoBotToolInput,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
-import { hashMemory } from "./memory";
+import { readMemory } from "./memory";
 import { type RuntimeOperations } from "./operations";
+import { readWritingSkill } from "./read-skill";
 
 export async function dispatchSocialTools(
   runtime: RuntimeOperations,
@@ -49,6 +48,8 @@ export async function dispatchSocialTools(
     case "create_social_post":
 
     case "update_social_post":
+
+    case "update_social_posts":
 
     case "schedule_social_post":
 
@@ -77,17 +78,7 @@ export async function dispatchSocialTools(
       return runtime.executeAdsTool(input, authorized);
 
     case "read_memory":
-      return prisma.sokoBotMemoryRevision
-        .findFirst({
-          where: { sokoBotId: authorized.turn.sokoBotId },
-          orderBy: { version: "desc" },
-          select: { id: true, version: true, hash: true, markdown: true },
-        })
-        .then((revision) => {
-          if (!revision) return null;
-          const markdown = sanitizeSokoBotMemoryMarkdown(revision.markdown);
-          return { ...revision, markdown, hash: hashMemory(markdown) };
-        });
+      return readMemory(authorized.turn.sokoBotId);
 
     case "list_social_comments": {
       const { projectId } = await runtime.socialCommentScopeOf(authorized);
@@ -106,14 +97,10 @@ export async function dispatchSocialTools(
     case "read_writing_skill": {
       const { skill: id } =
         SOKO_BOT_TOOL_INPUT_SCHEMAS.read_writing_skill.parse(input.input);
-      const skill = WRITING_SKILLS.find((candidate) => candidate.id === id);
+      const skill = readWritingSkill(id);
       if (!skill)
         throw new SokoBotRuntimeValidationError("No such writing skill.");
-      return {
-        skill: skill.id,
-        name: skill.name,
-        content: renderWritingSkill(skill),
-      };
+      return skill;
     }
 
     case "find_style_references": {
@@ -126,7 +113,18 @@ export async function dispatchSocialTools(
           note: "The reference library is not set up here: make pictures from the brand's own pictures.",
         };
       }
-      return { references: await findStyleReferences(query) };
+      // A Cuso's month gives every piece its own reference: offer only free ones.
+      const cuso = await findCusoForBot(authorized.turn.sokoBotId);
+      const exclude = cuso ? await monthStyleReferenceIds(cuso.projectId) : [];
+      return {
+        references: await findStyleReferences({
+          ...query,
+          exclude,
+          infographics:
+            !cmoMakesVariedMonth(authorized.turn.versionId) ||
+            infographicSuits(query.purpose),
+        }),
+      };
     }
 
     case "read_social_profile": {

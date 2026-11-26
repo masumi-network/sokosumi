@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
@@ -381,7 +381,9 @@ describe("newsletter analytics", () => {
     const trigger = screen.getByRole("button", { name: /^Date range/ });
     await userEvent.click(trigger);
     const calendar = within(screen.getByRole("dialog", { name: "Date range" }));
-    calendar.getByRole("button", { name: /October 10th, 2026/ }).focus();
+    act(() =>
+      calendar.getByRole("button", { name: /October 10th, 2026/ }).focus(),
+    );
     await userEvent.keyboard("{Enter}{ArrowRight}{ArrowRight}{Enter}");
     await waitFor(() =>
       expect(onUrlUpdate).toHaveBeenLastCalledWith(

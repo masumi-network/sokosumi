@@ -190,6 +190,8 @@ const URL = /https?:\/\/\S+/i;
 const UNCLICKABLE_LINKS = new Set<SocialPostProvider>(["instagram", "tiktok"]);
 /** Networks that show posts with a link to fewer people. */
 const LINK_PENALTY = new Set<SocialPostProvider>(["x", "linkedin", "facebook"]);
+/** "Link in the first comment.", "the link is in the comments" and the like. */
+const POINTS_TO_COMMENT_LINK = /\blink (?:is )?in the (?:first )?comments?\b/i;
 
 /**
  * Mistakes that make a bot-written post look broken or reach fewer people,
@@ -249,6 +251,14 @@ export function socialPostFormattingError(
         `the link in the post body makes ${provider} show it to fewer people; move it to firstComment`,
       );
   }
+  if (
+    LINK_PENALTY.has(provider) &&
+    POINTS_TO_COMMENT_LINK.test(post.body) &&
+    !URL.test(post.firstComment ?? "")
+  )
+    problems.push(
+      "it says the link is in the first comment, but firstComment holds no link; put the link in firstComment",
+    );
   if (problems.length === 0) return null;
   return `Rewrite the post: ${problems.join("; ")}.${
     linkProblem

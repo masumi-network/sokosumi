@@ -123,7 +123,6 @@ function roomsClientProps(element: ReactElement) {
     organizationMembers?: unknown[];
     coworkers?: unknown[];
     messages?: unknown[];
-    messagesPromise?: Promise<unknown>;
     loadHistoryOnClient?: boolean;
     rosterPromise?: Promise<unknown>;
     selectedRoomId?: string;
@@ -370,7 +369,7 @@ describe("ChatRoomPage org deep-link guard", () => {
 
     await expect(
       ChatRoomPageContent({ params: Promise.resolve({ roomId: ROOM_ID }) }),
-    ).rejects.toThrow(`REDIRECT:/?notice=room-unavailable`);
+    ).rejects.toThrow(`REDIRECT:/chat?notice=room-unavailable`);
     expect(listMessagesMock).not.toHaveBeenCalled();
     expect(loadRoomShellRosterMock).not.toHaveBeenCalled();
   });
@@ -386,9 +385,9 @@ describe("ChatRoomPage org deep-link guard", () => {
       ChatRoomPageContent({
         params: Promise.resolve({ roomId: "not-a-real-room-id" }),
       }),
-    ).rejects.toThrow(`REDIRECT:/?notice=room-unavailable`);
+    ).rejects.toThrow(`REDIRECT:/chat?notice=room-unavailable`);
 
-    expect(redirectMock).toHaveBeenCalledWith("/?notice=room-unavailable");
+    expect(redirectMock).toHaveBeenCalledWith("/chat?notice=room-unavailable");
     expect(getRoomMock).not.toHaveBeenCalled();
     expect(listMessagesMock).not.toHaveBeenCalled();
     expect(loadRoomShellRosterMock).not.toHaveBeenCalled();
@@ -414,7 +413,6 @@ describe("ChatRoomPage org deep-link guard", () => {
     expect(props.messages).toEqual([]);
     expect(props.organizationMembers).toEqual([]);
     expect(props.coworkers).toEqual([]);
-    expect(props.messagesPromise).toBeUndefined();
     expect(props.loadHistoryOnClient).toBe(true);
     expect(props.rosterPromise).toBeInstanceOf(Promise);
     expect(props.membersLoadFailed).toBe(false);
@@ -439,7 +437,6 @@ describe("ChatRoomPage org deep-link guard", () => {
     })) as ReactElement;
 
     const props = roomsClientProps(element);
-    expect(props.messagesPromise).toBeUndefined();
     expect(props.loadHistoryOnClient).toBe(true);
     expect(props.rosterPromise).toBeInstanceOf(Promise);
     expect(loadRoomShellRosterMock).toHaveBeenCalledWith(ORG_B);
@@ -460,7 +457,6 @@ describe("ChatRoomPage org deep-link guard", () => {
     })) as ReactElement;
 
     const props = roomsClientProps(element);
-    expect(props.messagesPromise).toBeUndefined();
     expect(props.loadHistoryOnClient).toBe(true);
     expect(props.rosterPromise).toBeInstanceOf(Promise);
     expect(loadRoomShellRosterMock).toHaveBeenCalledWith(null);
@@ -535,7 +531,6 @@ describe("ChatRoomPage org deep-link guard", () => {
     expect(props.membersLoadFailed).toBe(false);
     expect(props.organizationMembers).toEqual([]);
     await expect(props.rosterPromise).resolves.toEqual(failedRoster);
-    expect(props.messagesPromise).toBeUndefined();
     expect(props.loadHistoryOnClient).toBe(true);
   });
 
@@ -552,7 +547,6 @@ describe("ChatRoomPage org deep-link guard", () => {
     expect(loadRoomShellRosterMock).toHaveBeenCalledWith(null);
     const props = roomsClientProps(element);
     expect(props.membersLoadFailed).toBe(false);
-    expect(props.messagesPromise).toBeUndefined();
     expect(props.loadHistoryOnClient).toBe(true);
     expect(props.rosterPromise).toBeInstanceOf(Promise);
   });
@@ -591,7 +585,6 @@ describe("ChatRoomPage retained history bootstrap", () => {
       params: Promise.resolve({ roomId: ROOM_ID }),
     })) as ReactElement;
 
-    expect(roomsClientProps(element).messagesPromise).toBeUndefined();
     expect(roomsClientProps(element).loadHistoryOnClient).toBe(true);
     expect(listMessagesMock).not.toHaveBeenCalled();
   });

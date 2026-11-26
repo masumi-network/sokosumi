@@ -1,8 +1,16 @@
 import * as Sentry from "@sentry/node";
 import { Prisma, TaskStatus, TaskVisibility } from "@sokosumi/database";
-import { removeTaskContextAttachmentLinks } from "@sokosumi/utils";
+import {
+  hideSeoAuditRequest,
+  removeTaskContextAttachmentLinks,
+} from "@sokosumi/utils";
 import { generateText } from "ai";
 import { getEnv } from "@/config/env";
+import {
+  AI_BUDGET_EXCEEDED,
+  AiGatewayBudgetError,
+  rethrowAiGatewayFailure,
+} from "@/lib/ai-gateway-budget";
 import { aiGateway } from "@/lib/ai-gateway-purpose";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, emitCoreWarning } from "@/lib/evlog";
@@ -112,6 +120,7 @@ export interface ProjectMemoryRefreshResult {
     | "oversized_output"
     | "malformed_output"
     | "incomplete_output"
+    | typeof AI_BUDGET_EXCEEDED
     | "blob_upload_failed"
     | "lost_lock";
   version?: number;
@@ -164,7 +173,9 @@ function formatTaskForPrompt(task: ProjectMemoryTask): string {
   return `<completed_task id="${formatPromptData(task.id)}">
 <name>${formatPromptData(task.name, MAX_NAME_CHARS)}</name>
 <description>${formatPromptData(
-    removeTaskContextAttachmentLinks(task.description ?? "") || "None",
+    removeTaskContextAttachmentLinks(
+      hideSeoAuditRequest(task.description) ?? "",
+    ) || "None",
     MAX_TASK_DESCRIPTION_CHARS,
   )}</description>
 <assignee>${formatPromptData(
@@ -380,10 +391,13 @@ async function refreshProjectMemoryIteration({
     };
     const generation = await generateText({
       ...generationOptions,
+      telemetry: { functionId: "project-memory" },
       system: PROJECT_MEMORY_SYSTEM_PROMPT,
       prompt,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
-    });
+    }).catch((error: unknown) =>
+      rethrowAiGatewayFailure(error, "project-memory"),
+    );
     let candidate = validateProjectContextMd(
       generation.text,
       generation.finishReason,
@@ -394,6 +408,7 @@ async function refreshProjectMemoryIteration({
     ) {
       const compaction = await generateText({
         ...generationOptions,
+        telemetry: { functionId: "project-memory-compaction" },
         system: `${PROJECT_MEMORY_SYSTEM_PROMPT}
 
 The candidate exceeds the size budget. Compact it once using the original sources as evidence. Preserve constraints, unresolved approvals and essential links; remove history and repetition first. Return the whole document, never just a prefix or a patch.`,
@@ -403,7 +418,9 @@ The candidate exceeds the size budget. Compact it once using the original source
 ${formatPromptData(generation.text)}
 </candidate_context_md>`,
         maxOutputTokens: MAX_COMPACTION_OUTPUT_TOKENS,
-      });
+      }).catch((error: unknown) =>
+        rethrowAiGatewayFailure(error, "project-memory"),
+      );
       candidate = validateProjectContextMd(
         compaction.text,
         compaction.finishReason,
@@ -504,6 +521,12 @@ ${formatPromptData(generation.text)}
         version: nextVersion,
         lineCount,
       },
+    };
+  } catch (error) {
+    if (!(error instanceof AiGatewayBudgetError)) throw error;
+    return {
+      lockStartedAt,
+      result: { status: "skipped", reason: error.code },
     };
   } finally {
     await releaseProjectMemoryLock(projectId, lockStartedAt);

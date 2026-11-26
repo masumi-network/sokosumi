@@ -1,10 +1,13 @@
 import type { SokoBotToolCall } from "@sokosumi/database";
-import { SOKO_BOT_SEO_WRITE_CAPABILITIES } from "@sokosumi/soko-bot";
+import {
+  ACTION_LABELS,
+  SOKO_BOT_SEO_WRITE_CAPABILITIES,
+} from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getWebAppBaseUrl } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { ACTION_CAPABILITIES } from "./action-receipts";
-import { ACTION_LABELS, buildActionResponse } from "./action-response";
+import { buildActionResponse } from "./action-response";
 
 const db = vi.hoisted(() => ({
   sokoBotToolCall: { findMany: vi.fn(), findUnique: vi.fn(), count: vi.fn() },
@@ -108,9 +111,10 @@ describe("Cuso's replies stay inside CMO.xyz", () => {
   it("carries no Sokosumi link or name, whatever Cuso did", async () => {
     const reply = await replyOn("cmo-v1", message);
     expect(sokosumiIn(reply)).toEqual([]);
-    expect(reply).toContain("Started image.");
-    expect(reply).toContain("Created task Launch → Elena");
-    expect(reply).toContain(
+    // Receipt lines are bookkeeping; the owner reads his words only.
+    expect(reply).not.toContain("Started image.");
+    expect(reply).not.toContain("Created task Launch → Elena");
+    expect(reply).toBe(
       "The picture is ready and the post is scheduled. The file is hero.png. It goes live on [x.com](https://x.com/acme).",
     );
   });
@@ -164,15 +168,23 @@ describe("Cuso's replies stay inside CMO.xyz", () => {
   });
 
   it.each([
-    ["a follow-up run posts its card alone", "turn-parent", "Nothing to add."],
+    [
+      "a follow-up run posts its card alone",
+      "turn-parent",
+      "CHAT",
+      "Nothing to add.",
+    ],
+    // "The daily update is below." sat under the card it pointed at.
+    ["a schedule posts its card alone", null, "SCHEDULE", "Nothing to add."],
     [
       "a chat turn keeps its sentence beside the card",
       null,
+      "CHAT",
       "The draft waits for you.",
     ],
-  ])("%s", async (_name, parentTurnId, expected) => {
+  ])("%s", async (_name, parentTurnId, source, expected) => {
     db.sokoBotTurn.findUnique.mockResolvedValue({
-      source: "CHAT",
+      source,
       versionId: "cmo-v1",
       workspaceId: "workspace-one",
       parentTurnId,
@@ -200,6 +212,51 @@ describe("Cuso's replies stay inside CMO.xyz", () => {
     );
 
     expect(response.answerText).toBe(expected);
+  });
+
+  it("does not call a post update retried on its new revision unconfirmed", async () => {
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "CHAT",
+      versionId: "cmo-v1",
+      workspaceId: "workspace-one",
+    });
+    const postId = "01a0f400-0000-7000-8000-0000000000aa";
+    const first = receipt("update_social_post", 1);
+    const retried = receipt("update_social_post", 2);
+    db.sokoBotToolCall.findMany.mockResolvedValue([
+      {
+        ...first,
+        status: "FAILED",
+        disposition: "REFUSED",
+        targetId: null,
+        errorKind: "Error",
+        errorDetail: "Social post was modified, reload and retry",
+        input: { projectId, postId, revision: 3, text: "Gift sets" },
+      },
+      {
+        ...retried,
+        targetId: postId,
+        input: { projectId, postId, revision: 4, text: "Gift sets" },
+      },
+    ]);
+    db.sokoBotToolCall.count.mockResolvedValue(0);
+    db.task.findMany.mockResolvedValue([]);
+    db.job.findMany.mockResolvedValue([]);
+
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "",
+      true,
+      {
+        kind: "REPORT",
+        message: "Done.",
+        question: null,
+        observationToolCallIds: [],
+      },
+    );
+
+    expect(response.answerText).not.toContain("Not confirmed");
   });
 
   it.each([

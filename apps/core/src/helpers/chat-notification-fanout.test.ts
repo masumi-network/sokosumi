@@ -1,4 +1,5 @@
 import { NotificationKind } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
@@ -174,12 +175,13 @@ beforeEach(() => {
   schedulePublishMock.mockClear();
   vi.clearAllMocks();
   executeRawMock.mockResolvedValue(0);
-  queryRawMock.mockImplementation((strings: TemplateStringsArray) =>
-    Promise.resolve(
-      strings.join("").includes('FROM "chat_room_user_member"')
+  queryRawMock.mockImplementation(
+    async (strings: TemplateStringsArray, ...values: unknown[]) =>
+      PrismaRaw.sql(strings, ...values).sql.includes(
+        'FROM "public"."chat_room_user_member"',
+      )
         ? [{ access: "member", mutedAt: null }]
         : [],
-    ),
   );
   transactionMock.mockImplementation(async (callback) =>
     callback({
@@ -818,7 +820,7 @@ describe("fanOutChatNotifications", () => {
     });
     expect(messageFindUniqueMock).toHaveBeenNthCalledWith(2, {
       where: { id: MESSAGE_ID },
-      select: { content: true, deletedAt: true },
+      select: expect.objectContaining({ content: true, deletedAt: true }),
     });
   });
 
@@ -1208,6 +1210,29 @@ describe("rewriteChatNotificationPreviews", () => {
     roomName: "general",
     messagePreview: "meet at five",
   };
+
+  it("uses safe copy when re-reading a historical failed background report", async () => {
+    notificationFindManyMock.mockResolvedValue([storedRow(BASE)]);
+    messageFindUniqueMock.mockResolvedValue({
+      content:
+        'Background run "Review" failed before it could report. (Raw provider diagnostic)',
+      deletedAt: null,
+      senderSokoBotId: "bot-1",
+      metadata: {
+        soko_bot: { turn_id: "turn-1", background_run_title: "Review" },
+      },
+    });
+    await rewriteChatNotificationPreviews({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+
+    const preview = paramsWrittenTo(0).messagePreview;
+    expect(preview).toContain(
+      'Background run "Review" failed before it could report. Something went wrong',
+    );
+    expect(preview).not.toContain("Raw provider diagnostic");
+  });
 
   /**
    * The message row keeps no text after a delete. A copy left on a
@@ -1742,12 +1767,13 @@ describe("preview rewrite ordering", () => {
     expect(paramsWrittenTo(0)).toEqual({
       messagePreview: "edit committed while waiting",
     });
-    const [sql, ...values] = queryRawMock.mock.calls[0];
-    expect(sql.join("?")).toContain("FOR UPDATE");
-    expect(values).toEqual([MESSAGE_ID, ROOM_ID]);
+    const [strings, ...values] = queryRawMock.mock.calls[0];
+    const lock = PrismaRaw.sql(strings as TemplateStringsArray, ...values);
+    expect(lock.sql).toContain("FOR UPDATE");
+    expect(lock.values).toEqual([MESSAGE_ID, ROOM_ID]);
     expect(messageFindUniqueMock).toHaveBeenCalledWith({
       where: { id: MESSAGE_ID, roomId: ROOM_ID },
-      select: { content: true, deletedAt: true },
+      select: expect.objectContaining({ content: true, deletedAt: true }),
     });
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });

@@ -1,0 +1,41 @@
+{
+  "operations": {
+    "GET /agents": {
+      "cli": "agents list",
+      "mcp": "agents_list"
+    },
+    "GET /agents/{id}": {
+      "cli": "agents get",
+      "mcp": "agents_get"
+    },
+    "GET /agents/{id}/input-schema": {
+      "cli": "agents hire",
+      "mcp": "agents_input_schema"
+    },
+    "GET /agents/{id}/jobs": {
+      "cli": "agents jobs",
+      "mcp": "agents_jobs"
+    },
+    "POST /agents/{id}/jobs": {
+      "cli": "agents hire",
+      "mcp": "agents_hire"
+    },
+    "GET /agents/{id}/reviews": {
+      "cli": "agents reviews",
+      "mcp": "agents_reviews"
+    },
+    "GET /agents/{id}/reviews/me": {
+      "cli": "agents my-review",
+      "mcp": "agents_my_review"
+    },
+    "GET /agents/{id}/ratings/eligibility": {
+      "cli": "agents rating-eligibility",
+      "mcp": "agents_rating_eligibility"
+    },
+    "POST /agents/{id}/ratings": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A rating's comment is a public review in the person's name; a person writes it (ADR 0077)."
+    }
+  }
+}

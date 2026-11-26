@@ -1,4 +1,5 @@
 import { type Prisma, TaskX402PaymentStatus } from "@sokosumi/database";
+import { netTable } from "@sokosumi/database/sql-tables";
 import {
   normalizeX402PaymentRequiredWithSources,
   X402_MAX_TIMEOUT_SECONDS,
@@ -327,7 +328,7 @@ async function lockVerifiedTaskX402PaymentForReplay(
   snapshot: StoredTaskX402Payment,
 ): Promise<StoredTaskX402Payment> {
   await tx.$queryRaw`
-    SELECT 1 FROM "task_x402_payment" WHERE "id" = ${snapshot.id} FOR UPDATE
+    SELECT 1 FROM ${netTable("mainnet", "task_x402_payment")} WHERE "id" = ${snapshot.id} FOR UPDATE
   `;
   const locked = await tx.taskX402Payment.findUnique({
     where: { id: snapshot.id },

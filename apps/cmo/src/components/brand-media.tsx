@@ -76,7 +76,9 @@ const SECTION_NAMES: Record<Section["kind"], string> = {
 /** How many things research kept from the site, for the fold's count. */
 export function siteFinds(media: CmoBrandMedia): number {
   return (
-    media.pages.filter((page) => page.device === "desktop").length +
+    Object.values(media.logos).filter(Boolean).length +
+    (media.site?.pages.length ??
+      media.pages.filter((page) => page.device === "desktop").length) +
     media.sections.length +
     media.pictures.length
   );
@@ -91,9 +93,38 @@ export function siteFinds(media: CmoBrandMedia): number {
 export function SiteGallery({ media }: { media: CmoBrandMedia }) {
   const pages = media.pages.filter((page) => page.device === "desktop");
   if (siteFinds(media) === 0) return null;
+  const { logo, dark, mark } = media.logos;
   return (
     <div className="bm-gallery">
-      {pages.length > 0 ? (
+      {logo || mark ? (
+        <section>
+          <h3>Your logo</h3>
+          <ul className="bm-logos">
+            {logo ? (
+              <li>
+                <img src={logo.url} alt="Your logo" loading="lazy" />
+              </li>
+            ) : null}
+            {dark ? (
+              <li className="bm-logo-dark">
+                <img
+                  src={dark.url}
+                  alt="Your logo on a dark background"
+                  loading="lazy"
+                />
+              </li>
+            ) : null}
+            {mark ? (
+              <li className="bm-logo-mark">
+                <img src={mark.url} alt="Your mark" loading="lazy" />
+              </li>
+            ) : null}
+          </ul>
+        </section>
+      ) : null}
+      {media.site ? (
+        <SitePages site={media.site} />
+      ) : pages.length > 0 ? (
         <section>
           <h3>Pages I read</h3>
           <ul className="bm-pages">
@@ -160,6 +191,77 @@ export function SiteGallery({ media }: { media: CmoBrandMedia }) {
         {AGENT_NAME} makes your posts from them.
       </p>
     </div>
+  );
+}
+
+type Site = NonNullable<CmoBrandMedia["site"]>;
+
+/** Every page of the site, one line each; a page opens to its facts and shots. */
+function SitePages({ site }: { site: Site }) {
+  return (
+    <section>
+      <h3>Your site, page by page</h3>
+      <p className="bm-site-note">
+        {site.complete
+          ? `I read ${site.pages.length} ${site.pages.length === 1 ? "page" : "pages"}.`
+          : `I read ${site.pages.length} ${site.pages.length === 1 ? "page" : "pages"} so far and am reading the rest.`}
+      </p>
+      <ul className="bm-site">
+        {site.pages.map((page) => (
+          <li key={page.url}>
+            <details>
+              <summary>
+                <b>{page.title || new URL(page.url).pathname}</b>
+                {page.summary ? <span>{page.summary}</span> : null}
+              </summary>
+              <div className="bm-site-page">
+                {page.facts.length > 0 ? (
+                  <ul className="bm-site-facts">
+                    {page.facts.map((fact) => (
+                      <li key={fact}>{fact}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                <div className="bm-site-shots">
+                  {page.desktop ? (
+                    <a href={page.desktop.url} target="_blank" rel="noreferrer">
+                      <img
+                        src={page.desktop.url}
+                        alt={`${page.title || page.url} on a computer`}
+                        loading="lazy"
+                      />
+                    </a>
+                  ) : null}
+                  {page.phone ? (
+                    <a
+                      href={page.phone.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="bm-site-phone"
+                    >
+                      <img
+                        src={page.phone.url}
+                        alt={`${page.title || page.url} on a phone`}
+                        loading="lazy"
+                      />
+                    </a>
+                  ) : null}
+                </div>
+                <a
+                  className="bm-caption"
+                  href={page.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open the page
+                  <ArrowUpRight size={14} aria-hidden="true" />
+                </a>
+              </div>
+            </details>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

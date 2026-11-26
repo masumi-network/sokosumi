@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -13,7 +13,9 @@ import { SubmitButton } from "@/auth/components/form/submit-button";
 import { useOAuthRequestRejectedToast } from "@/auth/components/use-oauth-request-rejected-toast";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Button } from "@/components/ui/button";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useEmailStepHintAndFocus } from "@/hooks/effects/use-email-step-hint-and-focus";
+import { useEmailStepPendingRequest } from "@/hooks/effects/use-email-step-pending-request";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   isSameTabClick,
@@ -93,6 +95,8 @@ interface EmailStepProps {
   lastUsedLabel?: string | undefined;
   detour: EmailStepDetour;
   onFormStart: () => void;
+  /** Whether the notice shows, for links outside the step it replaces. */
+  onDetourChange?: ((detoured: boolean) => void) | undefined;
   /** The address as typed, for links outside the step that carry it. */
   onEmailChange?: ((email: string) => void) | undefined;
   /** Runs while the button still loads, e.g. to email a code. */
@@ -126,6 +130,7 @@ export function EmailStep({
   lastUsedLabel,
   detour,
   onFormStart,
+  onDetourChange,
   onEmailChange,
   onContinue,
   disabled = false,
@@ -139,6 +144,9 @@ export function EmailStep({
     getErrorMessage,
   } = useAuthCaptcha(captchaEntry);
   const [isDetoured, setIsDetoured] = useState(false);
+  // The address the notice is about. A phone's field cuts a long one short,
+  // and the notice asks for a typo check.
+  const [detouredEmail, setDetouredEmail] = useState("");
   const [followingState, setFollowingState] = useState<
     "preparing" | "navigating" | null
   >(null);
@@ -151,8 +159,6 @@ export function EmailStep({
   const detourLinkRef = useRef<HTMLAnchorElement>(null);
   const noticeId = useId();
   const notice = "handOver" in detour ? null : detour;
-  const mounted = useRef(false);
-  const pending = useRef<AbortController | null>(null);
   const form = useForm<EmailFormSchemaType>({
     resolver: zodResolver(
       emailFormSchema(useTranslations("Library.Auth.Schema")),
@@ -169,24 +175,13 @@ export function EmailStep({
     },
   ];
 
-  useMountEffect(() => {
-    mounted.current = true;
-    // The other page hands over the address the person typed there. It is a
-    // starting value, not a locked one like an invitation's address.
-    const emailHint = takeAuthEmailHint();
-    const useHint =
-      emailHint !== null && !emailLocked && !form.getValues("email").trim();
-    if (useHint) {
-      form.setValue("email", emailHint);
-      onEmailChange?.(emailHint);
-    }
-    if (autoFocus || useHint) {
-      form.setFocus("email");
-    }
-    return () => {
-      mounted.current = false;
-      pending.current?.abort();
-    };
+  const { mountedRef: mounted, pendingRef: pending } =
+    useEmailStepPendingRequest();
+  useEmailStepHintAndFocus({
+    form,
+    emailLocked,
+    autoFocus,
+    onEmailChange,
   });
 
   const { isSubmitting } = form.formState;
@@ -194,10 +189,12 @@ export function EmailStep({
   // The pressed button went inert, so focus moves to the one that took its
   // place. A submitting fieldset cannot receive focus; wait until it is
   // enabled again.
-  useEffect(() => {
-    if (!isDetoured || isSubmitting) return;
-    detourLinkRef.current?.focus();
-  }, [isDetoured, isSubmitting]);
+  useFocusWhen(detourLinkRef, isDetoured && !isSubmitting);
+
+  function changeDetoured(detoured: boolean) {
+    setIsDetoured(detoured);
+    onDetourChange?.(detoured);
+  }
 
   // Following the detour and Continue never overlap: the detour only shows
   // once Continue is done. Each tells the parent from the event that changes it.
@@ -284,7 +281,8 @@ export function EmailStep({
           }
           detouredSince.current = performance.now();
           detourAccount.current = account;
-          setIsDetoured(true);
+          setDetouredEmail(email);
+          changeDetoured(true);
           return;
         }
 
@@ -306,7 +304,7 @@ export function EmailStep({
         isFollowingRef.current = false;
         changeFollowing(null);
         // The answer was about the address as it was.
-        setIsDetoured(false);
+        changeDetoured(false);
         onFormStart();
         onEmailChange?.(form.getValues("email"));
       }}
@@ -315,7 +313,9 @@ export function EmailStep({
       {/* Announces the notice. The visible copy below is the same text, so
           it is hidden from assistive technology rather than read twice. */}
       <p id={noticeId} role="status" className="sr-only">
-        {isDetoured && notice ? `${notice.title}. ${notice.description}` : null}
+        {isDetoured && notice
+          ? `${notice.title}. ${detouredEmail}. ${notice.description}`
+          : null}
       </p>
       <div
         data-testid="email-step-detour"
@@ -341,6 +341,7 @@ export function EmailStep({
           <div className="min-h-0 overflow-hidden">
             <div className="grid gap-0.5 pb-3 text-center">
               <p className="font-medium tracking-tight">{notice?.title}</p>
+              <p className="text-foreground wrap-anywhere">{detouredEmail}</p>
               <p className="text-muted-foreground">{notice?.description}</p>
             </div>
           </div>

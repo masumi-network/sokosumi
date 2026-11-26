@@ -24,7 +24,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/{id}/social-posts/{postId}/cancel",
     description:
-      "Cancel a draft, scheduled, or needs-approval Social post, or dismiss a failed or missed one. Canceling an already canceled post is a no-op. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.",
+      "Cancel a draft, scheduled, or needs-approval Social post, or dismiss a failed or missed one. Canceling an already canceled post is a no-op. Requires a person (any sign-in: session, API key, OAuth or MCP token) or an authorized task-capable Coworker with user context in the Project's Workspace. Approve, reject and publish now stay with a person (ADR 0077).",
     tags: ["Projects"],
     request: {
       params: socialPostParamsSchema,
@@ -65,7 +65,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       });
       return ok(
         c,
-        socialPostSchema.parse(presentSocialPost(post, userContext.coworkerId)),
+        socialPostSchema.parse(presentSocialPost(post, userContext)),
       );
     } catch (error) {
       return mapSocialPostServiceError(error);

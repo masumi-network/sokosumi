@@ -1,6 +1,12 @@
 import "./rooms-client-harness";
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomComposerHandle } from "@/app/chat/components/room-composer";
@@ -270,7 +276,7 @@ describe("RoomsClient opens a room at the Unread divider", () => {
     const view = render(<a href={`/chat/rooms/${room.id}`}>{room.name}</a>, {
       wrapper: RetainedRooms,
     });
-    screen.getByRole("link", { name: room.name }).click();
+    fireEvent.click(screen.getByRole("link", { name: room.name }));
     await waitFor(() => expect(openAtUnreadCalls()).toHaveLength(1));
 
     view.rerender(
@@ -285,8 +291,14 @@ describe("RoomsClient opens a room at the Unread divider", () => {
 
     // The click's read carries no visit signal; the room asked for no other.
     expect(openAtUnreadCalls()).toEqual([
-      [room.id, null, { openAtUnread: true }, expect.any(Function)],
+      [
+        room.id,
+        null,
+        { openAtUnread: true, signal: expect.any(AbortSignal) },
+        expect.any(Function),
+      ],
     ]);
+    view.unmount();
     clearMembershipVisibleRoomsSnapshot();
   });
 
@@ -598,23 +610,6 @@ describe("RoomsClient opens a room at the Unread divider", () => {
       expect(screen.getByText("body of peer-new")).toBeTruthy();
       expect(divider()).toBeNull();
     });
-
-    it("draws the divider the deferred first page names, and keeps it", async () => {
-      await openOnNamedMessage({
-        rooms: [unreadRoom()],
-        messagesPromise: Promise.resolve({
-          messages: [read1, read2, unread1, unread2],
-          nextCursor: null,
-          failed: false,
-          firstUnreadMessageId: "unread-1",
-        }),
-      });
-      expect(dividerMessageId()).toBe("unread-1");
-
-      await readAgainNaming(message("peer-new", 5));
-
-      expect(dividerMessageId()).toBe("unread-1");
-    });
   });
 
   it("shares one row with the day separator when both sit above the same message", async () => {
@@ -627,5 +622,45 @@ describe("RoomsClient opens a room at the Unread divider", () => {
       formatDaySeparator(new Date(read1.createdAt)),
     );
     expect(row?.textContent).toContain("UnreadDivider.label");
+  });
+
+  it("opens on the first top-level row when an open-at-unread window starts with a leaked reply", async () => {
+    const leakedReply: ChatRoomMessage = {
+      ...message("leaked-reply", 1),
+      parentMessageId: read1.id,
+    };
+    const old1 = message("old-1", 2);
+    answerOpenAtUnread(page([leakedReply, old1], "old-1", "leaked-reply"));
+    renderWithQueryClient(
+      <RoomsClient
+        {...roomsClientBaseProps({
+          rooms: [unreadRoom()],
+          messages: [unread1, unread2],
+          messagesNextCursor: "unread-1",
+        })}
+      />,
+    );
+    await waitFor(() => expect(dividerMessageId()).toBe("old-1"));
+    expect(screen.queryByText("body of leaked-reply")).toBeNull();
+  });
+
+  it("settles open-at-unread immediately when the window contains only replies", async () => {
+    const leakedReply: ChatRoomMessage = {
+      ...message("leaked-only", 1),
+      parentMessageId: read1.id,
+    };
+    answerOpenAtUnread(page([leakedReply], null, null));
+    renderWithQueryClient(
+      <RoomsClient
+        {...roomsClientBaseProps({
+          rooms: [unreadRoom()],
+          messages: [unread1, unread2],
+        })}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByText("body of unread-1")).toBeTruthy(),
+    );
+    expect(screen.queryByText("body of leaked-only")).toBeNull();
   });
 });

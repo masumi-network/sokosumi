@@ -59,7 +59,9 @@ export {
   brandColors,
   brandFonts,
   type DesignMdBrandLook,
+  type DesignMdLogo,
   designMdBrandLook,
+  designMdLogo,
   designMdPalette,
   distinctColors,
   isNeutral,
@@ -161,9 +163,19 @@ export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-type
 export {
   CMO_CHANNELS,
   CMO_OWNER_CONFIRMED_CHANNELS,
+  CMO_SHAPED_VIDEO_TARGETS,
+  CMO_SHORT_VIDEO_FORMATS,
+  CMO_VIDEO_SHAPES_SKILL,
   type CmoChannelKey,
+  type CmoShapedVideoTarget,
+  cmoOfferedFormats,
+  cmoShapedVideoTarget,
+  cmoShortVideoFormat,
+  cmoVideoShape,
   isCmoChannelFormat,
   isCmoOwnerConfirmedChannel,
+  isCmoShapedVideoFormat,
+  isCmoShortVideoFormat,
   isCmoTalkingFormat,
   normalizeCmoChannelFormat,
 } from "./cmo-channels.js";
@@ -176,10 +188,33 @@ export {
 } from "./cmo-competitor-week.js";
 export { withoutSokosumiLinks } from "./cmo-links.js";
 export {
+  CMO_PIECE_CREDITS,
+  CMO_PLAN_CREDITS,
+  CMO_PLAN_CREDITS_KEPT,
+  cmoMonthPieceBudget,
+  cmoPieceCredits,
+} from "./cmo-month-credits.js";
+export {
+  CMO_PLAIN_WORDS,
+  cmoJargonIn,
+  cmoPlainWordsLine,
+} from "./cmo-plain-words.js";
+export {
+  CMO_NETWORK_VOLUME,
+  CMO_SHORT_VIDEOS_PER_WEEK,
   CMO_VOLUME_LEVELS,
+  type CmoMonthTargets,
   type CmoMonthVolume,
+  type CmoNetworkRate,
+  type CmoNetworkTarget,
+  type CmoTargetChannel,
   type CmoVolumeLevel,
+  type CmoVolumeNetwork,
+  cmoCadencePerWeek,
   cmoMonthAtLevel,
+  cmoMonthFloor,
+  cmoMonthTargets,
+  cmoNetworkMonth,
   cmoVolumeLevelForTier,
 } from "./cmo-plan-volume.js";
 export {
@@ -194,13 +229,16 @@ export {
   CONTACT_REPLY_WAIT_DAYS,
   CONTACT_SORT_FIELDS,
   CONTACT_STAGES,
+  CONTACT_X_FOLLOWS,
   type ContactChannelType,
   type ContactFilter,
+  type ContactXFollowState,
   calendarDateSchema,
   companyListInputSchema,
   companyListMembersSchema,
   companyListUpdateSchema,
   contactChannelInputSchema,
+  contactDetailHref,
   contactFieldsSchema,
   contactFilterSchema,
   contactImportSchema,
@@ -275,6 +313,7 @@ export {
   buildUserDriveFolderMarkerPathname,
   buildUserDriveFolderPrefix,
   clampDriveFileName,
+  DRIVE_FILE_MAX_NAME_LENGTH,
   DRIVE_OWNER_PREFIX_PATTERN,
   driveFolderPathFromSourceId,
   isDriveFolderMarker,
@@ -358,6 +397,7 @@ export {
   extractFileLikeLinks,
   extractHttpLinks,
 } from "./markdown-links-extract.js";
+export { escapeMarkdownLinkLabel } from "./markdown-prose-scan.js";
 export {
   collectMarkdownUrlExcludedRanges,
   findBareHttpUrlHits,
@@ -419,9 +459,13 @@ export {
   buildOAuthClientGrantTypes,
   buildOAuthClientScopeParam,
   hasCoreApiOAuthScope,
+  hasOAuthScope,
   hasOfflineAccessOAuthScope,
   OAUTH_PROVIDER_SCOPES,
   OAUTH_SCOPE_CORE_API,
+  OAUTH_SCOPE_MCP,
+  OAUTH_SCOPE_OFFLINE_ACCESS,
+  OAUTH_SCOPE_OPENID,
 } from "./oauth-scopes.js";
 export {
   isReactJsonFencePrefixCandidate,
@@ -488,15 +532,22 @@ export {
   type SeoCapabilityUnlock,
 } from "./seo-capabilities.js";
 export {
+  allowsSeoCompletionEvent,
+  seoCompletionEvent,
+} from "./seo-completion-event.js";
+export {
   PAID_DATA_MARKUP_PERCENT,
   SEO_DEFAULT_FULL_AUDIT_USD,
   SEO_FULL_AUDIT_CREDITS,
+  SEO_FULL_AUDIT_MARKUP_PERCENT,
   SEO_FULL_AUDIT_MAX_PROVIDER_USD,
   SEO_FULL_AUDIT_MAX_SECONDS,
   SEO_MIN_AUDIT_USD,
   SEO_PAGE_CEILING_CENTS,
   type SeoCreditCeilingInput,
   seoCreditsForCents,
+  seoFullAuditAutoPages,
+  seoFullAuditPrice,
   seoMaxCredits,
 } from "./seo-credits.js";
 export {
@@ -511,7 +562,20 @@ export {
   seoInspectionCrawlTime,
   seoInspectionEvidence,
 } from "./seo-index-verdict.js";
+export { seoIssueKey } from "./seo-issue-key.js";
+export {
+  isPublicSeoSitemapPage,
+  isSeoUtilityOrFilePath,
+  publicExplorationText,
+  publicExplorationUrl,
+} from "./seo-public-evidence-url.js";
 export { normalizeSeoQuery } from "./seo-query.js";
+export { seoReportFileFormat } from "./seo-report-file.js";
+export {
+  hasSeasonalDemandRise,
+  seasonalUpdateHasPassed,
+  seoSeasonalTiming,
+} from "./seo-seasonal-timing.js";
 export {
   readSeoStatisticsNote,
   SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,
@@ -537,8 +601,16 @@ export {
   seoStatisticsQueryRowsCutNote,
 } from "./seo-statistics-notes.js";
 export {
+  hideSeoAuditRequest,
+  removeSeoTaskRequest,
+  type SeoTaskMarker,
+  seoTaskDescription,
+  seoTaskRequestPacket,
+} from "./seo-task-request.js";
+export {
   SEO_SEARCH_TYPES,
   SEO_TRAFFIC_CHANNELS,
+  seoSearchSiteHost,
   seoSearchUrlPrefixCovers,
 } from "./seo-traffic.js";
 export {
@@ -606,7 +678,13 @@ export { productBrief } from "./studio-product-brief.js";
 export { encodeTableCsv, parseTableCsv, readCsvRows } from "./table-csv.js";
 export { validateTableValues } from "./table-value-validation.js";
 export {
+  creditsPerShortVideoCents,
   creditsPerTalkingVideoCents,
+  SHORT_VIDEO_FORMAT_GUIDE,
+  SHORT_VIDEO_FORMATS,
+  SHORT_VIDEO_MAX_PICTURES,
+  SHORT_VIDEO_TEXT_FORMATS,
+  type ShortVideoFormat,
   TALKING_VIDEO_PLANNED_CREDITS,
   TALKING_VIDEO_PLANNED_SCRIPT,
   TALKING_VIDEO_PRICE,
@@ -659,6 +737,10 @@ export {
   formatTaskIdentifier,
   parseTaskRef,
 } from "./task-identifier.js";
+export {
+  isSeoTaskCompletion,
+  taskNotificationHref,
+} from "./task-notification-link.js";
 export { isTaskScheduleCronShape } from "./task-schedule-cron.js";
 export {
   isAgentOnlyTaskStatus,
@@ -702,6 +784,20 @@ export {
   type VideoLength,
   type VideoPriceFigures,
 } from "./video-credits.js";
+export {
+  DEFAULT_VIDEO_SHAPE,
+  VIDEO_KINDS,
+  VIDEO_RECIPES,
+  VIDEO_SHAPE_FRAMES,
+  VIDEO_SHAPE_LABELS,
+  VIDEO_SHAPES,
+  type VideoKind,
+  type VideoRecipe,
+  type VideoRecipeNeeds,
+  type VideoShape,
+  videoRecipeFor,
+  videoShapesFor,
+} from "./video-recipes.js";
 export {
   isEmptyOrValidWebsiteUrl,
   isValidHttpUrl,

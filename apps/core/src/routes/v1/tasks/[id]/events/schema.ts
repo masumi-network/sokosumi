@@ -15,10 +15,12 @@ import {
   resolveTaskEventChannel,
 } from "@/helpers/task-event-channel";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
+import { seoFullAuditCostSchema } from "@/schemas/seo-audit-price.schema";
 import {
   taskEventChannelField,
   taskEventDeprecatedOriginField,
 } from "@/schemas/task.schema";
+import { taskWorkerContextSchema } from "@/schemas/task-worker-context.schema";
 
 // Case-insensitive via an explicit character class, NOT the `i` flag:
 // zod-openapi serialises a flagged RegExp into the JSON-Schema `pattern` with
@@ -156,6 +158,20 @@ const masumiPaymentPayloadSchema = z
     PaymentSource: masumiPaymentSourceSchema.optional(),
   })
   .openapi("MasumiPayment");
+
+export const taskEventParamsSchema = z.object({
+  id: z.string().openapi({
+    param: { name: "id", in: "path" },
+    example: "tsk_123",
+  }),
+});
+
+export const seoSettlementFields = z.object({
+  status: z.literal("COMPLETED"),
+  credits: z.number().int().positive(),
+  expectedContext: taskWorkerContextSchema,
+  fullAuditCost: seoFullAuditCostSchema,
+});
 
 export function createTaskEventRequestSchema(
   params: { serverNetwork: "Preprod" | "Mainnet" } = {

@@ -8,21 +8,17 @@ import type {
   ProjectCompetitorMeasure,
   ProjectCompetitorSignal,
 } from "@sokosumi/core-client";
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useCallback, useId, useRef, useState } from "react";
 import type { CompetitorResult } from "../../app/cmo-actions";
+import { useCompetitorsData } from "../../hooks/effects/use-competitors-data";
 import { AGENT_NAME } from "../../lib/agent";
 import type { BrandBrain } from "../../lib/brand-sections";
+import { competitorsLead } from "../../lib/page-lead";
 import { hostOf } from "../brand-profile";
 import { MarketMap } from "../onboarding/market-map";
 import { StatusText } from "../status";
 import { SubmitButton } from "../submit-button";
+import { PageLead } from "./page-lead";
 
 export interface CompetitorActions {
   loadCompetitors: () => Promise<CmoCompetitors | null>;
@@ -78,33 +74,19 @@ const SIGNAL_KINDS: Record<ProjectCompetitorSignal["kind"], string> = {
   SOCIAL: "Instagram",
 };
 
-/** The Competitors page: the market map, the week's moves, the numbers, the list. */
+/** The Competitors page: the week's moves, the market map, the numbers, the list. */
 export function CompetitorsPage({
   overview,
   actions,
   compose,
 }: CompetitorsPageProps) {
-  const [data, setData] = useState<CmoCompetitors | null>(null);
-  const [failed, setFailed] = useState(false);
   const { loadCompetitors } = actions;
-
-  const load = useCallback(() => {
-    let current = true;
-    setFailed(false);
-    loadCompetitors()
-      .then((loaded) => {
-        if (!current) return;
-        if (loaded) setData(loaded);
-        else setFailed(true);
-      })
-      .catch(() => {
-        if (current) setFailed(true);
-      });
-    return () => {
-      current = false;
-    };
-  }, [loadCompetitors]);
-  useEffect(load, [load]);
+  const {
+    data,
+    setData,
+    failed,
+    reload: load,
+  } = useCompetitorsData(loadCompetitors);
 
   /** Runs a change and shows its result; why it did not go through comes back. */
   const change: Change = useCallback(async (run) => {
@@ -118,19 +100,21 @@ export function CompetitorsPage({
 
   if (failed) {
     return (
-      <div className="page-body">
-        <section className="card">
-          <h3>Your competitors did not load</h3>
-          <p className="muted">Nothing is lost. Load the page again.</p>
-          <button
-            type="button"
-            className="button button-secondary button-small"
-            onClick={load}
-          >
-            Try again
-          </button>
-        </section>
-      </div>
+      <>
+        <PageLead kicker="Competitors" title="Your competitors did not load." />
+        <div className="page-body">
+          <section className="card">
+            <p className="muted">Nothing is lost. Load the page again.</p>
+            <button
+              type="button"
+              className="button button-secondary button-small"
+              onClick={load}
+            >
+              Try again
+            </button>
+          </section>
+        </div>
+      </>
     );
   }
   if (!data) return <CompetitorsLoading />;
@@ -141,50 +125,56 @@ export function CompetitorsPage({
   const signals = new Map(data.signals.map((signal) => [signal.id, signal]));
 
   return (
-    <div className="page-body comp-page">
-      {map && brain ? (
-        <section className="card">
-          <h3>Where you stand</h3>
-          <MarketMap
-            map={
-              data.competitors.length === 0
-                ? map
-                : watchedMap(map, data.mapPlayers)
-            }
-            companies={brain.competitors}
-          />
-        </section>
-      ) : null}
-      <ThisWeek
-        data={data}
-        names={names}
-        signals={signals}
-        addToStrategy={(itemId) =>
-          change(() => actions.addMoveToStrategy(itemId))
-        }
-      />
-      <Scoreboard data={data} />
-      <TopPosts data={data} names={names} compose={compose} />
-      <ComparingSearches data={data} compose={compose} />
-      <Found data={data} names={names} />
-      <Manage data={data} actions={actions} change={change} />
-    </div>
+    <>
+      <PageLead {...competitorsLead(data)} />
+      <div className="page-body comp-page">
+        <ThisWeek
+          data={data}
+          names={names}
+          signals={signals}
+          addToStrategy={(itemId) =>
+            change(() => actions.addMoveToStrategy(itemId))
+          }
+        />
+        {map && brain ? (
+          <section className="card">
+            <h3>Where you stand</h3>
+            <MarketMap
+              map={
+                data.competitors.length === 0
+                  ? map
+                  : watchedMap(map, data.mapPlayers)
+              }
+              companies={brain.competitors}
+            />
+          </section>
+        ) : null}
+        <Scoreboard data={data} />
+        <TopPosts data={data} names={names} compose={compose} />
+        <ComparingSearches data={data} compose={compose} />
+        <Found data={data} names={names} />
+        <Manage data={data} actions={actions} change={change} />
+      </div>
+    </>
   );
 }
 
 /** The page while it loads: dashed boxes where the sections will be. */
 function CompetitorsLoading() {
   return (
-    <div className="page-body" aria-busy="true">
-      <span className="sr-only">Loading your competitors</span>
-      {[0, 1, 2].map((box) => (
-        <div key={box} className="comp-skeleton" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
-      ))}
-    </div>
+    <>
+      <PageLead kicker="Competitors" title="Reading what moved." />
+      <div className="page-body" aria-busy="true">
+        <span className="sr-only">Loading your competitors</span>
+        {[0, 1, 2].map((box) => (
+          <div key={box} className="comp-skeleton" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -439,21 +429,25 @@ interface ScoreboardProps {
   data: CmoCompetitors;
 }
 
+/**
+ * The Instagram scoreboard, once a competitor has a real number: the owner's
+ * own row alone, or a table of dashes, compares nothing.
+ */
 function Scoreboard({ data }: ScoreboardProps) {
   const { social } = data.check.sources;
   const hasNumbers = data.scoreboard.some(
-    (row) => row.postsPerWeek || row.followers || row.engagementPerPost,
+    (row) =>
+      row.competitorId !== null &&
+      (row.postsPerWeek ||
+        row.followers ||
+        row.engagementPerPost ||
+        row.followerGrowth),
   );
+  if (!hasNumbers && !social.needs) return null;
   return (
     <section className="card">
       <h3>Scoreboard</h3>
       {social.needs ? <p className="muted">{social.needs}</p> : null}
-      {!social.needs && !hasNumbers ? (
-        <p className="muted">
-          No Instagram numbers yet. They come with the next check, for
-          competitors with a business account.
-        </p>
-      ) : null}
       {hasNumbers ? (
         <>
           <div className="comp-table">

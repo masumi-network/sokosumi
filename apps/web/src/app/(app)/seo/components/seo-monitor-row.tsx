@@ -21,6 +21,7 @@ import { SEO_MAX_MONITOR_RUNS } from "./seo-form-model";
 import { SeoMonitorChange } from "./seo-monitor-change";
 import { seoMonitorPagesDiffer, seoMonitorRunsLeft } from "./seo-monitor-model";
 import { useSeoMonitorPlanText } from "./seo-monitor-text";
+import { SeoSearchConsoleWarning } from "./seo-search-console-warning";
 import { SeoDate, SeoState } from "./seo-shared";
 import { useSeoMonitor } from "./use-seo-monitor";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -46,6 +47,7 @@ export function SeoMonitorRow({
     <li
       className="space-y-2 py-3 first:pt-0 last:pb-0"
       data-testid="seo-monitor"
+      id={`seo-monitor-${monitor.id}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
         <p className="min-w-0 max-w-prose text-sm">{planText(monitor)}</p>
@@ -103,6 +105,30 @@ export function SeoMonitorRow({
         </dd>
       </dl>
       <SeoMonitorChange change={monitor.change} />
+      {row.warning && monitor.isOwner && !ended && canEdit ? (
+        <SeoSearchConsoleWarning
+          reason={row.warning}
+          mode="manualRun"
+          model={{
+            ...model,
+            data: {
+              ...model.data,
+              searchConsolePropertyId: undefined,
+              scope: {
+                ...model.data.scope,
+                id: null,
+                version: monitor.scopeVersion,
+                pageIds: monitor.pageIds,
+              },
+            },
+          }}
+          onClose={row.cancelRun}
+          onRetry={(id) =>
+            void row.runNow(id ? { searchConsolePropertyId: id } : undefined)
+          }
+          onLimited={() => void row.runNow({ allowLimitedAudit: true })}
+        />
+      ) : null}
       {pagesDiffer ? (
         <p className="flex items-start gap-1.5 text-xs">
           <TriangleAlert

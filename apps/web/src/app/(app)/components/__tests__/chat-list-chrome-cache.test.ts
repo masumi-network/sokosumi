@@ -128,7 +128,7 @@ describe("loadMembershipVisibleRooms progressive paint", () => {
 });
 
 describe("chat list chrome single-source composition contract", () => {
-  it("sidebar shares private chrome slices; chats page awaits rooms first", async () => {
+  it("sidebar and chats page share private chrome slices, rooms first", async () => {
     const { readFileSync } = await import("node:fs");
     const { dirname, join } = await import("node:path");
     const { fileURLToPath } = await import("node:url");
@@ -138,7 +138,10 @@ describe("chat list chrome single-source composition contract", () => {
       join(dir, "../private-cached-app-sidebar.tsx"),
       "utf8",
     );
-    const chatsPage = readFileSync(join(dir, "../../chat/page.tsx"), "utf8");
+    const chatsPage = readFileSync(
+      join(dir, "../../chat/rooms/page.tsx"),
+      "utf8",
+    );
     const cacheSource = readFileSync(
       join(dir, "../private-sidebar-cache.ts"),
       "utf8",
@@ -159,10 +162,12 @@ describe("chat list chrome single-source composition contract", () => {
     expect(sidebarLoader).toMatch(
       /getPrivateCachedChatListArchivedAndMembers\(args\)/,
     );
-    // Chats awaits membership rooms, then Suspense-streams archived+members.
-    expect(chatsPage).toMatch(/getPrivateCachedMembershipVisibleRooms/);
-    expect(chatsPage).toMatch(/getPrivateCachedChatListArchivedAndMembers/);
-    expect(chatsPage).toMatch(/<Suspense/);
+    // Chats takes the sidebar's loader: rooms awaited, archived+members filled
+    // into the same mounted list. A Suspense fallback list would be replaced
+    // by a second list, dropping a tap or an open dialog.
+    expect(chatsPage).toMatch(/loadSidebarChatList/);
+    expect(chatsPage).toMatch(/<SidebarChatList/);
+    expect(chatsPage).not.toMatch(/<Suspense/);
     // Page must not re-issue raw listRooms / listArchived / members after the
     // shared private-cache slices own that cold composition work.
     expect(chatsPage).not.toMatch(/chatRoomService\s*\.\s*listRooms\s*\(/);
@@ -247,9 +252,7 @@ describe("chat list chrome single-source composition contract", () => {
     // The switcher has none: its workspaces arrive with the frame.
     expect(headerTrailingTools).toMatch(/HeaderNotificationBell/);
     expect(headerProfile).not.toMatch(/<Suspense/);
-    expect(headerProfile).toMatch(
-      /<WorkspaceSwitcherMenu[\s\S]*\/>[\s\S]*<HeaderTrailingTools/,
-    );
+    expect(headerProfile).toMatch(/<HeaderTrailingTools\s*\/>/);
 
     const fallback = switcherSkeleton.slice(
       switcherSkeleton.indexOf("WORKSPACE_SWITCHER_AVATAR_CLASS ="),

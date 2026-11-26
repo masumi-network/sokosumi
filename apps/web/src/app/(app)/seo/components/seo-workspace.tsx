@@ -9,20 +9,15 @@ import {
   ChevronLeft,
   Eye,
   Info,
-  Lightbulb,
   ListChecks,
   ListOrdered,
-  ListPlus,
   type LucideIcon,
-  MoreHorizontal,
-  PencilLine,
-  Plus,
   RotateCw,
   Settings2,
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   seoClientReadNeedsPage,
   seoLoadErrorStatus,
@@ -30,12 +25,6 @@ import {
 } from "@/app/seo/seo-load-error-model";
 import { SEO_TABS, type SeoTab } from "@/app/seo/seo-query";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
@@ -49,6 +38,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { useScrollChildIntoViewX } from "@/hooks/effects/use-scroll-child-into-view-x";
 import { cn } from "@/lib/utils";
 import { seoIndexHref } from "../seo-href";
 import { SeoActions } from "./seo-actions";
@@ -60,11 +50,11 @@ import { SeoBriefDialog } from "./seo-brief-dialog";
 import { SeoChatPanel } from "./seo-chat-panel";
 import { SeoEditDialog } from "./seo-edit-dialog";
 import { SeoImproveDialog } from "./seo-improve";
-import { SeoIndexStatus } from "./seo-index-status";
 import { SeoHealth } from "./seo-overview";
 import { SeoPageChangeDialog } from "./seo-page-change-dialog";
 import { SeoPageError } from "./seo-page-error";
 import { SeoRankings } from "./seo-rankings";
+import { seoReportVersions } from "./seo-report-files-model";
 import { SeoRunButton } from "./seo-run-button";
 import { SeoRuns } from "./seo-runs";
 import { seoRunDays, seoRunsRow } from "./seo-runs-model";
@@ -78,9 +68,9 @@ import {
 import { seoCheckRunning, seoRunAction } from "./seo-setup-model";
 import { SeoEmpty, SeoPageLink } from "./seo-shared";
 import { SeoStatisticsDialog } from "./seo-statistics-dialog";
-import { SeoSummaryTiles } from "./seo-summary-tiles";
 import { SeoTraffic } from "./seo-traffic";
 import { seoChannelLabel } from "./seo-traffic-model";
+import { SeoWorkspaceMenu } from "./seo-workspace-menu";
 import { useSeoWorkspace } from "./use-seo-workspace";
 
 /** A load faster than this shows no skeleton at all. */
@@ -145,19 +135,15 @@ export function SeoWorkspace({
   // The tab bar scrolls sideways on a phone; keep the open tab in view.
   const tabBar = useRef<HTMLDivElement>(null);
   const activeTab = model.filters.tab;
-  useEffect(() => {
-    const bar = tabBar.current;
-    const tab = bar?.querySelector<HTMLElement>(
-      `[role="tab"][data-state="active"]`,
-    );
-    if (!bar || !tab) return;
-    // Scroll the bar only; scrolling the tab into view could move the page.
-    const outer = bar.getBoundingClientRect();
-    const inner = tab.getBoundingClientRect();
-    if (inner.left < outer.left) bar.scrollLeft -= outer.left - inner.left;
-    else if (inner.right > outer.right)
-      bar.scrollLeft += inner.right - outer.right;
-  }, [activeTab]);
+  // Scroll the bar only; scrolling the tab into view could move the page.
+  useScrollChildIntoViewX(
+    tabBar,
+    () =>
+      tabBar.current?.querySelector<HTMLElement>(
+        `[role="tab"][data-state="active"]`,
+      ),
+    activeTab,
+  );
   const dialogKey = `${model.viewerKey}:${model.dialog}:${model.filters.pageId ?? ""}:${model.filters.scopeId ?? ""}:${model.editingKeyword?.id ?? ""}:${model.keywordDraft?.keyword ?? ""}`;
   const editDialog =
     model.dialog === "page" ||
@@ -166,6 +152,10 @@ export function SeoWorkspace({
     model.dialog === "keyword" ||
     model.dialog === "edit_keyword" ||
     model.dialog === "competitor";
+  const versions =
+    model.invalidDates || model.updating
+      ? []
+      : seoReportVersions(model.data, model.filters);
   const unavailable = model.loadingScope || model.invalidDates;
   const loadStatus = seoLoadErrorStatus(model.result.error);
   if (
@@ -307,73 +297,12 @@ export function SeoWorkspace({
           </div>
         </div>
         <div className="col-start-2 row-start-2 flex flex-nowrap gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              {/* The trigger shows only its icon: the run leads the checks card under the header. An icon-only
-                  control is 40 px below md. */}
-              <Button
-                variant="outline"
-                size="sm"
-                title={t("manage")}
-                className="max-md:min-h-10 max-md:min-w-10"
-              >
-                <MoreHorizontal className="size-4" />
-                <span className="sr-only">{t("manage")}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {model.data.availableActions.canEdit ? (
-                <DropdownMenuItem
-                  disabled={unavailable}
-                  onSelect={() => model.setDialog("brief")}
-                >
-                  <PencilLine className="size-4" />
-                  {t("brief.title")}
-                </DropdownMenuItem>
-              ) : null}
-              {model.data.availableActions.canSyncMetrics ? (
-                <DropdownMenuItem
-                  disabled={unavailable}
-                  onSelect={() => model.setDialog("statistics")}
-                >
-                  <Settings2 className="size-4" />
-                  {t("manageStatistics")}
-                </DropdownMenuItem>
-              ) : null}
-              {model.data.availableActions.canEdit ? (
-                <>
-                  <DropdownMenuItem
-                    disabled={unavailable}
-                    onSelect={() => model.setDialog("page")}
-                  >
-                    <Plus className="size-4" />
-                    {t("addPage")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={unavailable || !model.data.pages.length}
-                    onSelect={() => model.setDialog("scope")}
-                  >
-                    <ListPlus className="size-4" />
-                    {t("createScope")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={unavailable || !model.data.scope.pageIds.length}
-                    onSelect={() => model.setDialog("page_change")}
-                  >
-                    <PencilLine className="size-4" />
-                    {t("pageChange.title")}
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-              <DropdownMenuItem
-                disabled={unavailable}
-                onSelect={() => model.setDialog("improve")}
-              >
-                <Lightbulb className="size-4" />
-                {t("improve.catalog.title")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <SeoWorkspaceMenu
+            versions={versions}
+            key={model.viewerKey}
+            model={model}
+            unavailable={unavailable}
+          />
         </div>
       </div>
       {/* One group of notices; it takes no room when none shows. */}
@@ -445,6 +374,7 @@ export function SeoWorkspace({
         className="gap-4"
       >
         <SeoRuns
+          versions={versions}
           model={model}
           shown={runsRow}
           runButton={
@@ -624,9 +554,7 @@ export function SeoWorkspace({
             </TabsContent>
             {/* What to do first, then what the checks found: the health of the site stands under its fixes. */}
             <TabsContent value="actions" className="stagger space-y-6">
-              <SeoSummaryTiles workspace={model.data} filters={model.filters} />
               <SeoActions model={model} />
-              <SeoIndexStatus workspace={model.data} />
               <SeoHealth model={model} />
             </TabsContent>
           </div>
@@ -646,7 +574,7 @@ export function SeoWorkspace({
           {editDialog ? <SeoEditDialog key={dialogKey} model={model} /> : null}
           {model.dialog === "analysis" || model.dialog === "monitor" ? (
             <SeoAnalysisDialog
-              key={dialogKey}
+              key={`${dialogKey}:${model.setupScopeKey}`}
               model={model}
               monitor={model.dialog === "monitor"}
             />

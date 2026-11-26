@@ -18,6 +18,7 @@ import {
 import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { chatQueryKeys } from "@/queries/chat";
 
 interface RoomDecisionsPopoverProps {
   room: ChatRoom;
@@ -103,9 +104,6 @@ export function RoomDecisionsPopover({
             onJumpToMessage(message);
           }}
         />
-        <p className="text-muted-foreground px-2 pt-2 text-xs text-pretty">
-          {t("Decisions.note")}
-        </p>
       </PopoverContent>
     </Popover>
   );
@@ -125,7 +123,7 @@ function DecisionsList({
     [room.userMembers],
   );
   const query = useInfiniteQuery({
-    queryKey: ["chat-room-decisions", room.id],
+    queryKey: chatQueryKeys.roomDecisions(room.id),
     queryFn: async ({ pageParam }) => {
       const result = await listChatRoomDecisionsAction(room.id, pageParam);
       if (!result.ok) throw new Error(result.error.message ?? "");
@@ -193,6 +191,12 @@ function DecisionsList({
         >
           {t("Decisions.loadOlder")}
         </Button>
+      ) : null}
+      {/* How to fix a wrong one, so only under a list that has one. */}
+      {decisions.length > 0 ? (
+        <p className="text-muted-foreground px-2 pt-2 text-xs text-pretty">
+          {t("Decisions.note")}
+        </p>
       ) : null}
     </>
   );

@@ -20,6 +20,7 @@ import {
   betterAuthUserAdditionalFields,
   getEmailLocale,
   OAUTH_PROVIDER_SCOPES,
+  OAUTH_SCOPE_MCP,
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
 } from "@sokosumi/utils";
@@ -57,6 +58,10 @@ import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import prisma from "@/lib/db/prisma";
 import { runAsBackgroundWork } from "@/lib/evlog";
+import {
+  mcpOAuthResource,
+  mcpResourceIdentifier,
+} from "@/lib/sokosumi-mcp/resource";
 import { handleStripeAuthWebhookOnEvent } from "@/lib/stripe-auth-webhook-on-event";
 import { resolveActiveOrganizationIdForSession } from "@/services/preferred-workspace.service";
 import { disconnectLeaverSokoBotIntegrationsBestEffort } from "@/services/soko-bot-integration-leaver.service";
@@ -72,9 +77,11 @@ import {
   emailCodeSignIn,
   resolveEmailCodeSignUpLoginMethod,
 } from "./auth-email-code-sign-in";
-import { afterNewSession } from "./auth-new-session";
+import { afterAuthRequest } from "./auth-new-session";
 import {
   acceptCmoPreviewCallback,
+  applyOAuthClientPolicy,
+  clientRegistrationOptions,
   jwtKeyStoreOptions,
   oauthRefreshTokenOptions,
   revokeUserOAuthTokens,
@@ -103,7 +110,10 @@ import {
   validateUpdatedUserName,
   validateUserNameLength,
 } from "./auth-user-name";
-import { betterAuthLogger } from "./evlog-library-logs";
+import {
+  betterAuthLogger,
+  captureBetterAuthOAuthErrorURL,
+} from "./evlog-library-logs";
 import { anchorVerificationCallbackToWebApp } from "./verification-email-callback";
 
 const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
@@ -115,6 +125,7 @@ const EMAIL_CODE_EXPIRES_IN_SECONDS = 10 * 60;
 const env = getEnv();
 const webAppBaseUrl = getWebAppBaseUrl();
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
+const mcpResource = mcpResourceIdentifier(betterAuthBaseUrl);
 const betterAuthCookiePrefixParams = {
   network: env.NETWORK,
   vercelEnv: env.VERCEL_ENV,
@@ -382,6 +393,8 @@ export const auth = betterAuth({
       if (ctx.path === "/update-user") {
         await validateUpdatedUserName(ctx);
       }
+
+      return applyOAuthClientPolicy(ctx, mcpResource);
     }),
     after: createAuthMiddleware(async (ctx) => {
       if (ctx.path === "/organization/leave") {
@@ -416,7 +429,8 @@ export const auth = betterAuth({
         );
       }
 
-      await afterNewSession(ctx);
+      await captureBetterAuthOAuthErrorURL(ctx.path);
+      return await afterAuthRequest(ctx);
     }),
   },
   emailAndPassword: {
@@ -644,11 +658,20 @@ export const auth = betterAuth({
       // anyone is signed in. Answered only for a request this provider signed.
       allowPublicClientPrelogin: true,
       consentPage: `${webAppBaseUrl}/oauth/consent`,
-      scopes: [...OAUTH_PROVIDER_SCOPES],
-      // Defaults to identity-only; allow-list keeps sokosumi:api opt-in available
-      // for authenticated create-client and for DCR if enabled later.
-      clientRegistrationDefaultScopes: ["openid"],
-      clientRegistrationAllowedScopes: [...OAUTH_PROVIDER_SCOPES],
+      scopes: [...OAUTH_PROVIDER_SCOPES, OAUTH_SCOPE_MCP],
+      // A token requested with `resource={origin}/mcp` is a 15-minute JWT
+      // for Core's MCP server, never usable at `/v1` (ADR 0076). Per-client
+      // resource links stay enforced (the plugin default), so a client gets
+      // MCP tokens only once it is linked to the resource.
+      resources: [mcpOAuthResource(betterAuthBaseUrl)],
+      // Each cold start writes the fields `mcpOAuthResource` sets (name,
+      // access-token TTL, allowed scopes) onto the existing row, so a change
+      // to them ships with the deploy. Columns it leaves out, such as
+      // `disabled` or `refreshTokenTtl`, keep any edit made in the database.
+      resourceSeedMode: "merge",
+      // Open self-registration for MCP clients: public PKCE clients capped
+      // at the MCP scopes and linked to the MCP resource (ADR 0076).
+      ...clientRegistrationOptions(mcpResource),
       grantTypes: ["authorization_code", "refresh_token"],
       // Production keeps exact redirect URI matching (ADR 0045).
       ...(env.VERCEL_ENV === "preview"

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { headlineProblem } from "./eval-cmo-report-headline";
+import { headlineProblem, partPatchChecks } from "./eval-cmo-report-headline";
 
 describe("headlineProblem", () => {
   it.each([
@@ -18,5 +18,37 @@ describe("headlineProblem", () => {
     ["LinkedIn is down to one post a week", null],
   ])("reads %s as %s", (headline, problem) => {
     expect(headlineProblem(headline)).toBe(problem);
+  });
+});
+
+describe("partPatchChecks", () => {
+  const save = (part?: string) => ({
+    capability: "save_strategy",
+    input: part ? { part } : {},
+  });
+  const passes = (
+    calls: { capability: string; input: unknown }[],
+    answer = "",
+  ) => partPatchChecks(calls, answer).map((check) => check.pass);
+
+  it("passes a change saved as a part patch", () => {
+    expect(
+      passes(
+        [save("patch"), save("plan")],
+        "LinkedIn is down to one post a week.",
+      ),
+    ).toEqual([true, true]);
+  });
+
+  it("fails a whole calendar, sent as part calendar or with no part", () => {
+    expect(passes([save("calendar")])).toEqual([false, true]);
+    expect(passes([save()])).toEqual([false, true]);
+  });
+
+  // NMKR's Cuso, 21 Nov 2026.
+  it("fails an answer that asks the owner for the calendar", () => {
+    expect(passes([], "Could you send me the full strategy calendar?")).toEqual(
+      [true, false],
+    );
   });
 });

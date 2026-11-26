@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
 import { emailOTP } from "better-auth/plugins/email-otp";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import {
   afterAll,
@@ -21,7 +22,6 @@ import {
   vi,
 } from "vitest";
 import { useEmailCode } from "@/auth/components/use-email-code";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { fireGTMEvent } from "@/lib/gtm-events";
 
 import SignUpForm from "./form";
@@ -43,9 +43,9 @@ function SignUpStep({
     returnUrl: undefined,
     beforeLeaving: () => mockHandleUtmConversion(),
   });
-  useMountEffect(() => {
+  useEffect(() => {
     if (codeSent) void emailCode.sendCode(EMAIL);
-  });
+  }, []);
   return (
     <SignUpForm
       email={EMAIL}
@@ -267,8 +267,8 @@ describe("SignUpForm with a password", () => {
     expect(username).toHaveAttribute("spellcheck", "false");
   });
 
-  it("stacks the name fields on a phone and pairs them from the sm breakpoint", () => {
-    renderForm();
+  it("stacks the name fields on a phone and pairs them from the sm breakpoint", async () => {
+    await act(async () => renderForm());
 
     const lastName = screen.getByLabelText("lastNameLabel");
     let row = screen.getByLabelText("firstNameLabel").parentElement;
@@ -277,24 +277,42 @@ describe("SignUpForm with a password", () => {
     expect(row).not.toHaveClass("grid-cols-2");
   });
 
-  it("keeps the name labels visible above their fields, like the code", async () => {
+  it("keeps every label visible above its field, the added password too", async () => {
     renderForm();
     await userEvent
       .setup()
       .click(screen.getByRole("button", { name: "addPassword" }));
 
     // A placeholder vanishes on the first keystroke; the labels stay.
-    for (const label of ["firstNameLabel", "lastNameLabel", "codeLabel"]) {
+    for (const label of [
+      "firstNameLabel",
+      "lastNameLabel",
+      "Fields.Password.label",
+      "codeLabel",
+    ]) {
       expect(screen.getByText(label, { selector: "label" })).not.toHaveClass(
         "sr-only",
       );
     }
-    for (const label of ["firstNameLabel", "lastNameLabel"]) {
+    for (const label of [
+      "firstNameLabel",
+      "lastNameLabel",
+      "Fields.Password.label",
+    ]) {
       expect(screen.getByLabelText(label)).not.toHaveAttribute("placeholder");
     }
-    expect(screen.getByLabelText("Fields.Password.label")).toHaveAttribute(
-      "placeholder",
-      "Fields.Password.label",
+  });
+
+  it("moves focus into the password field it adds", async () => {
+    renderForm();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "addPassword" }));
+
+    // The field appears above the button; focus left on the button would
+    // leave a keyboard or screen-reader user past it.
+    await waitFor(() =>
+      expect(screen.getByLabelText("Fields.Password.label")).toHaveFocus(),
     );
   });
 

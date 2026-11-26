@@ -7,12 +7,14 @@ import { createDataTableSchema } from "@sokosumi/utils";
 import { tableImportBatches } from "@/app/drive/tables/table-import";
 import type { SeoCompetitorSite } from "./seo-competitors-model";
 import type { SeoCsvCell } from "./seo-csv";
+import { seoFollowUpText } from "./seo-followup-review";
 import type { SeoKeywordGroup } from "./seo-keyword-rows-model";
+import type { IdeaAssessment } from "./seo-keyword-shortlist";
 import type { SeoTopPage } from "./seo-search-model";
 import type { seoKeyEvents } from "./seo-traffic-model";
 
 /**
- * One table as the CSV writes it: translated column names and raw values. `types` names what each column
+ * One table as the CSV writes it: English column names and raw values. `types` names what each column
  * holds, for a copy into a Files Table; a column without one is text.
  */
 export type SeoExport = {
@@ -151,6 +153,32 @@ export function seoKeywordsTableExport(
   };
 }
 
+export function seoKeywordIdeasExport(
+  groups: SeoKeywordGroup[],
+  assessments: ReadonlyMap<string, IdeaAssessment>,
+  t: Label,
+): SeoExport {
+  const table = seoKeywordsTableExport(groups, t);
+  return {
+    header: [
+      ...table.header,
+      t("keywords.shortlist.label"),
+      t("keywords.shortlist.gain"),
+    ],
+    types: [...(table.types ?? []), "text", "number"],
+    rows: table.rows.map((row, i) => {
+      const assessment = assessments.get(groups[i].lead.id);
+      return [
+        ...row,
+        assessment?.reason === "priority"
+          ? t("keywords.shortlist.label")
+          : t("keywords.map.idea"),
+        assessment?.extra ?? null,
+      ];
+    }),
+  };
+}
+
 /** The competitor sites as listed: one row per site, with the page the row shows and its numbers. */
 export function seoCompetitorsExport(
   sites: SeoCompetitorSite[],
@@ -179,6 +207,15 @@ export function seoActionsExport(
   actions: ProjectSeoAction[],
   t: Label,
 ): SeoExport {
+  // The actions CSV can be shared. Keep a private review and any row it alone reopened out of it.
+  actions = actions.flatMap((action) => {
+    if (!action.followUpReview || !("beforePeriod" in action.followUpReview))
+      return [action];
+    const { followUpReview: _privateReview, ...original } = action;
+    return action.status === "needs_review" ? [] : [original];
+  });
+  const hasReviews = actions.some((action) => action.followUpReview);
+  const hasDecisions = actions.some((action) => action.decision);
   return {
     header: [
       t("export.action"),
@@ -190,6 +227,14 @@ export function seoActionsExport(
       t("actions.effect"),
       t("actions.before"),
       t("actions.after"),
+      ...(hasReviews ? [t("actions.reviewAgain")] : []),
+      ...(hasDecisions
+        ? [
+            t("actions.alternative"),
+            t("actions.nextCheck"),
+            t("actions.evidence"),
+          ]
+        : []),
     ],
     rows: actions.map((action) => [
       action.title,
@@ -198,9 +243,23 @@ export function seoActionsExport(
       t(`actions.${action.status}`),
       t(`priority.${action.effort}`),
       action.why,
-      action.expectedEffect,
+      action.decision ? null : action.expectedEffect,
       action.edit?.before ?? null,
       action.edit?.after ?? null,
+      ...(hasReviews
+        ? [
+            action.followUpReview
+              ? seoFollowUpText(action.followUpReview, t)
+              : null,
+          ]
+        : []),
+      ...(hasDecisions
+        ? [
+            action.decision?.alternative ?? null,
+            action.decision?.nextCheck ?? null,
+            action.decision ? action.evidence.join("\n") : null,
+          ]
+        : []),
     ]),
   };
 }

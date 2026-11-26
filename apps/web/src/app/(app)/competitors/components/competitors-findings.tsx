@@ -1,9 +1,11 @@
 import type { ProjectCompetitors } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
+import { PageSearchRows } from "@/components/page-list-search";
 
 import { CompetitorsExample, CompetitorsFinding } from "./competitors-finding";
 import { CompetitorsEmpty, CompetitorsPanel } from "./competitors-panel";
 import { CompetitorsSource } from "./competitors-source";
+import { showsExample } from "./competitors-view";
 
 const SOURCES = ["news", "ads", "social"] as const;
 
@@ -25,7 +27,7 @@ export async function CompetitorsFindings({
   // What a source needs before it can be read, said where its findings go.
   const needs = SOURCES.flatMap((source) => check.sources[source].needs ?? []);
 
-  if (findings.length === 0 && !check.lastCheckedAt && !check.on)
+  if (showsExample(data))
     return (
       <CompetitorsPanel
         aside={t("example")}
@@ -47,16 +49,22 @@ export async function CompetitorsFindings({
           {check.lastCheckedAt ? t("nothing") : t("running")}
         </CompetitorsEmpty>
       ) : (
-        findings.map((signal) => (
-          <CompetitorsFinding
-            key={signal.id}
-            kind={t(`kind.${signal.kind}`)}
-            name={names.get(signal.competitorId) ?? ""}
-            quote={signal.quote}
-            source={<CompetitorsSource signal={signal} />}
-            summary={signal.summary}
-          />
-        ))
+        <PageSearchRows
+          rows={findings.map((signal) => ({
+            primary: [signal.summary, names.get(signal.competitorId)],
+            secondary: [signal.quote, t(`kind.${signal.kind}`)],
+            content: (
+              <CompetitorsFinding
+                key={signal.id}
+                kind={t(`kind.${signal.kind}`)}
+                name={names.get(signal.competitorId) ?? ""}
+                quote={signal.quote}
+                source={<CompetitorsSource signal={signal} />}
+                summary={signal.summary}
+              />
+            ),
+          }))}
+        />
       )}
       {needs.length > 0 ? (
         <p className="text-muted-foreground px-2 pb-1 text-xs">

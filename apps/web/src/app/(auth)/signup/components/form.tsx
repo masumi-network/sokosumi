@@ -22,7 +22,7 @@ import {
 import { FirstAndLastNameFields } from "@/components/auth/first-and-last-name-fields";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useFocusFormFieldOnMount } from "@/hooks/effects/use-focus-form-field-on-mount";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
 import type { FormData } from "@/lib/form";
@@ -123,9 +123,7 @@ export default function SignUpForm({
   });
 
   // The step replaced the one the user was typing in, so focus follows.
-  useMountEffect(() => {
-    form.setFocus("firstName");
-  });
+  useFocusFormFieldOnMount(form, "firstName");
 
   const handleSubmit = async (values: z.infer<typeof passwordSchema>) => {
     track("Sign Up", { provider: withPassword ? "credential" : "email-otp" });
@@ -170,7 +168,13 @@ export default function SignUpForm({
 
   const togglePassword = () => {
     form.clearErrors("password");
-    setWithPassword((current) => !current);
+    if (withPassword) {
+      setWithPassword(false);
+      return;
+    }
+    setWithPassword(true);
+    // The field appears above this button once drawn; take focus there, not past it.
+    requestAnimationFrame(() => form.setFocus("password"));
   };
 
   return (
@@ -191,6 +195,7 @@ export default function SignUpForm({
           form={form}
           formData={signUpPasswordFormData}
           namespace="Auth.Pages.SignUp.Form"
+          visibleLabels
         />
       ) : null}
       {/* The updates choice closes the profile; the code and Register below

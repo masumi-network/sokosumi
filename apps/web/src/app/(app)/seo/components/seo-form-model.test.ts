@@ -176,14 +176,14 @@ describe("SEO form intent", () => {
     expect(body.keywords).toEqual([]);
     expect(body.competitorUrls).toEqual(["https://competitor.example/"]);
   });
-  it("omits a single-page full-audit limit the worker cannot honor", () => {
+  it("sends the same limits for a full audit of one page, never the form's own", () => {
     const form = analysisForm();
     form.set("kind", "audit_full");
     form.set("keywords", "stablecoins");
     form.set("usd", "10");
     form.set("seconds", "120");
     const body = analysisSeoBody(form, seoTestWorkspace());
-    expect(body.fullAuditLimits).toBeUndefined();
+    expect(body.fullAuditLimits).toEqual({ usd: 5, seconds: 5_400 });
     expect(body.maxProviderCalls).toBeUndefined();
   });
 
@@ -297,31 +297,22 @@ describe("SEO form intent", () => {
 describe("seoAnalysisMaxCredits", () => {
   it("shows the ceiling Core checks, and none while a limit field is not a valid value", () => {
     expect(seoAnalysisMaxCredits({ kind: "free" })).toBe(0);
-    expect(seoAnalysisMaxCredits({ kind: "standard" })).toBe(750);
-    expect(
-      seoAnalysisMaxCredits({ kind: "full", usd: 0.33, seconds: 900 }),
-    ).toBe(750);
     expect(seoAnalysisMaxCredits({ kind: "requests", count: 20 })).toBe(150);
     // A half-typed field must not throw while the person types.
-    expect(
-      seoAnalysisMaxCredits({ kind: "full", usd: 0, seconds: 900 }),
-    ).toBeNull();
     expect(seoAnalysisMaxCredits({ kind: "requests", count: 2.5 })).toBeNull();
-    // Core refuses these limits, so the dialog shows no figure for them.
-    expect(
-      seoAnalysisMaxCredits({ kind: "full", usd: 0.1, seconds: 900 }),
-    ).toBeNull();
-    // Below one page's reserve the worker refuses the audit.
-    expect(
-      seoAnalysisMaxCredits({ kind: "full", usd: 0.32, seconds: 900 }),
-    ).toBeNull();
-    expect(
-      seoAnalysisMaxCredits({ kind: "full", usd: 60, seconds: 900 }),
-    ).toBeNull();
     expect(seoAnalysisMaxCredits({ kind: "requests", count: 101 })).toBeNull();
-    for (const seconds of [30, 5_401, 90.5])
-      expect(
-        seoAnalysisMaxCredits({ kind: "full", usd: 3, seconds }),
-      ).toBeNull();
+  });
+});
+
+describe("full-audit price approval", () => {
+  it("sends no price terms from the browser, and never the old fixed price", () => {
+    const form = analysisForm();
+    form.set("kind", "audit_full");
+    form.set("keywords", "stablecoins");
+    // A stale or forged maximum field never reaches the approval.
+    form.set("fullAuditMaxCredits", "750");
+    const body = analysisSeoBody(form, seoTestWorkspace());
+    expect(body).not.toHaveProperty("fullAuditPrice");
+    expect(body).not.toHaveProperty("fullAuditCredits");
   });
 });

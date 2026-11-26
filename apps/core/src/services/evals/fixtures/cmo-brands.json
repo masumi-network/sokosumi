@@ -4,6 +4,7 @@
     "url": "https://utxo.ag/",
     "goal": "More leads",
     "main": "coworker",
+    "brain": "software|co-?worker",
     "avoid": "lead.research|prospect|dossier",
     "why": "trap: a side product shares the goal's word",
     "contentLanguage": "english",
@@ -49,8 +50,9 @@
     "name": "nmkr.io",
     "url": "https://nmkr.io/",
     "goal": "More sales",
-    "main": "token|nft|mint|cardano",
-    "contentLanguage": "english"
+    "main": "token|nft|mint|cardano|nmkr studio",
+    "contentLanguage": "english",
+    "siteLanguage": "English"
   },
   {
     "name": "Allbirds",
@@ -155,5 +157,14 @@
     "profile": "(x|twitter)\\.com/beginwallet",
     "why": "the wallet is free on every platform, and its X account is linked only from the site's footer",
     "contentLanguage": "english"
+  },
+  {
+    "name": "entry.fyi",
+    "url": "https://entry.fyi/",
+    "goal": "More sales",
+    "main": "page|homepage|profile|entry",
+    "why": "a young product whose site is its main proof",
+    "contentLanguage": "english",
+    "siteLanguage": "English"
   }
 ]

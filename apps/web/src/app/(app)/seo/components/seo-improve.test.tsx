@@ -38,7 +38,12 @@ function renderImprove(workspace: ProjectSeoWorkspace, searchParams = "") {
   render(
     <QueryClientProvider
       client={
-        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        new QueryClient({
+          defaultOptions: {
+            queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        })
       }
     >
       <NextIntlClientProvider
@@ -59,7 +64,7 @@ async function openImprove(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("button", { name: "Manage SEO" }));
   await user.click(
     await screen.findByRole("menuitem", {
-      name: "Agent limitations",
+      name: "What the SEO agent can do",
     }),
   );
   return within(await screen.findByRole("dialog"));
@@ -70,7 +75,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("Agent limitations", () => {
+describe("What the SEO agent can do", () => {
   it("shows five short customer-facing limits and the audit data that is missing", async () => {
     const user = userEvent.setup();
     const workspace = seoTestCheckedAudit();
@@ -82,18 +87,18 @@ describe("Agent limitations", () => {
     expect(dialog.queryByText("Full-site crawl")).toBeNull();
     expect(dialog.queryByText("Site migration check")).toBeNull();
     const summary = dialog
-      .getByRole("heading", { name: "What to expect" })
+      .getByRole("heading", { name: "What you handle" })
       .closest("section");
     expect(summary).not.toBeNull();
     expect(
       within(summary as HTMLElement).getAllByRole("listitem"),
     ).toHaveLength(5);
     expect(
-      dialog.getByText(
-        "You apply changes, recheck fixes and share client reports yourself.",
-      ),
+      dialog.getByText("Apply edits, run a follow-up check and share reports."),
     ).toBeVisible();
     // Search Console is synced, Google Analytics is not: one gap, with the words of the Traffic tab's button.
+    expect(dialog.getByText(/^No Google Analytics data/)).not.toBeVisible();
+    await user.click(dialog.getByText("Gaps in this audit"));
     expect(dialog.getByText(/^No Google Analytics data/)).toBeVisible();
     expect(dialog.queryByText(/^No Search Console data/)).toBeNull();
     expect(
@@ -103,7 +108,7 @@ describe("Agent limitations", () => {
     ).toBeVisible();
     // What the owner can change now leads the dialog.
     expect(dialog.getAllByRole("heading", { level: 3 })[0]).toHaveTextContent(
-      "Missing audit data",
+      "What it checks",
     );
   });
 

@@ -1,50 +1,52 @@
 "use client";
 
 import type {
+  ProjectImageAsset,
   ProjectImageJob,
   ProjectImageStudioTalkingVideoCatalog,
   ProjectSocialConnection,
-  ProjectTalkingVideos,
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
+  creditsPerShortVideoCents,
   creditsPerTalkingVideoCents,
   resolveUserUploadContentType,
+  SHORT_VIDEO_MAX_PICTURES,
   talkingVideoQuotedSeconds,
+  VIDEO_RECIPES,
+  type VideoShape,
+  videoShapesFor,
 } from "@sokosumi/utils";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { LoaderCircle, Upload } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { RadioGroup } from "radix-ui";
 import { type ReactNode, useId, useRef, useState, useTransition } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
+import { APP_MAIN_MOBILE_SCROLL_MT_CLASS } from "@/app/components/app-shell-safe-area";
+import { assetContentUrl } from "@/app/projects/components/image-studio/types";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import {
   prepareStudioAssetSocialMedia,
+  startShortVideo,
   startTalkingVideo,
   writeTalkingVideoScripts,
 } from "@/lib/actions/image-studio/action";
 import { authClient } from "@/lib/auth/auth.client";
 import { coreClient } from "@/lib/clients/core.browser.client";
+import type { TalkingVideoPage } from "@/lib/services/image-studio.service";
 import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
 import { cn } from "@/lib/utils";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
@@ -53,13 +55,37 @@ import {
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
 
+import {
+  OWN_PHOTO,
+  PHOTO_TYPES,
+  PresenterControls,
+  type PresenterPhoto,
+  SCRIPT_LANGUAGES,
+  VoiceControls,
+} from "./presenter-controls";
+import {
+  ShortPictures,
+  shortFormatSpeaks,
+  type VideoKind,
+  VideoKindPicker,
+} from "./short-format-controls";
 import { TikTokStudioLibrary } from "./tiktok-studio-library";
 import {
   ACTIVE_STATUSES,
+  type Playback,
   StageJob,
   StagePreview,
   type TalkingVideoAsset,
 } from "./tiktok-studio-stage";
+import { useTalkingVideoHistory } from "./use-talking-video-history";
+import {
+  oneJobPerVideo,
+  ShapePicker,
+  ShapeTabs,
+  shapeFamily,
+  shapeOf,
+  videoIdOf,
+} from "./video-shapes";
 
 const TikTokComposer = dynamic(() =>
   import(
@@ -67,31 +93,18 @@ const TikTokComposer = dynamic(() =>
   ).then((module) => module.SocialPostComposerDialog),
 );
 
-const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_PHOTO_MIB = 12;
-const POLL_MS = 4_000;
-/** Languages the voices speak well; the reader's own comes first. */
-const SCRIPT_LANGUAGES = ["en", "de", "es", "fr", "it", "pt", "nl"] as const;
-const OWN_PHOTO = "own-photo";
-
-type Script = { hook: string; script: string };
+/** As long as Core keeps a hook line. */
+const HOOK_LINE_MAX_LENGTH = 48;
+type Script = { hook: string; script: string; hookLine?: string };
+/** Pictures chosen for a short before the person picks any. */
+const PRESELECTED_PICTURES = 4;
 
 /** Something that went wrong, shown beside the step it belongs to. */
 type Problem = {
   step: "presenter" | "script" | "make";
   message: string;
 } | null;
-
-async function fetchTalkingVideos(
-  projectId: string,
-): Promise<ProjectTalkingVideos> {
-  const response = await fetch(
-    `/api/projects/${projectId}/image-studio/talking-videos`,
-    { credentials: "same-origin" },
-  );
-  if (!response.ok) throw new Error("Talking videos unavailable");
-  return (await response.json()) as ProjectTalkingVideos;
-}
 
 /** One thing a video can have besides its presenter. */
 function Extra({
@@ -123,6 +136,7 @@ function Extra({
 export function TikTokStudio({
   projectId,
   hasWebsite,
+  pictures,
   catalog,
   initialVideos,
   readOnly,
@@ -130,8 +144,10 @@ export function TikTokStudio({
   projectId: string;
   /** The Project has a website a video can show. */
   hasWebsite: boolean;
+  /** The Project's newest studio pictures, for a short to show. */
+  pictures: ProjectImageAsset[];
   catalog: ProjectImageStudioTalkingVideoCatalog;
-  initialVideos: ProjectTalkingVideos;
+  initialVideos: TalkingVideoPage;
   /** A CMO Project is changed in CMO only. */
   readOnly: boolean;
 }) {
@@ -140,32 +156,36 @@ export function TikTokStudio({
   const locale = useLocale();
   const router = useRouter();
   const scriptId = useId();
-  const voiceId = useId();
-  const languageId = useId();
-  const consentId = useId();
   const showSiteId = useId();
   const musicId = useId();
   const brollId = useId();
   const makeHintId = useId();
   const queryClient = useQueryClient();
-  const queryKey = ["talking-videos", projectId];
-
+  const [kind, setKind] = useState<VideoKind>("presenter");
+  const short = kind === "presenter" ? null : kind;
+  const spoken = shortFormatSpeaks(kind);
+  const [pictureIds, setPictureIds] = useState<string[]>(() =>
+    pictures.slice(0, PRESELECTED_PICTURES).map((picture) => picture.id),
+  );
+  const [hookLine, setHookLine] = useState("");
+  const hookLineId = useId();
   const [script, setScript] = useState("");
   const [presenterId, setPresenterId] = useState(
     catalog.presenters[0]?.id ?? OWN_PHOTO,
   );
-  const [photo, setPhoto] = useState<{
-    id: string;
-    name: string;
-    /** A local preview of the file just uploaded. */
-    previewUrl: string;
-  } | null>(null);
+  const [photo, setPhoto] = useState<PresenterPhoto | null>(null);
   const [consent, setConsent] = useState(false);
   const [showSite, setShowSite] = useState(true);
   const siteShots = hasWebsite && showSite;
   const [music, setMusic] = useState(false);
   const [broll, setBroll] = useState(false);
-  const [voice, setVoice] = useState(catalog.defaultVoice);
+  const [wantedShapes, setWantedShapes] = useState<VideoShape[]>(["9:16"]);
+  const [previewShape, setPreviewShape] = useState<VideoShape>("9:16");
+  /** The shape of the stage's video being watched; none shows the first. */
+  const [stageShape, setStageShape] = useState<VideoShape | null>(null);
+  const [voice, setVoice] = useState(
+    catalog.presenters[0]?.voice ?? catalog.defaultVoice,
+  );
   const [languageCode, setLanguageCode] = useState<string>(
     SCRIPT_LANGUAGES.find((code) => locale.startsWith(code)) ?? "en",
   );
@@ -187,18 +207,12 @@ export function TikTokStudio({
       initialVideos.jobs.find((job) => ACTIVE_STATUSES.has(job.status))?.id ??
       null,
   );
-  const photoInput = useRef<HTMLInputElement>(null);
+  const videos = useTalkingVideoHistory(projectId, initialVideos, stageJobId);
+  const queryKey = videos.queryKey;
+  /** What the stage player found for each finished video's file, by asset. */
+  const [playback, setPlayback] = useState<Record<string, Playback>>({});
   const stage = useRef<HTMLElement>(null);
-
-  const { data: videos } = useQuery({
-    queryKey,
-    queryFn: () => fetchTalkingVideos(projectId),
-    initialData: initialVideos,
-    refetchInterval: (query) =>
-      query.state.data?.jobs.some((job) => ACTIVE_STATUSES.has(job.status))
-        ? POLL_MS
-        : false,
-  });
+  const form = useRef<HTMLFormElement>(null);
 
   const model =
     catalog.models.find(
@@ -210,18 +224,43 @@ export function TikTokStudio({
   const presenterImage = (id: string | null | undefined) =>
     catalog.presenters.find((presenter) => presenter.id === id)?.imageUrl;
   const assetFor = (job: ProjectImageJob): TalkingVideoAsset | null =>
-    videos.assets.find((asset) => asset.jobId === job.id) ?? null;
-  const stageJob = videos.jobs.find((job) => job.id === stageJobId) ?? null;
+    videos.assetsByJob.get(job.id) ?? null;
+  const recipe = VIDEO_RECIPES[kind];
+  const shapes = videoShapesFor(recipe, wantedShapes);
+  const shownPreviewShape = shapes.includes(previewShape)
+    ? previewShape
+    : shapes[0]!;
+  /** The job put on the stage; its other shapes are a tab away. */
+  const stageSource = videos.jobs.find((job) => job.id === stageJobId) ?? null;
+  const stageFamily = stageSource ? shapeFamily(videos.jobs, stageSource) : [];
+  const stageJob =
+    stageFamily.find((job) => shapeOf(job) === stageShape) ?? stageSource;
+  const libraryJobs = oneJobPerVideo(videos.libraryJobs);
+  const libraryPick = stageSource
+    ? (libraryJobs.find((job) => videoIdOf(job) === videoIdOf(stageSource))
+        ?.id ?? null)
+    : null;
+  const stageAsset = stageJob ? assetFor(stageJob) : null;
+  const playbackFor = (asset: TalkingVideoAsset) => playback[asset.id];
+  const markPlayback = (asset: TalkingVideoAsset, next: Playback) =>
+    setPlayback((current) =>
+      current[asset.id] === next ? current : { ...current, [asset.id]: next },
+    );
 
+  const firstPicture = pictures.find((picture) => picture.id === pictureIds[0]);
   /** What still stands between the person and the button, if anything. */
   const missing =
     trimmed.length < catalog.scriptMinLength
       ? t("needScript", { count: catalog.scriptMinLength })
-      : ownPhoto && !photo
-        ? t("photoMissing")
-        : ownPhoto && !consent
-          ? t("consentMissing")
-          : null;
+      : short
+        ? pictureIds.length === 0 && !hasWebsite
+          ? t("picturesMissing")
+          : null
+        : ownPhoto && !photo
+          ? t("photoMissing")
+          : ownPhoto && !consent
+            ? t("consentMissing")
+            : null;
 
   /** A change to the video being set up brings its preview back. */
   function edit(change: () => void) {
@@ -231,8 +270,21 @@ export function TikTokStudio({
   }
 
   function showOnStage(jobId: string | null) {
-    setStageJobId(jobId);
+    // Render first: on a phone the stage moves to the top when it shows a
+    // video, and a scroll before that lands where it used to be.
+    flushSync(() => {
+      videos.pinSelection(jobId);
+      setStageJobId(jobId);
+      setStageShape(null);
+    });
     stage.current?.scrollIntoView({ block: "nearest" });
+  }
+
+  /** Clears the stage and takes the person to the form for a new video. */
+  function startNew() {
+    flushSync(() => setStageJobId(null));
+    form.current?.scrollIntoView({ block: "start" });
+    form.current?.focus({ preventScroll: true });
   }
 
   async function handlePhoto(file: File) {
@@ -285,6 +337,7 @@ export function TikTokStudio({
       const result = await writeTalkingVideoScripts({
         projectId,
         languageCode,
+        ...(short ? { format: short } : {}),
       });
       if (!result.ok || result.value.length === 0) {
         setProblem({ step: "script", message: t("scriptsFailed") });
@@ -299,21 +352,34 @@ export function TikTokStudio({
     setProblem(null);
     const idempotencyKey = `ui:${crypto.randomUUID()}`;
     startStarting(async () => {
-      const result = await startTalkingVideo({
-        projectId,
-        modelId: model.id,
-        script: trimmed,
-        voice,
-        languageCode,
-        presenter:
-          ownPhoto && photo
-            ? { kind: "file", fileId: photo.id, consent: true }
-            : { kind: "stock", id: presenterId },
-        siteShots,
-        broll,
-        music,
-        idempotencyKey,
-      });
+      const result = short
+        ? await startShortVideo({
+            projectId,
+            format: short,
+            script: trimmed,
+            hookLine: spoken ? hookLine.trim() || undefined : undefined,
+            voice,
+            languageCode,
+            pictureAssetIds: pictureIds,
+            shapes,
+            idempotencyKey,
+          })
+        : await startTalkingVideo({
+            projectId,
+            modelId: model.id,
+            script: trimmed,
+            voice,
+            languageCode,
+            presenter:
+              ownPhoto && photo
+                ? { kind: "file", fileId: photo.id, consent: true }
+                : { kind: "stock", id: presenterId },
+            siteShots,
+            broll,
+            music,
+            shapes,
+            idempotencyKey,
+          });
       if (!result.ok) {
         const testimonial = result.kind === "talking_video_testimonial";
         setProblem({
@@ -331,7 +397,8 @@ export function TikTokStudio({
       }
       // A list read still in flight predates this video and would drop it.
       await queryClient.cancelQueries({ queryKey });
-      queryClient.setQueryData<ProjectTalkingVideos>(queryKey, (current) => ({
+      queryClient.setQueryData<TalkingVideoPage>(queryKey, (current) => ({
+        ...current,
         assets: current?.assets ?? [],
         jobs: [
           result.job,
@@ -339,6 +406,7 @@ export function TikTokStudio({
         ],
       }));
       setScript("");
+      setHookLine("");
       setSuggestions([]);
       showOnStage(result.job.id);
     });
@@ -377,9 +445,11 @@ export function TikTokStudio({
 
   function reuse(job: ProjectImageJob) {
     edit(() => {
+      setKind(job.talkingVideo?.format ?? "presenter");
       setScript(job.prompt);
       const presenter = job.talkingVideo?.presenterId;
       if (presenterImage(presenter) && presenter) setPresenterId(presenter);
+      if (job.talkingVideo?.voice) setVoice(job.talkingVideo.voice);
     });
   }
 
@@ -389,176 +459,207 @@ export function TikTokStudio({
         {problem.message}
       </p>
     ) : null;
-  const tileClass = (selected: boolean) =>
-    cn(
-      "bg-muted relative flex aspect-9/16 w-full items-center justify-center overflow-hidden rounded-lg border-2",
-      selected ? "border-foreground" : "border-transparent",
-    );
   const seconds = talkingVideoQuotedSeconds(trimmed);
 
   return (
     <div className="grid min-w-0 items-start gap-2 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      {videos.jobs.length > 0 ? (
+        <TikTokStudioLibrary
+          assetFor={assetFor}
+          // Each video once: its other shapes are on the stage.
+          jobs={libraryJobs}
+          retryHistory={videos.retry}
+          onNew={readOnly ? undefined : startNew}
+          onSelect={(job) => showOnStage(job.id)}
+          playbackFor={playbackFor}
+          selectedId={libraryPick}
+        />
+      ) : null}
+      <section
+        aria-label={stageJob ? t("stageVideo") : t("preview")}
+        className={cn(
+          HOLDER_CLASS,
+          // The library and the form share the first column; the stage stays beside
+          // both. It comes before the form so the keyboard reaches it first.
+          "flex min-w-0 scroll-mt-2 flex-col gap-2 lg:sticky lg:top-0 lg:col-start-2 lg:row-span-2 lg:row-start-1",
+          APP_MAIN_MOBILE_SCROLL_MT_CLASS,
+          // On a phone a started video leads the page; the preview follows the steps.
+          stageJob ? "max-lg:order-first" : "max-lg:order-last",
+        )}
+        ref={stage}
+      >
+        <div className="mx-auto flex w-full max-w-72 flex-col gap-2 lg:max-w-none">
+          {stageJob ? (
+            <ShapeTabs
+              label={t("shapes.onStage")}
+              making={
+                new Set(
+                  stageFamily
+                    .filter((job) => ACTIVE_STATUSES.has(job.status))
+                    .map(shapeOf),
+                )
+              }
+              onChange={setStageShape}
+              shapes={stageFamily.map(shapeOf)}
+              value={shapeOf(stageJob)}
+            />
+          ) : (
+            <ShapeTabs
+              label={t("shapes.previewIn")}
+              onChange={setPreviewShape}
+              shapes={shapes}
+              value={shownPreviewShape}
+            />
+          )}
+          {stageJob ? (
+            <StageJob
+              asset={stageAsset}
+              // Each video's own retry: a failure elsewhere never takes focus.
+              key={stageJob.id}
+              onPlayback={(next) => {
+                if (stageAsset) markPlayback(stageAsset, next);
+              }}
+              playback={stageAsset ? playbackFor(stageAsset) : undefined}
+              image={presenterImage(stageJob.talkingVideo?.presenterId)}
+              job={stageJob}
+              onPost={readOnly ? undefined : handlePost}
+              postLabel={t(tikTokEnabled ? "postToTikTok" : "post")}
+              onReuse={() => reuse(stageJob)}
+              posting={posting}
+            />
+          ) : (
+            <StagePreview
+              captions={spoken}
+              hookLine={
+                short
+                  ? spoken
+                    ? hookLine.trim() || undefined
+                    : trimmed.split("\n")[0]?.trim() || undefined
+                  : undefined
+              }
+              image={
+                short
+                  ? firstPicture && assetContentUrl(firstPicture)
+                  : ownPhoto
+                    ? photo?.previewUrl
+                    : presenterImage(presenterId)
+              }
+              missingPhoto={!short && ownPhoto && !photo}
+              script={trimmed}
+              shape={shownPreviewShape}
+            />
+          )}
+          <div className="flex min-h-8 items-center justify-between gap-2 px-1">
+            <p className="text-muted-foreground line-clamp-2 text-xs">
+              {stageJob
+                ? stageJob.prompt
+                : spoken
+                  ? t("previewMeta", {
+                      voice,
+                      language: languageNames.of(languageCode) ?? languageCode,
+                    })
+                  : t("previewMetaSlideshow")}
+            </p>
+            {stageJob ? (
+              <Button
+                className="shrink-0"
+                // A read-only project has no form to go to.
+                onClick={readOnly ? () => setStageJobId(null) : startNew}
+                size="sm"
+                variant="ghost"
+              >
+                {t("newVideo")}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </section>
       <form
         aria-label={t("formLabel")}
-        className={cn(HOLDER_CLASS, "flex min-w-0 flex-col gap-2")}
+        className={cn(
+          HOLDER_CLASS,
+          "focus-visible:ring-ring focus-visible:ring-offset-background flex min-w-0 scroll-mt-2 flex-col gap-2 outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+          APP_MAIN_MOBILE_SCROLL_MT_CLASS,
+        )}
+        ref={form}
+        tabIndex={-1}
         onSubmit={(event) => {
           event.preventDefault();
           handleCreate();
         }}
       >
-        <Step number={1} title={t("stepPresenter")}>
-          <RadioGroup.Root
-            aria-label={t("presenter")}
-            className="grid grid-cols-5 gap-2 sm:grid-cols-10"
-            disabled={readOnly}
-            onValueChange={(id) => edit(() => setPresenterId(id))}
-            value={presenterId}
-          >
-            {catalog.presenters.map((presenter) => (
-              <RadioGroup.Item
-                className="press flex min-w-0 flex-col gap-1 rounded-lg text-start"
-                key={presenter.id}
-                title={presenter.description}
-                value={presenter.id}
-              >
-                <span className={tileClass(presenterId === presenter.id)}>
-                  <img
-                    alt=""
-                    className="size-full object-cover"
-                    height={160}
-                    loading="lazy"
-                    src={presenter.imageUrl}
-                    width={90}
-                  />
-                </span>
-                <span className="truncate text-xs">{presenter.name}</span>
-              </RadioGroup.Item>
-            ))}
-            {photo ? (
-              <RadioGroup.Item
-                className="press flex min-w-0 flex-col gap-1 rounded-lg text-start"
-                title={photo.name}
-                value={OWN_PHOTO}
-              >
-                <span className={tileClass(ownPhoto)}>
-                  <img
-                    alt=""
-                    className="size-full object-cover"
-                    src={photo.previewUrl}
-                  />
-                </span>
-                <span className="truncate text-xs">{t("you")}</span>
-              </RadioGroup.Item>
-            ) : (
-              <button
-                className="press flex min-w-0 flex-col gap-1 rounded-lg text-start"
-                disabled={readOnly || uploading}
-                onClick={() => photoInput.current?.click()}
-                title={t("ownPhotoHint")}
-                type="button"
-              >
-                <span className={tileClass(false)}>
-                  {uploading ? (
-                    <LoaderCircle
-                      aria-hidden
-                      className="text-muted-foreground size-5 motion-safe:animate-spin"
-                    />
-                  ) : (
-                    <Upload
-                      aria-hidden
-                      className="text-muted-foreground size-5"
-                    />
-                  )}
-                </span>
-                <span className="truncate text-xs">{t("you")}</span>
-              </button>
-            )}
-          </RadioGroup.Root>
-          <input
-            accept={PHOTO_TYPES.join(",")}
-            aria-label={t("ownPhoto")}
-            className="hidden"
-            onChange={(event) => {
-              const file = event.currentTarget.files?.[0];
-              event.currentTarget.value = "";
-              if (file) void handlePhoto(file);
-            }}
-            ref={photoInput}
-            type="file"
+        <Step number={1} title={t("stepKind")}>
+          <VideoKindPicker
+            hasWebsite={hasWebsite}
+            onChange={(next) =>
+              edit(() => {
+                setKind(next);
+                setSuggestions([]);
+              })
+            }
+            presenterImage={presenterImage(presenterId)}
+            readOnly={readOnly}
+            value={kind}
           />
-          {problemFor("presenter")}
-          {ownPhoto && photo ? (
-            <div className="flex flex-col gap-1">
-              <div className="flex items-start gap-2">
-                <Checkbox
-                  checked={consent}
-                  className="mt-0.5"
-                  id={consentId}
-                  onCheckedChange={(checked) =>
-                    edit(() => setConsent(checked === true))
-                  }
-                />
-                <Label
-                  className="text-sm leading-normal font-normal"
-                  htmlFor={consentId}
-                >
-                  {t("consent")}
-                </Label>
-              </div>
-              <button
-                className="text-muted-foreground hover:text-foreground w-fit text-xs underline underline-offset-2"
-                onClick={() => photoInput.current?.click()}
-                type="button"
-              >
-                {t("changePhoto")}
-              </button>
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-xs">
-              {t("presenterNote")}
-            </p>
-          )}
-          <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-            <div className="flex min-w-0 flex-col gap-1">
-              <Label htmlFor={voiceId}>{t("voice")}</Label>
-              <Select
-                disabled={readOnly}
-                onValueChange={(name) => edit(() => setVoice(name))}
-                value={voice}
-              >
-                <SelectTrigger className="w-full" id={voiceId}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {catalog.voices.map((name) => (
-                    <SelectItem key={name} value={name}>
-                      {name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex min-w-0 flex-col gap-1">
-              <Label htmlFor={languageId}>{t("language")}</Label>
-              <Select
-                disabled={readOnly}
-                onValueChange={(code) => edit(() => setLanguageCode(code))}
-                value={languageCode}
-              >
-                <SelectTrigger className="w-full" id={languageId}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SCRIPT_LANGUAGES.map((code) => (
-                    <SelectItem key={code} value={code}>
-                      {languageNames.of(code) ?? code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
         </Step>
+
+        {short ? (
+          <Step number={2} title={t("stepShows")}>
+            <ShortPictures
+              chosen={pictureIds}
+              max={SHORT_VIDEO_MAX_PICTURES}
+              onChange={(ids) => edit(() => setPictureIds(ids))}
+              pictures={pictures}
+              readOnly={readOnly}
+            />
+            <p className="text-muted-foreground text-xs">
+              {hasWebsite
+                ? t("picturesNoteWithSite", { max: SHORT_VIDEO_MAX_PICTURES })
+                : t("picturesNote", { max: SHORT_VIDEO_MAX_PICTURES })}
+            </p>
+            {problemFor("presenter")}
+            {spoken ? (
+              <VoiceControls
+                catalog={catalog}
+                languageCode={languageCode}
+                languageNames={languageNames}
+                onLanguageChange={(code) => edit(() => setLanguageCode(code))}
+                onVoiceChange={(name) => edit(() => setVoice(name))}
+                readOnly={readOnly}
+                voice={voice}
+              />
+            ) : null}
+          </Step>
+        ) : (
+          <Step number={2} title={t("stepPresenter")}>
+            <PresenterControls
+              catalog={catalog}
+              presenterId={presenterId}
+              photo={photo}
+              consent={consent}
+              voice={voice}
+              languageCode={languageCode}
+              languageNames={languageNames}
+              readOnly={readOnly}
+              uploading={uploading}
+              problem={problemFor("presenter")}
+              onConsentChange={(checked) => edit(() => setConsent(checked))}
+              onVoiceChange={(name) => edit(() => setVoice(name))}
+              onLanguageChange={(code) => edit(() => setLanguageCode(code))}
+              onPhoto={handlePhoto}
+              onPresenterChange={(id) =>
+                edit(() => {
+                  setPresenterId(id);
+                  // Each presenter comes with a voice that sounds like them.
+                  const presenterVoice = catalog.presenters.find(
+                    (presenter) => presenter.id === id,
+                  )?.voice;
+                  if (presenterVoice) setVoice(presenterVoice);
+                })
+              }
+            />
+          </Step>
+        )}
 
         <Step
           action={
@@ -573,8 +674,14 @@ export function TikTokStudio({
               {t("writeForMe")}
             </Button>
           }
-          number={2}
-          title={t("stepScript")}
+          number={3}
+          title={t(
+            short
+              ? spoken
+                ? "stepScriptVoice"
+                : "stepScriptSlideshow"
+              : "stepScript",
+          )}
         >
           <Textarea
             aria-describedby={`${scriptId}-meta`}
@@ -585,7 +692,9 @@ export function TikTokStudio({
             id={scriptId}
             maxLength={catalog.scriptMaxLength}
             onChange={(event) => edit(() => setScript(event.target.value))}
-            placeholder={t("scriptPlaceholder")}
+            placeholder={t(
+              short ? `scriptPlaceholders.${short}` : "scriptPlaceholder",
+            )}
             value={script}
           />
           <div
@@ -593,7 +702,9 @@ export function TikTokStudio({
             id={`${scriptId}-meta`}
           >
             <span>
-              {trimmed ? t("scriptLength", { seconds }) : t("scriptHint")}
+              {trimmed && spoken
+                ? t("scriptLength", { seconds })
+                : t(short ? `scriptHints.${short}` : "scriptHint")}
             </span>
             <span>
               {t("scriptCount", {
@@ -602,6 +713,28 @@ export function TikTokStudio({
               })}
             </span>
           </div>
+          {short && spoken ? (
+            <div className="flex min-w-0 flex-col gap-1">
+              <Label htmlFor={hookLineId}>{t("hookLine")}</Label>
+              <Input
+                aria-describedby={`${hookLineId}-hint`}
+                disabled={readOnly}
+                id={hookLineId}
+                maxLength={HOOK_LINE_MAX_LENGTH}
+                onChange={(event) =>
+                  edit(() => setHookLine(event.target.value))
+                }
+                placeholder={t("hookLinePlaceholder")}
+                value={hookLine}
+              />
+              <p
+                className="text-muted-foreground text-xs"
+                id={`${hookLineId}-hint`}
+              >
+                {t("hookLineHint")}
+              </p>
+            </div>
+          ) : null}
           {problemFor("script")}
           {suggestions.length > 0 ? (
             <ul
@@ -613,7 +746,11 @@ export function TikTokStudio({
                   <button
                     className="border-control-border hover:bg-accent press w-full rounded-lg border p-3 text-start text-sm transition-colors duration-150"
                     onClick={() => {
-                      edit(() => setScript(suggestion.script));
+                      edit(() => {
+                        setScript(suggestion.script);
+                        if (suggestion.hookLine)
+                          setHookLine(suggestion.hookLine);
+                      });
                       setSuggestions([]);
                     }}
                     type="button"
@@ -630,8 +767,13 @@ export function TikTokStudio({
           ) : null}
         </Step>
 
-        <Step number={3} title={t("stepMake")}>
-          <div className="flex flex-col gap-2">
+        <Step number={4} title={t("stepMake")}>
+          {short ? (
+            <p className="text-muted-foreground text-sm">
+              {t(spoken ? "shortIncludes" : "slideshowIncludes")}
+            </p>
+          ) : null}
+          <div className={cn("flex flex-col gap-2", short && "hidden")}>
             {hasWebsite ? (
               <Extra
                 checked={showSite}
@@ -661,6 +803,21 @@ export function TikTokStudio({
               </>
             ) : null}
           </div>
+          <ShapePicker
+            allowed={recipe.shapes}
+            onChange={(next) =>
+              edit(() => {
+                setWantedShapes(next);
+                if (!next.includes(previewShape)) setPreviewShape(next[0]!);
+                else if (next.length > shapes.length)
+                  setPreviewShape(
+                    next.find((shape) => !shapes.includes(shape)) ?? next[0]!,
+                  );
+              })
+            }
+            readOnly={readOnly}
+            value={shapes}
+          />
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
             <p className="text-sm tabular-nums" id={makeHintId}>
               {missing || !model ? (
@@ -669,16 +826,18 @@ export function TikTokStudio({
                 <>
                   <span className="font-medium">
                     {tStudio("creditsCount", {
-                      count: creditsPerTalkingVideoCents(model.price, trimmed, {
-                        siteShots,
-                        broll,
-                        music,
-                      }),
+                      count: short
+                        ? creditsPerShortVideoCents(model.price, trimmed, short)
+                        : creditsPerTalkingVideoCents(model.price, trimmed, {
+                            siteShots,
+                            broll,
+                            music,
+                          }),
                     })}
                   </span>
                   <span className="text-muted-foreground">
                     {" · "}
-                    {t("costDetail")}
+                    {t(short ? "costDetailShort" : "costDetail")}
                   </span>
                 </>
               )}
@@ -697,57 +856,6 @@ export function TikTokStudio({
           {problemFor("make")}
         </Step>
       </form>
-
-      <section
-        aria-label={stageJob ? t("stageVideo") : t("preview")}
-        className={cn(
-          HOLDER_CLASS,
-          "flex min-w-0 scroll-mt-2 flex-col gap-2 lg:sticky lg:top-0 lg:row-span-2",
-          // On a phone a started video leads the page; the preview follows the steps.
-          stageJob && "max-lg:order-first",
-        )}
-        ref={stage}
-      >
-        <div className="mx-auto flex w-full max-w-72 flex-col gap-2 lg:max-w-none">
-          {stageJob ? (
-            <StageJob
-              asset={assetFor(stageJob)}
-              image={presenterImage(stageJob.talkingVideo?.presenterId)}
-              job={stageJob}
-              onPost={readOnly ? undefined : handlePost}
-              postLabel={t(tikTokEnabled ? "postToTikTok" : "post")}
-              onReuse={() => reuse(stageJob)}
-              posting={posting}
-            />
-          ) : (
-            <StagePreview
-              image={ownPhoto ? photo?.previewUrl : presenterImage(presenterId)}
-              missingPhoto={ownPhoto && !photo}
-              script={trimmed}
-            />
-          )}
-          <div className="flex min-h-8 items-center justify-between gap-2 px-1">
-            <p className="text-muted-foreground line-clamp-2 text-xs">
-              {stageJob
-                ? stageJob.prompt
-                : t("previewMeta", {
-                    voice,
-                    language: languageNames.of(languageCode) ?? languageCode,
-                  })}
-            </p>
-            {stageJob ? (
-              <Button
-                className="shrink-0"
-                onClick={() => setStageJobId(null)}
-                size="sm"
-                variant="ghost"
-              >
-                {t("newVideo")}
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </section>
 
       {composeVideo ? (
         <TikTokComposer
@@ -769,14 +877,6 @@ export function TikTokStudio({
           }}
           onError={(error) => toast.error(error.message || t("postFailed"))}
           onSaved={() => router.refresh()}
-        />
-      ) : null}
-      {videos.jobs.length > 0 ? (
-        <TikTokStudioLibrary
-          assetFor={assetFor}
-          jobs={videos.jobs}
-          onSelect={(job) => showOnStage(job.id)}
-          selectedId={stageJob?.id ?? null}
         />
       ) : null}
     </div>

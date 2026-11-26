@@ -92,6 +92,36 @@ describe("parseChatRoomMessageLink", () => {
 });
 
 describe("getNotificationHref", () => {
+  it("resolves old completion notifications at click time while known ordinary Tasks keep their direct path", () => {
+    const row = {
+      kind: "TASK" as const,
+      referenceId: "old",
+      messageKey: "Notifications.Task.completed",
+    };
+    expect(
+      getNotificationHref({ ...row, metadata: { workspaceId: "ws" } }),
+    ).toBe("/tasks/old/result");
+    expect(
+      getNotificationHref({ ...row, metadata: { seoResult: false } }),
+    ).toBe("/tasks/old");
+  });
+  it("opens the SEO result route only for completed SEO tasks", () => {
+    const item = {
+      kind: "TASK" as const,
+      referenceId: "a/b",
+      metadata: { seoResult: true },
+    };
+    expect(
+      getNotificationHref({
+        ...item,
+        messageKey: "Notifications.Task.completed",
+      }),
+    ).toBe("/tasks/a%2Fb/result");
+    expect(
+      getNotificationHref({ ...item, messageKey: "Notifications.Task.failed" }),
+    ).toBe("/tasks/a%2Fb");
+  });
+
   it("returns job href with agentId", () => {
     expect(
       getNotificationHref({

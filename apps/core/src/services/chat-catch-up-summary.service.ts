@@ -1,9 +1,14 @@
 import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { buildChatMessagePreview, readChatMentionKeys } from "@sokosumi/utils";
 import { generateText } from "ai";
 import { z } from "zod";
 import { loadDirectRoomNamesByReader } from "@/helpers/chat-direct-room-names";
+import {
+  AiGatewayBudgetError,
+  rethrowAiGatewayFailure,
+} from "@/lib/ai-gateway-budget";
 import {
   CHAT_CATCH_UP_BUCKETS,
   type ChatCatchUpBucket,
@@ -12,8 +17,10 @@ import {
   sqlChatSignalHasTag,
   storedChatSignalTags,
 } from "@/lib/chat-signals/derive";
+import { sokoBotFace } from "@/lib/cuso-face";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
+import { readBackgroundMessageContent } from "@/lib/soko-bot/background-failure";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
 import {
@@ -118,6 +125,7 @@ const defaultDeps: ChatSummaryDeps = {
     });
     const result = await generateText({
       ...request,
+      telemetry: { functionId: "chat-catch-up" },
       providerOptions: {
         ...request.providerOptions,
         google: { thinkingConfig: { thinkingLevel: "low" } },
@@ -126,7 +134,7 @@ const defaultDeps: ChatSummaryDeps = {
       prompt,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       abortSignal: AbortSignal.timeout(TIMEOUT_MS),
-    });
+    }).catch(rethrowAiGatewayFailure);
     return {
       text: result.text,
       costUsd: gatewayCostUsd(result.providerMetadata),
@@ -245,11 +253,15 @@ const messageSelect = {
   roomId: true,
   parentMessageId: true,
   senderUserId: true,
+  senderSokoBotId: true,
   content: true,
+  metadata: true,
   createdAt: true,
   senderUser: { select: { name: true, image: true } },
   senderCoworker: { select: { name: true, image: true } },
-  senderSokoBot: { select: { name: true, avatarImageUrl: true } },
+  senderSokoBot: {
+    select: { name: true, avatarImageUrl: true, versionId: true },
+  },
   signal: { select: chatSignalSelect },
 } as const satisfies Prisma.ChatRoomMessageSelect;
 
@@ -268,11 +280,11 @@ async function unreadTaggedMessages(
   const after = `$${roomIds.length + 2}`;
   const rows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
     `SELECT m.id
-    FROM "chat_message_signal" s
-    INNER JOIN "chat_room_message" m ON m.id = s."messageId"
-    LEFT JOIN "chat_room_read_state" room_read
+    FROM ${sharedTable("chat_message_signal").sql} s
+    INNER JOIN ${sharedTable("chat_room_message").sql} m ON m.id = s."messageId"
+    LEFT JOIN ${sharedTable("chat_room_read_state").sql} room_read
       ON room_read."roomId" = m."roomId" AND room_read."userId" = ${user}
-    LEFT JOIN "chat_room_thread_read_state" thread_read
+    LEFT JOIN ${sharedTable("chat_room_thread_read_state").sql} thread_read
       ON thread_read."parentMessageId" = m."parentMessageId" AND thread_read."userId" = ${user}
     WHERE s."roomId" IN (${roomIds.map((_, i) => `$${i + 1}::uuid`).join(", ")})
       AND s.state = 'tagged'
@@ -316,7 +328,11 @@ async function mentionNames(
 interface MessageSender {
   senderUser: { name: string; image: string | null } | null;
   senderCoworker: { name: string; image: string | null } | null;
-  senderSokoBot: { name: string | null; avatarImageUrl: string | null } | null;
+  senderSokoBot: {
+    name: string | null;
+    avatarImageUrl: string | null;
+    versionId: string | null;
+  } | null;
 }
 
 /** Who wrote it: a person, a Coworker or a Soko Bot, with their picture. */
@@ -336,9 +352,10 @@ function messageSender(message: MessageSender): {
       senderImageUrl: message.senderCoworker.image,
     };
   }
+  const bot = message.senderSokoBot;
   return {
-    senderName: message.senderSokoBot?.name ?? "Someone",
-    senderImageUrl: message.senderSokoBot?.avatarImageUrl ?? null,
+    senderName: bot?.name ?? "Someone",
+    senderImageUrl: bot ? sokoBotFace(bot).avatarImageUrl : null,
   };
 }
 
@@ -348,6 +365,8 @@ function toItem(
     roomId: string;
     parentMessageId: string | null;
     content: string;
+    metadata: unknown;
+    senderSokoBotId: string | null;
     createdAt: Date;
   } & MessageSender,
   room: Room,
@@ -362,7 +381,10 @@ function toItem(
     roomKind: room.kind,
     parentMessageId: message.parentMessageId,
     ...messageSender(message),
-    excerpt: buildChatMessagePreview(message.content, names),
+    excerpt: buildChatMessagePreview(
+      readBackgroundMessageContent(message),
+      names,
+    ),
     bucket,
     createdAt: message.createdAt,
     dueAt,
@@ -380,6 +402,8 @@ async function withReplyContext(
 ): Promise<ChatCatchUpItem[]> {
   const select = {
     content: true,
+    metadata: true,
+    senderSokoBotId: true,
     senderUser: { select: { name: true } },
   } as const;
   return Promise.all(
@@ -404,12 +428,13 @@ async function withReplyContext(
             })
           : null);
       if (!earlier) return item;
-      const names = await mentionNames([earlier.content]);
+      const content = readBackgroundMessageContent(earlier);
+      const names = await mentionNames([content]);
       return {
         ...item,
         inReplyTo: {
           senderName: earlier.senderUser?.name ?? "Someone",
-          excerpt: buildChatMessagePreview(earlier.content, names),
+          excerpt: buildChatMessagePreview(content, names),
         },
       };
     }),
@@ -493,7 +518,10 @@ export function buildChatCatchUpTopics(
     topics.push(
       topic([entry], {
         title: messageSender(entry.message).senderName,
-        summary: buildChatMessagePreview(entry.message.content, names),
+        summary: buildChatMessagePreview(
+          readBackgroundMessageContent(entry.message),
+          names,
+        ),
         status,
       }),
     );
@@ -539,11 +567,11 @@ async function unreadMentions(
   const user = `$${roomIds.length + 1}`;
   const rows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
     `SELECT DISTINCT ON (m."roomId") m.id
-    FROM "chat_room_user_mention" um
-    INNER JOIN "chat_room_message" m ON m.id = um."messageId"
-    LEFT JOIN "chat_room_read_state" room_read
+    FROM ${sharedTable("chat_room_user_mention").sql} um
+    INNER JOIN ${sharedTable("chat_room_message").sql} m ON m.id = um."messageId"
+    LEFT JOIN ${sharedTable("chat_room_read_state").sql} room_read
       ON room_read."roomId" = m."roomId" AND room_read."userId" = ${user}
-    LEFT JOIN "chat_room_thread_read_state" thread_read
+    LEFT JOIN ${sharedTable("chat_room_thread_read_state").sql} thread_read
       ON thread_read."parentMessageId" = m."parentMessageId" AND thread_read."userId" = ${user}
     WHERE um."userId" = ${user}
       AND m."roomId" IN (${roomIds.map((_, i) => `$${i + 1}::uuid`).join(", ")})
@@ -922,7 +950,10 @@ async function writtenSummary(input: {
       key,
       bucket,
       author: messageSender(message).senderName,
-      text: readableChatSignalText(message.content, input.names),
+      text: readableChatSignalText(
+        readBackgroundMessageContent(message),
+        input.names,
+      ),
     });
     groups.set(room.id, group);
   }
@@ -967,12 +998,18 @@ async function writtenSummary(input: {
     log.set({
       chatSummary: {
         outcome: "failed",
-        reason: error instanceof Error ? error.name : "unknown",
+        reason:
+          error instanceof AiGatewayBudgetError
+            ? error.code
+            : error instanceof Error
+              ? error.name
+              : "unknown",
       },
     });
-    Sentry.captureException(error, {
-      tags: { context: "chat_catch_up_summary" },
-    });
+    if (!(error instanceof AiGatewayBudgetError))
+      Sentry.captureException(error, {
+        tags: { context: "chat_catch_up_summary" },
+      });
     return null;
   } finally {
     log.emit();

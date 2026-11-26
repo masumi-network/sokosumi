@@ -107,7 +107,10 @@ function wrap(children: ReactNode, client: QueryClient) {
 }
 function client() {
   const value = new QueryClient({
-    defaultOptions: { queries: { retryDelay: 0 } },
+    defaultOptions: {
+      queries: { retryDelay: 0, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   clients.push(value);
   return value;
@@ -301,12 +304,13 @@ describe("SEO load recovery", () => {
         return new Response(null, { status: 500 });
       }),
     );
-    render(wrap(<SeoWorkspace workspace={checked} />, client()));
+    // Flush the mount so any read the page starts can reach fetch.
+    await act(async () =>
+      render(wrap(<SeoWorkspace workspace={checked} />, client())),
+    );
     const ask = await screen.findByRole("button", {
       name: "Ask the SEO agent",
     });
-    // Time for a read to start: the page has none to make.
-    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
     expect(chatReads).not.toHaveBeenCalled();
     await userEvent.click(ask);
     // The refused read is the sheet's problem: it says so, and the page stays.

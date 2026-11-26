@@ -1,7 +1,10 @@
+import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
+import { configureSqlTables, sharedTable } from "@sokosumi/database/sql-tables";
 import { Client } from "pg";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -40,42 +43,56 @@ const SCOPE = {
 };
 const RANGE = { from: "2026-10-01", to: "2026-10-04" };
 
-// Only temporary tables on this connection; never uses the application's DATABASE_URL.
+// The fixture tables roll back when this connection closes; never uses the application's DATABASE_URL.
 describe.runIf(process.env.NEWSLETTER_ANALYTICS_TEST_DATABASE_URL)(
   "newsletter analytics SQL behaviour",
   () => {
     let client: Client;
+    let restoreSqlTables: (() => void) | undefined;
 
     beforeAll(async () => {
       client = new Client({
         connectionString: process.env.NEWSLETTER_ANALYTICS_TEST_DATABASE_URL,
       });
       await client.connect();
+      const schema = `newsletter_analytics_${randomUUID().replaceAll("-", "")}`;
       await client.query(`
-      CREATE TEMP TABLE newsletter_subscriber (
+      BEGIN;
+      CREATE SCHEMA "${schema}";
+      CREATE TABLE "${schema}".newsletter_subscriber (
         id uuid, "newsletterId" uuid, "createdAt" timestamp, "confirmedAt" timestamp,
         "unsubscribedAt" timestamp, "bouncedAt" timestamp, source text, status text
       );
-      CREATE TEMP TABLE newsletter_event (
+      CREATE TABLE "${schema}".newsletter_event (
         "newsletterId" uuid, "issueId" uuid, "subscriberId" uuid, "sendId" uuid,
         type text, url text, "occurredAt" timestamp
       );
-      CREATE TEMP TABLE newsletter_issue (
+      CREATE TABLE "${schema}".newsletter_issue (
         id uuid, "newsletterId" uuid, subject text, "sentAt" timestamp, status text
       );
-      CREATE TEMP TABLE newsletter_send ("issueId" uuid, status text, "sentAt" timestamp);
+      CREATE TABLE "${schema}".newsletter_send ("issueId" uuid, status text, "sentAt" timestamp);
     `);
+      restoreSqlTables = configureSqlTables({
+        shared: schema,
+        mainnet: `${schema}_m`,
+        preprod: `${schema}_p`,
+        preprodOn: false,
+      });
     });
     afterAll(async () => {
+      restoreSqlTables?.();
       await client?.end();
     });
     beforeEach(async () => {
-      await client.query(
-        "TRUNCATE newsletter_subscriber, newsletter_event, newsletter_issue, newsletter_send",
-      );
+      await client.query("SAVEPOINT newsletter_analytics_case");
       m.raw.mockImplementation(
         async (query: Prisma.Sql) =>
           (await client.query(query.text, query.values)).rows,
+      );
+    });
+    afterEach(async () => {
+      await client.query(
+        "ROLLBACK TO SAVEPOINT newsletter_analytics_case; RELEASE SAVEPOINT newsletter_analytics_case",
       );
     });
 
@@ -90,7 +107,7 @@ describe.runIf(process.env.NEWSLETTER_ANALYTICS_TEST_DATABASE_URL)(
     ) {
       const subscriberId = `00000000-0000-4000-8000-${String(id).padStart(12, "0")}`;
       await client.query(
-        "INSERT INTO newsletter_subscriber VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+        `INSERT INTO ${sharedTable("newsletter_subscriber").sql} VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
         [
           subscriberId,
           newsletter,
@@ -114,7 +131,7 @@ describe.runIf(process.env.NEWSLETTER_ANALYTICS_TEST_DATABASE_URL)(
       sendId: string | null = null,
     ) {
       await client.query(
-        "INSERT INTO newsletter_event VALUES ($1,$2,$3,$4,$5,$6,$7)",
+        `INSERT INTO ${sharedTable("newsletter_event").sql} VALUES ($1,$2,$3,$4,$5,$6,$7)`,
         [newsletter, issueId, subscriberId, sendId, type, url, at],
       );
     }
@@ -237,7 +254,7 @@ describe.runIf(process.env.NEWSLETTER_ANALYTICS_TEST_DATABASE_URL)(
         OTHER_NEWSLETTER,
       );
       await client.query(
-        "INSERT INTO newsletter_issue VALUES ($1,$2,'Issue',$3,'SENT')",
+        `INSERT INTO ${sharedTable("newsletter_issue").sql} VALUES ($1,$2,'Issue',$3,'SENT')`,
         [ISSUE, NEWSLETTER, "2026-10-01"],
       );
       const result = await getNewsletterAnalytics(SCOPE, RANGE);
@@ -354,7 +371,7 @@ describe.runIf(process.env.NEWSLETTER_ANALYTICS_TEST_DATABASE_URL)(
     it("bounds issue pages, retains total counts, and uses stable sent-date/id cursors without duplicates", async () => {
       for (const id of [ISSUE, OTHER_ISSUE, OTHER_NEWSLETTER]) {
         await client.query(
-          "INSERT INTO newsletter_issue VALUES ($1,$2,'Issue',$3,'SENT')",
+          `INSERT INTO ${sharedTable("newsletter_issue").sql} VALUES ($1,$2,'Issue',$3,'SENT')`,
           [id, NEWSLETTER, "2026-10-01"],
         );
       }

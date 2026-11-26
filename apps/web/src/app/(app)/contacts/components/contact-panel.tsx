@@ -5,6 +5,7 @@ import type {
   ContactChannelType,
   ContactDetail,
   ContactInteraction,
+  ContactKnownBy,
   ContactList,
 } from "@sokosumi/core-client";
 import {
@@ -33,6 +34,7 @@ import {
   Trash2,
   UserRound,
   UserSearch,
+  UsersRound,
   Zap,
 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
@@ -57,6 +59,9 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -72,9 +77,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useSession } from "@/lib/auth/auth.client";
 import { contactsService } from "@/lib/services/contacts.client";
 import { cn } from "@/lib/utils";
 import { ChannelTypeSelect } from "./channel-type-select";
+import {
+  CopyContactLinkItem,
+  useContactWorkspaceId,
+} from "./contact-link-workspace";
 import { ContactListDialog } from "./contact-list-dialog";
 import {
   ChannelIcon,
@@ -91,6 +101,7 @@ import { InlineField } from "./inline-field";
 import { useContactArchive } from "./use-contact-archive";
 import {
   useContactUpdate,
+  useContactUser,
   useImportanceUpdate,
   useListToggle,
 } from "./use-contact-update";
@@ -134,8 +145,9 @@ export function ContactPanel({
   onMerge,
 }: Props) {
   const t = useTranslations("App.Contacts.panel");
+  const workspaceId = useContactWorkspaceId();
   const detail = useQuery({
-    queryKey: contactKey(contactId),
+    queryKey: [...contactKey(contactId), workspaceId],
     queryFn: () => contactsService.get(contactId),
   });
   return (
@@ -223,6 +235,34 @@ function Property({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/** "3 interactions · Follows you on X", from the reader's side when it is them. */
+function knownByDetail(
+  person: ContactKnownBy,
+  isReader: boolean,
+  t: ReturnType<typeof useTranslations<"App.Contacts">>,
+): string {
+  const x =
+    person.followsOnX && person.followedOnX
+      ? "mutual"
+      : person.followsOnX
+        ? "follows"
+        : person.followedOnX
+          ? "followed"
+          : null;
+  return [
+    person.interactionCount
+      ? t("panel.interactionCount", { count: person.interactionCount })
+      : null,
+    x
+      ? isReader
+        ? t(`panel.xYou.${x}`)
+        : t(`panel.x.${x}`, { name: person.name })
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 function PanelBody({
   contact,
   lists,
@@ -257,6 +297,9 @@ function PanelBody({
           : t("importance.notYet");
   const creator =
     teammates.find((person) => person.id === contact.createdByUserId) ?? null;
+  const { data: session } = useSession();
+  const meId = session?.user.id ?? null;
+  const setUser = useContactUser();
   const manualLists = lists.filter((list) => list.kind === "manual");
   const [enriching, setEnriching] = useState(false);
   const [creatingList, setCreatingList] = useState(false);
@@ -428,6 +471,14 @@ function PanelBody({
                   when: format.relativeTime(new Date(contact.createdAt), now),
                 })}
           </p>
+          {contact.user ? (
+            <p className="flex items-center gap-1.5 text-xs font-medium">
+              <PersonAvatar person={contact.user} className="size-4" />
+              {contact.user.id === meId
+                ? t("panel.isYou")
+                : t("panel.isTeammate", { name: contact.user.name })}
+            </p>
+          ) : null}
         </div>
         {contact.kind === "PERSON" && !archived ? (
           <Button
@@ -455,18 +506,7 @@ function PanelBody({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={() =>
-                void navigator.clipboard
-                  ?.writeText(
-                    `${window.location.origin}/contacts?contact=${contact.id}`,
-                  )
-                  .then(() => toast.success(t("panel.linkCopied")))
-              }
-            >
-              <Copy aria-hidden className="size-4" />
-              {t("panel.copyLink")}
-            </DropdownMenuItem>
+            <CopyContactLinkItem contactId={contact.id} />
             <DropdownMenuItem
               onClick={() =>
                 void save({
@@ -483,6 +523,39 @@ function PanelBody({
                 ? t("panel.markOrganization")
                 : t("panel.markPerson")}
             </DropdownMenuItem>
+            {contact.kind === "PERSON" ? (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <UsersRound aria-hidden className="size-4" />
+                  {t("panel.thisIs")}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="max-h-80 min-w-48 overflow-y-auto">
+                  <DropdownMenuRadioGroup
+                    value={contact.user?.id ?? ""}
+                    onValueChange={(userId) =>
+                      void setUser(contact, userId || null)
+                    }
+                  >
+                    {teammates.map((person) => (
+                      <DropdownMenuRadioItem
+                        key={person.id}
+                        value={person.id}
+                        className="gap-2"
+                      >
+                        <PersonAvatar person={person} />
+                        {person.id === meId
+                          ? t("panel.thisIsMe", { name: person.name })
+                          : person.name}
+                      </DropdownMenuRadioItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuRadioItem value="">
+                      {t("panel.thisIsNoOne")}
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            ) : null}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"
@@ -588,6 +661,26 @@ function PanelBody({
             </span>
           </span>
         </Property>
+        {contact.knownBy.length ? (
+          <Property label={t("columns.knownBy")}>
+            <ul className="grid gap-1 py-1.5">
+              {contact.knownBy.map((person) => (
+                <li
+                  key={person.id}
+                  className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm"
+                >
+                  <PersonAvatar person={person} />
+                  <span className="truncate">
+                    {person.id === meId ? t("toolbar.me") : person.name}
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {knownByDetail(person, person.id === meId, t)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Property>
+        ) : null}
         {connections.length ? (
           <Property label={t("panel.connectedVia")}>
             <span className="flex min-h-9 flex-wrap items-center gap-1.5">

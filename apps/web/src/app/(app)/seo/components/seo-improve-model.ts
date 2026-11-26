@@ -94,8 +94,23 @@ export function seoViewNarrowed(filters: {
 /** Which Google sources the saved statistics of these pages come from. */
 function connectedSources(data: ProjectSeoWorkspace) {
   const latest = latestSeoMeasurements(data.metrics);
+  const selectedIds = new Set(data.scope.pageIds);
+  const selectedUrls = new Set(
+    data.pages
+      .filter((page) => selectedIds.has(page.id))
+      .map((page) => page.url),
+  );
+  const auditTraffic = data.auditSearchConsole?.some(
+    (audit) =>
+      audit.pageUrls.length > 0 &&
+      audit.pageUrls.every((url) => selectedUrls.has(url)) &&
+      (audit.clicks !== null ||
+        audit.impressions !== null ||
+        audit.queries != null),
+  );
   return {
     search_console:
+      auditTraffic ||
       data.searchQueries !== null ||
       latest.some((metric) => metric.source === "search_console"),
     ga4: latest.some((metric) => metric.source === "ga4"),

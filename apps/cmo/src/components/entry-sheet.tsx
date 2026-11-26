@@ -1,6 +1,7 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
+import { cmoShapedVideoTarget, cmoVideoShape } from "@sokosumi/utils";
 import {
   ChevronLeft,
   ChevronRight,
@@ -10,7 +11,9 @@ import {
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { type ReactNode, useEffect, useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
+import { useEntryFiledText } from "../hooks/effects/use-entry-filed-text";
+import { useEventListener } from "../hooks/effects/use-event-listener";
 import { AGENT_NAME } from "../lib/agent";
 import { channelLabel, formatDay, isSocialProvider } from "../lib/calendar";
 import { formatHasImage, formatHasVideo, formatName } from "../lib/channels";
@@ -20,6 +23,14 @@ import { DraftText } from "./draft-text";
 import { withoutLabel } from "./showcases";
 
 type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
+
+/** "Instagram", or for a video in another shape "Instagram 4:5". */
+function alsoOnLabel(name: string): string {
+  const shaped = cmoShapedVideoTarget(name);
+  return shaped
+    ? `${channelLabel(shaped.channel)} ${cmoVideoShape(shaped.channel, shaped.format)}`
+    : channelLabel(name);
+}
 type Media = CmoOverview["media"][number];
 
 /**
@@ -62,37 +73,19 @@ export function EntrySheet({
   onNext?: () => void;
 }) {
   const filed = Boolean(entry.fileId && !entry.draft);
-  const [filedText, setFiledText] = useState<string | null>(null);
-  useEffect(() => {
-    // Stepping to another piece must not show the last one's words.
-    setFiledText(null);
-    if (!filed || !loadText) return;
-    let current = true;
-    loadText(entry.id)
-      .then((text) => {
-        if (current) setFiledText(text);
-      })
-      .catch(() => {});
-    return () => {
-      current = false;
-    };
-  }, [entry.id, filed, loadText]);
+  const filedText = useEntryFiledText(entry.id, filed, loadText);
   const draft = entry.draft ?? filedText;
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-      // The arrows step through pieces, except while typing a change.
-      if (
-        event.target instanceof HTMLInputElement ||
-        event.target instanceof HTMLTextAreaElement
-      )
-        return;
-      if (event.key === "ArrowLeft") onPrev?.();
-      if (event.key === "ArrowRight") onNext?.();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, onPrev, onNext]);
+  useEventListener("window", "keydown", (event) => {
+    if (event.key === "Escape") onClose();
+    // The arrows step through pieces, except while typing a change.
+    if (
+      event.target instanceof HTMLInputElement ||
+      event.target instanceof HTMLTextAreaElement
+    )
+      return;
+    if (event.key === "ArrowLeft") onPrev?.();
+    if (event.key === "ArrowRight") onNext?.();
+  });
   return (
     <>
       {/* The sheet's Close button is its one control; the scrim only catches clicks. */}
@@ -126,7 +119,7 @@ export function EntrySheet({
                   ? ` · image by ${AGENT_NAME}`
                   : ""}
             {entry.alsoOn?.length
-              ? ` · also on ${entry.alsoOn.map(channelLabel).join(", ")}`
+              ? ` · also on ${entry.alsoOn.map(alsoOnLabel).join(", ")}`
               : ""}
           </span>
           {position ? (
@@ -178,6 +171,7 @@ export function EntrySheet({
         <h3 className="sheet-title">{entry.title}</h3>
         {overview && draft && isSocialProvider(entry.channel.toLowerCase()) ? (
           <PostPreview
+            key={entry.id}
             entry={entry}
             media={media}
             text={draft}
@@ -246,7 +240,10 @@ export function EntrySheet({
             <p>{entry.why}</p>
           </div>
         ) : null}
-        {onAsk ? <ChangePiece entry={entry} onAsk={onAsk} /> : null}
+        {/* A post already out cannot change, so nothing asks for it. */}
+        {onAsk && entry.status !== "published" ? (
+          <ChangePiece entry={entry} onAsk={onAsk} />
+        ) : null}
       </motion.aside>
     </>
   );
@@ -320,15 +317,19 @@ function PostPreview({
 }) {
   const channel = entry.channel.toLowerCase();
   const [editing, setEditing] = useState(false);
+  const [prevText, setPrevText] = useState(text);
   const [words, setWords] = useState(text);
   const [refusal, setRefusal] = useState<string | null>(null);
+  // The words last saved here: "Saved." shows while the post holds them.
+  const [savedText, setSavedText] = useState<string | null>(null);
   const [saving, startSaving] = useTransition();
   // Stepping to another post, or a save, shows that post's own words.
-  useEffect(() => {
+  if (prevText !== text) {
+    setPrevText(text);
     setWords(text);
     setEditing(false);
     setRefusal(null);
-  }, [text]);
+  }
   const pictureFirst = channel === "instagram";
   const picture = <PieceMedia entry={entry} media={media} />;
   return (
@@ -351,7 +352,7 @@ function PostPreview({
         </header>
         {pictureFirst ? picture : null}
         {editing ? (
-          <div className="field">
+          <div key={text} className="field">
             <label htmlFor={`post-text-${entry.id}`}>Post text</label>
             <textarea
               id={`post-text-${entry.id}`}
@@ -383,7 +384,10 @@ function PostPreview({
                     () => "That didn't go through. Try again.",
                   );
                   setRefusal(error ?? null);
-                  if (!error) setEditing(false);
+                  if (!error) {
+                    setSavedText(words.trim());
+                    setEditing(false);
+                  }
                 })
               }
             >
@@ -403,13 +407,20 @@ function PostPreview({
             </button>
           </>
         ) : onEdit ? (
-          <button
-            type="button"
-            className="button button-secondary button-small"
-            onClick={() => setEditing(true)}
-          >
-            Edit text
-          </button>
+          <>
+            {savedText === text.trim() ? (
+              <span className="note" role="status">
+                Saved.
+              </span>
+            ) : null}
+            <button
+              type="button"
+              className="button button-secondary button-small"
+              onClick={() => setEditing(true)}
+            >
+              Edit text
+            </button>
+          </>
         ) : null}
       </div>
       {refusal ? (

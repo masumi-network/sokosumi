@@ -23,9 +23,62 @@
 }
 
 /*
- * The funnel: each stage is a slice of one shape that narrows toward the
- * sale, with what happens at the stage beside it (under it on a phone).
+ * The funnel: one drawing at its own proportions that narrows toward the
+ * sale, beside the stages (above them on a phone).
  */
+.sc-funnel-wrap {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 0 40px;
+  align-items: start;
+}
+
+.sc-funnel-shape {
+  position: relative;
+  width: 100%;
+  margin-top: 24px;
+}
+
+.sc-funnel-shape svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.sc-segment {
+  fill: var(--primary);
+  stroke: var(--line);
+  stroke-width: var(--line-width);
+  stroke-linejoin: round;
+}
+
+.sc-segment.paper {
+  fill: var(--card);
+}
+
+.sc-segment.yellow {
+  fill: var(--warn);
+}
+
+.sc-segment.green {
+  fill: var(--ok);
+}
+
+.sc-slice-label {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--primary-foreground);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sc-slice-label.paper {
+  color: var(--foreground);
+}
+
 .sc-funnel {
   display: grid;
   margin: 0;
@@ -40,61 +93,45 @@
 
 .sc-stage {
   display: grid;
-  grid-template-columns: minmax(220px, 30%) minmax(0, 1fr);
-  gap: 0 32px;
+  gap: 16px;
+  padding: 24px 0;
 }
 
-.sc-segment {
-  position: relative;
-  display: grid;
-  place-items: center;
-  min-height: 148px;
-  padding: 16px calc(var(--sc-inset) + 12px);
-  color: var(--primary-foreground);
-  text-align: center;
+.sc-stage + .sc-stage {
+  border-top: 1px solid var(--border);
 }
 
-.sc-segment svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.sc-segment polygon {
-  fill: var(--primary);
-  stroke: var(--line);
-  stroke-width: var(--line-width);
-  stroke-linejoin: round;
-}
-
-.sc-segment.paper {
-  color: var(--foreground);
-}
-
-.sc-segment.paper polygon {
-  fill: var(--card);
-}
-
-.sc-segment.yellow polygon {
-  fill: var(--warn);
-}
-
-.sc-segment.green polygon {
-  fill: var(--ok);
-}
-
-.sc-segment-text {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  gap: 2px;
+.sc-stage-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
 }
 
 .sc-stage-number {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-foreground);
   font-size: 0.75rem;
   font-weight: 600;
+}
+
+.sc-stage-number.paper {
+  background: var(--card);
+  color: var(--foreground);
+}
+
+.sc-stage-number.yellow {
+  background: var(--warn);
+}
+
+.sc-stage-number.green {
+  background: var(--ok);
 }
 
 .sc-stage-name {
@@ -105,38 +142,19 @@
 }
 
 .sc-stage-people {
+  color: var(--muted);
   font-size: 0.75rem;
   line-height: 1rem;
-  text-wrap: balance;
-}
-
-.sc-stage-body {
-  display: grid;
-  align-content: center;
-  gap: 16px;
-  padding: 24px 0;
-}
-
-.sc-stage + .sc-stage .sc-stage-body {
-  border-top: 1px solid var(--border);
 }
 
 @media (max-width: 760px) {
-  .sc-stage {
+  .sc-funnel-wrap {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .sc-segment {
-    min-height: 76px;
-    padding-block: 10px;
-  }
-
-  .sc-stage-body {
-    padding: 16px 0 24px;
-  }
-
-  .sc-stage + .sc-stage .sc-stage-body {
-    border-top: 0;
+  .sc-funnel-shape {
+    width: min(100%, 240px);
+    margin: 8px auto 8px;
   }
 }
 
@@ -149,64 +167,16 @@
   text-wrap: pretty;
 }
 
-/* The same three answers at every stage, so the columns line up down the page. */
-.sc-stage-parts {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px 24px;
+/* About how much of the month serves the step. */
+.sc-share {
   margin: 0;
-}
-
-.sc-stage-parts dt {
-  margin-bottom: 6px;
   color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.875rem;
 }
 
-.sc-stage-parts dd,
-.sc-stage-parts p {
-  margin: 0;
-}
-
-.sc-plays,
-.sc-ideas {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.sc-plays li,
-.sc-ideas li {
-  display: grid;
-  gap: 2px;
-}
-
-.sc-play-channel {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.sc-share b {
+  color: var(--foreground);
   font-weight: 600;
-}
-
-.sc-measure {
-  display: grid;
-  justify-items: start;
-  gap: 2px;
-}
-
-.sc-measure b {
-  font-size: 1.5rem;
-  font-weight: 300;
-  line-height: 1.75rem;
-}
-
-@media (max-width: 640px) {
-  .sc-stage-parts {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 /* Before and after, one row a channel */
@@ -228,6 +198,12 @@
 
 .sc-ba li.sc-ba-head {
   padding-top: 0;
+}
+
+/* The section's own divider follows; a second line would frame nothing. */
+.sc-ba li:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
 }
 
 .sc-ba-channel {
@@ -267,29 +243,27 @@
 }
 
 /* Ad budget */
-.sc-ads {
+.sc-budget {
   display: grid;
   gap: 8px;
 }
 
-.sc-ads p {
+.sc-budget p {
   margin: 0;
 }
 
-.sc-ads-amount b {
-  font-size: 1.75rem;
+.sc-budget-question {
   font-weight: 600;
-  letter-spacing: -0.02em;
 }
 
-.sc-ads-form {
+.sc-budget-form {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
 
-.sc-ads-input {
+.sc-budget-input {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -299,7 +273,7 @@
   border-radius: var(--radius-control);
 }
 
-.sc-ads-input input {
+.sc-budget-input input {
   width: 96px;
   border: 0;
   background: transparent;
@@ -307,7 +281,7 @@
   font: inherit;
 }
 
-.sc-ads-input:focus-within {
+.sc-budget-input:focus-within {
   border-color: var(--foreground);
 }
 
@@ -348,6 +322,52 @@
   gap: 4px;
 }
 
+.sc-improve {
+  gap: 0;
+}
+
+.sc-improve li {
+  padding: 16px 0;
+}
+
+.sc-improve li:first-child {
+  padding-top: 4px;
+}
+
+.sc-improve li + li {
+  border-top: 1px solid var(--border);
+}
+
+.sc-improve p {
+  margin: 0;
+}
+
+.sc-improve-area {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.sc-improve-area a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+.sc-improve-facts {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 2px 12px;
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+}
+
+.sc-improve-facts dt {
+  color: var(--muted);
+}
+
+.sc-improve-facts dd {
+  margin: 0;
+}
+
 .sc-alts p {
   margin: 0;
 }
@@ -384,6 +404,13 @@
 
 .sc-source-text {
   display: grid;
+  gap: 2px;
+}
+
+.sc-source-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 2px;
 }
 

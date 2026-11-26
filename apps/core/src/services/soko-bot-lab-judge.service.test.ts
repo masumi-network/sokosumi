@@ -15,6 +15,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
     sokoBotLabRun: { upsert: vi.fn() },
+    sokoBotModelCall: { create: vi.fn() },
   },
 }));
 
@@ -45,6 +46,8 @@ import {
   loadLabJudgePayload,
   SokoBotJudgeFailure,
   SokoBotLabJudgeError,
+  sokoBotJudgeModel,
+  sokoBotJudgeRunner,
   sokoBotLabJudgeErrorKind,
 } from "./soko-bot-lab-judge.service";
 
@@ -290,6 +293,49 @@ describe("soko-bot judge on Claude Code", () => {
     expect(prisma.sokoBotTurn.update).not.toHaveBeenCalled();
   });
 
+  it("keeps the CLI judge when a run asks for another model", async () => {
+    useClaudeCode();
+    vi.mocked(runClaudeCodeJudge).mockResolvedValue(VALID_VERDICT);
+
+    const judged = await judgeEvalScenarioTurn(
+      "turn-1",
+      scenario,
+      "anthropic/claude-sonnet-5",
+    );
+
+    expect(judged.model).toBe("claude-code:claude-opus-5-5");
+  });
+
+  it("judges on the model a run asks for through the Gateway", async () => {
+    vi.mocked(getEnv).mockReturnValue({
+      ...realEnv,
+      SOKO_BOT_JUDGE_RUNNER: "gateway",
+    });
+    const actual = await vi.importActual<typeof import("ai")>("ai");
+    vi.mocked(generateText).mockImplementationOnce((options) =>
+      actual.generateText({ ...options, model: budgetSensitiveJudgeModel() }),
+    );
+
+    const judged = await judgeEvalScenarioTurn(
+      "turn-1",
+      scenario,
+      "anthropic/claude-sonnet-5",
+    );
+
+    expect(judged.model).toBe("anthropic/claude-sonnet-5");
+    expect(generateText).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        model: expect.objectContaining({
+          modelId: "anthropic/claude-sonnet-5",
+        }),
+      }),
+    );
+    const update = vi.mocked(prisma.sokoBotTurn.update).mock.calls[0]?.[0];
+    expect(update?.data).toMatchObject({
+      qualityModel: "anthropic/claude-sonnet-5",
+    });
+  });
+
   it("refuses to run on Vercel", async () => {
     useClaudeCode({ VERCEL_ENV: "production" });
 
@@ -298,5 +344,30 @@ describe("soko-bot judge on Claude Code", () => {
     );
     expect(runClaudeCodeJudge).not.toHaveBeenCalled();
     expect(generateText).not.toHaveBeenCalled();
+  });
+});
+
+describe("soko-bot judge on a ChatGPT plan run", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("defaults to Claude Code when no runner is set", () => {
+    vi.stubEnv("SOKO_BOT_LOCAL_CHATGPT_PLAN", "1");
+    vi.stubEnv("SOKO_BOT_JUDGE_RUNNER", "");
+    expect(sokoBotJudgeRunner()).toBe("claude-code");
+  });
+
+  it("names the plan model that ran under a Gateway-judge override", () => {
+    vi.stubEnv("SOKO_BOT_LOCAL_CHATGPT_PLAN", "1");
+    vi.stubEnv("SOKO_BOT_JUDGE_RUNNER", "gateway");
+    vi.mocked(getEnv).mockReturnValue({
+      ...getEnv(),
+      SOKO_BOT_JUDGE_RUNNER: "gateway",
+    });
+    expect(sokoBotJudgeModel("anthropic/claude-opus-5.5")).toBe(
+      "chatgpt-plan:gpt-6-luna",
+    );
+    expect(sokoBotJudgeModel("openai/gpt-6.2-sol")).toBe(
+      "chatgpt-plan:gpt-6.2-sol",
+    );
   });
 });

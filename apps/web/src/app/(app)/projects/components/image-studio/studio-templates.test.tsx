@@ -166,10 +166,12 @@ describe("starting from a template", () => {
     expect(rendered).toEqual(names);
   });
 
-  it("opens the brand kit and links to the current project's design in a separate tab", () => {
+  it("opens the brand kit and links to the current project's design in a separate tab", async () => {
     mocks.loadBrandKit.mockRejectedValueOnce(new Error("Unavailable"));
     mount();
-    fireEvent.click(screen.getByRole("button", { name: "brandKit" }));
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "brandKit" })),
+    );
     const kit = screen.getByRole("link", { name: "brandKitNewTab" });
     expect(kit).toHaveAttribute("href", "/projects/p/design-md");
     expect(kit).toHaveAttribute("target", "_blank");
@@ -525,24 +527,22 @@ describe("starting from a template", () => {
     await waitFor(() => expect(close).toBeEnabled());
     fireEvent.click(close);
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: "reviewImportedProducts" }),
-    );
-    expect(await screen.findByLabelText("name")).toHaveValue("Travel mug");
-    expect(mocks.saveProducts).not.toHaveBeenCalled();
-    const save = screen.getByRole("button", { name: "save" });
-    await waitFor(() => expect(save).toBeEnabled());
-    fireEvent.click(save);
-    await waitFor(() =>
-      expect(mocks.saveProducts).toHaveBeenCalledExactlyOnceWith({
-        projectId: "p",
-        catalog: { revision: 4, products: [product, secondProduct] },
-      }),
-    );
-    const stage = await screen.findByRole("button", {
-      name: "addImportedToBatch",
+    const reviewProducts = screen.getByRole("button", {
+      name: "reviewImportedProducts",
     });
-    await waitFor(() => expect(stage).toBeEnabled());
+    await act(async () => fireEvent.click(reviewProducts));
+    expect(screen.getByLabelText("name")).toHaveValue("Travel mug");
+    expect(mocks.saveProducts).not.toHaveBeenCalled();
+
+    const save = screen.getByRole("button", { name: "save", busy: false });
+    expect(save).toBeEnabled();
+    await act(async () => fireEvent.click(save));
+    expect(mocks.saveProducts).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+      catalog: { revision: 4, products: [product, secondProduct] },
+    });
+    const stage = screen.getByRole("button", { name: "addImportedToBatch" });
+    expect(stage).toBeEnabled();
     fireEvent.click(stage);
     fireEvent.click(screen.getByRole("button", { name: "useBatch" }));
     expect(screen.getByText("Travel mug")).toBeInTheDocument();

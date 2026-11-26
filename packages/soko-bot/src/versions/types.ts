@@ -22,8 +22,26 @@ export interface SokoBotVersion {
   createdAt: string;
   summary: string;
   model: string;
+  /**
+   * A stronger model for the turns that need it: strategy, background runs,
+   * orchestration and chat Jev reads as complex (`turn-model.ts` in Core).
+   * Omit to run every turn on `model`.
+   */
+  strongModel?: string;
   systemPrompt: string;
   skills: readonly string[];
+  /**
+   * The system prompt carries an index of the skills and only those the turn
+   * always needs in full (`skill-index.ts`); the bot reads the rest with
+   * read_skill. Omitted: every skill in full on every turn, as before.
+   */
+  skillsOnDemand?: true;
+  /**
+   * `send_message`: the bot reaches anyone through send_message and
+   * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
+   * Omitted: the reverse, as every version before v35 was written.
+   */
+  messaging?: "send_message";
   /** Tool allowlist on top of the route ceiling; omit for all. */
   capabilities?: readonly SokoBotCapability[];
   /** AI Gateway regional inference pin; omit for global routing. */
@@ -34,4 +52,10 @@ export interface SokoBotVersion {
    * omit to fall back to `summary`.
    */
   releaseNote?: string;
+  /**
+   * CMO only: what a Cuso owner reads in the app's "Cuso got better" dialog
+   * after an administrator moves their Cuso onto this version. One short,
+   * plain line each, for a founder who is not a marketer.
+   */
+  whatsNew?: readonly string[];
 }

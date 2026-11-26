@@ -3,7 +3,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { AGENT_NAME } from "../../lib/agent";
-import { cmoOverview, cmoPlans } from "../../test-fixtures/cmo";
+import {
+  cmoOverview,
+  cmoPlans,
+  cmoStrategyVersion,
+} from "../../test-fixtures/cmo";
 import { SettingsPage } from "./pages";
 
 const SUBSCRIBED = {
@@ -99,20 +103,20 @@ describe("Settings: the time zone", () => {
 });
 
 describe("Settings: the CMO subscription", () => {
-  it("shows the tier, the interval, the renewal date and the credits left", () => {
+  it("shows the tier, what it gives and costs, the renewal date and the credits left", () => {
     const text = settings(SUBSCRIBED);
 
     expect(text).toContain("Growth");
-    expect(text).toContain("billed monthly");
+    expect(text).toContain("25,000 credits a month, $500 a month");
     expect(text).toContain("Renews on 13 January 2027.");
-    expect(text).toContain("8400");
+    expect(text).toContain("8,400");
     expect(text).toContain("credits available");
     expect(text).not.toContain("payment failed");
   });
 
   it("says yearly for a yearly plan", () => {
     expect(settings({ ...SUBSCRIBED, interval: "year" })).toContain(
-      "billed yearly",
+      "25,000 credits a month, $5,000 a year",
     );
   });
 
@@ -136,7 +140,7 @@ describe("Settings: the CMO subscription", () => {
   it("offers the plan checkout without a subscription", () => {
     const text = settings();
 
-    expect(text).toContain("8400");
+    expect(text).toContain("8,400");
     expect(text).toContain("No CMO plan yet");
     expect(text).toContain("Subscribe");
     expect(text).not.toContain("Renews on");
@@ -211,5 +215,34 @@ describe("Settings: changing the plan and the billing portal", () => {
     expect(text).not.toContain("Moves to Starter");
     expect(text).not.toContain("Keep my plan");
     expect(text).not.toContain("Manage billing");
+  });
+});
+
+describe("Settings: what Cuso does when", () => {
+  const nudge = {
+    key: "cmo-strategy-nudge",
+    name: "Strategy reminder",
+    when: "Once, two days after a strategy waits for approval",
+    description:
+      "One friendly reminder when the proposed strategy has waited about two days.",
+    nextRunAt: null,
+    timezone: "Europe/Berlin",
+  };
+
+  it("lists the strategy reminder only while a strategy waits", () => {
+    const base = cmoOverview();
+    const waiting = {
+      ...base,
+      ...cmoStrategyVersion(null),
+      routines: [nudge],
+    };
+    expect(markup({}, false, waiting)).toContain("Strategy reminder");
+    const approved = {
+      ...base,
+      ...cmoStrategyVersion(new Date("2026-11-02T09:00:00Z")),
+    };
+    expect(markup({}, false, { ...approved, routines: [nudge] })).not.toContain(
+      "Strategy reminder",
+    );
   });
 });

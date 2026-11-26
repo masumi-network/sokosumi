@@ -2,6 +2,7 @@ import type { AbstractIntlMessages } from "next-intl";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
+import { FlashToast } from "@/components/flash-toast.client";
 import { GlobalModalsContextProvider } from "@/components/modals/global-modals-context";
 import { ButtonLoadingAnnouncer } from "@/components/ui/button-loading-bar";
 import { Toaster } from "@/components/ui/sonner";
@@ -30,6 +31,7 @@ function RootProviders({ children, locale, messages }: RootProvidersProps) {
         </GlobalModalsContextProvider>
       </ButtonLoadingAnnouncer>
       <Toaster />
+      <FlashToast />
     </NextIntlClientProvider>
   );
 }

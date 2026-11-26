@@ -74,7 +74,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         c,
         z.array(workspaceSocialPostSchema).parse(
           posts.map((post) => ({
-            post: presentSocialPost(post, userContext.coworkerId),
+            post: presentSocialPost(post, userContext),
             projectName: names.get(post.projectId) ?? "",
             projectCmo: cmoProjects.has(post.projectId),
           })),

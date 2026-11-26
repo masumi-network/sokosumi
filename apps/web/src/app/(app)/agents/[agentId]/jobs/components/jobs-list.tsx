@@ -8,7 +8,6 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type ReactNode,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -19,13 +18,18 @@ import { loadMoreOwnedAgentJobs } from "@/app/agents/[agentId]/jobs/actions";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { Button } from "@/components/ui/button";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { useAnimationFrameBatch } from "@/hooks/effects/use-animation-frame-batch";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 import { jobStatusDataSchema } from "@/lib/ably/schema";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 import { buildJobDayGroups } from "./jobs-list.utils";
-import { JobsSearch } from "./jobs-search";
+import {
+  filterJobsByQuery,
+  JobsSearch,
+  useJobsSearchQuery,
+} from "./jobs-search";
 
 const JOB_STATUS_EVENT_NAME = "job_status_data";
 
@@ -58,20 +62,7 @@ function JobsStatusRealtimeListener({
   channelName: string;
   onStatusUpdate: (updates: JobStatusUpdateData[]) => void;
 }) {
-  const animationFrameRef = useRef<number | null>(null);
-  const pendingUpdatesRef = useRef<JobStatusUpdateData[]>([]);
-  const isMountedRef = useRef(true);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-      pendingUpdatesRef.current = [];
-      if (animationFrameRef.current !== null) {
-        window.cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, []);
+  const enqueueStatusUpdate = useAnimationFrameBatch(onStatusUpdate);
 
   useChannel(channelName, JOB_STATUS_EVENT_NAME, (message) => {
     const parsedResult = jobStatusDataSchema.safeParse(message.data);
@@ -85,30 +76,10 @@ function JobsStatusRealtimeListener({
       return;
     }
 
-    pendingUpdatesRef.current.push({
+    enqueueStatusUpdate({
       jobId: parsedResult.data.jobId,
       jobStatus: parsedResult.data.jobStatus,
       jobStatusSettled: parsedResult.data.jobStatusSettled,
-    });
-
-    if (animationFrameRef.current !== null) {
-      return;
-    }
-
-    animationFrameRef.current = window.requestAnimationFrame(() => {
-      animationFrameRef.current = null;
-      if (!isMountedRef.current) {
-        pendingUpdatesRef.current = [];
-        return;
-      }
-
-      const updates = pendingUpdatesRef.current;
-      pendingUpdatesRef.current = [];
-      if (updates.length === 0) {
-        return;
-      }
-
-      onStatusUpdate(updates);
     });
   });
 
@@ -136,7 +107,8 @@ export function JobsList({
   const [statusPatches, setStatusPatches] = useState(
     () => new Map<string, JobStatusPatch>(),
   );
-  const [filteredJobs, setFilteredJobs] = useState<JobSummary[]>(jobs);
+  const { searchValue, handleInputChange, handleClear } = useJobsSearchQuery();
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [isLoadingMore, startLoadMoreTransition] = useTransition();
   const activeJobId = selectedJobId ?? routeParams.jobId;
 
@@ -165,6 +137,15 @@ export function JobsList({
       };
     });
   }, [jobs, appendedJobs, statusPatches]);
+
+  const filteredJobs = useMemo(
+    () => filterJobsByQuery(localJobs, searchValue),
+    [localJobs, searchValue],
+  );
+
+  const query = searchValue.trim();
+  const isMiss =
+    query !== "" && localJobs.length > 0 && filteredJobs.length === 0;
 
   const dayGroups = useMemo(
     () => buildJobDayGroups(filteredJobs, locale),
@@ -247,9 +228,13 @@ export function JobsList({
       <aside className="@4xl/jobs-panes:border-border flex size-full min-h-0 flex-col py-4 @4xl/jobs-panes:border-r">
         {header}
         <JobsSearch
-          jobs={localJobs}
+          searchValue={searchValue}
+          onSearchChange={handleInputChange}
+          onClear={handleClear}
+          filteredCount={filteredJobs.length}
+          totalCount={localJobs.length}
           hasMoreHistory={Boolean(nextCursor)}
-          onFilteredChange={(nextJobs) => setFilteredJobs(nextJobs)}
+          inputRef={searchInputRef}
         />
 
         <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-24 md:p-2 md:pr-4 md:pl-0 @4xl/jobs-panes:pb-2">
@@ -272,11 +257,39 @@ export function JobsList({
                 </ul>
               </section>
             ))
-          ) : (
-            <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 duration-200 px-2 py-8 text-sm text-pretty">
-              {localJobs.length > 0 ? t("noMatches") : t("emptyJobs")}
+          ) : !isMiss ? (
+            <p className="text-muted-foreground px-2 py-8 text-sm text-pretty">
+              {t("emptyJobs")}
+            </p>
+          ) : null}
+          {/* Stands empty from the start, so a miss typed into the field is
+              announced while focus stays there. The button sits outside: a
+              status region is read, not operated. */}
+          <p
+            role="status"
+            className={
+              isMiss
+                ? "text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 px-2 pt-8 text-sm text-pretty wrap-anywhere duration-200"
+                : "sr-only"
+            }
+          >
+            {isMiss ? t("noMatches", { query }) : null}
+          </p>
+          {isMiss ? (
+            <div className="px-2 pt-3 pb-8">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  handleClear();
+                  searchInputRef.current?.focus();
+                }}
+              >
+                {t("clearSearch")}
+              </Button>
             </div>
-          )}
+          ) : null}
           {nextCursor ? (
             <div className="flex justify-center px-2 pb-2">
               <Button

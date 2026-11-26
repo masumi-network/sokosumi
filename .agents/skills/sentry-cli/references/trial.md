@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-trial
-version: 0.49.0
+version: 0.50.0
 description: Manage product trials
 requires:
   bins: ["sentry"]
@@ -17,22 +17,22 @@ List product trials
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument  | Description                                  |
+| --------- | -------------------------------------------- |
 | `[<org>]` | Organization slug (auto-detected if omitted) |
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | CLI trial name (e.g. seer), or "plan" for the plan trial |
-| `category` | string | Trial category (e.g. seerUsers, seerAutofix) |
-| `status` | string | Trial status |
-| `daysRemaining` | number \| null | Days left on an active trial |
-| `isStarted` | boolean | Whether the trial has started |
-| `lengthDays` | number \| null | Trial duration in days |
-| `startDate` | string \| null | Start date (ISO 8601) |
-| `endDate` | string \| null | End date (ISO 8601) |
+| Field           | Type           | Description                                              |
+| --------------- | -------------- | -------------------------------------------------------- |
+| `name`          | string         | CLI trial name (e.g. seer), or "plan" for the plan trial |
+| `category`      | string         | Trial category (e.g. seerUsers, seerAutofix)             |
+| `status`        | string         | Trial status                                             |
+| `daysRemaining` | number \| null | Days left on an active trial                             |
+| `isStarted`     | boolean        | Whether the trial has started                            |
+| `lengthDays`    | number \| null | Trial duration in days                                   |
+| `startDate`     | string \| null | Start date (ISO 8601)                                    |
+| `endDate`       | string \| null | End date (ISO 8601)                                      |
 
 **Examples:**
 
@@ -55,8 +55,8 @@ Start a product trial
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument         | Description                                                                                                                              |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `<name> [<org>]` | Trial name (seer, replays, performance, spans, profiling, logs, monitors, uptime, plan) and organization slug (auto-detected if omitted) |
 
 **Examples:**

@@ -25,6 +25,14 @@ export const APP_MAIN_MOBILE_PT_CLASS =
   "pt-[calc(5rem+env(safe-area-inset-top))]" as const;
 
 /**
+ * Scroll margin with the same clearance as `APP_MAIN_MOBILE_PT_CLASS`, so a
+ * block scrolled into view lands below the fixed mobile header instead of
+ * under it. From `md` the header is in flow and needs no margin.
+ */
+export const APP_MAIN_MOBILE_SCROLL_MT_CLASS =
+  "max-md:scroll-mt-[calc(5rem+env(safe-area-inset-top))]" as const;
+
+/**
  * Viewport height below fixed header (`h-16` / 4rem content row + top inset).
  * Replaces bare `100dvh-4rem` under cover.
  *

@@ -435,6 +435,30 @@ const taskListItemSchema = taskBaseSchema
       description:
         "True when a comment on the Task mentions the caller and the caller has not commented on the Task since. Sent only to people.",
     }),
+    resultMatch: z.string().optional().openapi({
+      example: "…The 50% launch plan costs 20 credits a month…",
+      description:
+        "With `search`, text around the first match in the Task's latest matching result (a done comment): plain text, or the raw Markdown when the match sits in a link target or code. Sent only when nothing but the result matched.",
+    }),
+    // Optional on the wire for the same deploy-order reason, and because
+    // only people get it.
+    openSubtasks: z
+      .array(
+        z
+          .object({
+            id: z.string(),
+            identifier: z.string().nullable(),
+            name: z.string(),
+            status: taskStatusSchema,
+          })
+          .openapi("TaskOpenSubtask"),
+      )
+      .optional()
+      .openapi({
+        example: [],
+        description:
+          "The first three direct, non-archived sub-tasks that are not COMPLETED, in sub-task order. `subtaskProgress` counts all of them. Sent only to people.",
+      }),
   })
   .openapi("TaskListItem");
 
@@ -475,6 +499,23 @@ export const taskSchema = taskBaseSchema
         example: [],
         description:
           "For a sub-task, the Tasks above it, root first. Sent only by GET /tasks/{id}, and empty for coworker viewers.",
+      }),
+    seoAudit: z
+      .union([
+        z
+          .object({
+            auditId: z.string().uuid().nullable(),
+            projectId: z.string().uuid().nullable(),
+            resultAvailable: z.boolean().optional(),
+          })
+          .openapi("TaskSeoAudit"),
+        z.null(),
+      ])
+      .optional()
+      .openapi({
+        example: null,
+        description:
+          "The SEO page of an SEO analysis Task: its audit (auditId, with the audit's Project or null), or the Project SEO workspace (auditId null). Null when the Task has no SEO analysis or the caller cannot open that SEO page in the active workspace. Sent only by GET /tasks/{id}.",
       }),
     selectableStatuses: z.array(taskStatusSchema).openapi({
       example: [TaskStatus.DRAFT, TaskStatus.RUNNING, TaskStatus.COMPLETED],

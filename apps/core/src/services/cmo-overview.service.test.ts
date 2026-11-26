@@ -61,9 +61,11 @@ vi.mock("@/config/env", async (importOriginal) =>
   ),
 );
 
+import prisma from "@/lib/db/prisma";
 import {
   cmoOnboardingStep,
   cmoUpNext,
+  recentHandledSocialComments,
   withoutSkippedPieces,
 } from "./cmo-overview.service";
 
@@ -164,5 +166,58 @@ describe("withoutSkippedPieces", () => {
     expect(withoutSkippedPieces(plan)?.calendar).toEqual([kept]);
     expect(withoutSkippedPieces(strategy)).toBe(strategy);
     expect(withoutSkippedPieces(null)).toBeNull();
+  });
+});
+
+describe("recentHandledSocialComments", () => {
+  it("shows the owner what Cuso answered and what he left for them, newest first", async () => {
+    const now = new Date("2026-11-22T09:00:00.000Z");
+    const findMany = vi.mocked(prisma.socialComment.findMany);
+    findMany.mockResolvedValueOnce([
+      {
+        id: "c-1",
+        provider: "x",
+        status: "REPLIED",
+        authorName: "@wutzebaer1",
+        text: "+1, metadata is where it usually goes wrong",
+        reply: "Agreed. Studio checks metadata before the mint.",
+        note: null,
+        handledAt: new Date("2026-11-22T08:05:00.000Z"),
+        socialPost: { publishedUrl: "https://x.com/nmkr_io/status/1" },
+      },
+      {
+        id: "c-2",
+        provider: "linkedin",
+        status: "OWNER",
+        authorName: "Ana Ruiz",
+        text: "Can I get a refund?",
+        reply: null,
+        note: "Asks for a refund",
+        handledAt: new Date("2026-11-22T08:06:00.000Z"),
+        socialPost: { publishedUrl: null },
+      },
+    ] as never);
+    const comments = await recentHandledSocialComments("p-1", now);
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          projectId: "p-1",
+          status: { in: ["REPLIED", "OWNER"] },
+          handledAt: { gte: new Date("2026-11-19T09:00:00.000Z") },
+        },
+        orderBy: { handledAt: "desc" },
+      }),
+    );
+    expect(
+      comments.map((comment) => [comment.network, comment.status]),
+    ).toEqual([
+      ["x", "replied"],
+      ["linkedin", "owner"],
+    ]);
+    expect(comments[0]).toMatchObject({
+      reply: "Agreed. Studio checks metadata before the mint.",
+      postUrl: "https://x.com/nmkr_io/status/1",
+      handledAt: "2026-11-22T08:05:00.000Z",
+    });
   });
 });

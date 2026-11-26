@@ -75,7 +75,7 @@ export interface OnboardingConnectActions {
   ) => Promise<{ url: string | null; error: string | null }>;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],
-    from: "onboarding" | "launch" | "app",
+    from: "launch",
   ) => Promise<{ url: string | null; error: string | null }>;
   connectAds: AdActions["connectAds"];
   /** The owner's photo for talking videos, base64 JPEG, with their consent. */

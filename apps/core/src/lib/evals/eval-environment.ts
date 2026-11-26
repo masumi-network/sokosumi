@@ -1,13 +1,51 @@
 import { getEnv } from "@/config/env";
+import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
 
-export type EvalEnvironment = "mainnet" | "preprod" | "preview" | "local";
+export type EvalEnvironment =
+  | "mainnet"
+  | "preprod"
+  | "preview"
+  | "local"
+  | "local-chatgpt-plan";
 
-/** Where this Core runs, as an eval run records it. */
+/**
+ * Where this Core runs, as an eval run records it. A ChatGPT plan run is its
+ * own environment: its models differ, so it is compared only with plan runs.
+ */
 export function evalEnvironment(): EvalEnvironment {
   if (process.env.VERCEL_ENV === "production")
     return getEnv().NETWORK === "Mainnet" ? "mainnet" : "preprod";
   if (process.env.VERCEL_ENV === "preview") return "preview";
-  return "local";
+  return localChatGptPlanEnabled() ? "local-chatgpt-plan" : "local";
+}
+
+/**
+ * Which runs a run is compared with: daily runs, or for a ChatGPT plan run
+ * only other plan runs, since plan models differ from production's.
+ */
+export function comparableRuns(run: {
+  environment: string;
+  label: string | null;
+}):
+  | { environment: "local-chatgpt-plan" }
+  | { environment: "local"; label: typeof LEGACY_PLAN_LABEL }
+  | { trigger: "DAILY" } {
+  if (run.environment === "local-chatgpt-plan")
+    return { environment: "local-chatgpt-plan" };
+  // Older plan runs still used Jev and the Gateway's checks: their own group.
+  if (isLegacyPlanRun(run))
+    return { environment: "local", label: LEGACY_PLAN_LABEL };
+  return { trigger: "DAILY" };
+}
+
+/** The exact label `evals:local --plan` gave runs before plan mode had its environment. */
+const LEGACY_PLAN_LABEL = "local, OpenAI on ChatGPT plan";
+
+function isLegacyPlanRun(run: {
+  environment: string;
+  label: string | null;
+}): boolean {
+  return run.environment === "local" && run.label === LEGACY_PLAN_LABEL;
 }
 
 /** The daily run belongs to mainnet's production deploy of main only. */

@@ -1,13 +1,12 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronsUpDown, X } from "lucide-react";
 import {
   type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
-  useEffect,
-  useEffectEvent,
-  useRef,
+  useId,
   useState,
 } from "react";
 
@@ -25,6 +24,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { getEnvPublicConfig } from "@/config/env.public";
+import { useTimeout } from "@/hooks/effects/use-timeout";
 import { cn } from "@/lib/utils";
 
 export interface AsyncSearchComboboxLabels {
@@ -108,70 +108,49 @@ export function AsyncSearchCombobox<T>({
   const debounceTime =
     getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME;
 
+  const instanceId = useId();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [results, setResults] = useState<T[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasError, setHasError] = useState(false);
-  // Monotonic id so out-of-order responses from a slow earlier query are
-  // discarded in favour of the latest one.
-  const requestIdRef = useRef(0);
+  const [searchSession, setSearchSession] = useState(0);
 
   // Debounce: mirror the input into `debouncedQuery` after the configured delay.
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
+  useTimeout(
+    () => {
       setDebouncedQuery(query.trim());
-    }, debounceTime);
-    return () => window.clearTimeout(timeoutId);
-  }, [query, debounceTime]);
+    },
+    debounceTime,
+    query,
+  );
 
-  const runSearch = useEffectEvent(async (nextQuery: string) => {
-    const requestId = ++requestIdRef.current;
-    if (!nextQuery) {
-      setResults([]);
-      setIsLoading(false);
-      setHasError(false);
-      return;
-    }
-    setIsLoading(true);
-    setHasError(false);
-    try {
-      const options = await search(nextQuery);
-      if (requestId !== requestIdRef.current) {
-        return;
-      }
-      setResults(options);
-    } catch {
-      if (requestId !== requestIdRef.current) {
-        return;
-      }
-      setHasError(true);
-      setResults([]);
-    } finally {
-      if (requestId === requestIdRef.current) {
-        setIsLoading(false);
-      }
-    }
+  const activeQuery = open && debouncedQuery.length > 0;
+  const searchQuery = useQuery({
+    queryKey: [
+      "async-search-combobox",
+      instanceId,
+      searchSession,
+      debouncedQuery,
+    ],
+    queryFn: () => search(debouncedQuery),
+    enabled: activeQuery,
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
   });
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    void runSearch(debouncedQuery);
-  }, [debouncedQuery, open]);
+  const results = activeQuery ? (searchQuery.data ?? []) : [];
+  const isLoading = activeQuery && searchQuery.isFetching;
+  const hasError = activeQuery && searchQuery.isError;
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
     if (!next) {
       // Reset transient search state and cancel any in-flight response.
-      requestIdRef.current++;
+      setSearchSession((current) => current + 1);
       setQuery("");
       setDebouncedQuery("");
-      setResults([]);
-      setIsLoading(false);
-      setHasError(false);
     }
   }
 

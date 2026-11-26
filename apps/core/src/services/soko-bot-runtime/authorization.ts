@@ -1,4 +1,5 @@
 import { type Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { type SokoBotCapability } from "@sokosumi/soko-bot";
 import { getEnv } from "@/config/env";
 import {
@@ -11,6 +12,7 @@ import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
+import { isStoredMeetingPrep } from "@/lib/soko-bot/system-routes";
 import {
   type SokoBotWriteTargets,
   sokoBotWriteScopeRefusal,
@@ -49,14 +51,19 @@ export async function authorize(
     where: { id: input.turnId },
     select: {
       id: true,
+      clientTurnId: true,
       sokoBotId: true,
       requestedByUserId: true,
+      askedByUserId: true,
+      parentTurnId: true,
       workspaceId: true,
       eveSessionId: true,
       status: true,
       classification: true,
+      classifierVersion: true,
       userMessage: true,
       versionId: true,
+      modelId: true,
       source: true,
       chainDepth: true,
       intentId: true,
@@ -102,8 +109,20 @@ export async function authorize(
   ) {
     throw new SokoBotRuntimeAuthorizationError("Soko Bot turn lease expired");
   }
+  if (turn.source === "SCHEDULE" || turn.source === "ADMIN_RETRY") {
+    const { meetingReplayRefusal } = await import(
+      "../soko-bot-admin-retry.service"
+    );
+    const refusal = await meetingReplayRefusal(turn);
+    if (refusal) throw new SokoBotRuntimeAuthorizationError(refusal);
+  }
   const actingUserId = sokoBotActingUserId(turn);
-  const grant = buildTurnGrant(turn, input.sessionId);
+  const meetingPrep = isStoredMeetingPrep(turn);
+  // An in-flight turn from before meeting prep lost its read tools can still have a stale grant.
+  const grant = buildTurnGrant(
+    meetingPrep ? { ...turn, capabilityNames: [] } : turn,
+    input.sessionId,
+  );
   if (input.capability && !grant.capabilities.includes(input.capability)) {
     throw new SokoBotRuntimeAuthorizationError(
       "Capability is not granted for this turn",
@@ -116,13 +135,13 @@ export async function authorize(
       // either commits before PAUSE or reloads its paused state and fails.
       await tx.$queryRaw`
           SELECT "id"
-          FROM "soko_bot"
+          FROM ${sharedTable("soko_bot")}
           WHERE "id" = ${turn.sokoBotId}::uuid
           FOR UPDATE
         `;
       await tx.$queryRaw`
           SELECT "id"
-          FROM "soko_bot_turn"
+          FROM ${sharedTable("soko_bot_turn")}
           WHERE "id" = ${turn.id}::uuid
           FOR UPDATE
         `;
@@ -215,6 +234,7 @@ export async function authorize(
 
   return {
     grant,
+    ...(meetingPrep ? { meetingPrep: true as const } : {}),
     toolCallLimit: sokoBotToolCallLimit(turn),
     askedByKind: sokoBotTurnAudience(turn),
     reader: sokoBotTurnReaderOf(turn),
@@ -223,9 +243,13 @@ export async function authorize(
       sokoBotId: turn.sokoBotId,
       actingUserId,
       requestedByUserId: turn.requestedByUserId,
+      askedByUserId: turn.askedByUserId ?? null,
+      parentTurnId: turn.parentTurnId ?? null,
+      botProjectId: turn.sokoBot.projectId ?? null,
       workspaceId: turn.workspaceId,
       eveSessionId: storedSessionId,
       versionId: turn.versionId,
+      modelId: turn.modelId,
       source: turn.source,
       chainDepth: turn.chainDepth,
       intentId: turn.intentId,
@@ -238,7 +262,21 @@ export async function authorize(
       typeof turn.classification.confidence === "number"
         ? turn.classification.confidence
         : 1,
+    ...complexityOf(turn.classification),
   };
+}
+
+function complexityOf(classification: unknown): { complexity?: string } {
+  const label =
+    typeof classification === "object" &&
+    classification !== null &&
+    "complexity" in classification &&
+    typeof classification.complexity === "object" &&
+    classification.complexity !== null &&
+    "label" in classification.complexity
+      ? classification.complexity.label
+      : undefined;
+  return typeof label === "string" ? { complexity: label } : {};
 }
 
 export async function requireMutationAuthority(
@@ -250,9 +288,59 @@ export async function requireMutationAuthority(
   targets: SokoBotWriteTargets = {},
 ) {
   if (approved && authorized.confirmationTurnId) {
-    await tx.$queryRaw`SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${authorized.confirmationTurnId}::uuid FOR UPDATE`;
-    // Sampled after the lock, so a lease that ends during the wait counts.
-    const now = await databaseNow(tx);
+    await tx.$queryRaw`SELECT "id" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${authorized.confirmationTurnId}::uuid FOR UPDATE`;
+  }
+  if (approved) {
+    // Serialize approved decisions with administrator PAUSE. Whichever
+    // transaction locks the bot first defines whether this mutation lands
+    // before the pause or is rejected after it.
+    await tx.$queryRaw`
+        SELECT "id"
+        FROM ${sharedTable("soko_bot")}
+        WHERE "id" = ${authorized.turn.sokoBotId}::uuid
+        FOR UPDATE
+      `;
+  } else {
+    // Serialize runtime writes with cancellation. A plain status read allows
+    // Task/memory writes to commit after cancelTurn changes this row.
+    await tx.$queryRaw`
+        SELECT "id"
+        FROM ${sharedTable("soko_bot_turn")}
+        WHERE "id" = ${authorized.turn.id}::uuid
+        FOR UPDATE
+      `;
+    // Serialize runtime effects with pause as well as turn cancellation.
+    await tx.$queryRaw`SELECT "id" FROM ${sharedTable("soko_bot")} WHERE "id" = ${authorized.turn.sokoBotId}::uuid FOR UPDATE`;
+  }
+  const intentTurn = await tx.sokoBotTurn.findFirst({
+    where: { id: authorized.turn.id },
+    select: { intentId: true, intentRevision: true },
+  });
+  if (intentTurn?.intentId) {
+    await tx.$queryRaw`SELECT "id" FROM ${sharedTable("soko_bot_intent")} WHERE "id" = ${intentTurn.intentId}::uuid FOR UPDATE`;
+  }
+  // Sample after the last lock so intent and lease expirations during the wait both count.
+  const now = await databaseNow(tx);
+  if (intentTurn?.intentId) {
+    const intent = await tx.sokoBotIntent.findFirst({
+      where: {
+        id: intentTurn.intentId,
+        ...(intentTurn.intentRevision != null
+          ? { revision: intentTurn.intentRevision }
+          : {}),
+        sokoBotId: authorized.turn.sokoBotId,
+        workspaceId: authorized.turn.workspaceId,
+        state: { notIn: ["CANCELLED", "SUPERSEDED", "EXPIRED"] },
+        expiresAt: { gt: now },
+      },
+      select: { id: true },
+    });
+    if (!intent)
+      throw new SokoBotRuntimeAuthorizationError(
+        "Intent is expired, cancelled or superseded",
+      );
+  }
+  if (approved && authorized.confirmationTurnId) {
     const confirmation = await tx.sokoBotTurn.findFirst({
       where: {
         id: authorized.confirmationTurnId,
@@ -271,51 +359,6 @@ export async function requireMutationAuthority(
     if (!confirmation)
       throw new SokoBotRuntimeAuthorizationError(
         "Confirmation turn is no longer writable",
-      );
-  }
-  if (approved) {
-    // Serialize approved decisions with administrator PAUSE. Whichever
-    // transaction locks the bot first defines whether this mutation lands
-    // before the pause or is rejected after it.
-    await tx.$queryRaw`
-        SELECT "id"
-        FROM "soko_bot"
-        WHERE "id" = ${authorized.turn.sokoBotId}::uuid
-        FOR UPDATE
-      `;
-  } else {
-    // Serialize runtime writes with cancellation. A plain status read allows
-    // Task/memory writes to commit after cancelTurn changes this row.
-    await tx.$queryRaw`
-        SELECT "id"
-        FROM "soko_bot_turn"
-        WHERE "id" = ${authorized.turn.id}::uuid
-        FOR UPDATE
-      `;
-    // Serialize runtime effects with pause as well as turn cancellation.
-    await tx.$queryRaw`SELECT "id" FROM "soko_bot" WHERE "id" = ${authorized.turn.sokoBotId}::uuid FOR UPDATE`;
-  }
-  const intentTurn = await tx.sokoBotTurn.findFirst({
-    where: { id: authorized.turn.id },
-    select: { intentId: true, intentRevision: true },
-  });
-  if (intentTurn?.intentId) {
-    await tx.$queryRaw`SELECT "id" FROM "soko_bot_intent" WHERE "id" = ${intentTurn.intentId}::uuid FOR UPDATE`;
-    const intent = await tx.sokoBotIntent.findFirst({
-      where: {
-        id: intentTurn.intentId,
-        revision: intentTurn.intentRevision ?? undefined,
-        sokoBotId: authorized.turn.sokoBotId,
-        workspaceId: authorized.turn.workspaceId,
-        state: { notIn: ["CANCELLED", "SUPERSEDED", "EXPIRED"] },
-        // Host time: intents are issued and looked up on the host clock.
-        expiresAt: { gt: new Date() },
-      },
-      select: { id: true },
-    });
-    if (!intent)
-      throw new SokoBotRuntimeAuthorizationError(
-        "Intent is expired, cancelled or superseded",
       );
   }
   const workspace = await requireSokoBotWorkspaceAccess(
@@ -338,8 +381,6 @@ export async function requireMutationAuthority(
     return workspace;
   }
 
-  // Sampled after the turn and bot locks above.
-  const now = await databaseNow(tx);
   const writable = await tx.sokoBotTurn.findFirst({
     where: {
       id: authorized.turn.id,

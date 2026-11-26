@@ -1,4 +1,9 @@
-import { type Task, TaskStatus, type TaskTagId } from "@sokosumi/core-client";
+import {
+  type Task,
+  type TaskPriority,
+  TaskStatus,
+  type TaskTagId,
+} from "@sokosumi/core-client";
 import { taskService } from "@/lib/services/task.service";
 import { normalizeTaskNameForCoreApi } from "@/lib/utils/task-transformer";
 import {
@@ -59,6 +64,9 @@ export async function createTaskFromDescription(
     status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
     runAt?: string;
     visibility?: "PUBLIC" | "PRIVATE";
+    priority?: TaskPriority;
+    /** `YYYY-MM-DD`. */
+    dueOn?: string;
   },
 ): Promise<Task> {
   const trimmedDescription = input.description.trim();
@@ -104,5 +112,7 @@ export async function createTaskFromDescription(
       : { status: resolveCreateStatus(input.status) }),
     ...(input.visibility ? { visibility: input.visibility } : {}),
     ...(trimmedName ? { name: trimmedName } : {}),
+    ...(input.priority ? { priority: input.priority } : {}),
+    ...(input.dueOn ? { dueOn: input.dueOn } : {}),
   });
 }

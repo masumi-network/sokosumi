@@ -58,7 +58,11 @@ describe("GET /v1/image-studio/catalog", () => {
       data: { models: unknown[]; defaultModelId: string };
     };
     expect(body.data.models).toHaveLength(getImageCatalog().models.length);
-    expect(body.data.defaultModelId).toBe(getImageCatalog().defaultModelId);
+    expect(body.data).toMatchObject({
+      defaultModelId: "gemini-pro",
+      defaultVideoModelId: "h3-max",
+      defaultAnimateModelId: "h3-max-animate",
+    });
   });
 
   it("asks for a fresh catalog but never waits on fal to answer", async () => {

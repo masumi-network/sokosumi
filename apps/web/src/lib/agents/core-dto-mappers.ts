@@ -2,10 +2,7 @@ import type {
   AgentMyReview as CoreAgentMyReview,
   AgentRatingDistribution as CoreAgentRatingDistribution,
   AgentReviews as CoreAgentReviews,
-  Category as CoreCategory,
 } from "@sokosumi/core-client";
-import { SYNTHETIC_DEFAULT_CATEGORY } from "@/lib/constants/agent-categories";
-import type { Category } from "@/lib/types/category";
 
 /** The caller's own rating for an agent; consumers only need rating + comment. */
 interface UserAgentRatingSummary {
@@ -38,34 +35,9 @@ export function mapCoreMyAgentReview(
   };
 }
 
-function mapCoreCategoryToCategory(category: CoreCategory): Category {
-  return {
-    slug: category.slug,
-    name: category.name,
-    priority: category.priority,
-    description: category.description ?? undefined,
-    image: category.image ?? undefined,
-    icon: category.icon ?? undefined,
-    styles: category.styles ?? undefined,
-  };
-}
-
 export function mapCoreAgentReviews(reviews: CoreAgentReviews) {
   return {
     ratingDistribution: mapCoreAgentRatingDistribution(reviews.distribution),
     ratingsWithComments: reviews.ratingsWithComments,
   };
-}
-
-export function mapCoreCategoriesToCategories(
-  categories: CoreCategory[],
-): Category[] {
-  const mappedCategories = categories.map(mapCoreCategoryToCategory);
-  const hasSyntheticDefaultCategory = mappedCategories.some(
-    (category) => category.slug === SYNTHETIC_DEFAULT_CATEGORY.slug,
-  );
-
-  return hasSyntheticDefaultCategory
-    ? mappedCategories
-    : [...mappedCategories, SYNTHETIC_DEFAULT_CATEGORY];
 }

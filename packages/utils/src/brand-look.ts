@@ -185,11 +185,17 @@ function designMdRoleColors(content: string): string[] | null {
 const STATUS_ROLE =
   /(?:^|-)(?:error|danger|destructive|warning|success|info|positive|negative|alert)(?:-|$)/i;
 
+/** A status colour itself, not the ink or container that goes with it. */
+const STATUS_COLOUR =
+  /^(?:error|danger|destructive|warning|success|info|positive|negative|alert)$/i;
+
 /** The palette's roles in order, each with the names a DESIGN.md gives it. */
 const PALETTE_ROLES: readonly (readonly string[])[] = [
   ["primary"],
   ["secondary"],
-  ["accent"],
+  // A Material-style DESIGN.md has no accent role: its accent is the
+  // primary container (entry.fyi's acid-lime #d6f46a).
+  ["accent", "primary-container"],
   ["tertiary"],
   ["background", "surface"],
   ["on-background", "on-surface", "text", "foreground"],
@@ -209,20 +215,29 @@ export function designMdPalette(content: string, limit = 5): string[] {
     /^colors:[ \t]*\r?\n((?:[ \t][^\n]*(?:\n|(?![\s\S])))+)/m,
   )?.[1];
   if (!block) return brandColors(content, limit);
-  const entries = [
+  const all = [
     ...block.matchAll(/^[ \t]+([\w-]+):[ \t]*["']?(#[0-9a-fA-F]{3,6})\b/gm),
   ].flatMap((match) => {
     const hex = normalizeHex(match[2] ?? "");
-    return hex && !STATUS_ROLE.test(match[1] ?? "")
-      ? [{ role: (match[1] ?? "").toLowerCase(), hex }]
-      : [];
+    return hex ? [{ role: (match[1] ?? "").toLowerCase(), hex }] : [];
   });
+  // A role that reuses a status colour is that status: entry.fyi's tertiary
+  // is its error red, and its pictures were refused for leaving it out.
+  const status = new Set(
+    all.filter((entry) => STATUS_COLOUR.test(entry.role)).map((e) => e.hex),
+  );
+  const entries = all.filter(
+    (entry) => !STATUS_ROLE.test(entry.role) && !status.has(entry.hex),
+  );
   const named = PALETTE_ROLES.flatMap((names, index) => {
     const hex = names
       .map((name) => entries.find((entry) => entry.role === name)?.hex)
       .find((found) => found !== undefined);
-    // A grey tertiary is a surface shade, not a brand colour.
-    return hex && !(index === 3 && isNeutral(hex)) ? [hex] : [];
+    // A grey tertiary is a surface shade and a grey container a tint, not
+    // brand colours.
+    return hex && !((index === 2 || index === 3) && isNeutral(hex))
+      ? [hex]
+      : [];
   });
   const chosen = entries.some((entry) =>
     ["primary", "secondary", "accent"].includes(entry.role),
@@ -243,12 +258,17 @@ export interface DesignMdBrandLook {
   fonts: string[];
   /** The voice's adjectives, e.g. "plain, factual and confident". */
   tone: string | null;
+  /**
+   * The first sentence after the tone, e.g. "Favouring short declarative
+   * claims over hype."
+   */
+  voice: string | null;
 }
 
 /**
- * Colours, fonts and tone in a DESIGN.md: its brand colour roles, the
- * `fontFamily` entries (CSS `font-family` too), and the words after
- * "The voice is" or "Tone of voice is", when they list them.
+ * Colours, fonts, tone and voice in a DESIGN.md: its brand colour roles, the
+ * `fontFamily` entries (CSS `font-family` too), the words after "The voice
+ * is" or "Tone of voice is" when they list them, and the sentence after those.
  */
 export function designMdBrandLook(content: string): DesignMdBrandLook {
   const fonts = [
@@ -258,12 +278,53 @@ export function designMdBrandLook(content: string): DesignMdBrandLook {
     .filter((font): font is string => font !== null);
   // ponytail: reads the generator's English list ("plain, factual and
   // confident"); any other wording gives no tone rather than a guess.
-  const tone = content.match(
-    /\bvoice is ([a-z-]+(?:, [a-z-]+)*,? and [a-z-]+)\b/i,
-  )?.[1];
+  // The list ends at a whole word followed by punctuation or the line end, so
+  // "plain and easy to read" and "plain and detail-oriented in reports" give
+  // no tone. One separator after it (",", ":", a dash) is dropped; an ASCII
+  // hyphen counts only with a space after it.
+  const voiceLine = content.match(
+    /\bvoice is ([a-z-]+(?:, [a-z-]+)*,? and [a-z-]+)(?![a-z-])[ \t]*(?:[.,;:!?\u2013\u2014]|-(?=[ \t])|(?=\(|\r?$))[ \t]*([^\r\n]*)/im,
+  );
+  const tone = voiceLine?.[1];
+  // The voice is the rest of that line, whole: a full stop can't tell a
+  // sentence end from "e.g." or "U.S.". A line wholly in brackets loses them.
+  const voice = voiceLine?.[2]?.trim().replace(/^\((.+)\)([.!?]?)$/, "$1$2");
   return {
     colors: designMdRoleColors(content) ?? brandColors(content, 5),
     fonts: [...new Set(fonts)].slice(0, 4),
     tone: tone ?? null,
+    voice: voice ? voice.charAt(0).toUpperCase() + voice.slice(1) : null,
   };
+}
+
+/** The logo a DESIGN.md names in its front matter. */
+export interface DesignMdLogo {
+  /** The fullest logo the site shows: its lockup when it has one. */
+  src: string;
+  /** The same logo for a dark background. */
+  srcDark?: string;
+  /** The square symbol alone, when `src` is a lockup. */
+  mark?: string;
+}
+
+/**
+ * The `logo:` block of a DESIGN.md's front matter, each address as written
+ * (http or https only). Null when the file names no logo.
+ */
+export function designMdLogo(content: string): DesignMdLogo | null {
+  const frontMatter = content.match(/^---\n([\s\S]*?)\n---/)?.[1];
+  const block = frontMatter?.match(/^logo:\s*\n((?:[ \t]+.*\n?)+)/m)?.[1];
+  if (!block) return null;
+  const read = (key: string) => {
+    const value = block
+      .match(new RegExp(`^[ \\t]+${key}:\\s*(.+)$`, "m"))?.[1]
+      ?.trim()
+      .replace(/^(["'])(.*)\1$/, "$2");
+    return value && /^https?:\/\//i.test(value) ? value : undefined;
+  };
+  const src = read("src");
+  if (!src) return null;
+  const srcDark = read("srcDark");
+  const mark = read("mark");
+  return { src, ...(srcDark ? { srcDark } : {}), ...(mark ? { mark } : {}) };
 }

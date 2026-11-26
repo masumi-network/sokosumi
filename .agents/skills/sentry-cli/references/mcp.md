@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-mcp
-version: 0.49.0
+version: 0.50.0
 description: Start a local Sentry MCP server
 requires:
   bins: ["sentry"]
@@ -17,11 +17,12 @@ Start a local Sentry MCP server
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument          | Description                                                                     |
+| ----------------- | ------------------------------------------------------------------------------- |
 | `[<org/project>]` | &lt;org&gt;/ (an organization) or &lt;org&gt;/&lt;project&gt; to limit calls to |
 
 **Flags:**
+
 - `--org <value> - Limit every call to this organization`
 - `--project <value> - Limit calls to this project`
 - `--skills <value> - Skills to grant, comma-separated (default: active skills; seer is left out on self-hosted)`
@@ -32,7 +33,7 @@ Start a local Sentry MCP server
 - `--openai-base-url <value> - OpenAI API base URL`
 - `--openai-model <value> - OpenAI model (default: gpt-5)`
 - `--anthropic-base-url <value> - Anthropic API base URL`
-- `--anthropic-model <value> - Anthropic model (default: claude-sonnet-4-5)`
+- `--anthropic-model <value> - Anthropic model (default: claude-sonnet-5-5)`
 - `--mcp-url <value> - MCP server URL reported in telemetry`
 
 **Examples:**

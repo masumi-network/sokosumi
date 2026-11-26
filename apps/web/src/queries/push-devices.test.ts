@@ -4,7 +4,10 @@ import { getPushDevicesQueryKey, refreshPushDevices } from "./push-devices";
 
 it("cancels a pre-registration read so its late empty result cannot replace the new device", async () => {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   const key = getPushDevicesQueryKey("reader");
   let finishOld!: (devices: string[]) => void;

@@ -13,7 +13,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/chat",
+  usePathname: () => "/studio",
   useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
 }));
@@ -42,7 +42,7 @@ vi.mock("next-intl", () => ({
   useNow: () => new Date(),
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
+vi.mock("@/hooks/effects/use-mobile", () => ({ useIsMobile: () => false }));
 
 vi.mock("@/app/chat/components/browse-channels-dialog", () => ({
   BrowseChannelsDialog: () => null,
@@ -70,8 +70,8 @@ vi.mock("@/components/chat/live-member-presence-dot", () => ({
 }));
 vi.mock("@/components/chat/personal-assistant-chrome-store", () => ({
   publishPersonalAssistantChromeVisible: vi.fn(),
-  publishFailedSokoBotId: vi.fn(),
-  useFailedSokoBotId: () => null,
+  publishLiveSokoBot: vi.fn(),
+  useLiveSokoBotStatus: () => null,
 }));
 vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
   fetchSidebarRoomCollection: async () => ({ rooms: [], nextCursor: null }),
@@ -142,7 +142,7 @@ function renderSidebar() {
                 lastActivityAt: null,
               }}
             />
-            <MenuItems />
+            <MenuItems newsletterEnabled />
             <OrganizationChatList
               rooms={rooms}
               archivedRooms={archivedRooms}
@@ -191,7 +191,7 @@ describe("every sidebar row uses the shared leading slot", () => {
   it("renders one for Soko Bots, nav, rooms, archived and the invitation", () => {
     const { container } = renderSidebar();
 
-    // Soko Bots, the nav rows, five rooms, the archived row, the
+    // Soko Bots, the Marketing nav rows, five rooms, the archived row, the
     // invitation's card, and six skeleton room slots. Section headings have
     // none: their title leads and the chevron follows it, the project title
     // titles the nav rather than standing in it, and New task is the

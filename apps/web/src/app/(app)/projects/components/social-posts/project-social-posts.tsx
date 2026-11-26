@@ -13,6 +13,7 @@ import {
 } from "@sokosumi/utils";
 import {
   AlertTriangle,
+  Check,
   ExternalLink,
   Eye,
   FileText,
@@ -24,13 +25,8 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTimeZone, useTranslations } from "next-intl";
-import {
-  parseAsString,
-  parseAsStringEnum,
-  parseAsStringLiteral,
-  useQueryState,
-} from "nuqs";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { parseAsString, parseAsStringEnum, useQueryState } from "nuqs";
+import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ProjectSocialAccounts } from "@/app/projects/components/project-social-accounts";
 import { SocialLoadError } from "@/app/projects/components/social-posts/social-load-error";
@@ -39,6 +35,8 @@ import { SocialPostComposerDialog } from "@/app/projects/components/social-posts
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { useSocialCompose } from "@/app/social/components/social-compose-context";
 import { EmptyState } from "@/components/common/empty-state";
+import { PageSearchActions } from "@/components/page-search-actions";
+import { SearchablePageContent } from "@/components/searchable-page-content";
 import {
   SOCIAL_POST_PROVIDERS,
   SocialPlatformFilter,
@@ -63,7 +61,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   SEGMENTED_TABS_LIST_CLASS_NAME,
   Tabs,
@@ -71,6 +68,7 @@ import {
   TabsList,
 } from "@/components/ui/tabs";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
+import { useSocialMissingPostToast } from "@/hooks/effects/use-social-missing-post-toast";
 import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
 import type { ActionResultDto } from "@/lib/actions/action-result";
 import {
@@ -110,11 +108,16 @@ import {
   isBrowserOffline,
   isRevisionConflict,
   isTimeoutRejection,
+  postsInSection,
+  searchSocialPosts,
   sectionOf,
-  sortSection,
   upsertPost,
   withoutActions,
 } from "./social-post-list";
+import {
+  SocialPostNoMatches,
+  SocialPostRowSkeleton,
+} from "./social-post-list-feedback";
 import { SocialPostMediaThumb } from "./social-post-media-thumb";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
@@ -133,9 +136,13 @@ import {
   SOCIAL_TABS_LIST_CLASS_NAME,
   SOCIAL_TABS_ROW_CLASS_NAME,
   SocialTabTrigger,
+  useSocialTab,
 } from "./social-tab-trigger";
 
 interface ProjectSocialPostsProps {
+  sectionCounts?: Record<SectionKey, number>;
+  searchQuery?: string;
+  searchField?: ReactNode;
   queueSlots?: SocialQueueSlot[];
   /** Social's calendar, shown as the first tab when given. */
   calendar?: ReactNode;
@@ -190,11 +197,24 @@ function retryLabel(post: SocialPost): string {
   return post.socialConnection?.externalHandle ?? post.provider;
 }
 
-interface BulkRetryResult {
+interface BulkResult {
   postId: string;
   label: string;
   ok: boolean;
+  /** What happened when it worked; Retry's reads "Published". */
+  done?: string;
   error?: string;
+}
+
+type BulkAction = "retry" | "approve";
+
+/** Core schedules an approved post whose time is still far enough ahead, and keeps any other as a draft. */
+function approvalSchedules(post: SocialPost): boolean {
+  return (
+    post.scheduledAt != null &&
+    new Date(post.scheduledAt).getTime() >=
+      Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS
+  );
 }
 type LoadMoreErrorKind = "offline" | "timeout" | "failed";
 
@@ -229,26 +249,11 @@ function previewAccountFor(
   };
 }
 
-/** Same boxes as a list row so Load more does not jump the page. */
-function SocialPostRowSkeleton() {
-  return (
-    <li
-      aria-hidden
-      className="bg-background border-border flex items-start gap-3 rounded-lg border p-3"
-      data-testid="social-post-row-skeleton"
-    >
-      <Skeleton className="size-9 shrink-0 rounded-md" />
-      <div className="min-w-48 flex-1 space-y-1.5">
-        <Skeleton className="h-4 w-40" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-3 w-24" />
-      </div>
-    </li>
-  );
-}
-
 export function ProjectSocialPosts({
   accounts,
+  sectionCounts,
+  searchQuery = "",
+  searchField,
   accountCount,
   connectDisabled = false,
   managedConnections,
@@ -272,6 +277,10 @@ export function ProjectSocialPosts({
 }: ProjectSocialPostsProps) {
   const { enabledProviders, isProviderEnabled } =
     useSocialProviderAvailability();
+  /** The one check for the approve checkbox, toolbar and submit; CMO Projects stay read-only. */
+  function canBulkApprove(post: SocialPost): boolean {
+    return !readOnly && post.canApprove && post.status === "NEEDS_APPROVAL";
+  }
   function canRetryPost(post: SocialPost): boolean {
     return (
       !readOnly &&
@@ -295,10 +304,7 @@ export function ProjectSocialPosts({
     section: SectionKey;
     kind: LoadMoreErrorKind;
   } | null>(null);
-  const [tabParam, setTabParam] = useQueryState(
-    "tab",
-    parseAsStringLiteral(SOCIAL_TABS),
-  );
+  const [tabParam, setTabParam] = useSocialTab();
   const [provider, setProvider] = useQueryState(
     "provider",
     parseAsStringEnum<ProjectSocialProviderValue>(SOCIAL_POST_PROVIDERS),
@@ -344,11 +350,15 @@ export function ProjectSocialPosts({
   const [selectedRetryIds, setSelectedRetryIds] = useState<ReadonlySet<string>>(
     new Set(),
   );
-  const [bulkRetryOpen, setBulkRetryOpen] = useState(false);
-  const [bulkRetryPending, setBulkRetryPending] = useState(false);
-  const [bulkRetryResults, setBulkRetryResults] = useState<
-    BulkRetryResult[] | null
-  >(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  // Outlives `bulkOpen` so the dialog keeps its copy while it animates closed.
+  const [bulkKind, setBulkKind] = useState<BulkAction>("retry");
+  // Post id to the revision the person saw when they picked it.
+  const [selectedApprovals, setSelectedApprovals] = useState<
+    ReadonlyMap<string, number>
+  >(new Map());
+  const [bulkPending, setBulkPending] = useState(false);
+  const [bulkResults, setBulkResults] = useState<BulkResult[] | null>(null);
   // The target outlives `previewOpen` so the dialog keeps its content while it
   // animates closed.
   const [previewTarget, setPreviewTarget] = useState<SocialPost | null>(
@@ -364,27 +374,21 @@ export function ProjectSocialPosts({
     setPreviewOpen(Boolean(linkedPost));
   }
 
-  useEffect(() => {
-    // A failed load is not a missing post; the inline error says so instead.
-    if (!requestedPostId || selectedPostId || selectedPostFailed) return;
-    toast.error(t("toasts.missingPost"), {
-      duration: Infinity,
-      closeButton: true,
-    });
-  }, [requestedPostId, selectedPostId, selectedPostFailed, t]);
+  useSocialMissingPostToast({
+    requestedPostId,
+    selectedPostId,
+    selectedPostFailed,
+    t,
+  });
+
+  const bulkApproveBarRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
 
   function handleCloseAutoFocus(event: Event) {
     if (!returnFocus) return;
     event.preventDefault();
-    if (!composerMode && !cancelTarget && !publishTarget && !bulkRetryOpen)
+    if (!composerMode && !cancelTarget && !publishTarget && !bulkOpen)
       returnFocus();
-  }
-
-  function postsIn(section: SectionKey): SocialPost[] {
-    return sortSection(
-      posts.filter((post) => SECTION_STATUSES[section].includes(post.status)),
-      section,
-    );
   }
 
   const [reconnectedAccounts, setReconnectedAccounts] = useState<
@@ -466,7 +470,9 @@ export function ProjectSocialPosts({
     if (candidate === "accounts") return accounts !== undefined;
     return (
       candidate !== "attention" ||
-      postsIn(candidate).length > 0 ||
+      (sectionCounts?.[candidate] ?? postsInSection(posts, candidate).length) >
+        0 ||
+      (Boolean(searchQuery) && tabParam === candidate) ||
       reconnections.length > 0 ||
       Boolean(cursors[candidate]) ||
       failedSections.includes(candidate)
@@ -484,7 +490,10 @@ export function ProjectSocialPosts({
             !(tab === "attention" && reconnections.length > 0)
           ? "reconnect"
           : null;
-  const retryablePosts = postsIn("attention").filter(
+  const retryablePosts = searchSocialPosts(
+    postsInSection(posts, "attention"),
+    searchQuery,
+  ).filter(
     (post) =>
       canRetryPost(post) && (provider === null || post.provider === provider),
   );
@@ -495,6 +504,18 @@ export function ProjectSocialPosts({
     retryablePosts.length > 0 &&
     selectedRetryablePosts.length === retryablePosts.length;
   const someRetryableSelected = selectedRetryablePosts.length > 0;
+  // No select-all: each approval is a choice made on a post the person saw.
+  const approvablePosts = searchSocialPosts(
+    postsInSection(posts, "drafts"),
+    searchQuery,
+  ).filter(
+    (post) =>
+      canBulkApprove(post) && (provider === null || post.provider === provider),
+  );
+  const selectedApprovablePosts = approvablePosts.filter((post) =>
+    selectedApprovals.has(post.id),
+  );
+  const approving = bulkKind === "approve";
 
   function showTab(next: SocialTab | null): void {
     void setTabParam(next);
@@ -752,9 +773,9 @@ export function ProjectSocialPosts({
 
   async function handleConfirmBulkRetry(): Promise<void> {
     const targets = selectedRetryablePosts;
-    if (targets.length === 0 || bulkRetryPending) return;
-    setBulkRetryPending(true);
-    const results: BulkRetryResult[] = [];
+    if (targets.length === 0 || bulkPending) return;
+    setBulkPending(true);
+    const results: BulkResult[] = [];
     const updated: SocialPost[] = [];
     let sawConflict = false;
     for (const post of targets) {
@@ -827,23 +848,140 @@ export function ProjectSocialPosts({
       setPosts((current) => updated.reduce(upsertPost, current));
     }
     setSelectedRetryIds(new Set());
-    setBulkRetryResults(results);
-    setBulkRetryPending(false);
+    setBulkResults(results);
+    setBulkPending(false);
     const movedQuotes = updated.flatMap((post) => post.movedQuotes ?? []);
     reportMovedQuotes({ movedQuotes });
     if (sawConflict || movedQuotes.length > 0) router.refresh();
   }
 
+  function toggleApproveSelection(post: SocialPost, selected: boolean): void {
+    setSelectedApprovals((current) => {
+      const next = new Map(current);
+      if (selected) next.set(post.id, post.revision);
+      else next.delete(post.id);
+      return next;
+    });
+  }
+
+  /**
+   * Only the bulk approve dialog lands here. Its button may be disabled or
+   * gone once posts are approved, so focus goes to the approve bar, or to the
+   * open tab when no post is left waiting.
+   */
+  function handleBulkCloseAutoFocus(event: Event) {
+    if (bulkKind !== "approve") {
+      handleCloseAutoFocus(event);
+      return;
+    }
+    const target = bulkApproveBarRef.current?.isConnected
+      ? bulkApproveBarRef.current
+      : sectionRef.current?.querySelector<HTMLElement>(
+          '[role="tab"][aria-selected="true"]',
+        );
+    if (!target) return;
+    event.preventDefault();
+    target.focus();
+  }
+
+  /** Core decides with its own clock, so any dated post reads as a condition. */
+  function approvalPlan(post: SocialPost): string {
+    return post.scheduledAt
+      ? t("bulkApprove.willSchedule", {
+          date: formatter.dateTime(post.scheduledAt, "dateTime"),
+        })
+      : t("bulkApprove.willDraft");
+  }
+
+  /** Approves each picked post at the revision on screen; a post changed since is left for another look. */
+  async function handleConfirmBulkApprove(): Promise<void> {
+    const targets = selectedApprovablePosts;
+    if (targets.length === 0 || bulkPending) return;
+    setBulkPending(true);
+    const results: BulkResult[] = [];
+    const updated: SocialPost[] = [];
+    // Picked again after sign-in: posts the session ended on or before.
+    const keep = new Map<string, number>();
+    let signedOut: ActionError | null = null;
+    let sawConflict = false;
+    // One at a time, like bulk Retry: a session that ends stops the rest.
+    for (const post of targets) {
+      const label = retryLabel(post);
+      const revision = selectedApprovals.get(post.id) ?? post.revision;
+      if (signedOut) {
+        keep.set(post.id, revision);
+        results.push({
+          postId: post.id,
+          label,
+          ok: false,
+          error: t("bulkApprove.skipped"),
+        });
+        continue;
+      }
+      let error: ActionError;
+      try {
+        const result = await approveProjectSocialPost({
+          projectId,
+          postId: post.id,
+          revision,
+        });
+        if (result.ok) {
+          const next = result.value;
+          updated.push(next);
+          results.push({
+            postId: post.id,
+            label,
+            ok: true,
+            done:
+              next.status === "SCHEDULED" && next.scheduledAt
+                ? t("bulkApprove.scheduled", {
+                    date: formatter.dateTime(next.scheduledAt, "dateTime"),
+                  })
+                : t("bulkApprove.drafted"),
+          });
+          continue;
+        }
+        error = result.error;
+      } catch (rejection) {
+        error = toActionRejectionError(rejection);
+      }
+      if (error.code === CommonErrorCode.UNAUTHENTICATED) {
+        signedOut = error;
+        keep.set(post.id, revision);
+        results.push({
+          postId: post.id,
+          label,
+          ok: false,
+          error: t("bulkApprove.signedOut"),
+        });
+        continue;
+      }
+      const conflict = isRevisionConflict(error);
+      sawConflict ||= conflict;
+      results.push({
+        postId: post.id,
+        label,
+        ok: false,
+        error: conflict
+          ? t("bulkApprove.conflict")
+          : error.message || t("toasts.failed"),
+      });
+    }
+    if (updated.length > 0) {
+      setPosts((current) => updated.reduce(upsertPost, current));
+    }
+    setSelectedApprovals(keep);
+    setBulkResults(results);
+    setBulkPending(false);
+    // Offers sign-in, after the results that show what did go through.
+    if (signedOut) handleActionError(signedOut);
+    if (sawConflict) router.refresh();
+  }
+
   async function handleApprove(post: SocialPost): Promise<void> {
-    // Core schedules an approved post whose time is still far enough ahead,
-    // and keeps any other as a draft.
-    const schedules =
-      post.scheduledAt != null &&
-      new Date(post.scheduledAt).getTime() >=
-        Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
     const approved = await saveShowing(
       post,
-      { ...post, status: schedules ? "SCHEDULED" : "DRAFT" },
+      { ...post, status: approvalSchedules(post) ? "SCHEDULED" : "DRAFT" },
       () =>
         approveProjectSocialPost({
           projectId,
@@ -1182,6 +1320,26 @@ export function ProjectSocialPosts({
         ) : null}
         {post.threadPartCount > 1 || post.quotedPostId || showStatus ? (
           <div className="flex flex-wrap items-center gap-2">
+            {canBulkApprove(post) ? (
+              // A 24px box on phones and tablets; the label pads the tap area.
+              <label className="-m-1 flex min-h-11 cursor-pointer items-center p-1 lg:min-h-6">
+                <Checkbox
+                  // The position tells apart posts with the same text or account.
+                  aria-label={t("bulkApprove.selectPost", {
+                    post: retryLabel(post),
+                    position:
+                      approvablePosts.findIndex(({ id }) => id === post.id) + 1,
+                    count: approvablePosts.length,
+                  })}
+                  checked={selectedApprovals.has(post.id)}
+                  className="size-6 lg:size-4"
+                  data-testid={`social-post-select-${post.id}`}
+                  onCheckedChange={(value) =>
+                    toggleApproveSelection(post, value === true)
+                  }
+                />
+              </label>
+            ) : null}
             {showStatus ? (
               <SocialPostStatusBadge
                 label={t(
@@ -1366,7 +1524,11 @@ export function ProjectSocialPosts({
   }
 
   return (
-    <section className="space-y-4" data-testid="project-social-posts">
+    <section
+      ref={sectionRef}
+      className="space-y-4"
+      data-testid="project-social-posts"
+    >
       <AlertDialog
         open={retryPosts.length > 0}
         onOpenChange={(open) => {
@@ -1408,7 +1570,7 @@ export function ProjectSocialPosts({
             }
           }}
         >
-          <div className="flex flex-row items-center justify-between gap-3">
+          <div className="@container/page-toolbar flex flex-wrap items-center justify-between gap-3">
             <div
               className={cn(SOCIAL_TABS_ROW_CLASS_NAME, "items-center gap-3")}
             >
@@ -1422,7 +1584,8 @@ export function ProjectSocialPosts({
                 {tabs.map((candidate) => {
                   const count =
                     candidate === "drafts" || candidate === "attention"
-                      ? postsIn(candidate).length +
+                      ? (sectionCounts?.[candidate] ??
+                          postsInSection(posts, candidate).length) +
                         (candidate === "attention" ? reconnections.length : 0)
                       : candidate === "accounts"
                         ? listedAccountCount
@@ -1448,20 +1611,26 @@ export function ProjectSocialPosts({
                 })}
               </TabsList>
             </div>
-            {tab === "drafts" || tab === "attention" ? (
-              <SocialPlatformFilter
-                value={provider}
-                onChange={(next) => {
-                  void setProvider(next);
-                }}
-              />
-            ) : null}
-            {actions}
+            <PageSearchActions className={searchField ? undefined : "w-auto"}>
+              {tab === "calendar" ||
+              SECTION_ORDER.some((section) => section === tab)
+                ? searchField
+                : null}
+              {tab === "drafts" || tab === "attention" ? (
+                <SocialPlatformFilter
+                  value={provider}
+                  onChange={(next) => {
+                    void setProvider(next);
+                  }}
+                />
+              ) : null}
+              {actions}
+            </PageSearchActions>
           </div>
 
           {accountPrompt ? (
             <div
-              className="bg-card-background flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+              className="bg-card-background flex flex-col gap-3 rounded-xl p-4 sm:flex-row sm:items-center sm:justify-between"
               data-testid={
                 accountPrompt === "reconnect"
                   ? "social-reconnect-prompt"
@@ -1525,11 +1694,14 @@ export function ProjectSocialPosts({
 
           {SECTION_ORDER.filter((section) => tabs.includes(section)).map(
             (section) => {
-              const sectionPosts = postsIn(section).filter(
+              const sectionPosts = searchSocialPosts(
+                postsInSection(posts, section),
+                searchQuery,
+              ).filter(
                 (post) => provider === null || post.provider === provider,
               );
               const sectionReconnections =
-                section === "attention"
+                section === "attention" && !searchQuery
                   ? reconnections.filter(
                       ({ connection }) =>
                         provider === null || connection.provider === provider,
@@ -1579,19 +1751,50 @@ export function ProjectSocialPosts({
                       <Button
                         className="ms-auto"
                         disabled={
-                          selectedRetryablePosts.length === 0 ||
-                          bulkRetryPending
+                          selectedRetryablePosts.length === 0 || bulkPending
                         }
                         size="sm"
                         type="button"
                         variant="outline"
                         onClick={() => {
-                          setBulkRetryResults(null);
-                          setBulkRetryOpen(true);
+                          setBulkResults(null);
+                          setBulkKind("retry");
+                          setBulkOpen(true);
                         }}
                       >
                         <RotateCcw className="size-4" aria-hidden />
                         {t("bulkRetry.retrySelected")}
+                      </Button>
+                    </div>
+                  ) : null}
+                  {section === "drafts" && approvablePosts.length > 0 ? (
+                    <div
+                      ref={bulkApproveBarRef}
+                      className="flex flex-wrap items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      data-testid="social-bulk-approve"
+                      tabIndex={-1}
+                    >
+                      <span className="text-muted-foreground text-sm tabular-nums">
+                        {t("bulkRetry.selected", {
+                          count: selectedApprovablePosts.length,
+                        })}
+                      </span>
+                      <Button
+                        className="ms-auto"
+                        disabled={
+                          selectedApprovablePosts.length === 0 || bulkPending
+                        }
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setBulkResults(null);
+                          setBulkKind("approve");
+                          setBulkOpen(true);
+                        }}
+                      >
+                        <Check className="size-4" aria-hidden />
+                        {t("bulkApprove.approveSelected")}
                       </Button>
                     </div>
                   ) : null}
@@ -1634,6 +1837,8 @@ export function ProjectSocialPosts({
                         </>
                       ) : null}
                     </ul>
+                  ) : searchQuery ? (
+                    <SocialPostNoMatches />
                   ) : cursor || sectionReconnections.length > 0 ? null : (
                     <EmptyState
                       description={t(`emptyHint.${section}`)}
@@ -1684,7 +1889,9 @@ export function ProjectSocialPosts({
             data-testid="social-posts-section-statistics"
           >
             {tab === "statistics" ? (
-              <SocialPostStatistics key={projectId} projectId={projectId} />
+              <SearchablePageContent>
+                <SocialPostStatistics key={projectId} projectId={projectId} />
+              </SearchablePageContent>
             ) : null}
           </TabsContent>
 
@@ -1830,37 +2037,43 @@ export function ProjectSocialPosts({
       </AlertDialog>
 
       <AlertDialog
-        open={bulkRetryOpen}
+        open={bulkOpen}
         onOpenChange={(open) => {
-          if (!open && !bulkRetryPending) {
-            setBulkRetryOpen(false);
-            setBulkRetryResults(null);
+          if (!open && !bulkPending) {
+            setBulkOpen(false);
+            setBulkResults(null);
           }
         }}
       >
         <AlertDialogContent
           className="max-h-[min(40rem,calc(100dvh-2rem))] overflow-y-auto overscroll-contain"
-          onCloseAutoFocus={handleCloseAutoFocus}
+          onCloseAutoFocus={handleBulkCloseAutoFocus}
         >
-          {bulkRetryResults ? (
+          {bulkResults ? (
             <>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  {t("bulkRetry.resultsTitle")}
+                  {t(
+                    approving
+                      ? "bulkApprove.resultsTitle"
+                      : "bulkRetry.resultsTitle",
+                  )}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  {t("bulkRetry.description")}
+                  {approving
+                    ? t("bulkApprove.description")
+                    : t("bulkRetry.description")}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <ul
-                className="grid gap-2 text-sm"
-                data-testid="social-bulk-retry-results"
+                className="grid min-w-0 grid-cols-1 gap-2 text-sm"
+                data-testid={`social-bulk-${bulkKind}-results`}
               >
-                {bulkRetryResults.map((result) => (
+                {bulkResults.map((result) => (
                   <li
                     key={result.postId}
                     className="flex flex-col gap-0.5"
-                    data-testid={`social-bulk-retry-result-${result.postId}`}
+                    data-testid={`social-bulk-${bulkKind}-result-${result.postId}`}
                   >
                     <span className="text-foreground min-w-0 truncate">
                       {result.label}
@@ -1871,7 +2084,7 @@ export function ProjectSocialPosts({
                       }
                     >
                       {result.ok
-                        ? t("bulkRetry.published")
+                        ? (result.done ?? t("bulkRetry.published"))
                         : (result.error ?? t("toasts.failed"))}
                     </span>
                   </li>
@@ -1884,23 +2097,53 @@ export function ProjectSocialPosts({
           ) : (
             <>
               <AlertDialogHeader>
-                <AlertDialogTitle>{t("bulkRetry.title")}</AlertDialogTitle>
+                <AlertDialogTitle>
+                  {approving
+                    ? t("bulkApprove.title", {
+                        count: selectedApprovablePosts.length,
+                      })
+                    : t("bulkRetry.title")}
+                </AlertDialogTitle>
                 <AlertDialogDescription>
-                  {t("bulkRetry.description")}
+                  {approving
+                    ? t("bulkApprove.description")
+                    : t("bulkRetry.description")}
                 </AlertDialogDescription>
               </AlertDialogHeader>
+              {approving ? (
+                <ul className="grid min-w-0 grid-cols-1 gap-2 text-sm">
+                  {selectedApprovablePosts.map((post) => (
+                    <li
+                      key={post.id}
+                      className="flex flex-col gap-0.5"
+                      data-testid={`social-bulk-approve-plan-${post.id}`}
+                    >
+                      <span className="text-foreground min-w-0 truncate">
+                        {retryLabel(post)}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {approvalPlan(post)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               <AlertDialogFooter>
-                <AlertDialogCancel disabled={bulkRetryPending}>
+                <AlertDialogCancel disabled={bulkPending}>
                   {t("composer.close")}
                 </AlertDialogCancel>
                 <AlertDialogAction
-                  loading={bulkRetryPending}
+                  loading={bulkPending}
                   onClick={(event) => {
                     event.preventDefault();
-                    void handleConfirmBulkRetry();
+                    void (approving
+                      ? handleConfirmBulkApprove()
+                      : handleConfirmBulkRetry());
                   }}
                 >
-                  {t("bulkRetry.confirm")}
+                  {approving
+                    ? t("bulkApprove.approveSelected")
+                    : t("bulkRetry.confirm")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </>

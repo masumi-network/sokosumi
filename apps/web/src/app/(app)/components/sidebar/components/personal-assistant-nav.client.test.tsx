@@ -1,18 +1,19 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { cloneElement, isValidElement, type ReactNode } from "react";
+import { Activity, cloneElement, isValidElement, type ReactNode } from "react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { pathnameRef, relativeTime } = vi.hoisted(() => ({
+const { pathnameRef, relativeTime, dateTime } = vi.hoisted(() => ({
   pathnameRef: { current: "/" },
   relativeTime: vi.fn(() => "2h ago"),
+  dateTime: vi.fn(() => "10:00 AM"),
 }));
 
 // Values show up in the text, so a test can tell "Active {time}" got its time.
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, string>) =>
     values ? `${key}(${Object.values(values).join(",")})` : key,
-  useFormatter: () => ({ relativeTime }),
-  useNow: () => NOW,
+  useFormatter: () => ({ relativeTime, dateTime }),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -68,14 +69,13 @@ vi.mock("@/components/aurora-orb", () => ({
 
 import { type ChatRoom, SokoBotStatus } from "@sokosumi/core-client";
 import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
+import { LastActive } from "@/components/soko-bot/soko-bot-status-line";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
-
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import PersonalAssistantNav, {
   type SidebarSokoBotLive,
 } from "./personal-assistant-nav.client";
-
-const NOW = new Date("2026-10-27T12:00:00Z");
+import { AGENTS_ROUTE, sidebarSection } from "./sidebar-sections";
 
 const bot: SidebarSokoBotLive = {
   id: "bot-1",
@@ -140,11 +140,11 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
     expect(slot?.querySelector("svg")).not.toBeNull();
   });
 
-  it("links the named row to the team's Soko Bots", () => {
+  it("links the named row directly to Agents for the team's bots", () => {
     renderNav();
     expect(screen.getByRole("link", { name: "sokoBot" })).toHaveAttribute(
       "href",
-      SOKO_BOTS_ROUTE,
+      AGENTS_ROUTE,
     );
   });
 });
@@ -159,8 +159,8 @@ describe("PersonalAssistantNav static entry current destination", () => {
     return screen.getByRole("link", { name: "sokoBot" });
   }
 
-  it("marks the row when the reader is on Soko Bots", () => {
-    pathnameRef.current = SOKO_BOTS_ROUTE;
+  it("marks the row when the reader is on Agents", () => {
+    pathnameRef.current = AGENTS_ROUTE;
     renderNav();
     expect(link()).toHaveAttribute("aria-current", "page");
   });
@@ -169,6 +169,15 @@ describe("PersonalAssistantNav static entry current destination", () => {
     pathnameRef.current = `${SOKO_BOT_ROUTE}/bot-1`;
     renderNav();
     expect(link()).toHaveAttribute("aria-current", "page");
+  });
+
+  it("leaves the legacy route inactive and assigns Agents to Work", () => {
+    pathnameRef.current = "/soko-bots";
+    renderNav();
+    expect(link()).not.toHaveAttribute("aria-current");
+    expect(sidebarSection("/soko-bots")).toBeNull();
+    expect(sidebarSection(AGENTS_ROUTE)).toBe("work");
+    expect(sidebarSection(SOKO_BOT_ROUTE)).toBe("chats");
   });
 
   it("marks nothing on a route it does not own", () => {
@@ -252,9 +261,25 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
 
     expect(row()).toHaveAccessibleName(/activeAgo\(2h ago\)/);
     expect(relativeTime).toHaveBeenCalledWith(lastActivityAt, {
-      now: NOW,
+      // The clock Home's rows count from, not one of its own.
+      now: expect.any(Number),
       style: "narrow",
     });
+  });
+
+  // The server's clock and the browser's differ by the time the page takes to
+  // load, so "Active 27s ago" from the server hydrated as "Active 18s ago"
+  // (React #418). The server sends the clock time alone, short enough for
+  // the row; the browser counts.
+  it("sends the time of day from the server, never a clock-relative one", () => {
+    const lastActivityAt = new Date("2026-10-27T10:00:00Z");
+
+    const html = renderToString(<LastActive at={lastActivityAt} />);
+
+    expect(html).toContain("activeAgo(10:00 AM)");
+    expect(html).not.toContain("2h ago");
+    expect(relativeTime).not.toHaveBeenCalled();
+    expect(dateTime).toHaveBeenCalledWith(lastActivityAt, "time");
   });
 
   it("opens your own bot", () => {
@@ -268,8 +293,8 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
     expect(row()).toHaveAttribute("aria-current", "page");
   });
 
-  it("does not mark your bot's row on the team page", () => {
-    pathnameRef.current = SOKO_BOTS_ROUTE;
+  it("marks only the team link on Agents", () => {
+    pathnameRef.current = AGENTS_ROUTE;
     renderNav({ bot });
     expect(row()).not.toHaveAttribute("aria-current");
     expect(screen.getByRole("link", { name: "team" })).toHaveAttribute(
@@ -278,11 +303,11 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
     );
   });
 
-  it("offers the team's Soko Bots from a people icon at the end", () => {
+  it("opens Agents from the team people icon", () => {
     renderNav({ bot });
     expect(screen.getByRole("link", { name: "team" })).toHaveAttribute(
       "href",
-      SOKO_BOTS_ROUTE,
+      AGENTS_ROUTE,
     );
   });
 
@@ -348,9 +373,8 @@ describe("PersonalAssistantNav live status", () => {
     );
   });
 
-  /** Your Direct with the bot, as the chat list draws it. */
-  function renderNavWithDirect(rendered: SidebarSokoBotLive) {
-    const room = {
+  function makeDirectRoomWithBot(botId: string): ChatRoom {
+    return {
       id: "dm-1",
       kind: "direct",
       isSelfDirect: false,
@@ -369,7 +393,7 @@ describe("PersonalAssistantNav live status", () => {
       formerUserMembers: [],
       sokoBotMembers: [
         {
-          id: rendered.id,
+          id: botId,
           name: "Mo",
           caption: null,
           image: null,
@@ -381,10 +405,17 @@ describe("PersonalAssistantNav live status", () => {
         },
       ],
     } as unknown as ChatRoom;
+  }
+
+  /** Your Direct with the bot, as the chat list draws it. */
+  function renderNavWithDirect(rendered: SidebarSokoBotLive) {
     return render(
       <SidebarProvider defaultOpen>
         <PersonalAssistantNav bot={rendered} />
-        <DirectRoomAvatarStack room={room} currentUserId="me" />
+        <DirectRoomAvatarStack
+          room={makeDirectRoomWithBot(rendered.id)}
+          currentUserId="me"
+        />
       </SidebarProvider>,
     );
   }
@@ -411,12 +442,124 @@ describe("PersonalAssistantNav live status", () => {
     expect(direct).not.toHaveTextContent("Presence.online");
 
     recovered = true;
-    document.dispatchEvent(new Event("visibilitychange"));
-    await waitFor(() =>
-      expect(screen.getByRole("link", { name: /Mo/ })).toHaveAccessibleName(
-        /ready/,
-      ),
+    const row = screen.getByRole("link", { name: /Mo/ });
+    // Observe mutations so a passive-effect lag between the sidebar row and
+    // the Direct avatar fails deterministically instead of racing `waitFor`.
+    const directTextsWhenReady: string[] = [];
+    const observer = new MutationObserver(() => {
+      if (/ready/.test(row.textContent ?? "")) {
+        directTextsWhenReady.push(direct.textContent ?? "");
+      }
+    });
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+    });
+    try {
+      document.dispatchEvent(new Event("visibilitychange"));
+      await waitFor(() => expect(row).toHaveAccessibleName(/ready/));
+    } finally {
+      observer.disconnect();
+    }
+    expect(directTextsWhenReady.length).toBeGreaterThan(0);
+    expect(directTextsWhenReady).not.toContainEqual(
+      expect.stringContaining("ERROR"),
     );
+    // The row's words, not an always-online dot.
+    expect(direct).toHaveTextContent("ready");
+    expect(direct).not.toHaveTextContent("ERROR");
+  });
+
+  it("gives the chat list's Direct the same dot and words as the row", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false })),
+    );
+    renderNavWithDirect({
+      ...bot,
+      lastActivityAt: new Date("2026-10-27T08:00:00.000Z"),
+    });
+    const direct = screen.getByTestId(`dm-sidebar-avatar-${bot.id}`);
+    const rowDot = document.querySelector('[data-slot="soko-bot-status-dot"]');
+    const directDot = screen.getByTestId("dm-sidebar-bot-status");
+    const [rowWords, directWords] = document.querySelectorAll(
+      '[data-slot="soko-bot-status-line"]',
+    );
+
+    await waitFor(() =>
+      expect(rowWords).toHaveTextContent("activeAgo(2h ago)"),
+    );
+    expect(directWords).toHaveTextContent("activeAgo(2h ago)");
+    expect(direct).toContainElement(directWords as HTMLElement);
+    expect(direct).not.toHaveTextContent("Presence.online");
+    // Same tone: the grey of an idle bot, not presence green.
+    const tone = (el: Element | null) =>
+      tokens(el?.className ?? "").filter((token) => token.startsWith("bg-"));
+    expect(tone(directDot)).toEqual(tone(rowDot));
+  });
+
+  it("keeps the chat list in ERROR when one of two live rows hides in Activity or unmounts", () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false })),
+    );
+    const failedBot: SidebarSokoBotLive = {
+      ...bot,
+      status: SokoBotStatus.ERROR,
+    };
+    const room = makeDirectRoomWithBot(failedBot.id);
+
+    function Harness({
+      showFirst,
+      showSecond,
+      secondMode,
+    }: {
+      showFirst: boolean;
+      showSecond: boolean;
+      secondMode: "visible" | "hidden";
+    }) {
+      return (
+        <SidebarProvider defaultOpen>
+          {showFirst ? <PersonalAssistantNav bot={failedBot} /> : null}
+          {showSecond ? (
+            <Activity mode={secondMode}>
+              <PersonalAssistantNav bot={failedBot} />
+            </Activity>
+          ) : null}
+          <DirectRoomAvatarStack room={room} currentUserId="me" />
+        </SidebarProvider>
+      );
+    }
+
+    const { rerender } = render(
+      <Harness showFirst showSecond secondMode="visible" />,
+    );
+
+    const direct = screen.getByTestId(`dm-sidebar-avatar-${failedBot.id}`);
+    expect(direct).toHaveTextContent("ERROR");
+    expect(direct).not.toHaveTextContent("Presence.online");
+
+    // Hiding the second row in <Activity> runs its layout-effect cleanup while
+    // the first row is still mounted and in ERROR.
+    rerender(<Harness showFirst showSecond secondMode="hidden" />);
+
+    expect(direct).toHaveTextContent("ERROR");
+    expect(direct).not.toHaveTextContent("Presence.online");
+
+    // Revealing the second row and unmounting the first still leaves the second
+    // row publishing ERROR.
+    rerender(<Harness showFirst showSecond secondMode="visible" />);
+    rerender(<Harness showFirst={false} showSecond secondMode="visible" />);
+
+    expect(direct).toHaveTextContent("ERROR");
+    expect(direct).not.toHaveTextContent("Presence.online");
+
+    // Clearing the last live row restores the default online presence.
+    rerender(
+      <Harness showFirst={false} showSecond={false} secondMode="visible" />,
+    );
+
     expect(direct).toHaveTextContent("Presence.online");
     expect(direct).not.toHaveTextContent("ERROR");
   });

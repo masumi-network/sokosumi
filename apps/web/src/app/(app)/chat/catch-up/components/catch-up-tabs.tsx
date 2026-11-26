@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { useSelectedLayoutSegment } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import {
   CHAT_CATCH_UP_PATH,
@@ -13,39 +16,49 @@ import {
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { id: "overview", href: CHAT_CATCH_UP_PATH },
-  { id: "threads", href: `${CHAT_CATCH_UP_PATH}/threads` },
-  { id: "decisions", href: CHAT_DECISIONS_PATH },
-  { id: "saved", href: CHAT_SAVED_PATH },
+  { id: "overview", segment: null, href: CHAT_CATCH_UP_PATH },
+  { id: "threads", segment: "threads", href: `${CHAT_CATCH_UP_PATH}/threads` },
+  { id: "decisions", segment: "decisions", href: CHAT_DECISIONS_PATH },
+  { id: "saved", segment: "saved", href: CHAT_SAVED_PATH },
 ] as const;
 
-export async function CatchUpTabs({
-  active,
-}: {
-  active: (typeof TABS)[number]["id"];
-}) {
-  const t = await getTranslations("App.Channels.Signals.CatchUpTabs");
+/**
+ * Catch up's tabs, in its layout so they stay put while a tab's page loads
+ * below them. The open tab is the layout's selected segment.
+ */
+export function CatchUpTabs() {
+  const t = useTranslations("App.Channels.Signals.CatchUpTabs");
+  const segment = useSelectedLayoutSegment();
   return (
     // Links, not Radix tabs: each tab is its own route. They wear the shared
     // segmented-tab classes, which key the active look on `data-state`.
+    // On a phone the row fills the column and the tabs share it, so it never
+    // sticks out past the content; a locale too long for it scrolls instead.
     <nav
       aria-label={t("label")}
-      className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "mb-4 w-auto")}
+      className={cn(
+        SEGMENTED_TABS_LIST_CLASS_NAME,
+        "mb-4 gap-0.5 overflow-x-auto sm:w-auto sm:gap-1",
+      )}
     >
-      {TABS.map((tab) => (
-        <Link
-          key={tab.id}
-          href={tab.href}
-          aria-current={tab.id === active ? "page" : undefined}
-          data-state={tab.id === active ? "active" : "inactive"}
-          className={cn(
-            SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-            "focus-visible:ring-ring outline-none focus-visible:ring-2",
-          )}
-        >
-          {t(tab.id)}
-        </Link>
-      ))}
+      {TABS.map((tab) => {
+        const active = tab.segment === segment;
+        return (
+          <Link
+            key={tab.id}
+            href={tab.href}
+            aria-current={active ? "page" : undefined}
+            data-state={active ? "active" : "inactive"}
+            className={cn(
+              SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+              "flex-auto shrink-0 px-1 text-center whitespace-nowrap sm:flex-none sm:px-3",
+              "focus-visible:ring-ring outline-none focus-visible:ring-2",
+            )}
+          >
+            {t(tab.id)}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

@@ -6,7 +6,6 @@ import {
   type CSSProperties,
   type MouseEvent,
   type ReactNode,
-  useEffect,
   useRef,
   useState,
 } from "react";
@@ -43,11 +42,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useContactsGridInfiniteScroll } from "@/hooks/effects/use-contacts-grid-infinite-scroll";
 import { cn } from "@/lib/utils";
 import { type CellEdit, ContactCell } from "./contact-cell";
 import {
   AvatarStack,
   ChannelIcon,
+  CONTACT_AVATAR_FILL_CLASS,
   ContactAvatar,
   Dot,
   ListChip,
@@ -224,15 +225,7 @@ export function ContactsGrid({
   }
 
   // Infinite scroll: the sentinel under the last row asks for the next page.
-  useEffect(() => {
-    const node = sentinel.current;
-    if (!node || !hasMore) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) onLoadMore();
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [hasMore, onLoadMore]);
+  useContactsGridInfiniteScroll(sentinel, hasMore, onLoadMore);
 
   function relative(date: Date | string | null) {
     if (!date) return "";
@@ -285,6 +278,7 @@ export function ContactsGrid({
                 src={contact.avatarUrl}
                 email={primaryEmail(contact.channels)}
                 kind={contact.kind}
+                className={CONTACT_AVATAR_FILL_CLASS}
               />
               <button
                 type="button"

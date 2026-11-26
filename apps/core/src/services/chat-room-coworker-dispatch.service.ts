@@ -15,7 +15,15 @@ import {
 } from "@/helpers/persist-assistant-to-chat-room";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotMessageMemberId } from "@/helpers/soko-bot-message-member";
+import { getCoworkerAuthorizationHeader } from "@/lib/coworker-request-auth";
 import prisma from "@/lib/db/prisma";
+import { isEvalWorkspace } from "@/lib/evals/eval-guard";
+import {
+  EMPTY_COWORKER_RESPONSE,
+  isEvalCoworkerBaseUrl,
+  scriptedReplyModel,
+  takeEvalCoworkerReply,
+} from "@/lib/evals/fake-coworker";
 import { createCoreLogger, emitCoreError } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
@@ -435,17 +443,23 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         priorThreadMention?.providerConversationId ?? null;
     }
 
+    const evalReply =
+      isEvalCoworkerBaseUrl(baseURL) && (await isEvalWorkspace(workspaceId))
+        ? ((await takeEvalCoworkerReply(coworker.id)) ?? "")
+        : null;
     let providerConversation: { id: string };
     try {
       providerConversation = existingProviderConversationId
         ? { id: existingProviderConversationId }
-        : await createCoworkerConversation({
-            responsesApiBaseUrl: baseURL,
-            sokosumiUserId: userId,
-            sokosumiOrganizationId: mention.message.room.organizationId,
-            coworkerSlug: coworker.slug,
-            sokosumiConversationId: mention.message.id,
-          });
+        : evalReply !== null
+          ? { id: `eval:${mention.message.id}` }
+          : await createCoworkerConversation({
+              responsesApiBaseUrl: baseURL,
+              sokosumiUserId: userId,
+              sokosumiOrganizationId: mention.message.room.organizationId,
+              coworkerSlug: coworker.slug,
+              sokosumiConversationId: mention.message.id,
+            });
     } catch (error) {
       await failMentionThoughtPlaceholder({
         placeholderId,
@@ -485,6 +499,13 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       sokosumiUserId: userId,
       sokosumiOrganizationId: mention.message.room.organizationId,
       providerConversationId: providerConversation.id,
+      getAuthorization: () =>
+        getCoworkerAuthorizationHeader({
+          coworkerBaseUrl: baseURL,
+          userId,
+          organizationId: mention.message.room.organizationId,
+          coworkerSlug: coworker.slug,
+        }),
       onResponseStarted: (responseId: string) => {
         providerResponseId = responseId;
       },
@@ -515,7 +536,11 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     });
 
     const result = streamText({
-      model: getSokosumiProvider()(null),
+      telemetry: { functionId: "coworker-chat-reply" },
+      model:
+        evalReply !== null
+          ? scriptedReplyModel(evalReply)
+          : getSokosumiProvider()(null),
       messages: [{ role: "user", content: prompt }],
       maxRetries: 0,
       timeout: ROOM_COWORKER_STREAM_TIMEOUT,
@@ -584,7 +609,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       if (!responseText || coworkerTextLooksLikeAgentError(responseText)) {
         await markMentionFailed(
           mentionId,
-          responseText || "Coworker returned an empty response",
+          responseText || EMPTY_COWORKER_RESPONSE,
         );
         keepFailedPlaceholder = true;
         return;

@@ -6,10 +6,11 @@ import { connection } from "next/server";
 import { PREFETCHED_CONTENT_STALE_SECONDS } from "@/lib/navigation/prefetched-content-stale-time";
 import { seoService } from "@/lib/services/seo.service";
 
-export interface SeoAuditIndexInput {
-  cursor?: string;
-  projectId?: string;
-}
+import { collectCursorPages } from "@/lib/utils/collect-cursor-pages";
+
+type SeoAuditIndexInput = NonNullable<
+  Parameters<typeof seoService.listAudits>[0]
+>;
 
 type SeoAuditIndex = Awaited<ReturnType<typeof seoService.listAudits>>;
 
@@ -34,4 +35,21 @@ export function loadSeoAuditIndex(
     await connection();
     return seoService.listAudits(input);
   });
+}
+
+/** Search starts at the first page even when opened from a later page of reports. */
+export async function loadSeoAuditSearch(
+  input: Pick<SeoAuditIndexInput, "projectId" | "status">,
+) {
+  const load = (cursor?: string) =>
+    loadSeoAuditIndex({ ...input, limit: 100, cursor });
+  const first = await load();
+  return collectCursorPages(
+    first.audits,
+    first.pagination?.nextCursor,
+    async (cursor) => {
+      const page = await load(cursor);
+      return { items: page.audits, nextCursor: page.pagination?.nextCursor };
+    },
+  );
 }

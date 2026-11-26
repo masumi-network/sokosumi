@@ -16,6 +16,7 @@ import {
   type NormalizedMention,
   POPUP_HEIGHT_PX,
   POPUP_MIN_HEIGHT_PX,
+  resolveSelectedMentionKeys,
   serializeEditorText,
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
@@ -472,6 +473,28 @@ describe("mention-textarea utils", () => {
       const before = [...items];
       filterNormalizedMentions(items, "andr");
       expect(items).toEqual(before);
+    });
+  });
+
+  describe("resolveSelectedMentionKeys", () => {
+    it("resolves unique direct and slug mention keys in order of appearance", () => {
+      const mentions = {
+        "user-1": { value: "Alice Smith", slug: "alice-smith" },
+        "cow-1": { value: "Elena" },
+      };
+      expect(
+        resolveSelectedMentionKeys(
+          "Hi @user-1:alice-smith and @unknown:elena and @user-1:alice-smith and @missing:nobody",
+          mentions,
+        ),
+      ).toEqual(["user-1", "cow-1"]);
+    });
+
+    it("returns an empty array when mentions map is empty or no mentions match", () => {
+      expect(resolveSelectedMentionKeys("Plain message", {})).toEqual([]);
+      expect(
+        resolveSelectedMentionKeys("Hi @user-1:alice", {}),
+      ).toEqual([]);
     });
   });
 });

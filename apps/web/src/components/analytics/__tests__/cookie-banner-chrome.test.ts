@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { mainChromeLeftPx } from "@/components/analytics/cookie-banner";
-import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
+import { mainChromeLeftPx } from "@/hooks/effects/use-cookie-banner-chrome-left";
+import { MOBILE_BREAKPOINT } from "@/hooks/effects/use-mobile";
 
 describe("mainChromeLeftPx", () => {
   it("sits flush on mobile even when a sidebar gap exists", () => {

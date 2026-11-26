@@ -43,7 +43,7 @@ vi.mock("@/app/components/history-search-dialog-provider", () => ({
   }),
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   MOBILE_BREAKPOINT: 768,
   useIsMobile: () => false,
 }));
@@ -95,3 +95,7 @@ describe("AppShellLoadingFrame Instant Nav page children", () => {
     );
   });
 });
+
+vi.mock("@/app/components/sidebar/components/global-rail.client", () => ({
+  GlobalRail: () => null,
+}));

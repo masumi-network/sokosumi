@@ -99,7 +99,7 @@ export function DriveFileRow({
    * still buys ranking weight and the staleness marker; it just stopped
    * deciding how a tag looks.
    */
-  function labelChip(label: FileLabel, variant: "secondary" | "outline") {
+  function labelChip(label: FileLabel, variant: "muted" | "outline") {
     const dismissable = onDismissLabel && label.state !== "CONFIRMED";
     return (
       <Badge
@@ -164,7 +164,7 @@ export function DriveFileRow({
            */}
           <Link
             href={`/drive/files/${item.id}`}
-            className="focus-visible:ring-ring min-w-0 truncate text-sm font-medium focus-visible:outline-none focus-visible:ring-2"
+            className="focus-visible:ring-ring min-w-0 truncate text-sm leading-6 font-medium focus-visible:outline-none focus-visible:ring-2"
             onClick={(event) => {
               if (!onOpen) return;
               // Anything the reader did to ask for a new tab or window is
@@ -184,7 +184,7 @@ export function DriveFileRow({
           >
             {item.displayName}
           </Link>
-          {item.category ? labelChip(item.category, "secondary") : null}
+          {item.category ? labelChip(item.category, "muted") : null}
           {tags.map((tag) => labelChip(tag, "outline"))}
           {hiddenTagCount > 0 ? (
             <span className="text-muted-foreground text-xs">

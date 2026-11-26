@@ -2,8 +2,12 @@
 
 import type { ChatRoom } from "@sokosumi/core-client";
 import {
+  createContext,
+  createElement,
+  type ReactNode,
   useCallback,
-  useEffect,
+  useContext,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -15,8 +19,8 @@ import {
   subscribeMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
 import {
-  subscribeOrganizationChatRoomRead,
-  subscribeOrganizationChatRoomsChanged,
+  useOrganizationChatRoomRead,
+  useOrganizationChatRoomsChanged,
 } from "@/components/chat/organization-chat-events";
 import { keepRoomUnreadState } from "@/components/chat/room-attention";
 import {
@@ -24,24 +28,63 @@ import {
   beginRoomAttentionRefresh,
   reconcileRoomAttention,
 } from "@/components/chat/room-read-overlay";
-import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
-import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useChatRefreshScheduler } from "@/hooks/effects/use-chat-refresh-scheduler";
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
+import { useLiveChatRoomsOwnershipSettled } from "@/hooks/effects/use-live-chat-rooms-ownership-settled";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { useSession } from "@/lib/auth/auth.client";
-
-/** How long a desktop page waits for its sidebar to take over the reads. */
-const SIDEBAR_REGISTRATION_WAIT_MS = 2_000;
 
 /** Poll cadence while the Ably connection is unavailable. */
 const LIVE_CHAT_ROOMS_FALLBACK_MS = 15_000;
 
-function getInitialRoomsFromSessionSnapshot(): ChatRoom[] | null {
+/** The user and workspace a list of rooms belongs to. */
+function roomsScope(
+  organizationId: string | null,
+  userId: string,
+): string | null {
+  return userId ? `${organizationId ?? ""}:${userId}` : null;
+}
+
+/** Rows with the scope they were read in, so another scope's never show. */
+interface HeldRooms {
+  scope: string | null;
+  rooms: ChatRoom[] | null;
+}
+
+function getInitialRoomsFromSessionSnapshot(): HeldRooms {
   const snapshot = getLatestMembershipVisibleRoomsSnapshot();
   if (snapshot == null) {
-    return null;
+    return { scope: null, rooms: null };
   }
-  return applyRoomReadOverlays([...snapshot.rooms]);
+  return {
+    scope: roomsScope(snapshot.organizationId, snapshot.currentUserId),
+    rooms: applyRoomReadOverlays([...snapshot.rooms]),
+  };
+}
+
+interface LiveChatRoomsRead {
+  rooms: ChatRoom[] | null;
+  failed: boolean;
+}
+
+const EMPTY_LIVE_CHAT_ROOMS: LiveChatRoomsRead = {
+  rooms: null,
+  failed: false,
+};
+
+/** @internal Read by `useLiveChatRoomsRead` and the DOM test setup fallback. */
+export const LiveChatRoomsContext = createContext<LiveChatRoomsRead | null>(
+  null,
+);
+
+/**
+ * Runs the live membership-visible rooms reader once for the app shell and
+ * shares its `{ rooms, failed }` result with every descendant caller.
+ */
+export function LiveChatRoomsProvider({ children }: { children: ReactNode }) {
+  const { rooms, failed } = useLiveChatRoomsOwner();
+  const value = useMemo(() => ({ rooms, failed }), [rooms, failed]);
+  return createElement(LiveChatRoomsContext, { value }, children);
 }
 
 /**
@@ -58,12 +101,40 @@ function getInitialRoomsFromSessionSnapshot(): ChatRoom[] | null {
  * a reader in no room (an empty list) is not mistaken for one not read yet.
  */
 export function useLiveChatRooms(): ChatRoom[] | null {
+  return useLiveChatRoomsRead().rooms;
+}
+
+/**
+ * `useLiveChatRooms`, plus whether this user and workspace's first read
+ * failed with no rows held, so a caller can say so while the reader retries.
+ */
+export function useLiveChatRoomsRead(): LiveChatRoomsRead {
+  return useContext(LiveChatRoomsContext) ?? EMPTY_LIVE_CHAT_ROOMS;
+}
+
+/** @internal Owned by `LiveChatRoomsProvider` (and the DOM test setup fallback). */
+export function useLiveChatRoomsOwner(): LiveChatRoomsRead {
   const { data: session } = useSession();
   const currentUserId = session?.user.id ?? "";
   const organizationId = session?.session.activeOrganizationId ?? null;
   const latestAppliedRefreshRef = useRef(0);
-  const [rooms, setRooms] = useState<ChatRoom[] | null>(
+  const [held, setHeld] = useState<HeldRooms>(
     getInitialRoomsFromSessionSnapshot,
+  );
+  const scope = roomsScope(organizationId, currentUserId);
+  // Read by the async refresh, which keeps one identity across scopes.
+  const scopeRef = useLatestRef(scope);
+  // The scope whose latest own read failed; cleared by a read that answers.
+  const [failedScope, setFailedScope] = useState<string | null>(null);
+  // Updates a held list in place; a list not read yet stays unread.
+  const updateRooms = useCallback(
+    (apply: (rooms: ChatRoom[]) => ChatRoom[]) =>
+      setHeld((current) =>
+        current.rooms === null
+          ? current
+          : { ...current, rooms: apply(current.rooms) },
+      ),
+    [],
   );
 
   // A mounted sidebar list already reads the active collection on the same
@@ -78,79 +149,82 @@ export function useLiveChatRooms(): ChatRoom[] | null {
   // later streamed commit than this hook's. Reading at once would read the
   // same collection twice, so on desktop this waits a moment for it; on a
   // phone there is no sidebar to wait for.
-  const [ownershipSettled, setOwnershipSettled] = useState(false);
-  useMountEffect(() => {
-    if (window.innerWidth < MOBILE_BREAKPOINT) {
-      setOwnershipSettled(true);
-      return;
-    }
-    const timer = window.setTimeout(
-      () => setOwnershipSettled(true),
-      SIDEBAR_REGISTRATION_WAIT_MS,
-    );
-    return () => window.clearTimeout(timer);
-  });
+  const ownershipSettled = useLiveChatRoomsOwnershipSettled();
   const liveSnapshot = useSyncExternalStore(
     subscribeMembershipVisibleRooms,
     getLatestMembershipVisibleRoomsSnapshot,
     () => null,
   );
-  useEffect(() => {
-    if (
-      !sidebarOwnsReads ||
-      !liveSnapshot ||
-      liveSnapshot.currentUserId !== currentUserId ||
-      liveSnapshot.organizationId !== organizationId
-    ) {
-      return;
-    }
-    setRooms([...liveSnapshot.rooms]);
-  }, [sidebarOwnsReads, liveSnapshot, currentUserId, organizationId]);
 
-  const scope = currentUserId
-    ? `${organizationId ?? ""}:${currentUserId}`
-    : null;
-  const previousScopeRef = useRef<string | null>(null);
+  const [trackedScope, setTrackedScope] = useState<string | null>(scope);
+
+  const mirroredSnapshot =
+    sidebarOwnsReads &&
+    liveSnapshot &&
+    liveSnapshot.currentUserId === currentUserId &&
+    liveSnapshot.organizationId === organizationId
+      ? liveSnapshot
+      : null;
+  const [syncedSnapshot, setSyncedSnapshot] = useState<
+    typeof liveSnapshot | null
+  >(null);
+  if (mirroredSnapshot && mirroredSnapshot !== syncedSnapshot) {
+    setSyncedSnapshot(mirroredSnapshot);
+    setHeld({
+      scope,
+      rooms: applyRoomReadOverlays([...mirroredSnapshot.rooms]),
+    });
+  } else if (!mirroredSnapshot && syncedSnapshot !== null) {
+    setSyncedSnapshot(null);
+  }
 
   // Drop the previous workspace's rows before the new GET lands so an
   // in-flight response cannot light the dot for the wrong org (SOK-986).
-  useEffect(() => {
-    if (previousScopeRef.current === scope) {
-      return;
+  // Runs after the mirror so a matching snapshot's local read overlays win.
+  if (trackedScope !== scope) {
+    const previous = trackedScope;
+    setTrackedScope(scope);
+    if (scope && previous !== null) {
+      latestAppliedRefreshRef.current = 0;
+      const snapshot = getLatestMembershipVisibleRoomsSnapshot();
+      setHeld({
+        scope,
+        rooms:
+          snapshot &&
+          snapshot.currentUserId === currentUserId &&
+          snapshot.organizationId === organizationId
+            ? applyRoomReadOverlays([...snapshot.rooms])
+            : null,
+      });
     }
-    const previous = previousScopeRef.current;
-    previousScopeRef.current = scope;
-    if (!scope || previous === null) {
-      return;
-    }
-    latestAppliedRefreshRef.current = 0;
-    const snapshot = getLatestMembershipVisibleRoomsSnapshot();
-    setRooms(
-      snapshot &&
-        snapshot.currentUserId === currentUserId &&
-        snapshot.organizationId === organizationId
-        ? applyRoomReadOverlays([...snapshot.rooms])
-        : null,
-    );
-  }, [scope, currentUserId, organizationId]);
+  }
 
   // Same GET read and scheduling rules as the sidebar's active collection
   // (SOK-986): timer reads pause while hidden or unfocused with one read on
   // return, invalidations read at once, and a slow recovery cadence while
   // Ably is connected.
-  const refreshRooms = useCallback(async (isCurrent: () => boolean) => {
-    const requestRevision = beginRoomAttentionRefresh();
-    const page = await fetchSidebarRoomCollection("active");
-    if (
-      !isCurrent() ||
-      !page ||
-      requestRevision < latestAppliedRefreshRef.current
-    ) {
-      return;
-    }
-    latestAppliedRefreshRef.current = requestRevision;
-    setRooms(reconcileRoomAttention(page.rooms, requestRevision));
-  }, []);
+  const refreshRooms = useCallback(
+    async (isCurrent: () => boolean) => {
+      const requestRevision = beginRoomAttentionRefresh();
+      // The ref moves in the layout phase, before the scheduler's passive
+      // cleanup makes `isCurrent` false, so an answer can land between them.
+      const requestScope = scopeRef.current;
+      const page = await fetchSidebarRoomCollection("active");
+      if (!isCurrent() || scopeRef.current !== requestScope) return;
+      if (!page) {
+        setFailedScope(requestScope);
+        return;
+      }
+      if (requestRevision < latestAppliedRefreshRef.current) return;
+      setFailedScope(null);
+      latestAppliedRefreshRef.current = requestRevision;
+      setHeld({
+        scope: requestScope,
+        rooms: reconcileRoomAttention(page.rooms, requestRevision),
+      });
+    },
+    [scopeRef],
+  );
   const requestRefresh = useChatRefreshScheduler({
     key:
       scope && ownershipSettled && !sidebarOwnsReads ? `${scope}:unread` : null,
@@ -161,45 +235,40 @@ export function useLiveChatRooms(): ChatRoom[] | null {
     refreshOnRecovery: true,
   });
 
-  useMountEffect(() =>
-    subscribeOrganizationChatRoomRead((apply) =>
-      setRooms((current) => (current === null ? null : apply(current))),
-    ),
-  );
+  useOrganizationChatRoomRead((apply) => updateRooms(apply));
 
-  useEffect(
-    () =>
-      subscribeOrganizationChatRoomsChanged({
-        onRemoved: (removedRoomId) =>
-          setRooms((current) =>
-            current === null
-              ? null
-              : applyRoomReadOverlays(
-                  current.filter((row) => row.id !== removedRoomId),
-                ),
-          ),
-        onRoom: (room) =>
-          // The answers that land here do not count what is unread, so the
-          // room keeps what the title already counted for it.
-          setRooms((current) => {
-            // One room is not the list; the first read still decides it.
-            if (current === null) return null;
-            const held = current.find((row) => row.id === room.id);
-            const without = current.filter((row) => row.id !== room.id);
-            return applyRoomReadOverlays([
-              keepRoomUnreadState(held, room),
-              ...without,
-            ]);
-          }),
-        onInvalidated: (collections) => {
-          // Only the active collection holds what is unread.
-          if (!collections || collections.includes("active")) {
-            requestRefresh();
-          }
-        },
+  useOrganizationChatRoomsChanged({
+    onRemoved: (removedRoomId) =>
+      updateRooms((current) =>
+        applyRoomReadOverlays(
+          current.filter((row) => row.id !== removedRoomId),
+        ),
+      ),
+    onRoom: (room) =>
+      // The answers that land here do not count what is unread, so the
+      // room keeps what the title already counted for it.
+      // One room is not the list; the first read still decides it.
+      updateRooms((current) => {
+        const held = current.find((row) => row.id === room.id);
+        const without = current.filter((row) => row.id !== room.id);
+        return applyRoomReadOverlays([
+          keepRoomUnreadState(held, room),
+          ...without,
+        ]);
       }),
-    [requestRefresh],
-  );
+    onInvalidated: (collections) => {
+      // Only the active collection holds what is unread.
+      if (!collections || collections.includes("active")) {
+        requestRefresh();
+      }
+    },
+  });
 
-  return rooms;
+  // Rows read for another user or workspace never show, even before this
+  // scope's own read lands.
+  const rooms = scope !== null && held.scope === scope ? held.rooms : null;
+  return {
+    rooms,
+    failed: rooms === null && scope !== null && failedScope === scope,
+  };
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-
+import { Suspense } from "react";
 import {
   Card,
   CardDescription,
@@ -9,13 +9,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { adminAdEvalsService } from "@/lib/services/admin-ad-evals.service";
-
 import {
   ADMIN_SECTION_GROUPS,
   type AdminSection,
   type AdminSectionGroup,
   getVisibleAdminSections,
 } from "./admin-sections";
+import { SeoAlertSummary } from "./seo-alerts/seo-alert-summary";
 
 export const metadata: Metadata = {
   title: "Admin",
@@ -81,6 +81,11 @@ export default async function AdminOverviewPage() {
                         <CardDescription>
                           {t(`Sections.${key}.description`)}
                         </CardDescription>
+                        {key === "seoAlerts" && (
+                          <Suspense fallback={null}>
+                            <SeoAlertSummary />
+                          </Suspense>
+                        )}
                       </CardHeader>
                     </Card>
                   </Link>

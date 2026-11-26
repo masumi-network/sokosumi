@@ -663,8 +663,11 @@ export function AskForm({
   return (
     <form
       className="bp-ask"
-      action={async () => {
-        const value = text.trim();
+      action={async (form) => {
+        // The field's own value: autofill or a pasted fill can leave it
+        // there without an input event reaching the state.
+        const value = String(form.get("ask") ?? "").trim();
+        setText(value);
         if (!value && !optional) return;
         try {
           await onAsk(value);
@@ -675,6 +678,7 @@ export function AskForm({
       }}
     >
       <input
+        name="ask"
         value={text}
         onChange={(event) => setText(event.target.value)}
         id={inputId}

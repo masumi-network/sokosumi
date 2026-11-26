@@ -6,7 +6,6 @@ import { connection } from "next/server";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { projectService } from "@/lib/services/project.service";
-import { getNotificationHref } from "@/lib/utils/notification-href";
 import { formatNotificationTimeLabel } from "@/lib/utils/notification-time-label";
 
 import {
@@ -14,11 +13,8 @@ import {
   type NeedsYouLead,
   NeedsYouPanelList,
 } from "./needs-you-panel-list";
+import { ProjectActivityRow } from "./project-activity-row";
 import { WorkspaceColumnPanel } from "./workspace-column-panel";
-import {
-  WorkspaceColumnProjectAvatar,
-  WorkspaceColumnRow,
-} from "./workspace-column-row";
 import { WorkspaceColumnPanelSkeleton } from "./workspace-column-skeleton";
 
 /** Null when the feed failed: the panel says so instead of failing the page. */
@@ -148,7 +144,7 @@ export async function NeedsYouPanel({
   feed,
   projects,
   quiet = false,
-  lead,
+  leads = [],
 }: {
   feed: PanelFeed<NotificationItem>;
   /** A read still in flight is awaited next to the feed, not after it. */
@@ -157,8 +153,8 @@ export async function NeedsYouPanel({
     | Promise<WorkspaceColumnProps["projects"]>;
   /** Home's quiet list instead of the column's panel. */
   quiet?: boolean;
-  /** A row above the notifications, such as your bot's failed reply. */
-  lead?: NeedsYouLead;
+  /** Rows above the notifications, such as your bot's failed reply. */
+  leads?: NeedsYouLead[];
 }) {
   // A hole in a link prefetch: the time labels read the clock, and a clock
   // read, or an uncached Core read, would cut that prefetch short.
@@ -185,32 +181,12 @@ export async function NeedsYouPanel({
         showAll: t("showAll"),
       }}
       quiet={quiet}
-      lead={lead}
+      leads={leads.map((lead) => ({
+        ...lead,
+        time: lead.at ? timeLabel(lead.at) : "",
+      }))}
     />
   );
-}
-
-function activityHref(item: ProjectActivityItem): string {
-  switch (item.kind) {
-    case "task":
-      return getNotificationHref({
-        kind: "TASK",
-        referenceId: item.taskId,
-        metadata: null,
-      });
-    case "job":
-      return getNotificationHref({
-        kind: "JOB",
-        referenceId: item.jobId,
-        metadata: { agentId: item.agentId },
-      });
-    case "project":
-      return getNotificationHref({
-        kind: "PROJECT",
-        referenceId: item.project.id,
-        metadata: null,
-      });
-  }
 }
 
 export async function RecentActivityPanel({
@@ -228,56 +204,18 @@ export async function RecentActivityPanel({
     loadTimeLabel(),
   ]);
 
-  function describe(item: ProjectActivityItem) {
-    switch (item.kind) {
-      case "task":
-        return {
-          title: item.title,
-          event: t("task", { status: item.status ?? "COMMENT" }),
-        };
-      case "job":
-        return {
-          title: item.title ?? t("untitledJob"),
-          event: t("job", { status: item.status }),
-        };
-      case "project":
-        return {
-          title: item.project.name,
-          event: t("project", { event: item.event }),
-        };
-    }
-  }
-
   return (
     <WorkspaceColumnPanel
       testId="workspace-activity"
       title={t("title")}
       empty={items ? t(projectScoped ? "emptyProject" : "empty") : t("error")}
       action={{ kind: "expand", label: t("showAll") }}
-      rows={(items ?? []).map((item) => {
-        const { title, event } = describe(item);
-        return {
-          key: item.id,
-          node: (
-            <WorkspaceColumnRow
-              leading={
-                <WorkspaceColumnProjectAvatar
-                  name={item.project.name}
-                  logo={item.project.logo}
-                />
-              }
-              title={title}
-              detail={
-                item.kind === "project"
-                  ? event
-                  : t("detail", { project: item.project.name, event })
-              }
-              time={timeLabel(item.createdAt)}
-              target={{ href: activityHref(item) }}
-            />
-          ),
-        };
-      })}
+      rows={(items ?? []).map((item) => ({
+        key: item.id,
+        node: (
+          <ProjectActivityRow item={item} time={timeLabel(item.createdAt)} />
+        ),
+      }))}
     />
   );
 }

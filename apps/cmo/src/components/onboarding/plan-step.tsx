@@ -3,21 +3,30 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Check, CircleAlert, Loader2 } from "lucide-react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { type KeyboardEvent, useRef, useState, useTransition } from "react";
+import {
+  type KeyboardEvent,
+  type ReactNode,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
 import { channelInfo } from "../../lib/channels";
-import { strategyApproved } from "../../lib/strategy";
+import { calendarIsExamples, strategyApproved } from "../../lib/strategy";
+import { WriteNewStrategy } from "../app/write-new-strategy";
+import { ChannelIcon } from "../channel-icon";
 import { CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
-import { AdBudget, money } from "../strategy-core";
+import { AdsChoice } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
 import type { SkipSubscription, StartTopUp } from "../top-up";
 import {
   Checklist,
   type ChecklistItem,
+  EXAMPLE_PLANNING_PHASES,
   PLANNING_PHASES,
   useElapsed,
   workChecklist,
@@ -25,7 +34,6 @@ import {
 } from "./checklist";
 import { CusoScene } from "./cuso-scene";
 import {
-  type ConnectMeasurement,
   MonthPanel,
   PlanPanel,
   type PlanTab,
@@ -102,21 +110,18 @@ export function planningRows(
         ...done,
         id: `pillar:${pillar.name}`,
         kind: "brain",
-        label: `${pillar.name}: ${pillar.share}% of posts`,
+        label: `Topic: ${pillar.name}`,
       });
     }
   }
   if (running) {
-    const pieces = strategy?.calendar.length ?? 0;
     // On top, so what Cuso is on stays in view above the plan so far.
     rows.unshift({
       id: strategy ? "calendar" : "plan",
       kind: "strategy",
       label: !strategy
         ? "Choosing your idea, channels and pillars"
-        : pieces > 0
-          ? `Writing four weeks, day by day: ${pieces} posts so far`
-          : "Writing four weeks, day by day",
+        : "Writing four weeks, day by day",
       url: null,
       status: "running",
     });
@@ -134,7 +139,11 @@ export function planningChecklist(
   strategy: Strategy | null,
   running: boolean,
 ): ChecklistItem[] {
-  const items = workChecklist(steps, PLANNING_PHASES, running);
+  const phases =
+    strategy && calendarIsExamples(strategy)
+      ? EXAMPLE_PLANNING_PHASES
+      : PLANNING_PHASES;
+  const items = workChecklist(steps, phases, running);
   if (!running || !strategy) return items;
   return items.map((item, at) => ({
     ...item,
@@ -152,8 +161,6 @@ const ANSWER_WORDS: Record<string, string> = {
 interface PlanStepProps {
   overview: CmoOverview;
   phase: PlanPhase;
-  /** The tab to open, such as Results after a measurement connection. */
-  initialTab?: PlanTab;
   /** Cuso writes or changes the plan; a refusal comes back as text. */
   onRequest: (note?: string) => Promise<string | null>;
   /** The owner's own monthly ad budget; a refusal comes back as text. */
@@ -166,7 +173,6 @@ interface PlanStepProps {
   /** A no changed something: Cuso fits the plan to the answers. */
   onUpdate: () => Promise<string | null>;
   onApprove: () => Promise<void>;
-  onConnectMeasurement: ConnectMeasurement;
   /** The plan was just requested: wait for Cuso's work to show up. */
   starting?: boolean;
   /** Set when the founder opened the plan again: leads on to where they were. */
@@ -273,7 +279,9 @@ function Planning({
         ) : (
           <p className="muted">
             {running
-              ? `Every post and ad ${AGENT_NAME} will make, and when. This takes a few minutes.`
+              ? overview.strategy && calendarIsExamples(overview.strategy)
+                ? `Your plan and a few example posts. This takes a few minutes.`
+                : `Every post and ad ${AGENT_NAME} will make, and when. This takes a few minutes.`
               : `Nothing was lost. Try again and I start over.`}
           </p>
         )}
@@ -398,23 +406,21 @@ interface PlanReviewProps extends Omit<PlanStepProps, "phase" | "starting"> {
 export function PlanReview({
   overview,
   readOnly = false,
-  initialTab = "plan",
   onRequest,
   onSetAds,
   onAnswer,
   onUpdate,
   onApprove,
-  onConnectMeasurement,
   ahead,
   topUp = null,
   subscribe = null,
   skip = null,
 }: PlanReviewProps) {
   const strategy = overview.strategy as Strategy;
-  const [tab, setTab] = useState<PlanTab>(initialTab);
-  // The plan's detail, folded until asked for; a measurement return opens it.
-  // On the app's Strategy page the plan is the page, so it starts open.
-  const [full, setFull] = useState(readOnly || initialTab === "results");
+  const [tab, selectTab] = useState<PlanTab>("plan");
+  // The plan's detail, folded until asked for. On the app's Strategy page
+  // the plan is the page, so it starts open.
+  const [full, setFull] = useState(readOnly);
   const fullHead = useRef<HTMLHeadingElement>(null);
   const [open, setOpen] = useState<Entry | null>(null);
   const [asking, setAsking] = useState(false);
@@ -425,7 +431,6 @@ export function PlanReview({
   const changing = sending !== null;
   const [going, startGoing] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
-  const [budgetOpen, setBudgetOpen] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const work = overview.work;
   const writing = work?.kind === "strategy" && work.status === "running";
@@ -436,6 +441,7 @@ export function PlanReview({
   // From the tap until the new plan lands, the old one is not shown as if it held.
   const replanning = sending ?? (writing && asked ? asked : null);
   const changes = strategy.changes ?? [];
+  const fitted = strategy.fitted ?? [];
   const approved = strategyApproved(overview);
   const locked = readOnly || approved;
   const [questions, answer] = useAnswers(strategy.questions ?? [], onAnswer);
@@ -444,7 +450,6 @@ export function PlanReview({
     ...overview,
     strategy: { ...strategy, questions },
   });
-  const pieces = strategy.calendar.length;
 
   // Plain async, not a transition: React holds a transition's state updates
   // until it ends, and the re-planning screen must show on the tap. A refusal
@@ -481,18 +486,9 @@ export function PlanReview({
     send("Fitting your strategy to your answers", onUpdate).catch(() => {});
   };
 
-  // What it rests on and the language of the posts, in plain words. No page
-  // count: the screenshots Core keeps are not the pages Cuso read.
-  const line = [
-    `${pieces} ${pieces === 1 ? "post" : "posts"} for the next four weeks, built from your website and your answers.`,
-    strategy.contentLanguage
-      ? `The posts are written in ${strategy.contentLanguage}.`
-      : null,
-    approved ? null : "Nothing goes out until you approve the strategy.",
-  ]
-    .filter(Boolean)
-    .join(" ");
-  // The short goal is the headline; the long sentence sits under it.
+  // Before approval one line says what approving does; no post count.
+  const line = approved ? null : "Nothing goes out until you approve.";
+  // The short goal is the headline.
   const sentence = strategy.idea?.sentence ?? strategy.summary;
   const goal = outcomeLine(strategy) || firstClause(sentence);
 
@@ -543,6 +539,19 @@ export function PlanReview({
   );
 
   const ads = strategy.ads;
+  // A no the plan already follows is only kept; anything else re-plans.
+  async function setAds(monthly: number, currency: string) {
+    if (monthly === 0 && ads?.monthly === 0) {
+      const refused = await onSetAds(0, currency);
+      setRefusal(refused);
+      if (refused) throw new Error(refused);
+      return;
+    }
+    await send(
+      monthly > 0 ? `Ad budget: ${currency} ${monthly} a month` : "No ads",
+      () => onSetAds(monthly, currency),
+    );
+  }
   const hasChecks = questions.length > 0 || strategy.pace || ads;
   // An approval covers what the owner said yes or no to, not what stayed open.
   const answers = approved
@@ -567,8 +576,7 @@ export function PlanReview({
             }
           />
         )}
-        {/* The app's page opens on the goal; the line follows it there. */}
-        {readOnly ? null : <p className="muted">{line}</p>}
+        {readOnly || !line ? null : <p className="muted">{line}</p>}
       </div>
 
       {asking && !locked ? (
@@ -577,7 +585,13 @@ export function PlanReview({
             className="card ob-change"
             onSubmit={(event) => {
               event.preventDefault();
-              requestChange(note);
+              // The field's own value: autofill or a pasted fill can leave
+              // it there without an input event reaching the state.
+              const typed = String(
+                new FormData(event.currentTarget).get("change") ?? "",
+              );
+              setNote(typed);
+              requestChange(typed);
             }}
           >
             <label htmlFor="ob-change-input">
@@ -586,6 +600,7 @@ export function PlanReview({
             <div className="ob-change-row">
               <input
                 id="ob-change-input"
+                name="change"
                 ref={input}
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
@@ -615,6 +630,23 @@ export function PlanReview({
                 </button>
               ))}
             </div>
+            <p className="ob-small muted">
+              Or start over: {AGENT_NAME} writes a whole new strategy from your
+              Brand Brain.{" "}
+              <button
+                type="button"
+                className="sc-link"
+                disabled={busy}
+                onClick={() => {
+                  setRefusal(null);
+                  send("Writing your strategy again", () => onRequest()).catch(
+                    () => {},
+                  );
+                }}
+              >
+                Write a new strategy
+              </button>
+            </p>
           </form>
         </div>
       ) : null}
@@ -641,21 +673,36 @@ export function PlanReview({
             <Loader2 size={20} className="spin" aria-hidden="true" />
             <p className="ob-value">{AGENT_NAME} is re-planning your month</p>
             <p className="muted">
-              {replanning}. About two minutes; your new strategy opens here.
+              {/[.?!]$/.test(replanning) ? replanning : `${replanning}.`} About
+              two minutes; your new strategy opens here.
             </p>
           </div>
         </div>
       ) : null}
 
       <div className="ob-plan-body" hidden={replanning !== null}>
+        {/* The goal alone: the long sentence repeated it (owner, 2026-11-23). */}
         <GoalBlock
           label="The goal"
           headline
           goal={goal}
-          statement={sentence !== goal ? sentence : undefined}
           facts={goalFacts(strategy)}
         />
-        {readOnly ? <p className="note ob-plan-built">{line}</p> : null}
+
+        {fitted.length > 0 && !writing ? (
+          <div className="card ob-changed">
+            <h2>Less than Cuso planned</h2>
+            <p className="note">
+              Cuso could not fill the whole month, so these networks post less
+              than he first wrote:
+            </p>
+            <ul className="ob-list">
+              {fitted.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         {changes.length > 0 && !writing ? (
           <div className="card ob-changed">
@@ -668,34 +715,58 @@ export function PlanReview({
           </div>
         ) : null}
 
+        {approved && !readOnly ? (
+          // An approved strategy before the first plan: the owner can still
+          // start over (NMKR, 2026-11-23, had no way back from Subscribe).
+          // What that cancels is said in the confirm step, not on the page.
+          <WriteNewStrategy
+            overview={overview}
+            explain={`${AGENT_NAME} writes a whole new strategy from your Brand Brain, and you approve it before you pick a plan. Then this one's posts that have not gone out are canceled.`}
+            onWriteNew={() =>
+              send("Writing your strategy again", () => onRequest()).then(
+                () => null,
+                // send shows the refusal itself.
+                () => null,
+              )
+            }
+          />
+        ) : null}
         {locked ? (
-          answers.length > 0 || ads ? (
-            <div className="card ob-checks">
-              <h2>{approved ? "What you approved" : "Your answers"}</h2>
-              <ul className="ob-approved">
-                {answers.map((question) => (
-                  <li key={question.id}>
-                    {question.question}{" "}
-                    <b>{ANSWER_WORDS[question.answer ?? ""]}</b>
-                    {question.answer === "no" && question.note
-                      ? `: ${question.note}`
-                      : ""}
-                  </li>
-                ))}
-
-                {ads ? (
-                  <li>
-                    {ads.monthly > 0
-                      ? `${money(ads.monthly, ads.currency)} a month for ads`
-                      : "No ads"}
-                  </li>
-                ) : null}
-              </ul>
-            </div>
-          ) : null
+          <>
+            {answers.length > 0 ? (
+              <div className="card ob-checks">
+                <h2>{approved ? "What you approved" : "Your answers"}</h2>
+                <ul className="ob-approved">
+                  {answers.map((question) => (
+                    <li key={question.id}>
+                      {question.question}{" "}
+                      <b>{ANSWER_WORDS[question.answer ?? ""]}</b>
+                      {question.answer === "no" && question.note
+                        ? `: ${question.note}`
+                        : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {/* Ads stay the owner's Yes or No after approval too (NMKR, 2026-11-24). */}
+            {ads ? (
+              <div className="card ob-checks">
+                <div className="ob-budget">
+                  <AdsChoice
+                    // A new version resets the choice to what it holds.
+                    key={overview.strategyVersion?.id}
+                    ads={ads}
+                    approved={approved}
+                    onSetAds={overview.viewerCanApprove ? setAds : undefined}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </>
         ) : hasChecks ? (
           <div className="card ob-checks">
-            <h2>Check these</h2>
+            <h2>Did I get these right?</h2>
             {questions.map((question) => (
               <PlanQuestionChip
                 key={question.id}
@@ -716,39 +787,13 @@ export function PlanReview({
                 </button>
               </div>
             ) : null}
-            {strategy.pace ? (
-              <p className="ob-pace note">
-                This month is written at the most a plan makes. Next you pick
-                your plan, and with it how much of the month {AGENT_NAME} makes.
-              </p>
-            ) : null}
             {ads ? (
               <div className="ob-budget">
-                <div className="ob-budget-row">
-                  <p>
-                    {ads.monthly > 0
-                      ? `${money(ads.monthly, ads.currency)} a month for ads`
-                      : "No ads"}
-                  </p>
-                  <button
-                    type="button"
-                    className="button button-ghost button-small"
-                    aria-expanded={budgetOpen}
-                    onClick={() => setBudgetOpen(!budgetOpen)}
-                  >
-                    {ads.monthly > 0 ? "Change" : "Add a budget"}
-                  </button>
-                </div>
-                {budgetOpen ? (
-                  <AdBudget
-                    ads={ads}
-                    onSetAds={(monthly, currency) =>
-                      send(`Ad budget: ${currency} ${monthly} a month`, () =>
-                        onSetAds(monthly, currency),
-                      )
-                    }
-                  />
-                ) : null}
+                <AdsChoice
+                  key={overview.strategyVersion?.id}
+                  ads={ads}
+                  onSetAds={setAds}
+                />
               </div>
             ) : null}
           </div>
@@ -788,12 +833,12 @@ export function PlanReview({
                     aria-selected={tab === candidate.id}
                     aria-controls={`ob-tabpanel-${candidate.id}`}
                     tabIndex={tab === candidate.id ? 0 : -1}
-                    onClick={() => setTab(candidate.id)}
+                    onClick={() => selectTab(candidate.id)}
                     onKeyDown={(event) => {
                       const next = planTabAfterKey(event, index);
                       if (next === null) return;
                       event.preventDefault();
-                      setTab(TABS[next]!.id);
+                      selectTab(TABS[next]!.id);
                       document
                         .getElementById(`ob-tab-${TABS[next]!.id}`)
                         ?.focus();
@@ -827,11 +872,7 @@ export function PlanReview({
                     pending={!approved}
                   />
                 ) : (
-                  <ResultsPanel
-                    overview={overview}
-                    strategy={strategy}
-                    onConnectMeasurement={onConnectMeasurement}
-                  />
+                  <ResultsPanel strategy={strategy} approved={approved} />
                 )}
               </div>
               <button
@@ -899,28 +940,29 @@ function firstClause(text: string): string {
   return clause || text;
 }
 
-/** Who, what, where and how much, from whatever the plan fills in. */
-function goalFacts(strategy: Strategy): { term: string; value: string }[] {
+/** Who, what and where, from whatever the plan fills in; no post counts (owner, 2026-11-23). */
+function goalFacts(strategy: Strategy): { term: string; value: ReactNode }[] {
   const who =
     strategy.focus?.segment ?? strategy.idea?.who ?? strategy.audience;
   const offer =
     strategy.offer?.what ?? strategy.idea?.offer ?? strategy.ladder?.core.what;
-  const where = strategy.channels
-    .map((channel) => channelLabel(channel.channel))
-    .join(", ");
-  const pieces = strategy.calendar.length;
-  const facts = [
+  const where =
+    strategy.channels.length > 0 ? (
+      <span className="ob-goal-networks">
+        {strategy.channels.map(({ channel }) => (
+          <span key={channel} title={channelLabel(channel)}>
+            <ChannelIcon channel={channel} size={16} />
+            <span className="sr-only">{channelLabel(channel)}</span>
+          </span>
+        ))}
+      </span>
+    ) : null;
+  const facts: { term: string; value: ReactNode }[] = [
     { term: "Who", value: who },
     { term: "The offer", value: offer },
     { term: "Where", value: where },
-    {
-      term: "This month",
-      value: pieces > 0 ? `${pieces} ${pieces === 1 ? "post" : "posts"}` : "",
-    },
   ];
-  return facts.filter((fact): fact is { term: string; value: string } =>
-    Boolean(fact.value),
-  );
+  return facts.filter((fact) => Boolean(fact.value));
 }
 
 interface PlanQuestionChipProps {

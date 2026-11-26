@@ -4,20 +4,18 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Hash, MessageSquare, Sunrise } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { loadChatComposeRosterAction } from "@/app/chat/actions";
-import { ChatCaughtUp } from "@/app/chat/components/chat-unread-view-header";
+import { ChatEmptyState } from "@/app/chat/components/chat-unread-view-header";
 import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog";
 import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
 import { fetchSidebarRoomCollection } from "@/components/chat/fetch-sidebar-room-collection";
-import { subscribeOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
+import { useOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMountEffect } from "@/hooks/use-mount-effect";
-
-const FIRST_STEPS_QUERY_KEY = "chat-catch-up-first-steps";
+import { chatQueryKeys } from "@/queries/chat";
 
 interface FirstSteps {
   canCreateChannel: boolean;
@@ -69,20 +67,22 @@ export function CatchUpEmpty({
   const queryClient = useQueryClient();
   // A room created, joined or left (the dialogs and the control channel both
   // announce it) can end or bring back the first visit: ask again.
-  useMountEffect(() => {
-    const refresh = () =>
-      void queryClient.invalidateQueries({
-        queryKey: [FIRST_STEPS_QUERY_KEY],
-      });
-    return subscribeOrganizationChatRoomsChanged({
-      onRemoved: refresh,
-      onRoom: refresh,
-      onInvalidated: refresh,
+  const refresh = () => {
+    void queryClient.invalidateQueries({
+      queryKey: chatQueryKeys.anyCatchUpFirstSteps(),
     });
+  };
+  useOrganizationChatRoomsChanged({
+    onRemoved: refresh,
+    onRoom: refresh,
+    onInvalidated: refresh,
   });
   const { data: firstSteps, isPending } = useQuery({
     // Per reader and workspace: rooms and channel rights differ by workspace.
-    queryKey: [FIRST_STEPS_QUERY_KEY, currentUserId, organizationId],
+    queryKey: chatQueryKeys.catchUpFirstSteps({
+      userId: currentUserId,
+      workspaceId: organizationId,
+    }),
     queryFn: loadFirstSteps,
     // A room made or joined elsewhere ends the first visit: read again on
     // every return instead of trusting the app's one-minute freshness.
@@ -101,7 +101,7 @@ export function CatchUpEmpty({
             <Skeleton className="h-5 w-64 max-w-full" />
           </div>
         ) : firstSteps ? (
-          <ChatCaughtUp
+          <ChatEmptyState
             icon={Sunrise}
             title={t("firstCatchUpTitle")}
             description={t("firstCatchUpDescription")}
@@ -130,9 +130,9 @@ export function CatchUpEmpty({
                 ) : null}
               </div>
             ) : null}
-          </ChatCaughtUp>
+          </ChatEmptyState>
         ) : (
-          <ChatCaughtUp
+          <ChatEmptyState
             title={t("caughtUpTitle")}
             description={t("caughtUpDescription")}
           />

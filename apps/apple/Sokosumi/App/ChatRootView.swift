@@ -32,6 +32,8 @@ struct ChatRootView: View {
         inviteLink = .init(context: workspaces.compositionContext, destination: .invitation(id: id))
       case let .guestJoin(token):
         inviteLink = .init(context: workspaces.compositionContext, destination: .guestJoin(token: token))
+      case .contact:
+        return .systemAction
       }
       return .handled
     })

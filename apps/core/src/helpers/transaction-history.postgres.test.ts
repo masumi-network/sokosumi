@@ -8,8 +8,18 @@
  * under the query fails here instead of in production. Every fixture is written
  * inside a transaction that always rolls back.
  */
+
 import { createPrismaClient } from "@sokosumi/database/client";
-import { afterAll, describe, expect, it } from "vitest";
+import {
+  configureSqlTables,
+  netTable,
+  netType,
+  sharedTable,
+  sharedType,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
+import { afterAll, describe, expect, it, vi } from "vitest";
+import { testSchemaNames } from "@/test/split-layout";
 
 import {
   type BuildTransactionHistoryParams,
@@ -19,13 +29,30 @@ import {
   sumTransactionHistory,
 } from "./transaction-history";
 
+const restoreSqlTables = configureSqlTables(sqlTableLayoutFromEnv(process.env));
+
 const url = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
-const db = enabled && url ? createPrismaClient(url) : null;
+const db =
+  enabled && url
+    ? createPrismaClient(url, {
+        schema: testSchemaNames().DATABASE_SCHEMA_SHARED,
+      })
+    : null;
+
+// The ledger query is CPU-bound, so on a loaded runner one case can pass the
+// 5 s default. Fixtures use fixed ids, so a case that gave up while its
+// transaction was still open made every later case wait on its rows and time
+// out too. `withSeededLedger` sets a server-side limit on each lock wait (10 s)
+// and each statement (30 s), so a blocked insert fails early and a slow
+// statement is cancelled. That usually leaves time before this deadline, but
+// it does not promise when the rollback finishes.
+vi.setConfig({ testTimeout: 60_000 });
 
 afterAll(async () => {
+  restoreSqlTables();
   await db?.$disconnect();
 });
 
@@ -57,31 +84,31 @@ type Tx = Parameters<Parameters<NonNullable<typeof db>["$transaction"]>[0]>[0];
 
 async function seed(tx: Tx): Promise<void> {
   await tx.$executeRaw`
-    INSERT INTO "user" ("id", "name", "email", "emailVerified", "createdAt", "updatedAt")
+    INSERT INTO ${sharedTable("user")} ("id", "name", "email", "emailVerified", "createdAt", "updatedAt")
     VALUES
       (${USER_ID}, 'Ledger User', 'ledger@example.test', true, NOW(), NOW()),
       (${OTHER_USER_ID}, 'Other User', 'ledger-other@example.test', true, NOW(), NOW())
   `;
   await tx.$executeRaw`
-    INSERT INTO "organization" ("id", "name", "slug", "createdAt")
+    INSERT INTO ${sharedTable("organization")} ("id", "name", "slug", "createdAt")
     VALUES (${ORGANIZATION_ID}, 'Ledger Org', 'ledger-org', NOW())
   `;
   await tx.$executeRaw`
-    INSERT INTO "workspace" ("id", "createdAt", "updatedAt", "userId", "organizationId")
+    INSERT INTO ${sharedTable("workspace")} ("id", "createdAt", "updatedAt", "userId", "organizationId")
     VALUES
       (${WORKSPACE_ID}::uuid, NOW(), NOW(), ${USER_ID}, NULL),
       (${ORGANIZATION_WORKSPACE_ID}::uuid, NOW(), NOW(), NULL, ${ORGANIZATION_ID})
   `;
   await tx.$executeRaw`
-    INSERT INTO "project" ("id", "createdAt", "updatedAt", "workspaceId", "name")
+    INSERT INTO ${sharedTable("project")} ("id", "createdAt", "updatedAt", "workspaceId", "name")
     VALUES (${PROJECT_ID}::uuid, NOW(), NOW(), ${WORKSPACE_ID}::uuid, 'Ledger project')
   `;
   await tx.$executeRaw`
-    INSERT INTO "AgentPricing" ("id", "createdAt", "updatedAt", "pricingType")
-    VALUES ('txhist-pricing', NOW(), NOW(), 'FREE'::"PricingType")
+    INSERT INTO ${netTable("mainnet", "AgentPricing")} ("id", "createdAt", "updatedAt", "pricingType")
+    VALUES ('txhist-pricing', NOW(), NOW(), 'FREE'::${netType("mainnet", "PricingType")})
   `;
   await tx.$executeRaw`
-    INSERT INTO "Agent" (
+    INSERT INTO ${netTable("mainnet", "Agent")} (
       "id", "createdAt", "updatedAt", "blockchainIdentifier", "name", "apiBaseUrl",
       "lastUptimeCheck", "uptimeCount", "uptimeCheckCount", "pricingId", "isShown"
     )
@@ -91,22 +118,22 @@ async function seed(tx: Tx): Promise<void> {
     )
   `;
   await tx.$executeRaw`
-    INSERT INTO "vendor" ("id", "createdAt", "updatedAt", "name", "slug")
+    INSERT INTO ${sharedTable("vendor")} ("id", "createdAt", "updatedAt", "name", "slug")
     VALUES (${VENDOR_ID}::uuid, NOW(), NOW(), 'Ledger Vendor', 'ledger-vendor')
   `;
   await tx.$executeRaw`
-    INSERT INTO "coworker" ("id", "createdAt", "updatedAt", "slug", "name", "vendorId")
+    INSERT INTO ${sharedTable("coworker")} ("id", "createdAt", "updatedAt", "slug", "name", "vendorId")
     VALUES ('txhist-coworker', NOW(), NOW(), 'ledger-coworker', 'Ledger Coworker', ${VENDOR_ID}::uuid)
   `;
   await tx.$executeRaw`
-    INSERT INTO "soko_bot" ("id", "createdAt", "updatedAt", "userId", "workspaceId")
+    INSERT INTO ${sharedTable("soko_bot")} ("id", "createdAt", "updatedAt", "userId", "workspaceId")
     VALUES (${SOKO_BOT_ID}::uuid, NOW(), NOW(), ${USER_ID}, ${WORKSPACE_ID}::uuid)
   `;
 
   // One ledger row per consumption, plus a topup and an organization spend
   // that must not reach this workspace's list.
   await tx.$executeRaw`
-    INSERT INTO "Transaction" ("id", "createdAt", "updatedAt", "amount", "userId", "organizationId")
+    INSERT INTO ${netTable("mainnet", "Transaction")} ("id", "createdAt", "updatedAt", "amount", "userId", "organizationId")
     VALUES
       ('tx-sokobot', TIMESTAMP '2026-01-15 10:00:00', NOW(), ${-1n * CREDIT}, ${USER_ID}, NULL),
       ('tx-image',   TIMESTAMP '2026-02-01 10:00:00', NOW(), ${-8n * CREDIT}, ${USER_ID}, NULL),
@@ -121,7 +148,7 @@ async function seed(tx: Tx): Promise<void> {
   // A charged job is PAID by construction: `free_job_no_blockchain` forbids a
   // FREE job from carrying a transaction at all.
   await tx.$executeRaw`
-    INSERT INTO "Job" (
+    INSERT INTO ${netTable("mainnet", "Job")} (
       "id", "createdAt", "updatedAt", "ownerId", "agentId", "agentJobId",
       "jobType", "workspaceId", "projectId", "name", "transactionId",
       "blockchainIdentifier", "payByTime", "submitResultTime", "unlockTime",
@@ -129,24 +156,24 @@ async function seed(tx: Tx): Promise<void> {
     )
     VALUES (
       'txhist-job', TIMESTAMP '2026-03-01 09:00:00', NOW(), ${USER_ID}, 'txhist-agent',
-      'txhist-remote', 'PAID'::"JobType", ${WORKSPACE_ID}::uuid, ${PROJECT_ID}::uuid,
+      'txhist-remote', 'PAID'::${netType("mainnet", "JobType")}, ${WORKSPACE_ID}::uuid, ${PROJECT_ID}::uuid,
       'Research competitors', 'tx-job',
       'txhist-chain', NOW(), NOW(), NOW(), NOW(), 'txhist-vkey', 'txhist-purchaser'
     )
   `;
   await tx.$executeRaw`
-    INSERT INTO "project_image_job" (
+    INSERT INTO ${sharedTable("project_image_job")} (
       "id", "createdAt", "updatedAt", "projectId", "workspaceId", "requestedByUserId",
       "kind", "model", "prompt", "settings", "idempotencyKey", "transactionId"
     )
     VALUES (
       ${IMAGE_JOB_ID}::uuid, TIMESTAMP '2026-02-01 09:00:00', NOW(), ${PROJECT_ID}::uuid,
-      ${WORKSPACE_ID}::uuid, ${USER_ID}, 'GENERATE'::"ProjectImageJobKind",
+      ${WORKSPACE_ID}::uuid, ${USER_ID}, 'GENERATE'::${sharedType("ProjectImageJobKind")},
       'fal-ai/some-model', 'A bold event poster', '{}'::jsonb, 'txhist-image-key', 'tx-image'
     )
   `;
   await tx.$executeRaw`
-    INSERT INTO "task" (
+    INSERT INTO ${sharedTable("task")} (
       "id", "createdAt", "updatedAt", "ownerId", "creatorUserId", "name",
       "description", "status", "workspaceId", "projectId"
     )
@@ -158,13 +185,13 @@ async function seed(tx: Tx): Promise<void> {
   // The charging event pays for the task; the second one is ordinary activity
   // and must never reach a credit ledger.
   await tx.$executeRaw`
-    INSERT INTO "taskEvent" ("id", "createdAt", "updatedAt", "taskId", "comment", "transactionId")
+    INSERT INTO ${sharedTable("taskEvent")} ("id", "createdAt", "updatedAt", "taskId", "comment", "transactionId")
     VALUES
       ('txhist-event-paid', TIMESTAMP '2026-04-01 10:00:00', NOW(), 'txhist-task', 'Agent run', 'tx-task'),
       ('txhist-event-free', TIMESTAMP '2026-04-02 10:00:00', NOW(), 'txhist-task', 'Just a comment', NULL)
   `;
   await tx.$executeRaw`
-    INSERT INTO "coworker_usage" (
+    INSERT INTO ${netTable("mainnet", "coworker_usage")} (
       "id", "createdAt", "updatedAt", "idempotencyKey", "coworkerId", "userId", "cents", "transactionId"
     )
     VALUES (
@@ -173,7 +200,7 @@ async function seed(tx: Tx): Promise<void> {
     )
   `;
   await tx.$executeRaw`
-    INSERT INTO "soko_bot_usage" (
+    INSERT INTO ${netTable("mainnet", "soko_bot_usage")} (
       "id", "createdAt", "updatedAt", "idempotencyKey", "sokoBotId", "userId", "cents", "transactionId"
     )
     VALUES (
@@ -184,16 +211,16 @@ async function seed(tx: Tx): Promise<void> {
   // The unattributed spend has no entity relation at all. The bucket it drew
   // from is the only source signal that survives.
   await tx.$executeRaw`
-    INSERT INTO "credit_bucket" (
+    INSERT INTO ${netTable("mainnet", "credit_bucket")} (
       "id", "createdAt", "updatedAt", "amount", "sourceTransactionId", "userId", "referenceType"
     )
     VALUES (
       'txhist-bucket', NOW(), NOW(), ${100n * CREDIT}, 'tx-topup', ${USER_ID},
-      'STRIPE_SUBSCRIPTION_PERIOD'::"CreditBucketReferenceType"
+      'STRIPE_SUBSCRIPTION_PERIOD'::${netType("mainnet", "CreditBucketReferenceType")}
     )
   `;
   await tx.$executeRaw`
-    INSERT INTO "credit_consumption" ("id", "createdAt", "amount", "bucketId", "transactionId")
+    INSERT INTO ${netTable("mainnet", "credit_consumption")} ("id", "createdAt", "amount", "bucketId", "transactionId")
     VALUES ('txhist-consumption', NOW(), ${7n * CREDIT}, 'txhist-bucket', 'tx-unattr')
   `;
 }
@@ -208,11 +235,17 @@ async function withSeededLedger(
   try {
     await db.$transaction(
       async (tx) => {
+        // Server limits: a blocked fixture insert fails after 10 s and a
+        // statement running past 30 s is cancelled. They usually leave time
+        // inside the 45 s transaction and the test deadline; they do not
+        // promise when the rollback finishes.
+        await tx.$executeRaw`SET LOCAL lock_timeout = '10s'`;
+        await tx.$executeRaw`SET LOCAL statement_timeout = '30s'`;
         await seed(tx);
         await body(tx);
         throw rollback;
       },
-      { timeout: 30_000 },
+      { timeout: 45_000 },
     );
   } catch (error) {
     if (error !== rollback) throw error;
@@ -222,16 +255,16 @@ async function withSeededLedger(
 /** A refund top up: its transaction plus the `REFUND` bucket it created. */
 async function seedRefundTransaction(tx: Tx, id: string): Promise<void> {
   await tx.$executeRaw`
-    INSERT INTO "Transaction" ("id", "createdAt", "updatedAt", "amount", "userId", "organizationId")
+    INSERT INTO ${netTable("mainnet", "Transaction")} ("id", "createdAt", "updatedAt", "amount", "userId", "organizationId")
     VALUES (${id}, TIMESTAMP '2026-08-01 10:00:00', NOW(), ${4n * CREDIT}, ${USER_ID}, NULL)
   `;
   await tx.$executeRaw`
-    INSERT INTO "credit_bucket" (
+    INSERT INTO ${netTable("mainnet", "credit_bucket")} (
       "id", "createdAt", "updatedAt", "amount", "sourceTransactionId", "userId", "referenceType"
     )
     VALUES (
       ${`${id}-bucket`}, NOW(), NOW(), ${4n * CREDIT}, ${id}, ${USER_ID},
-      'REFUND'::"CreditBucketReferenceType"
+      'REFUND'::${netType("mainnet", "CreditBucketReferenceType")}
     )
   `;
 }
@@ -239,7 +272,7 @@ async function seedRefundTransaction(tx: Tx, id: string): Promise<void> {
 /** The debit a task payment charged before it was refunded. */
 async function seedChargeTransaction(tx: Tx, id: string): Promise<void> {
   await tx.$executeRaw`
-    INSERT INTO "Transaction" ("id", "createdAt", "updatedAt", "amount", "userId", "organizationId")
+    INSERT INTO ${netTable("mainnet", "Transaction")} ("id", "createdAt", "updatedAt", "amount", "userId", "organizationId")
     VALUES (${id}, TIMESTAMP '2026-07-31 10:00:00', NOW(), ${-4n * CREDIT}, ${USER_ID}, NULL)
   `;
 }
@@ -253,7 +286,7 @@ async function seedRefundedJob(
   // A paid job always carries the debit it was refunded for.
   await seedChargeTransaction(tx, `${refundId}-charge`);
   await tx.$executeRaw`
-    INSERT INTO "Job" (
+    INSERT INTO ${netTable("mainnet", "Job")} (
       "id", "createdAt", "updatedAt", "ownerId", "agentId", "agentJobId",
       "jobType", "workspaceId", "name", "transactionId", "refundedTransactionId",
       "blockchainIdentifier", "payByTime", "submitResultTime", "unlockTime",
@@ -261,17 +294,17 @@ async function seedRefundedJob(
     )
     VALUES (
       ${`${refundId}-job`}, TIMESTAMP '2026-07-31 09:00:00', NOW(), ${USER_ID}, 'txhist-agent',
-      'txhist-refund-remote', 'PAID'::"JobType", ${WORKSPACE_ID}::uuid, 'Audit the contract',
+      'txhist-refund-remote', 'PAID'::${netType("mainnet", "JobType")}, ${WORKSPACE_ID}::uuid, 'Audit the contract',
       ${`${refundId}-charge`}, ${refundId}, ${`${refundId}-chain`}, NOW(), NOW(), NOW(), NOW(), 'txhist-vkey', 'txhist-purchaser'
     )
   `;
 
   if (onChainStatus) {
     await tx.$executeRaw`
-      INSERT INTO "jobPurchase" ("id", "createdAt", "updatedAt", "externalId", "jobId", "onChainStatus")
+      INSERT INTO ${netTable("mainnet", "jobPurchase")} ("id", "createdAt", "updatedAt", "externalId", "jobId", "onChainStatus")
       VALUES (
         ${`${refundId}-purchase`}, NOW(), NOW(), ${`${refundId}-external`},
-        ${`${refundId}-job`}, ${onChainStatus}::"OnChainJobStatus"
+        ${`${refundId}-job`}, ${onChainStatus}::${netType("mainnet", "OnChainJobStatus")}
       )
     `;
   }
@@ -279,7 +312,7 @@ async function seedRefundedJob(
 
 async function seedRefundedTask(tx: Tx, refundId: string): Promise<void> {
   await tx.$executeRaw`
-    INSERT INTO "task" (
+    INSERT INTO ${sharedTable("task")} (
       "id", "createdAt", "updatedAt", "ownerId", "creatorUserId", "name",
       "description", "status", "workspaceId"
     )
@@ -295,17 +328,17 @@ async function seedRefundedClaim(tx: Tx, refundId: string): Promise<void> {
   await seedRefundedTask(tx, refundId);
   await seedChargeTransaction(tx, `${refundId}-charge`);
   await tx.$executeRaw`
-    INSERT INTO "taskEvent" ("id", "createdAt", "updatedAt", "taskId", "comment")
+    INSERT INTO ${sharedTable("taskEvent")} ("id", "createdAt", "updatedAt", "taskId", "comment")
     VALUES (${`${refundId}-event`}, NOW(), NOW(), ${`${refundId}-task`}, 'Agent run')
   `;
   await tx.$executeRaw`
-    INSERT INTO "task_payment_claim" (
+    INSERT INTO ${netTable("mainnet", "task_payment_claim")} (
       "id", "createdAt", "updatedAt", "network", "blockchainIdentifier", "purchasePayload",
       "status", "failureReason", "taskEventId", "transactionId", "refundTransactionId"
     )
     VALUES (
       ${`${refundId}-claim`}, NOW(), NOW(), 'Preprod', ${`${refundId}-claim-chain`}, '{}'::jsonb,
-      'REFUNDED'::"TaskPaymentClaimStatus", 'raw node error: do not show',
+      'REFUNDED'::${netType("mainnet", "TaskPaymentClaimStatus")}, 'raw node error: do not show',
       ${`${refundId}-event`}, ${`${refundId}-charge`}, ${refundId}
     )
   `;
@@ -319,14 +352,14 @@ async function seedRefundedX402Payment(
   await seedRefundedTask(tx, refundId);
   await seedChargeTransaction(tx, `${refundId}-charge`);
   await tx.$executeRaw`
-    INSERT INTO "task_x402_payment" (
+    INSERT INTO ${netTable("mainnet", "task_x402_payment")} (
       "id", "createdAt", "updatedAt", "idempotencyKey", "status", "caip2Network", "asset",
       "amount", "payTo", "taskId", "agentId", "transactionId", "refundTransactionId", "refundKind"
     )
     VALUES (
-      ${`${refundId}-x402`}, NOW(), NOW(), ${`${refundId}-key`}, 'REFUNDED'::"TaskX402PaymentStatus",
+      ${`${refundId}-x402`}, NOW(), NOW(), ${`${refundId}-key`}, 'REFUNDED'::${netType("mainnet", "TaskX402PaymentStatus")},
       'eip155:8453', '0xasset', '1', '0xpayto', ${`${refundId}-task`}, 'txhist-agent',
-      ${`${refundId}-charge`}, ${refundId}, ${refundKind}::"TaskX402PaymentRefundKind"
+      ${`${refundId}-charge`}, ${refundId}, ${refundKind}::${netType("mainnet", "TaskX402PaymentRefundKind")}
     )
   `;
 }
@@ -335,7 +368,7 @@ async function seedRefundedX402Payment(
 async function seedRefundedImageJob(tx: Tx, refundId: string): Promise<void> {
   await seedChargeTransaction(tx, `${refundId}-charge`);
   await tx.$executeRaw`
-    INSERT INTO "project_image_job" (
+    INSERT INTO ${sharedTable("project_image_job")} (
       "id", "createdAt", "updatedAt", "projectId", "workspaceId", "requestedByUserId",
       "kind", "model", "prompt", "settings", "idempotencyKey",
       "transactionId", "refundTransactionId"
@@ -343,7 +376,7 @@ async function seedRefundedImageJob(tx: Tx, refundId: string): Promise<void> {
     VALUES (
       ${REFUNDED_IMAGE_JOB_ID}::uuid, TIMESTAMP '2026-07-31 09:00:00', NOW(),
       ${PROJECT_ID}::uuid, ${WORKSPACE_ID}::uuid, ${USER_ID},
-      'GENERATE'::"ProjectImageJobKind", 'fal-ai/some-model', 'A bold event poster',
+      'GENERATE'::${sharedType("ProjectImageJobKind")}, 'fal-ai/some-model', 'A bold event poster',
       '{}'::jsonb, ${`${refundId}-image-key`}, ${`${refundId}-charge`}, ${refundId}
     )
   `;
@@ -366,6 +399,11 @@ async function findRefundItem(tx: Tx, refundId: string) {
 }
 
 describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
+  it("reads an empty ledger in the configured schemas", async () => {
+    if (!db) throw new Error("Missing integration database");
+    expect(await countTransactionHistory(personalScope, db)).toBe(0);
+  });
+
   it("names the job behind a refund and keeps its on-chain status", async () => {
     await withSeededLedger(async (tx) => {
       await seedRefundTransaction(tx, "tx-refund-job");
@@ -392,12 +430,12 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
       await seedRefundTransaction(tx, "tx-refund-job");
       await seedRefundedJob(tx, "tx-refund-job", "REFUND_WITHDRAWN");
       await tx.$executeRaw`
-        UPDATE "credit_bucket" SET "referenceId" = 'tx-refund-job-job'
+        UPDATE ${netTable("mainnet", "credit_bucket")} SET "referenceId" = 'tx-refund-job-job'
         WHERE "sourceTransactionId" = 'tx-refund-job'
       `;
       await seedRefundTransaction(tx, "tx-refund-pool");
       await tx.$executeRaw`
-        UPDATE "credit_bucket" SET "referenceId" = 'tx-refund-job-job#pool'
+        UPDATE ${netTable("mainnet", "credit_bucket")} SET "referenceId" = 'tx-refund-job-job#pool'
         WHERE "sourceTransactionId" = 'tx-refund-pool'
       `;
 
@@ -449,7 +487,7 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
       await seedRefundTransaction(tx, "tx-refund-claim");
       await seedRefundedClaim(tx, "tx-refund-claim");
       await tx.$executeRaw`
-        UPDATE "task"
+        UPDATE ${sharedTable("task")}
         SET "projectId" = ${PROJECT_ID}::uuid
         WHERE "id" = ${"tx-refund-claim-task"}
       `;
@@ -553,7 +591,7 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
       await seedRefundTransaction(tx, "tx-refund-archived");
       await seedRefundedClaim(tx, "tx-refund-archived");
       await tx.$executeRaw`
-        UPDATE "task" SET "archivedAt" = NOW() WHERE "id" = 'tx-refund-archived-task'
+        UPDATE ${sharedTable("task")} SET "archivedAt" = NOW() WHERE "id" = 'tx-refund-archived-task'
       `;
 
       // An archived task is a 404 everywhere, so the row says what it was
@@ -581,7 +619,7 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
       expect(await findTaskItem()).toMatchObject({ taskArchived: false });
 
       await tx.$executeRaw`
-        UPDATE "task" SET "archivedAt" = NOW() WHERE "id" = 'txhist-task'
+        UPDATE ${sharedTable("task")} SET "archivedAt" = NOW() WHERE "id" = 'txhist-task'
       `;
 
       expect(await findTaskItem()).toMatchObject({
@@ -688,14 +726,14 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
       // Exactly what the task tag classification backfill did to every
       // historical task, plus a bare row touch on the job.
       await tx.$executeRaw`
-        UPDATE "task"
+        UPDATE ${sharedTable("task")}
         SET "automaticTags" = ARRAY['research']::TEXT[],
             "tagClassificationState" = 'complete',
             "updatedAt" = NOW()
         WHERE "id" = 'txhist-task'
       `;
-      await tx.$executeRaw`UPDATE "Job" SET "updatedAt" = NOW() WHERE "id" = 'txhist-job'`;
-      await tx.$executeRaw`UPDATE "project_image_job" SET "updatedAt" = NOW() WHERE "id" = ${IMAGE_JOB_ID}::uuid`;
+      await tx.$executeRaw`UPDATE ${netTable("mainnet", "Job")} SET "updatedAt" = NOW() WHERE "id" = 'txhist-job'`;
+      await tx.$executeRaw`UPDATE ${sharedTable("project_image_job")} SET "updatedAt" = NOW() WHERE "id" = ${IMAGE_JOB_ID}::uuid`;
 
       const after = await findTransactionHistoryPage(
         personalScope,
@@ -784,14 +822,14 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
       const task = "txhist-task";
       // Its Job's charge (3), beside the event charge (2) from the seed.
       await tx.$executeRaw`
-        UPDATE "Job" SET "taskId" = ${task} WHERE "id" = 'txhist-job'
+        UPDATE ${netTable("mainnet", "Job")} SET "taskId" = ${task} WHERE "id" = 'txhist-job'
       `;
 
       // A payment claim: its event carries the charge (4), the claim the refund (4).
       await seedRefundTransaction(tx, "tx-claim");
       await seedRefundedClaim(tx, "tx-claim");
       await tx.$executeRaw`
-        UPDATE "taskEvent" SET "taskId" = ${task}, "transactionId" = 'tx-claim-charge'
+        UPDATE ${sharedTable("taskEvent")} SET "taskId" = ${task}, "transactionId" = 'tx-claim-charge'
         WHERE "id" = 'tx-claim-event'
       `;
 
@@ -799,10 +837,10 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
       await seedRefundTransaction(tx, "tx-x402");
       await seedRefundedX402Payment(tx, "tx-x402", "NODE_REFUSAL");
       await tx.$executeRaw`
-        UPDATE "task_x402_payment" SET "taskId" = ${task} WHERE "id" = 'tx-x402-x402'
+        UPDATE ${netTable("mainnet", "task_x402_payment")} SET "taskId" = ${task} WHERE "id" = 'tx-x402-x402'
       `;
       await tx.$executeRaw`
-        INSERT INTO "taskEvent" ("id", "createdAt", "updatedAt", "taskId", "comment", "transactionId")
+        INSERT INTO ${sharedTable("taskEvent")} ("id", "createdAt", "updatedAt", "taskId", "comment", "transactionId")
         VALUES ('tx-x402-event', NOW(), NOW(), ${task}, 'Agent run', 'tx-x402-charge')
       `;
 
@@ -811,31 +849,31 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
       await seedRefundTransaction(tx, "tx-job-refund");
       await seedRefundedJob(tx, "tx-job-refund", "REFUND_WITHDRAWN");
       await tx.$executeRaw`
-        UPDATE "Job" SET "taskId" = ${task} WHERE "id" = 'tx-job-refund-job'
+        UPDATE ${netTable("mainnet", "Job")} SET "taskId" = ${task} WHERE "id" = 'tx-job-refund-job'
       `;
       await tx.$executeRaw`
-        UPDATE "credit_bucket" SET "referenceId" = 'tx-job-refund-job'
+        UPDATE ${netTable("mainnet", "credit_bucket")} SET "referenceId" = 'tx-job-refund-job'
         WHERE "sourceTransactionId" = 'tx-job-refund'
       `;
       await tx.$executeRaw`
-        UPDATE "Transaction" SET "amount" = ${3n * CREDIT} WHERE "id" = 'tx-job-refund'
+        UPDATE ${netTable("mainnet", "Transaction")} SET "amount" = ${3n * CREDIT} WHERE "id" = 'tx-job-refund'
       `;
       await seedRefundTransaction(tx, "tx-job-refund-pool");
       await tx.$executeRaw`
-        UPDATE "credit_bucket" SET "referenceId" = 'tx-job-refund-job#pool'
+        UPDATE ${netTable("mainnet", "credit_bucket")} SET "referenceId" = 'tx-job-refund-job#pool'
         WHERE "sourceTransactionId" = 'tx-job-refund-pool'
       `;
       await tx.$executeRaw`
-        UPDATE "Transaction" SET "amount" = ${1n * CREDIT} WHERE "id" = 'tx-job-refund-pool'
+        UPDATE ${netTable("mainnet", "Transaction")} SET "amount" = ${1n * CREDIT} WHERE "id" = 'tx-job-refund-pool'
       `;
 
       // One debit (6) that both a Job of the Task and a Task event point at.
       await tx.$executeRaw`
-        INSERT INTO "Transaction" ("id", "createdAt", "updatedAt", "amount", "userId", "organizationId")
+        INSERT INTO ${netTable("mainnet", "Transaction")} ("id", "createdAt", "updatedAt", "amount", "userId", "organizationId")
         VALUES ('tx-shared', TIMESTAMP '2026-09-01 10:00:00', NOW(), ${-6n * CREDIT}, ${USER_ID}, NULL)
       `;
       await tx.$executeRaw`
-        INSERT INTO "Job" (
+        INSERT INTO ${netTable("mainnet", "Job")} (
           "id", "createdAt", "updatedAt", "ownerId", "agentId", "agentJobId",
           "jobType", "workspaceId", "name", "transactionId", "taskId",
           "blockchainIdentifier", "payByTime", "submitResultTime", "unlockTime",
@@ -843,13 +881,13 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
         )
         VALUES (
           'txhist-shared-job', NOW(), NOW(), ${USER_ID}, 'txhist-agent',
-          'txhist-shared-remote', 'PAID'::"JobType", ${WORKSPACE_ID}::uuid,
+          'txhist-shared-remote', 'PAID'::${netType("mainnet", "JobType")}, ${WORKSPACE_ID}::uuid,
           'Shared debit', 'tx-shared', ${task},
           'txhist-shared-chain', NOW(), NOW(), NOW(), NOW(), 'txhist-vkey', 'txhist-purchaser'
         )
       `;
       await tx.$executeRaw`
-        INSERT INTO "taskEvent" ("id", "createdAt", "updatedAt", "taskId", "comment", "transactionId")
+        INSERT INTO ${sharedTable("taskEvent")} ("id", "createdAt", "updatedAt", "taskId", "comment", "transactionId")
         VALUES ('txhist-shared-event', NOW(), NOW(), ${task}, 'Agent run', 'tx-shared')
       `;
 
@@ -908,7 +946,7 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
 
       // Spent 2 in the personal workspace, then moved to the organization.
       await tx.$executeRaw`
-        UPDATE "task" SET "workspaceId" = ${ORGANIZATION_WORKSPACE_ID}::uuid, "projectId" = NULL
+        UPDATE ${sharedTable("task")} SET "workspaceId" = ${ORGANIZATION_WORKSPACE_ID}::uuid, "projectId" = NULL
         WHERE "id" = ${task}
       `;
       expect(await sumTransactionHistory(organizationParams, tx)).toEqual({
@@ -918,11 +956,11 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
 
       // Later organization spend counts there; the old spend stays personal.
       await tx.$executeRaw`
-        INSERT INTO "Transaction" ("id", "createdAt", "updatedAt", "amount", "userId", "organizationId")
+        INSERT INTO ${netTable("mainnet", "Transaction")} ("id", "createdAt", "updatedAt", "amount", "userId", "organizationId")
         VALUES ('tx-moved', NOW(), NOW(), ${-5n * CREDIT}, ${USER_ID}, ${ORGANIZATION_ID})
       `;
       await tx.$executeRaw`
-        INSERT INTO "taskEvent" ("id", "createdAt", "updatedAt", "taskId", "comment", "transactionId")
+        INSERT INTO ${sharedTable("taskEvent")} ("id", "createdAt", "updatedAt", "taskId", "comment", "transactionId")
         VALUES ('txhist-moved-event', NOW(), NOW(), ${task}, 'Agent run', 'tx-moved')
       `;
       expect(await sumTransactionHistory(organizationParams, tx)).toEqual({
@@ -972,28 +1010,28 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
     await withSeededLedger(async (tx) => {
       const organizationProjectId = "dddddddd-dddd-4ddd-8ddd-ddddddddddd8";
       await tx.$executeRaw`
-        INSERT INTO "project" ("id", "createdAt", "updatedAt", "workspaceId", "name")
+        INSERT INTO ${sharedTable("project")} ("id", "createdAt", "updatedAt", "workspaceId", "name")
         VALUES (${organizationProjectId}::uuid, NOW(), NOW(), ${ORGANIZATION_WORKSPACE_ID}::uuid, 'Cuso project')
       `;
       await tx.$executeRaw`
-        INSERT INTO "Transaction" ("id", "createdAt", "updatedAt", "amount", "userId", "organizationId")
+        INSERT INTO ${netTable("mainnet", "Transaction")} ("id", "createdAt", "updatedAt", "amount", "userId", "organizationId")
         VALUES
           ('tx-cmo-grant', TIMESTAMP '2026-08-01 10:00:00', NOW(), ${25_000n * CREDIT}, NULL, ${ORGANIZATION_ID}),
           ('tx-cmo-write-off', TIMESTAMP '2026-08-02 10:00:00', NOW(), ${-4n * CREDIT}, NULL, ${ORGANIZATION_ID})
       `;
       await tx.$executeRaw`
-        INSERT INTO "credit_bucket" (
+        INSERT INTO ${netTable("mainnet", "credit_bucket")} (
           "id", "createdAt", "updatedAt", "amount", "sourceTransactionId", "organizationId",
           "projectId", "referenceId", "referenceType", "referenceNote"
         )
         VALUES (
           'txhist-cmo-bucket', NOW(), NOW(), ${25_000n * CREDIT}, 'tx-cmo-grant', ${ORGANIZATION_ID},
           ${organizationProjectId}::uuid, 'order_1:0',
-          'POLAR_SUBSCRIPTION_MONTH'::"CreditBucketReferenceType", 'Growth'
+          'POLAR_SUBSCRIPTION_MONTH'::${netType("mainnet", "CreditBucketReferenceType")}, 'Growth'
         )
       `;
       await tx.$executeRaw`
-        INSERT INTO "credit_consumption" ("id", "createdAt", "amount", "bucketId", "transactionId")
+        INSERT INTO ${netTable("mainnet", "credit_consumption")} ("id", "createdAt", "amount", "bucketId", "transactionId")
         VALUES ('txhist-cmo-consumption', NOW(), ${4n * CREDIT}, 'txhist-cmo-bucket', 'tx-cmo-write-off')
       `;
 

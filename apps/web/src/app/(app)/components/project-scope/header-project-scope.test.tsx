@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   search: "",
   push: vi.fn(),
   fetch: vi.fn(),
+  loadActivity: vi.fn(),
   loadPinned: vi.fn(),
 }));
 
@@ -24,6 +25,9 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
+}));
+vi.mock("@/lib/utils/notification-time", () => ({
+  useNotificationTimeFormatter: () => () => "2 minutes ago",
 }));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
@@ -36,10 +40,12 @@ vi.mock("@/lib/auth/auth.client", () => ({
   }),
 }));
 vi.mock("@/lib/project-scope-list.client", () => ({
-  fetchScopeList: (path: string) =>
-    path.startsWith("/api/project-scope/pinned")
+  fetchScopeList: (path: string) => {
+    if (path === "/api/project-scope/activity") return mocks.loadActivity();
+    return path.startsWith("/api/project-scope/pinned")
       ? mocks.loadPinned()
-      : Promise.resolve({ projects: [], nextCursor: null }),
+      : Promise.resolve({ projects: [], nextCursor: null });
+  },
 }));
 vi.mock("@/app/projects/components/inline-create-project-modal", () => ({
   InlineCreateProjectModal: () => null,
@@ -59,7 +65,10 @@ import {
 
 function renderScope() {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   return render(
     <QueryClientProvider client={client}>
@@ -74,6 +83,7 @@ function trigger() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.loadActivity.mockResolvedValue([]);
   mocks.pathname = "/tasks";
   mocks.search = "";
   mocks.fetch.mockImplementation(() =>
@@ -180,6 +190,16 @@ describe("header project scope", () => {
     ).toBeTruthy();
   });
 
+  it("reads workspace activity only after the desktop picker opens", async () => {
+    const user = userEvent.setup();
+    renderScope();
+    expect(mocks.loadActivity).not.toHaveBeenCalled();
+
+    await user.click(trigger());
+    await screen.findByRole("heading", { name: "title" });
+    expect(mocks.loadActivity).toHaveBeenCalledOnce();
+  });
+
   it("opens the Create dialog from the popover", async () => {
     const user = userEvent.setup();
     renderScope();
@@ -213,7 +233,26 @@ describe("header project scope", () => {
     );
   });
 
-  it("leads its menu with All projects, back to the Projects list from a project page", async () => {
+  it("opens the picked project's Overview from the top of its menu", async () => {
+    const user = userEvent.setup();
+    mocks.pathname = "/tasks";
+    mocks.search = "projectId=p-1";
+    renderScope();
+
+    await user.click(trigger());
+    const overview = await screen.findByTestId("project-scope-overview");
+    expect(screen.getAllByRole("option")[0]).toBe(overview);
+    await user.click(overview);
+
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith("/projects/p-1");
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "switchLabel" }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
+  it("offers All projects under Overview, back to the Projects list from a project page", async () => {
     const user = userEvent.setup();
     mocks.pathname = "/projects/p-1/design-md";
     mocks.loadPinned.mockResolvedValue([
@@ -224,7 +263,10 @@ describe("header project scope", () => {
     await user.click(trigger());
     const all = await screen.findByTestId("project-scope-all");
     await screen.findByTestId("project-scope-item-p-1");
-    expect(screen.getAllByRole("option")[0]).toBe(all);
+    expect(screen.getAllByRole("option").slice(0, 2)).toEqual([
+      screen.getByTestId("project-scope-overview"),
+      all,
+    ]);
     await user.click(all);
 
     expect(mocks.push).toHaveBeenCalledExactlyOnceWith("/projects");
@@ -275,6 +317,10 @@ describe("header project scope", () => {
       // The page needs one project: leaving for All projects is no answer.
       expect(screen.queryByTestId("project-scope-all")).toBeNull();
       expect(menu).toHaveAccessibleDescription("Ads need a project");
+      expect(
+        screen.queryByRole("link", { name: "openProjectsPage" }),
+      ).toBeNull();
+      expect(mocks.loadActivity).not.toHaveBeenCalled();
       expect(screen.getByTestId("project-scope-backdrop")).toHaveClass(
         "bg-scrim",
       );

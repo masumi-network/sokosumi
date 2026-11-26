@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { notFound } from "@/helpers/error";
 import {
   CHAT_CATCH_UP_BUCKETS,
@@ -58,9 +59,9 @@ function sqlUnreadForViewer(): string {
 }
 
 function sqlReadJoins(userSql: string): string {
-  return `LEFT JOIN "chat_room_read_state" room_read
+  return `LEFT JOIN ${sharedTable("chat_room_read_state").sql} room_read
       ON room_read."roomId" = m."roomId" AND room_read."userId" = ${userSql}
-    LEFT JOIN "chat_room_thread_read_state" thread_read
+    LEFT JOIN ${sharedTable("chat_room_thread_read_state").sql} thread_read
       ON thread_read."parentMessageId" = m."parentMessageId" AND thread_read."userId" = ${userSql}`;
 }
 
@@ -86,8 +87,8 @@ export async function getChatRoomNeedsYouCounts(
     Array<{ roomId: string; count: number }>
   >(
     `SELECT m."roomId" AS "roomId", COUNT(*)::int AS count
-    FROM "chat_message_signal" s
-    INNER JOIN "chat_room_message" m ON m.id = s."messageId"
+    FROM ${sharedTable("chat_message_signal").sql} s
+    INNER JOIN ${sharedTable("chat_room_message").sql} m ON m.id = s."messageId"
     ${sqlReadJoins(user)}
     WHERE s."roomId" IN (${placeholders(ids.length)})
       AND s.state = 'tagged'
@@ -120,8 +121,8 @@ export async function getChatRoomCatchUp(
     Array<{ id: string; signalId: string | null }>
   >(
     `SELECT m.id, s.id AS "signalId"
-    FROM "chat_room_message" m
-    LEFT JOIN "chat_message_signal" s ON s."messageId" = m.id AND s.state = 'tagged'
+    FROM ${sharedTable("chat_room_message").sql} m
+    LEFT JOIN ${sharedTable("chat_message_signal").sql} s ON s."messageId" = m.id AND s.state = 'tagged'
     ${sqlReadJoins("$2")}
     WHERE m."roomId" = $1::uuid
       AND m."deletedAt" IS NULL
@@ -186,8 +187,8 @@ export async function listChatRoomMessagesWithTag(
     Array<{ id: string; total: number }>
   >(
     `SELECT m.id, COUNT(*) OVER ()::int AS total
-    FROM "chat_message_signal" s
-    INNER JOIN "chat_room_message" m ON m.id = s."messageId"
+    FROM ${sharedTable("chat_message_signal").sql} s
+    INNER JOIN ${sharedTable("chat_room_message").sql} m ON m.id = s."messageId"
     WHERE s."roomId" = $1::uuid
       AND s.state = 'tagged'
       AND m."deletedAt" IS NULL
@@ -244,8 +245,8 @@ export async function listChatDecisions(
   >(
     `WITH decisions AS (
       SELECT m.id, m."createdAt"
-      FROM "chat_message_signal" s
-      INNER JOIN "chat_room_message" m ON m.id = s."messageId"
+      FROM ${sharedTable("chat_message_signal").sql} s
+      INNER JOIN ${sharedTable("chat_room_message").sql} m ON m.id = s."messageId"
       WHERE s."roomId" IN (${placeholders(n)})
         AND s.state = 'tagged'
         AND m."deletedAt" IS NULL
@@ -299,51 +300,6 @@ async function loadListedMessages(ids: readonly string[]) {
       include: chatRoomMessageInclude,
     }),
   );
-}
-
-/** Unread messages across the reader's rooms that ask something of them. */
-export async function listChatNeedsYou(
-  userId: string,
-  organizationId: string | null,
-): Promise<ChatSignalListItem[]> {
-  const rooms = await readerRooms(userId, organizationId);
-  if (rooms.length === 0) return [];
-  const user = `$${rooms.length + 1}`;
-  const rows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
-    `SELECT m.id
-    FROM "chat_message_signal" s
-    INNER JOIN "chat_room_message" m ON m.id = s."messageId"
-    ${sqlReadJoins(user)}
-    WHERE s."roomId" IN (${placeholders(rooms.length)})
-      AND s.state = 'tagged'
-      AND m."deletedAt" IS NULL
-      AND (m."senderUserId" IS NULL OR m."senderUserId" <> ${user})
-      AND ${sqlNeedsViewer(user)}
-      AND ${sqlUnreadForViewer()}
-    ORDER BY m."createdAt" DESC
-    LIMIT ${MAX_LISTED}`,
-    ...rooms.map((room) => room.id),
-    userId,
-  );
-  const messages = await loadListedMessages(rows.map((row) => row.id));
-  const roomById = new Map(rooms.map((room) => [room.id, room]));
-  return rows.flatMap((row) => {
-    const message = messages.find((candidate) => candidate.id === row.id);
-    const room = message && roomById.get(message.roomId);
-    if (!message || !room) return [];
-    return [
-      {
-        kind: "needsYou" as const,
-        room: {
-          id: room.id,
-          name: room.groupName ?? room.name,
-          kind: room.kind,
-        },
-        message,
-        dueAt: null,
-      },
-    ];
-  });
 }
 
 /**

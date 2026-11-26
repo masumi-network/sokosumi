@@ -4,10 +4,17 @@ import { CmoApp, type CmoAppActions } from "../../../components/app/cmo-app";
 import type { View } from "../../../lib/views";
 import { cmoPlans } from "../../../test-fixtures/cmo";
 import { competitors, noCompetitors } from "./competitors-fixture";
-import { chat, messages, overview, seo } from "./fixtures";
+import {
+  busyOverview,
+  chat,
+  messages,
+  overview,
+  quietOverview,
+  seo,
+} from "./fixtures";
 
 /** Actions that change nothing: every call hands the same overview back. */
-const actions: CmoAppActions = {
+export const fixtureActions: CmoAppActions = {
   // The same data every time, so the app's polling never changes the screen.
   loadState: async () => ({ overview, messages }),
   loadChatWork: async () => [],
@@ -28,6 +35,7 @@ const actions: CmoAppActions = {
   loadPieceText: async (id) =>
     overview.strategy?.calendar.find((entry) => entry.id === id)?.draft ?? null,
   approveStrategy: async () => overview,
+  requestStrategy: async () => ({ overview, error: null }),
   setAdBudget: async () => ({ overview, error: null }),
   revertUpdate: async () => overview,
   saveBrandBrain: async () => overview,
@@ -47,6 +55,9 @@ const actions: CmoAppActions = {
   }),
   declineDraft: async () => ({ overview, error: null }),
   editDraft: async () => ({ overview, error: null }),
+  pictures: {
+    loadPictures: async () => ({ groups: [], networks: [], months: [] }),
+  },
   competitors: {
     loadCompetitors: async () => competitors,
     addCompetitor: async () => ({ competitors, error: null }),
@@ -89,6 +100,7 @@ const actions: CmoAppActions = {
   // Both would leave the preview.
   startOver: async () => null,
   setTimeZone: async () => null,
+  markUpgradeSeen: async () => undefined,
   startTopUp: async () => ({ url: null, error: null }),
   subscribe: async () => ({ url: null, error: null }),
   changePlan: async () => ({ change: null, error: null }),
@@ -107,12 +119,112 @@ const actions: CmoAppActions = {
 /** The signed-in app on one page, over fixture data, for looking at without Core. */
 interface FixtureAppProps {
   view: View;
-  /** Competitors: the page with nobody watched yet, or still loading. */
-  state?: "empty" | "loading";
+  /**
+   * Competitors: the page with nobody watched yet, or still loading.
+   * blocked: the month could not start, and a message does not send.
+   * stuck: the day's runs ended with the month half made.
+   * stopped: Core's writer used every try and does not try again.
+   * busy: a full month, five or six posts a day.
+   * quiet: no posts yet, nothing that needs the owner, a long business name.
+   * upgraded: Cuso was just moved onto a newer version.
+   */
+  state?:
+    | "empty"
+    | "loading"
+    | "blocked"
+    | "stuck"
+    | "stopped"
+    | "busy"
+    | "quiet"
+    | "upgraded"
+    | "planning";
 }
 
 export function FixtureApp({ view, state }: FixtureAppProps) {
-  const data = view === "chat" ? chat : { overview, messages };
+  const shown =
+    state === "quiet"
+      ? { overview: quietOverview, messages }
+      : view === "chat"
+        ? chat
+        : {
+            overview: state === "busy" ? busyOverview : overview,
+            messages,
+          };
+  const data =
+    state === "blocked"
+      ? {
+          ...shown,
+          overview: {
+            ...shown.overview,
+            production: {
+              ...shown.overview.production,
+              state: "blocked" as const,
+              ready: 0,
+              written: 0,
+              pictured: 0,
+            },
+          },
+        }
+      : state === "stuck" || state === "stopped"
+        ? {
+            ...shown,
+            overview: {
+              ...shown.overview,
+              // Nothing else needs the owner, so the stopped month leads.
+              drafts: [],
+              channels: [
+                ...shown.overview.channels,
+                ...shown.overview.channels.slice(0, 1).map((channel) => ({
+                  ...channel,
+                  id: "facebook",
+                  provider: "facebook" as const,
+                })),
+              ],
+              production: {
+                ...shown.overview.production,
+                state: "stuck" as const,
+                ...(state === "stopped"
+                  ? { writerFailed: true, retryAt: null }
+                  : {
+                      retryAt: new Date(
+                        Date.now() + 3 * 60 * 60 * 1_000,
+                      ).toISOString(),
+                    }),
+              },
+            },
+          }
+        : state === "planning"
+          ? {
+              ...shown,
+              overview: {
+                ...shown.overview,
+                // cmo-v22 right after payment: Core plans the month.
+                production: {
+                  ...shown.overview.production,
+                  state: "planning" as const,
+                  ready: 0,
+                  written: 0,
+                  pictured: 0,
+                  floor: { promised: 356, made: 0 },
+                },
+              },
+            }
+          : state === "upgraded"
+            ? {
+                ...shown,
+                overview: {
+                  ...shown.overview,
+                  upgrade: {
+                    versionId: "cmo-v15",
+                    lines: [
+                      "Your strategy and Cuso's messages now use plain words, without marketing jargon.",
+                      "More posts on the networks that suit your business, at the pace each one likes.",
+                      "Short videos, each made once and shared on TikTok, Instagram Reels and YouTube Shorts.",
+                    ],
+                  },
+                },
+              }
+            : shown;
   const loadCompetitors =
     state === "loading"
       ? () => new Promise<null>(() => {})
@@ -124,14 +236,23 @@ export function FixtureApp({ view, state }: FixtureAppProps) {
       work={view === "chat" ? chat.work : []}
       name="Francis Luz"
       email="francis@acme.io"
+      // The quiet state shows an account with its own picture.
+      image={state === "quiet" ? "/apple-icon.png" : null}
       initialView={view}
       plans={cmoPlans}
       mayHire
       actions={{
-        ...actions,
+        ...fixtureActions,
         loadState: async () => data,
+        ...(state === "blocked"
+          ? {
+              sendMessage: async () => {
+                throw new Error("Could not send the message");
+              },
+            }
+          : {}),
         loadChatWork: async () => (view === "chat" ? chat.work : []),
-        competitors: { ...actions.competitors, loadCompetitors },
+        competitors: { ...fixtureActions.competitors, loadCompetitors },
       }}
     />
   );

@@ -28,19 +28,20 @@ A fresh git worktree has no `node_modules`. Until steps 1 and 5 have run there, 
 
 Full list is in root `package.json`. Agents typically need:
 
-| Command                                  | Purpose                                              |
-| ---------------------------------------- | ---------------------------------------------------- |
-| `pnpm portless:dev`                      | Web + Core via portless (worktree-safe named URLs)   |
-| `pnpm portless:web` / `core`             | One app via portless (still injects both named URLs) |
-| `pnpm portless:cmo`                      | CMO via portless (`cmo.sokosumi`)                    |
-| `pnpm portless:proxy`                    | Start portless HTTPS proxy on 443                    |
-| `pnpm portless:url web` / `core` / `cmo` | Print this checkout's named HTTPS URL                |
-| `pnpm check`                             | Repo-wide Biome (`biome check .`)                    |
-| `pnpm typecheck`                         | Turbo typecheck                                      |
-| `pnpm test`                              | Turbo tests                                          |
-| `pnpm prisma:generate`                   | Generate Prisma clients                              |
-| `pnpm prisma:migrate:dev`                | Dev migrations                                       |
-| `pnpm prisma:migrate:deploy`             | Apply migrations                                     |
+| Command                                  | Purpose                                                                                        |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `pnpm portless:dev`                      | Web + Core via portless (worktree-safe named URLs)                                             |
+| `pnpm portless:web` / `core`             | One app via portless (still injects both named URLs)                                           |
+| `pnpm portless:cmo`                      | CMO via portless (`cmo.sokosumi`)                                                              |
+| `pnpm portless:proxy`                    | Start portless HTTPS proxy on 443                                                              |
+| `pnpm portless:url web` / `core` / `cmo` | Print this checkout's named HTTPS URL                                                          |
+| `pnpm check`                             | Repo-wide Biome (`biome check .`)                                                              |
+| `pnpm typecheck`                         | Turbo typecheck                                                                                |
+| `pnpm test`                              | Turbo tests                                                                                    |
+| `pnpm prisma:generate`                   | Generate Prisma clients                                                                        |
+| `pnpm prisma:migrate:dev`                | Dev migrations                                                                                 |
+| `pnpm prisma:migrate:deploy`             | Apply migrations                                                                               |
+| `pnpm chatgpt-plan:login`                | Run local OpenAI calls on your own ChatGPT plan ([evals](./evals.md#on-your-own-chatgpt-plan)) |
 
 Prefer the turbo entry points above over `pnpm --filter <workspace> <task>`. A filter-run invokes the package script directly and skips turbo's graph, so `prisma:generate` never fires. On a checkout where the client has not been generated that surfaces as a wall of `Module '"@sokosumi/database"' has no exported member 'Job'` — a missing client, not a broken change. Run `pnpm prisma:generate` first when you do need a filter-run.
 
@@ -58,4 +59,5 @@ Prefer the turbo entry points above over `pnpm --filter <workspace> <task>`. A f
 - **Realtime (Ably) is unconfigured:** `POST /api/ably/auth` proxies Core `POST /v1/realtime/ably-token`; chat pages surface a "Something went wrong" modal when Core `ABLY_SUBSCRIBE_ONLY_KEY` / `ABLY_PUBLISH_ONLY_KEY` are placeholders. Optional; unrelated to setup.
 - **Turnstile:** `pnpm env:bootstrap` fills in Cloudflare's always-pass test keys only where no key is set, so a `TURNSTILE_SECRET_KEY` reused from the primary checkout stays real and rejects test-key tokens. Set the pair together (keys in the two `.env.example` files; web `3x…FF` forces the interactive checkbox) and restart Core after editing its `.env`. The widget renders in a closed shadow root, so the DOM shows only its container and the hidden `cf-turnstile-response` input.
 - **Open dev servers on `localhost`, not `127.0.0.1`.** Next dev blocks its resources for other origins (Web allows only `localhost` and `*.localhost`), so on `127.0.0.1` the CMO sign-in form posts twice and the OAuth hand-back fails with `state_mismatch`.
+- **Next dev reloads in a loop with `conflicting effects for the same key`** after route renames, rebases or big merges: stop the dev server, delete that app's `.next/dev` (or `.next`), and start it again. The cache is stale, not the code.
 - Lint (`pnpm check`), tests (`pnpm test`), and type checks do **not** need the DB or the servers running.

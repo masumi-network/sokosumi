@@ -1,0 +1,328 @@
+{
+  "operations": {
+    "GET /chats/invitations": {
+      "cli": "chats invitations",
+      "mcp": "chats_invitations"
+    },
+    "GET /chats/invitations/{id}": {
+      "cli": "chats get-invitation",
+      "mcp": "chats_get_invitation"
+    },
+    "POST /chats/invitations/{id}/accept": {
+      "cli": "chats accept-invitation",
+      "mcp": "chats_accept_invitation"
+    },
+    "POST /chats/invitations/{id}/decline": {
+      "cli": "chats decline-invitation",
+      "mcp": "chats_decline_invitation"
+    },
+    "GET /chats/people": {
+      "cli": "chats people",
+      "mcp": "chats_people"
+    },
+    "GET /chats/rooms": {
+      "cli": "chats rooms",
+      "mcp": "chats_rooms"
+    },
+    "POST /chats/rooms": {
+      "cli": "chats create-room",
+      "mcp": "chats_create_room"
+    },
+    "GET /chats/rooms/discoverable": {
+      "cli": "chats discoverable",
+      "mcp": "chats_discoverable"
+    },
+    "GET /chats/rooms/elsewhere": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Answers only an interactive browser session; API keys and MCP tokens get 403."
+    },
+    "GET /chats/rooms/channel-slug-availability": {
+      "cli": "chats slug-available",
+      "mcp": "chats_slug_available"
+    },
+    "PUT /chats/rooms/starred": {
+      "cli": "chats order-starred",
+      "mcp": "chats_order_starred"
+    },
+    "GET /chats/rooms/{id}/stream/messages": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Web stream UI only: `chats messages` returns the same messages as JSON."
+    },
+    "GET /chats/rooms/{id}/stream/active": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Server-sent event stream, not JSON."
+    },
+    "POST /chats/rooms/{id}/stream": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Server-sent event stream, not JSON: a 1:1 Coworker Direct replies through it in Sokosumi Web. `chats send` mentions reply into `chats messages`."
+    },
+    "GET /chats/rooms/{id}/pinned-messages": {
+      "cli": "chats pinned",
+      "mcp": "chats_pinned"
+    },
+    "GET /chats/rooms/{id}": {
+      "cli": "chats get-room",
+      "mcp": "chats_get_room"
+    },
+    "PATCH /chats/rooms/{id}": {
+      "cli": "chats update-room",
+      "mcp": "chats_update_room"
+    },
+    "DELETE /chats/rooms/{id}": {
+      "cli": "chats delete-room",
+      "mcp": false,
+      "reason": "Permanent deletion: a person runs it from the CLI or Web."
+    },
+    "POST /chats/rooms/{id}/archive": {
+      "cli": "chats archive-room",
+      "mcp": "chats_archive_room"
+    },
+    "POST /chats/rooms/{id}/restore": {
+      "cli": "chats restore-room",
+      "mcp": "chats_restore_room"
+    },
+    "GET /chats/rooms/{id}/invitations": {
+      "cli": "chats room-invitations",
+      "mcp": "chats_room_invitations"
+    },
+    "POST /chats/rooms/{id}/invitations": {
+      "cli": "chats invite-guest",
+      "mcp": false,
+      "reason": "Gives someone outside the organization access to the Channel and emails them; a person invites a guest."
+    },
+    "DELETE /chats/rooms/{id}/invitations/{invitationId}": {
+      "cli": "chats revoke-invitation",
+      "mcp": "chats_revoke_invitation"
+    },
+    "GET /chats/rooms/{id}/invite-links": {
+      "cli": "chats invite-links",
+      "mcp": false,
+      "reason": "Invite-link tokens are join credentials: anyone with one can join the Channel as a guest."
+    },
+    "POST /chats/rooms/{id}/invite-links": {
+      "cli": "chats create-invite-link",
+      "mcp": false,
+      "reason": "Invite-link tokens are join credentials: anyone with one can join the Channel as a guest."
+    },
+    "DELETE /chats/rooms/{id}/invite-links/{token}": {
+      "cli": "chats revoke-invite-link",
+      "mcp": false,
+      "reason": "Invite-link tokens are join credentials: anyone with one can join the Channel as a guest."
+    },
+    "POST /chats/rooms/{id}/members/me": {
+      "cli": "chats join",
+      "mcp": "chats_join"
+    },
+    "DELETE /chats/rooms/{id}/members/me": {
+      "cli": "chats leave",
+      "mcp": "chats_leave"
+    },
+    "DELETE /chats/rooms/{id}/members/{userId}": {
+      "cli": "chats remove-member",
+      "mcp": "chats_remove_member"
+    },
+    "POST /chats/rooms/{id}/members": {
+      "cli": "chats add-members",
+      "mcp": "chats_add_members"
+    },
+    "DELETE /chats/rooms/{id}/coworkers/{coworkerId}": {
+      "cli": "chats remove-coworker",
+      "mcp": "chats_remove_coworker"
+    },
+    "DELETE /chats/rooms/{id}/soko-bots/{sokoBotId}": {
+      "cli": "chats remove-soko-bot",
+      "mcp": "chats_remove_soko_bot"
+    },
+    "POST /chats/rooms/{id}/read": {
+      "cli": "chats mark-read",
+      "mcp": "chats_mark_read"
+    },
+    "POST /chats/rooms/{id}/unread": {
+      "cli": "chats mark-unread",
+      "mcp": "chats_mark_unread"
+    },
+    "POST /chats/rooms/{id}/star": {
+      "cli": "chats star",
+      "mcp": "chats_star"
+    },
+    "DELETE /chats/rooms/{id}/star": {
+      "cli": "chats unstar",
+      "mcp": "chats_unstar"
+    },
+    "POST /chats/rooms/{id}/mute": {
+      "cli": "chats mute",
+      "mcp": "chats_mute"
+    },
+    "DELETE /chats/rooms/{id}/mute": {
+      "cli": "chats unmute",
+      "mcp": "chats_unmute"
+    },
+    "GET /chats/rooms/{id}/threads": {
+      "cli": "chats threads",
+      "mcp": "chats_threads"
+    },
+    "GET /chats/rooms/{id}/threads/unread-count": {
+      "cli": "chats thread-unread-count",
+      "mcp": "chats_thread_unread_count"
+    },
+    "POST /chats/rooms/{id}/threads/read": {
+      "cli": "chats read-threads",
+      "mcp": "chats_read_threads"
+    },
+    "GET /chats/rooms/{id}/threads/{parentMessageId}": {
+      "cli": "chats get-thread",
+      "mcp": "chats_get_thread"
+    },
+    "GET /chats/rooms/{id}/threads/{parentMessageId}/messages": {
+      "cli": "chats thread-messages",
+      "mcp": "chats_thread_messages"
+    },
+    "POST /chats/rooms/{id}/threads/{parentMessageId}/read": {
+      "cli": "chats read-thread",
+      "mcp": "chats_read_thread"
+    },
+    "POST /chats/rooms/{id}/threads/{parentMessageId}/mute": {
+      "cli": "chats mute-thread",
+      "mcp": "chats_mute_thread"
+    },
+    "DELETE /chats/rooms/{id}/threads/{parentMessageId}/mute": {
+      "cli": "chats unmute-thread",
+      "mcp": "chats_unmute_thread"
+    },
+    "GET /chats/threads/unread": {
+      "cli": "chats unread-threads",
+      "mcp": "chats_unread_threads"
+    },
+    "GET /chats/threads/earlier": {
+      "cli": "chats earlier-threads",
+      "mcp": "chats_earlier_threads"
+    },
+    "GET /chats/rooms/{id}/messages": {
+      "cli": "chats messages",
+      "mcp": "chats_messages"
+    },
+    "POST /chats/rooms/{id}/messages": {
+      "cli": "chats send",
+      "mcp": "chats_send"
+    },
+    "GET /chats/rooms/{id}/messages/{messageId}": {
+      "cli": "chats get-message",
+      "mcp": "chats_get_message"
+    },
+    "PATCH /chats/rooms/{id}/messages/{messageId}": {
+      "cli": "chats edit-message",
+      "mcp": "chats_edit_message"
+    },
+    "DELETE /chats/rooms/{id}/messages/{messageId}": {
+      "cli": "chats delete-message",
+      "mcp": "chats_delete_message"
+    },
+    "GET /chats/rooms/{id}/messages/{messageId}/results": {
+      "cli": "chats get-message-results",
+      "mcp": "chats_get_message_results"
+    },
+    "GET /chats/rooms/{id}/message-results": {
+      "cli": "chats message-results",
+      "mcp": "chats_message_results"
+    },
+    "PUT /chats/rooms/{id}/messages/{messageId}/reactions/{emoji}": {
+      "cli": "chats react",
+      "mcp": "chats_react"
+    },
+    "DELETE /chats/rooms/{id}/messages/{messageId}/reactions/{emoji}": {
+      "cli": "chats unreact",
+      "mcp": "chats_unreact"
+    },
+    "POST /chats/rooms/{id}/messages/{messageId}/pin": {
+      "cli": "chats pin",
+      "mcp": "chats_pin"
+    },
+    "DELETE /chats/rooms/{id}/messages/{messageId}/pin": {
+      "cli": "chats unpin",
+      "mcp": "chats_unpin"
+    },
+    "POST /chats/rooms/{id}/messages/{messageId}/send-to-self": {
+      "cli": "chats send-to-self",
+      "mcp": "chats_send_to_self"
+    },
+    "POST /chats/rooms/{id}/messages/{messageId}/unfurls/remove": {
+      "cli": "chats remove-unfurl",
+      "mcp": "chats_remove_unfurl"
+    },
+    "POST /chats/rooms/{id}/messages/{messageId}/mentions/{mentionId}/retry": {
+      "cli": "chats retry-mention",
+      "mcp": "chats_retry_mention"
+    },
+    "POST /chats/rooms/{id}/files": {
+      "cli": "chats upload-file",
+      "mcp": false,
+      "reason": "Mints a signed Blob upload URL; the file bytes then go to Blob storage, which an MCP tool cannot send."
+    },
+    "GET /chats/saved-messages": {
+      "cli": "chats saved",
+      "mcp": "chats_saved"
+    },
+    "PUT /chats/saved-messages/{messageId}": {
+      "cli": "chats save",
+      "mcp": "chats_save"
+    },
+    "DELETE /chats/saved-messages/{messageId}": {
+      "cli": "chats unsave",
+      "mcp": "chats_unsave"
+    },
+    "GET /chats/signals/decisions": {
+      "cli": "chats decisions",
+      "mcp": "chats_decisions"
+    },
+    "GET /chats/signals/important": {
+      "cli": "chats important",
+      "mcp": "chats_important"
+    },
+    "GET /chats/signals/summary": {
+      "cli": "chats summary",
+      "mcp": "chats_summary"
+    },
+    "GET /chats/signals/rooms/{id}/catch-up": {
+      "cli": "chats catch-up",
+      "mcp": "chats_catch_up"
+    },
+    "GET /chats/signals/rooms/{id}/decisions": {
+      "cli": "chats room-decisions",
+      "mcp": "chats_room_decisions"
+    },
+    "PUT /chats/signals/messages/{messageId}/corrections": {
+      "cli": "chats correct-signal",
+      "mcp": "chats_correct_signal"
+    },
+    "PUT /chats/signals/messages/{messageId}/loop": {
+      "cli": "chats set-loop",
+      "mcp": "chats_set_loop"
+    },
+    "GET /chats/signals/messages/{messageId}/routing": {
+      "cli": "chats routing",
+      "mcp": "chats_routing"
+    },
+    "GET /chats/skills": {
+      "cli": "chats skills",
+      "mcp": "chats_skills"
+    },
+    "GET /chats/stickers": {
+      "cli": "chats stickers",
+      "mcp": "chats_stickers"
+    },
+    "POST /chats/stickers": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Binary upload: takes raw image bytes, not JSON; a person adds stickers in the Web app."
+    },
+    "POST /chats/transcriptions": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Binary upload: takes raw audio bytes, not JSON, from the Web composer's voice recorder."
+    }
+  }
+}

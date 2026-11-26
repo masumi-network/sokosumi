@@ -1,0 +1,16 @@
+{
+  "operations": {
+    "GET /image-studio/catalog": {
+      "cli": "image-studio catalog",
+      "mcp": "image_studio_catalog"
+    },
+    "GET /image-studio/state": {
+      "cli": "image-studio state",
+      "mcp": "image_studio_state"
+    },
+    "GET /image-studio/recent-projects": {
+      "cli": "image-studio recent-projects",
+      "mcp": "image_studio_recent_projects"
+    }
+  }
+}

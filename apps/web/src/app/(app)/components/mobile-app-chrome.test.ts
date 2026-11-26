@@ -172,15 +172,15 @@ describe("mobile-app-chrome", () => {
 
     it("sends non-tab hub roots back to Chats", () => {
       expect(resolveMobileAppBackTarget("/personal-assistant")).toEqual({
-        href: "/chat",
+        href: "/chat/rooms",
         labelKey: "backToChats",
       });
       expect(resolveMobileAppBackTarget("/admin")).toEqual({
-        href: "/chat",
+        href: "/chat/rooms",
         labelKey: "backToChats",
       });
       expect(resolveMobileAppBackTarget("/notifications")).toEqual({
-        href: "/chat",
+        href: "/chat/rooms",
         labelKey: "backToChats",
       });
     });
@@ -250,6 +250,7 @@ describe("mobile-app-chrome", () => {
 
     it("returns null outside the main hub tree", () => {
       expect(resolveMobileAppBackTarget("/chat")).toBeNull();
+      expect(resolveMobileAppBackTarget("/chat/rooms")).toBeNull();
       expect(resolveMobileAppBackTarget("/chat/rooms/r1")).toBeNull();
       expect(resolveMobileAppBackTarget("/accounts")).toBeNull();
       expect(resolveMobileAppBackTarget(null)).toBeNull();
@@ -286,14 +287,24 @@ describe("mobile-app-chrome", () => {
       "/account/notifications",
       "/billing",
       "/connections",
-      // Phones open SEO and Ads from the You page.
+      // Phones open SEO, Ads and Competitors from the You page.
       "/seo",
       "/ads",
+      "/competitors",
     ])("sends You page row %s back to You", (pathname) => {
       expect(resolveMobileAppBackTarget(pathname)).toEqual({
         href: "/you",
         labelKey: "backToYou",
       });
+    });
+
+    it("keeps Competitors going back to You once a project is picked", () => {
+      expect(
+        resolveMobileAppBackTarget(
+          "/competitors",
+          new URLSearchParams("projectId=p1"),
+        ),
+      ).toEqual({ href: "/you", labelKey: "backToYou" });
     });
 
     it.each(["/ads/campaigns/c1", "/ads/campaigns/c1/edit"])(

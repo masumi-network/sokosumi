@@ -1,6 +1,7 @@
 import {
   createEmptySokoBotMemory,
   renderSokoBotMemory,
+  SOKO_BOT_SYSTEM_SCHEDULES,
 } from "@sokosumi/soko-bot";
 import {
   act,
@@ -12,6 +13,8 @@ import {
   within,
 } from "@testing-library/react";
 import { useContext } from "react";
+import { hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
@@ -28,6 +31,7 @@ const useStateMock = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: pushMock,
+    prefetch: vi.fn(),
     replace: vi.fn(),
     refresh: refreshMock,
   }),
@@ -171,6 +175,7 @@ function chatState(viewerCanManage: boolean): SokoBotChatState {
       avatarImageUrl: null,
       versionId: null,
       followWholeBoard: false,
+      joinsTeamStandup: false,
       mailAutoRead: false,
       ingestTimezone: "Europe/Berlin",
       proactivePaused: false,
@@ -398,6 +403,73 @@ describe("SokoBotConsole", () => {
     expect(row).toHaveTextContent("Schedules.yourTime(date)");
   });
 
+  it("says a switched-off schedule is off, with no next run", () => {
+    viewMock.mockReturnValue(null);
+    const state = chatState(true);
+    state.bot.schedules = [
+      {
+        id: "s1",
+        name: "Dreaming",
+        systemKey: null,
+        cronExpression: "0 3 * * *",
+        timezone: "UTC",
+        prompt: "Tidy memory",
+        enabled: false,
+        nextRunAt: "2030-01-02T03:00:00.000Z",
+        lastRunAt: null,
+        consecutiveFailures: 0,
+      },
+    ];
+    render(consoleElement({ initialState: state }));
+
+    const row = screen.getByText("Dreaming").closest("li");
+    expect(row).toHaveTextContent("Schedules.disabled");
+    expect(row).not.toHaveTextContent("Schedules.nextRun");
+  });
+
+  it("describes a built-in by its catalogue line, and a rewritten one by what it does now", () => {
+    viewMock.mockReturnValue(null);
+    const state = chatState(true);
+    const schedule = {
+      systemKey: "end-of-day",
+      cronExpression: "0 18 * * 1-5",
+      timezone: "UTC",
+      enabled: true,
+      nextRunAt: "2030-01-02T18:00:00.000Z",
+      lastRunAt: null,
+      consecutiveFailures: 0,
+    };
+    const builtIn = SOKO_BOT_SYSTEM_SCHEDULES.find(
+      (entry) => entry.key === "end-of-day",
+    );
+    state.bot.schedules = [
+      {
+        ...schedule,
+        id: "s1",
+        name: builtIn?.name ?? "",
+        prompt: "Long built-in brief",
+      },
+      {
+        ...schedule,
+        id: "s2",
+        name: "End of day: CodePat runs + merged PRs",
+        prompt: "List today's CodePat runs and merged PRs.",
+      },
+    ];
+    render(consoleElement({ initialState: state }));
+
+    const kept = screen.getByText(builtIn?.name ?? "").closest("li");
+    expect(kept).toHaveTextContent(builtIn?.description ?? "");
+    expect(kept).toHaveTextContent("Schedules.builtIn");
+    const rewritten = screen
+      .getByText("End of day: CodePat runs + merged PRs")
+      .closest("li");
+    expect(rewritten).toHaveTextContent(
+      "List today's CodePat runs and merged PRs.",
+    );
+    expect(rewritten).not.toHaveTextContent("Schedules.builtIn");
+  });
+
   it("lands a chat card's schedule link on its row: scrolled to, focused and marked", () => {
     viewMock.mockReturnValue(null);
     scheduleParamMock.mockReturnValue("s2");
@@ -436,6 +508,61 @@ describe("SokoBotConsole", () => {
       behavior: "auto",
     });
     reduce.mockRestore();
+  });
+
+  it("jumps instead of smooth-scrolling after SSR hydration under reduced motion", async () => {
+    viewMock.mockReturnValue(null);
+    scheduleParamMock.mockReturnValue("s2");
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const reduce = vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          matches: query === "(prefers-reduced-motion: reduce)",
+          media: query,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+        }) as unknown as MediaQueryList,
+    );
+    const state = chatState(true);
+    state.bot.avatarImageUrl = "https://example.com/bot.png";
+    const schedule = {
+      systemKey: null,
+      cronExpression: "0 9 * * 1",
+      timezone: "UTC",
+      prompt: "Remind me",
+      enabled: true,
+      nextRunAt: "2030-01-02T09:00:00.000Z",
+      lastRunAt: null,
+      consecutiveFailures: 0,
+    };
+    state.bot.schedules = [
+      { ...schedule, id: "s1", name: "Morning check" },
+      { ...schedule, id: "s2", name: "Monday invoices" },
+    ];
+
+    const container = document.createElement("div");
+    const props = { initialState: state };
+    container.innerHTML = renderToString(consoleElement(props));
+    document.body.append(container);
+
+    let root: Root | null = null;
+    try {
+      await act(async () => {
+        root = hydrateRoot(container, consoleElement(props));
+      });
+      expect(scrollIntoView).toHaveBeenCalledOnce();
+      expect(scrollIntoView).toHaveBeenCalledWith({
+        block: "center",
+        behavior: "auto",
+      });
+    } finally {
+      await act(async () => root?.unmount());
+      container.remove();
+      reduce.mockRestore();
+    }
   });
 
   it("lets the keyboard reach and scroll the memory", () => {

@@ -32,11 +32,12 @@ interface ListTasksParams {
   workspaceTagId?: string;
   topicTagId?: TaskTagId;
   q?: string;
+  search?: string;
   scope?: "workspace" | "owned" | "mine";
   visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
   limit?: number;
-  sort?: "createdAt" | "updatedAt" | "dueOn";
+  sort?: "createdAt" | "updatedAt" | "priority" | "dueOn";
   /** Only the Tasks this Task Schedule created. */
   scheduleId?: string;
   /** Only Tasks due on or before this day, `YYYY-MM-DD`. */
@@ -72,6 +73,7 @@ interface CreateTaskInput {
   afterTaskId?: string;
   /** `YYYY-MM-DD`. */
   dueOn?: string | null;
+  priority?: TaskPriority;
 }
 
 interface PatchTaskInput {
@@ -183,6 +185,7 @@ export const taskService = (() => {
         ? { unansweredMention: "true" as const }
         : {}),
       q: params.q,
+      search: params.search,
       scope: params.scope,
       ...(params.visibility ? { visibility: params.visibility } : {}),
       cursor: params.cursor ?? undefined,
@@ -510,7 +513,19 @@ export const taskService = (() => {
     }
   }
 
+  /** The saved Tasks page query, or null when the person never chose one. */
+  async function getSavedTasksViewQuery(): Promise<string | null> {
+    const result = await coreClient.getTasksView();
+    return result.data?.query ?? null;
+  }
+
+  async function saveTasksViewQuery(query: string): Promise<void> {
+    await coreClient.putTasksView(query);
+  }
+
   return {
+    getSavedTasksViewQuery,
+    saveTasksViewQuery,
     getActivitySummary,
     getWorkspaceCalendar,
     getWorkspaceCalendarSources,

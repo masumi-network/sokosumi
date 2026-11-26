@@ -15,11 +15,16 @@ const enabled =
 
 describe.skipIf(!enabled)("sokoBotFleetDays", () => {
   const organizationId = randomUUID();
+  const evalOrganizationId = randomUUID();
   const ada = randomUUID();
   const ben = randomUUID();
+  const lane = 9_000 + Math.floor(Math.random() * 1_000);
   let workspaceId: string;
+  let evalWorkspaceId: string;
   let botId: string;
   let cmoBotId: string;
+  let evalBotId: string;
+  let evalCusoId: string;
 
   async function turn(data: {
     requestedByUserId: string | null;
@@ -28,6 +33,9 @@ describe.skipIf(!enabled)("sokoBotFleetDays", () => {
     createdAt?: Date;
     costUsdMicros?: bigint;
     sokoBotId?: string;
+    workspaceId?: string;
+    clientTurnId?: string;
+    parentTurnId?: string;
   }) {
     return prisma.sokoBotTurn.create({
       data: {
@@ -89,15 +97,116 @@ describe.skipIf(!enabled)("sokoBotFleetDays", () => {
       createdAt: new Date(Date.now() - 86_400_000),
       costUsdMicros: 5_000n,
     });
+
+    // Eval lanes and lab runs are ours: they count only under evals.
+    await prisma.organization.create({
+      data: {
+        id: evalOrganizationId,
+        name: "Evals",
+        slug: evalOrganizationId,
+      },
+    });
+    evalWorkspaceId = (
+      await prisma.workspace.create({
+        data: { organizationId: evalOrganizationId },
+      })
+    ).id;
+    evalBotId = (
+      await prisma.sokoBot.create({
+        data: { userId: ben, workspaceId: evalWorkspaceId },
+      })
+    ).id;
+    evalCusoId = (
+      await prisma.sokoBot.create({
+        data: {
+          workspaceId: evalWorkspaceId,
+          versionId: CMO_SOKO_BOT_VERSION_ID,
+        },
+      })
+    ).id;
+    await prisma.evalLane.create({
+      data: {
+        lane,
+        userId: ben,
+        organizationId: evalOrganizationId,
+        workspaceId: evalWorkspaceId,
+        sokoBotId: evalBotId,
+        cusoBotId: evalCusoId,
+        world: {},
+      },
+    });
+    await turn({
+      requestedByUserId: ben,
+      sokoBotId: evalBotId,
+      workspaceId: evalWorkspaceId,
+      costUsdMicros: 200_000n,
+    });
+    await turn({
+      requestedByUserId: null,
+      source: "SCHEDULE",
+      sokoBotId: evalCusoId,
+      workspaceId: evalWorkspaceId,
+      costUsdMicros: 300_000n,
+    });
+    // A behaviour-lab turn on a customer's bot is ours too, and so is every
+    // background run below it, though each has its own `background:` id.
+    const labRoot = await turn({
+      requestedByUserId: ada,
+      clientTurnId: `lab:${randomUUID()}`,
+      costUsdMicros: 400_000n,
+    });
+    const labChild = await turn({
+      requestedByUserId: ada,
+      clientTurnId: `background:${labRoot.id}:child`,
+      parentTurnId: labRoot.id,
+      costUsdMicros: 500_000n,
+    });
+    await turn({
+      requestedByUserId: ada,
+      source: "SCHEDULE",
+      clientTurnId: `background:${labChild.id}:grandchild`,
+      parentTurnId: labChild.id,
+      costUsdMicros: 600_000n,
+    });
+    // A run started today below a lab turn from forty days ago is still ours.
+    const oldLabRoot = await turn({
+      requestedByUserId: ada,
+      clientTurnId: `lab:${randomUUID()}`,
+      createdAt: new Date(Date.now() - 40 * 86_400_000),
+      costUsdMicros: 0n,
+    });
+    await turn({
+      requestedByUserId: ada,
+      source: "SCHEDULE",
+      clientTurnId: `background:${oldLabRoot.id}:late`,
+      parentTurnId: oldLabRoot.id,
+      costUsdMicros: 700_000n,
+    });
+    // A customer's own background run stays the customer's.
+    const ownRoot = await turn({
+      requestedByUserId: null,
+      source: "SCHEDULE",
+      costUsdMicros: 20_000n,
+    });
+    await turn({
+      requestedByUserId: null,
+      source: "SCHEDULE",
+      clientTurnId: `background:${ownRoot.id}:child`,
+      parentTurnId: ownRoot.id,
+      costUsdMicros: 30_000n,
+    });
   });
 
   afterAll(async () => {
-    await prisma.organization.deleteMany({ where: { id: organizationId } });
+    await prisma.evalLane.deleteMany({ where: { lane } });
+    await prisma.organization.deleteMany({
+      where: { id: { in: [organizationId, evalOrganizationId] } },
+    });
     await prisma.user.deleteMany({ where: { id: { in: [ada, ben] } } });
     await prisma.$disconnect();
   });
 
-  it("counts people who wrote to a bot and what every turn cost, per UTC day, CMO.xyz apart", async () => {
+  it("counts customers' people, turns and turn cost per UTC day, CMO.xyz and evals apart", async () => {
     const days = await sokoBotFleetDays(3);
 
     expect(days).toHaveLength(3);
@@ -114,11 +223,17 @@ describe.skipIf(!enabled)("sokoBotFleetDays", () => {
       day: new Date().toISOString().slice(0, 10),
       users: 2,
       messages: 3,
-      turns: 5,
-      totalTokens: 600,
+      // Five chat and schedule turns plus the customer's run and its child.
+      turns: 7,
+      totalTokens: 840,
     });
-    expect(today?.costUsd).toBeCloseTo(0.035);
+    // 0.035 + the customer's run 0.021 and its child 0.031.
+    expect(today?.costUsd).toBeCloseTo(0.087);
     expect(today?.cmoCostUsd).toBeCloseTo(0.101);
     expect(yesterday?.cmoCostUsd).toBe(0);
+    // Eval Soko Bot 0.201 + eval Cuso 0.301 + lab root 0.401, its child
+    // 0.501 and grandchild 0.601 + the late run of the old lab turn 0.701.
+    expect(today?.evalCostUsd).toBeCloseTo(2.706);
+    expect(yesterday?.evalCostUsd).toBe(0);
   });
 });

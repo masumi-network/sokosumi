@@ -434,11 +434,11 @@ describe("TaskCard density", () => {
       if (compact) {
         expect(screen.queryByText("vocabulary.design")).not.toBeInTheDocument();
         expect(
-          screen.queryByRole("button", { name: "showAll" }),
+          screen.queryByRole("button", { name: "moreTags" }),
         ).not.toBeInTheDocument();
       } else {
         expect(screen.getByText("vocabulary.design")).toBeInTheDocument();
-        const overflow = screen.getByRole("button", { name: "showAll" });
+        const overflow = screen.getByRole("button", { name: "moreTags" });
         expect(overflow).toHaveTextContent("+2");
         fireEvent.pointerDown(overflow);
         fireEvent.keyDown(overflow, { key: "Enter" });
@@ -559,5 +559,22 @@ describe("TaskCard mention mark", () => {
 
     rerender(<TaskCard task={{ ...task, hasUnansweredMention: true }} />);
     expect(screen.getByLabelText(/mention/i)).toBeInTheDocument();
+  });
+});
+
+describe("TaskCard search", () => {
+  it("shows the result text a search found, and nothing without one", () => {
+    const task = buildTask(TaskVisibility.PUBLIC);
+    const { rerender } = render(
+      <TaskCard
+        task={{ ...task, resultMatch: "…the launch plan costs 20…" }}
+      />,
+    );
+
+    expect(screen.getByText("inResult")).toBeInTheDocument();
+    expect(screen.getByText("…the launch plan costs 20…")).toBeInTheDocument();
+
+    rerender(<TaskCard task={task} />);
+    expect(screen.queryByText("inResult")).not.toBeInTheDocument();
   });
 });

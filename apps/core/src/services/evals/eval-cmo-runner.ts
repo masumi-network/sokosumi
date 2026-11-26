@@ -1,29 +1,54 @@
 import {
   CMO_PRODUCTION_TURN_PREFIX,
+  cmoWritesMonthAtOnce,
+  getSokoBotVersion,
   type MarketingStrategyPlan,
   type ScenarioCheck,
 } from "@sokosumi/soko-bot";
+import { cmoMonthAtLevel } from "@sokosumi/utils";
 import { isProjectSocialProvider } from "@/config/social-providers";
-import { cmoReportMessageWhere } from "@/helpers/cmo-report-card";
+import {
+  CMO_REPORT_KEY,
+  CMO_REPORT_MESSAGE_PREFIX,
+  cmoReportMessageWhere,
+} from "@/helpers/cmo-report-card";
+import { jsonInput } from "@/helpers/prisma-json";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
 import {
+  cmoPlanLevel,
+  grantCmoTesterCredits,
+} from "@/services/cmo-billing.service";
+import {
   CMO_BRAND_MEDIA_FOLDER,
   captureCmoHomepage,
+  readCmoBrandLogo,
 } from "@/services/cmo-brand-media.service";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
 import { startCmoResearch } from "@/services/cmo-hiring.service";
 import { parseCmoMonthReview } from "@/services/cmo-month-review.service";
+import {
+  cmoPromiseGaps,
+  cmoStrategyRules,
+  type PlanReviewOptions,
+} from "@/services/cmo-plan-review.service";
 import { advanceCmoProduction } from "@/services/cmo-production.service";
 import { cmoSeoMarket } from "@/services/cmo-seo-market";
 import { requestCmoStrategy } from "@/services/cmo-strategy.service";
+import { ADS_CASE_BUDGET } from "@/services/evals/eval-cmo-funnel";
+import {
+  claimChecks,
+  linkedInOpeningChecks,
+  pictureVarietyChecks,
+} from "@/services/evals/eval-cmo-variety";
 import {
   approveMarketingStrategy,
   isMarketingFilePiece,
   newestMarketingStrategy,
   parseMarketingPlan,
   parseSocialPostPlanning,
+  STRATEGY_TURN_PREFIX,
 } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
 import { referenceLibraryAvailable } from "@/services/reference-library.service";
@@ -48,6 +73,12 @@ import {
   isCompetitorSetup,
   prepareCompetitorCase,
 } from "./eval-cmo-competitors";
+import {
+  pollCmoMonthCalendarCase,
+  startCmoMonthCalendarCase,
+} from "./eval-cmo-month-calendar";
+import { clearCmoSeoReport, prepareCmoSeoReport } from "./eval-cmo-seo-report";
+import { prepareCmoWeeklyReview } from "./eval-cmo-weekly-review";
 import {
   evalInfrastructureFailure,
   infrastructureCaseOutcome,
@@ -94,6 +125,7 @@ export function monthPlanFromTomorrow(
       ...(entry.brief ? { brief: entry.brief } : {}),
       ...(entry.why ? { why: entry.why } : {}),
       ...(entry.story ? { story: entry.story } : {}),
+      ...(entry.claim ? { claim: entry.claim } : {}),
       ...(entry.pillar ? { pillar: entry.pillar } : {}),
       ...(entry.approach ? { approach: entry.approach } : {}),
       ...(entry.campaignId ? { campaignId: entry.campaignId } : {}),
@@ -164,10 +196,19 @@ function brand(name: string) {
 /** The lane's Cuso Project pointed at the brand, with nothing an earlier case left. */
 async function pointCusoAt(
   lane: EvalLaneRecord,
-  brand: { url: string },
+  brand: { url: string; websiteOnly?: boolean },
   brandBrain: unknown,
 ) {
   const projectId = lane.cusoProjectId;
+  // Month cases leave stand-in accounts connected; a business with only a
+  // website has none, or Cuso rightly reads them as accounts it has.
+  await prisma.projectSocialConnection.updateMany({
+    where: {
+      projectId,
+      externalAccountId: { startsWith: `eval-${lane.lane}-cuso-` },
+    },
+    data: { status: brand.websiteOnly ? "disconnected" : "active" },
+  });
   await prisma.project.update({
     where: { id: projectId },
     data: {
@@ -200,7 +241,7 @@ async function pointCusoAt(
   });
   if (brandBrain)
     await prisma.brandBrain.create({
-      data: { projectId, body: brandBrain as object, updatedAt: new Date() },
+      data: { projectId, body: jsonInput(brandBrain), updatedAt: new Date() },
     });
   const cuso = await findCusoForBot(lane.cusoBotId);
   if (!cuso) throw new Error(`Eval lane ${lane.lane} has no Cuso`);
@@ -382,13 +423,32 @@ function tellStories(
 }
 
 /** The lane's Cuso on cal.com with the change request's month, waiting for approval. */
-export async function prepareCmoPlan(lane: EvalLaneRecord): Promise<void> {
+export async function prepareCmoPlan(
+  lane: EvalLaneRecord,
+  adsOn = false,
+): Promise<void> {
   const brain = (brandBrains as Record<string, unknown>)[CMO_CHAT_BRAND];
   await pointCusoAt(lane, brand(CMO_CHAT_BRAND), brain ?? null);
+  const plan = changeRequestPlan(new Date());
   await prisma.marketingStrategy.create({
     data: {
       projectId: lane.cusoProjectId,
-      plan: changeRequestPlan(new Date()) as object,
+      // As Core leaves the strategy when the owner says yes to ads and sets
+      // the amount: the budget is theirs, the ads are still to be planned.
+      plan: jsonInput(
+        adsOn
+          ? {
+              ...plan,
+              ads: {
+                monthly: ADS_CASE_BUDGET,
+                currency: "USD",
+                expect: "Cuso is updating what this brings.",
+                without: "The strategy runs on posts, search and email alone.",
+                setByOwner: true,
+              },
+            }
+          : plan,
+      ),
       authorSokoBotId: lane.cusoBotId,
     },
   });
@@ -415,10 +475,63 @@ async function prepareCmoChat(lane: EvalLaneRecord, known: boolean) {
   await prisma.marketingStrategy.create({
     data: {
       projectId: lane.cusoProjectId,
-      plan: monthPlanFromTomorrow(frozen, new Date()) as object,
+      plan: jsonInput(monthPlanFromTomorrow(frozen, new Date())),
       authorSokoBotId: lane.cusoBotId,
     },
   });
+}
+
+/** Last week's weekly review, then three newer daily reports above it. */
+const EVAL_REPORTS = [
+  {
+    daysAgo: 8,
+    report: {
+      kind: "weekly",
+      headline: "LinkedIn carried the week",
+      done: ["Published 9 posts on LinkedIn and X"],
+      upNext: ["Open more LinkedIn posts with a customer's number"],
+      changes: [],
+      results:
+        "LinkedIn posts reached 4,210 people; X reached 380. Posts that opened with a customer's number got twice the clicks of the others.",
+      verdict: "test",
+      learnings: [
+        "Posts that open with a customer's number get twice the clicks.",
+      ],
+    },
+  },
+  ...[3, 2, 1].map((daysAgo) => ({
+    daysAgo,
+    report: {
+      kind: "daily",
+      headline: "Today's posts are scheduled",
+      done: ["Checked today's posts", "No new comments"],
+      upNext: [],
+      changes: [],
+    },
+  })),
+] as const;
+
+export async function seedCmoReports(lane: EvalLaneRecord): Promise<void> {
+  const room = await prisma.chatRoom.findFirst({
+    where: { sharedSokoBot: { id: lane.cusoBotId } },
+    select: { id: true },
+  });
+  if (!room) throw new Error("The lane's Cuso has no room for reports");
+  await prisma.chatRoomMessage.deleteMany({
+    where: cmoReportMessageWhere(lane.cusoBotId),
+  });
+  const now = Date.now();
+  for (const [index, { daysAgo, report }] of EVAL_REPORTS.entries())
+    await prisma.chatRoomMessage.create({
+      data: {
+        roomId: room.id,
+        clientMessageId: `${CMO_REPORT_MESSAGE_PREFIX}eval:${lane.lane}:${index}`,
+        senderSokoBotId: lane.cusoBotId,
+        createdAt: new Date(now - daysAgo * DAY_MS),
+        content: report.headline,
+        metadata: { [CMO_REPORT_KEY]: jsonInput(report) },
+      },
+    });
 }
 
 /**
@@ -431,8 +544,9 @@ export async function prepareCmoChatCase(
   lane: EvalLaneRecord,
   setup: CmoChatSetup,
 ): Promise<{ comments?: Record<string, string>; signalIds?: string[] }> {
-  if (setup === "cmo-plan") {
-    await prepareCmoPlan(lane);
+  await clearCmoSeoReport(lane);
+  if (setup === "cmo-plan" || setup === "cmo-plan-ads") {
+    await prepareCmoPlan(lane, setup === "cmo-plan-ads");
     return {};
   }
   if (isCompetitorSetup(setup)) {
@@ -440,6 +554,14 @@ export async function prepareCmoChatCase(
     return prepareCompetitorCase(lane, setup);
   }
   await prepareCmoChat(lane, setup !== "cmo-new-client");
+  if (setup === "cmo-report") {
+    await seedCmoReports(lane);
+    return {};
+  }
+  if (setup === "cmo-weekly-review") {
+    await prepareCmoWeeklyReview(lane);
+    return {};
+  }
   if (
     setup === "cmo-competitor-ads" ||
     setup === "cmo-competitor-landing-page"
@@ -452,6 +574,10 @@ export async function prepareCmoChatCase(
         : "cmo-competitors",
     );
     await prepareCompetitorAdsCase(lane);
+    return {};
+  }
+  if (setup === "cmo-seo-report") {
+    await prepareCmoSeoReport(lane);
     return {};
   }
   if (setup === "cmo-seo-skipped") {
@@ -630,6 +756,14 @@ export async function startCmoCase(
     const frozen = parseMarketingPlan(evalCase.plan) as MarketingStrategyPlan;
     if (!frozen) throw new Error("The frozen plan does not parse");
     const cuso = await pointCusoAt(lane, evalCase.brand, evalCase.brandBrain);
+    if (evalCase.writes) {
+      const { strategyId } = await startCmoMonthCalendarCase({
+        lane,
+        plan: frozen,
+        level: evalCase.writes,
+      });
+      return { kind: "started", turnId: null, state: { strategyId } };
+    }
     if (evalCase.pictures) await captureCmoHomepage(cuso);
     // Core starts at most four production runs a day per Cuso; a lane makes
     // several months a day, so earlier months' runs count as yesterday's.
@@ -643,12 +777,14 @@ export async function startCmoCase(
       },
       data: { createdAt: new Date(now - DAY_MS - 60 * 60_000) },
     });
-    const plan = monthPlanFromTomorrow(frozen, new Date());
+    const plan = evalCase.timed
+      ? changeRequestPlan(new Date())
+      : monthPlanFromTomorrow(frozen, new Date());
     await connectPlanChannels(lane, plan);
     const strategy = await prisma.marketingStrategy.create({
       data: {
         projectId: lane.cusoProjectId,
-        plan: plan as object,
+        plan: jsonInput(plan),
         authorSokoBotId: lane.cusoBotId,
       },
       select: { id: true },
@@ -672,6 +808,11 @@ export async function startCmoCase(
     return { kind: "started", turnId, state: {} };
   }
   await pointCusoAt(lane, evalCase.brand, evalCase.brandBrain);
+  if (evalCase.brand.testerCredits)
+    await grantCmoTesterCredits({
+      projectId: lane.cusoProjectId,
+      organizationId: lane.organizationId,
+    });
   const { turnId } = await requestCmoStrategy({
     userId: lane.userId,
     projectId: lane.cusoProjectId,
@@ -680,14 +821,29 @@ export async function startCmoCase(
   return { kind: "started", turnId, state: {} };
 }
 
+/** How long after the plan turn settles a finish turn may take to start. */
+const FINISH_START_GRACE_MS = 60_000;
+
+/** The lane's newest draft is short of its weeks, pace or cadences: a finish turn follows. */
+async function monthStillShort(
+  lane: EvalLaneRecord,
+  rules: PlanReviewOptions,
+): Promise<boolean> {
+  const saved = await newestMarketingStrategy(lane.cusoProjectId);
+  const plan = parseMarketingPlan(saved?.plan);
+  return plan !== null && cmoPromiseGaps(plan, rules).length > 0;
+}
+
 async function settledTurn(turnId: string) {
   return prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: turnId },
     select: {
+      updatedAt: true,
       status: true,
       errorKind: true,
       errorDetail: true,
       finalAnswer: true,
+      versionId: true,
     },
   });
 }
@@ -712,6 +868,7 @@ async function cancelMonthPosts(strategyId: string) {
 async function monthProductionTurns(botId: string, prefix: string) {
   const select = {
     id: true,
+    clientTurnId: true,
     status: true,
     errorKind: true,
     errorDetail: true,
@@ -789,14 +946,27 @@ async function monthPictureChecks(
     },
   ];
   if (!pictures) return checks;
-  const withPage = jobs.filter(
-    (job) =>
-      job.referenceLibraryIds.length > 0 && job.referenceFileIds.length > 0,
-  );
   const posts = await prisma.socialPost.findMany({
     where: { marketingStrategyId: strategyId },
-    select: { planning: true },
+    select: { planning: true, media: true },
   });
+  // Core places the page itself on a styled picture; the model never gets it.
+  const showsPage = posts.filter((post) => {
+    const planning = parseSocialPostPlanning(post.planning);
+    return Boolean(
+      planning?.styleReferenceId && planning.visualFileIds?.length,
+    );
+  });
+  const placed = showsPage.filter(
+    (post) => Array.isArray(post.media) && post.media.length > 0,
+  );
+  // The brand's logo is a styled picture's second image; a page is not.
+  const { fileId: logoFileId } = await readCmoBrandLogo(lane.cusoProjectId);
+  const sentPage = jobs.filter(
+    (job) =>
+      job.referenceLibraryIds.length > 0 &&
+      job.referenceFileIds.some((fileId) => fileId !== logoFileId),
+  );
   const carousels = posts.flatMap((post) => {
     const planning = parseSocialPostPlanning(post.planning);
     return planning?.slides?.length ? [planning] : [];
@@ -805,16 +975,14 @@ async function monthPictureChecks(
     ...checks,
     {
       label: "The homepage's screenshot sits inside a styled picture",
-      pass: withPage.length > 0,
-      actual: `${withPage.length} styled job${withPage.length === 1 ? "" : "s"} with a brand picture`,
+      pass: placed.length > 0 && sentPage.length === 0,
+      actual: `${placed.length} styled piece${placed.length === 1 ? "" : "s"} with the page placed, ${sentPage.length} job${sentPage.length === 1 ? "" : "s"} sent it to the model`,
     },
     {
-      // Every piece given the screenshot would paste it into each picture.
+      // Every piece given the screenshot would show it in each picture.
       label: "Only a piece that shows the page gets the screenshot",
-      pass:
-        new Set(withPage.map((job) => job.idempotencyKey.split(":")[2])).size <=
-        1,
-      actual: `${new Set(withPage.map((job) => job.idempotencyKey.split(":")[2])).size} pieces with a brand picture`,
+      pass: showsPage.length <= 1,
+      actual: `${showsPage.length} pieces with a brand picture`,
     },
     {
       label: "Each carousel slide has its own words",
@@ -833,6 +1001,91 @@ async function monthPictureChecks(
         .join(", "),
     },
   ];
+}
+
+/**
+ * Most input tokens production may read per piece in the timed month. A
+ * regression guard, not a target: on 28 pieces Cuso's own steps and the
+ * rewrite run dominate (cmo-v5 147,000, cmo-v6 156,000 to 181,000); on
+ * NMKR's 171-post month cmo-v5 read 380,000 a piece and cmo-v6 32,000 to
+ * 64,000.
+ */
+const TIMED_TOKENS_PER_PIECE = 200_000;
+/** How soon after approval every word of the timed month is written. */
+const TIMED_WORDS_MS = 15 * 60_000;
+
+/**
+ * What making the month took, from Core's own records: when the last words
+ * were saved and the media settled, and what production's turns read, wrote
+ * and cost. Core's month writer counts as the turn that called it.
+ */
+export async function monthProductionMetrics(input: {
+  turnIds: readonly string[];
+  /** The first pass's runs: words are timed on them, not on the rewrite. */
+  madeBy: readonly string[];
+  projectId: string;
+  strategyId: string;
+  startedAt: Date;
+}) {
+  const turnIds = [...input.turnIds];
+  const [turns, writes, jobs, coreWrote] = await Promise.all([
+    prisma.sokoBotTurn.findMany({
+      where: { id: { in: turnIds } },
+      select: { usage: true, costUsdMicros: true, overheadCostUsdMicros: true },
+    }),
+    prisma.sokoBotToolCall.aggregate({
+      where: {
+        turnId: { in: [...input.madeBy] },
+        capability: "update_social_post",
+        status: "COMPLETED",
+      },
+      _max: { committedAt: true },
+    }),
+    prisma.projectImageJob.aggregate({
+      where: {
+        projectId: input.projectId,
+        idempotencyKey: { startsWith: `cmo-media:${input.strategyId}:` },
+      },
+      _min: { createdAt: true },
+      _max: { settledAt: true },
+    }),
+    prisma.sokoBotToolCall.count({
+      where: {
+        turnId: { in: turnIds },
+        capability: "write_month_pieces",
+        status: "COMPLETED",
+      },
+    }),
+  ]);
+  const tokens = (
+    turn: (typeof turns)[number],
+    key: "inputTokens" | "outputTokens",
+  ) => Number((turn.usage as Record<string, unknown> | null)?.[key] ?? 0) || 0;
+  const minutes = (from?: Date | null, to?: Date | null) =>
+    from && to
+      ? Math.round((to.getTime() - from.getTime()) / 6_000) / 10
+      : null;
+  return {
+    wordsMinutes: minutes(input.startedAt, writes._max.committedAt),
+    mediaMinutes: minutes(jobs._min.createdAt, jobs._max.settledAt),
+    inputTokens: turns.reduce(
+      (sum, turn) => sum + tokens(turn, "inputTokens"),
+      0,
+    ),
+    outputTokens: turns.reduce(
+      (sum, turn) => sum + tokens(turn, "outputTokens"),
+      0,
+    ),
+    costUsd:
+      turns.reduce(
+        (sum, turn) =>
+          sum +
+          Number(turn.costUsdMicros) +
+          Number(turn.overheadCostUsdMicros ?? 0),
+        0,
+      ) / 1e6,
+    coreWrote,
+  };
 }
 
 /** The month's pieces once Core says they are made and Jev is done reading. */
@@ -854,6 +1107,27 @@ async function pollMonth(
         turnIds: [],
       },
     };
+  if (evalCase.writes) {
+    const frozen = parseMarketingPlan(evalCase.plan);
+    const read = await pollCmoMonthCalendarCase({
+      strategyId,
+      examples: frozen?.calendar ?? [],
+      level: evalCase.writes,
+      startedAt: context.startedAt,
+      now: await databaseNow(),
+    });
+    if (read.kind === "waiting") return read;
+    await cancelMonthPosts(strategyId);
+    return {
+      kind: "done",
+      outcome: {
+        status: read.checks.every((check) => check.pass) ? "PASSED" : "FAILED",
+        checks: read.checks,
+        output: read.output,
+        turnIds: [],
+      },
+    };
+  }
   const cuso = await findCusoForBot(lane.cusoBotId);
   if (!cuso) throw new Error(`Eval lane ${lane.lane} has no Cuso`);
   const approval = await prisma.marketingStrategy.findUniqueOrThrow({
@@ -864,7 +1138,9 @@ async function pollMonth(
     },
     select: { approvedAt: true },
   });
-  const timedOut = Date.now() - context.startedAt.getTime() >= MONTH_TIMEOUT_MS;
+  const timedOut =
+    (await databaseNow()).getTime() - context.startedAt.getTime() >=
+    MONTH_TIMEOUT_MS;
   if (approval.approvedAt) {
     // Production IDs bind retries to the current approval, including rewrites.
     const prefix = `${CMO_PRODUCTION_TURN_PREFIX}${lane.cusoBotId}:${approval.approvedAt.getTime()}:`;
@@ -923,7 +1199,13 @@ async function pollMonth(
   });
   const posts = await prisma.socialPost.findMany({
     where: { marketingStrategyId: strategyId, status: { not: "CANCELED" } },
-    select: { provider: true, text: true, planning: true, media: true },
+    select: {
+      id: true,
+      provider: true,
+      text: true,
+      planning: true,
+      media: true,
+    },
   });
   const plan = parseMarketingPlan(version.plan) as MarketingStrategyPlan | null;
   const pieces = plan?.calendar.length ?? 0;
@@ -942,6 +1224,30 @@ async function pollMonth(
     const planning = post.planning as { brief?: unknown; title?: unknown };
     return post.text !== planning?.brief && post.text !== planning?.title;
   });
+  const productionTurns = approval.approvedAt
+    ? await monthProductionTurns(
+        lane.cusoBotId,
+        `${CMO_PRODUCTION_TURN_PREFIX}${lane.cusoBotId}:${approval.approvedAt.getTime()}:`,
+      )
+    : [];
+  const metrics = await monthProductionMetrics({
+    turnIds: productionTurns.map((turn) => turn.id),
+    madeBy: productionTurns
+      .filter((turn) => !turn.clientTurnId?.includes(":review:"))
+      .map((turn) => turn.id),
+    projectId: lane.cusoProjectId,
+    strategyId,
+    // Set by Core like the receipts it is compared with; the case's own
+    // start is PostgreSQL time, an hour off on a local database.
+    startedAt: approval.approvedAt ?? context.startedAt,
+  });
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: lane.cusoBotId },
+    select: { versionId: true },
+  });
+  const coreWrites = cmoWritesMonthAtOnce(
+    getSokoBotVersion(bot?.versionId).skills,
+  );
   const reads = Object.entries(review?.writing ?? {});
   const flagged = reads.filter(
     ([, read]) =>
@@ -967,9 +1273,10 @@ async function pollMonth(
         ? `round ${review.round}, ${reads.length} read`
         : "no review",
     },
-    // The pictures month is scored on its pictures: its three posts are too
-    // few for a share of flagged ones to mean anything.
-    ...(evalCase.pictures
+    // The pictures, variety and openings months are scored on what they
+    // test: their few posts are too few for a share of flagged ones to mean
+    // anything, and the other month cases measure the writing.
+    ...(evalCase.pictures || evalCase.variety || evalCase.openings
       ? []
       : [
           {
@@ -993,6 +1300,40 @@ async function pollMonth(
           },
         ]),
     ...(await monthPictureChecks(lane, strategyId, evalCase.pictures ?? false)),
+    ...(evalCase.variety
+      ? await pictureVarietyChecks(strategyId, lane.cusoProjectId)
+      : []),
+    ...(evalCase.openings
+      ? linkedInOpeningChecks(posts, review?.writing ?? {})
+      : []),
+    ...(evalCase.newsletter ? [newsletterIssueCheck(plan, files)] : []),
+    ...(coreWrites
+      ? [
+          {
+            label: "Core wrote the month (write_month_pieces)",
+            pass: metrics.coreWrote > 0,
+            actual: `${metrics.coreWrote} write_month_pieces call${metrics.coreWrote === 1 ? "" : "s"}`,
+          },
+        ]
+      : []),
+    ...(evalCase.timed
+      ? [
+          {
+            label: `Every word written within ${TIMED_WORDS_MS / 60_000} minutes of approval`,
+            pass:
+              metrics.wordsMinutes !== null &&
+              metrics.wordsMinutes * 60_000 <= TIMED_WORDS_MS,
+            actual: `${metrics.wordsMinutes ?? "?"} minutes`,
+          },
+          {
+            label: `At most ${TIMED_TOKENS_PER_PIECE.toLocaleString("en-US")} input tokens a piece`,
+            pass:
+              pieces > 0 &&
+              metrics.inputTokens / pieces <= TIMED_TOKENS_PER_PIECE,
+            actual: `${Math.round(metrics.inputTokens / Math.max(1, pieces)).toLocaleString("en-US")} a piece (${metrics.inputTokens.toLocaleString("en-US")} in, ${metrics.outputTokens.toLocaleString("en-US")} out, $${metrics.costUsd.toFixed(2)}, media ${metrics.mediaMinutes ?? "?"} minutes)`,
+          },
+        ]
+      : []),
   ];
   await cancelMonthPosts(strategyId);
   return {
@@ -1006,6 +1347,7 @@ async function pollMonth(
             `${post.provider}${Array.isArray(post.media) && post.media.length ? " (with media)" : ""}: ${post.text}`,
         ),
         files: files.filter((file) => file !== null),
+        production: { pieces, ...metrics },
       },
       turnIds: turns.map((turn) => turn.id),
     },
@@ -1033,7 +1375,10 @@ export async function pollCmoCase(
     };
   const turn = await settledTurn(result.turnId);
   if (!SETTLED_TURN_STATUSES.includes(turn.status)) {
-    if (Date.now() - context.startedAt.getTime() < CMO_TURN_TIMEOUT_MS)
+    if (
+      (await databaseNow()).getTime() - context.startedAt.getTime() <
+      CMO_TURN_TIMEOUT_MS
+    )
       return { kind: "waiting" };
     await endTurn(result.turnId);
     return {
@@ -1047,6 +1392,40 @@ export async function pollCmoCase(
       },
     };
   }
+  // A month left short of four weeks gets finish turns after the plan turn
+  // (afterCmoTurn); the case is the whole month, so it waits for them.
+  const finishes =
+    evalCase.kind === "cmo-strategy"
+      ? await prisma.sokoBotTurn.findMany({
+          where: {
+            sokoBotId: lane.cusoBotId,
+            clientTurnId: {
+              startsWith: `${STRATEGY_TURN_PREFIX}${lane.cusoBotId}:finish:`,
+            },
+            createdAt: { gte: context.startedAt },
+          },
+          select: { id: true, status: true },
+        })
+      : [];
+  if (
+    finishes.some((finish) => !SETTLED_TURN_STATUSES.includes(finish.status)) &&
+    (await databaseNow()).getTime() - context.startedAt.getTime() <
+      CMO_TURN_TIMEOUT_MS
+  )
+    return { kind: "waiting" };
+  if (
+    evalCase.kind === "cmo-strategy" &&
+    finishes.length === 0 &&
+    (await monthStillShort(
+      lane,
+      turn.versionId
+        ? cmoStrategyRules(getSokoBotVersion(turn.versionId).skills)
+        : {},
+    )) &&
+    (await databaseNow()).getTime() - (turn.updatedAt?.getTime() ?? 0) <
+      FINISH_START_GRACE_MS
+  )
+    return { kind: "waiting" };
   const infrastructure = infrastructureCaseOutcome(result.turnId, turn, {
     answer: turn.finalAnswer,
     turnStatus: turn.status,
@@ -1068,12 +1447,35 @@ export async function pollCmoCase(
       output: {
         answer: turn.finalAnswer,
         summary: brain?.summary ?? null,
-        offers: brain?.offers.map((offer) => `${offer.name} (${offer.price})`),
+        offers:
+          brain?.offers.map((offer) => `${offer.name} (${offer.price})`) ??
+          null,
       },
     };
   } else {
     const saved = await newestMarketingStrategy(projectId);
-    const { strategy, checks } = strategyChecks(evalCase.brand, saved?.plan);
+    const { strategy, checks } = strategyChecks(
+      evalCase.brand,
+      saved?.plan,
+      turn.versionId
+        ? cmoStrategyRules(getSokoBotVersion(turn.versionId).skills)
+        : {},
+    );
+    if (evalCase.brand.focus === "claims" && strategy)
+      checks.push(...(await claimChecks(strategy)));
+    if (evalCase.brand.testerCredits && strategy) {
+      const level = await cmoPlanLevel(projectId, await databaseNow());
+      const made = cmoMonthAtLevel(strategy.calendar, level);
+      const live = strategy.calendar.filter(
+        (entry) => entry.status !== "skipped",
+      );
+      checks.push({
+        label: "Core makes the whole month on Tester credits",
+        // A piece past the month's video cap is the review's to name.
+        pass: level === "all_in",
+        actual: `${level}: ${made.made.size} of ${live.length} pieces`,
+      });
+    }
     outcome = {
       checks: [completed, ...checks],
       output: {
@@ -1082,10 +1484,12 @@ export async function pollCmoCase(
         offer: strategy?.offer?.what ?? null,
         coreOffer: strategy?.ladder?.core.what ?? null,
         contentLanguage: strategy?.contentLanguage ?? null,
-        pillars: strategy?.pillars.map((pillar) => pillar.name),
-        calendar: strategy?.calendar
-          .filter((entry) => entry.status !== "skipped")
-          .map((entry) => `${entry.date} ${entry.channel}: ${entry.title}`),
+        pillars: strategy?.pillars.map((pillar) => pillar.name) ?? null,
+        calendar:
+          strategy?.calendar
+            .filter((entry) => entry.status !== "skipped")
+            .map((entry) => `${entry.date} ${entry.channel}: ${entry.title}`) ??
+          null,
       },
     };
   }
@@ -1094,7 +1498,32 @@ export async function pollCmoCase(
     outcome: {
       ...outcome,
       status: outcome.checks.every((check) => check.pass) ? "PASSED" : "FAILED",
-      turnIds: [result.turnId],
+      turnIds: [result.turnId, ...finishes.map((finish) => finish.id)],
     },
+  };
+}
+
+/** An issue longer than this does not read in a minute. */
+const NEWSLETTER_MAX_WORDS = 450;
+
+/** The month's newsletter issue: filed, with a subject line, and short. */
+export function newsletterIssueCheck(
+  plan: Pick<MarketingStrategyPlan, "calendar"> | null,
+  files: readonly (string | null)[],
+): { label: string; pass: boolean; actual: string } {
+  const ids = (plan?.calendar ?? [])
+    .filter((entry) => entry.channel === "newsletter")
+    .map((entry) => entry.id);
+  const issue = files.find(
+    (file) => file !== null && ids.some((id) => file.startsWith(`${id} (`)),
+  );
+  const words = issue?.split(/\s+/).filter(Boolean).length ?? 0;
+  const subject = /subject/i.test(issue ?? "");
+  return {
+    label: "The newsletter issue is written, with its subject line",
+    pass: Boolean(issue) && subject && words <= NEWSLETTER_MAX_WORDS,
+    actual: issue
+      ? `${words} words${subject ? "" : ", no subject line"}`
+      : "no issue filed",
   };
 }

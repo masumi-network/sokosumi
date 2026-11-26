@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind, type Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { buildNamedChatMessagePreview } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import {
@@ -22,6 +23,23 @@ import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { runAsBackgroundWork } from "@/lib/evlog";
+import { readBackgroundMessageContent } from "@/lib/soko-bot/background-failure";
+
+const previewMessageSelect = {
+  content: true,
+  deletedAt: true,
+  metadata: true,
+  senderSokoBotId: true,
+} satisfies Prisma.ChatRoomMessageSelect;
+
+function previewMessageContent(
+  message: Prisma.ChatRoomMessageGetPayload<{
+    select: typeof previewMessageSelect;
+  }> | null,
+): string {
+  if (message === null || message.deletedAt !== null) return "";
+  return readBackgroundMessageContent(message);
+}
 
 export interface FanOutChatNotificationsParams {
   throwOnError?: boolean;
@@ -122,7 +140,7 @@ async function deliverToCurrentRoomMember(
       Array<{ access: string; mutedAt: Date | null }>
     >`
       SELECT access, "mutedAt"
-      FROM "chat_room_user_member"
+      FROM ${sharedTable("chat_room_user_member")}
       WHERE "roomId" = ${roomId}::UUID
         AND "userId" = ${input.userId}
       FOR UPDATE
@@ -352,10 +370,9 @@ export async function fanOutChatNotifications(
   // those rows, so it is the one that has to look again.
   const current = await prisma.chatRoomMessage.findUnique({
     where: { id: params.messageId },
-    select: { content: true, deletedAt: true },
+    select: previewMessageSelect,
   });
-  const saysNow =
-    current === null || current.deletedAt !== null ? "" : current.content;
+  const saysNow = previewMessageContent(current);
 
   if (saysNow === params.content) {
     return;
@@ -501,17 +518,16 @@ async function rewriteRowFromMessage(
         // Keep this lock until this recipient's copy is updated. Separate
         // transactions prevent a slow room-wide sweep from rolling back all rows.
         await tx.$queryRaw`
-          SELECT "id" FROM "chat_room_message"
+          SELECT "id" FROM ${sharedTable("chat_room_message")}
           WHERE "id" = ${source.messageId}::uuid
             AND "roomId" = ${source.roomId}::uuid
           FOR UPDATE
         `;
         const message = await tx.chatRoomMessage.findUnique({
           where: { id: source.messageId, roomId: source.roomId },
-          select: { content: true, deletedAt: true },
+          select: previewMessageSelect,
         });
-        const content =
-          message === null || message.deletedAt !== null ? "" : message.content;
+        const content = previewMessageContent(message);
         // Remove ambiguous edited text. Once removed, this row stays without
         // a preview, following the same rule as every other rewrite.
         const preview = buildNamedChatMessagePreview(

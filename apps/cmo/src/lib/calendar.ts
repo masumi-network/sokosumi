@@ -42,18 +42,6 @@ export function isSocialProvider(channel: string): channel is SocialProvider {
 }
 
 /**
- * Whether Cuso can execute an entry now: it must be on a connected social
- * account. Otherwise it says why it stays in the plan.
- */
-export function entryReadiness(
-  channel: string,
-  connected: readonly string[],
-): "ready" | "connect" | "soon" {
-  if (connected.includes(channel)) return "ready";
-  return isSocialProvider(channel) ? "connect" : "soon";
-}
-
-/**
  * A written social post that cannot go out yet because its network is not
  * connected: it waits for the owner, not for Cuso. Null for every other piece.
  */
@@ -173,37 +161,13 @@ export function socialPostsPerWeek(calendar: Entry[]): number {
   return social.length / Math.ceil(days / 7);
 }
 
-/** "Mon 5 Oct", or "Today" / "Tomorrow" relative to `today` (YYYY-MM-DD). */
-const CHANNEL_LABELS: Record<string, string> = {
-  linkedin: "LinkedIn",
-  x: "X",
-  twitter: "X",
-  instagram: "Instagram",
-  facebook: "Facebook",
-  tiktok: "TikTok",
-  youtube: "YouTube",
-  threads: "Threads",
-  bluesky: "Bluesky",
-  pinterest: "Pinterest",
-  website: "Website",
-  seo: "Website",
-  email: "Newsletter",
-  newsletter: "Newsletter",
-  ads: "Ads",
-  meta: "Meta ads",
-  google: "Google ads",
-};
-
 /** A channel id as people write it: "linkedin" reads "LinkedIn". */
 export function channelLabel(channel: string): string {
   const key = channel.trim().toLowerCase();
-  return (
-    channelInfo(key)?.name ??
-    CHANNEL_LABELS[key] ??
-    key.charAt(0).toUpperCase() + key.slice(1)
-  );
+  return channelInfo(key)?.name ?? key.charAt(0).toUpperCase() + key.slice(1);
 }
 
+/** "Mon 5 Oct", or "Today" / "Tomorrow" relative to `today` (YYYY-MM-DD). */
 export function relativeDay(date: string, today: string): string {
   const days = Math.round(
     (Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) /
@@ -217,4 +181,40 @@ export function relativeDay(date: string, today: string): string {
     month: "short",
     timeZone: "UTC",
   });
+}
+
+/**
+ * One card per piece: a short video's copies on other networks (`alsoOn`
+ * before approval, `videoOf` entries after it) fold into the video, which
+ * lists every network it goes out on.
+ */
+export function foldCopies<
+  T extends {
+    id: string;
+    channel: string;
+    alsoOn?: string[] | null;
+    videoOf?: string | null;
+  },
+>(calendar: readonly T[]): { entry: T; channels: string[] }[] {
+  const ids = new Set(calendar.map((entry) => entry.id));
+  const copies = new Map<string, string[]>();
+  for (const entry of calendar) {
+    if (!entry.videoOf || !ids.has(entry.videoOf)) continue;
+    copies.set(entry.videoOf, [
+      ...(copies.get(entry.videoOf) ?? []),
+      entry.channel,
+    ]);
+  }
+  return calendar
+    .filter((entry) => !(entry.videoOf && ids.has(entry.videoOf)))
+    .map((entry) => ({
+      entry,
+      channels: [
+        ...new Set([
+          entry.channel,
+          ...(entry.alsoOn ?? []),
+          ...(copies.get(entry.id) ?? []),
+        ]),
+      ],
+    }));
 }

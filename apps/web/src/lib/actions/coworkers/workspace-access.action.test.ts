@@ -107,13 +107,14 @@ describe("grantDeveloperCoworkerEarlyAccessAction", () => {
   });
 
   it("maps service failures through toCoreApiActionError", async () => {
-    expectConsole(
+    const errorCalls = expectConsole(
       "error",
-      "Failed to grant developer coworker early access CoreApiRequestError: Core backend timeout",
+      "Failed to grant developer coworker early access",
     );
-    createForCoworkerMock.mockRejectedValue(
-      new CoreApiRequestError("Core backend timeout", { status: 503 }),
-    );
+    const error = new CoreApiRequestError("Core backend timeout", {
+      status: 503,
+    });
+    createForCoworkerMock.mockRejectedValue(error);
 
     try {
       const result = await grantDeveloperCoworkerEarlyAccessAction({
@@ -122,6 +123,7 @@ describe("grantDeveloperCoworkerEarlyAccessAction", () => {
         targetValue: "acme-corp",
       });
 
+      expect(errorCalls[0]?.[1]).toBe(error);
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error).toMatchObject({

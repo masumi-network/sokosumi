@@ -19,9 +19,11 @@ import {
   competitorSites,
   type SeoCompetitorSite,
 } from "./seo-competitors-model";
+import { SeoContentPlanning } from "./seo-content-planning";
 import { seoDaySpan } from "./seo-day-span";
 import { SeoExportMenu } from "./seo-export-menu";
 import { seoCompetitorsExport } from "./seo-export-model";
+import { workspaceKeywordGroups } from "./seo-keyword-rows-model";
 import { seoStrategyRows } from "./seo-places-model";
 import { SeoRankPill } from "./seo-rank-pill";
 import { SeoRowMenu } from "./seo-row-menu";
@@ -39,6 +41,7 @@ import {
   SeoSource,
   SeoState,
   seoFoldCount,
+  seoPagePath,
 } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -133,9 +136,9 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
           ).sites.length ? (
             <SeoExportMenu
               name="competitors"
-              title={t("competitors.title")}
+              titleKey="competitors.title"
               workspace={model.data}
-              table={() => seoCompetitorsExport(sites, t)}
+              table={(report) => seoCompetitorsExport(sites, report)}
               empty={!sites.length}
             />
           ) : null}
@@ -221,6 +224,15 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
           ))}
         </dl>
       ) : null}
+      {!model.competitorSearch &&
+        rows.length > 0 &&
+        model.data.keywords?.length > 0 && (
+          <SeoContentPlanning
+            groups={workspaceKeywordGroups(model.data).ideas}
+            model={model}
+            gapsOnly
+          />
+        )}
       {/* A list of sites alone had no next step. The row opens the strategy actions, as the Agent row does. */}
       {rows.length && strategyActions.count ? (
         <SeoNextStepRow onClick={model.showStrategy}>
@@ -272,11 +284,24 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                 return (
                   <TableRow key={row.id}>
                     <TableCell className="min-w-56 whitespace-normal">
-                      <p className="font-medium [overflow-wrap:anywhere]">
-                        {host}
-                      </p>
-                      {/* The site is the line above: the page shows as its path. */}
-                      <SeoPageLink url={row.url} site={row.url} clamp quiet />
+                      {seoPagePath(row.url, row.url) === "/" ? (
+                        <span className="font-medium">
+                          <SeoPageLink url={row.url} label={host} />
+                        </span>
+                      ) : (
+                        <>
+                          <p className="font-medium [overflow-wrap:anywhere]">
+                            {host}
+                          </p>
+                          {/* The site is the line above: the page shows as its path. */}
+                          <SeoPageLink
+                            url={row.url}
+                            site={row.url}
+                            clamp
+                            quiet
+                          />
+                        </>
+                      )}
                       {mixed && !chosen(row) ? (
                         <div className="mt-1">
                           <SeoState>{t("competitors.suggested")}</SeoState>
@@ -392,12 +417,17 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
               })}
             </TableBody>
           </Table>
-          {shown.rank ? (
-            // Under the rows, on every width: a hint on the column head reaches no phone and no keyboard.
-            <p className="text-muted-foreground border-t px-4 py-2 text-xs">
-              {t("competitors.rankHint")}
-            </p>
-          ) : null}
+          {shown.rank && (
+            <details className="border-t px-4 text-xs">
+              <SeoFoldSummary className="text-muted-foreground py-3">
+                {t("competitors.about")}
+              </SeoFoldSummary>
+              {/* Under the rows, on every width: a hint on the column head reaches no phone and no keyboard. */}
+              <p className="text-muted-foreground pb-3">
+                {t("competitors.rankHint")}
+              </p>
+            </details>
+          )}
           {(paidOff && (!shown.rank || !shown.backlinks)) || hidden.length ? (
             // Missing numbers say why: paid data off, or not measured yet.
             <p className="text-muted-foreground border-t px-4 py-2 text-xs">

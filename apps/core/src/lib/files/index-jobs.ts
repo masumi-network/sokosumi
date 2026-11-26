@@ -1,11 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
-
 import {
   type FileIndexJob,
   FileIndexJobPipeline,
   FileIndexJobState,
   type Prisma,
 } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import prisma from "@/lib/db/prisma";
 
@@ -370,8 +370,8 @@ export async function backfillMissingSuggestionJobs(input?: {
     { resourceId: string; contentRevision: number }[]
   >`
     SELECT fr.id::text AS "resourceId", fr."contentRevision"
-    FROM file_resource fr
-    JOIN file_version fv
+    FROM ${sharedTable("file_resource")} fr
+    JOIN ${sharedTable("file_version")} fv
       ON fv."resourceId" = fr.id AND fv.revision = fr."contentRevision"
     WHERE fr."tombstonedAt" IS NULL
       -- Any file whose extraction has settled. One with no text (a video, an
@@ -380,17 +380,17 @@ export async function backfillMissingSuggestionJobs(input?: {
       -- are never sent anywhere.
       AND fv."extractionState" NOT IN ('PENDING', 'RUNNING', 'QUARANTINED')
       AND EXISTS (
-        SELECT 1 FROM workspace_label wl
+        SELECT 1 FROM ${sharedTable("workspace_label")} wl
         WHERE wl."workspaceId" = fr."workspaceId"
           AND NOT wl."isTaskPreset"
           AND wl."archivedAt" IS NULL
           AND wl."mergedIntoId" IS NULL
       )
       AND NOT EXISTS (
-        SELECT 1 FROM file_label fl WHERE fl."resourceId" = fr.id
+        SELECT 1 FROM ${sharedTable("file_label")} fl WHERE fl."resourceId" = fr.id
       )
       AND NOT EXISTS (
-        SELECT 1 FROM file_index_job j
+        SELECT 1 FROM ${sharedTable("file_index_job")} j
         WHERE j."resourceId" = fr.id
           AND j.pipeline = 'SUGGEST'
           AND (
@@ -423,7 +423,7 @@ export async function leaseNextFileIndexJob(input: {
   const leaseOwner = randomUUID();
 
   const runnable = {
-    pipeline: input.pipeline,
+    ...(input.pipeline !== undefined && { pipeline: input.pipeline }),
     runAfter: { lte: now },
     OR: [
       { state: FileIndexJobState.QUEUED },

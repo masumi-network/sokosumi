@@ -1,21 +1,20 @@
 import { describe, expect, it } from "vitest";
-import {
-  CUSO_DESCRIPTION_REWRITES,
-  CUSO_FORBIDDEN_WORDS,
-  CUSO_IDENTITY,
-} from "../cmo-texts.js";
+import { CUSO_DESCRIPTION_REWRITES, CUSO_IDENTITY } from "../cmo-texts.js";
 import {
   isSokoBotNewsletterCapability,
   type SokoBotCapability,
 } from "../policy.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
 import {
-  CMO_SOKO_BOT_VERSION_ID,
   composeSystemPrompt,
   getSokoBotVersion,
   sokoBotIdentity,
   sokoBotToolDescription,
 } from "../versions/index.js";
+
+/** The words a description may not carry to Cuso. */
+const CUSO_FORBIDDEN_WORDS =
+  /Sokosumi|Soko Bot|Project Social|Newsletter UI|Ads page|Content Studio|\bDrive\b|preview_result/;
 
 const v2 = getSokoBotVersion("cmo-v2");
 const v4 = getSokoBotVersion("cmo-v4");
@@ -44,8 +43,7 @@ const read = [
 ].join("\n");
 
 describe("cmo-v4", () => {
-  it("is the version a new hire gets", () => {
-    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v4");
+  it("is a Cuso on cmo-v2's model", () => {
     expect(v4.profile).toBe("cmo");
     expect(v4.model).toBe(v2.model);
   });

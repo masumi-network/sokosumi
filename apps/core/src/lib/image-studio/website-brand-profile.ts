@@ -2,6 +2,7 @@ import { generateText, Output } from "ai";
 import pTimeout from "p-timeout";
 import { z } from "zod";
 import { getEnv } from "@/config/env";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import { getRedisClient } from "@/lib/redis";
 import { studioBrandCopySchema } from "@/schemas/studio-brand-kit.schema";
@@ -66,6 +67,7 @@ export async function suggestWebsiteBrandProfile(
     if (!(await allowWebsiteSuggestion("profile", workspaceId))) return {};
 
     const { output } = await generateText({
+      telemetry: { functionId: "website-brand-profile" },
       model: WEBSITE_RESEARCH_MODEL,
       providerOptions: { gateway: { only: ["mistral"] } },
       instructions: [
@@ -80,7 +82,7 @@ export async function suggestWebsiteBrandProfile(
       abortSignal: AbortSignal.timeout(10_000),
       maxOutputTokens: 700,
       maxRetries: 0,
-    });
+    }).catch(rethrowAiGatewayFailure);
     const profile = profileSchema.parse(output);
     const supported = ({ evidence }: z.infer<typeof suggestion>) =>
       source.includes(evidence.replace(/\s+/g, " "));
@@ -111,6 +113,7 @@ export async function suggestWebsiteOffers(
   try {
     if (!(await allowWebsiteSuggestion("offers", workspaceId))) return [];
     const { output } = await generateText({
+      telemetry: { functionId: "website-offers" },
       model: WEBSITE_RESEARCH_MODEL,
       providerOptions: { gateway: { only: ["mistral"] } },
       instructions: [
@@ -126,7 +129,7 @@ export async function suggestWebsiteOffers(
       abortSignal: AbortSignal.timeout(10_000),
       maxOutputTokens: 3_000,
       maxRetries: 0,
-    });
+    }).catch(rethrowAiGatewayFailure);
     const offers = new Map<
       string,
       Pick<z.infer<typeof offerSchema>, "name" | "description" | "price">

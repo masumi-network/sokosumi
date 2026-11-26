@@ -379,6 +379,89 @@ describe("ProjectDetailActions", () => {
     });
   });
 
+  it("keeps the replay operation ID across closing and reopening the dialog after a failure", async () => {
+    const user = userEvent.setup();
+    closeProjectMock.mockRejectedValue(new Error("close failed"));
+    render(
+      <ProjectDetailActions
+        projectId="project-1"
+        projectRevision={3}
+        labels={LABELS}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Close project" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Reason (optional)" }),
+      "Campaign complete",
+    );
+    await user.click(screen.getByRole("button", { name: "Close project" }));
+    await vi.waitFor(() => expect(closeProjectMock).toHaveBeenCalledTimes(1));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Keep project open" }),
+      ).toBeEnabled(),
+    );
+    await user.click(screen.getByRole("button", { name: "Keep project open" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Close project" }));
+    await user.click(screen.getByRole("button", { name: "Close project" }));
+    await vi.waitFor(() => expect(closeProjectMock).toHaveBeenCalledTimes(2));
+
+    expect(closeProjectMock.mock.calls[1]?.[0].operationId).toBe(
+      closeProjectMock.mock.calls[0]?.[0].operationId,
+    );
+  });
+
+  it("clears the replay operation ID when the project transitions through closing or closed", async () => {
+    const user = userEvent.setup();
+    closeProjectMock.mockRejectedValue(new Error("close failed"));
+    const { rerender } = render(
+      <ProjectDetailActions
+        projectId="project-1"
+        projectRevision={3}
+        labels={LABELS}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Close project" }));
+    await user.click(screen.getByRole("button", { name: "Close project" }));
+    await vi.waitFor(() => expect(closeProjectMock).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <ProjectDetailActions
+        projectId="project-1"
+        projectRevision={4}
+        isClosingOrClosed
+        labels={LABELS}
+      />,
+    );
+    rerender(
+      <ProjectDetailActions
+        projectId="project-1"
+        projectRevision={5}
+        isClosingOrClosed={false}
+        labels={LABELS}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Close project" }));
+    await user.click(screen.getByRole("button", { name: "Close project" }));
+    await vi.waitFor(() => expect(closeProjectMock).toHaveBeenCalledTimes(2));
+
+    expect(closeProjectMock.mock.calls[1]?.[0].operationId).not.toBe(
+      closeProjectMock.mock.calls[0]?.[0].operationId,
+    );
+  });
+
   it("warns how many scheduled posts close will cancel", async () => {
     const user = userEvent.setup();
     render(

@@ -30,6 +30,7 @@ const {
   snapshotUpsertMock,
   waitUntilMock,
   adEventCreateMock,
+  readReferenceImageMock,
 } = vi.hoisted(() => ({
   jobCountMock: vi.fn(),
   jobCreateMock: vi.fn(),
@@ -57,6 +58,7 @@ const {
   snapshotUpsertMock: vi.fn(),
   waitUntilMock: vi.fn(),
   adEventCreateMock: vi.fn(),
+  readReferenceImageMock: vi.fn(async () => null),
 }));
 
 vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
@@ -142,6 +144,9 @@ vi.mock("@/services/file-search.service", () => ({
 
 vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: readAssetBytesMock,
+}));
+vi.mock("@/services/reference-library.service", () => ({
+  readReferenceImage: readReferenceImageMock,
 }));
 
 vi.mock("@sokosumi/net", async (importOriginal) => ({
@@ -494,11 +499,12 @@ describe("image studio job submission", () => {
       data: expect.objectContaining({
         productId: "product-a",
         productName: "Clay mug",
-        templateId: undefined,
-        creativeDirection: undefined,
-        variationIndex: undefined,
       }),
     });
+    const data = jobCreateMock.mock.lastCall?.[0]?.data;
+    expect(data).not.toHaveProperty("templateId");
+    expect(data).not.toHaveProperty("creativeDirection");
+    expect(data).not.toHaveProperty("variationIndex");
   });
 
   const photoInput = {
@@ -742,6 +748,48 @@ describe("image studio job submission", () => {
       status: 429,
     });
     expect(submitToQueueMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves the month's own pictures and other video shapes out of the owner's hourly count", async () => {
+    // cmo-post-with-picture on mainnet, 2026-11-25: a month's 46 pictures
+    // used the owner's 40 an hour, and the picture asked for in chat failed.
+    await createImageJob(BASE_INPUT);
+    expect(jobCountMock).toHaveBeenLastCalledWith({
+      where: expect.objectContaining({
+        requestedByUserId: "user-1",
+        NOT: [
+          { idempotencyKey: { startsWith: "cmo-media:" } },
+          { idempotencyKey: { startsWith: "video-shape:" } },
+        ],
+      }),
+    });
+  });
+
+  it("leaves other video shapes out of the project's slots: they ask no provider", async () => {
+    await createImageJob(BASE_INPUT);
+    expect(jobCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        projectId: "project-1",
+        NOT: { idempotencyKey: { startsWith: "video-shape:" } },
+      }),
+    });
+  });
+
+  it("gives Core's month media twelve at a time and no hourly cap", async () => {
+    // The approved plan bounds a month; NMKR's 34 pictures in 37 minutes
+    // ran into a person's 40 an hour.
+    jobCountMock.mockResolvedValue(11);
+    await createImageJob({ ...BASE_INPUT, forCmoMonth: true });
+    expect(jobCreateMock).toHaveBeenCalledTimes(1);
+    // Only the project's jobs in flight are counted, never the hour's.
+    expect(jobCountMock).toHaveBeenCalledTimes(1);
+
+    jobCreateMock.mockClear();
+    jobCountMock.mockResolvedValue(12);
+    await expect(
+      createImageJob({ ...BASE_INPUT, forCmoMonth: true }),
+    ).rejects.toMatchObject({ status: 429 });
+    expect(jobCreateMock).not.toHaveBeenCalled();
   });
 
   it("routes a refinement to the edit endpoint with the reference attached", async () => {
@@ -1008,6 +1056,115 @@ describe("image studio job submission", () => {
     expect(submitToQueueMock).not.toHaveBeenCalled();
   });
 
+  it("uses the project's Studio palette for a vector generation", async () => {
+    const model = "fal-ai/recraft/v4.1/text-to-vector";
+    const stored = jobRow({ model, prompt: "A fox icon" });
+    jobCreateMock.mockResolvedValue(stored);
+    jobFindUniqueOrThrowMock.mockResolvedValue(stored);
+    projectFindUniqueMock.mockResolvedValue({
+      studioBrandLook: { colors: ["#123"], fonts: [] },
+    });
+    submitToQueueMock.mockResolvedValue({
+      kind: "queued",
+      requestId: "vector-1",
+    });
+    await createImageJob({
+      ...BASE_INPUT,
+      prompt: "A fox icon",
+      modelId: "recraft-v4-1-text-to-vector",
+    });
+    expect(submitToQueueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model,
+        input: expect.objectContaining({
+          colors: [{ r: 17, g: 34, b: 51 }],
+          prompt: expect.stringMatching(/^A fox icon\n\nFollow this project/),
+        }),
+      }),
+    );
+  });
+
+  // A styled picture's prompt was 4,300 characters with the brand block
+  // first, and the block's ad copy was lettered into it (2026-11-20).
+  it("sends a picture in a library style its brief alone", async () => {
+    const designMdUrl =
+      "https://abc123.public.blob.vercel-storage.com/design-md/styled-brand.md";
+    projectFindUniqueMock.mockResolvedValue({
+      designMdUrl,
+      contextMd: "We never use serif.",
+    });
+    ssrfSafeFetchMock.mockResolvedValue(
+      new Response("# Brand\nUse crimson.", { status: 200 }),
+    );
+    readReferenceImageMock.mockResolvedValue({
+      bytes: Buffer.from("print"),
+      contentType: "image/jpeg",
+      description: "a poster",
+    } as never);
+    uploadReferenceMock.mockResolvedValue("https://v3b.fal.media/files/s.jpg");
+    const stored = jobRow({
+      model: "google/nano-banana-2.1/edit",
+      kind: "EDIT",
+      prompt: "Image 1 is a 1930s poster.",
+      referenceLibraryIds: ["0199c1f0-0000-7000-8000-000000000001"],
+    });
+    jobCreateMock.mockResolvedValue(stored);
+    jobFindUniqueOrThrowMock.mockResolvedValue(stored);
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "s-1" });
+    await createImageJob({
+      ...BASE_INPUT,
+      prompt: "Image 1 is a 1930s poster.",
+      modelId: "nano-banana-2-1",
+      referenceLibraryIds: ["0199c1f0-0000-7000-8000-000000000001"],
+    });
+    expect(submitToQueueMock.mock.calls[0]![0].input.prompt).toBe(
+      "Image 1 is a 1930s poster.",
+    );
+  });
+
+  // cmo-v11: the picture borrows only the reference's layout.
+  it("sends a layout-only style reference as a block map, not the print", async () => {
+    const print = await (await import("sharp"))
+      .default({
+        create: { width: 80, height: 100, channels: 3, background: "#c33" },
+      })
+      .jpeg()
+      .toBuffer();
+    readReferenceImageMock.mockResolvedValue({
+      bytes: print,
+      contentType: "image/jpeg",
+      description: "a poster",
+    } as never);
+    uploadReferenceMock.mockResolvedValue("https://v3b.fal.media/files/m.png");
+    const stored = jobRow({
+      model: "google/nano-banana-2.1/edit",
+      kind: "EDIT",
+      prompt: "Image 1 is a block map.",
+      referenceLibraryIds: ["0199c1f0-0000-7000-8000-000000000001"],
+      styleLayoutOnly: true,
+    });
+    jobCreateMock.mockResolvedValue(stored);
+    jobFindUniqueOrThrowMock.mockResolvedValue(stored);
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "m-1" });
+    await createImageJob({
+      ...BASE_INPUT,
+      prompt: "Image 1 is a block map.",
+      modelId: "nano-banana-2-1",
+      referenceLibraryIds: ["0199c1f0-0000-7000-8000-000000000001"],
+      styleLayoutOnly: true,
+    });
+    const sent = uploadReferenceMock.mock.calls[0]![0];
+    expect(sent.contentType).toBe("image/png");
+    expect(sent.fileName).toBe(
+      "layout-0199c1f0-0000-7000-8000-000000000001.png",
+    );
+    const { channels } = await (await import("sharp"))
+      .default(sent.bytes)
+      .stats();
+    // Grey only: the print's red never reaches the model.
+    expect(channels[0]!.mean).toBeCloseTo(channels[1]!.mean, 0);
+  });
+
   it("sends Design and Memory to fal and keeps the stored prompt as the brief", async () => {
     // Own URL: readDesignMdContent caches by URL across the test process.
     const designMdUrl =
@@ -1055,6 +1212,8 @@ describe("image studio job submission", () => {
           )
           .digest("hex"),
         brandLook: Prisma.DbNull,
+        route: null,
+        experimentArm: null,
         assemblyVersion: STUDIO_PROMPT_ASSEMBLY_VERSION,
         templateId: null,
         creativeDirection: null,
@@ -1070,16 +1229,30 @@ describe("image studio job submission", () => {
       variationIndex: 0,
     };
     const look = { colors: ["#123456"], fonts: ["Inter"] };
-    const stored = jobRow({ ...context, exportHeadline: "Approved headline" });
+    const settings = {
+      ...BASE_INPUT.settings,
+      route: "photo_ad" as const,
+      experimentArm: "router:opus-5.5" as const,
+    };
+    const stored = jobRow({
+      ...context,
+      settings,
+      exportHeadline: "Approved headline",
+    });
     projectFindUniqueMock.mockResolvedValue({ studioBrandLook: look });
     jobCreateMock.mockResolvedValue(stored);
     jobFindUniqueOrThrowMock.mockResolvedValue(stored);
     submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
 
-    await createImageJob({ ...BASE_INPUT, ...context });
+    await createImageJob({
+      ...BASE_INPUT,
+      ...context,
+      experimentArm: settings.experimentArm,
+      route: settings.route,
+    });
 
     expect(jobCreateMock).toHaveBeenCalledWith({
-      data: expect.objectContaining(context),
+      data: expect.objectContaining({ ...context, settings }),
     });
     const finalPrompt = submitToQueueMock.mock.calls[0]![0].input.prompt;
     expect(finalPrompt).toContain(
@@ -1091,6 +1264,8 @@ describe("image studio job submission", () => {
         ...context,
         finalPrompt,
         brandLook: look,
+        experimentArm: settings.experimentArm,
+        route: settings.route,
         brandContextHash: createHash("sha256")
           .update(
             [
@@ -1106,6 +1281,8 @@ describe("image studio job submission", () => {
         ...context,
         finalPrompt,
         brandLook: look,
+        experimentArm: settings.experimentArm,
+        route: settings.route,
       }),
     });
   });

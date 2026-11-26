@@ -1,0 +1,16 @@
+/* Hallmark · macrostructure: Long Document · tone: CMO brand · anchor hue: Iris */
+.legal-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s-5); padding: var(--s-5) var(--gutter); border-bottom: var(--line); }
+.legal-header nav { display: flex; flex-wrap: wrap; gap: var(--s-5); }
+.legal-header nav a { display: inline-flex; align-items: center; min-height: 44px; text-underline-offset: 4px; }
+.legal-document { max-width: 76ch; margin: 0 auto; padding: var(--s-9) var(--gutter); overflow-wrap: anywhere; }
+.legal-document h1 { font-size: var(--text-h2); line-height: 1.1; margin-bottom: var(--s-7); }
+.legal-document h2 { font-size: var(--text-h3); line-height: 1.2; margin: var(--s-7) 0 var(--s-4); scroll-margin-top: var(--s-5); }
+.legal-document p, .legal-document li { font-size: var(--text-body); line-height: 1.65; }
+.legal-document p, .legal-document ul { margin-bottom: var(--s-4); }
+.legal-document ul, .legal-contents ol { padding-left: var(--s-5); }
+.legal-document li + li { margin-top: var(--s-3); }
+.legal-document a { text-decoration: underline; text-underline-offset: 4px; }
+.legal-contents { border-bottom: var(--line); padding-bottom: var(--s-7); }
+.legal-contents h2 { margin-top: 0; }
+.legal-contents a { display: inline-block; padding-block: var(--s-1); }
+.legal-contents li + li { margin-top: 0; }

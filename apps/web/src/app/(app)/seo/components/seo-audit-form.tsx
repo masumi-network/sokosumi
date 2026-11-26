@@ -76,7 +76,8 @@ export function SeoAuditForm({
           loading={form.pending}
           disabled={form.pending}
         >
-          <Plus />
+          {/* Plus reads as add: the dialog adds an audit, onboarding moves on. */}
+          {showCancel ? <Plus /> : null}
           {t(showCancel ? "audits.create" : "audits.continue")}
         </Button>
       </DialogFooter>

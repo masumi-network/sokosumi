@@ -10,6 +10,17 @@ import {
 import { taskWorkerContextSchema } from "./task-worker-context.schema";
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
+export const seoAuditSearchConsoleAccessSchema = z.object({
+  propertyId: z.string().min(1).max(500),
+  connectionVersion: hash,
+  includeSitemaps: z.literal(true).optional(),
+  includePropertyTotals: z.literal(true).optional(),
+  includePageDiscovery: z.literal(true).optional(),
+});
+export const storedSeoAuditSearchConsoleSchema = z.object({
+  searchConsoleAccess: seoAuditSearchConsoleAccessSchema.nullable().optional(),
+});
+
 /** A retry keeps the original Google read time for each reused page. Only Core writes these timestamps. */
 export const seoReusedInspectionTimesSchema = z.record(
   seoUrlSchema,

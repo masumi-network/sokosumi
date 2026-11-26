@@ -32,7 +32,12 @@ const ben = { id: "contact-2", name: "Ben" } as Contact;
 const key = [...CONTACTS_KEY, "ws", {}];
 
 function setup(options?: { restore: boolean }) {
-  const cache = new QueryClient();
+  const cache = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
   cache.setQueryData(key, {
     pages: [{ contacts: [ada, ben], nextCursor: null, total: 2 }],
     pageParams: [null],
@@ -72,7 +77,7 @@ describe("useContactArchive", () => {
     expect(f.toastSuccess).not.toHaveBeenCalled();
     expect(invalidate).not.toHaveBeenCalled();
     finish();
-    await act(() => done);
+    await act(async () => done);
     expect(f.toastSuccess).toHaveBeenCalledOnce();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: CONTACTS_KEY });
   });
@@ -80,7 +85,7 @@ describe("useContactArchive", () => {
   it("says so and reloads the contacts when the save fails", async () => {
     f.archive.mockRejectedValueOnce({ message: "No access" });
     const { archive, invalidate } = setup();
-    await act(() => archive(ada, () => {}));
+    await act(async () => archive(ada, () => {}));
     expect(f.toastError).toHaveBeenCalledWith("panel.archiveFailed Ada", {
       description: "No access",
     });
@@ -98,7 +103,7 @@ describe("useContactArchive", () => {
     await act(async () => void (done = archive(ada, () => {})));
     expect(f.toastError).not.toHaveBeenCalled();
     reloaded();
-    await act(() => done);
+    await act(async () => done);
     expect(f.toastError).toHaveBeenCalledOnce();
   });
 
@@ -110,7 +115,7 @@ describe("useContactArchive", () => {
       invalidate.mockImplementation(() => new Promise(() => {}));
       await act(async () => void archive(ada, () => {}));
       expect(f.toastError).not.toHaveBeenCalled();
-      await act(() => vi.advanceTimersByTimeAsync(FAILURE_TOAST_WAIT_MS));
+      await act(async () => vi.advanceTimersByTimeAsync(FAILURE_TOAST_WAIT_MS));
       expect(f.toastError).toHaveBeenCalledOnce();
     } finally {
       vi.useRealTimers();
@@ -154,7 +159,7 @@ describe("useContactArchive", () => {
     f.unarchive.mockResolvedValueOnce(undefined);
     const { archive: restore, shown, invalidate } = setup({ restore: true });
     const onDone = vi.fn();
-    await act(() => restore(ada, onDone));
+    await act(async () => restore(ada, onDone));
     expect(f.unarchive).toHaveBeenCalledWith("contact-1");
     expect(f.archive).not.toHaveBeenCalled();
     expect(shown()).toEqual(["contact-2"]);
@@ -166,7 +171,7 @@ describe("useContactArchive", () => {
   it("says a restore failed, after the reload brings the row back", async () => {
     f.unarchive.mockRejectedValueOnce({ message: "No access" });
     const { archive: restore } = setup({ restore: true });
-    await act(() => restore(ada, () => {}));
+    await act(async () => restore(ada, () => {}));
     expect(f.toastError).toHaveBeenCalledWith("panel.restoreFailed Ada", {
       description: "No access",
     });

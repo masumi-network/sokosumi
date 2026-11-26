@@ -23,16 +23,15 @@ import {
   TranscriptViewport,
   type TranscriptViewportHandle,
 } from "@/app/chat/components/transcript-viewport";
-import { useQuietHoverWhileScrolling } from "@/app/chat/hooks/use-quiet-hover-while-scrolling";
 import { isCurrentUserMentionerOfFailedShell } from "@/app/chat/utils/coworker-thought";
 import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
+import { useQuietHoverWhileScrolling } from "@/hooks/effects/use-quiet-hover-while-scrolling";
 import { cn } from "@/lib/utils";
 import type { ChatRoomMessageLink } from "@/lib/utils/notification-href";
-import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
 import {
   type ChatParticipantHoverProfile,
@@ -43,6 +42,7 @@ import {
 import { ChatMessageRow } from "./room-message-row";
 import {
   RoomSessionComposer,
+  type RoomSessionComposerHandle,
   type RoomSessionSendRequest,
   type RoomSessionSendResult,
 } from "./room-session-composer";
@@ -207,7 +207,7 @@ export function ThreadPanel({
   viewportRef?: RefObject<TranscriptViewportHandle | null>;
 }) {
   const t = useTranslations("App.Channels");
-  const threadComposerRef = useRef<RoomComposerHandle | null>(null);
+  const threadComposerRef = useRef<RoomSessionComposerHandle | null>(null);
   const localViewportRef = useRef<TranscriptViewportHandle | null>(null);
   const viewportRef = viewportRefFromParent ?? localViewportRef;
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);

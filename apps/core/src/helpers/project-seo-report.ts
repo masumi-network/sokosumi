@@ -1,41 +1,80 @@
 import { z } from "@hono/zod-openapi";
-
 import { badRequest } from "@/helpers/error";
 import {
   seoConversionSchema,
   seoDeviceSchema,
+  seoEditorialKeywordSchema,
+  seoIdeaRankSchema,
   seoModuleCoverageSchema,
   seoSeveritySchema,
   seoUrlSchema,
 } from "@/schemas/project-seo.schema";
+import {
+  OPEN_STRATEGY,
+  publicDecisionSourceSchema,
+  publicPageSnapshotSchema,
+  storedSeoDecisionsSchema,
+} from "@/schemas/project-seo-action.schema";
+import { seoSeasonalIdeaSchema } from "@/schemas/project-seo-seasonal.schema";
 import { seoStrategyPayloadSchema } from "@/schemas/project-seo-strategy.schema";
+import {
+  seoPageMarketEvidence,
+  seoResearchCoverage,
+  storedSeoChecklist,
+} from "@/schemas/seo-audit-coverage.schema";
+import { seoAuditFinalUrls } from "@/schemas/seo-page.schema";
+import { seoPageSpeed } from "@/schemas/seo-page-speed.schema";
+import * as seoDecisions from "./project-seo-decisions";
 import { assertValidPartialSeoActions } from "./project-seo-partial-actions";
-import { legacyReportKeywords } from "./project-seo-report-keywords";
+import {
+  finiteReportNumber as numberAt,
+  reportObject as object,
+  omitUndefinedProperties,
+  refusePrivateReport,
+  skippedPages,
+} from "./project-seo-public-report";
+import {
+  difficulty,
+  estimate,
+  FEATURE_CHARS,
+  legacyReportKeywords,
+} from "./project-seo-report-keywords";
+import { seoReportPageScope } from "./project-seo-report-scope";
 import {
   focusedSerpFields,
   seoAlertRowsSchema,
   seoSerpReadsSchema,
 } from "./project-seo-report-serps";
+import { readSeasonalInsight } from "./project-seo-seasonal";
 import {
   auditedSeoPageKey,
   publicSiteFindings,
 } from "./project-seo-site-findings";
 import { publicSeoStrategy } from "./project-seo-strategy";
+import { focusedRuleCoverage, readChecklist } from "./seo-checklist-breakdown";
+import {
+  articleDates,
+  boundTopicLaunches,
+  publicSiteArticles,
+  seoArticleDates,
+  seoTopicLaunch,
+} from "./seo-content-history";
+import { readPageMarketEvidence } from "./seo-page-market-evidence";
+import { readPageSpeed } from "./seo-page-speed";
+import { publicSitemapList, workerSitemaps } from "./seo-public-sitemaps";
+import {
+  readReviewSources,
+  seoReviewSource,
+} from "./seo-recommendation-evidence";
+import {
+  pageResearchCoverage,
+  siteResearchCoverage,
+} from "./seo-research-coverage";
 
 const text = z.string().max(20_000);
 const nullableNumber = z.number().finite().nullable();
 const observedAt = z.string().datetime();
 const source = z.object({ sourceRef: text, observedAt });
-const FEATURE_CHARS = 200;
-// DataForSEO keyword_difficulty: 0 to 100. A value Core cannot read is dropped: it must not fail the import.
-const difficulty = z
-  .number()
-  .finite()
-  .min(0)
-  .max(100)
-  .nullable()
-  .optional()
-  .catch(undefined);
 const finding = source.extend({
   id: text,
   pageUrl: seoUrlSchema,
@@ -55,6 +94,8 @@ const keyword = source.extend({
   volume: nullableNumber.optional(),
   difficulty,
   intent: text.nullable().optional(),
+  editorial: seoEditorialKeywordSchema.optional(),
+  ideaRank: seoIdeaRankSchema,
   conversion: seoConversionSchema.nullable().optional(),
   feature: z.string().max(FEATURE_CHARS).nullable().optional(),
   source: text.optional(),
@@ -80,7 +121,7 @@ const action = z.object({
     .object({ target: text, before: text.nullable(), after: text })
     .nullable(),
 });
-export const publicSeoPayloadSchema = z.object({
+const publicSeoPayload = z.object({
   version: z.literal(1),
   kind: z.string().max(100),
   requestId: z.string().uuid().nullable(),
@@ -89,16 +130,11 @@ export const publicSeoPayloadSchema = z.object({
   countryCode: z.string().max(10),
   languageCode: z.string().max(20),
   rulebookVersion: text,
-  checks: z
-    .array(
-      z.object({
-        rowId: text,
-        pageUrl: seoUrlSchema,
-        device: seoDeviceSchema,
-        result: z.enum(["pass", "fired", "blocked", "not_checked"]),
-      }),
-    )
-    .max(10000),
+  researchCoverage: z.array(seoResearchCoverage).max(11).optional(),
+  pageMarketEvidence: seoPageMarketEvidence.optional(),
+  publicSitemaps: publicSitemapList.optional().catch(undefined),
+  pageSpeed: seoPageSpeed.optional(),
+  checks: storedSeoChecklist,
   keywords: z.array(keyword).max(5000),
   competitors: z.array(competitor).max(1000),
   findings: z.array(finding).max(5000),
@@ -112,43 +148,30 @@ export const publicSeoPayloadSchema = z.object({
   notes: z.array(text).max(500),
   /** A site audit's strategy results. Older rows and focused checks have none. */
   strategy: seoStrategyPayloadSchema.optional(),
+  strategyDecisions: storedSeoDecisionsSchema.optional(),
+  plan: z.json().optional(), // readAuditPlan writes it, scopedAuditPlan reads it
+  articleDates: z.array(seoArticleDates).max(10).optional(),
+  topicLaunches: z.array(seoTopicLaunch).max(10).optional(),
+  reviewSources: z.array(seoReviewSource).max(10).optional(),
+  seasonalIdeas: z.array(seoSeasonalIdeaSchema).max(100).optional(),
+  decisionSources: z
+    .array(publicDecisionSourceSchema)
+    .max(10)
+    .optional()
+    .catch(undefined),
   /** A focused result's SERP reads per keyword and device. Older results and audits have none. */
   serps: seoSerpReadsSchema.optional(),
   /** Monitor rule ids that fired in a focused result's Run. */
   alertRows: seoAlertRowsSchema.optional(),
 });
+export const publicSeoPayloadSchema = publicSeoPayload.transform(
+  omitUndefinedProperties,
+);
 export type PublicSeoPayload = z.infer<typeof publicSeoPayloadSchema>;
-
-function focusedRuleCoverage(
-  checks: PublicSeoPayload["checks"],
-  modules: NonNullable<PublicSeoPayload["coverage"]["modules"]>,
-): PublicSeoPayload["coverage"] {
-  return {
-    checked: checks.filter(
-      (check) => check.result === "pass" || check.result === "fired",
-    ).length,
-    skipped: checks.filter((check) => check.result === "not_checked").length,
-    failed: checks.filter((check) => check.result === "blocked").length,
-    modules,
-  };
-}
-
-/** Older focused payloads stored module counts in the rule coverage fields. */
-export function seoPayloadCoverage(
-  payload: PublicSeoPayload,
-): PublicSeoPayload["coverage"] {
-  if (payload.kind === "audit_full") return payload.coverage;
-  return focusedRuleCoverage(
-    payload.checks,
-    payload.coverage.modules ?? {
-      notRequested: payload.coverage.skipped,
-      failed: payload.coverage.failed,
-    },
-  );
-}
 
 const frozenRequest = z.object({
   pageUrls: z.array(seoUrlSchema).min(1),
+  autoPages: z.number().int().min(1).optional(),
   countryCode: text,
   languageCode: text,
   keywords: z.array(text).optional(),
@@ -160,19 +183,6 @@ const sameSet = (a: string[], b: string[]) =>
   a.length === b.length &&
   a.every((value) => b.includes(value));
 
-// A site audit keeps going when one page Run fails. The worker names that page in `selection.skipped`.
-const siteSkipped = z.object({
-  selection: z.object({
-    skipped: z
-      .array(z.object({ url: seoUrlSchema, reason: z.string() }))
-      .max(10),
-  }),
-});
-const skippedPages = (raw: unknown) => {
-  if (object(raw)?.kind !== "site") return [];
-  const parsed = siteSkipped.safeParse(raw);
-  return parsed.success ? parsed.data.selection.skipped : [];
-};
 const SKIPPED_REASON_CHARS = 300;
 
 /** Bind evidence to the durable request, including Market, devices and approved external targets. */
@@ -184,29 +194,30 @@ export function assertSeoArtifactMatchesRequest(
   const parsed = frozenRequest.safeParse(expected.request);
   if (!parsed.success)
     throw badRequest("The frozen SEO request is not readable");
-  const request = parsed.data,
-    pageUrls = request.pageUrls.map(auditedSeoPageKey),
-    reported = payload.pageUrls.map(auditedSeoPageKey),
-    skipped = skippedPages(raw).map((page) => auditedSeoPageKey(page.url));
-  // Every reported page is in scope, and every page in scope is reported or named as skipped, never both.
+  const request = parsed.data;
   if (
     payload.kind !== expected.kind ||
-    new Set(reported).size !== reported.length ||
-    reported.some((url) => !pageUrls.includes(url)) ||
-    pageUrls.some((url) => !reported.includes(url) && !skipped.includes(url)) ||
-    skipped.some((url) => !pageUrls.includes(url) || reported.includes(url)) ||
     payload.countryCode !== request.countryCode ||
     payload.languageCode !== request.languageCode
   )
     throw badRequest(
       "The report does not match its frozen page scope or Market",
     );
+  const { scope: pageUrls, reported } = seoReportPageScope(
+    raw,
+    payload.pageUrls,
+    request,
+    expected.kind === "audit_full",
+  );
   if (
     payload.checks.some(
       (row) => !pageUrls.includes(auditedSeoPageKey(row.pageUrl)),
     ) ||
     payload.findings.some(
       (row) => !pageUrls.includes(auditedSeoPageKey(row.pageUrl)),
+    ) ||
+    payload.strategyDecisions?.some(
+      (row) => !reported.includes(auditedSeoPageKey(row.targetUrl)),
     ) ||
     payload.actions.some(
       (row) => !pageUrls.includes(auditedSeoPageKey(row.pageUrl)),
@@ -258,53 +269,6 @@ export function assertSeoArtifactMatchesRequest(
     throw badRequest("The result contains an unapproved link target");
 }
 
-const object = (value: unknown): Record<string, unknown> | null =>
-  value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-const PRIVATE_FIELDS = [
-  "searchConsole",
-  "searchConsoleNear",
-  "outcomes",
-  "outcomeEvidence",
-  "outcomeReading",
-  "searchOutcomes",
-  "businessOutcome",
-  "pageComparison",
-];
-function refusePrivateReport(raw: unknown): void {
-  const input = object(raw);
-  const request = object(input?.request);
-  if (
-    !input ||
-    PRIVATE_FIELDS.some((key) => input[key] !== undefined) ||
-    (request &&
-      (["outcomeSnapshot", "outcomeImport", "outcomes", "outcome"].some(
-        (key) => request[key] !== undefined,
-      ) ||
-        (Array.isArray(request.connections) && request.connections.length > 0)))
-  )
-    throw badRequest("Only public SEO evidence can be imported");
-  const header = object(input.header);
-  if (
-    Array.isArray(header?.focusKeywords) &&
-    header.focusKeywords.some((row) => {
-      const item = object(row);
-      return (
-        item &&
-        ["searchConsole", "searchConsoleNote", "primary"].some(
-          (key) => item[key] !== undefined,
-        )
-      );
-    })
-  )
-    throw badRequest("Private search evidence cannot be imported");
-  if (Array.isArray(input.pages))
-    input.pages.forEach((page) =>
-      refusePrivateReport(object(page)?.report ?? page),
-    );
-}
-
 const partial = z
   .object({
     schema: z.literal("sokosumi.seo-result/1"),
@@ -333,7 +297,14 @@ const partial = z
       .max(10000),
     // A focused result carries no estimate: only a page Report does. One sent all the same is not read.
     keywords: z
-      .array(keyword.omit({ conversion: true, feature: true }))
+      .array(
+        keyword.omit({
+          conversion: true,
+          feature: true,
+          editorial: true,
+          ideaRank: true,
+        }),
+      )
       .max(5000),
     competitors: z.array(competitor).max(1000),
     findings: z.array(finding).max(5000),
@@ -347,23 +318,19 @@ const partial = z
     gaps: z.array(z.object({ reason: text }).passthrough()).max(500),
   })
   .passthrough();
-// A page Report's estimate for a keyword. A value Core cannot read is dropped: it must not fail the import.
-const estimate = {
-  conversion: seoConversionSchema.optional().catch(undefined),
-  feature: z
-    .string()
-    .trim()
-    .min(1)
-    .max(FEATURE_CHARS)
+// Two seasonal reviewers can each propose five searches. History can supply three further terms.
+const MAX_SEASONAL_IDEAS = 13;
+const legacy = z.object({
+  seasonalReview: z
+    .object({ insights: z.array(z.unknown()).max(MAX_SEASONAL_IDEAS) })
     .optional()
     .catch(undefined),
-};
-const legacy = z.object({
   request: z.object({ url: seoUrlSchema }),
   snapshotId: text,
   rulebookVersion: text,
   header: z.object({
     capturedAt: observedAt,
+    finalUrl: seoAuditFinalUrls,
     market: z.object({ country: text, language: text }).nullable(),
     focusKeywords: z
       .array(
@@ -470,6 +437,15 @@ const legacy = z.object({
     .catch(null),
   keywordOpportunities: z
     .object({
+      editorialResearch: z
+        .object({
+          status: z.enum(["complete", "partial", "skipped"]),
+          proposed: z.number().int().nonnegative(),
+          checked: z.number().int().nonnegative(),
+          qualified: z.number().int().nonnegative(),
+        })
+        .optional()
+        .catch(undefined),
       list: z.array(
         z.object({
           keyword: text,
@@ -477,6 +453,7 @@ const legacy = z.object({
           difficulty,
           position: nullableNumber,
           intent: text.nullable(),
+          editorial: seoEditorialKeywordSchema.optional().catch(undefined),
           ...estimate,
         }),
       ),
@@ -490,6 +467,8 @@ const legacy = z.object({
         row: text,
         device: seoDeviceSchema,
         result: z.enum(["pass", "fired", "blocked", "not checked"]),
+        sourceReason: z.string().optional().catch(undefined),
+        detail: z.string().optional().catch(undefined),
       }),
     )
     .max(10000),
@@ -497,14 +476,6 @@ const legacy = z.object({
 });
 /** The SEO bot's own Report JSON, as far as Core reads it. */
 export type LegacySeoReport = z.infer<typeof legacy>;
-const numberAt = (value: unknown, keys: string[]): number | null => {
-  let current = value;
-  for (const key of keys) current = object(current)?.[key];
-  return typeof current === "number" && Number.isFinite(current)
-    ? current
-    : null;
-};
-
 /** Parse trusted artifact bytes, keeping an explicit projection rather than arbitrary report fields. */
 export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
   refusePrivateReport(raw);
@@ -518,17 +489,76 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     if (!site.success)
       throw badRequest("The site report does not match its supported format");
     const pages = site.data.pages.map(parsePublicSeoArtifact),
-      first = pages[0],
+      {
+        strategy: _firstPageStrategy,
+        pageMarketEvidence: _standaloneMarkets,
+        ...first
+      } = pages[0],
       pageUrls = pages.flatMap((page) => page.pageUrls),
       { strategy, note } = publicSeoStrategy(raw, pageUrls),
       siteFindings = publicSiteFindings(raw, pageUrls, first.observedAt);
+    const eligible = pages.flatMap((page, i) => {
+      if (
+        page.kind !== "audit_full" ||
+        page.countryCode !== first.countryCode ||
+        page.languageCode !== first.languageCode
+      )
+        return [];
+      const child = object(site.data.pages[i]);
+      const sourceUrl = child?.kind !== "site" && object(child?.request)?.url;
+      return page.pageUrls.map((url) => ({
+        url,
+        snapshotId: url === sourceUrl ? child?.snapshotId : undefined,
+      }));
+    });
+    const articles = publicSiteArticles(raw, pages);
+    const sources = seoDecisions.bindMarketSource(
+      object(raw),
+      eligible.flatMap((item) => {
+        const result = publicPageSnapshotSchema.safeParse(item);
+        return result.success ? [result.data] : [];
+      }),
+    );
+    const ranks = pages.flatMap((p) => p.reviewSources ?? []);
+    const decisions = seoDecisions.readWorkerDecisions(
+      raw,
+      eligible.map((page) => page.url),
+      sources,
+      ranks,
+    );
     return publicSeoPayloadSchema.parse({
       ...first,
       kind: "audit_full",
       pageUrls,
+      pageSpeed: pages.flatMap((page) => page.pageSpeed ?? []),
+      strategyDecisions: decisions,
+      decisionSources: decisions?.some((d) => d.kind === OPEN_STRATEGY)
+        ? sources
+        : undefined,
+      articleDates: articles.length ? articles : undefined,
+      topicLaunches: boundTopicLaunches(
+        raw,
+        articles,
+        Math.max(...pages.map((p) => Date.parse(p.observedAt))),
+      ),
+      reviewSources: ranks,
+      researchCoverage: siteResearchCoverage(
+        raw,
+        first.pageUrls[0]!,
+        pages.flatMap((p) => p.researchCoverage ?? []),
+      ),
       checks: pages.flatMap((page) => page.checks),
       keywords: pages.flatMap((page) => page.keywords),
       competitors: pages.flatMap((page) => page.competitors),
+      ...(pages.some((page) => page.seasonalIdeas) && {
+        seasonalIdeas: pages
+          .filter(
+            (page) =>
+              page.countryCode === first.countryCode &&
+              page.languageCode === first.languageCode,
+          )
+          .flatMap((page) => page.seasonalIdeas ?? []),
+      }),
       findings: [
         ...pages.flatMap((page, index) =>
           page.findings.map((row) => ({ ...row, id: `${index}:${row.id}` })),
@@ -556,7 +586,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
         ),
         ...(note ? [note] : []),
       ],
-      strategy,
+      ...(strategy !== undefined ? { strategy } : {}),
     });
   }
   if (object(raw)?.schema === "sokosumi.seo-result/1") {
@@ -564,7 +594,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     if (!parsed.success)
       throw badRequest("The SEO result does not match its supported format");
     const result = parsed.data,
-      serp = focusedSerpFields(result);
+      { notes: serpNotes, ...serpFields } = focusedSerpFields(result);
     assertValidPartialSeoActions(result);
     return publicSeoPayloadSchema.parse({
       version: 1,
@@ -589,9 +619,8 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
         notRequestedNames: result.coverage.skipped,
         failedNames: result.coverage.failed,
       }),
-      notes: [...result.gaps.map((gap) => gap.reason), ...serp.notes],
-      serps: serp.serps,
-      alertRows: serp.alertRows,
+      notes: [...result.gaps.map((gap) => gap.reason), ...serpNotes],
+      ...serpFields,
     });
   }
   const parsed = legacy.safeParse(raw);
@@ -600,6 +629,19 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
   const result = parsed.data,
     pageUrl = result.request.url,
     at = result.header.capturedAt;
+  const publicTargets = [
+    pageUrl,
+    ...Object.values(result.header.finalUrl ?? {}),
+  ].flatMap((value) => (value ? [auditedSeoPageKey(value)] : []));
+  const seasonalIdeas = result.seasonalReview?.insights
+    .flatMap((row) => readSeasonalInsight(row) ?? [])
+    .filter(
+      (idea) =>
+        publicTargets.includes(auditedSeoPageKey(idea.url)) &&
+        idea.country === result.header.market?.country &&
+        idea.language === result.header.market?.language,
+    )
+    .map((idea) => ({ ...idea, url: pageUrl }));
   const findings = result.findings.flatMap((row) =>
     row.devices.map((device) => ({
       id: `${row.id}:${device}`,
@@ -613,7 +655,8 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       observedAt: at,
     })),
   );
-  const keywords = legacyReportKeywords(result, pageUrl, at);
+  const keywords = legacyReportKeywords(result, pageUrl, at),
+    ranks = readReviewSources(raw);
   const competitors: z.infer<typeof competitor>[] = (
     result.rankingData?.competitors ?? []
   ).map((row) => ({
@@ -647,16 +690,34 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     kind: "audit_full",
     requestId: null,
     pageUrls: [pageUrl],
+    publicSitemaps: workerSitemaps(raw, result),
+    pageSpeed: readPageSpeed(
+      object(raw)?.speed,
+      pageUrl,
+      result.header.finalUrl,
+    ),
+    pageMarketEvidence: readPageMarketEvidence(
+      object(raw)?.pageMarketEvidence,
+      pageUrl,
+      Object.values(result.header.finalUrl ?? {}),
+    ),
+    reviewSources: ranks,
+    articleDates: articleDates(raw, pageUrl, at),
     observedAt: at,
     countryCode: result.header.market?.country ?? "",
     languageCode: result.header.market?.language ?? "",
     rulebookVersion: result.rulebookVersion,
-    checks: result.checklist.map((row) => ({
-      rowId: row.row,
-      pageUrl,
-      device: row.device,
-      result: row.result === "not checked" ? "not_checked" : row.result,
-    })),
+    ...seoDecisions.singlePageDecisions(raw, result, ranks),
+    ...(seasonalIdeas && { seasonalIdeas }),
+    researchCoverage: [
+      {
+        ...pageResearchCoverage(raw, pageUrl),
+        ...(result.keywordOpportunities?.editorialResearch && {
+          rankedKeywordIdeas: true,
+        }),
+      },
+    ],
+    checks: readChecklist(result.checklist, result.couldNotSee, pageUrl),
     keywords,
     competitors,
     findings,
@@ -675,11 +736,12 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       edit: row.edit ? { ...row.edit, before: row.edit.before ?? null } : null,
     })),
     coverage: {
-      checked: result.checklist.filter((row) => row.result !== "not checked")
-        .length,
+      checked: result.checklist.filter(
+        (row) => row.result === "pass" || row.result === "fired",
+      ).length,
       skipped: result.checklist.filter((row) => row.result === "not checked")
         .length,
-      failed: 0,
+      failed: result.checklist.filter((row) => row.result === "blocked").length,
     },
     notes: result.couldNotSee.map((row) => `${row.item}: ${row.reason}`),
   });

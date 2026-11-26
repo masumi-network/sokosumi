@@ -96,11 +96,9 @@ function SocialPostFan() {
 
 function SocialPlatformCard({
   comingSoonLabel,
-  personalProfileLabel,
   provider,
 }: {
   comingSoonLabel: string;
-  personalProfileLabel: string;
   provider: (typeof SOCIAL_PROVIDERS)[number];
 }) {
   const { isProviderEnabled } = useSocialProviderAvailability();
@@ -111,10 +109,6 @@ function SocialPlatformCard({
         <p className="text-sm font-medium">{provider.name}</p>
         {!isProviderEnabled(provider.id) ? (
           <Badge variant="secondary">{comingSoonLabel}</Badge>
-        ) : provider.id === "linkedin" ? (
-          <span className="text-muted-foreground block text-xs">
-            {personalProfileLabel}
-          </span>
         ) : null}
       </div>
     </div>
@@ -126,7 +120,6 @@ function SocialPlatformCarousel() {
   const t = useTranslations("App.Social");
   const accounts = useTranslations("App.Projects.ProjectSocialAccounts");
   const comingSoonLabel = accounts("comingSoon");
-  const personalProfileLabel = accounts("personalProfile");
   const providers = socialProvidersEnabledFirst(
     useSocialProviderAvailability().enabledProviders,
   );
@@ -150,11 +143,11 @@ function SocialPlatformCarousel() {
       >
         <div
           aria-hidden
-          className="from-background pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-linear-to-r to-transparent"
+          className="from-card-background pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-linear-to-r to-transparent"
         />
         <div
           aria-hidden
-          className="from-background pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-linear-to-l to-transparent"
+          className="from-card-background pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-linear-to-l to-transparent"
         />
         <div className="-ml-3 flex w-max motion-safe:animate-social-platform-marquee motion-safe:group-active:[animation-play-state:paused] motion-safe:group-focus-within:[animation-play-state:paused] motion-safe:[@media(hover:hover)]:group-hover:[animation-play-state:paused]">
           {[0, 1].map((copy) => (
@@ -175,7 +168,6 @@ function SocialPlatformCarousel() {
                 >
                   <SocialPlatformCard
                     comingSoonLabel={comingSoonLabel}
-                    personalProfileLabel={personalProfileLabel}
                     provider={provider}
                   />
                 </li>

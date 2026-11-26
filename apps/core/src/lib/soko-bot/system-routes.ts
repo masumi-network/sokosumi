@@ -3,9 +3,17 @@ import {
   isSokoBotCapability,
   isSokoBotSandboxCapability,
   SOKO_BOT_CAPABILITIES,
+  SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
-import { type PresetRoute, presetClassificationResult } from "./classifier";
+import {
+  PRESET_VERSION,
+  type PresetRoute,
+  presetClassificationResult,
+  storedWriteScope,
+} from "./classifier";
+
+const MEETING_PREP_REASON = "Meeting prep: brief the owner, change nothing.";
 
 /**
  * A mail check may also file attachments the owner's saved rules ask for
@@ -19,6 +27,57 @@ function withMailFiling(preset: PresetRoute): PresetRoute {
         presetClassificationResult("", preset).classification,
       ),
       "save_email_attachment",
+    ],
+  };
+}
+
+/** Turns Core starts when delegated work changes (`sokoBotEventClientTurnId`). */
+export const DELEGATION_EVENT_TURN_PREFIX = "event:";
+
+/**
+ * What a follow-up never inherits from the owner's request: anything that
+ * reaches other people or the owner's connected accounts, hiring, sending,
+ * runs and deletions. It acts on a result nobody has read yet; those wait for
+ * the owner's next message. A post it makes stays a draft (`social.ts`).
+ */
+const NOT_INHERITED_BY_FOLLOW_UPS = new Set<string>([
+  ...SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
+  "hire_agent",
+  "provide_job_input",
+  "send_email_draft",
+  "start_background_run",
+  "stop_background_run",
+]);
+
+/**
+ * The delegation event route plus the writes of the owner's request that
+ * attached the follow-up, as schedules and watches inherit their writer's
+ * tools. "Research this, then prepare a post for me to approve" came back
+ * with the research to a turn that could not draft the post (owner
+ * benchmark, 2026-11-26).
+ */
+export function inheritedFollowUpRoute(
+  ownerGranted: readonly string[],
+): PresetRoute {
+  const preset = SYSTEM_TURN_ROUTES.events;
+  const inherited = ownerGranted.filter(
+    (name): name is SokoBotCapability =>
+      isSokoBotCapability(name) &&
+      !isSokoBotSandboxCapability(name) &&
+      !NOT_INHERITED_BY_FOLLOW_UPS.has(name) &&
+      !/^(delete|remove)_/.test(name),
+  );
+  if (!inherited.length) return preset;
+  return {
+    ...preset,
+    reason: "Delegation event: carry out the owner's follow-up plan.",
+    capabilities: [
+      ...new Set([
+        ...capabilitiesForClassification(
+          presetClassificationResult("", preset).classification,
+        ),
+        ...inherited,
+      ]),
     ],
   };
 }
@@ -78,8 +137,10 @@ export const SYSTEM_TURN_ROUTES = {
   },
   /** Brief before an external meeting: read and report, change nothing. */
   "meeting-prep": {
+    systemKey: "meeting-prep",
+    capabilities: [],
     route: "DIRECT_RESPONSE",
-    reason: "Meeting prep: brief the owner, change nothing.",
+    reason: MEETING_PREP_REASON,
   },
   "end-of-day": {
     route: "MANAGE_WORK",
@@ -154,6 +215,88 @@ export function systemScheduleRoute(
   return systemKey && Object.hasOwn(SYSTEM_TURN_ROUTES, systemKey)
     ? SYSTEM_TURN_ROUTES[systemKey as keyof typeof SYSTEM_TURN_ROUTES]
     : undefined;
+}
+
+interface StoredSystemRoute {
+  source: string;
+  classifierVersion: string | null;
+  classification: unknown;
+}
+
+export function storedMeetingPrepKind(
+  turn: StoredSystemRoute,
+): "current" | "legacy" | null {
+  if (turn.source !== "SCHEDULE" && turn.source !== "ADMIN_RETRY") return null;
+  const record = turn.classification;
+  if (
+    turn.classifierVersion !== PRESET_VERSION ||
+    !record ||
+    typeof record !== "object"
+  )
+    return null;
+  if ("systemKey" in record)
+    return record.systemKey === "meeting-prep" ? "current" : null;
+  // Before systemKey was stored, Core wrote this fixed reason for its preset.
+  return "rationaleSummary" in record &&
+    record.rationaleSummary === MEETING_PREP_REASON
+    ? "legacy"
+    : null;
+}
+
+export function isStoredMeetingPrep(turn: StoredSystemRoute): boolean {
+  return storedMeetingPrepKind(turn) !== null;
+}
+
+/** Only Core's preset for a rebuilt retry can attest to its original slot. */
+export function storedMeetingRetrySlot(turn: StoredSystemRoute): Date | null {
+  const record = turn.classification;
+  if (
+    turn.source !== "ADMIN_RETRY" ||
+    storedMeetingPrepKind(turn) !== "current" ||
+    !record ||
+    typeof record !== "object" ||
+    !("meetingPrepSlot" in record) ||
+    typeof record.meetingPrepSlot !== "string"
+  )
+    return null;
+  const slot = new Date(record.meetingPrepSlot);
+  return Number.isFinite(slot.getTime()) &&
+    slot.toISOString() === record.meetingPrepSlot
+    ? slot
+    : null;
+}
+
+/** Concurrent builders of the same retry can read different provider data. */
+export function matchesReservedTurnMessage(
+  turn: StoredSystemRoute & { userMessage: string },
+  message: string,
+  preset?: PresetRoute,
+): boolean {
+  if (preset?.systemKey === "meeting-prep" && preset.meetingPrepSlot)
+    return (
+      storedMeetingRetrySlot(turn)?.toISOString() === preset.meetingPrepSlot
+    );
+  return turn.userMessage === message;
+}
+
+export function failedTurnRoute(
+  failed: StoredSystemRoute & {
+    route: PresetRoute["route"] | null;
+    capabilityNames: readonly string[];
+  },
+): PresetRoute | undefined {
+  if (isStoredMeetingPrep(failed)) return SYSTEM_TURN_ROUTES["meeting-prep"];
+  if (!failed.route) return undefined;
+  // Replays on the route the failed turn had, never a wider one.
+  return {
+    route: failed.route,
+    writeScope: storedWriteScope(failed.classification),
+    reason: "Operator retry on the failed turn's route.",
+    sandbox: failed.capabilityNames.includes("bash"),
+    // The failed turn's own writes: a stand-up's narrower set,
+    // not its route's.
+    writes: failed.capabilityNames.filter(isSokoBotCapability),
+  };
 }
 
 /**

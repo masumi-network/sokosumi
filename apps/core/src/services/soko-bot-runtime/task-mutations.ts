@@ -6,6 +6,7 @@ import {
   sokoBotUpdateTaskInputSchema as taskUpdateInputSchema,
 } from "@sokosumi/soko-bot";
 import { buildTaskWriteAccessWhere } from "@/helpers/access-control";
+import { seoAuditTextUnchanged } from "@/helpers/seo-task-execution";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   actionInputHash,
@@ -206,7 +207,8 @@ export async function applyTaskMutation(
       !input.archive &&
       (input.name === undefined || input.name === before.name) &&
       (input.description === undefined ||
-        input.description === before.description) &&
+        input.description === before.description ||
+        seoAuditTextUnchanged(before.description, input.description)) &&
       (input.status === undefined || input.status === before.status) &&
       (input.projectId === undefined || input.projectId === before.projectId) &&
       !unassign
@@ -393,7 +395,10 @@ export async function assignTask(
         outcome: updated.status,
         lastSeenStatus: updated.status,
         taskId: updated.id,
-        followUp: input.followUp,
+        ...(input.followUp !== undefined ? { followUp: input.followUp } : {}),
+        ...(input.followUpAllows
+          ? { followUpAllows: input.followUpAllows }
+          : {}),
       },
     });
     {

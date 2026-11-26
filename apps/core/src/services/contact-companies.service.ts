@@ -5,14 +5,19 @@
  * Soko Bots and a background read of the company's website fill.
  */
 import type { Prisma } from "@sokosumi/database";
-import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { ssrfSafeFetch } from "@sokosumi/net";
 import { z } from "zod";
 import { conflict, notFound } from "@/helpers/error";
-import { literalSubstringPattern } from "@/helpers/project-activity";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { emitCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import {
+  type CompanyStats,
+  companyStats,
+  sortCompanies,
+} from "@/services/contact-company-search";
 import {
   generateWithContactModel,
   parseJsonObject,
@@ -78,69 +83,6 @@ export interface CompanySummary {
   listIds: string[];
 }
 
-interface CompanyStats {
-  key: string;
-  /** The group's name as lowercase letters and digits ("acmerobotics"). */
-  org: string | null;
-  spelling: string | null;
-  domain: string | null;
-  /** Every spelling its people write, as lowercase letters and digits. */
-  orgs: string[];
-  people: number;
-  teammates: number;
-  interactions: number;
-  lastContactAt: Date | null;
-  stages: string[];
-}
-
-/**
- * Every company the workspace's live contacts work at, with what the team's
- * contact with its people adds up to. Gives each new group its row first, so
- * every company has an id to read and edit.
- */
-async function companyStats(
-  workspaceId: string,
-  options: { search?: string; name?: string; keys?: readonly string[] } = {},
-): Promise<CompanyStats[]> {
-  const named = (pattern: string) => PrismaRaw.sql`a.key IN (
-      SELECT cc.key FROM contact_company cc
-      WHERE cc."workspaceId" = ${workspaceId}::uuid AND cc.name ILIKE ${pattern} ESCAPE '\\'
-    )`;
-  const search = options.search
-    ? PrismaRaw.sql`HAVING bool_or(a.raw ILIKE ${literalSubstringPattern(options.search)} ESCAPE '\\')
-        OR bool_or(a.key ILIKE ${literalSubstringPattern(options.search)} ESCAPE '\\')
-        OR ${named(literalSubstringPattern(options.search))}`
-    : PrismaRaw.empty;
-  // Exactly the company a name belongs to, as the contact filter reads it.
-  const name = options.name
-    ? PrismaRaw.sql`AND (a.key IN (
-        SELECT key FROM assigned
-        WHERE org = regexp_replace(lower(${options.name}), '[^[:alnum:]]+', '', 'g')
-      ) OR ${named(options.name.trim().replace(/[\\%_]/g, "\\$&"))})`
-    : PrismaRaw.empty;
-  const keys = options.keys
-    ? PrismaRaw.sql`AND a.key = ANY(${options.keys}::text[])`
-    : PrismaRaw.empty;
-  return prisma.$queryRaw<CompanyStats[]>`
-    ${contactCompaniesCte(workspaceId)}
-    SELECT a.key, min(a.cluster_org) AS org,
-      mode() WITHIN GROUP (ORDER BY a.raw) FILTER (WHERE a.org = a.cluster_org) AS spelling,
-      CASE WHEN a.key LIKE 'd:%' THEN substr(a.key, 3) END AS domain,
-      coalesce(array_agg(DISTINCT a.org) FILTER (WHERE a.org <> ''), '{}') AS orgs,
-      count(*)::int AS people,
-      (SELECT count(DISTINCT i."userId")::int FROM contact_interaction i
-        WHERE i."contactId" = ANY(array_agg(a.id)) AND i."userId" IS NOT NULL) AS teammates,
-      sum(c."interactionCount")::int AS interactions,
-      max(c."lastContactAt") AS "lastContactAt",
-      array_agg(DISTINCT c.stage::text) AS stages
-    FROM assigned a
-    JOIN contact c ON c.id = a.id
-    WHERE a.key IS NOT NULL ${keys} ${name}
-    GROUP BY a.key
-    ${search}
-  `;
-}
-
 function nameKey(name: string): string {
   return name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
 }
@@ -178,12 +120,12 @@ async function reconcileCompanies(
   // Rows no group holds wait, their pending lookup kept for when one does.
   // Each set as one array parameter, however many companies there are.
   await prisma.$executeRaw`
-    UPDATE contact_company SET "inactiveSince" = now()
+    UPDATE ${sharedTable("contact_company")} SET "inactiveSince" = now()
     WHERE id = ANY(${orphans.map((row) => row.id)}::uuid[])
       AND "inactiveSince" IS NULL
   `;
   await prisma.$executeRaw`
-    UPDATE contact_company SET "inactiveSince" = NULL
+    UPDATE ${sharedTable("contact_company")} SET "inactiveSince" = NULL
     WHERE "workspaceId" = ${workspaceId}::uuid
       AND key = ANY(${[...live]}::text[])
       AND "inactiveSince" IS NOT NULL
@@ -218,7 +160,7 @@ async function rememberAliases(
     .map((stat) => ({ key: stat.key, orgs: stat.orgs }));
   if (groups.length === 0) return;
   await prisma.$executeRaw`
-    UPDATE contact_company cc
+    UPDATE ${sharedTable("contact_company")} cc
     SET aliases = ARRAY(SELECT DISTINCT unnest(cc.aliases || g.orgs) ORDER BY 1)
     FROM jsonb_to_recordset(${JSON.stringify(groups)}::jsonb) AS g(key text, orgs text[])
     WHERE cc."workspaceId" = ${workspaceId}::uuid
@@ -252,7 +194,7 @@ async function moveCompany(
         domain: stat.domain,
         website,
         inactiveSince: null,
-        ...(moved ? { enrichedAt: null } : {}),
+        ...(moved ? { enrichedAt: null, lookupFailures: 0 } : {}),
         ...(moved || stat.domain !== row.domain
           ? { version: { increment: 1 } }
           : {}),
@@ -290,7 +232,7 @@ async function ensureCompanyRows(
     const paused = [...rows.values()].filter((row) => row.inactiveSince);
     if (paused.length === 0) return rows;
     await prisma.$executeRaw`
-      UPDATE contact_company SET "inactiveSince" = NULL
+      UPDATE ${sharedTable("contact_company")} SET "inactiveSince" = NULL
       WHERE id = ANY(${paused.map((row) => row.id)}::uuid[])
     `;
     return read();
@@ -394,14 +336,7 @@ export async function listCompanies(
       item.industry?.toLowerCase().includes(industry),
     );
   }
-  const sort = options.sort ?? "people";
-  items.sort((a, b) =>
-    sort === "name"
-      ? a.name.localeCompare(b.name)
-      : sort === "lastContact"
-        ? (b.lastContactAt?.getTime() ?? 0) - (a.lastContactAt?.getTime() ?? 0)
-        : b.people - a.people || a.name.localeCompare(b.name),
-  );
+  sortCompanies(items, options.sort ?? "people", options.search);
   const offset = options.offset ?? 0;
   const page = items.slice(offset, offset + options.limit);
   const listIds = await listIdsByCompany(page.map((item) => item.id));
@@ -477,8 +412,8 @@ export async function getCompany(actor: ContactActor, id: string) {
       SELECT i."userId" AS id, coalesce(u.name, 'A teammate') AS name,
         count(DISTINCT i."contactId")::int AS people,
         max(i."occurredAt") AS "lastInteractionAt"
-      FROM contact_interaction i
-      LEFT JOIN "user" u ON u.id = i."userId"
+      FROM ${sharedTable("contact_interaction")} i
+      LEFT JOIN ${sharedTable("user")} u ON u.id = i."userId"
       WHERE i."contactId" = ANY(${ids}::uuid[]) AND i."userId" IS NOT NULL
       GROUP BY i."userId", u.name
       ORDER BY people DESC, "lastInteractionAt" DESC
@@ -564,7 +499,9 @@ export async function updateCompanyFacts(
   input: z.infer<typeof companyUpdateSchema>,
 ): Promise<void> {
   const { version, ...facts } = input;
-  await requireCompany(actor, id, db);
+  const row = await requireCompany(actor, id, db);
+  const websiteChanged =
+    facts.website !== undefined && (facts.website || null) !== row.website;
   const changed = await db.contactCompany.updateMany({
     where: { id, workspaceId: actor.workspaceId, version },
     data: {
@@ -573,7 +510,7 @@ export async function updateCompanyFacts(
       ),
       ...(facts.name ? { name: facts.name } : {}),
       // A new website is read again in the background.
-      ...(facts.website ? { enrichedAt: null } : {}),
+      ...(websiteChanged ? { enrichedAt: null, lookupFailures: 0 } : {}),
       version: { increment: 1 },
     },
   });
@@ -604,6 +541,7 @@ Return one JSON object and nothing else:
 Use null for anything the page does not say. Never guess.`;
 
 const MAX_SITE_BYTES = 1_500_000;
+const MAX_LOOKUP_ATTEMPTS = 3;
 
 /** What of a page is worth reading: its head and the start of its body. */
 const MAX_PAGE_CHARS = 200_000;
@@ -695,10 +633,11 @@ const defaultLookupDeps: CompanyLookupDeps = {
 };
 
 /**
- * Reads the website of up to `limit` companies never looked up, biggest
+ * Reads the website of up to `limit` companies with a lookup due, biggest
  * first, and fills their empty facts. One page and one small model call per
- * company; a site that fails is marked looked-up and left alone. A fact
- * someone wrote meanwhile always wins.
+ * company per run; a site failure stays due until it hits the attempt limit.
+ * A model-call failure ends the workspace pass and leaves the site due.
+ * A fact someone wrote meanwhile always wins.
  */
 export async function enrichCompanies(
   workspaceId: string,
@@ -716,7 +655,12 @@ export async function enrichCompanies(
   const rows = await ensureCompanyRows(workspaceId, stats, { complete: true });
   const people = new Map(stats.map((stat) => [stat.key, stat.people]));
   const pending = [...rows.values()]
-    .filter((row) => row.enrichedAt === null && (row.website || row.domain))
+    .filter(
+      (row) =>
+        row.enrichedAt === null &&
+        row.lookupFailures < MAX_LOOKUP_ATTEMPTS &&
+        (row.website || row.domain),
+    )
     .sort((a, b) => (people.get(b.key) ?? 0) - (people.get(a.key) ?? 0))
     .slice(0, options.limit);
   for (const row of pending) {
@@ -734,43 +678,76 @@ export async function enrichCompanies(
         await deps.fetchPage(row.website ?? `https://${row.domain}`),
       );
       if (page.linkedinUrl) facts.linkedinUrl = page.linkedinUrl;
-      const answer = await deps.generate({
-        system: SITE_PROMPT,
-        prompt: `<site domain="${row.domain ?? row.website}">\n${page.text}\n</site>`,
-        maxOutputTokens: 800,
-      });
+      let answer: Awaited<ReturnType<CompanyLookupDeps["generate"]>>;
+      try {
+        answer = await deps.generate({
+          system: SITE_PROMPT,
+          prompt: `<site domain="${row.domain ?? row.website}">\n${page.text}\n</site>`,
+          maxOutputTokens: 800,
+        });
+      } catch (error) {
+        if (!(error instanceof AiGatewayBudgetError))
+          emitCoreWarning(
+            {
+              operation: "contact_company_lookup",
+              workspace: { id: workspaceId },
+            },
+            {
+              message: "Could not run the company lookup model",
+              why: "The model request failed before returning an answer",
+              fix: "Check the AI Gateway or provider configuration if it repeats. The next capture run picks up the pending companies.",
+            },
+            { failure: messageSafeErrorFields(error) },
+          );
+        break;
+      }
       result.costUsd += answer.costUsd;
       const parsed = parseJsonObject(answer.text, siteAnswerSchema);
+      if (!parsed) throw new Error("Invalid company lookup response");
       for (const key of [
         "description",
         "industry",
         "size",
         "headquarters",
       ] as const) {
-        const value = parsed?.[key];
+        const value = parsed[key];
         if (value) facts[key] = value;
       }
     } catch (error) {
+      const [failed] = await prisma.contactCompany.updateManyAndReturn({
+        where: {
+          id: row.id,
+          website: row.website,
+          domain: row.domain,
+          enrichedAt: null,
+          inactiveSince: null,
+          lookupFailures: { lt: MAX_LOOKUP_ATTEMPTS },
+        },
+        data: { lookupFailures: { increment: 1 } },
+        select: { lookupFailures: true },
+      });
       // Runs in the contact capture cron. The page and the model answer are
       // the company's site text, so content-free metadata only.
-      emitCoreWarning(
-        {
-          operation: "contact_company_lookup",
-          workspace: { id: workspaceId },
-          contactCompany: { id: row.id },
-        },
-        {
-          message: "Could not look up a company's website",
-          why: "Fetching or reading the company's site failed",
-          fix: "The company keeps what was already known. Nothing to do unless it repeats for many companies.",
-        },
-        { failure: messageSafeErrorFields(error) },
-      );
+      if (failed?.lookupFailures === MAX_LOOKUP_ATTEMPTS)
+        emitCoreWarning(
+          {
+            operation: "contact_company_lookup",
+            workspace: { id: workspaceId },
+            contactCompany: { id: row.id },
+          },
+          {
+            message: "Could not look up a company's website",
+            why: "Fetching or reading the company's site reached the failure limit",
+            fix: "The company keeps what was already known. Correct its website if the address is wrong.",
+          },
+          { failure: messageSafeErrorFields(error) },
+        );
+      continue;
     }
     // Fills only what is still empty at write time, in one statement, and
     // bumps the version when it filled something.
     const filled = await prisma.$queryRaw<{ changed: boolean }[]>`
-      UPDATE contact_company SET
+      UPDATE ${sharedTable("contact_company")} SET
         description = coalesce(description, ${facts.description ?? null}),
         industry = coalesce(industry, ${facts.industry ?? null}),
         size = coalesce(size, ${facts.size ?? null}),
@@ -784,8 +761,11 @@ export async function enrichCompanies(
           ("linkedinUrl" IS NULL AND ${facts.linkedinUrl ?? null}::text IS NOT NULL)
           THEN 1 ELSE 0 END,
         "enrichedAt" = now(),
+        "lookupFailures" = 0,
         "updatedAt" = now()
       WHERE id = ${row.id}::uuid
+        AND "enrichedAt" IS NULL
+        AND "inactiveSince" IS NULL
         -- A website edited meanwhile stays queued for its own lookup.
         AND website IS NOT DISTINCT FROM ${row.website}
         AND domain IS NOT DISTINCT FROM ${row.domain}
@@ -796,7 +776,7 @@ export async function enrichCompanies(
   return result;
 }
 
-/** Workspaces with a company whose website nobody has read yet. */
+/** Workspaces with an active company whose website lookup is still due. */
 export async function workspacesWithPendingCompanies(
   limit: number,
 ): Promise<string[]> {
@@ -804,6 +784,7 @@ export async function workspacesWithPendingCompanies(
     where: {
       enrichedAt: null,
       inactiveSince: null,
+      lookupFailures: { lt: MAX_LOOKUP_ATTEMPTS },
       OR: [{ domain: { not: null } }, { website: { not: null } }],
     },
     distinct: ["workspaceId"],

@@ -4,6 +4,7 @@ import type { StudioProductIdentity } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useGenerationQueueMountLifecycle } from "@/hooks/effects/use-generation-queue-mount-lifecycle";
 import { startImageGeneration } from "@/lib/actions/image-studio/action";
 
 import type { StudioJob, StudioSettings } from "./types";
@@ -44,6 +45,7 @@ export interface QueuedGeneration {
   creativeDirection?: string;
   variationIndex?: number;
   modelId: string;
+  letterExistingBackdrop?: boolean;
   /** Shown while the request waits, so a batch is legible before it lands. */
   modelLabel: string;
   settings: StudioSettings;
@@ -147,14 +149,9 @@ export function useGenerationQueue({
   const onAcceptedRef = useRef(onAccepted);
   onAcceptedRef.current = onAccepted;
   const mountedRef = useRef(true);
+  const pendingAcceptedRef = useRef(false);
 
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-    };
-  }, []);
+  useGenerationQueueMountLifecycle(mountedRef, retryTimerRef);
 
   /**
    * Draining the queue, one request at a time.
@@ -173,6 +170,10 @@ export function useGenerationQueue({
    */
   const headId = queued[0]?.id ?? null;
   useEffect(() => {
+    if (pendingAcceptedRef.current) {
+      pendingAcceptedRef.current = false;
+      onAcceptedRef.current({ remaining: queuedRef.current.length });
+    }
     if (!headId || sendingRef.current || retryTimerRef.current) return;
     const next = queuedRef.current[0];
     if (!next || next.id !== headId) return;
@@ -183,7 +184,9 @@ export function useGenerationQueue({
       try {
         const result = await startImageGeneration({
           projectId: next.projectId,
-          modelId: next.modelId,
+          ...(next.letterExistingBackdrop
+            ? { letterExistingBackdrop: true }
+            : {}),
           prompt: next.prompt,
           ...(next.templateId ? { templateId: next.templateId } : {}),
           ...(next.creativeDirection
@@ -208,18 +211,22 @@ export function useGenerationQueue({
           sessionId: null,
           idempotencyKey: next.idempotencyKey,
         });
-        // Only a real unmount stops the writes. Anything short of that and
-        // the send applies its own result, which is what keeps the queue
-        // draining rather than churning.
-        if (!mountedRef.current) return;
-
+        // Apply queue state even while hidden under React <Activity> so a
+        // settled send is never dropped and re-sent on reveal; on a real
+        // unmount React ignores the state updates harmlessly. Only external
+        // side effects (`onAccepted` and the retry timer) wait for the tree
+        // to be active.
         if (result.ok) {
           setWaitingForSlot(false);
           uncertainIdsRef.current.delete(next.id);
           updateQueued((current) =>
             current.filter((item) => item.id !== next.id),
           );
-          onAcceptedRef.current({ remaining: queuedRef.current.length });
+          if (mountedRef.current) {
+            onAcceptedRef.current({ remaining: queuedRef.current.length });
+          } else {
+            pendingAcceptedRef.current = true;
+          }
           return;
         }
 
@@ -246,10 +253,12 @@ export function useGenerationQueue({
           // Core is full, not broken. Keep the request and come back to it;
           // dropping it here is how a batch of four silently becomes three.
           setWaitingForSlot(true);
-          retryTimerRef.current = setTimeout(() => {
-            retryTimerRef.current = null;
-            if (mountedRef.current) setRetryTick((tick) => tick + 1);
-          }, RETRY_AFTER_BUSY_MS);
+          if (mountedRef.current) {
+            retryTimerRef.current = setTimeout(() => {
+              retryTimerRef.current = null;
+              if (mountedRef.current) setRetryTick((tick) => tick + 1);
+            }, RETRY_AFTER_BUSY_MS);
+          }
           return;
         }
 
@@ -270,7 +279,6 @@ export function useGenerationQueue({
           current.filter((item) => item.id !== next.id),
         );
       } catch {
-        if (!mountedRef.current) return;
         setWaitingForSlot(false);
         uncertainIdsRef.current.add(next.id);
         setFailed((current) => [

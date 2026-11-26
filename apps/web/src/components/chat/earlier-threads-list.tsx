@@ -8,7 +8,10 @@ import { ThreadListLoadMore } from "@/components/chat/thread-list-load-more";
 import { ThreadGroupHeading } from "@/components/chat/thread-list-row";
 import { EarlierThreadLink } from "@/components/chat/unread-thread-link";
 import { unreadThreadsFingerprint } from "@/components/chat/unread-threads-list";
+import { useThreadSearchRows } from "@/components/chat/use-thread-search-rows";
+import { usePageSearchPagination } from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
+import { chatQueryKeys } from "@/queries/chat";
 
 import { fetchChatEarlierThreads } from "./fetch-chat-threads";
 
@@ -45,31 +48,26 @@ export function EarlierThreadsList({
   const t = useTranslations("App.Channels.UnreadThreads");
   const tView = useTranslations("App.Channels.ThreadsView");
   const headingId = useId();
-  const roomsById = new Map(rooms.map((room) => [room.id, room]));
 
   const query = useInfiniteQuery({
-    queryKey: ["chat", "earlier-threads", earlierThreadsFingerprint(rooms)],
+    queryKey: chatQueryKeys.earlierThreads(earlierThreadsFingerprint(rooms)),
     queryFn: ({ pageParam }) => fetchChatEarlierThreads(pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     placeholderData: keepPreviousData,
   });
 
-  const seen = new Set<string>();
-  const threads = (query.data?.pages ?? [])
-    .flatMap((page) => page.threads)
-    .filter((thread) => {
-      const room = roomsById.get(thread.roomId);
-      if (!room || room.mutedAt != null || seen.has(thread.parentMessageId)) {
-        return false;
-      }
-      seen.add(thread.parentMessageId);
-      return true;
-    });
+  const fetched = (query.data?.pages ?? []).flatMap((page) => page.threads);
+  const { rows, matching } = useThreadSearchRows(fetched, rooms, currentUserId);
+  usePageSearchPagination(
+    query.data?.pages.at(-1)?.nextCursor,
+    query.isFetching,
+    () => query.fetchNextPage(),
+  );
 
   // Nothing until there is something to show: a heading over a spinner that
   // then vanished would flash for every reader with no read Thread.
-  if (query.isPending || (query.isSuccess && threads.length === 0)) {
+  if (query.isPending || (query.isSuccess && rows.length === 0)) {
     return null;
   }
 
@@ -78,7 +76,7 @@ export function EarlierThreadsList({
       <ThreadGroupHeading id={headingId}>
         {t("groupEarlier")}
       </ThreadGroupHeading>
-      {query.isError && threads.length === 0 ? (
+      {query.isError && rows.length === 0 ? (
         <div className="flex flex-col items-start gap-2 px-2">
           <p className="text-muted-foreground text-sm">{t("error")}</p>
           <Button
@@ -96,22 +94,15 @@ export function EarlierThreadsList({
             className="flex flex-col gap-0.5"
             data-testid="earlier-threads-list"
           >
-            {threads.map((thread) => {
-              const room = roomsById.get(thread.roomId);
-              return room ? (
-                <li key={thread.parentMessageId}>
-                  <EarlierThreadLink
-                    thread={thread}
-                    room={room}
-                    currentUserId={currentUserId}
-                  />
-                </li>
-              ) : null;
-            })}
+            {matching.map((row) => (
+              <li key={row.thread.parentMessageId}>
+                <EarlierThreadLink {...row} />
+              </li>
+            ))}
           </ul>
           {query.hasNextPage ? (
             <ThreadListLoadMore
-              boundaryKey={threads.at(-1)?.parentMessageId ?? ""}
+              boundaryKey={rows.at(-1)?.thread.parentMessageId ?? ""}
               status={
                 query.isFetchingNextPage
                   ? "loading"

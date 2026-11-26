@@ -7,6 +7,13 @@ const mocks = vi.hoisted(() => ({
   siteIcon: vi.fn(),
   upload: vi.fn(),
   readDesignMd: vi.fn(),
+  fetch: vi.fn(),
+  save: vi.fn(),
+}));
+vi.mock("@sokosumi/net", () => ({ ssrfSafeFetch: mocks.fetch }));
+vi.mock("@/services/cuso-project-files.service", () => ({
+  cusoDrive: async () => ({ projectId: "project-1" }),
+  saveCusoProjectFile: mocks.save,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -37,16 +44,115 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 
+import sharp from "sharp";
+
 import {
   cmoBrandVisual,
   learnCmoBrandVisual,
+  logoPng,
+  saveCmoBrandLogo,
 } from "./cmo-brand-visual.service";
 
 const cuso = {
-  id: "cuso-1",
   projectId: "project-1",
   websiteUrl: "https://acme.io",
+  workspaceId: "ws-1",
+  sokoBotId: "bot-1",
 };
+
+const WORDMARK =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 30"><rect width="120" height="30" fill="#000"/></svg>';
+
+describe("the brand's logo files", () => {
+  beforeEach(() => {
+    mocks.fetch.mockReset();
+    mocks.save.mockReset().mockResolvedValue("file-1");
+  });
+
+  it("saves the full logo, its dark version and the mark a DESIGN.md names, as PNGs", async () => {
+    mocks.fetch.mockImplementation(async () => new Response(WORDMARK));
+    const saved = await saveCmoBrandLogo(
+      cuso,
+      [
+        "---",
+        "name: Acme",
+        "logo:",
+        "  src: https://acme.io/logo.svg",
+        '  srcDark: "https://acme.io/logo-white.svg"',
+        "  mark: https://acme.io/icon.svg",
+        "colors:",
+        '  primary: "#ff6a00"',
+        "---",
+      ].join("\n"),
+    );
+    expect(saved).toBe(3);
+    expect(mocks.fetch.mock.calls.map(([url]) => url)).toEqual([
+      "https://acme.io/logo.svg",
+      "https://acme.io/logo-white.svg",
+      "https://acme.io/icon.svg",
+    ]);
+    expect(
+      mocks.save.mock.calls.map(([, target, , type]) => [target, type]),
+    ).toEqual([
+      [{ folder: "Brand research/Logo", filename: "logo.png" }, "image/png"],
+      [
+        { folder: "Brand research/Logo", filename: "logo-dark.png" },
+        "image/png",
+      ],
+      [{ folder: "Brand research/Logo", filename: "mark.png" }, "image/png"],
+    ]);
+  });
+
+  // Sites often paint a header logo white with CSS on a dark hero; the
+  // DESIGN.md then names that white file as the logo for a light page.
+  const WHITE_WORDMARK = WORDMARK.replace('fill="#000"', 'fill="white"');
+  const logoOnly = (srcDark?: string) =>
+    [
+      "---",
+      "name: Acme",
+      "logo:",
+      "  src: https://acme.io/logo.svg",
+      ...(srcDark ? [`  srcDark: ${srcDark}`] : []),
+      "---",
+    ].join("\n");
+
+  it("keeps a white-only logo as the version for a dark background", async () => {
+    mocks.fetch.mockImplementation(async () => new Response(WHITE_WORDMARK));
+    expect(await saveCmoBrandLogo(cuso, logoOnly())).toBe(1);
+    expect(mocks.save.mock.calls.map(([, target]) => target)).toEqual([
+      { folder: "Brand research/Logo", filename: "logo-dark.png" },
+    ]);
+  });
+
+  it("drops a white-only logo when the DESIGN.md names a dark version too", async () => {
+    mocks.fetch.mockImplementation(async () => new Response(WHITE_WORDMARK));
+    expect(
+      await saveCmoBrandLogo(cuso, logoOnly("https://acme.io/logo-white.svg")),
+    ).toBe(1);
+    expect(mocks.save.mock.calls.map(([, target]) => target)).toEqual([
+      { folder: "Brand research/Logo", filename: "logo-dark.png" },
+    ]);
+  });
+
+  it("saves nothing for a DESIGN.md without a logo", async () => {
+    expect(await saveCmoBrandLogo(cuso, "---\nname: Acme\n---\n")).toBe(0);
+    expect(mocks.fetch).not.toHaveBeenCalled();
+  });
+
+  it("draws a small SVG at full width and never enlarges a bitmap", async () => {
+    const svg = await logoPng(Buffer.from(WORDMARK));
+    expect((await sharp(svg as Buffer).metadata()).width).toBe(1024);
+    const small = await sharp({
+      create: { width: 40, height: 20, channels: 4, background: "#000" },
+    })
+      .png()
+      .toBuffer();
+    expect(
+      (await sharp((await logoPng(small)) as Buffer).metadata()).width,
+    ).toBe(40);
+    expect(await logoPng(Buffer.from("not a picture"))).toBeNull();
+  });
+});
 
 beforeEach(() => {
   vi.clearAllMocks();

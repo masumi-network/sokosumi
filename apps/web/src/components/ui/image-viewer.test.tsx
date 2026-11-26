@@ -210,6 +210,102 @@ describe("ImageViewer", () => {
     expect(printDoc!.title).toBe(maliciousAlt);
 
     await waitFor(() => expect(printSpy).toHaveBeenCalled());
+    iframe!.contentWindow?.dispatchEvent(new Event("afterprint"));
+    expect(document.querySelector("iframe")).toBeNull();
+  });
+
+  it("still prints and cleans up its iframe after switching images or closing the viewer", async () => {
+    const firstPrintSpy = vi.fn();
+    const { rerender } = render(
+      <ImageViewer
+        images={GALLERY}
+        activeSrc={GALLERY[0].src}
+        onActiveSrcChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Print" }));
+
+    const firstIframe = document.querySelector("iframe");
+    expect(firstIframe).not.toBeNull();
+    Object.defineProperty(firstIframe!.contentWindow, "print", {
+      value: firstPrintSpy,
+      writable: true,
+    });
+
+    // Switching images remounts the keyed ImageViewerChrome before onload.
+    rerender(
+      <ImageViewer
+        images={GALLERY}
+        activeSrc={GALLERY[1].src}
+        onActiveSrcChange={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(firstPrintSpy).toHaveBeenCalledOnce());
+    firstIframe!.contentWindow?.dispatchEvent(new Event("afterprint"));
+    expect(document.querySelector("iframe")).toBeNull();
+
+    // Closing the viewer right after Print still prints and cleans up via the bounded fallback timer.
+    const secondPrintSpy = vi.fn();
+    fireEvent.click(screen.getByRole("button", { name: "Print" }));
+    const secondIframe = document.querySelector("iframe");
+    expect(secondIframe).not.toBeNull();
+    Object.defineProperty(secondIframe!.contentWindow, "print", {
+      value: secondPrintSpy,
+      writable: true,
+    });
+
+    rerender(
+      <ImageViewer
+        images={GALLERY}
+        activeSrc={null}
+        onActiveSrcChange={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(secondPrintSpy).toHaveBeenCalledOnce());
+    await waitFor(() => expect(document.querySelector("iframe")).toBeNull(), {
+      timeout: 1500,
+    });
+  });
+
+  it("removes the print iframe if it never loads", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const printSpy = vi.fn();
+    try {
+      render(
+        <ImageViewer
+          images={[PHOTO]}
+          activeSrc={PHOTO.src}
+          onActiveSrcChange={vi.fn()}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Print" }));
+
+      const iframe = document.querySelector("iframe");
+      expect(iframe).not.toBeNull();
+      // Simulate a print document whose load event never fires.
+      iframe!.addEventListener(
+        "load",
+        (event) => {
+          event.stopImmediatePropagation();
+        },
+        true,
+      );
+      Object.defineProperty(iframe!.contentWindow, "print", {
+        value: printSpy,
+        writable: true,
+      });
+
+      vi.advanceTimersByTime(15_000);
+
+      expect(document.querySelector("iframe")).toBeNull();
+      expect(printSpy).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   describe("gallery", () => {

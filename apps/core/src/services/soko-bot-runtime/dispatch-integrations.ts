@@ -1,10 +1,11 @@
 import {
+  getSokoBotVersion,
   isCmoMeasurementSource,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   sokoBotDraftEmailInputSchema,
-  sokoBotListCalendarEventsInputSchema,
   sokoBotListIntegrationToolsInputSchema,
   sokoBotReadEmailInputSchema,
+  sokoBotReadsXDms,
   sokoBotRunIntegrationToolInputSchema,
   sokoBotSaveEmailAttachmentInputSchema,
   sokoBotSearchInboxInputSchema,
@@ -13,6 +14,11 @@ import {
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
+import {
+  onlyOwnerAndBot,
+  X_INBOX_PROVIDER,
+  xDmToolKind,
+} from "@/lib/soko-bot/x-inbox";
 import { testCopySourceBotId } from "@/services/cmo-test-copy.service";
 import {
   adToolkitRefusal,
@@ -24,18 +30,87 @@ import {
 import { listSokoBotIntegrationsForBot } from "@/services/soko-bot-integration-list.service";
 import {
   activeIntegrationsForBot,
-  fetchCalendarEvents,
   fetchInboxMessage,
   fetchInboxPage,
 } from "@/services/soko-bot-integrations.service";
 import { listMcpServersForBot } from "@/services/soko-bot-mcp.service";
+import { readXDm, searchXDms } from "@/services/soko-bot-x-dms.service";
 import {
   type AuthorizedSokoBotRuntime,
   type ExecuteSokoBotToolInput,
   SokoBotRefusedUnsentError,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
+import { ownerDirectReader } from "./acting-scope";
+import { listCalendarEvents } from "./calendar";
 import { type RuntimeOperations } from "./operations";
+
+/**
+ * X direct messages are the owner's alone: read for them only, and sent,
+ * started or deleted only when they ask for that message in their own chat.
+ */
+async function xDmToolRefusal(
+  authorized: AuthorizedSokoBotRuntime,
+  tool: string,
+): Promise<string | null> {
+  const kind = xDmToolKind(tool);
+  if (kind === "write")
+    return (await ownerAskedThisTurn(authorized))
+      ? null
+      : "X direct messages are sent only when the owner asks for that message in their own chat. Offer a draft reply instead.";
+  if (kind === "read")
+    return (await ownerPrivateTurn(authorized))
+      ? null
+      : "X direct messages are private to the owner and read only in their own chat.";
+  return null;
+}
+
+/** The owner typed this turn's request in their private chat. */
+async function ownerAskedThisTurn(
+  authorized: AuthorizedSokoBotRuntime,
+): Promise<boolean> {
+  return (
+    authorized.askedByKind === "OWNER" &&
+    authorized.turn.source === "CHAT" &&
+    (await ownerPrivateTurn(authorized))
+  );
+}
+
+/**
+ * Whether this turn may see the owner's private X direct messages: a personal
+ * bot on its owner's own turn or rhythm, answering in a chat of only the owner
+ * and this bot. Never a teammate, another bot, a shared bot or a room someone
+ * else is in, a direct room with more people included.
+ */
+async function ownerPrivateTurn(
+  authorized: AuthorizedSokoBotRuntime,
+): Promise<boolean> {
+  if (!ownerDirectReader(authorized)) return false;
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: authorized.turn.id },
+    select: {
+      sokoBot: { select: { userId: true } },
+      destinationRoomId: true,
+    },
+  });
+  const ownerId = turn?.sokoBot.userId;
+  if (!turn || !ownerId || ownerId !== authorized.turn.actingUserId)
+    return false;
+  if (!turn.destinationRoomId) return true;
+  const room = await prisma.chatRoom.findUnique({
+    where: { id: turn.destinationRoomId },
+    select: {
+      kind: true,
+      userMembers: { select: { userId: true } },
+      coworkerMembers: { select: { coworkerId: true } },
+      sokoBotMembers: { select: { sokoBotId: true } },
+    },
+  });
+  return (
+    room !== null &&
+    onlyOwnerAndBot(room, { ownerId, sokoBotId: authorized.turn.sokoBotId })
+  );
+}
 
 /**
  * The bot's connected account for a generic toolkit. A CMO test copy has no
@@ -52,6 +127,11 @@ async function genericIntegration(sokoBotId: string, provider: string) {
     provider,
   );
   return { integration, readOnly: sourceBotId !== null };
+}
+
+/** What to do instead: the bot asked for an app nobody connected. */
+function notConnected(provider: string): string {
+  return `No account for ${provider} is connected, so nothing can be read or run there. Do not try it again in this turn: call list_integrations to see what is connected (mailboxes use search_inbox), and if the work needs ${provider}, tell the owner to connect it in your settings.`;
 }
 
 export async function dispatchIntegrationsTools(
@@ -98,6 +178,11 @@ export async function dispatchIntegrationsTools(
           "pageToken needs the provider of the page it came from",
         );
       let nextPageToken: string | null = null;
+      const readsX =
+        (!parsed.provider || parsed.provider === X_INBOX_PROVIDER) &&
+        !parsed.pageToken &&
+        sokoBotReadsXDms(getSokoBotVersion(authorized.turn.versionId).skills) &&
+        (await ownerPrivateTurn(authorized));
       const result = await readSokoBotSource({
         source: "MAIL",
         filters: {
@@ -105,17 +190,29 @@ export async function dispatchIntegrationsTools(
           since: parsed.since ?? "",
           unreadOnly: String(parsed.unreadOnly ?? false),
         },
-        queries: integrations.map((integration) => async () => {
-          const page = await fetchInboxPage(integration, {
-            query: parsed.query,
-            since: parsed.since ? new Date(parsed.since) : undefined,
-            unreadOnly: parsed.unreadOnly,
-            limit,
-            pageToken: parsed.pageToken,
-          });
-          if (integrations.length === 1) nextPageToken = page.nextPageToken;
-          return page.messages;
-        }),
+        queries: [
+          ...integrations.map((integration) => async () => {
+            const page = await fetchInboxPage(integration, {
+              query: parsed.query,
+              since: parsed.since ? new Date(parsed.since) : undefined,
+              unreadOnly: parsed.unreadOnly,
+              limit,
+              pageToken: parsed.pageToken,
+            });
+            if (integrations.length === 1) nextPageToken = page.nextPageToken;
+            return page.messages;
+          }),
+          ...(readsX
+            ? [
+                () =>
+                  searchXDms(authorized.turn.sokoBotId, {
+                    query: parsed.query,
+                    since: parsed.since ? new Date(parsed.since) : undefined,
+                    limit,
+                  }),
+              ]
+            : []),
+        ],
       });
       return {
         coverage: {
@@ -134,6 +231,19 @@ export async function dispatchIntegrationsTools(
 
     case "read_email": {
       const parsed = sokoBotReadEmailInputSchema.parse(input.input);
+      if (parsed.provider === X_INBOX_PROVIDER) {
+        const message =
+          sokoBotReadsXDms(
+            getSokoBotVersion(authorized.turn.versionId).skills,
+          ) && (await ownerPrivateTurn(authorized))
+            ? await readXDm(authorized.turn.sokoBotId, parsed.messageId)
+            : null;
+        if (!message)
+          throw new SokoBotRuntimeValidationError(
+            "No X direct message with that id from the last day for the owner",
+          );
+        return message;
+      }
       const [integration] = await activeIntegrationsForBot(
         authorized.turn.sokoBotId,
         "email",
@@ -184,9 +294,7 @@ export async function dispatchIntegrationsTools(
         parsed.provider.toLowerCase(),
       );
       if (!integration) {
-        throw new SokoBotRuntimeValidationError(
-          `No connected account for provider ${parsed.provider} (mailboxes use search_inbox)`,
-        );
+        throw new SokoBotRuntimeValidationError(notConnected(parsed.provider));
       }
       return integrationToolSearchResult(
         await listIntegrationTools(integration, {
@@ -204,14 +312,14 @@ export async function dispatchIntegrationsTools(
       // Nothing was sent: a refused-unsent receipt, so a retry stays allowed.
       const refusal = adToolkitRefusal(parsed.provider, parsed.tool);
       if (refusal) throw new SokoBotRefusedUnsentError(refusal);
+      const xDmRefusal = await xDmToolRefusal(authorized, parsed.tool);
+      if (xDmRefusal) throw new SokoBotRefusedUnsentError(xDmRefusal);
       const { integration, readOnly } = await genericIntegration(
         authorized.turn.sokoBotId,
         parsed.provider.toLowerCase(),
       );
       if (!integration) {
-        throw new SokoBotRuntimeValidationError(
-          `No connected account for provider ${parsed.provider}`,
-        );
+        throw new SokoBotRuntimeValidationError(notConnected(parsed.provider));
       }
       return (
         input.capability === "read_integration_tool" || readOnly
@@ -220,64 +328,7 @@ export async function dispatchIntegrationsTools(
       )(integration, parsed.tool, parsed.arguments ?? {});
     }
 
-    case "list_calendar_events": {
-      const parsed = sokoBotListCalendarEventsInputSchema.parse(input.input);
-      const from = parsed.from ? new Date(parsed.from) : new Date();
-      const to = parsed.to
-        ? new Date(parsed.to)
-        : new Date(from.getTime() + 7 * 24 * 60 * 60 * 1_000);
-      const integrations = await activeIntegrationsForBot(
-        authorized.turn.sokoBotId,
-        "calendar",
-        parsed.provider,
-      );
-      if (to <= from)
-        throw new SokoBotRuntimeValidationError(
-          "Calendar window must end after it starts",
-        );
-      const limit = parsed.limit ?? 50;
-      const result = await readSokoBotSource({
-        source: "CALENDAR",
-        filters: { from: from.toISOString(), to: to.toISOString() },
-        queries: integrations.map(
-          (integration) => () =>
-            fetchCalendarEvents(integration, { from, to, limit }),
-        ),
-      });
-      const tzRow = await prisma.sokoBot.findUnique({
-        where: { id: authorized.turn.sokoBotId },
-        select: { ingestTimezone: true },
-      });
-      const timeZone = tzRow?.ingestTimezone ?? "UTC";
-      const local = (iso: string | null) =>
-        iso
-          ? new Intl.DateTimeFormat("en-GB", {
-              timeZone,
-              weekday: "short",
-              day: "2-digit",
-              month: "short",
-              hour: "2-digit",
-              minute: "2-digit",
-            }).format(new Date(iso))
-          : null;
-      return {
-        timeZone,
-        coverage: {
-          ...result.coverage,
-          includedCount: Math.min(result.rows.length, limit),
-          omittedCount: Math.max(0, result.rows.length - limit),
-        },
-        failedSources: result.failedSources,
-        note: result.note,
-        events: result.rows
-          .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
-          .slice(0, limit)
-          .map((event) => ({
-            ...event,
-            startsAtLocal: local(event.startsAt),
-            endsAtLocal: local(event.endsAt),
-          })),
-      };
-    }
+    case "list_calendar_events":
+      return listCalendarEvents(authorized, input.input);
   }
 }

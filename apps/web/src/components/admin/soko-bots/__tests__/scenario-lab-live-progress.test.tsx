@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { withNuqsTestingAdapter } from "nuqs/adapters/testing";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TestQueryProvider } from "@/test/query-provider";
 
 const {
   listRunsMock,
@@ -68,6 +70,17 @@ function turn(status: string, toolCalls: unknown[]) {
   };
 }
 
+function makeWrapper() {
+  const NuqsWrapper = withNuqsTestingAdapter({});
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <TestQueryProvider>
+        <NuqsWrapper>{children}</NuqsWrapper>
+      </TestQueryProvider>
+    );
+  };
+}
+
 describe("ScenarioLab live progress", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -93,7 +106,7 @@ describe("ScenarioLab live progress", () => {
     );
 
     render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
-      wrapper: withNuqsTestingAdapter({}),
+      wrapper: makeWrapper(),
     });
 
     // Exactly "run": the page also has runAll and runAllVersions, and the
@@ -109,6 +122,34 @@ describe("ScenarioLab live progress", () => {
     expect(screen.getByText("liveRoute")).toBeInTheDocument();
   });
 
+  it("shows the failed step's diagnostic from the admin turn read", async () => {
+    startTurnMock.mockResolvedValue({ ok: true, value: { turnId: "turn_1" } });
+    const adminUrl = "/api/admin/soko-bots/turns/turn_1";
+    const diagnostic = "Provider rejected the tool call (HTTP 429)";
+    const fetchMock = vi.fn(async (url: string) =>
+      Response.json({
+        turn: turn("RUNNING", [
+          {
+            id: "call-1",
+            capability: "read_email",
+            status: "FAILED",
+            errorDetail: url === adminUrl ? diagnostic : null,
+          },
+        ]),
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
+      wrapper: makeWrapper(),
+    });
+    const [runButton] = await screen.findAllByRole("button", { name: "run" });
+    fireEvent.click(runButton);
+
+    await screen.findByText("read_email");
+    expect(fetchMock).toHaveBeenCalledWith(adminUrl, expect.anything());
+    expect(screen.getByText(diagnostic)).toBeInTheDocument();
+  });
+
   it("stops polling the turn once the lab closes", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout"] });
     startTurnMock.mockResolvedValue({ ok: true, value: { turnId: "turn_1" } });
@@ -120,7 +161,7 @@ describe("ScenarioLab live progress", () => {
     try {
       const { unmount } = render(
         <ScenarioLab versionId="v11" versions={VERSIONS} />,
-        { wrapper: withNuqsTestingAdapter({}) },
+        { wrapper: makeWrapper() },
       );
       const runButtons = await screen.findAllByRole("button", { name: "run" });
       fireEvent.click(runButtons[0] as HTMLElement);
@@ -153,7 +194,7 @@ describe("ScenarioLab live progress", () => {
       try {
         const { unmount } = render(
           <ScenarioLab versionId="v11" versions={VERSIONS} />,
-          { wrapper: withNuqsTestingAdapter({}) },
+          { wrapper: makeWrapper() },
         );
         fireEvent.click(await screen.findByRole("button", { name: button }));
         await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
@@ -200,7 +241,7 @@ describe("ScenarioLab live progress", () => {
     );
 
     render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
-      wrapper: withNuqsTestingAdapter({}),
+      wrapper: makeWrapper(),
     });
 
     // Exactly "run": the page also has runAll and runAllVersions, and the

@@ -1,9 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import {
   SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,
-  SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE,
   SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE,
-  SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE,
   SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
   SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
   SEO_STATISTICS_QUERY_ROWS_ANONYMIZED_NOTE,
@@ -15,26 +13,23 @@ import {
 
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { auditClickHistoryFromSearchAnalytics } from "@/lib/seo/audit-click-history";
+import { readAuditPropertyEvidence } from "@/lib/seo/audit-page-discovery";
 import {
-  assertGa4LandingHost,
-  ga4LandingHostArguments,
-  ga4LandingOutcomeArguments,
-  ga4LandingPageArguments,
-  ga4LandingPlan,
-  normalizeGa4LandingOutcomes,
-  normalizeGa4LandingPages,
-} from "@/lib/seo/native-ga4-landing";
+  GSC_LIST_SITEMAPS,
+  type inspectionDiscoverySources,
+} from "@/lib/seo/audit-sitemaps";
+import { ga4LandingPlan } from "@/lib/seo/native-ga4-landing";
 import {
   type GscBreakdownDimension,
   gscBreakdownArguments,
   normalizeGscBreakdown,
 } from "@/lib/seo/native-gsc-breakdown";
+import { GSC_INSPECT_TOOL } from "@/lib/seo/native-gsc-inspection";
 import {
-  GSC_INSPECT_TOOL,
-  gscInspectionArguments,
-  normalizeGscInspection,
-} from "@/lib/seo/native-gsc-inspection";
-import { gscPropertyCovers } from "@/lib/seo/native-gsc-property";
+  gscPropertyCovers,
+  readableGscProperties,
+} from "@/lib/seo/native-gsc-property";
 import {
   gscKeywordSeriesArguments,
   gscQueryArguments,
@@ -45,6 +40,7 @@ import {
   selectTrackedKeywords,
 } from "@/lib/seo/native-gsc-queries";
 import {
+  applyPreviousSeoPeriod,
   bindSeoToolArguments,
   GA4_PROPERTIES_TOOL,
   GA4_STATS_TOOL,
@@ -61,6 +57,7 @@ import {
   unwrapNativeStatistics,
   withinSearchConsoleRetention,
 } from "@/lib/seo/native-statistics";
+import { retainTrafficPageScope } from "@/lib/seo/traffic-page-aliases";
 import {
   SEO_KEYWORD_SERIES_MAX_COUNTRIES,
   SEO_KEYWORD_SERIES_MAX_KEYWORDS,
@@ -79,6 +76,7 @@ import {
   readIntegrationTool,
 } from "@/services/composio-integration-tools.service";
 import {
+  connectionVersion,
   recordSeoConnectionFailure,
   resolveSeoStatisticsIntegration,
   type SeoStatisticsIntegration,
@@ -87,17 +85,24 @@ import {
   getProjectSeoWorkspace,
   recordNativeSeoMetrics,
 } from "./project-seo.service";
-import { withAutomaticSeoStatistics } from "./project-seo-statistics-cache";
+import {
+  type AuditStatisticsScope,
+  withAutomaticSeoStatistics,
+} from "./project-seo-statistics-cache";
 import {
   applyStatisticsInspections,
+  auditPerformancePages,
   collectStatisticsInspections,
+  dashboardInspectionUpdate,
   inspectionCacheKey,
+  inspectStatisticsPage,
 } from "./project-seo-statistics-inspections";
+import { requireSeoOwner, type SeoMutationHooks } from "./project-seo-store";
+import { collectAuditDiscovery } from "./seo-audit-discovery";
 import {
-  requireSeoOwner,
-  type SeoMutationHooks,
-  sha256,
-} from "./project-seo-store";
+  collectLandingPages,
+  landingOutcomeAccountKey,
+} from "./seo-statistics-landing";
 
 const MAX_PROPERTY_PAGES = 5;
 const PROPERTY_PAGE_SIZE = 100;
@@ -115,8 +120,10 @@ async function integrationFor(
 async function toolFor(
   integration: ComposioIntegrationAccount,
   slug: string,
+  knownTools?: SeoNativeTool[],
 ): Promise<SeoNativeTool> {
-  const tools = await listIntegrationTools(integration, { limit: 100 });
+  const tools =
+    knownTools ?? (await listIntegrationTools(integration, { limit: 100 }));
   const tool = tools.find((candidate) => candidate.slug === slug);
   if (!tool?.readOnly || !tool.inputSchema)
     throw unprocessableEntity(
@@ -134,23 +141,34 @@ async function read(
   return readIntegrationTool(integration, tool.slug, args);
 }
 
+function readerFor(integration: ComposioIntegrationAccount, slug: string) {
+  let tool: Promise<SeoNativeTool> | undefined;
+  return async (args: Record<string, unknown>) => {
+    tool ??= toolFor(integration, slug);
+    return read(integration, await tool, args);
+  };
+}
+
 /** One read-only Google read on a connected account, its arguments bound to the tool's declared inputs. */
 export async function readNativeSeoTool(
   integration: ComposioIntegrationAccount,
   slug: string,
   logical: Record<string, unknown>,
+  tools?: SeoNativeTool[],
 ) {
-  return read(integration, await toolFor(integration, slug), logical);
+  return read(integration, await toolFor(integration, slug, tools), logical);
 }
 
 export async function propertyChoices(
   integration: ComposioIntegrationAccount,
   provider: SyncProjectSeoStatistics["provider"],
+  tools?: SeoNativeTool[],
 ): Promise<ProjectSeoStatisticsProperties> {
   const properties: Array<{ id: string; name: string }> = [];
   const tool = await toolFor(
     integration,
     provider === "ga4" ? GA4_PROPERTIES_TOOL : GSC_PROPERTIES_TOOL,
+    tools,
   );
   let token: string | undefined;
   const seen = new Set<string>();
@@ -194,18 +212,8 @@ export async function propertyChoices(
           });
       token = body.nextPageToken;
     } else {
-      const body = z
-        .object({
-          siteEntry: z
-            .array(
-              z.object({ siteUrl: z.string(), permissionLevel: z.string() }),
-            )
-            .default([]),
-        })
-        .parse(payload);
-      for (const property of body.siteEntry)
-        if (property.permissionLevel !== "siteUnverifiedUser")
-          properties.push({ id: property.siteUrl, name: property.siteUrl });
+      for (const id of readableGscProperties(payload))
+        properties.push({ id, name: id });
       token = undefined;
     }
     if (!token)
@@ -266,6 +274,7 @@ export async function syncProjectSeoStatistics(
   actor: SeoActor,
   raw: SyncProjectSeoStatistics,
   hooks: SeoMutationHooks = {},
+  audit?: AuditStatisticsScope,
 ) {
   const input = syncProjectSeoStatisticsSchema.parse(raw);
   await requireSeoOwner(actor, prisma, true);
@@ -293,6 +302,16 @@ export async function syncProjectSeoStatistics(
   const integration = await integrationFor(actor, input.provider);
   if (!integration)
     throw unprocessableEntity("Connect this account in SEO statistics");
+  if (
+    audit &&
+    (input.provider !== "search_console" ||
+      connectionVersion(integration) !== audit.connectionVersion ||
+      pageUrls.length !== audit.pageUrls.length ||
+      pageUrls.some((url) => !audit.pageUrls.includes(url)))
+  )
+    throw conflict(
+      "The approved audit pages or Search Console account changed.",
+    );
   const readWorkspace = () =>
     getProjectSeoWorkspace(actor, {
       ...(input.scopeId
@@ -324,7 +343,11 @@ export async function syncProjectSeoStatistics(
       );
     await recordNativeSeoMetrics(actor, snapshot, {
       ...mutationHooks,
+      auditTaskId: audit?.taskId,
       outcomes,
+      ...(input.provider === "ga4" && {
+        outcomeAccountKey: landingOutcomeAccountKey(integration),
+      }),
       scope: {
         id: input.scopeId ?? null,
         version: workspace.scope.version,
@@ -335,6 +358,7 @@ export async function syncProjectSeoStatistics(
   };
   return withAutomaticSeoStatistics({
     actor,
+    audit,
     input,
     integration,
     pageIds,
@@ -363,41 +387,93 @@ export async function syncProjectSeoStatistics(
         throw unprocessableEntity(
           "The Search Console property does not cover the selected pages",
         );
-      let inspectionTool: Promise<SeoNativeTool> | undefined;
+      const readInspection = readerFor(integration, GSC_INSPECT_TOOL);
+      const discoverySources = new Map<
+        string,
+        ReturnType<typeof inspectionDiscoverySources>
+      >();
       const collectIndexedPages = () =>
         collectStatisticsInspections(
           actor,
           inspectionCacheKey(actor, integration, input.propertyId),
           pageUrls,
-          async (pageUrl) => {
-            inspectionTool ??= toolFor(integration, GSC_INSPECT_TOOL);
-            const raw = await read(
-              integration,
-              await inspectionTool,
-              gscInspectionArguments(input.propertyId, pageUrl),
-            );
-            return normalizeGscInspection(
-              pageUrl,
-              unwrapNativeStatistics(raw, ["inspectionResult"]),
-            );
-          },
+          (url) =>
+            inspectStatisticsPage(
+              input.propertyId,
+              url,
+              audit?.includeSitemaps ? discoverySources : undefined,
+              readInspection,
+            ),
           cached,
+          audit?.includeSitemaps ? discoverySources : undefined,
         );
-      if (cached) {
-        const inspections = await collectIndexedPages();
-        const updated = {
-          ...cached,
-          collectedAt: cached.collectedAt ?? cached.observedAt,
-          observedAt: new Date().toISOString(),
-        };
-        applyStatisticsInspections(updated, inspections);
-        return retain(updated, collectionHooks);
-      }
-      const tool = await toolFor(
+      const readSitemaps = readerFor(integration, GSC_LIST_SITEMAPS);
+      const discovery = (
+        taskId: string,
+        data: Parameters<typeof collectAuditDiscovery>[2],
+      ) =>
+        collectAuditDiscovery(
+          actor,
+          taskId,
+          data,
+          discoverySources,
+          readSitemaps,
+          cached?.auditDiscovery,
+        );
+      const readStats = readerFor(
         integration,
         input.provider === "ga4" ? GA4_STATS_TOOL : GSC_STATS_TOOL,
       );
-      const query: NativeStatisticsQuery = { ...input, pageUrls };
+      const property = await readAuditPropertyEvidence(
+        input,
+        readStats,
+        !!audit?.propertyTotals,
+        !!audit?.pageDiscovery,
+        cached,
+      );
+      if (
+        cached &&
+        audit &&
+        (cached.auditPerformanceComplete || audit.propertyTotals === "only")
+      ) {
+        return retain(
+          {
+            ...cached,
+            ...property,
+            ...(audit.propertyTotals !== "only" &&
+              audit.includeSitemaps && {
+                auditDiscovery: await discovery(audit.taskId, cached),
+              }),
+          },
+          collectionHooks,
+        );
+      }
+      const inspections =
+        input.provider === "search_console"
+          ? await collectIndexedPages()
+          : null;
+      const { aliases, refreshed } = dashboardInspectionUpdate(
+        input.propertyId,
+        pageUrls,
+        audit ? null : inspections,
+        cached,
+      );
+      if (refreshed) return retain(refreshed, collectionHooks);
+      const measuredPages =
+        audit && inspections
+          ? await auditPerformancePages(
+              actor,
+              input.propertyId,
+              pageUrls,
+              inspections,
+            )
+          : null;
+      const query: NativeStatisticsQuery = {
+        ...input,
+        pageUrls: measuredPages
+          ? [...new Set(measuredPages.map((page) => page.measuredUrl))]
+          : [...new Set(pageUrls.map((url) => aliases[url] ?? url))],
+      };
       const build =
         input.provider === "ga4"
           ? ga4StatisticsArguments
@@ -409,7 +485,7 @@ export async function syncProjectSeoStatistics(
           : normalizeGscStatistics;
       const collect = async (daily: boolean) => {
         const payload = unwrapNativeStatistics(
-          await read(integration, tool, build(query, daily)),
+          await readStats(build(query, daily)),
           expected,
         );
         // Validate each independent response before combining it, so one malformed half cannot discard the other.
@@ -430,7 +506,7 @@ export async function syncProjectSeoStatistics(
       const collectPrevious = async () => {
         // GA4 totals cover the requested period. A missing daily row means no traffic, not an earlier period end.
         let end = query.to;
-        if (input.provider === "search_console") {
+        if (input.provider === "search_console" && !audit) {
           const reported = normalize(query, null, await dailyRead, "")
             .metrics.flatMap((metric) => metric.points)
             .filter((point) => point.value !== null)
@@ -452,7 +528,7 @@ export async function syncProjectSeoStatistics(
         const totals = normalize(
           earlier,
           unwrapNativeStatistics(
-            await read(integration, tool, build(earlier, false)),
+            await readStats(build(earlier, false)),
             expected,
           ),
           null,
@@ -470,7 +546,7 @@ export async function syncProjectSeoStatistics(
           ? normalizeGscQueries(
               query,
               unwrapNativeStatistics(
-                await read(integration, tool, gscQueryArguments(query)),
+                await readStats(gscQueryArguments(query)),
                 ["rows"],
               ),
             )
@@ -480,11 +556,7 @@ export async function syncProjectSeoStatistics(
           ? normalizeGscBreakdown(
               dimension,
               unwrapNativeStatistics(
-                await read(
-                  integration,
-                  tool,
-                  gscBreakdownArguments(query, dimension),
-                ),
+                await readStats(gscBreakdownArguments(query, dimension)),
                 ["rows"],
               ),
               query.searchType,
@@ -493,67 +565,10 @@ export async function syncProjectSeoStatistics(
       // Organic key events per landing page. Google Analytics only.
       const landingPlan =
         input.provider === "ga4" ? ga4LandingPlan(query) : null;
-      const collectLandingPages = async () => {
-        if (!landingPlan?.query.pageUrls.length) return null;
-        const hosts = unwrapNativeStatistics(
-          await read(integration, tool, ga4LandingHostArguments(query)),
-          ["metricHeaders"],
-        );
-        assertGa4LandingHost(query, hosts);
-        const landingPages = {
-          ...normalizeGa4LandingPages(
-            landingPlan.query,
-            unwrapNativeStatistics(
-              await read(
-                integration,
-                tool,
-                ga4LandingPageArguments(landingPlan.query),
-              ),
-              ["metricHeaders"],
-            ),
-            landingPlan.skippedUrls,
-          ),
-          verifiedHost: new URL(query.pageUrls[0]!).hostname,
-        };
-        // A property without these events (or a failed event read) still has measured sessions and generic key events.
-        if (actor.sokoBotId || landingPages.channel !== "organic")
-          return { landingPages };
-        const named = await read(
-          integration,
-          tool,
-          ga4LandingOutcomeArguments(landingPlan.query),
-        )
-          .then((raw) =>
-            normalizeGa4LandingOutcomes(
-              landingPlan.query,
-              unwrapNativeStatistics(raw, ["metricHeaders"]),
-            ),
-          )
-          .catch(() => null);
-        if (!named?.rows.length) return { landingPages };
-        return {
-          landingPages,
-          outcomes: {
-            version: 1 as const,
-            channel: "organic" as const,
-            accountKey: sha256(
-              JSON.stringify([
-                integration.entityId,
-                integration.composioAccountId,
-                integration.connectionRevision,
-              ]),
-            ),
-            propertyId: query.propertyId,
-            verifiedHost: landingPages.verifiedHost,
-            from: query.from,
-            to: query.to,
-            ...named,
-          },
-        };
-      };
-      const tracked = readsQueries
-        ? selectTrackedKeywords(workspace.keywords)
-        : { groups: [], leftOut: [] };
+      const tracked =
+        readsQueries && !audit
+          ? selectTrackedKeywords(workspace.keywords)
+          : { groups: [], leftOut: [] };
       // One read per keyword country; any failed read drops the whole series, so no country reads as partial.
       const collectKeywordSeries =
         async (): Promise<NativeKeywordSeries | null> => {
@@ -564,11 +579,7 @@ export async function syncProjectSeoStatistics(
                 query,
                 group,
                 unwrapNativeStatistics(
-                  await read(
-                    integration,
-                    tool,
-                    gscKeywordSeriesArguments(query, group),
-                  ),
+                  await readStats(gscKeywordSeriesArguments(query, group)),
                   ["rows"],
                 ),
               ),
@@ -589,7 +600,6 @@ export async function syncProjectSeoStatistics(
         previous,
         byCountry,
         byDevice,
-        indexed,
         landing,
       ] = await Promise.allSettled([
         collect(false),
@@ -599,10 +609,21 @@ export async function syncProjectSeoStatistics(
         collectPrevious(),
         collectBreakdown("country"),
         collectBreakdown("device"),
-        input.provider === "search_console" ? collectIndexedPages() : null,
-        collectLandingPages(),
+        collectLandingPages(
+          query,
+          landingPlan,
+          actor,
+          workspace.pages,
+          integration,
+          readStats,
+        ),
       ]);
-      if (period.status === "rejected" && daily.status === "rejected") {
+      if (
+        !property.auditPropertyTotals &&
+        !property.auditPageDiscovery &&
+        period.status === "rejected" &&
+        daily.status === "rejected"
+      ) {
         await recordSeoConnectionFailure(actor, input.provider, integration);
         throw unprocessableEntity(
           "The native connection could not provide statistics",
@@ -616,38 +637,20 @@ export async function syncProjectSeoStatistics(
       );
       // A failed earlier window leaves the change unknown; it never reads as zero.
       if (previous.status === "fulfilled" && period.status === "fulfilled") {
-        const previousNotes = previous.value.totals.notes;
-        if (previousNotes.includes(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE)) {
-          metrics.coverage = "partial";
-          if (!metrics.notes.includes(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE))
-            metrics.notes.push(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE);
-        }
-        if (
-          previousNotes.includes(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE)
-        ) {
-          metrics.coverage = "partial";
-          if (
-            !metrics.notes.includes(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE)
-          )
-            metrics.notes.push(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE);
-        }
-        for (const metric of metrics.metrics) {
-          const before = previous.value.totals.metrics.find(
-            (candidate) => candidate.key === metric.key,
-          );
-          if (before)
-            metric.previous = {
-              ...previous.value.window,
-              value: before.value,
-            };
-        }
+        applyPreviousSeoPeriod(
+          metrics,
+          previous.value.totals,
+          previous.value.window,
+        );
       }
       if (landingPlan) {
         if (landingPlan.skippedUrls.length)
           metrics.notes.push(SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE);
-        if (landing.status === "fulfilled" && landing.value)
+        if (landing.status === "fulfilled" && landing.value) {
           metrics.landingPages = landing.value.landingPages;
-        else if (landingPlan.query.pageUrls.length)
+          metrics.landingEngagementEvidence =
+            landing.value.landingEngagementEvidence;
+        } else if (landingPlan.query.pageUrls.length)
           metrics.notes.push(
             SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,
           );
@@ -681,8 +684,10 @@ export async function syncProjectSeoStatistics(
         else if (device) metrics.devices = device.split;
         if (byCountry.status === "rejected" || byDevice.status === "rejected")
           metrics.notes.push(SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE);
-        if (indexed.status === "rejected") throw indexed.reason;
-        if (indexed.value) applyStatisticsInspections(metrics, indexed.value);
+        if (!audit && inspections) {
+          applyStatisticsInspections(metrics, inspections);
+          retainTrafficPageScope(metrics, pageUrls, aliases);
+        }
         if (tracked.leftOut.length)
           metrics.notes.push(
             seoStatisticsKeywordsLeftOutNote(
@@ -691,6 +696,43 @@ export async function syncProjectSeoStatistics(
               SEO_KEYWORD_SERIES_MAX_COUNTRIES,
             ),
           );
+      }
+      if (measuredPages && inspections) {
+        // The evidence belongs to the approved page records. Query rows retain Google's measured URLs.
+        metrics.pageUrls = pageUrls;
+        metrics.auditMeasuredPages = measuredPages;
+        Object.assign(metrics, property);
+        if (audit?.includeSitemaps) {
+          applyStatisticsInspections(metrics, inspections);
+          metrics.auditDiscovery = await discovery(audit.taskId, metrics);
+        }
+        metrics.auditPerformanceComplete =
+          inspections.indexedPages.length === pageUrls.length &&
+          [period, daily, previous, queries].every(
+            (result) => result.status === "fulfilled",
+          );
+        if (
+          metrics.auditPerformanceComplete &&
+          metrics.metrics.find((metric) => metric.key === "impressions")
+            ?.value != null &&
+          metrics.metrics.find((metric) => metric.key === "impressions")
+            ?.previous?.value != null &&
+          (metrics.metrics.some((metric) => metric.points.length > 0) ||
+            metrics.metrics.find((metric) => metric.key === "impressions")
+              ?.value === 0)
+        )
+          metrics.coverage = "complete";
+        if (
+          metrics.coverage === "complete" &&
+          measuredPages.every((page) => page.basis !== "unverified")
+        ) {
+          metrics.auditClickHistory =
+            await auditClickHistoryFromSearchAnalytics(
+              metrics,
+              query,
+              readStats,
+            );
+        }
       }
       metrics.collectionFingerprint = fingerprint;
       metrics.collectedAt = metrics.observedAt;

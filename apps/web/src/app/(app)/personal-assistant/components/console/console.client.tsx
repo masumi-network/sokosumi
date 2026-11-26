@@ -4,12 +4,14 @@ import {
   type SokoBotDailyStats,
   type SokoBotInstalledSkill,
   type SokoBotIntegrations,
+  type SokoBotMcpServer,
+  type SokoBotSecret,
   SokoBotStatus,
   type SokoBotUsage,
   type SokoBotVersion,
 } from "@sokosumi/core-client";
 import { SOKO_BOT_SYSTEM_SCHEDULES } from "@sokosumi/soko-bot";
-import { MessageSquare, ShieldCheck } from "lucide-react";
+import { ArrowLeft, MessageSquare, ShieldCheck } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -17,7 +19,6 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import {
   type ReactNode,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -27,7 +28,12 @@ import { toast } from "sonner";
 import { ensureSokoBotDirectRoomAction } from "@/app/chat/actions";
 import { AdAccountsSection } from "@/app/personal-assistant/components/ad-accounts-section";
 import { formatTaskScheduleTime } from "@/app/tasks/utils/task-schedule-view";
-import { GALLERY_SECTION_HEADLINE_CLASS } from "@/components/agents/gallery-page-classes";
+import { AgentsPageHeader } from "@/components/agents/directory/agents-page";
+import {
+  AGENTS_BACK_LINK_CLASS,
+  AGENTS_PAGE_CLASS,
+} from "@/components/agents/directory/agents-page-classes";
+import { BackLink } from "@/components/back-link";
 import { CmoProjectBanner } from "@/components/cmo-project-banner";
 import { LoadErrorState } from "@/components/common/load-error-state";
 import Markdown from "@/components/markdown";
@@ -40,6 +46,9 @@ import {
 } from "@/components/ui/holder-surface";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
+import { useSokoBotIntegrationOutcomeToast } from "@/hooks/effects/use-soko-bot-integration-outcome-toast";
 import type { ChatSchedule, SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { describeSchedule } from "@/lib/soko-bot/describe-cron";
@@ -56,14 +65,16 @@ import { DeleteSokoBotButton } from "../delete-soko-bot-button.client";
 import { FollowBoardToggle } from "../follow-board-toggle.client";
 import { HowItWorks } from "../how-it-works";
 import { MailAutoReadToggle } from "../mail-auto-read-toggle.client";
+import { McpServersSection } from "../mcp-servers-section.client";
 import { ProactiveSettings } from "../proactive-settings.client";
 import { RenameSokoBotForm } from "../rename-soko-bot-form.client";
 import { ResetMemoryButton } from "../reset-memory-button.client";
 import { ScheduleForm } from "../schedule-form.client";
 import { ScheduleRowActions } from "../schedule-row-actions.client";
+import { ShellSetupSection } from "../shell-setup-section.client";
 import { SkillsSection } from "../skills-section.client";
 import { SokoBotTargetContext } from "../soko-bot-target";
-
+import { TeamStandupToggle } from "../team-standup-toggle.client";
 import { ActivityList } from "./activity-list.client";
 import { AutomationChecks } from "./automation-checks";
 import { BotProfileAvatar } from "./bot-profile-avatar.client";
@@ -93,10 +104,12 @@ function HolderSection({
   children: ReactNode;
 }) {
   return (
-    <section className="space-y-3">
-      <div className="flex items-end justify-between gap-3">
+    <section className="flex min-w-0 flex-col gap-4">
+      <div className="flex items-end justify-between gap-3 px-1">
         <div className="min-w-0 space-y-1">
-          <h2 className={GALLERY_SECTION_HEADLINE_CLASS}>{title}</h2>
+          <h2 className="text-foreground text-lg font-semibold tracking-tight">
+            {title}
+          </h2>
           {description ? (
             <p className="text-muted-foreground text-sm text-pretty">
               {description}
@@ -126,20 +139,20 @@ function ScheduleRow({
   focused: boolean;
 }) {
   const row = useRef<HTMLLIElement>(null);
-  useEffect(() => {
-    if (!focused) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-    row.current?.scrollIntoView({
-      block: "center",
-      behavior: reduce.matches ? "auto" : "smooth",
-    });
-    row.current?.focus({ preventScroll: true });
-  }, [focused]);
+  useScrollIntoViewWhen(row, focused, {
+    block: "center",
+    behavior: "smooth",
+    respectReducedMotion: true,
+  });
+  useFocusWhen(row, focused, { preventScroll: true });
   const t = useTranslations("App.SokoBot");
   const format = useFormatter();
+  // A built-in rewritten into another job before Core refused that (Joseph's
+  // end-of-day, 2026-11-08) is described by what it does now, untagged.
   const rhythm = schedule.systemKey
     ? SOKO_BOT_SYSTEM_SCHEDULES.find(
-        (entry) => entry.key === schedule.systemKey,
+        (entry) =>
+          entry.key === schedule.systemKey && entry.name === schedule.name,
       )
     : undefined;
   // Next run reads on the schedule's own clock, as its rule above does; the
@@ -167,10 +180,11 @@ function ScheduleRow({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="flex items-center gap-1.5 truncate text-sm font-medium">
-            <span className="truncate">{schedule.name}</span>
-            {schedule.systemKey ? (
-              <span className="text-muted-foreground shrink-0 text-2xs">
+          {/* Wraps: on a phone the controls leave room for a few letters. */}
+          <p className="text-sm font-medium wrap-anywhere">
+            {schedule.name}
+            {rhythm ? (
+              <span className="text-muted-foreground ml-1.5 text-2xs whitespace-nowrap">
                 {t("Schedules.builtIn")}
               </span>
             ) : null}
@@ -185,6 +199,7 @@ function ScheduleRow({
         {readOnly ? null : (
           <ScheduleRowActions
             scheduleId={schedule.id}
+            name={schedule.name}
             enabled={schedule.enabled}
             deletable={!schedule.systemKey}
             onRemovedChange={setRemoved}
@@ -195,13 +210,20 @@ function ScheduleRow({
         {rhythm?.description ?? schedule.prompt}
       </p>
       <p className="text-muted-foreground text-xs">
-        {t("Schedules.nextRun")}{" "}
-        <span className="text-foreground tabular-nums">
-          {schedule.enabled ? nextRun.schedule : t("Schedules.disabled")}
-        </span>
-        {schedule.enabled && nextRun.local ? (
-          <> {t("Schedules.yourTime", { datetime: nextRun.local })}</>
-        ) : null}
+        {/* A switched-off schedule has no next run; "Next disabled" read as broken. */}
+        {schedule.enabled ? (
+          <>
+            {t("Schedules.nextRun")}{" "}
+            <span className="text-foreground tabular-nums">
+              {nextRun.schedule}
+            </span>
+            {nextRun.local ? (
+              <> {t("Schedules.yourTime", { datetime: nextRun.local })}</>
+            ) : null}
+          </>
+        ) : (
+          t("Schedules.disabled")
+        )}
         {schedule.consecutiveFailures > 0 ? (
           <span className="text-semantic-destructive ml-3 tabular-nums">
             {t("Schedules.failures")} {schedule.consecutiveFailures}
@@ -256,6 +278,15 @@ export interface SokoBotConsoleProps {
    * empty state's link; null without the Social beta.
    */
   ads: { accounts: BotAdAccount[]; projectId: string | null } | null;
+  /**
+   * The caller's own bot's MCP servers, setup commands and saved keys
+   * (ADR 0074); null on a shared bot or outside Advanced.
+   */
+  ownTools?: {
+    mcpServers: SokoBotMcpServer[];
+    setupCommands: string[];
+    secrets: SokoBotSecret[];
+  } | null;
 }
 
 /**
@@ -291,6 +322,7 @@ export function SokoBotConsole({
   cmoProjectId = null,
   sharedRoomId,
   ads,
+  ownTools = null,
 }: SokoBotConsoleProps) {
   const isCuso = cmoProjectId !== null;
   const canManage = viewerCanManage && !isCuso;
@@ -309,13 +341,12 @@ export function SokoBotConsole({
   const format = useFormatter();
   const router = useRouter();
   const { state, refresh } = useSokoBotState(initialState, botId);
-  useEffect(() => {
-    if (!integrationOutcome) return;
-    if (integrationOutcome === "active")
-      toast.success(t("Integrations.connected"));
-    else toast.error(t("Integrations.connectFailed"));
-    router.replace(consoleRoute);
-  }, [integrationOutcome, router, t, consoleRoute]);
+  useSokoBotIntegrationOutcomeToast({
+    integrationOutcome,
+    router,
+    t,
+    consoleRoute,
+  });
   const { bot } = state;
   const botName = bot.name?.trim() || t("Chat.defaultName");
   // Same seed Core hands chat participants, so console and room match. Not
@@ -363,20 +394,105 @@ export function SokoBotConsole({
     <SokoBotTargetContext.Provider value={botId}>
       <AssistantSeedContext.Provider value={seed}>
         <AssistantImageContext.Provider value={bot.avatarImageUrl}>
-          <div className="w-full space-y-6 py-2">
+          <div className={AGENTS_PAGE_CLASS}>
             {cmoProjectId ? (
               <CmoProjectBanner projectId={cmoProjectId} />
             ) : null}
-            <header className="flex flex-col items-center gap-4 py-6 text-center">
-              <BotProfileAvatar
-                name={botName}
-                seed={seed}
-                imageUrl={bot.avatarImageUrl}
-                avatarCode={bot.avatarCode}
-                avatarState={avatarState}
-                // Only the owner changes their own bot's picture here; shared
-                // bots get theirs from admin.
-                onEdit={ownsBot ? () => setEditingPicture(true) : null}
+            <div className="flex flex-col gap-4">
+              <BackLink href="/agents" className={AGENTS_BACK_LINK_CLASS}>
+                <ArrowLeft aria-hidden className="size-4" />
+                {t("Console.back")}
+              </BackLink>
+              <AgentsPageHeader
+                leading={
+                  <BotProfileAvatar
+                    name={botName}
+                    seed={seed}
+                    imageUrl={bot.avatarImageUrl}
+                    avatarCode={bot.avatarCode}
+                    avatarState={avatarState}
+                    // Only the owner changes their own bot's picture here;
+                    // shared bots get theirs from admin.
+                    onEdit={ownsBot ? () => setEditingPicture(true) : null}
+                  />
+                }
+                title={botName}
+                subtitle={
+                  <>
+                    <SokoBotStatusBadge status={bot.status} />
+                    {version ? (
+                      <span
+                        className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs tabular-nums"
+                        title={`${version.name} · ${version.model}\n${version.summary}`}
+                      >
+                        <span className="text-foreground font-medium">
+                          {version.id}
+                        </span>
+                        <span aria-hidden>·</span>
+                        <span className="max-w-[16rem] truncate">
+                          {version.model.replace(/^[a-z]+\//, "")}
+                        </span>
+                        {version.inferenceRegion ? (
+                          <span className="bg-muted text-foreground rounded px-1">
+                            {version.inferenceRegion}
+                          </span>
+                        ) : null}
+                      </span>
+                    ) : null}
+                    {bot.lastActivityAt ? (
+                      <span
+                        className="text-sm tabular-nums"
+                        suppressHydrationWarning
+                      >
+                        {t("Console.lastActivity", {
+                          time: format.relativeTime(
+                            new Date(bot.lastActivityAt),
+                            new Date(),
+                          ),
+                        })}
+                      </span>
+                    ) : null}
+                  </>
+                }
+                actions={
+                  <>
+                    <div className="flex h-8 items-center gap-2 rounded-md border px-3">
+                      <Switch
+                        id="soko-bot-advanced"
+                        checked={isAdvanced}
+                        onCheckedChange={(checked) => {
+                          if (!checked && focusTurnId)
+                            router.replace(consoleRoute);
+                          else setView(checked ? "advanced" : null);
+                        }}
+                      />
+                      <Label
+                        htmlFor="soko-bot-advanced"
+                        className="cursor-pointer text-sm whitespace-nowrap"
+                      >
+                        {t("Console.views.advanced")}
+                      </Label>
+                    </div>
+                    {adminHref ? (
+                      <Button variant="outline" size="sm" asChild>
+                        {/* The admin view loads 50 turns in full; only on click. */}
+                        <Link href={adminHref} prefetch={false}>
+                          <ShieldCheck aria-hidden />
+                          {t("Console.adminView")}
+                        </Link>
+                      </Button>
+                    ) : null}
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={openChat}
+                      loading={isOpeningChat}
+                    >
+                      <MessageSquare aria-hidden />
+                      {t("Console.openChat")}
+                    </Button>
+                  </>
+                }
               />
               {ownsBot && editingPicture ? (
                 <AvatarStudioDialog
@@ -386,98 +502,15 @@ export function SokoBotConsole({
                   onSaved={refresh}
                 />
               ) : null}
-              <div className="flex flex-col items-center gap-2">
-                <div className="flex flex-wrap items-center justify-center gap-2.5">
-                  <h1 className="text-foreground truncate text-3xl font-light tracking-tight">
-                    {botName}
-                  </h1>
-                  <SokoBotStatusBadge status={bot.status} />
-                  {version ? (
-                    <span
-                      className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs tabular-nums"
-                      title={`${version.name} · ${version.model}\n${version.summary}`}
-                    >
-                      <span className="text-foreground font-medium">
-                        {version.id}
-                      </span>
-                      <span aria-hidden>·</span>
-                      <span className="max-w-[16rem] truncate">
-                        {version.model.replace(/^[a-z]+\//, "")}
-                      </span>
-                      {version.inferenceRegion ? (
-                        <span className="bg-muted text-foreground rounded px-1">
-                          {version.inferenceRegion}
-                        </span>
-                      ) : null}
-                    </span>
-                  ) : null}
-                </div>
-                <p className="text-muted-foreground max-w-xl text-sm text-pretty">
-                  {t("Console.tagline")}
+              {bot.status === SokoBotStatus.ERROR ? (
+                <p className="text-destructive px-1 text-sm text-pretty">
+                  {t("Console.lastTurnFailed", { name: botName })}
                 </p>
-                {bot.status === SokoBotStatus.ERROR ? (
-                  <p className="text-destructive max-w-xl text-sm text-pretty">
-                    {t("Console.lastTurnFailed", { name: botName })}
-                  </p>
-                ) : null}
-                {bot.lastActivityAt ? (
-                  <p
-                    className="text-muted-foreground text-xs tabular-nums"
-                    suppressHydrationWarning
-                  >
-                    {t("Console.lastActivity", {
-                      time: format.relativeTime(
-                        new Date(bot.lastActivityAt),
-                        new Date(),
-                      ),
-                    })}
-                  </p>
-                ) : null}
-              </div>
-              <div className="flex w-full flex-wrap items-center justify-center gap-2">
-                <div className="flex flex-1 items-center justify-center gap-2 rounded-md border px-3 py-2 sm:flex-none">
-                  <Switch
-                    id="soko-bot-advanced"
-                    checked={isAdvanced}
-                    onCheckedChange={(checked) => {
-                      if (!checked && focusTurnId) router.replace(consoleRoute);
-                      else setView(checked ? "advanced" : null);
-                    }}
-                  />
-                  <Label
-                    htmlFor="soko-bot-advanced"
-                    className="cursor-pointer text-sm whitespace-nowrap"
-                  >
-                    {t("Console.views.advanced")}
-                  </Label>
-                </div>
-                {adminHref ? (
-                  <Button
-                    variant="outline"
-                    asChild
-                    className="flex-1 sm:flex-none"
-                  >
-                    {/* The admin view loads 50 turns in full; only on click. */}
-                    <Link href={adminHref} prefetch={false}>
-                      <ShieldCheck aria-hidden className="size-4" />
-                      {t("Console.adminView")}
-                    </Link>
-                  </Button>
-                ) : null}
-                <Button
-                  type="button"
-                  className="flex-1 sm:flex-none"
-                  onClick={openChat}
-                  loading={isOpeningChat}
-                >
-                  <MessageSquare aria-hidden className="size-4" />
-                  {t("Console.openChat")}
-                </Button>
-              </div>
-            </header>
+              ) : null}
+            </div>
 
             {isAdvanced ? (
-              <div className="space-y-10">
+              <div className="flex flex-col gap-12">
                 <HolderSection
                   title={t("Console.activityTitle")}
                   description={t("Console.activityDescription")}
@@ -567,6 +600,9 @@ export function SokoBotConsole({
                           <FollowBoardToggle
                             initial={bot.followWholeBoard ?? false}
                           />
+                          <TeamStandupToggle
+                            initial={bot.joinsTeamStandup ?? true}
+                          />
                           <MailAutoReadToggle
                             initial={bot.mailAutoRead ?? false}
                           />
@@ -582,10 +618,12 @@ export function SokoBotConsole({
                               ? t("Settings.sharedArchiveDescription")
                               : t("Settings.archiveDescription")}
                           </p>
-                          <ArchiveSokoBotButton />
-                          <DeleteSokoBotButton
-                            botName={state.bot.name ?? null}
-                          />
+                          <div className="flex flex-wrap gap-2">
+                            <ArchiveSokoBotButton />
+                            <DeleteSokoBotButton
+                              botName={state.bot.name ?? null}
+                            />
+                          </div>
                         </div>
                       ) : null}
                     </div>
@@ -605,6 +643,33 @@ export function SokoBotConsole({
                     </HolderPanel>
                   </HolderSection>
                 )}
+                {ownTools ? (
+                  <>
+                    <HolderSection
+                      title={t("Mcp.title")}
+                      description={t("Mcp.description")}
+                    >
+                      <HolderPanel>
+                        <McpServersSection
+                          botId={state.bot.id}
+                          initialServers={ownTools.mcpServers}
+                        />
+                      </HolderPanel>
+                    </HolderSection>
+                    <HolderSection
+                      title={t("Shell.title")}
+                      description={t("Shell.description")}
+                    >
+                      <HolderPanel>
+                        <ShellSetupSection
+                          botId={state.bot.id}
+                          initialCommands={ownTools.setupCommands}
+                          initialSecrets={ownTools.secrets}
+                        />
+                      </HolderPanel>
+                    </HolderSection>
+                  </>
+                ) : null}
                 {adsBlock ? (
                   <HolderSection
                     title={t("Ads.title")}
@@ -623,7 +688,7 @@ export function SokoBotConsole({
                 </HolderSection>
               </div>
             ) : (
-              <div className="space-y-10">
+              <div className="flex flex-col gap-12">
                 <HolderSection
                   title={t("Console.Connectors.title")}
                   description={t("Console.Connectors.description")}

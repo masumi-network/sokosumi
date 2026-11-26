@@ -9,6 +9,8 @@ import {
   PencilLine,
 } from "lucide-react";
 
+import { parseAsStringLiteral, useQueryState } from "nuqs";
+
 import { CornerCountBadge } from "@/components/common/corner-count-badge";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
@@ -16,7 +18,16 @@ import {
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
-import type { SocialTab } from "./constants";
+import { SOCIAL_TABS, type SocialTab } from "./constants";
+
+/** Only the visible tab loads complete search results, so its URL change must reach the server. */
+export function useSocialTab() {
+  const [query] = useQueryState("q");
+  return useQueryState(
+    "tab",
+    parseAsStringLiteral(SOCIAL_TABS).withOptions({ shallow: !query?.trim() }),
+  );
+}
 
 const SOCIAL_TAB_ICONS: Record<SocialTab, LucideIcon> = {
   calendar: CalendarDays,

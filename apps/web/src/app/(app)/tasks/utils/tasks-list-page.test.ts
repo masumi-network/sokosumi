@@ -89,6 +89,7 @@ describe("getTasksListPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
+      search: "launch",
       tag: WORKSPACE_TAG_ID,
       visibility: null,
       coworkersById: new Map(),
@@ -105,6 +106,7 @@ describe("getTasksListPage", () => {
       assigneeSokoBotId: undefined,
       assigneeUserId: undefined,
       projectId: PROJECT_ID,
+      search: "launch",
       workspaceTagId: WORKSPACE_TAG_ID,
       cursor: null,
       limit: 2,
@@ -314,7 +316,7 @@ describe("getTasksListPage", () => {
       personalAssistantFallback: "Personal assistant",
     });
 
-    expect(page).toEqual({ tasks: [], nextCursor: null });
+    expect(page).toEqual({ tasks: [], nextCursor: null, total: 0 });
     expect(listTasksMock).not.toHaveBeenCalled();
   });
 });

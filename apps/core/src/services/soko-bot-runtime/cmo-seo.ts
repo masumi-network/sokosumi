@@ -50,6 +50,7 @@ function forCuso(seo: CmoSeo) {
       skippedForCredits: seo.audit.skipped,
       latest: seo.audit.latest,
       lastFailedAt: seo.audit.lastFailedAt,
+      retryAt: seo.audit.retryAt,
     },
     searchConsole: seo.searchConsole,
     articles: seo.articles.map(suggestion),
@@ -104,7 +105,7 @@ export async function executeCmoSeoTool(
         return {
           ...search,
           ideas: search.ideas.slice(0, IDEAS_SHOWN),
-          note: "Volume is Google searches a month in this market; difficulty runs 0 to 100. Quote these numbers with this date; never estimate others.",
+          note: "searchVolume is Google searches per month in this market; null means too few searches to measure. Difficulty runs from 0 to 100. impressions, clicks and position are the site's own Search Console numbers for the last 28 days: a search with impressions but no volume is one Google already shows the site for, a real target in a small market. Cite each idea’s measuredAt date when present, otherwise use the search date.",
         };
       }
       case "research_competitor_keywords": {

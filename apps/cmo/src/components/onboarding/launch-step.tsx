@@ -1,8 +1,10 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
+import { cmoMonthFloor } from "@sokosumi/utils";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
+import { useScrollIntoViewWhen } from "../../hooks/effects/use-scroll-into-view-when";
 import { AGENT_NAME } from "../../lib/agent";
 import {
   channelLabel,
@@ -12,6 +14,7 @@ import {
 } from "../../lib/calendar";
 import { channelInfo, channelKey } from "../../lib/channels";
 import { joinNames } from "../../lib/names";
+import { calendarIsExamples } from "../../lib/strategy";
 import type { AdActions } from "../ads";
 import { ChannelIcon } from "../channel-icon";
 import { cusoArt } from "../cuso";
@@ -139,6 +142,8 @@ export function LaunchStep({
   const required = strategySocialChannels(overview);
   const optional = optionalChannels(overview);
   const searchOnly = strategyChannels(overview).includes("seo");
+  // The newsletter is set up after hiring: say where, so it is not missed.
+  const newsletter = strategyChannels(overview).includes("newsletter");
   const plan = overview.approvedStrategy ?? overview.strategy;
   const calendar = overview.strategy?.calendar ?? [];
   const connected = new Set(
@@ -151,6 +156,13 @@ export function LaunchStep({
   // Undefined until the founder acts: then the return notice no longer shows.
   const [error, setError] = useState<string | null | undefined>(undefined);
   const shownError = error === undefined ? notice : error;
+  // The reason shows below the networks, often off screen from the row the
+  // founder pressed: bring it into view when a connection fails.
+  const alertRef = useRef<HTMLParagraphElement>(null);
+  useScrollIntoViewWhen(alertRef, Boolean(error), {
+    block: "nearest",
+    resetKey: error,
+  });
   const [celebrating, setCelebrating] = useState(false);
   const [, startTransition] = useTransition();
   // One of the plan's networks is enough to start; the rest can follow.
@@ -158,6 +170,15 @@ export function LaunchStep({
     required.length > 0 && !required.some((key) => connected.has(key));
   const pieces = (key: string) =>
     calendar.filter((entry) => channelKey(entry.channel) === key).length;
+  // cmo-v22: until Core has written the month, each network says its floor.
+  const floor =
+    plan && calendarIsExamples(plan)
+      ? new Map<string, number>(
+          cmoMonthFloor(plan.channels, overview.production.level).byNetwork.map(
+            ({ network, posts }) => [network, posts],
+          ),
+        )
+      : null;
 
   function connect(key: string) {
     setPending(key);
@@ -215,8 +236,8 @@ export function LaunchStep({
         <div className="ob-celebration-panel">
           <div className="card ob-celebration">
             <img
-              src={cusoArt("thumbs-up")}
-              alt={`${AGENT_NAME} giving a thumbs up`}
+              src={cusoArt("correct")}
+              alt={`${AGENT_NAME} holding up a check mark`}
               width={320}
               height={320}
             />
@@ -296,7 +317,9 @@ export function LaunchStep({
                     <p className="ob-small muted">
                       {key === "seo"
                         ? "Page fixes and articles you paste into your site."
-                        : `${pieces(key)} of ${calendar.length} posts go here`}
+                        : floor
+                          ? `At least ${floor.get(key) ?? 0} posts a month go here`
+                          : `${pieces(key)} of ${calendar.length} posts go here`}
                     </p>
                   </div>
                   {key === "seo" ? (
@@ -304,7 +327,9 @@ export function LaunchStep({
                   ) : done ? (
                     <span className="ob-connected">
                       <StatusDisc status="ok" />
-                      {account?.handle ? `@${account.handle}` : "Connected"}
+                      {account?.handle
+                        ? `@${account.handle.replace(/^@/, "")}`
+                        : "Connected"}
                     </span>
                   ) : (
                     <>
@@ -343,11 +368,17 @@ export function LaunchStep({
         />
       ) : null}
 
-      {later.length > 0 || sources.length > 0 ? (
+      {later.length > 0 || sources.length > 0 || newsletter ? (
         <div className="ob-later">
           <p className="ob-small muted">
             Add later, here or on the Channels page
           </p>
+          {newsletter ? (
+            <p className="ob-small muted">
+              Newsletter: add your mailing list on the Channels page.{" "}
+              {AGENT_NAME} writes each issue for it.
+            </p>
+          ) : null}
           <div className="ob-later-chips">
             {later.map(({ key, perMonth }) => {
               // What connecting it adds: the plan's own pieces, or Cuso's proposal.
@@ -393,7 +424,7 @@ export function LaunchStep({
       ) : null}
 
       {shownError ? (
-        <p className="alert" role="alert">
+        <p ref={alertRef} className="alert" role="alert">
           {/configured|unavailable|set up/i.test(shownError)
             ? "Connecting accounts isn't available here yet."
             : shownError}

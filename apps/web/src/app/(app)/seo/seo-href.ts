@@ -1,7 +1,11 @@
 /** The SEO page keeps the header's Project scope in `projectId`, as the other scoped pages do. */
-export function seoIndexHref(projectId: string | null, cursor?: string) {
+export function seoIndexHref(
+  projectId: string | null,
+  { cursor, archived }: { cursor?: string; archived?: boolean } = {},
+) {
   const params = new URLSearchParams();
   if (projectId) params.set("projectId", projectId);
+  if (archived) params.set("view", "archived");
   if (cursor) params.set("cursor", cursor);
   const query = params.toString();
   return query ? `/seo?${query}` : "/seo";
@@ -23,14 +27,31 @@ export function seoProjectHref(projectId: string) {
   return `/seo?${new URLSearchParams({ projectId, view: "project" })}`;
 }
 
-/** The same SEO URL without one query key. */
+/** Where a Task's SEO result opens: its Audit, else its Project's SEO workspace. Null when the Task has neither. */
+export function seoTaskResultLink(
+  seoAudit:
+    | { auditId: string | null; projectId: string | null }
+    | null
+    | undefined,
+): { href: string; kind: "audit" | "project" } | null {
+  if (seoAudit?.auditId)
+    return {
+      href: seoAuditHref(seoAudit.auditId, seoAudit.projectId),
+      kind: "audit",
+    };
+  if (seoAudit?.projectId)
+    return { href: seoProjectHref(seoAudit.projectId), kind: "project" };
+  return null;
+}
+
+/** The same SEO URL without these query keys. */
 export function seoHrefWithout(
   query: Record<string, string | string[] | undefined>,
-  key: string,
+  ...keys: string[]
 ) {
   const params = new URLSearchParams();
   for (const [name, value] of Object.entries(query))
-    if (name !== key)
+    if (!keys.includes(name))
       for (const one of [value ?? []].flat()) params.append(name, one);
   return `/seo?${params}`;
 }

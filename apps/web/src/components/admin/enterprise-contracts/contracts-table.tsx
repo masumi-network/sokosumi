@@ -7,7 +7,7 @@ import type {
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   AsyncSearchCombobox,
   buildComboboxLabels,
@@ -180,19 +180,32 @@ export function ContractsTable({
   const [appliedFilters, setAppliedFilters] = useQueryStates(
     enterpriseContractFilterParsers,
   );
+  const [prevAppliedSlug, setPrevAppliedSlug] = useState(
+    appliedFilters.organizationSlug,
+  );
+  const [prevAppliedStatus, setPrevAppliedStatus] = useState(
+    appliedFilters.status,
+  );
   const [organizationSlug, setOrganizationSlug] = useState(
     appliedFilters.organizationSlug,
   );
+  const [prevInitialFilterOrganization, setPrevInitialFilterOrganization] =
+    useState<AdminOrganizationOption | null>(initialFilterOrganization);
   const [selectedFilterOrganization, setSelectedFilterOrganization] =
     useState<AdminOrganizationOption | null>(initialFilterOrganization);
   const [status, setStatus] = useState<EnterpriseContractStatus | "all">(
     appliedFilters.status ?? "all",
   );
 
-  useEffect(() => {
+  if (
+    prevAppliedSlug !== appliedFilters.organizationSlug ||
+    prevAppliedStatus !== appliedFilters.status
+  ) {
+    setPrevAppliedSlug(appliedFilters.organizationSlug);
+    setPrevAppliedStatus(appliedFilters.status);
     setOrganizationSlug(appliedFilters.organizationSlug);
     setStatus(appliedFilters.status ?? "all");
-  }, [appliedFilters.organizationSlug, appliedFilters.status]);
+  }
 
   // Keep the combobox selection in sync with the server-resolved organization
   // for the active URL slug. The server component re-runs on navigation (filter
@@ -200,9 +213,10 @@ export function ContractsTable({
   // trigger never shows a stale org or an empty placeholder while a slug filter
   // is active. Local (unapplied) selections are preserved because this prop
   // only changes on a server render.
-  useEffect(() => {
+  if (prevInitialFilterOrganization !== initialFilterOrganization) {
+    setPrevInitialFilterOrganization(initialFilterOrganization);
     setSelectedFilterOrganization(initialFilterOrganization);
-  }, [initialFilterOrganization]);
+  }
 
   const orgLabels = buildComboboxLabels(tOrg, {
     placeholder: t("Filters.organizationAll"),

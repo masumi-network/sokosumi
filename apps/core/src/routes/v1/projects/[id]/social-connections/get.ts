@@ -20,7 +20,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/{id}/social-connections",
     description:
-      "List a Project's current social connections. Requires an interactive session or an authorized task-capable Coworker with user context. Connection management remains human-only.",
+      "List a Project's current social connections. Open to a person by any sign-in (browser, API key or OAuth token) or an authorized task-capable Coworker with user context. Connection management remains human-only.",
     tags: ["Projects"],
     request: { params: projectSocialConnectionProjectParamsSchema },
     responses: {

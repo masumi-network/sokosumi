@@ -3,8 +3,9 @@ import { getTranslations } from "next-intl/server";
 import { AgentRatingForm } from "@/components/agents/agent-rating-form";
 import { RatingDistribution } from "@/components/agents/rating-distribution";
 import { StarRating } from "@/components/agents/star-rating";
-import { Skeleton } from "@/components/ui/skeleton";
+import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import type { AgentRatingStats } from "@/lib/types/core-dto";
+import { cn } from "@/lib/utils";
 
 import { ReviewsList } from "./reviews-list";
 
@@ -33,15 +34,15 @@ export async function AgentDetailReviews({
   const hasRatings = ratingStats.total > 0;
 
   return (
-    <section className="space-y-4">
-      <h2 className="text-muted-foreground text-xs font-medium">
+    <section className="space-y-2">
+      <h3 className="text-muted-foreground px-2 pt-2 text-xs font-medium">
         {t("customerReviews")}
-      </h2>
+      </h3>
       {hasRatings ? (
         <>
-          <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+          <div className="grid gap-2 lg:grid-cols-2 lg:items-start">
             <div className="space-y-4">
-              <div className="bg-card-background border-border space-y-3 rounded-lg border p-3">
+              <div className={cn(HOLDER_ITEM_CLASS, "space-y-3 p-4")}>
                 <StarRating
                   averageRating={ratingStats.average ?? 0}
                   totalRatings={ratingStats.total}
@@ -58,7 +59,7 @@ export async function AgentDetailReviews({
             </div>
           </div>
           {canRate ? (
-            <div className="border-border rounded-lg border p-3">
+            <div className={cn(HOLDER_ITEM_CLASS, "p-4")}>
               <AgentRatingForm
                 agentId={agentId}
                 existingRating={existingRating?.rating ?? null}
@@ -71,10 +72,10 @@ export async function AgentDetailReviews({
         <div>
           {canRate && (
             <div className="w-full">
-              <p className="text-muted-foreground mb-4 text-center text-sm">
+              <p className="text-muted-foreground mb-2 px-2 text-sm">
                 {t("beFirstToReview")}
               </p>
-              <div className="border-border rounded-lg border p-3">
+              <div className={cn(HOLDER_ITEM_CLASS, "p-4")}>
                 <AgentRatingForm
                   agentId={agentId}
                   existingRating={existingRating?.rating ?? null}
@@ -86,23 +87,5 @@ export async function AgentDetailReviews({
         </div>
       )}
     </section>
-  );
-}
-
-export function AgentDetailReviewsSkeleton() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <Skeleton className="mb-4 h-6 w-32" />
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Skeleton className="h-20" />
-          <div className="space-y-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Skeleton key={i} className="h-5" />
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }

@@ -11,19 +11,21 @@ import {
   SOKO_BOT_SCENARIOS,
   type SokoBotScenario,
 } from "@sokosumi/soko-bot";
+import { useQuery } from "@tanstack/react-query";
 import { Check, Play, X } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { parseAsString, useQueryState } from "nuqs";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useInterval } from "@/hooks/effects/use-interval";
+import { useScenarioLabMountedRef } from "@/hooks/effects/use-scenario-lab-mounted-ref";
+import { useScenarioLabVersion } from "@/hooks/effects/use-scenario-lab-version";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import {
   judgeSokoBotLabTurnAction,
   listSokoBotLabRunsAction,
   runSokoBotLabIngestAction,
-  setSokoBotVersionAction,
   simulateSokoBotTaskEventAction,
   startSokoBotTurnAction,
 } from "@/lib/actions/soko-bot/action";
@@ -88,7 +90,7 @@ interface LiveRun {
 
 async function fetchTurn(turnId: string): Promise<ChatTurnDetail | null> {
   const response = await fetch(
-    `/api/personal-assistant/turns/${encodeURIComponent(turnId)}`,
+    `/api/admin/soko-bots/turns/${encodeURIComponent(turnId)}`,
     { credentials: "same-origin", cache: "no-store" },
   );
   if (!response.ok) return null;
@@ -130,12 +132,10 @@ async function watchTurn(
 /** Ticks once a second so an elapsed time is not frozen at its first render. */
 function useElapsed(since: number | null): number {
   const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (since === null) return;
-    setNow(Date.now());
-    const id = setInterval(() => setNow(Date.now()), 1_000);
-    return () => clearInterval(id);
-  }, [since]);
+  useInterval(() => setNow(Date.now()), since === null ? null : 1_000, {
+    immediate: true,
+    resetKey: since,
+  });
   return since === null ? 0 : Math.max(0, Math.round((now - since) / 1000));
 }
 
@@ -239,90 +239,22 @@ export function ScenarioLab({
   onTurnFinished?: () => void;
 }) {
   const t = useTranslations("App.Admin.SokoBots.Lab");
-  const [history, setHistory] = useState<History>({});
-  const [activeVersion, setActiveVersion] = useState<string | null>(versionId);
   const activeVersionRef = useRef<string | null>(versionId);
-  const [requestedVersionId, setRequestedVersionId] = useQueryState(
-    "version",
-    parseAsString.withOptions({ history: "replace" }),
-  );
-  const [switching, setSwitching] = useState(false);
-  const [promptOpen, setPromptOpen] = useState(false);
-  const current = versions.find((v) => v.id === activeVersion) ?? null;
-
-  useEffect(() => {
-    let cancelled = false;
-    const fallbackVersionId = versionId ?? versions[0]?.id ?? null;
-    const requested = versions.some(
-      (version) => version.id === requestedVersionId,
-    )
-      ? requestedVersionId
-      : null;
-    if (requestedVersionId && !requested) {
-      void setRequestedVersionId(null);
-    }
-    if (!requested || requested === activeVersionRef.current) {
-      activeVersionRef.current = requested ?? fallbackVersionId;
-      setActiveVersion(requested ?? fallbackVersionId);
-      return;
-    }
-
-    setSwitching(true);
-    void setSokoBotVersionAction({ versionId: requested }).then(
-      (switchResult) => {
-        if (cancelled) return;
-        setSwitching(false);
-        if (!switchResult.ok) {
-          void setRequestedVersionId(null);
-          return;
-        }
-        activeVersionRef.current = requested;
-        setActiveVersion(requested);
-        onTurnFinished?.();
-      },
-      // A server action rejects instead of answering with a result when the
-      // POST comes back as something other than RSC. Release the switch, or
-      // the picker stays disabled.
-      () => {
-        if (cancelled) return;
-        setSwitching(false);
-        void setRequestedVersionId(null);
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    onTurnFinished,
-    requestedVersionId,
-    setRequestedVersionId,
+  const { activeVersion, switching, chooseVersion } = useScenarioLabVersion({
     versionId,
     versions,
-  ]);
-
-  async function chooseVersion(id: string) {
-    setSwitching(true);
-    const result = await setSokoBotVersionAction({ versionId: id });
-    setSwitching(false);
-    if (result.ok) {
-      activeVersionRef.current = id;
-      setActiveVersion(id);
-      await setRequestedVersionId(id);
-      onTurnFinished?.();
-    }
-  }
+    activeVersionRef,
+    onTurnFinished,
+  });
+  const [promptOpen, setPromptOpen] = useState(false);
+  const current = versions.find((v) => v.id === activeVersion) ?? null;
   const [running, setRunning] = useState<Set<string>>(new Set());
   const [failures, setFailures] = useState<Record<string, string>>({});
   // One at a time: turns share the bot's session lock, so this is the run the
   // whole page is waiting on rather than one of several.
   const [live, setLive] = useState<LiveRun | null>(null);
   const mountedRef = useRef(false);
-  useMountEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  });
+  useScenarioLabMountedRef(mountedRef);
   /** Where a Run all has got to, so the wait has a denominator. */
   const [batch, setBatch] = useState<{
     done: number;
@@ -330,14 +262,22 @@ export function ScenarioLab({
     startedAt: number;
   } | null>(null);
 
-  const loadHistory = useCallback(async () => {
-    const result = await listSokoBotLabRunsAction({});
-    if (result.ok) setHistory(toHistory(result.value));
-  }, []);
-
-  useEffect(() => {
-    void loadHistory();
-  }, [loadHistory]);
+  const historyQuery = useQuery({
+    queryKey: ["admin", "soko-bot-lab-runs"],
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    queryFn: async (): Promise<History> => {
+      const result = await listSokoBotLabRunsAction({});
+      if (!result.ok) {
+        throw new Error(result.error.message ?? "Failed to load lab runs");
+      }
+      return toHistory(result.value);
+    },
+  });
+  const history = historyQuery.data ?? {};
 
   async function run(scenario: SokoBotScenario) {
     // A closed lab starts nothing: each start is a real server action.
@@ -453,7 +393,7 @@ export function ScenarioLab({
           },
         },
       });
-      await loadHistory();
+      await historyQuery.refetch();
       onTurnFinished?.();
     } finally {
       setRunning((current) => {
@@ -699,10 +639,10 @@ function ScenarioRow({
   // A Run all works through twenty-two scenarios; without this the one being
   // run is usually somewhere off-screen.
   const isLive = live !== null;
-  useEffect(() => {
-    if (!isLive) return;
-    rowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [isLive]);
+  useScrollIntoViewWhen(rowRef, isLive, {
+    block: "nearest",
+    behavior: "smooth",
+  });
 
   return (
     <li ref={rowRef} className="px-4 py-3">

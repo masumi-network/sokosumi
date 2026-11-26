@@ -7,6 +7,10 @@ import {
   SokoBotStatus,
   type TaskListItem,
 } from "@sokosumi/core-client";
+import {
+  isSokoBotIntroduction,
+  withoutActionReceipts,
+} from "@sokosumi/soko-bot";
 import { buildChatMessagePreview } from "@sokosumi/utils";
 import type { NeedsYouLead } from "@/app/projects/components/needs-you-panel-list";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
@@ -64,6 +68,51 @@ export function sokoBotFailureLead(
         detail: t("openBot", name),
         href: SOKO_BOT_ROUTE,
       };
+}
+
+/** The bot's Direct as Home reads it: its newest top-level messages. */
+export interface SokoBotHomeRoom {
+  roomId: string;
+  /** Oldest first, deleted ones included. */
+  messages: readonly ChatRoomMessage[];
+  /** Where the reader's Unread divider sits, from the same read; null when
+   * nothing is unread. */
+  firstUnreadMessageId: string | null;
+}
+
+/**
+ * Home's Needs you row for the bot's welcome while the reader has not read
+ * it. The welcome is the bot's message Core marked as its introduction, so a
+ * rename does not hide it and an owner notice is never one. It is unread
+ * while the room's Unread divider sits right above it.
+ */
+export function sokoBotWelcomeLead(
+  bot: { id: string; name: string },
+  /** Core's introduction text for today's names, for unmarked older ones. */
+  introduction: string,
+  botRoom: SokoBotHomeRoom | null,
+  t: (key: "welcome" | "openChat", values?: { name: string }) => string,
+): NeedsYouLead | undefined {
+  const welcome = botRoom?.messages.find(
+    (message) =>
+      message.id === botRoom.firstUnreadMessageId &&
+      !message.deletedAt &&
+      message.sender.type === "sokoBot" &&
+      message.sender.sokoBot.id === bot.id &&
+      // ponytail: introductions posted before the marker match on Core's
+      // text, so a rename before reading hides those rows (never labels a
+      // notice). Drop the fallback once no unmarked one can still be unread.
+      (isSokoBotIntroduction(message.metadata) ||
+        message.content === introduction),
+  );
+  if (!botRoom || !welcome) return undefined;
+  return {
+    title: t("welcome", { name: bot.name }),
+    detail: t("openChat"),
+    href: chatRoomMessageHref(botRoom.roomId, welcome.id),
+    at: welcome.createdAt,
+    kind: "message",
+  };
 }
 
 /** A Task the team moved in the last day, as one row of the home. */
@@ -169,17 +218,32 @@ export function toImportantChats(
 }
 
 /**
- * Adds the reader's latest question to their Soko Bot as one row, read or
- * not, so a first chat shows on Home. `messages` is the bot's Direct, oldest
- * first. The row shows and is dated by the question itself, so a bot post
- * today does not make an older question look new. Nothing when the question
- * is over a day old, when the reader never asked, or when an unread row from
- * that room is already listed: that one points at what is new.
+ * Adds the reader's latest chat with their Soko Bot as one row, read or not,
+ * so a first chat shows on Home. `messages` is the bot's Direct, oldest
+ * first. While the reader's latest question waits, the row shows it ("You to
+ * Juno"); once the bot has answered it, the row shows the bot's newest
+ * answer ("Juno replied"), so Home says the answer is there. An answer is the
+ * bot's message Core links to that question (`in_reply_to_message_id`, set on
+ * every Soko Bot answer) that is neither still streaming nor a failed shell;
+ * a post that answers no question, or a late answer to an earlier one, never
+ * counts. The row is
+ * dated by the message it shows. Nothing when the question is over a day old,
+ * so a bot post today does not revive an old chat, when the reader never
+ * asked, or when an unread row from that room is already listed: that one
+ * points at what is new.
  */
 export function withSokoBotChat(
   chats: SokoBotHomeChat[],
   botRoom: { roomId: string; messages: readonly ChatRoomMessage[] } | null,
-  reader: { userId: string; botName: string; untitled: string },
+  reader: {
+    userId: string;
+    /** Names a question: the reader to the bot. */
+    from: string;
+    botId: string;
+    /** Names a reply: the bot replied. */
+    replied: string;
+    untitled: string;
+  },
   now: Date,
 ): SokoBotHomeChat[] {
   if (!botRoom || chats.some((chat) => chat.roomId === botRoom.roomId)) {
@@ -194,14 +258,32 @@ export function withSokoBotChat(
   if (!question || now.getTime() - question.createdAt.getTime() > DAY_MS) {
     return chats;
   }
+  const reply = botRoom.messages.findLast((message) => {
+    const metadata = message.metadata as Record<string, unknown> | null;
+    return (
+      !message.deletedAt &&
+      message.sender.type === "sokoBot" &&
+      message.sender.sokoBot.id === reader.botId &&
+      metadata?.in_reply_to_message_id === question.id &&
+      metadata.streaming !== true &&
+      metadata.mention_failed !== true
+    );
+  });
+  const shown = reply ?? question;
   return [
     ...chats,
     {
       roomId: botRoom.roomId,
-      messageId: question.id,
-      title: buildChatMessagePreview(question.content) || reader.untitled,
-      from: reader.botName,
-      at: question.createdAt,
+      messageId: shown.id,
+      // A reply previews the bot's words, not Core's receipts above them,
+      // unless those words preview as nothing (a bare link): then the whole.
+      title:
+        (reply &&
+          buildChatMessagePreview(withoutActionReceipts(reply.content))) ||
+        buildChatMessagePreview(shown.content) ||
+        reader.untitled,
+      from: reply ? reader.replied : reader.from,
+      at: shown.createdAt,
     },
   ];
 }

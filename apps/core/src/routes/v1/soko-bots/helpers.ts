@@ -97,6 +97,8 @@ export function mapBot(bot: Awaited<ReturnType<typeof getSokoBotState>>) {
   if (!bot) return null;
   return {
     ...bot,
+    joinsTeamStandup: bot.leftTeamStandupAt === null,
+    leftTeamStandupAt: undefined,
     memory: bot.memoryRevisions[0] ?? null,
     memoryRevisions: undefined,
   };
@@ -107,14 +109,22 @@ type TurnWithAttribution = Awaited<
 >["turns"][number];
 
 /**
- * Flatten the mention → message → room chain into `chatRoom`. The teammate
- * who asked (`askedBy`) is `requestedBy` on the wire.
+ * Flatten the mention → message → room chain into `chatRoom`, and the
+ * schedule run into `schedule`. The teammate who asked (`askedBy`) is
+ * `requestedBy` on the wire.
  */
-export function mapTurn<T extends Partial<TurnWithAttribution>>(turn: T) {
-  const { askedBy, chatMention, ...rest } = turn;
+export function mapTurn<T extends Partial<TurnWithAttribution>>(
+  turn: T & { toolCalls?: readonly { errorDetail: string | null }[] },
+) {
+  const { askedBy, chatMention, scheduleRun, toolCalls, ...rest } = turn;
   return {
     ...rest,
+    errorDetail: null,
+    ...(toolCalls && {
+      toolCalls: toolCalls.map((call) => ({ ...call, errorDetail: null })),
+    }),
     chatRoom: chatMention?.message?.room ?? null,
+    schedule: scheduleRun?.schedule ?? null,
     requestedBy: askedBy,
   };
 }

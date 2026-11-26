@@ -399,15 +399,17 @@ describe("WorkspaceCalendar editing", () => {
   });
 
   it("follows the Project scope in pagination and has no project filter of its own", async () => {
-    render(
-      <NuqsTestingAdapter searchParams="?timezone=UTC&projectId=project-1">
-        <WorkspaceCalendar
-          initialDate="2030-01-02"
-          items={[ITEM]}
-          sources={SOURCES}
-          {...CALENDAR_PAGE}
-        />
-      </NuqsTestingAdapter>,
+    await act(async () =>
+      render(
+        <NuqsTestingAdapter searchParams="?timezone=UTC&projectId=project-1">
+          <WorkspaceCalendar
+            initialDate="2030-01-02"
+            items={[ITEM]}
+            sources={SOURCES}
+            {...CALENDAR_PAGE}
+          />
+        </NuqsTestingAdapter>,
+      ),
     );
 
     const topLevelSections = filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
@@ -423,10 +425,12 @@ describe("WorkspaceCalendar editing", () => {
       ),
     );
 
-    renderCalendar({
-      ...CALENDAR_PAGE,
-      lockedProjectId: "project-1",
-    });
+    await act(async () =>
+      renderCalendar({
+        ...CALENDAR_PAGE,
+        lockedProjectId: "project-1",
+      }),
+    );
     const projectSections = filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
       sections: Array<{ id: string }>;
     };
@@ -1084,9 +1088,10 @@ describe("WorkspaceCalendar editing", () => {
       id: "social:failed",
       status: "FAILED" as const,
     };
-    renderCalendar({
-      items: [SOCIAL_POST, failed, published, canceled],
-    });
+    renderCalendar(
+      { items: [SOCIAL_POST, failed, published, canceled] },
+      "?timezone=UTC&showCanceled=true",
+    );
 
     const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
     function event(id: string) {

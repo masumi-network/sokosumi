@@ -197,6 +197,19 @@ describe("social account statistics routes", () => {
     expect(mocks.list).toHaveBeenCalled();
     expect(mocks.schedule).toHaveBeenCalled();
   });
+  // ADR 0077: a person's API key, OAuth or MCP token may refresh, as a Coworker may.
+  it.each([
+    { authenticationMethod: "api_key" as const },
+    { authenticationMethod: "oauth" as const, oauthClientId: "c" },
+    { authenticationMethod: "oauth" as const },
+  ])("refreshes for an agent on %o", async (credential) => {
+    const response = await createApp({ ...auth, ...credential }).request(
+      `http://localhost/${projectId}/social-connections/${connectionId}/statistics/refresh`,
+      refreshRequest(),
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.schedule).toHaveBeenCalled();
+  });
   it("allows a delegated Coworker and rejects a bare Coworker", async () => {
     const actor: AuthenticationContext = {
       actor: "coworker",
@@ -237,7 +250,7 @@ describe("social account statistics routes", () => {
       expect.anything(),
     );
   });
-  it("rejects bot REST actors and human API keys", async () => {
+  it("rejects a Soko Bot over REST", async () => {
     const bot: AuthenticationContext = {
       actor: "sokoBot",
       scope: "personal",
@@ -246,19 +259,21 @@ describe("social account statistics routes", () => {
       workspaceId,
       organizationId: null,
     };
-    for (const actor of [
-      bot,
-      { ...auth, authenticationMethod: "api_key" } as const,
-    ]) {
-      expect(
-        (
-          await createApp(actor).request(
-            `http://localhost/${projectId}/social-connections/statistics`,
-          )
-        ).status,
-      ).toBe(403);
-    }
+    const response = await createApp(bot).request(
+      `http://localhost/${projectId}/social-connections/statistics`,
+    );
+    expect(response.status).toBe(403);
+    expect(mocks.list).not.toHaveBeenCalled();
   });
+  it.each(["api_key", "oauth"] as const)(
+    "lets a person's %s token read statistics",
+    async (authenticationMethod) => {
+      await createApp({ ...auth, authenticationMethod }).request(
+        `http://localhost/${projectId}/social-connections/statistics`,
+      );
+      expect(mocks.list).toHaveBeenCalled();
+    },
+  );
   it("rejects reversed publication date ranges", async () => {
     const response = await createApp().request(
       `http://localhost/${projectId}/social-connections/statistics?publishedFrom=2026-10-08T00:00:00Z&publishedUntil=2026-10-01T00:00:00Z`,

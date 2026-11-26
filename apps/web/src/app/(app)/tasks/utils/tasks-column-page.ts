@@ -7,6 +7,7 @@ import type {
   TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
 import { getColumnListQueryOptions } from "@/app/tasks/utils/task-column";
+import type { TasksSort } from "@/app/tasks/utils/task-sort";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
 import {
   getTaskTagQuery,
@@ -31,10 +32,12 @@ interface GetTasksColumnPageParams {
   status: TaskStatus | null;
   projectId: string | null;
   visibility: TasksVisibilityFilter;
+  search?: string;
   tag?: string;
   stuck?: boolean;
   needsMe?: boolean;
   mentions?: boolean;
+  sort?: TasksSort;
   coworkersById: Map<string, Coworker>;
   personalAssistantFallback: string;
 }
@@ -59,10 +62,12 @@ export async function getTasksColumnPage({
   status,
   projectId,
   visibility,
+  search,
   tag,
   stuck = false,
   needsMe = false,
   mentions = false,
+  sort,
   coworkersById,
   personalAssistantFallback,
 }: GetTasksColumnPageParams): Promise<GetTasksColumnPageResult> {
@@ -82,10 +87,12 @@ export async function getTasksColumnPage({
   }
 
   const result = await taskService.listTasks({
+    search,
     status: statuses,
     // Mine: the reader owns the Task or is its assignee.
     scope: tasksQueryScope(scope, { needsMe, mentions }),
     ...(mentions ? { unansweredMention: true } : {}),
+    ...(sort ? { sort } : {}),
     assigneeId: assigneeId ?? undefined,
     assigneeSokoBotId: assigneeSokoBotId ?? undefined,
     assigneeUserId: assigneeUserId ?? undefined,

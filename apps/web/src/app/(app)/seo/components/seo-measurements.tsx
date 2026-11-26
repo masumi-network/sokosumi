@@ -14,6 +14,7 @@ import {
   seoShownValue,
   seoWeekOverWeek,
 } from "./seo-performance-model";
+import { SeoSearchPeriodInsight } from "./seo-search-period-insight";
 import {
   SEO_CHOSEN_CLASS,
   SeoDate,
@@ -46,7 +47,9 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
   const [chosenMetric, setMetric] = useState("");
   const provider = providers.includes(chosenProvider)
     ? chosenProvider
-    : providers[0];
+    : (metrics.find((metric) =>
+        metric.points.some((point) => point.value !== null),
+      )?.source ?? providers[0]);
   const visible = metrics.filter((metric) => metric.source === provider);
   const active =
     visible.find((metric) => metric.id === chosenMetric) ??
@@ -215,7 +218,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
   ) : null;
   return (
     <SeoSection
-      title={t("overview.measurements")}
+      title={t("siteTraffic.saved")}
       titleHidden={!active}
       description={
         active ? (
@@ -412,7 +415,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
               {seoCoverageIsNews(active) ? (
                 <SeoState>{t(`coverageStatus.${active.coverage}`)}</SeoState>
               ) : null}
-              {active.points.length ? (
+              {active.points.some((point) => point.value !== null) ? (
                 <SeoTrendChart
                   key={active.id}
                   series={active}
@@ -463,6 +466,11 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
               </div>
             </details>
           </div>
+          <SeoSearchPeriodInsight
+            sharing={workspace.sharing}
+            metrics={visible}
+            scope={workspace.scope}
+          />
         </div>
       ) : needsProperty || sitesWithoutProperty.length > 0 ? null : (
         <div className={cn(HOLDER_ITEM_CLASS, "space-y-3 p-4 sm:p-5")}>

@@ -17,21 +17,32 @@ import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
 
 import { createPrismaClient } from "../src/client.js";
+import { Prisma } from "../src/generated/prisma/client.js";
+import {
+  configureSqlTables,
+  netTable,
+  sqlTableLayoutFromEnv,
+} from "../src/sql-tables.js";
 
 loadEnv({
   path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.env"),
 });
+// Raw SQL names the schemas the environment names, as Core does.
+configureSqlTables(sqlTableLayoutFromEnv(process.env));
 
 // LinkedIn rows may hold the person URN instead of the bare id. The revision
 // bump makes a publisher that read the retired connection lose its claim.
 // A row a pending replace retired keeps its posts for that replace.
-const CONNECTIONS = `"project_social_connection" AS retired,
-     "project_social_connection" AS active`;
-const STUCK_POST = `post."socialConnectionId" = retired."id"
+function stuckPostTables() {
+  return Prisma.sql`${netTable("mainnet", "project_social_connection")} AS retired,
+     ${netTable("mainnet", "project_social_connection")} AS active`;
+}
+function stuckPost() {
+  return Prisma.sql`post."socialConnectionId" = retired."id"
   AND post."status" IN ('DRAFT', 'NEEDS_APPROVAL', 'SCHEDULED', 'FAILED', 'MISSED')
   AND retired."status" = 'disconnected'
   AND NOT EXISTS (
-    SELECT 1 FROM "project_social_connection_intent" AS intent
+    SELECT 1 FROM ${netTable("mainnet", "project_social_connection_intent")} AS intent
     WHERE intent."socialConnectionId" = retired."id"
       AND intent."action" = 'replace'
       AND intent."authConfigId" <> 'expired'
@@ -48,6 +59,7 @@ const STUCK_POST = `post."socialConnectionId" = retired."id"
         = regexp_replace(retired."externalAccountId", '^urn:li:person:', '')
     )
   )`;
+}
 
 async function main(): Promise<void> {
   const databaseUrl =
@@ -63,22 +75,21 @@ async function main(): Promise<void> {
   const prisma = createPrismaClient(databaseUrl);
   try {
     if (dryRun) {
-      const [row] = await prisma.$queryRawUnsafe<{ count: bigint }[]>(
-        `SELECT COUNT(*) AS count
-FROM "social_post" AS post, ${CONNECTIONS}
-WHERE ${STUCK_POST}`,
-      );
+      const [row] = await prisma.$queryRaw<
+        { count: bigint }[]
+      >`SELECT COUNT(*) AS count
+FROM ${netTable("mainnet", "social_post")} AS post, ${stuckPostTables()}
+WHERE ${stuckPost()}`;
       console.log(`Dry run: ${row?.count ?? 0} stuck social post(s) to move.`);
       return;
     }
-    const moved = await prisma.$executeRawUnsafe(
-      `UPDATE "social_post" AS post
+    const moved =
+      await prisma.$executeRaw`UPDATE ${netTable("mainnet", "social_post")} AS post
 SET "socialConnectionId" = active."id",
     "revision" = post."revision" + 1,
     "updatedAt" = NOW()
-FROM ${CONNECTIONS}
-WHERE ${STUCK_POST}`,
-    );
+FROM ${stuckPostTables()}
+WHERE ${stuckPost()}`;
     console.log(
       `Moved ${moved} stuck social post(s) to the active connection.`,
     );

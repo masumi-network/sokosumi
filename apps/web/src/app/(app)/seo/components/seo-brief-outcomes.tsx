@@ -1,12 +1,12 @@
 import type { SeoAuditBrief } from "@sokosumi/core-client";
-import { useTranslations } from "next-intl";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { SeoPeriod } from "./seo-shared";
 
 type FollowUp = SeoAuditBrief["followUps"][number];
 type Observation = NonNullable<FollowUp["outcomes"]>[number]["latest"];
 
 export function SeoBriefOutcomes({ followUp }: { followUp: FollowUp }) {
-  const t = useTranslations("App.Seo.brief.events");
+  const t = useSeoResultTranslations("App.Seo.brief.events");
   if (!followUp.outcomes) return null;
   if (!followUp.outcomes.length) {
     return followUp.changedAt ? (
@@ -14,14 +14,21 @@ export function SeoBriefOutcomes({ followUp }: { followUp: FollowUp }) {
     ) : null;
   }
   const hasComparison = followUp.outcomes.some((outcome) => outcome.comparison);
+  const title = followUp.outcomes.some(
+    (o) => o.event !== "purchase" && o.event !== "sign_up",
+  )
+    ? t("configuredTitle")
+    : t("title");
   return (
-    <section aria-label={t("title")} className="space-y-2 border-t pt-2">
-      <h4 className="font-medium">{t("title")}</h4>
+    <section lang="en" aria-label={title} className="space-y-2 border-t pt-2">
+      <h4 className="font-medium">{title}</h4>
       <p className="text-muted-foreground">{t("source")}</p>
       {followUp.outcomes.map(({ event, latest, comparison }) => (
         <div className="space-y-1.5" key={event}>
           <h5 className="font-medium">
-            {t(event)}{" "}
+            {event === "purchase" || event === "sign_up"
+              ? t(event)
+              : t("custom")}{" "}
             <span className="text-muted-foreground text-xs">
               (<code>{event}</code>)
             </span>
@@ -59,12 +66,12 @@ function PeriodCount({
   label: string;
   period: Observation;
 }) {
-  const t = useTranslations("App.Seo.brief.events");
+  const t = useSeoResultTranslations("App.Seo.brief.events");
   return (
     <div className="text-sm">
       <dt>{label}</dt>
       <dd className="text-muted-foreground tabular-nums">
-        <SeoPeriod from={period.from} to={period.to} /> ·{" "}
+        <SeoPeriod report from={period.from} to={period.to} /> ·{" "}
         {t("count", { count: period.count })}
       </dd>
     </div>

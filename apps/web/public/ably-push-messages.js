@@ -51,6 +51,7 @@ globalThis.MESSAGES = {
     "Notifications.Task.outOfCredits":
       "{coworkerName} ran out of credits for {taskName}",
     "Notifications.Task.completed": "{coworkerName} completed {taskName}",
+    "Notifications.Task.seoCompleted": "Open SEO results for {taskName}.",
     "Notifications.Task.failed": "{coworkerName} failed to complete {taskName}",
     "Notifications.Task.canceled": "{taskName} was canceled",
     "Notifications.Task.overdue": "{taskName} is past its due date",
@@ -134,6 +135,7 @@ globalThis.MESSAGES = {
       "{coworkerName} hat keine Credits mehr für {taskName}",
     "Notifications.Task.completed":
       "{coworkerName} hat {taskName} abgeschlossen",
+    "Notifications.Task.seoCompleted": "SEO-Ergebnisse für {taskName} öffnen.",
     "Notifications.Task.failed":
       "{coworkerName} konnte {taskName} nicht abschließen",
     "Notifications.Task.canceled": "{taskName} wurde abgebrochen",
@@ -221,6 +223,8 @@ globalThis.MESSAGES = {
     "Notifications.Task.outOfCredits":
       "{coworkerName} se quedó sin créditos para {taskName}",
     "Notifications.Task.completed": "{coworkerName} completó {taskName}",
+    "Notifications.Task.seoCompleted":
+      "Abrir los resultados SEO de {taskName}.",
     "Notifications.Task.failed": "{coworkerName} no pudo completar {taskName}",
     "Notifications.Task.canceled": "{taskName} fue cancelado",
     "Notifications.Task.overdue": "{taskName} superó su fecha límite",

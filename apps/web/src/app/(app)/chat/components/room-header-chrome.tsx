@@ -21,6 +21,7 @@ import {
   ChannelDiscoverabilityIcon,
 } from "@/components/chat/channel-discoverability-icon";
 import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
+import { getDirectParticipants } from "@/components/chat/direct-room-participants";
 import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
 import {
   ROOM_COUNT_CAP,
@@ -53,7 +54,7 @@ import { UnreadThreadsPanel } from "./unread-threads-panel";
  * so every room's title text starts at one x.
  */
 const ROOM_TITLE_STATIC_CLASS =
-  "text-foreground flex min-w-0 max-w-full items-center gap-1.5 px-1.5 py-0.5 text-sm md:gap-2";
+  "text-foreground flex min-w-0 max-w-full items-center gap-1.5 px-1.5 py-0.5 text-sm max-md:font-medium md:gap-2";
 
 /**
  * The room title as the way into its settings: a Channel's (its members panel
@@ -273,6 +274,10 @@ function RoomHeaderMenu({
           if (!opensDecisionsRef.current) return;
           opensDecisionsRef.current = false;
           event.preventDefault();
+          // Open only now the menu is gone: while it closes, a mouse leaving
+          // the picked item puts focus back on the menu, and a log already
+          // open takes that as focus outside and closes at once.
+          setDecisionsOpen(true);
         }}
       >
         {isDirectRoom ? null : (
@@ -284,7 +289,6 @@ function RoomHeaderMenu({
             <DropdownMenuItem
               onSelect={() => {
                 opensDecisionsRef.current = true;
-                setDecisionsOpen(true);
               }}
             >
               <Gavel aria-hidden />
@@ -400,6 +404,10 @@ export function RoomHeaderChrome({
             count: getRoomParticipantPreviews(room).length,
           }));
   const showRoster = showParticipants && shouldShowRoomRosterControl(room);
+  const directFace =
+    isDirectRoom && !room.isGroupDirect && !room.isSelfDirect
+      ? getDirectParticipants(room, currentUserId)[0]
+      : undefined;
   const channelTitle = (
     <>
       <ChannelDiscoverabilityIcon
@@ -413,66 +421,100 @@ export function RoomHeaderChrome({
   return (
     <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 overflow-hidden py-1.5 md:gap-4 lg:overflow-visible">
       <div className="flex min-w-0 flex-1 flex-col items-start justify-center overflow-hidden">
-        {isDirectRoom && room.isGroupDirect ? (
-          <NameGroupDialog
-            room={room}
-            open={editOpen}
-            onOpenChange={onEditOpenChange}
-          >
-            <button
-              type="button"
-              className={ROOM_TITLE_BUTTON_CLASS}
-              title={t("GroupName.rename")}
-              data-testid="room-open-title"
+        {/* The room's name is the page's heading, so a screen reader's
+            heading list and the route announcer have something to name. */}
+        <h1 className="flex min-w-0 max-w-full">
+          {isDirectRoom && room.isGroupDirect ? (
+            <NameGroupDialog
+              room={room}
+              open={editOpen}
+              onOpenChange={onEditOpenChange}
             >
-              {DIRECT_ICON}
-              <span className="min-w-0 truncate">{displayName}</span>
-            </button>
-          </NameGroupDialog>
-        ) : isDirectRoom ? (
-          <div className={ROOM_TITLE_STATIC_CLASS}>
-            {room.isSelfDirect ? (
-              <span className={CHAT_TITLE_MARK_CLASS}>
-                <DirectRoomAvatarStack
-                  room={room}
-                  currentUserId={currentUserId}
-                />
+              <button
+                type="button"
+                className={ROOM_TITLE_BUTTON_CLASS}
+                title={t("GroupName.rename")}
+                data-testid="room-open-title"
+              >
+                {DIRECT_ICON}
+                <span className="min-w-0 truncate">{displayName}</span>
+              </button>
+            </NameGroupDialog>
+          ) : isDirectRoom ? (
+            // Spans, not div/p: a heading holds phrasing content only.
+            <span className={ROOM_TITLE_STATIC_CLASS}>
+              {room.isSelfDirect ? (
+                // The face's initials would read as part of the room's name.
+                <span aria-hidden className={CHAT_TITLE_MARK_CLASS}>
+                  <DirectRoomAvatarStack
+                    room={room}
+                    currentUserId={currentUserId}
+                  />
+                </span>
+              ) : (
+                <>
+                  {/* On a phone the header is the room's only identity, so
+                      it shows who the Direct is with, as the sidebar row
+                      does; from md the sidebar sits beside it. Only the
+                      face: presence drawn inside a hidden mark would be
+                      seen and never heard. */}
+                  {directFace ? (
+                    <span
+                      aria-hidden
+                      data-testid="room-title-face"
+                      className={cn(CHAT_TITLE_MARK_CLASS, "md:hidden")}
+                    >
+                      <Avatar className="size-6">
+                        <AvatarImage
+                          alt=""
+                          src={directFace.image ?? undefined}
+                        />
+                        <AvatarFallback className="text-2xs font-medium">
+                          {getInitials(directFace.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </span>
+                  ) : null}
+                  <span
+                    className={directFace ? "hidden md:contents" : "contents"}
+                  >
+                    {DIRECT_ICON}
+                  </span>
+                </>
+              )}
+              <span className="min-w-0 truncate" data-testid="room-open-title">
+                {displayName}
               </span>
-            ) : (
-              DIRECT_ICON
-            )}
-            <p className="min-w-0 truncate" data-testid="room-open-title">
-              {displayName}
-            </p>
-          </div>
-        ) : canManageSettings ? (
-          <EditChannelDialog
-            channel={room}
-            open={editOpen}
-            onOpenChange={onEditOpenChange}
-          >
+            </span>
+          ) : canManageSettings ? (
+            <EditChannelDialog
+              channel={room}
+              open={editOpen}
+              onOpenChange={onEditOpenChange}
+            >
+              <button
+                type="button"
+                className={ROOM_TITLE_BUTTON_CLASS}
+                title={t("editChannel")}
+                data-testid="room-open-title"
+              >
+                {channelTitle}
+              </button>
+            </EditChannelDialog>
+          ) : (
             <button
               type="button"
               className={ROOM_TITLE_BUTTON_CLASS}
-              title={t("editChannel")}
+              title={t("RoomRoster.open")}
+              aria-expanded={rosterOpen}
+              aria-controls={ROOM_ROSTER_PANEL_ID}
               data-testid="room-open-title"
+              onClick={onOpenRoster}
             >
               {channelTitle}
             </button>
-          </EditChannelDialog>
-        ) : (
-          <button
-            type="button"
-            className={ROOM_TITLE_BUTTON_CLASS}
-            title={t("RoomRoster.open")}
-            aria-expanded={rosterOpen}
-            aria-controls={ROOM_ROSTER_PANEL_ID}
-            data-testid="room-open-title"
-            onClick={onOpenRoster}
-          >
-            {channelTitle}
-          </button>
-        )}
+          )}
+        </h1>
         <p
           // Starts under the title text: the title's px-1.5, its mark's box
           // and the gap after it.

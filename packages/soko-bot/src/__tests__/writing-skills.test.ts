@@ -1,19 +1,27 @@
-import { CMO_CHANNELS } from "@sokosumi/utils";
+import { CMO_CHANNELS, type CmoChannelKey, cmoJargonIn } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
+  CMO_PLAYBOOKS_SKILL,
+  cmoWritingSkills,
   judgedWritingRules,
   renderWritingSkill,
+  SOKO_BOT_SKILLS,
   WRITING_SKILL_GROUPS,
   WRITING_SKILLS,
-  writingSkillForChannel,
   writingSkillsForChannels,
 } from "../index.js";
 
 describe("writing skills", () => {
   it("gives every CMO channel its own skill", () => {
-    for (const channel of Object.keys(CMO_CHANNELS))
-      expect(writingSkillForChannel(channel)?.channels).toContain(channel);
+    for (const channel of Object.keys(CMO_CHANNELS)) {
+      const skill = WRITING_SKILLS.find(
+        (candidate) =>
+          candidate.group !== "foundations" &&
+          candidate.channels.includes(channel as CmoChannelKey),
+      );
+      expect(skill?.channels).toContain(channel);
+    }
   });
 
   it("keeps ids unique and every group shown", () => {
@@ -115,12 +123,42 @@ describe("writing skills", () => {
   });
 
   it("ends each skill with its checklist", () => {
-    const linkedin = writingSkillForChannel("linkedin");
+    const linkedin = WRITING_SKILLS.find(
+      (skill) =>
+        skill.group !== "foundations" && skill.channels.includes("linkedin"),
+    );
     expect(linkedin).toBeDefined();
     const text = renderWritingSkill(linkedin!);
     expect(text).toContain("## Before you save");
     expect(text.trimEnd().endsWith(linkedin!.checklist.at(-1)!.rule)).toBe(
       true,
     );
+  });
+
+  it("keeps playbooks off every channel, read only on demand", () => {
+    const playbooks = WRITING_SKILLS.filter(
+      (skill) => skill.group === "playbooks",
+    );
+    expect(playbooks.length).toBeGreaterThanOrEqual(14);
+    const preloaded = writingSkillsForChannels(Object.keys(CMO_CHANNELS));
+    for (const skill of playbooks) {
+      expect(skill.channels).toEqual([]);
+      expect(preloaded).not.toContain(skill);
+      expect(skill.description).toMatch(/^Use when /);
+      expect(skill.description.length).toBeLessThanOrEqual(150);
+      expect(cmoJargonIn(renderWritingSkill(skill))).toEqual([]);
+    }
+  });
+
+  it("lists playbooks only for a Cuso version with the playbooks skill", () => {
+    const ids = (skills: string[]) =>
+      cmoWritingSkills(skills).map((skill) => skill.id);
+    expect(ids(["cmo-context-on-demand"])).not.toContain("landing-page");
+    expect(ids(["cmo-context-on-demand"])).toContain("linkedin");
+    expect(ids([CMO_PLAYBOOKS_SKILL])).toContain("landing-page");
+    expect(
+      SOKO_BOT_SKILLS.find((skill) => skill.id === CMO_PLAYBOOKS_SKILL)
+        ?.content,
+    ).toMatch(/read_writing_skill/);
   });
 });

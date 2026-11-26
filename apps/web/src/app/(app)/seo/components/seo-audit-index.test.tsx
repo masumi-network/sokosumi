@@ -1,36 +1,44 @@
+import type { SeoAuditSummary } from "@sokosumi/core-client";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import { createSeoAuditAction } from "@/lib/actions/seo/create-audit";
-import { deleteSeoAuditAction } from "@/lib/actions/seo/delete-audit";
+import { setSeoAuditArchivedAction } from "@/lib/actions/seo/set-audit-archived";
 import messages from "../../../../../messages/en.json";
 import { SeoAuditIndex } from "./seo-audit-index";
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => router,
+}));
+vi.mock("@/lib/actions/seo/set-audit-archived", () => ({
+  setSeoAuditArchivedAction: vi.fn(),
+}));
 vi.mock("@/lib/actions/seo/create-audit", () => ({
   createSeoAuditAction: vi.fn(),
 }));
 
-vi.mock("@/lib/actions/seo/delete-audit", () => ({
-  deleteSeoAuditAction: vi.fn(),
-}));
-
-const AUDIT = {
-  canDelete: true,
+const AUDIT: SeoAuditSummary = {
   id: "0199c500-b109-7273-9a20-ceb2b79691fe",
   name: "Battery audit",
   projectId: null,
   pageCount: 1,
+  lastCheck: null,
   createdAt: new Date("2026-01-02T12:00:00Z"),
+  updatedAt: new Date("2026-01-02T12:00:00Z"),
 };
-type AuditRow = Omit<typeof AUDIT, "canDelete"> & { canDelete?: boolean };
 function show(
-  audits: AuditRow[],
+  audits: SeoAuditSummary[],
   addOpen: boolean,
-  options: { projectId?: string; cursor?: string; nextCursor?: string } = {},
+  options: {
+    projectId?: string;
+    cursor?: string;
+    nextCursor?: string;
+    archived?: boolean;
+  } = {},
 ) {
   render(
     <NextIntlClientProvider
@@ -40,7 +48,8 @@ function show(
       formats={createFormats()}
     >
       <SeoAuditIndex
-        audits={audits as never}
+        audits={audits}
+        archived={options.archived}
         cursor={options.cursor ?? null}
         nextCursor={options.nextCursor ?? null}
         projectId={options.projectId ?? null}
@@ -64,218 +73,159 @@ describe("SEO audit list", () => {
     ).toBeVisible();
   });
 
-  it("offers deletion only on permitted audits and returns keyboard focus on cancel", async () => {
-    const user = userEvent.setup();
-    const readonly = {
+  it("links to each report without offering a row menu", () => {
+    const shared = {
       ...AUDIT,
-      id: "other",
+      id: "shared",
       name: "Shared audit",
-      canDelete: false,
+      projectId: "project-id",
     };
+    show([AUDIT, shared], false);
+    const rows = within(screen.getByRole("list"));
+    expect(rows.getByRole("link", { name: /Battery audit/ })).toHaveAttribute(
+      "href",
+      `/seo?auditId=${AUDIT.id}`,
+    );
+    expect(rows.getByRole("link", { name: /Shared audit/ })).toHaveAttribute(
+      "href",
+      "/seo?projectId=project-id&auditId=shared",
+    );
+    expect(rows.queryByRole("button")).toBeNull();
+  });
+
+  it("says in each row whether the audit's newest check runs, failed or when it finished", () => {
+    const at = new Date();
+    const check = (status: "running" | "failed" | "completed") => ({
+      kind: "page_check" as const,
+      status,
+      createdAt: at,
+      updatedAt: at,
+    });
     show(
       [
-        AUDIT,
-        readonly,
-        { ...readonly, id: "older", name: "Older audit", canDelete: undefined },
+        {
+          ...AUDIT,
+          id: "running",
+          name: "Running",
+          lastCheck: check("running"),
+        },
+        { ...AUDIT, id: "failed", name: "Failed", lastCheck: check("failed") },
+        { ...AUDIT, id: "done", name: "Done", lastCheck: check("completed") },
       ],
       false,
     );
+    const row = (name: string) =>
+      within(screen.getByRole("link", { name: new RegExp(name) }));
     expect(
-      screen.getAllByRole("button", { name: /More options/ }),
-    ).toHaveLength(1);
-    const menu = screen.getByRole("button", {
-      name: "More options for Battery audit",
-    });
-    expect(menu.closest("a")).toBeNull();
-    menu.focus();
-    await user.keyboard("{ArrowDown}");
-    const item = await screen.findByRole("menuitem", { name: "Delete audit" });
-    await waitFor(() => expect(item).toHaveFocus());
-    await user.keyboard("{Enter}");
-    const dialog = await screen.findByRole("alertdialog", {
-      name: /Battery audit/,
-    });
-    await waitFor(() =>
-      expect(
-        within(dialog).getByRole("button", { name: "Cancel" }),
-      ).toHaveFocus(),
-    );
-    await user.keyboard("{Escape}");
-    await waitFor(() => expect(menu).toHaveFocus());
-    expect(deleteSeoAuditAction).not.toHaveBeenCalled();
-    expect(router.push).not.toHaveBeenCalled();
-  });
-
-  it("retains the row until deletion succeeds and leaves a refused delete open for retry", async () => {
-    const user = userEvent.setup();
-    const next = { ...AUDIT, id: "another", name: "Monthly report" };
-    const request =
-      Promise.withResolvers<Awaited<ReturnType<typeof deleteSeoAuditAction>>>();
-    vi.mocked(deleteSeoAuditAction)
-      .mockReturnValueOnce(request.promise)
-      .mockResolvedValueOnce({ ok: true, value: null });
-    show([AUDIT, next], false);
-    await user.click(
-      screen.getByRole("button", { name: "More options for Battery audit" }),
-    );
-    await user.click(
-      await screen.findByRole("menuitem", { name: "Delete audit" }),
-    );
-    const dialog = await screen.findByRole("alertdialog");
-    const confirm = within(dialog).getByRole("button", {
-      name: "Delete audit",
-    });
-    await user.dblClick(confirm);
-    expect(deleteSeoAuditAction).toHaveBeenCalledExactlyOnceWith({
-      auditId: AUDIT.id,
-    });
+      row("Running").getByText(messages.App.Seo.setup.checkRunningBadge),
+    ).toBeVisible();
     expect(
-      screen.getByRole("link", { name: /Battery audit/, hidden: true }),
-    ).toBeInTheDocument();
-    await user.keyboard("{Escape}");
-    expect(dialog).toBeInTheDocument();
-    await act(async () =>
-      request.resolve({
-        ok: false,
-        error: {
-          code: "CONFLICT",
-          status: 409,
-          kind: "seo_audit_resumable_monitor",
-        },
-      }),
-    );
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
-      messages.App.Seo.audits.deleteScheduled,
-    );
-    await user.click(confirm);
-    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
-    expect(screen.queryByRole("link", { name: /Battery audit/ })).toBeNull();
-    expect(screen.getByRole("link", { name: /Monthly report/ })).toHaveFocus();
+      row("Failed").getByText(messages.App.Seo.audits.checkFailed),
+    ).toBeVisible();
+    expect(row("Done").getByText(/Last check: Page check/)).toBeVisible();
+    expect(
+      row("Done").queryByText(messages.App.Seo.setup.checkRunningBadge),
+    ).toBeNull();
   });
 
-  it("lets the user cancel when delete access changes during confirmation", async () => {
-    vi.mocked(deleteSeoAuditAction).mockResolvedValueOnce({
-      ok: false,
-      error: { code: "FORBIDDEN", status: 403 },
-    });
-    const user = userEvent.setup();
-    show([AUDIT], false);
-    await user.click(
-      screen.getByRole("button", { name: "More options for Battery audit" }),
-    );
-    await user.click(
-      await screen.findByRole("menuitem", { name: "Delete audit" }),
-    );
-    const dialog = within(await screen.findByRole("alertdialog"));
-    await user.click(dialog.getByRole("button", { name: "Delete audit" }));
-    expect(await dialog.findByRole("alert")).toHaveTextContent(
-      messages.App.Seo.audits.deleteUnavailable,
-    );
-    expect(dialog.getByRole("button", { name: "Delete audit" })).toBeDisabled();
-    await user.click(dialog.getByRole("button", { name: "Cancel" }));
-    expect(screen.getByRole("link", { name: /Battery audit/ })).toBeVisible();
-    expect(deleteSeoAuditAction).toHaveBeenCalledTimes(1);
-  });
-
-  it.each([undefined, "previous"])(
-    "keeps the project and the server cursor when the visible rows are removed (cursor %s)",
-    async (cursor) => {
-      const projectId = "project-id";
-      const first = { ...AUDIT, id: "first", name: "First audit" };
+  it.each([{ audits: [] }, { audits: [AUDIT] }])(
+    "opens the archive in the current project from the header, including during onboarding",
+    async ({ audits }) => {
       const user = userEvent.setup();
-      vi.mocked(deleteSeoAuditAction).mockResolvedValue({
-        ok: true,
-        value: null,
+      show(audits, false, { projectId: "chosen-project" });
+      const trigger = screen.getByRole("button", {
+        name: messages.App.Seo.audits.listOptions,
       });
-      show([first, AUDIT], false, {
-        projectId,
-        cursor,
-        nextCursor: AUDIT.id,
+      trigger.focus();
+      await user.keyboard("{ArrowDown}");
+      const archivedLink = await screen.findByRole("menuitem", {
+        name: messages.App.Seo.audits.showArchived,
       });
-      await user.click(
-        screen.getByRole("button", { name: "More options for Battery audit" }),
-      );
-      await user.click(
-        await screen.findByRole("menuitem", { name: "Delete audit" }),
-      );
-      await user.click(
-        within(await screen.findByRole("alertdialog")).getByRole("button", {
-          name: "Delete audit",
-        }),
-      );
-      const more = await screen.findByRole("link", {
-        name: messages.App.Seo.more,
-      });
-      await waitFor(() =>
-        expect(more).toHaveAttribute(
-          "href",
-          `/seo?projectId=project-id&cursor=${AUDIT.id}`,
-        ),
-      );
-      await user.click(
-        screen.getByRole("button", { name: "More options for First audit" }),
-      );
-      await user.click(
-        await screen.findByRole("menuitem", { name: "Delete audit" }),
-      );
-      await user.click(
-        within(await screen.findByRole("alertdialog")).getByRole("button", {
-          name: "Delete audit",
-        }),
-      );
-      await waitFor(() => expect(more).toHaveFocus());
-      expect(more).toHaveAttribute(
+      expect(archivedLink).toHaveAttribute(
         "href",
-        `/seo?projectId=project-id&cursor=${AUDIT.id}`,
+        "/seo?projectId=chosen-project&view=archived",
       );
-      expect(
-        screen.getByRole("heading", { name: messages.App.Seo.audits.saved }),
-      ).toBeVisible();
-      expect(router.replace).not.toHaveBeenCalled();
-      expect(screen.queryByRole("textbox", { name: /URL/ })).toBeNull();
     },
   );
 
-  it.each([undefined, "previous"])(
-    "recovers after removing the last audit without a next page (cursor %s)",
-    async (cursor) => {
-      const user = userEvent.setup();
-      vi.mocked(deleteSeoAuditAction).mockResolvedValue({
-        ok: true,
-        value: null,
-      });
-      show([AUDIT], false, { cursor, projectId: "project-id" });
-      await user.click(
-        screen.getByRole("button", { name: "More options for Battery audit" }),
-      );
-      await user.click(
-        await screen.findByRole("menuitem", { name: "Delete audit" }),
-      );
-      await user.click(
-        within(await screen.findByRole("alertdialog")).getByRole("button", {
-          name: "Delete audit",
-        }),
-      );
-      if (cursor) {
-        await waitFor(() =>
-          expect(router.replace).toHaveBeenCalledExactlyOnceWith(
-            "/seo?projectId=project-id",
-          ),
-        );
-        expect(
-          await screen.findByRole("link", {
-            name: messages.App.Seo.audits.all,
-          }),
-        ).toHaveAttribute("href", "/seo?projectId=project-id");
-        expect(screen.queryByRole("textbox", { name: /URL/ })).toBeNull();
-      } else {
-        await waitFor(() =>
-          expect(screen.getByRole("textbox", { name: /URL/ })).toHaveFocus(),
-        );
-        expect(router.replace).not.toHaveBeenCalled();
-      }
-    },
-  );
+  it("returns from an empty archive to active reports without a stale cursor or creation dialog", async () => {
+    const user = userEvent.setup();
+    show([], true, { archived: true, projectId: "chosen-project" });
+    expect(
+      screen.getByText(messages.App.Seo.audits.archivedEmpty),
+    ).toBeVisible();
+    expect(screen.queryByRole("form")).toBeNull();
+    await user.click(
+      screen.getByRole("button", { name: messages.App.Seo.audits.listOptions }),
+    );
+    expect(
+      await screen.findByRole("menuitem", {
+        name: messages.App.Seo.audits.showActive,
+      }),
+    ).toHaveAttribute("href", "/seo?projectId=chosen-project");
+  });
+
+  it("restores only the selected report and allows retry if the request fails", async () => {
+    const user = userEvent.setup();
+    const request =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof setSeoAuditArchivedAction>>
+      >();
+    vi.mocked(setSeoAuditArchivedAction).mockReturnValueOnce(request.promise);
+    const scoped = { ...AUDIT, projectId: "report-project" };
+    const other = { ...AUDIT, id: "other", name: "Other report" };
+    show([scoped, other], false, { archived: true });
+    const rows = within(
+      screen.getByRole("region", { name: messages.App.Seo.audits.archived }),
+    );
+    expect(rows.queryByRole("link")).toBeNull();
+    const restore = rows.getByRole("button", {
+      name: /Restore.*Battery audit/i,
+    });
+    await user.dblClick(restore);
+    expect(setSeoAuditArchivedAction).toHaveBeenCalledExactlyOnceWith({
+      auditId: AUDIT.id,
+      projectId: scoped.projectId,
+      archived: false,
+    });
+    expect(
+      rows.getByRole("button", { name: /Restore.*Other report/i }),
+    ).toBeDisabled();
+    await act(async () =>
+      request.resolve({ ok: false, error: { code: "FORBIDDEN", status: 403 } }),
+    );
+    expect(await rows.findByRole("alert")).toHaveTextContent(
+      messages.App.Seo.audits.restoreFailed,
+    );
+    expect(restore).toBeEnabled();
+    vi.mocked(setSeoAuditArchivedAction).mockResolvedValueOnce({
+      ok: false,
+      error: {
+        code: "CONFLICT",
+        status: 409,
+        kind: "seo_audit_task_scope_conflict",
+      },
+    });
+    await user.click(restore);
+    expect(await rows.findByRole("alert")).toHaveTextContent(
+      messages.App.Seo.audits.restoreTaskScopeConflict,
+    );
+  });
+
+  it("keeps the project scope when following the next page", () => {
+    show([AUDIT], false, { projectId: "project-id", nextCursor: AUDIT.id });
+    expect(
+      screen.getByRole("link", { name: messages.App.Seo.more }),
+    ).toHaveAttribute("href", `/seo?projectId=project-id&cursor=${AUDIT.id}`);
+  });
+
+  it("returns to the project's audit list from an empty later page", () => {
+    show([], false, { projectId: "project-id", cursor: AUDIT.id });
+    expect(
+      screen.getByRole("link", { name: messages.App.Seo.audits.all }),
+    ).toHaveAttribute("href", "/seo?projectId=project-id");
+    expect(screen.queryByRole("textbox", { name: /URL/ })).toBeNull();
+  });
 
   it("starts with only the website form and Continue, before Google or the audit step", () => {
     show([], false);

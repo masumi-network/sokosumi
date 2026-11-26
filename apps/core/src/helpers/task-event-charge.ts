@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/database";
+import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
 import {
   requireSeoTaskReactivation,
   SEO_INACTIVE_TASK_STATUSES,
@@ -80,7 +81,8 @@ export async function chargeTaskCreditsOrMarkOutOfCredits(params: {
   projectId: string | null;
   cents: bigint;
   currentStatus: TaskStatus;
-  tx: Prisma.TransactionClient;
+  scope: NetworkScope;
+  tx: SharedDb;
 }): Promise<{
   transactionId: string | null;
   /** When set, the billed status was rejected for balance and replaced. */
@@ -92,6 +94,7 @@ export async function chargeTaskCreditsOrMarkOutOfCredits(params: {
       organizationId: params.organizationId,
       projectId: params.projectId,
       cents: params.cents,
+      scope: params.scope,
       tx: params.tx,
     });
     return { transactionId, eventStatus: null };

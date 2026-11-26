@@ -49,6 +49,7 @@ The live tree is `apps/core/src/`.
 | `routes/v1/`                                         | Versioned HTTP handlers (one file per method)                                               |
 | `routes/auth/`, `routes/sync/`, `routes/well-known/` | Auth, cron/sync, discovery                                                                  |
 | `routes/health/`                                     | Unauthenticated liveness probe (`GET /health`), no database call                            |
+| `routes/mcp/`, `lib/sokosumi-mcp/`                   | MCP server at `/mcp`: token check, tool registry, tool calls run through `/v1` in process   |
 | `routes/image-studio-agent/`                         | Grant-authenticated surface the image-studio agent calls; no browser session                |
 | `routes/webhooks/fal/`                               | fal completion callback for image jobs; ED25519 signature, not a session                    |
 | `schemas/`                                           | Zod / OpenAPI                                                                               |
@@ -278,7 +279,7 @@ For internal async-ack sync routes (immediate `200` response + background execut
 | `pnpm portless:dev`                                     | Web + Core via portless (repo root; named `https://core.sokosumi.localhost`)                                                                                                 |
 | `pnpm portless:core`                                    | Core only via portless (still injects Web's named URL)                                                                                                                       |
 | `pnpm core:build`                                       | Build for production                                                                                                                                                         |
-| `pnpm --filter @sokosumi/core vercel-build`             | Vercel: `prisma:generate`, build, then `prisma migrate deploy`                                                                                                               |
+| `pnpm --filter @sokosumi/core vercel-build`             | Vercel: `prisma:generate`, build, the bundle check, the schema layout check (`scripts/check-network-layout.mts`), then `prisma migrate deploy`                               |
 | `pnpm core:start`                                       | Run production build                                                                                                                                                         |
 | `pnpm --filter core lint`                               | Lint core app                                                                                                                                                                |
 | `pnpm --filter core write-openapi-snapshot`             | Builds Core's workspace dependencies through turbo, then writes `packages/core-client/openapi-core.snapshot.json` (gitignored) from the in-memory v1 router for `openapi-ts` |
@@ -291,7 +292,7 @@ Before adding, changing, or removing a `/v1` route (new route files, OpenAPI def
 
 **Page reads load ahead of the click.** Web loads a list or detail page's content before the user clicks: on a hover, on a predicted approach, and from back links. For that, web wraps the page's Core reads in `"use cache: private"`. So when you design a `GET` that a Web page renders, make it a pure read: no writes or side effects, and a result that depends only on the caller's session and the request. Keep the reads for the page's first view few, so one cached Web loader covers them (the tasks page's loader is `loadTasksPageData` in `apps/web/src/app/(app)/tasks/utils/tasks-page-data.ts`). The Web half of this rule is "Navigation opens a loaded page, not its skeleton" in [`apps/web/AGENTS.md`](../web/AGENTS.md).
 
-**Note**: New Core routes use direct Prisma via the Core singleton (`import prisma from "@/lib/db/prisma"`) with type-safe includes and flatten helpers. Do not import a default `prisma` from `@sokosumi/database/client` in routes — that module exports `createPrismaClient` (used by `src/lib/db/prisma.ts`, tests, and scripts). Repositories may still appear in legacy services — do not introduce new repository usage in routes.
+**Note**: New Core data access uses direct Prisma; Network models are reached only through a [Network scope](#network-scope). Shared models use the Core singleton (`import prisma from "@/lib/db/prisma"`) with type-safe includes and flatten helpers. Do not import a default `prisma` from `@sokosumi/database/client` in routes — that module exports `createPrismaClient` (used by `src/lib/db/prisma.ts`, tests, and scripts). Repositories may still appear in legacy services — do not introduce new repository usage in routes.
 
 **Shared Packages**:
 
@@ -325,6 +326,8 @@ The `unit` Vitest project runs with `isolate: false` and files in random order (
 **A new required response field breaks distant fixtures.** Many routes `.parse()` their result through the response schema, so a fixture without the new field makes the route answer 500 while typecheck stays clean. The failing test can be in an unrelated file that calls the route as a control case. Grep Core tests for a sibling field of the same schema and update every fixture before you run the suite.
 
 **Keep heavy imports out of every-request modules.** A module that every route loads (middleware that `OpenAPIHonoWithAuth` mounts, shared `@/helpers`) must not import `@/lib/auth` or a route helper at top level. That import pulls Stripe into every suite, and unrelated files fail with `Neither apiKey nor config.authenticator provided` or hook timeouts. Load it with `await import()` inside the branch that needs it, with a comment that says why (`src/middleware/organization.ts`).
+
+**PostgreSQL suites run on both layouts.** CI runs every `*.postgres.test.ts` on today's layout (`Test Core PostgreSQL`) and on the split one (`Test Core PostgreSQL split layout`: tables in `shared`, `mainnet` and `preprod`, Core given those names). A new file must pass on both. Files that cannot yet are in `src/test/split-layout-pending.txt` with the ticket they wait for; the split job runs every other file, then fails when a listed file passes, so delete its line then. The list can grow: until ticket 19 rewrites the trigger bodies, a new test that writes a table with a trigger fails on the split layout only; add its line with that ticket, where review sees it. A file whose tests all skip counts as passing, on both layouts. A test of Preprod behaviour wraps its `describe` in `describe.runIf(onSplitLayout)` (`src/test/split-layout.ts`), because on today's layout Preprod's schema is Mainnet's. Which model belongs to a Network is `packages/database/prisma/network-tables.json`.
 
 **Opt-in Soko Bot reliability suites.** `src/services/soko-bot-*.integration.test.ts` skip unless `LOCAL_RELIABILITY_DATABASE_URL` names a disposable PostgreSQL at `127.0.0.1:55439` with a database name the file allows (`soko_reliability_verified`); the native-table suites are in [docs/native-tables.md](../../docs/native-tables.md). CI runs neither, so they can already fail on `main`: compare failing test names with a `main` run before you blame your diff.
 
@@ -367,6 +370,27 @@ A failure that comes and goes with the order: the log prints `Running tests with
 - Never `Promise.all` queries inside an interactive transaction (#2559)
 - Batch form `prisma.$transaction([...])` is fine for independent reads that need one round trip
 
+### Network scope
+
+Mainnet and Preprod get one schema each beside `shared`; a Network model is one listed under `network` in `packages/database/prisma/network-tables.json` (Agent, Job, credits, payments). New code reaches a Network model only through a Network scope ([ADR 0081](../../docs/adr/0081-network-models-are-reached-through-a-network-scope.md)); code that touches only shared models keeps the default `prisma`.
+
+- **Get the scope from the entry point.** In a handler on `OpenAPIHonoWithAuth`: `c.var.networkScope`, set by `networkScopeMiddleware` beside `authContext`; a fixture that builds request variables by hand uses `testNetworkScope()` from `@/test-fixtures/network-scope`. A cron declares its Network where it is registered, as `network` in the options of `handleSyncRequest` (`src/routes/sync/handler.ts`), and reads `context.scope`; without the option the handler hands it no scope. Elsewhere the entry point creates it once with `createNetworkScope(network)` from `@/lib/db/network-scope`, naming the Network. Code below takes the scope, or one side of it, as an argument, with no default.
+- **`scope.networkDb`** has the Network models and tagged raw SQL; **`scope.sharedDb`** has every other model. A call on the wrong side fails typecheck. Neither opens a transaction itself.
+- **A transaction comes from the scope:** `scope.netTransaction(callback, conflictMessage, isolationLevel?)` on the Network's client, `scope.sharedTransaction(…)` on the shared one, both with the retry and conflict rules of `retriedTransaction` (`src/lib/db/transaction.ts`), so the callback can run up to 8 times. A write on both sides opens on the side with more model writes and writes the other side in raw SQL: the Task charge (`src/helpers/task-credits.ts`) takes the scope and the open shared-side transaction, and the credit bucket repository writes its Network's rows. Inside a callback use `tx`, not `scope.networkDb` or `scope.sharedDb`: those run outside the transaction and take a second connection from the one pool while the first is held, which under load leaves every request waiting (`P2028`).
+- **A helper takes `NetworkDb` or `SharedDb` whole**, not a `Pick` of it: the Network side is branded in its type, and a `Pick` lets the default client in again.
+- **Raw SQL in scoped code** names Network tables with `scope.networkTable("Job")` and shared ones with `sharedTable(…)`.
+- **Unit tests** pass a plain object with the members the code uses, cast once to `NetworkScope`, `NetworkDb` or `SharedDb`; no module mock. `scope.networkDb` throws under a `@/lib/db/prisma` mock that has only a default export.
+- **Prove a Network read on PostgreSQL**, where the split layout puts the Network's tables in another schema than the default client's: `src/routes/v1/credit-costs/get.postgres.test.ts` is the pattern.
+- Old code still calls Network models on the default client; it moves cluster by cluster. `networkPrisma` in `src/lib/db/prisma.ts` is for the scope module only (Biome's `noRestrictedImports` in `biome.json`).
+
+### Raw SQL
+
+- Raw SQL names the schema of every table and enum type it uses: `sharedTable("task")`, `netTable(network, "Job")`, `sharedType("TaskStatus")` and `netType(network, "AgentStatus")` from `@sokosumi/database/sql-tables` ([database package rules](../../packages/database/AGENTS.md)). The clients share one pool and the tables leave `public`, so a bare name leans on the search path. New raw SQL uses the helpers.
+- `src/lib/db/prisma.ts` configures the helpers from `DATABASE_SCHEMA_*` and `NETWORK_PREPROD_ENABLED` when it loads, so they name the schemas the clients name.
+- The helpers' name arguments are typed from `packages/database/prisma/network-tables.json`, so a misspelled name, a name of the other side, or a table where an enum goes fails the caller's typecheck. A name held in a variable needs that type too (`SharedTableName`, `NetworkTableName`, `SharedEnumName`, `NetworkEnumName`).
+- `src/lib/db/__tests__/unqualified-raw-sql.test.ts` reports bare table names. It is advisory: it fails nothing.
+- `Test Core PostgreSQL split layout` fails on a bare table or type name in a complete statement under the paths in `SOURCE_PATHS` ([`scripts/prepare-raw-sql.ts`](scripts/prepare-raw-sql.ts)). The check skips statements built from fragments. Add a path there when its raw SQL is qualified.
+
 ### File/Blob Resources
 
 - Files have different behaviors based on `origin`:
@@ -374,6 +398,15 @@ A failure that comes and goes with the order: the log prints `Running tests with
   - `OUTPUT` files require `sourceUrl` (external URLs from agent results)
 - Files are scoped to users and jobs
 - Always verify user ownership before returning file data
+- Do not fetch the same public Blob URL on every request. Vercel's firewall answers a burst of server reads of `*.public.blob.vercel-storage.com` with `403` and `x-vercel-mitigated: challenge`, while curl from the same machine still gets `200`, so the value vanishes now and then without an error. Cache reads of content-addressed files (`readDesignMdContent` caches by URL) or store the derived value in the database.
+
+### Composio tools
+
+- Read a toolkit's real contract from the API before coding against it, not from Composio's docs or a summary of them: those miss tools and get casing and units wrong. `GET https://backend.composio.dev/api/v3/tools?toolkit_slug=<slug>&limit=500&toolkit_versions=latest` lists the tools, and `GET …/api/v3/tools/<SLUG>?toolkit_versions=latest&version=latest` gives `input_parameters` and `output_parameters`. Without `toolkit_versions=latest` the list is an old base set. Make test fixtures match `output_parameters`.
+
+### Soko Bot turns
+
+- A bot runs one foreground turn at a time: starting another while one runs throws `SokoBotTurnInProgressError` (`soko-bot-control-plane.service.ts`). Work that must follow a turn, such as a plan after research, cannot start inside it; start it when the turn settles.
 
 ## Additional Rules
 
@@ -460,7 +493,7 @@ The evlog block above is the generic convention. This app narrows it:
 - Do **not** add `log.audit` unless a ticket asks for an audit trail (see `build-audit-logs`).
 - Skills: `apps/core/.agents/skills/review-logging-patterns`, `build-audit-logs`, `analyze-logs`. `analyze-logs` reads `.evlog/logs/`; this app drains to stdout and Sentry Logs, not the filesystem.
 - Do not run `evlog agents` at the repo root. Re-run from `apps/core` with `--no-skills`.
-- CLI is a Core devDependency (`@evlog/cli` 0.12.0). From Core: `pnpm exec evlog map --json --no-write`, `pnpm exec evlog doctor`. Do not add a CI map gate until the CLI credits Hono `app.use(evlog())`.
+- CLI is a Core devDependency (`@evlog/cli` 0.13.0). From Core: `pnpm exec evlog map --json --no-write`, `pnpm exec evlog doctor`. Do not add a CI map gate until the CLI credits Hono `app.use(evlog())`.
 
 ### Where Core logs go
 
@@ -487,6 +520,6 @@ Every warning or error Core logs answers three questions, built on evlog's struc
 - Raw detail (ids, stack, provider response) goes in event fields, in `cause`, or in `internal`; never in `message` or `why`.
 - Mail and message content: for an error that can quote a mail, message or prompt (Composio mail tools, chat dispatch, unfurls, AI calls on user text), log only provider, operation and status code, never the error text or a response body: no `cause`, and `failure: messageSafeErrorFields(error)` from `@/lib/safe-error-fields` as a field. It keeps only names, codes, statuses and operations from Core's own allowlists, and never throws.
 
-On `/auth/*`, a Better Auth warning or error moves to info only when the 3xx `Location` has a single `error` query parameter from the client error allowlist and the log call has no `Error` argument.
+On `/auth/*`, a Better Auth warning or error with `Error` arguments logs at warn when each argument of that type is a `StateError` without a cause and with code `state_mismatch` (including expired state) or `state_security_mismatch`. A warning or error without an `Error` argument moves to info only when the response is a 3xx without a new session cookie and its `Location` matches the origin and path of the configured `errorURL` or the error URL Better Auth validated at sign-in and parsed from OAuth state. The `Location` must have a single allowlisted `error` query parameter. A successful redirect that issues no session cookie can also meet this rule, such as account linking to an error page with an allowlisted `error`.
 
-An error is `log.error(createError({ message, why, fix, link, cause, internal }), fields?)`, or on a standalone event `emitCoreError(context, { message, why, fix, cause }, fields?)`. A warning is `logCoreWarning(log, { message, why, fix, link, cause, details }, fields?)` from `@/lib/evlog`, or `emitCoreWarning(context, warning, fields?)`, which keeps each warning's `why`, `fix`, `cause` and `details` under the event's `warnings`. `fields` merge at the event's root, so when one event can hold several warnings of the same kind (a lookup per account), put each one's ids and failure fields in its `details`. Pass the caught error as `cause` as it is; a rejected string is kept as an `Error`. Tests read it with `causeMessage(entry.cause)` from `@/test/core-log`. Library messages (Better Auth, Composio) pass through as they are: `betterAuthLogger` and `composioLogger` in `src/lib/evlog-library-logs.ts` put them on the request's wide event while it can still take writes (`tryUseLiveLogger`), otherwise on a standalone event, tagged with their `source`, with URL queries and fragments removed. A test that builds its own Better Auth or Composio instance passes the same logger; a file that configures Composio's process-wide SDK logger calls `restoreComposioSdkLoggerAfterFile()` from `@/test/composio-sdk-logger`, which puts back the level and sink the file found.
+An error is `log.error(createError({ message, why, fix, link, cause, internal }), fields?)`, or on a standalone event `emitCoreError(context, { message, why, fix, cause }, fields?)`. A warning is `logCoreWarning(log, { message, why, fix, link, cause, details }, fields?)` from `@/lib/evlog`, or `emitCoreWarning(context, warning, fields?)`, which keeps each warning's `why`, `fix`, `cause` and `details` under the event's `warnings`. `fields` merge at the event's root, so when one event can hold several warnings of the same kind (a lookup per account), put each one's ids and failure fields in its `details`. Pass the caught error as `cause` as it is; a rejected string is kept as an `Error`. Tests read it with `causeMessage(entry.cause)` from `@/test/core-log`. `betterAuthLogger` and `composioLogger` in `src/lib/evlog-library-logs.ts` apply their severity rules, remove URL queries and fragments, and tag messages with their `source`. They write to the request's wide event while it can still take writes (`tryUseLiveLogger`) and emit a standalone event otherwise. A test that builds its own Better Auth or Composio instance passes the same logger; a file that configures Composio's process-wide SDK logger calls `restoreComposioSdkLoggerAfterFile()` from `@/test/composio-sdk-logger`, which puts back the level and sink the file found.

@@ -3,13 +3,16 @@
 import "./onboarding.css";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useAnalytics } from "../../hooks/effects/use-analytics";
+import { useOnboardingPoll } from "../../hooks/effects/use-onboarding-poll";
+import { useOnboardingReturnNotice } from "../../hooks/effects/use-onboarding-return-notice";
+import { useOnboardingStepScroll } from "../../hooks/effects/use-onboarding-step-scroll";
+import { commonEvents, withEvents } from "../../lib/analytics";
 import type { CusoMessage } from "../../lib/chat-messages";
-import { connectReturnError } from "../../lib/connect-return";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import type { SkippedStep } from "../../lib/skipped-steps";
 import { AccountMenu } from "../account-menu";
-import { adsReturnError } from "../ads";
 import { subscribeOffer } from "../app/paused";
 import { hostOf } from "../brand-profile";
 import { Logo } from "../logo";
@@ -37,8 +40,6 @@ const HIDDEN_POLL_MS = 20_000;
 interface OnboardingFlowProps {
   overview: CmoOverview;
   messages: CusoMessage[];
-  /** "results" when a measurement connection sends the founder back to it. */
-  initialStep?: "results" | undefined;
   /** What this person skipped in hiring, from CMO's cookie. */
   skipped?: SkippedStep[];
   /** The CMO plans the checkout step offers; empty when Core could not read them. */
@@ -56,36 +57,25 @@ interface OnboardingFlowProps {
 export function OnboardingFlow({
   overview: initialOverview,
   messages: initialMessages,
-  initialStep,
   skipped: initialSkipped = [],
   plans = [],
   returnedFromCheckout = false,
-  actions,
+  actions: untracked,
 }: OnboardingFlowProps) {
+  const actions = useMemo(
+    () => withEvents(untracked, commonEvents("onboarding")),
+    [untracked],
+  );
   const [overview, setOverview] = useState(initialOverview);
+  useAnalytics(overview);
   const [messages, setMessages] = useState(initialMessages);
   const [skipped, setSkipped] = useState(initialSkipped);
   // Back from Polar, until the payment shows or the person says they did not pay.
   const [confirming, setConfirming] = useState(returnedFromCheckout);
-  // A finished step opened again from the markers; Results after a connection.
-  const [viewing, setViewing] = useState<OnboardingStep | null>(
-    initialStep === "results" ? "plan" : null,
-  );
+  // A finished step opened again from the markers.
+  const [viewing, setViewing] = useState<OnboardingStep | null>(null);
   // Why a connection came back without an account, read before the query goes.
-  const [returnNotice, setReturnNotice] = useState<string | null>(null);
-
-  // The connection redirect's query has been read; a reload routes from Core.
-  useEffect(() => {
-    setReturnNotice(
-      connectReturnError(
-        new URLSearchParams(window.location.search).get("connect"),
-      ) ?? adsReturnError(),
-    );
-    // Polar's return address stays, so a reload keeps confirming the payment.
-    if (window.location.search && !returnedFromCheckout) {
-      window.history.replaceState(null, "", "/");
-    }
-  }, [returnedFromCheckout]);
+  const returnNotice = useOnboardingReturnNotice(returnedFromCheckout);
 
   const refresh = useCallback(async () => {
     const state = await actions.loadState().catch(() => null);
@@ -107,21 +97,10 @@ export function OnboardingFlow({
     setMessages(state.messages);
   }, [actions, confirming]);
 
-  useEffect(() => {
-    let last = Date.now();
-    const poll = () => {
-      const visible = document.visibilityState === "visible";
-      if (!visible && Date.now() - last < HIDDEN_POLL_MS) return;
-      last = Date.now();
-      void refresh();
-    };
-    const timer = window.setInterval(poll, POLL_MS);
-    document.addEventListener("visibilitychange", poll);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", poll);
-    };
-  }, [refresh]);
+  useOnboardingPoll(refresh, {
+    pollMs: POLL_MS,
+    hiddenPollMs: HIDDEN_POLL_MS,
+  });
 
   const position = onboardingStep(overview, skipped, {
     returnedFromCheckout: confirming,
@@ -145,10 +124,12 @@ export function OnboardingFlow({
     stepIndex(viewing) < reached;
   const step: OnboardingStep =
     revisiting && viewing ? viewing : heldSite ? "site" : derived;
+  const [prevStep, setPrevStep] = useState(step);
+  if (prevStep !== step) {
+    setPrevStep(step);
+  }
   const current = stepIndex(step);
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [step]);
+  useOnboardingStepScroll(step);
 
   // A finished step opened again leads forward to where the founder was.
   const ahead = revisiting
@@ -161,16 +142,14 @@ export function OnboardingFlow({
   // Asked for the plan this session: it is being written, even before Core
   // reports the work, so the button is not offered a second time.
   const [planRequested, setPlanRequested] = useState(false);
-  useEffect(() => {
-    if (
-      planRequested &&
-      (overview.work?.kind === "strategy" || overview.strategy)
-    ) {
-      setPlanRequested(false);
-    }
-  }, [planRequested, overview.work, overview.strategy]);
+  const strategyStarted =
+    overview.work?.kind === "strategy" || Boolean(overview.strategy);
+  if (planRequested && strategyStarted) {
+    setPlanRequested(false);
+  }
   const starting =
     planRequested &&
+    !strategyStarted &&
     position.step === "plan" &&
     position.phase === "writing-needed";
   const planPhase =
@@ -315,7 +294,6 @@ export function OnboardingFlow({
             overview={overview}
             phase={planPhase}
             starting={starting}
-            initialTab={initialStep === "results" ? "results" : undefined}
             ahead={ahead}
             onRequest={request}
             onSetAds={async (monthly, currency) =>
@@ -332,9 +310,6 @@ export function OnboardingFlow({
               // Approving opens Subscribe, or Launch with Tester credits.
               setViewing(null);
             }}
-            onConnectMeasurement={(provider) =>
-              actions.connectMeasurement(provider, "onboarding")
-            }
             topUp={topUp}
             subscribe={subscribe}
             skip={skip}
@@ -373,9 +348,11 @@ export function OnboardingFlow({
         )}
       </main>
       <footer className="ob-foot">
-        <p className="ob-small muted">
-          You can close this page and come back any time to continue.
-        </p>
+        {step === "checkout" ? null : (
+          <p className="ob-small muted">
+            You can close this page and come back any time to continue.
+          </p>
+        )}
         <StartOver
           className="button button-ghost button-small"
           label="Use another website"

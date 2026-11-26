@@ -1,0 +1,8 @@
+{
+  "operations": {
+    "GET /categories": {
+      "cli": "categories list",
+      "mcp": "categories_list"
+    }
+  }
+}

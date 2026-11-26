@@ -46,6 +46,7 @@ import {
   addTrackedCompetitor,
   listTrackedCompetitors,
   removeTrackedCompetitor,
+  restoreTrackedCompetitor,
   updateTrackedCompetitor,
 } from "@/services/competitors.service";
 import { expectCoreLog } from "@/test/core-log";
@@ -330,6 +331,195 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
       name: "Doodle",
     });
     expect(await names(cuso.projectId)).toEqual(["Doodle", "Zcal"]);
+  });
+
+  it("brings back on Undo the removal it was given, with its current details", async () => {
+    const cuso = await seedCuso();
+    await addTrackedCompetitor(cuso.projectId, {
+      name: "Zcal",
+      websiteUrl: "zcal.co",
+    });
+    const [zcal] = await listTrackedCompetitors(cuso.projectId);
+    if (!zcal) throw new Error("not seeded");
+    // Another tab changed it before this one removed it.
+    await updateTrackedCompetitor(cuso.projectId, zcal.id, {
+      pricingUrl: "zcal.co/pricing",
+    });
+    const removal = await removeTrackedCompetitor(cuso.projectId, zcal.id);
+    await restoreTrackedCompetitor(cuso.projectId, zcal.id, removal);
+    expect(await listTrackedCompetitors(cuso.projectId)).toEqual([
+      expect.objectContaining({
+        id: zcal.id,
+        websiteUrl: "https://zcal.co/",
+        pricingUrl: "https://zcal.co/pricing",
+      }),
+    ]);
+  });
+
+  it("keeps the weekly check's right to fill a picked suggestion across Remove and Undo", async () => {
+    const cuso = await seedCuso();
+    await addTrackedCompetitor(cuso.projectId, {
+      name: "Picked",
+      websiteUrl: "picked.example",
+      suggested: true,
+    });
+    await addTrackedCompetitor(cuso.projectId, {
+      name: "Typed",
+      websiteUrl: "typed.example",
+    });
+    const before = await listTrackedCompetitors(cuso.projectId);
+    for (const row of before) {
+      const removal = await removeTrackedCompetitor(cuso.projectId, row.id);
+      await restoreTrackedCompetitor(cuso.projectId, row.id, removal);
+    }
+    const after = await listTrackedCompetitors(cuso.projectId);
+    expect(after.map((row) => row.memberEditedAt)).toEqual(
+      before.map((row) => row.memberEditedAt),
+    );
+    expect(after.map((row) => row.memberEditedAt === null)).toEqual([
+      true,
+      false,
+    ]);
+  });
+
+  it("still closes a picked suggestion a member adds again by hand", async () => {
+    const cuso = await seedCuso();
+    await addTrackedCompetitor(cuso.projectId, {
+      name: "Picked",
+      suggested: true,
+    });
+    const [picked] = await listTrackedCompetitors(cuso.projectId);
+    if (!picked) throw new Error("not seeded");
+    await removeTrackedCompetitor(cuso.projectId, picked.id);
+    await addTrackedCompetitor(cuso.projectId, { name: "Picked" });
+    const [back] = await listTrackedCompetitors(cuso.projectId);
+    expect(back).toMatchObject({ id: picked.id });
+    expect(back?.memberEditedAt).not.toBeNull();
+  });
+
+  it("refuses an Undo once its removal is no longer the latest", async () => {
+    const cuso = await seedCuso();
+    await addTrackedCompetitor(cuso.projectId, { name: "Zcal" });
+    const [zcal] = await listTrackedCompetitors(cuso.projectId);
+    if (!zcal) throw new Error("not seeded");
+    const first = await removeTrackedCompetitor(cuso.projectId, zcal.id);
+    // A teammate brings it back, changes it and removes it again.
+    await restoreTrackedCompetitor(cuso.projectId, zcal.id, first);
+    await updateTrackedCompetitor(cuso.projectId, zcal.id, {
+      websiteUrl: "zcal.example",
+    });
+    await removeTrackedCompetitor(cuso.projectId, zcal.id);
+    await expect(
+      restoreTrackedCompetitor(cuso.projectId, zcal.id, first),
+    ).rejects.toMatchObject({
+      status: 409,
+      cause: { kind: "competitor_removal_stale" },
+    });
+    expect(await names(cuso.projectId)).toEqual([]);
+
+    // Added again by name: the old Undo has nothing left to bring back.
+    await addTrackedCompetitor(cuso.projectId, { name: "Zcal" });
+    await expect(
+      restoreTrackedCompetitor(cuso.projectId, zcal.id, first),
+    ).rejects.toMatchObject({
+      status: 409,
+      cause: { kind: "competitor_removal_stale" },
+    });
+  });
+
+  it("tells removals apart when the clock does not move", async () => {
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-11-24T10:00:00Z"),
+    });
+    try {
+      const cuso = await seedCuso();
+      await addTrackedCompetitor(cuso.projectId, { name: "Zcal" });
+      const [zcal] = await listTrackedCompetitors(cuso.projectId);
+      if (!zcal) throw new Error("not seeded");
+      const first = await removeTrackedCompetitor(cuso.projectId, zcal.id);
+      await restoreTrackedCompetitor(cuso.projectId, zcal.id, first);
+      const second = await removeTrackedCompetitor(cuso.projectId, zcal.id);
+      expect(second).not.toBe(first);
+      await expect(
+        restoreTrackedCompetitor(cuso.projectId, zcal.id, first),
+      ).rejects.toMatchObject({
+        status: 409,
+        cause: { kind: "competitor_removal_stale" },
+      });
+      await restoreTrackedCompetitor(cuso.projectId, zcal.id, second);
+      expect(await names(cuso.projectId)).toEqual(["Zcal"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("refuses an Undo for a competitor of another Project", async () => {
+    const cuso = await seedCuso();
+    const other = await seedCuso();
+    await addTrackedCompetitor(cuso.projectId, { name: "Zcal" });
+    const [zcal] = await listTrackedCompetitors(cuso.projectId);
+    if (!zcal) throw new Error("not seeded");
+    const removal = await removeTrackedCompetitor(cuso.projectId, zcal.id);
+    await expect(
+      restoreTrackedCompetitor(other.projectId, zcal.id, removal),
+    ).rejects.toMatchObject({
+      status: 409,
+      cause: { kind: "competitor_removal_stale" },
+    });
+    expect(await names(cuso.projectId)).toEqual([]);
+  });
+
+  it("refuses an Undo once another competitor holds its name", async () => {
+    const cuso = await seedCuso();
+    await addTrackedCompetitor(cuso.projectId, { name: "Doodle" });
+    await addTrackedCompetitor(cuso.projectId, { name: "Calendly" });
+    const [doodle, calendly] = await listTrackedCompetitors(cuso.projectId);
+    if (!doodle || !calendly) throw new Error("not seeded");
+    const removal = await removeTrackedCompetitor(cuso.projectId, doodle.id);
+    await updateTrackedCompetitor(cuso.projectId, calendly.id, {
+      name: "Doodle",
+    });
+    await expect(
+      restoreTrackedCompetitor(cuso.projectId, doodle.id, removal),
+    ).rejects.toMatchObject({
+      status: 409,
+      cause: { kind: "competitor_name_taken" },
+    });
+    expect(await names(cuso.projectId)).toEqual(["Doodle"]);
+  });
+
+  it("refuses an Undo past five", async () => {
+    const cuso = await seedCuso();
+    for (const name of ["A1", "B2", "C3", "D4", "E5"])
+      await addTrackedCompetitor(cuso.projectId, { name });
+    const [first] = await listTrackedCompetitors(cuso.projectId);
+    if (!first) throw new Error("not seeded");
+    const removal = await removeTrackedCompetitor(cuso.projectId, first.id);
+    await addTrackedCompetitor(cuso.projectId, { name: "F6" });
+    await expect(
+      restoreTrackedCompetitor(cuso.projectId, first.id, removal),
+    ).rejects.toMatchObject({
+      status: 409,
+      cause: { kind: "competitor_limit_reached" },
+    });
+  });
+
+  it("brings a removal back once when two Undos race", async () => {
+    const cuso = await seedCuso();
+    await addTrackedCompetitor(cuso.projectId, { name: "Zcal" });
+    const [zcal] = await listTrackedCompetitors(cuso.projectId);
+    if (!zcal) throw new Error("not seeded");
+    const removal = await removeTrackedCompetitor(cuso.projectId, zcal.id);
+    const results = await Promise.allSettled([
+      restoreTrackedCompetitor(cuso.projectId, zcal.id, removal),
+      restoreTrackedCompetitor(cuso.projectId, zcal.id, removal),
+    ]);
+    expect(results.map((result) => result.status).sort()).toEqual([
+      "fulfilled",
+      "rejected",
+    ]);
+    expect(await names(cuso.projectId)).toEqual(["Zcal"]);
   });
 
   it("refuses a field that is not an address or an account", async () => {
@@ -617,6 +807,7 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
           {
             n: 0,
             isNews: true,
+            event: "launch",
             story: "ai notetaker",
             summary: "Calendly launched an AI notetaker",
           },

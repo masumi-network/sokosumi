@@ -6,28 +6,15 @@ import type {
   ContactList,
   ContactReplyState,
   ContactStage,
+  ContactXFollowState,
   PostContactsStageUndoData,
 } from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  Archive,
-  ArrowLeft,
-  Building2,
-  Download,
-  FileSpreadsheet,
-  GitMerge,
-  Globe,
-  ListPlus,
-  MoreHorizontal,
-  Table2,
-  UserPlus,
-  Users,
-} from "lucide-react";
+import { GitMerge, Users } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { flushSync } from "react-dom";
+import { useCallback, useRef, useState } from "react";
 import { type ExternalToast, toast } from "sonner";
 import { useDebounce } from "use-debounce";
 import {
@@ -36,6 +23,7 @@ import {
   CONTACT_REPLY_STATES,
   CONTACT_SORTS,
   CONTACT_STAGES,
+  CONTACT_X_FOLLOWS,
   type ContactSort,
   contactEmails,
   contactQuery,
@@ -43,9 +31,12 @@ import {
   defaultDirection,
   isContactPreset,
   matchesContactSearch,
+  replaceVisibleSelection,
   smartFilterOf,
 } from "@/app/contacts/contacts-view";
+import { FundraisingLink } from "@/app/fundraising/components/fundraising-link";
 import { EmptyState } from "@/components/common/empty-state";
+import { PageSearchField } from "@/components/page-search-field";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,18 +49,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { contactsService } from "@/lib/services/contacts.client";
 import type { ContactsSyncState } from "@/lib/soko-bot/connect-prompt";
@@ -88,9 +71,11 @@ import {
   ContactsBulkBar,
   ContactsFilterBar,
 } from "./contacts-toolbar";
-import { ContactsPresetTabs, ContactsViewMenus } from "./contacts-views-bar";
+import { ContactsViewMenus } from "./contacts-views-bar";
+import { ContactsWorkspaceHeader } from "./contacts-workspace-header";
 import { DuplicatesDialog } from "./duplicates-dialog";
 import { ImportContactsDialog } from "./import-contacts-dialog";
+import { ImportLinkedInDialog } from "./import-linkedin-dialog";
 import { ListOverview } from "./list-overview";
 import { ListSuggestions } from "./list-suggestions";
 import { MergeContactsDialog } from "./merge-contacts-dialog";
@@ -118,6 +103,7 @@ const ContactsMap = dynamic(
 type Dialog =
   | { kind: "add" }
   | { kind: "import" }
+  | { kind: "linkedin" }
   | { kind: "list"; list?: ContactList }
   | { kind: "deleteList"; list: ContactList }
   | { kind: "duplicates" }
@@ -165,6 +151,10 @@ export function ContactsWorkspace({
     "source",
     parseAsStringLiteral(CONTACT_CHANNEL_SOURCES),
   );
+  const [xFollow, setXFollow] = useQueryState(
+    "x",
+    parseAsStringLiteral(CONTACT_X_FOLLOWS),
+  );
   const [sort, setSort] = useQueryState(
     "sort",
     parseAsStringLiteral(CONTACT_SORTS).withDefault("lastContactAt"),
@@ -182,15 +172,8 @@ export function ContactsWorkspace({
   // and a link that names both opens the archive.
   const archived = view === "archived";
   const layout = archived ? null : urlLayout;
-  useEffect(() => {
-    if (archived && urlLayout) void setLayout(null);
-  }, [archived, urlLayout, setLayout]);
-  const viewSlot = useRef<HTMLDivElement>(null);
-  const archiveHeading = useRef<HTMLHeadingElement>(null);
-  const enteringArchive = useRef(false);
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selectedIds, setSelected] = useState<string[]>([]);
   const [dialog, setDialog] = useState<Dialog | null>(null);
-  const [exporting, setExporting] = useState(false);
   const returnFocus = useRef<HTMLElement | null>(null);
   // Core searches once per pause in typing; meanwhile every keystroke filters
   // the rows already on screen, so the table answers as you type.
@@ -205,7 +188,14 @@ export function ContactsWorkspace({
   const duplicateGroups = duplicates.data ?? [];
   const duplicatesCapped = duplicateGroups.length >= DUPLICATE_GROUP_LIMIT;
   const organizations = useContactOrganizations(debouncedCompanySearch);
-  const filters: ContactFilters = { stage, replyState, kind, knownBy, source };
+  const filters: ContactFilters = {
+    stage,
+    replyState,
+    kind,
+    knownBy,
+    source,
+    xFollow,
+  };
   const query = contactQuery({
     view,
     company,
@@ -248,15 +238,18 @@ export function ContactsWorkspace({
     kind: (value) => setKind(value as ContactKind | null),
     knownBy: setKnownBy,
     source: (value) => setSource(value as ContactChannelSource | null),
+    xFollow: (value) => setXFollow(value as ContactXFollowState | null),
   };
   function clearFilters() {
     void setSearch(null);
     void setCompany(null);
     for (const set of Object.values(setFilter)) void set(null);
   }
+  const selection = new Set(selectedIds);
   const selectedContacts = contacts.filter((contact) =>
-    selected.includes(contact.id),
+    selection.has(contact.id),
   );
+  const selected = selectedContacts.map((contact) => contact.id);
   const { fetchNextPage, hasNextPage, isFetchingNextPage } = rows;
   const loadMore = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
@@ -264,6 +257,7 @@ export function ContactsWorkspace({
 
   function changeView(next: string) {
     void setView(next === "all" ? null : next);
+    if (next === "archived") void setLayout(null);
     setSelected([]);
   }
   function changeOrganization(next: string | null) {
@@ -355,25 +349,6 @@ export function ContactsWorkspace({
         : undefined,
     });
   }
-  async function handleExport() {
-    setExporting(true);
-    try {
-      const csv = await contactsService.exportCsv(query);
-      const url = URL.createObjectURL(
-        new Blob([csv], { type: "text/csv;charset=utf-8" }),
-      );
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `contacts-${new Date().toISOString().slice(0, 10)}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      toast.error(coreErrorOf(error).message ?? t("errors.exportFailed"));
-    } finally {
-      setExporting(false);
-    }
-  }
-
   async function markNotSame(group: Contact[]) {
     try {
       await contactsService.notDuplicates(group.map((contact) => contact.id));
@@ -403,147 +378,30 @@ export function ContactsWorkspace({
   return (
     <div className="flex min-w-0 flex-col gap-3">
       <div className="flex min-w-0 flex-col gap-3">
-        <header className="flex min-w-0 items-start gap-2">
-          <h1 className="sr-only">{t("title")}</h1>
-          <div ref={viewSlot} className="min-w-0 flex-1">
-            {showCompanies ? (
-              <h2 className="flex h-10 items-center text-sm font-medium md:h-8">
-                {t("views.companies")}
-              </h2>
-            ) : archived ? (
-              // Archived is a side room, not a tab: name it while it is open
-              // and lead straight back to the live contacts.
-              <div className="flex min-w-0 items-center gap-1">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label={t("views.backToContacts")}
-                  className="size-10 shrink-0 md:size-8"
-                  onClick={() => {
-                    // The button unmounts; keep the keyboard on the view
-                    // control that replaces it.
-                    flushSync(() => changeView("all"));
-                    viewSlot.current
-                      ?.querySelector<HTMLElement>('[aria-checked="true"]')
-                      ?.focus();
-                  }}
-                >
-                  <ArrowLeft aria-hidden className="size-4" />
-                </Button>
-                <h2
-                  ref={archiveHeading}
-                  tabIndex={-1}
-                  className="flex h-10 min-w-0 items-center gap-2 text-sm font-medium outline-none md:h-8"
-                >
-                  <Archive
-                    aria-hidden
-                    className="text-muted-foreground size-4 shrink-0"
-                  />
-                  <span className="truncate">{t("presets.archived")}</span>
-                </h2>
-              </div>
-            ) : (
-              <ContactsPresetTabs view={view} onViewChange={changeView} />
-            )}
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            {archived ? null : (
-              <ToggleGroup
-                type="single"
-                value={layout ?? "table"}
-                onValueChange={(next) => {
-                  if (
-                    next === "table" ||
-                    next === "map" ||
-                    next === "companies"
-                  ) {
-                    void setLayout(next === "table" ? null : next);
-                    setSelected([]);
-                  }
-                }}
-                aria-label={t("layout.label")}
-              >
-                <ToggleGroupItem
-                  value="table"
-                  aria-label={t("layout.table")}
-                  className="size-10 px-0 md:size-8"
-                >
-                  <Table2 aria-hidden className="size-4" />
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="map"
-                  aria-label={t("layout.map")}
-                  className="size-10 px-0 md:size-8"
-                >
-                  <Globe aria-hidden className="size-4" />
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="companies"
-                  aria-label={t("layout.companies")}
-                  className="size-10 px-0 md:size-8"
-                >
-                  <Building2 aria-hidden className="size-4" />
-                </ToggleGroupItem>
-              </ToggleGroup>
-            )}
-            <Button
-              size="sm"
-              variant="primary"
-              className="h-10 md:h-8"
-              onClick={() => setDialog({ kind: "add" })}
-            >
-              <UserPlus aria-hidden className="size-4" />
-              <span className="sr-only sm:not-sr-only">{t("toolbar.add")}</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild disabled={exporting}>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label={t("toolbar.more")}
-                  className="size-10 md:size-8"
-                  loading={exporting}
-                >
-                  <MoreHorizontal aria-hidden className="size-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                onCloseAutoFocus={(event) => {
-                  // Opening the archive lands on its heading, not the menu
-                  // button, so a screen reader announces the new view.
-                  if (!enteringArchive.current) return;
-                  enteringArchive.current = false;
-                  event.preventDefault();
-                  archiveHeading.current?.focus();
-                }}
-              >
-                <DropdownMenuItem onClick={() => void handleExport()}>
-                  <Download aria-hidden className="size-4" />
-                  {t("toolbar.export")}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setDialog({ kind: "import" })}>
-                  <FileSpreadsheet aria-hidden className="size-4" />
-                  {t("views.import")}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setDialog({ kind: "list" })}>
-                  <ListPlus aria-hidden className="size-4" />
-                  {t("views.newList")}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => {
-                    enteringArchive.current = true;
-                    changeView("archived");
-                  }}
-                >
-                  <Archive aria-hidden className="size-4" />
-                  {t("presets.archived")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
+        <ContactsWorkspaceHeader
+          searchField={
+            showCompanies ? undefined : (
+              <PageSearchField
+                inHeader
+                aria-label={t("toolbar.search")}
+                placeholder={t("toolbar.searchPlaceholder")}
+                value={search}
+                maxLength={200}
+                onValueChange={(value) => void setSearch(value || null)}
+              />
+            )
+          }
+          archived={archived}
+          view={view}
+          layout={layout}
+          query={query}
+          changeView={changeView}
+          onLayout={(next) => {
+            void setLayout(next);
+            setSelected([]);
+          }}
+          onDialog={(kind) => setDialog({ kind })}
+        />
         {showCompanies ? (
           <CompaniesView
             onOpenCompany={(name) => {
@@ -615,11 +473,6 @@ export function ContactsWorkspace({
                 />
               ) : (
                 <ContactsFilterBar
-                  search={search}
-                  onSearch={(value) => {
-                    void setSearch(value || null);
-                    setSelected([]);
-                  }}
                   filters={filters}
                   onFilter={(key, value) => {
                     void setFilter[key](value);
@@ -645,6 +498,9 @@ export function ContactsWorkspace({
                 />
               )}
               <span className="ms-auto flex shrink-0 items-center gap-2">
+                {viewList?.name.trim().toLowerCase() === "investors" ? (
+                  <FundraisingLink className="h-10 md:h-8" />
+                ) : null}
                 {duplicateGroups.length ? (
                   <Button
                     size="sm"
@@ -771,7 +627,11 @@ export function ContactsWorkspace({
                         contacts={contacts}
                         lists={lists.data ?? []}
                         selected={selected}
-                        onSelectedChange={setSelected}
+                        onSelectedChange={(next) =>
+                          setSelected((current) =>
+                            replaceVisibleSelection(current, selected, next),
+                          )
+                        }
                         sort={sort}
                         direction={direction ?? defaultDirection(sort)}
                         onSort={handleSort}
@@ -822,6 +682,9 @@ export function ContactsWorkspace({
       ) : null}
       {dialog?.kind === "import" ? (
         <ImportContactsDialog onClose={() => setDialog(null)} />
+      ) : null}
+      {dialog?.kind === "linkedin" ? (
+        <ImportLinkedInDialog onClose={() => setDialog(null)} />
       ) : null}
       {dialog?.kind === "list" ? (
         <ContactListDialog

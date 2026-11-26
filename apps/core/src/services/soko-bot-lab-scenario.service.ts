@@ -24,6 +24,11 @@ export interface LabScenarioOwner {
   workspaceId: string;
 }
 
+/** An eval lane may supply the frozen packet for a built-in schedule. */
+export interface LabScenario extends SokoBotScenario {
+  preparedSchedule?: "meeting-prep";
+}
+
 export const SETTLED_TURN_STATUSES = ["COMPLETED", "FAILED", "CANCELLED"];
 
 async function reconciled(started: {
@@ -45,7 +50,7 @@ async function reconciled(started: {
 }
 
 export async function startLabScenarioTurn(
-  scenario: SokoBotScenario,
+  scenario: LabScenario,
   owner: LabScenarioOwner,
   clientTurnId: string,
 ): Promise<string> {
@@ -122,12 +127,25 @@ export async function startLabScenarioTurn(
     });
     return simulated.turnId;
   }
+  const key = scenario.preparedSchedule;
+  const schedule =
+    key && SOKO_BOT_SYSTEM_SCHEDULES.find((entry) => entry.key === key);
+  if (key && !schedule) throw new Error(`Missing system schedule: ${key}`);
   return reconciled(
     await sokoBotControlPlane.startTurn({
       userId: owner.bot.userId,
       workspaceId: owner.workspaceId,
       clientTurnId,
-      message: scenario.prompt,
+      message: schedule
+        ? `${schedule.prompt}\n\n${scenario.prompt}`
+        : scenario.prompt,
+      ...(key
+        ? {
+            sokoBotId: owner.bot.id,
+            source: "SCHEDULE",
+            presetRoute: SYSTEM_TURN_ROUTES[key],
+          }
+        : {}),
     }),
   );
 }
@@ -147,7 +165,13 @@ export async function loadLabScenarioTurn(turnId: string) {
       errorDetail: true,
       toolCalls: {
         orderBy: { createdAt: "asc" },
-        select: { capability: true, status: true, input: true, result: true },
+        select: {
+          capability: true,
+          status: true,
+          input: true,
+          result: true,
+          errorKind: true,
+        },
       },
       events: { select: { type: true, toolName: true } },
       delegations: {

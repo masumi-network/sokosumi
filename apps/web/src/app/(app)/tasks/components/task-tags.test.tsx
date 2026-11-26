@@ -6,6 +6,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
+  fireEvent,
   render,
   renderHook,
   screen,
@@ -169,10 +170,8 @@ describe("TaskTagSection", () => {
         edit={{ taskId: "task-1", activeOrganizationId: null }}
       />,
     );
-    await userEvent.setup().click(removeButton("Release"));
-    await waitFor(() =>
-      expect(screen.getByText("Release")).toBeInTheDocument(),
-    );
+    await act(async () => fireEvent.click(removeButton("Release")));
+    expect(screen.getByText("Release")).toBeInTheDocument();
     expect(setTaskWorkspaceTags).toHaveBeenCalledWith({
       taskId: "task-1",
       expectedWorkspaceTagIds: ["release"],
@@ -187,6 +186,56 @@ describe("TaskTagSection", () => {
     expect(topic?.parentElement).toBe(workspaceTag?.parentElement);
     expect(topic).not.toHaveAttribute("title");
     expect(removeButton("vocabulary.research")).toBeEnabled();
+  });
+
+  it.each([
+    ["read-only", undefined],
+    ["editable", { taskId: "task-1", activeOrganizationId: null }],
+  ])(
+    "keeps the last automatic tags, muted, while new ones are checked (%s)",
+    (_, edit) => {
+      render(
+        <TaskTagSection
+          tags={{ ...initialTags, checking: true }}
+          workspaceTags={[]}
+          edit={edit}
+        />,
+      );
+      const region = screen.getByRole("region", { name: "label" });
+      expect(within(region).getByRole("status")).toHaveTextContent("checking");
+      // Only the automatic topic is being rechecked; a manual one stays as is.
+      expect(within(region).getByText("vocabulary.research")).toHaveClass(
+        "text-muted-foreground",
+      );
+      expect(within(region).getByText("vocabulary.design")).not.toHaveClass(
+        "text-muted-foreground",
+      );
+      // Not by colour alone: the kept tag carries a named clock icon, so
+      // sight and screen readers both tell it apart; the manual tag has none.
+      const badge = (name: string) =>
+        within(region)
+          .getByText(name)
+          .closest<HTMLElement>("[data-slot=badge]")!;
+      const icon = within(badge("vocabulary.research")).getByRole("img", {
+        name: "checkingTag",
+      });
+      // Hover shows the same words, as on Jev's indicator.
+      expect(icon.parentElement).toHaveAttribute("title", "checkingTag");
+      expect(
+        within(badge("vocabulary.design")).queryByRole("img"),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("shows no checking status once the automatic tags are current", () => {
+    render(<TaskTagSection tags={initialTags} workspaceTags={[]} />);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByText("vocabulary.research")).not.toHaveClass(
+      "text-muted-foreground",
+    );
+    expect(
+      screen.queryByRole("img", { name: "checkingTag" }),
+    ).not.toBeInTheDocument();
   });
 
   it("removes a saved topic immediately and restores it when the save fails", async () => {
@@ -213,7 +262,6 @@ describe("TaskTagSection", () => {
   });
 
   it("applies a pending workspace suggestion and shows later classifier updates on an open detail", async () => {
-    const user = userEvent.setup();
     const edit = { taskId: "task", activeOrganizationId: null };
     const tag = {
       id: "label",
@@ -234,7 +282,9 @@ describe("TaskTagSection", () => {
         workspaceTagSuggestions: [],
       },
     });
-    await user.click(screen.getByRole("button", { name: "acceptSuggestion" }));
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "acceptSuggestion" })),
+    );
     expect(setTaskWorkspaceTags).toHaveBeenCalledWith({
       taskId: "task",
       expectedWorkspaceTagIds: [],
@@ -263,7 +313,7 @@ describe("TaskTagSection", () => {
         workspaceTagSuggestions: [],
       },
     });
-    await user.click(screen.getByRole("button", { name: "remove" }));
+    await act(async () => fireEvent.click(removeButton("Procurement")));
     expect(setTaskWorkspaceTags).toHaveBeenLastCalledWith({
       taskId: "task",
       expectedWorkspaceTagIds: ["label"],
@@ -273,35 +323,44 @@ describe("TaskTagSection", () => {
   });
 
   it("removes a legacy manual topic and shows the server's confirmed tags", async () => {
+    const pending =
+      Promise.withResolvers<Awaited<ReturnType<typeof setTaskWorkspaceTags>>>();
     render(
       <TaskTagSection
         tags={initialTags}
         edit={{ taskId: "task", activeOrganizationId: null }}
       />,
     );
-    vi.mocked(setTaskWorkspaceTags).mockResolvedValueOnce({
-      ok: true,
-      value: {
-        tags: {
-          manual: [],
-          automatic: ["research", "writing"],
-          rejected: ["design"],
-        },
-        workspaceTags: [],
-        workspaceTagSuggestions: [],
-      },
-    });
-    await userEvent.setup().click(removeButton("vocabulary.design"));
-    expect(setTaskWorkspaceTags).toHaveBeenCalledWith({
-      taskId: "task",
-      dismissedTopicIds: ["design"],
-    });
+    vi.mocked(setTaskWorkspaceTags).mockReturnValueOnce(pending.promise);
+    try {
+      await userEvent.setup().click(removeButton("vocabulary.design"));
+      expect(setTaskWorkspaceTags).toHaveBeenCalledWith({
+        taskId: "task",
+        dismissedTopicIds: ["design"],
+      });
+      expect(screen.queryByText("vocabulary.design")).not.toBeInTheDocument();
+      expect(screen.queryByText("vocabulary.writing")).not.toBeInTheDocument();
+    } finally {
+      await act(async () =>
+        pending.resolve({
+          ok: true,
+          value: {
+            tags: {
+              manual: [],
+              automatic: ["research", "writing"],
+              rejected: ["design"],
+            },
+            workspaceTags: [],
+            workspaceTagSuggestions: [],
+          },
+        }),
+      );
+    }
     expect(screen.queryByText("vocabulary.design")).not.toBeInTheDocument();
     expect(removeButton("vocabulary.writing")).toBeEnabled();
   });
 
   it("keeps a concurrent detail edit after refreshing and retrying a rejected replacement", async () => {
-    const user = userEvent.setup();
     const tag = { id: "old", displayName: "Design", source: "jev" as const };
     const added = { id: "new", displayName: "Finance" };
     vi.mocked(setTaskWorkspaceTags)
@@ -328,16 +387,14 @@ describe("TaskTagSection", () => {
         edit={{ taskId: "task", activeOrganizationId: null }}
       />,
     );
-    await user.click(screen.getByRole("button", { name: "remove" }));
+    await act(async () => fireEvent.click(removeButton("Design")));
     expect(screen.getByRole("alert")).toHaveTextContent("conflict");
     expect(screen.getByText("Design")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "reloadTags" }));
-    expect(removeButton("vocabulary.research")).toBeEnabled();
-    await user.click(
-      within(screen.getByText("Design").parentElement!).getByRole("button", {
-        name: "remove",
-      }),
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "reloadTags" })),
     );
+    expect(removeButton("vocabulary.research")).toBeEnabled();
+    await act(async () => fireEvent.click(removeButton("Design")));
     expect(setTaskWorkspaceTags).toHaveBeenLastCalledWith({
       taskId: "task",
       expectedWorkspaceTagIds: ["old", "new"],
@@ -400,7 +457,7 @@ it("opens card tag overflow without following the task link", async () => {
   };
   render(<TaskCard task={task} />);
   const user = userEvent.setup();
-  const overflow = screen.getByRole("button", { name: "showAll" });
+  const overflow = screen.getByRole("button", { name: "moreTags" });
   expect(overflow.closest("a")).toBeNull();
   await user.click(overflow);
   const dialog = await screen.findByRole("dialog", { name: "label" });
@@ -434,7 +491,12 @@ function cachedCatalog(client: QueryClient) {
 }
 
 it("removes a canonical topic and its workspace alias with a single click", async () => {
-  const client = new QueryClient();
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
   const label = {
     ...baseLabel,
     id: "seed-design",
@@ -461,7 +523,9 @@ it("removes a canonical topic and its workspace alias with a single click", asyn
       workspaceTagSuggestions: [],
     },
   });
-  await userEvent.setup().click(screen.getByRole("button", { name: "remove" }));
+  await act(async () =>
+    fireEvent.click(screen.getByRole("button", { name: "remove" })),
+  );
   expect(setTaskWorkspaceTags).toHaveBeenCalledTimes(1);
   expect(setTaskWorkspaceTags).toHaveBeenCalledWith({
     taskId: "task",
@@ -508,7 +572,12 @@ it("shows a confirmed alias once on a read-only detail without workspace catalog
 });
 
 it("uses the workspace color for a verified default topic and keeps a human homonym distinct", () => {
-  const client = new QueryClient();
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
   const manual = {
     ...baseLabel,
     id: "custom",
@@ -545,7 +614,12 @@ it("uses the workspace color for a verified default topic and keeps a human homo
 });
 
 it("drops a newly selected label from a draft when the catalog subsequently archives it", async () => {
-  const client = new QueryClient();
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
   const label = { ...baseLabel, id: "vendors", displayName: "Vendors" };
   const queryKey = workspaceTagsQueryKey("org");
   client.setQueryData(queryKey, [label]);

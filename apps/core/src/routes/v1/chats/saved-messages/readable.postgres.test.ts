@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { afterAll, describe, expect, it } from "vitest";
+import { testSchemaNames } from "@/test/split-layout";
 
 import {
   decodeSavedMessageCursor,
@@ -14,7 +15,12 @@ const url = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
-const db = enabled && url ? createPrismaClient(url) : null;
+const db =
+  enabled && url
+    ? createPrismaClient(url, {
+        schema: testSchemaNames().DATABASE_SCHEMA_SHARED,
+      })
+    : null;
 afterAll(async () => {
   await db?.$disconnect();
 });
@@ -58,7 +64,7 @@ async function savedIds(
       options.after ? decodeSavedMessageCursor(options.after) : null,
     ),
     orderBy: SAVED_MESSAGE_ORDER,
-    take: options.take,
+    ...(options.take !== undefined && { take: options.take }),
     select: { id: true, savedAt: true, messageId: true },
   });
   return rows;

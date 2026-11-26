@@ -1,0 +1,385 @@
+{
+  "operations": {
+    "GET /soko-bots/me": {
+      "cli": "soko-bots me",
+      "mcp": "soko_bots_me"
+    },
+    "POST /soko-bots/me": {
+      "cli": "soko-bots create-mine",
+      "mcp": "soko_bots_create_mine"
+    },
+    "DELETE /soko-bots/me": {
+      "cli": "soko-bots archive-mine",
+      "mcp": "soko_bots_archive_mine"
+    },
+    "DELETE /soko-bots/me/permanent": {
+      "cli": "soko-bots delete-mine",
+      "mcp": false,
+      "reason": "Permanent deletion: a person runs it from the CLI or Web."
+    },
+    "GET /soko-bots/me/activity": {
+      "cli": "soko-bots my-activity",
+      "mcp": "soko_bots_my_activity"
+    },
+    "GET /soko-bots/me/usage": {
+      "cli": "soko-bots my-usage",
+      "mcp": "soko_bots_my_usage"
+    },
+    "GET /soko-bots/me/stats": {
+      "cli": "soko-bots my-stats",
+      "mcp": "soko_bots_my_stats"
+    },
+    "GET /soko-bots/me/turns": {
+      "cli": "soko-bots my-turns",
+      "mcp": "soko_bots_my_turns"
+    },
+    "POST /soko-bots/me/turns": {
+      "cli": "soko-bots ask-mine",
+      "mcp": "soko_bots_ask_mine"
+    },
+    "GET /soko-bots/me/turns/{turnId}": {
+      "cli": "soko-bots my-turn",
+      "mcp": "soko_bots_my_turn"
+    },
+    "GET /soko-bots/me/turns/{turnId}/results": {
+      "cli": "soko-bots my-turn-results",
+      "mcp": "soko_bots_my_turn_results"
+    },
+    "GET /soko-bots/me/turns/{id}/conversation": {
+      "cli": "soko-bots my-turn-conversation",
+      "mcp": "soko_bots_my_turn_conversation"
+    },
+    "POST /soko-bots/me/turns/{turnId}/cancel": {
+      "cli": "soko-bots cancel-my-turn",
+      "mcp": "soko_bots_cancel_my_turn"
+    },
+    "POST /soko-bots/me/turns/{id}/feedback": {
+      "cli": "soko-bots rate-my-turn",
+      "mcp": "soko_bots_rate_my_turn"
+    },
+    "POST /soko-bots/me/memory/reset": {
+      "cli": "soko-bots reset-my-memory",
+      "mcp": "soko_bots_reset_my_memory"
+    },
+    "POST /soko-bots/me/schedules": {
+      "cli": "soko-bots create-my-schedule",
+      "mcp": "soko_bots_create_my_schedule"
+    },
+    "PATCH /soko-bots/me/schedules/{scheduleId}": {
+      "cli": "soko-bots update-my-schedule",
+      "mcp": "soko_bots_update_my_schedule"
+    },
+    "DELETE /soko-bots/me/schedules/{scheduleId}": {
+      "cli": "soko-bots delete-my-schedule",
+      "mcp": "soko_bots_delete_my_schedule"
+    },
+    "POST /soko-bots/me/decisions/{decisionId}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Accepts or rejects an action a Soko Bot proposed; a person decides in Sokosumi (ADR 0077)."
+    },
+    "POST /soko-bots/me/introduce": {
+      "cli": "soko-bots introduce-mine",
+      "mcp": "soko_bots_introduce_mine"
+    },
+    "PUT /soko-bots/me/name": {
+      "cli": "soko-bots rename-mine",
+      "mcp": "soko_bots_rename_mine"
+    },
+    "PUT /soko-bots/me/avatar-code": {
+      "cli": "soko-bots set-my-avatar",
+      "mcp": "soko_bots_set_my_avatar"
+    },
+    "PUT /soko-bots/me/version": {
+      "cli": "soko-bots set-my-version",
+      "mcp": "soko_bots_set_my_version"
+    },
+    "PUT /soko-bots/me/proactive": {
+      "cli": "soko-bots set-my-proactive",
+      "mcp": "soko_bots_set_my_proactive"
+    },
+    "PUT /soko-bots/me/board-following": {
+      "cli": "soko-bots set-my-board-following",
+      "mcp": "soko_bots_set_my_board_following"
+    },
+    "PUT /soko-bots/me/team-standup": {
+      "cli": "soko-bots set-my-team-standup",
+      "mcp": "soko_bots_set_my_team_standup"
+    },
+    "GET /soko-bots/me/skills": {
+      "cli": "soko-bots my-skills",
+      "mcp": "soko_bots_my_skills"
+    },
+    "POST /soko-bots/me/skills": {
+      "cli": "soko-bots install-my-skill",
+      "mcp": false,
+      "reason": "Installs outside code onto the person's bot: a person chooses it."
+    },
+    "DELETE /soko-bots/me/skills/{skillId}": {
+      "cli": "soko-bots remove-my-skill",
+      "mcp": "soko_bots_remove_my_skill"
+    },
+    "GET /soko-bots/me/events": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Answers only a Soko Bot's own key; the CLI and MCP act as a person."
+    },
+    "POST /soko-bots/me/lab/ingest": {
+      "cli": "soko-bots lab-ingest",
+      "mcp": "soko_bots_lab_ingest"
+    },
+    "POST /soko-bots/me/lab/task-event": {
+      "cli": "soko-bots lab-task-event",
+      "mcp": "soko_bots_lab_task_event"
+    },
+    "GET /soko-bots/me/lab/runs": {
+      "cli": "soko-bots lab-runs",
+      "mcp": "soko_bots_lab_runs"
+    },
+    "POST /soko-bots/me/lab/judge": {
+      "cli": "soko-bots lab-judge",
+      "mcp": "soko_bots_lab_judge"
+    },
+    "GET /soko-bots/versions": {
+      "cli": "soko-bots versions",
+      "mcp": "soko_bots_versions"
+    },
+    "GET /soko-bots/team": {
+      "cli": "soko-bots team",
+      "mcp": "soko_bots_team"
+    },
+    "GET /soko-bots/skills/search": {
+      "cli": "soko-bots search-skills",
+      "mcp": "soko_bots_search_skills"
+    },
+    "GET /soko-bots/skills/browse": {
+      "cli": "soko-bots browse-skills",
+      "mcp": "soko_bots_browse_skills"
+    },
+    "POST /soko-bots": {
+      "cli": "soko-bots create",
+      "mcp": "soko_bots_create"
+    },
+    "GET /soko-bots/{sokoBotId}": {
+      "cli": "soko-bots get",
+      "mcp": "soko_bots_get"
+    },
+    "POST /soko-bots/{sokoBotId}": {
+      "cli": "soko-bots reactivate",
+      "mcp": "soko_bots_reactivate"
+    },
+    "DELETE /soko-bots/{sokoBotId}": {
+      "cli": "soko-bots archive",
+      "mcp": "soko_bots_archive"
+    },
+    "DELETE /soko-bots/{sokoBotId}/permanent": {
+      "cli": "soko-bots delete",
+      "mcp": false,
+      "reason": "Permanent deletion: a person runs it from the CLI or Web."
+    },
+    "GET /soko-bots/{sokoBotId}/activity": {
+      "cli": "soko-bots activity",
+      "mcp": "soko_bots_activity"
+    },
+    "GET /soko-bots/{sokoBotId}/usage": {
+      "cli": "soko-bots usage",
+      "mcp": "soko_bots_usage"
+    },
+    "GET /soko-bots/{sokoBotId}/stats": {
+      "cli": "soko-bots stats",
+      "mcp": "soko_bots_stats"
+    },
+    "GET /soko-bots/{sokoBotId}/turns": {
+      "cli": "soko-bots turns",
+      "mcp": "soko_bots_turns"
+    },
+    "POST /soko-bots/{sokoBotId}/turns": {
+      "cli": "soko-bots ask",
+      "mcp": "soko_bots_ask"
+    },
+    "GET /soko-bots/{sokoBotId}/turns/{turnId}": {
+      "cli": "soko-bots turn",
+      "mcp": "soko_bots_turn"
+    },
+    "GET /soko-bots/{sokoBotId}/turns/{turnId}/results": {
+      "cli": "soko-bots turn-results",
+      "mcp": "soko_bots_turn_results"
+    },
+    "POST /soko-bots/{sokoBotId}/turns/{turnId}/cancel": {
+      "cli": "soko-bots cancel-turn",
+      "mcp": "soko_bots_cancel_turn"
+    },
+    "POST /soko-bots/{sokoBotId}/memory/reset": {
+      "cli": "soko-bots reset-memory",
+      "mcp": "soko_bots_reset_memory"
+    },
+    "POST /soko-bots/{sokoBotId}/schedules": {
+      "cli": "soko-bots create-schedule",
+      "mcp": "soko_bots_create_schedule"
+    },
+    "PATCH /soko-bots/{sokoBotId}/schedules/{scheduleId}": {
+      "cli": "soko-bots update-schedule",
+      "mcp": "soko_bots_update_schedule"
+    },
+    "DELETE /soko-bots/{sokoBotId}/schedules/{scheduleId}": {
+      "cli": "soko-bots delete-schedule",
+      "mcp": "soko_bots_delete_schedule"
+    },
+    "POST /soko-bots/{sokoBotId}/decisions/{decisionId}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Accepts or rejects an action a Soko Bot proposed; a person decides in Sokosumi (ADR 0077)."
+    },
+    "PUT /soko-bots/{sokoBotId}/name": {
+      "cli": "soko-bots rename",
+      "mcp": "soko_bots_rename"
+    },
+    "PUT /soko-bots/{sokoBotId}/avatar-code": {
+      "cli": "soko-bots set-avatar",
+      "mcp": "soko_bots_set_avatar"
+    },
+    "PUT /soko-bots/{sokoBotId}/version": {
+      "cli": "soko-bots set-version",
+      "mcp": "soko_bots_set_version"
+    },
+    "PUT /soko-bots/{sokoBotId}/proactive": {
+      "cli": "soko-bots set-proactive",
+      "mcp": "soko_bots_set_proactive"
+    },
+    "PUT /soko-bots/{sokoBotId}/board-following": {
+      "cli": "soko-bots set-board-following",
+      "mcp": "soko_bots_set_board_following"
+    },
+    "PUT /soko-bots/{sokoBotId}/team-standup": {
+      "cli": "soko-bots set-team-standup",
+      "mcp": "soko_bots_set_team_standup"
+    },
+    "GET /soko-bots/me/integrations": {
+      "cli": "soko-bots my-integrations",
+      "mcp": "soko_bots_my_integrations"
+    },
+    "GET /soko-bots/integrations/catalog": {
+      "cli": "soko-bots integration-catalog",
+      "mcp": "soko_bots_integration_catalog"
+    },
+    "POST /soko-bots/me/integrations/{provider}/connect": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Integrations: connecting a Soko Bot to an outside account is a long-lived grant a person makes in the Web app (ADR 0077)."
+    },
+    "POST /soko-bots/me/integrations/{provider}/finalize": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Integrations: connecting a Soko Bot to an outside account is a long-lived grant a person makes in the Web app (ADR 0077)."
+    },
+    "POST /soko-bots/me/integrations/complete-auth": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Integrations: connecting a Soko Bot to an outside account is a long-lived grant a person makes in the Web app (ADR 0077)."
+    },
+    "DELETE /soko-bots/me/integrations/{provider}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Integrations: connecting a Soko Bot to an outside account is a long-lived grant a person makes in the Web app (ADR 0077)."
+    },
+    "GET /soko-bots/{sokoBotId}/integrations": {
+      "cli": "soko-bots integrations",
+      "mcp": "soko_bots_integrations"
+    },
+    "POST /soko-bots/{sokoBotId}/integrations/{provider}/connect": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Integrations: connecting a Soko Bot to an outside account is a long-lived grant a person makes in the Web app (ADR 0077)."
+    },
+    "POST /soko-bots/{sokoBotId}/integrations/complete-auth": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Integrations: connecting a Soko Bot to an outside account is a long-lived grant a person makes in the Web app (ADR 0077)."
+    },
+    "DELETE /soko-bots/{sokoBotId}/integrations/{provider}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Integrations: connecting a Soko Bot to an outside account is a long-lived grant a person makes in the Web app (ADR 0077)."
+    },
+    "GET /soko-bots/{id}/api-keys": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Credential management: answers only an interactive browser session."
+    },
+    "POST /soko-bots/{id}/api-keys": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Mints a long-lived credential; answers only an interactive browser session."
+    },
+    "PATCH /soko-bots/{id}/api-keys/{keyId}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Credential management: answers only an interactive browser session."
+    },
+    "DELETE /soko-bots/{id}/api-keys/{keyId}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Credential management: answers only an interactive browser session."
+    },
+    "GET /soko-bots/{id}/secrets": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Secrets are credentials; answers only an interactive browser session."
+    },
+    "PUT /soko-bots/{id}/secrets/{name}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Secrets are credentials; answers only an interactive browser session."
+    },
+    "DELETE /soko-bots/{id}/secrets/{name}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Secrets are credentials; answers only an interactive browser session."
+    },
+    "GET /soko-bots/{id}/sandbox-setup": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Sandbox setup runs shell commands in the bot's sandbox; answers only an interactive browser session."
+    },
+    "PUT /soko-bots/{id}/sandbox-setup": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Sandbox setup runs shell commands in the bot's sandbox; answers only an interactive browser session."
+    },
+    "GET /soko-bots/{id}/mcp-servers": {
+      "cli": false,
+      "mcp": false,
+      "reason": "MCP server connections hold credentials; answers only an interactive browser session."
+    },
+    "POST /soko-bots/{id}/mcp-servers": {
+      "cli": false,
+      "mcp": false,
+      "reason": "MCP server connections hold credentials; answers only an interactive browser session."
+    },
+    "POST /soko-bots/{id}/mcp-servers/{serverId}/sign-in": {
+      "cli": false,
+      "mcp": false,
+      "reason": "MCP server connections hold credentials; answers only an interactive browser session."
+    },
+    "POST /soko-bots/{id}/mcp-servers/{serverId}/refresh": {
+      "cli": false,
+      "mcp": false,
+      "reason": "MCP server connections hold credentials; answers only an interactive browser session."
+    },
+    "PATCH /soko-bots/{id}/mcp-servers/{serverId}/tools": {
+      "cli": false,
+      "mcp": false,
+      "reason": "MCP server connections hold credentials; answers only an interactive browser session."
+    },
+    "DELETE /soko-bots/{id}/mcp-servers/{serverId}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "MCP server connections hold credentials; answers only an interactive browser session."
+    },
+    "GET /soko-bots/mcp-oauth/callback": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Machine caller: an MCP server's OAuth sign-in redirects the browser here."
+    }
+  }
+}

@@ -6,8 +6,15 @@ import type {
 } from "@sokosumi/core-client";
 import type { ChannelLinkTarget } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
-import { type MutableRefObject, type ReactNode, useMemo, useRef } from "react";
-import type { Components } from "react-markdown";
+import {
+  type ComponentProps,
+  type MutableRefObject,
+  type ReactNode,
+  useMemo,
+  useRef,
+} from "react";
+import type { Components, ExtraProps } from "react-markdown";
+import { ContactMentionScope } from "@/components/contact-mention-card";
 import Markdown from "@/components/markdown";
 
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
@@ -30,6 +37,18 @@ interface RoomMentionHoverLookups {
   openingDirectParticipantKey?: string | null;
   interactive?: boolean;
 }
+
+// A message's own headings ("# Report", "### Next steps") keep their element
+// and prose size, but not the heading role: the room's name stays the page's
+// heading, and a busy channel's outline does not fill with message text.
+const MESSAGE_HEADINGS: Components = Object.fromEntries(
+  (["h1", "h2", "h3", "h4", "h5", "h6"] as const).map((Tag) => [
+    Tag,
+    ({ node: _node, ...props }: ComponentProps<typeof Tag> & ExtraProps) => (
+      <Tag role="none" {...props} />
+    ),
+  ]),
+);
 
 function RoomMentionHoverSpan({
   node,
@@ -135,6 +154,7 @@ export function RoomMessageMarkdown({
 
   const components = useMemo<Components>(
     () => ({
+      ...MESSAGE_HEADINGS,
       span: (props) => (
         <RoomMentionHoverSpan {...props} lookupsRef={lookupsRef} />
       ),
@@ -150,22 +170,24 @@ export function RoomMessageMarkdown({
   }
 
   return (
-    <Markdown
-      enableMermaid={enableMermaid}
-      className={markdownClassName}
-      components={components}
-    >
-      {formatRoomMarkdownContent({
-        content,
-        coworkersById,
-        coworkersBySlug,
-        sokoBotsById,
-        sokoBotsBySlug,
-        usersById,
-        usersBySlug,
-        channelLinks,
-        mentionAllLabel: t("MentionAll.label"),
-      })}
-    </Markdown>
+    <ContactMentionScope>
+      <Markdown
+        enableMermaid={enableMermaid}
+        className={markdownClassName}
+        components={components}
+      >
+        {formatRoomMarkdownContent({
+          content,
+          coworkersById,
+          coworkersBySlug,
+          sokoBotsById,
+          sokoBotsBySlug,
+          usersById,
+          usersBySlug,
+          channelLinks,
+          mentionAllLabel: t("MentionAll.label"),
+        })}
+      </Markdown>
+    </ContactMentionScope>
   );
 }

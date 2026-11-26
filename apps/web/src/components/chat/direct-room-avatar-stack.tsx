@@ -1,16 +1,13 @@
-import { type ChatRoom, SokoBotStatus } from "@sokosumi/core-client";
+import type { ChatRoom } from "@sokosumi/core-client";
 import { MessageCircle } from "lucide-react";
-import { useTranslations } from "next-intl";
-import {
-  type ChatParticipantHoverProfile,
-  getRoomParticipantPreviews,
-} from "@/app/chat/components/room-helpers";
+import { getDirectParticipants } from "@/components/chat/direct-room-participants";
 import {
   LiveMemberPresenceDot,
   LiveMemberPresenceText,
 } from "@/components/chat/live-member-presence-dot";
-import { useFailedSokoBotId } from "@/components/chat/personal-assistant-chrome-store";
+import { useLiveSokoBotStatus } from "@/components/chat/personal-assistant-chrome-store";
 import { SOKO_BOT_STATUS_TONE } from "@/components/soko-bot/soko-bot-badges";
+import { SokoBotStatusLine } from "@/components/soko-bot/soko-bot-status-line";
 import { STATUS_TONE_DOT_CLASS } from "@/components/soko-bot/status-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -22,38 +19,10 @@ interface DirectRoomAvatarStackProps {
 }
 
 /**
- * Direct avatars show peers, or the owner for Self Direct. With every peer
- * gone they show the Former members instead, so the row still says who the
- * Direct was with rather than falling back to a generic mark.
- */
-function getDirectParticipants(
-  room: ChatRoom,
-  currentUserId: string,
-): ChatParticipantHoverProfile[] {
-  const participants = getRoomParticipantPreviews(room).filter(
-    (participant) =>
-      room.isSelfDirect ||
-      participant.kind === "coworker" ||
-      participant.id !== currentUserId,
-  );
-  if (participants.length > 0) {
-    return participants.slice(0, 3);
-  }
-  return room.formerUserMembers.slice(0, 3).map((member) => ({
-    kind: "human",
-    id: member.id,
-    name: member.name || member.email,
-    email: member.email,
-    image: member.image,
-    presence: "offline",
-  }));
-}
-
-/**
  * Avatar stack for sidebar DM rows. Purely presentational: the row link owns
  * navigation and the row is the direct itself, so no per-face hover card.
  *
- * Up to three 20px faces, overlapping. One face cannot say "several people
+ * Up to three 20px faces, with a 2px gap between them. One face cannot say "several people
  * are in here" — it reads as a direct with whoever that is — so a group row
  * keeps its stack and lets it widen the row's `SidebarRowSlot` to the right.
  * That is the one mark allowed to: the slot's left edge does not move, so the
@@ -96,10 +65,10 @@ export function DirectRoomAvatarStack({
   currentUserId,
 }: DirectRoomAvatarStackProps) {
   const participants = getDirectParticipants(room, currentUserId);
-  const tStatus = useTranslations("Components.SokoBot.BotStatus");
-  const failedSokoBotId = useFailedSokoBotId();
+  const liveSokoBot = useLiveSokoBotStatus();
   // Former members are not here to be online, and their faces sit back.
-  const showsPresence = !room.isSelfDirect && !room.isReadOnly;
+  const showsPresence =
+    participants.length === 1 && !room.isSelfDirect && !room.isReadOnly;
 
   if (participants.length === 0) {
     return (
@@ -122,15 +91,16 @@ export function DirectRoomAvatarStack({
         // roster panel says "Online" for the same member.
         const isAi =
           participant.kind === "coworker" || participant.kind === "sokoBot";
-        // Your own bot after a failed reply: the status its sidebar row and
-        // page show, not "Online".
-        const failed =
-          participant.kind === "sokoBot" && participant.id === failedSokoBotId;
+        // Your own bot: the status its sidebar row shows, not "Online".
+        const ownBot =
+          participant.kind === "sokoBot" && participant.id === liveSokoBot?.id
+            ? liveSokoBot
+            : null;
 
         return (
           <span
             key={`${participant.kind}-${participant.id}`}
-            className={cn("relative inline-flex", index > 0 && "-ml-1.5")}
+            className={cn("relative inline-flex", index > 0 && "ms-0.5")}
             // The first face on top, so its presence dot is not buried under
             // the one beside it.
             style={{ zIndex: participants.length - index }}
@@ -147,23 +117,21 @@ export function DirectRoomAvatarStack({
                 {getInitials(participant.name)}
               </AvatarFallback>
             </Avatar>
-            {showsPresence && failed ? (
+            {showsPresence && ownBot ? (
               <>
+                {/* No title: the badge's one word ("Idle") would contradict
+                    the row's own ("Active 2h ago"), which the row already
+                    shows and the text below announces. */}
                 <span
                   aria-hidden
-                  data-testid="dm-sidebar-bot-failed"
-                  title={tStatus(SokoBotStatus.ERROR)}
+                  data-testid="dm-sidebar-bot-status"
                   className={cn(
                     "border-sidebar absolute -right-0.5 -bottom-0.5 size-2 rounded-full border",
-                    STATUS_TONE_DOT_CLASS[
-                      SOKO_BOT_STATUS_TONE[SokoBotStatus.ERROR]
-                    ],
+                    STATUS_TONE_DOT_CLASS[SOKO_BOT_STATUS_TONE[ownBot.status]],
                   )}
                 />
                 {participants.length === 1 ? (
-                  <span className="sr-only">
-                    {tStatus(SokoBotStatus.ERROR)}
-                  </span>
+                  <SokoBotStatusLine bot={ownBot} className="sr-only" />
                 ) : null}
               </>
             ) : showsPresence ? (
@@ -175,7 +143,7 @@ export function DirectRoomAvatarStack({
                 userId={participant.id}
               />
             ) : null}
-            {participants.length === 1 && showsPresence && !failed ? (
+            {participants.length === 1 && showsPresence && !ownBot ? (
               <LiveMemberPresenceText
                 className="sr-only"
                 fallback={participant.presence}

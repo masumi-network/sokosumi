@@ -1,30 +1,25 @@
-import { AgentsSkeleton } from "@/components/agents/agents";
-import { GALLERY_PAGE_SECTIONS_CLASS } from "@/components/agents/gallery-page-classes";
+import { AGENT_TILE_GRID_CLASS } from "@/components/agents/directory/agent-tile";
+import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AgentsLoading() {
   return (
-    <div className="w-full">
-      <div className={GALLERY_PAGE_SECTIONS_CLASS}>
-        <section className="space-y-8">
-          <div className="space-y-2">
-            <Skeleton className="h-7 w-56 md:h-8" />
-            <Skeleton className="h-4 w-80 md:h-5" />
+    <div className="flex w-full flex-col gap-12 pb-12 md:px-2 md:pt-2">
+      {Array.from({ length: 3 }, (_, section) => (
+        <div key={section} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2 px-1">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-4 w-64" />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }, (_, index) => (
-              <Skeleton key={index} className="h-40 w-full rounded-xl" />
-            ))}
+          <div className={HOLDER_CLASS}>
+            <div className={AGENT_TILE_GRID_CLASS}>
+              {Array.from({ length: 3 }, (_, index) => (
+                <Skeleton key={index} className="h-32 w-full rounded-lg" />
+              ))}
+            </div>
           </div>
-        </section>
-        <section className="space-y-8">
-          <div className="space-y-2">
-            <Skeleton className="h-7 w-48 md:h-8" />
-            <Skeleton className="h-4 w-72 md:h-5" />
-          </div>
-          <AgentsSkeleton />
-        </section>
-      </div>
+        </div>
+      ))}
     </div>
   );
 }

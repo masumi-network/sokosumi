@@ -27,6 +27,7 @@ import { sendSokoBotTurnFeedbackAction } from "@/lib/actions/soko-bot/action";
 import { useSession } from "@/lib/auth/auth.client";
 import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
+import { SokoBotConversationButton } from "./soko-bot-conversation-dialog";
 
 interface SokoBotMessageMetadata {
   turn_id: string;
@@ -37,6 +38,7 @@ interface SokoBotMessageMetadata {
   schedule_name?: string;
   schedule_key?: string | null;
   background_run_title?: string;
+  background_failure_kind?: string;
 }
 
 function readSokoBotMetadata(metadata: unknown): SokoBotMessageMetadata | null {
@@ -66,6 +68,19 @@ function readSokoBotMetadata(metadata: unknown): SokoBotMessageMetadata | null {
       typeof record.background_run_title === "string"
         ? record.background_run_title
         : undefined,
+    background_failure_kind:
+      typeof record.background_failure_kind === "string"
+        ? record.background_failure_kind
+        : undefined,
+  };
+}
+
+export function readSokoBotBackgroundFailure(metadata: unknown) {
+  const info = readSokoBotMetadata(metadata);
+  if (!info?.background_run_title || !info.background_failure_kind) return null;
+  return {
+    title: info.background_run_title,
+    kind: info.background_failure_kind,
   };
 }
 
@@ -176,6 +191,10 @@ export function SokoBotFeedbackButtons({
   ];
   return (
     <>
+      <SokoBotConversationButton
+        turnId={turnId}
+        buttonClassName={buttonClassName}
+      />
       {options.map(({ useful, Icon, label }) => (
         <Button
           key={label}

@@ -11,8 +11,10 @@ import type { DragHandleProps } from "./task-dnd";
 import { TaskDueBadge } from "./task-due-badge";
 import { TaskMentionMark } from "./task-mention-mark";
 import { TaskActorCluster } from "./task-meta";
+import { TaskOpenSubtasks } from "./task-open-subtasks";
 import { TaskPriorityMark } from "./task-priority-mark";
 import { TaskPrivateIndicator } from "./task-private-indicator";
+import { TaskResultMatch } from "./task-result-match";
 import { TaskRunAtBadge } from "./task-run-at-badge";
 import { TaskStatusAge } from "./task-status-age";
 import { TaskStatusBadge } from "./task-status-badge";
@@ -44,6 +46,8 @@ export function TaskListItem({
     // status and the people, and leaves tags, dates and the comment count
     // to the wide one, so the title keeps its room.
     "flex items-center gap-3 text-xs",
+    // A search hit's excerpt wraps to a line of its own.
+    task.resultMatch && "flex-wrap gap-y-0.5",
     // The list draws the surface and the hairlines. A row lifted out of it
     // by a drag brings its own box.
     "px-3 transition-colors",
@@ -141,6 +145,13 @@ export function TaskListItem({
           ) : null}
         </span>
       </span>
+      {/* A line of its own across the row, under the title: the title
+          column alone is too narrow beside an open sidebar to show the
+          match. Starts under the title: mark, gap, ID, gap. */}
+      <TaskResultMatch
+        excerpt={task.resultMatch}
+        className="line-clamp-1 basis-full ps-[7.5rem]"
+      />
     </>
   );
 
@@ -164,6 +175,12 @@ export function TaskListItem({
           {row}
         </TaskDetailLink>
       )}
+      {/* Beside the row's link, not in it: each sub-task is a link too.
+          Starts under the title: row padding, mark, gap, ID, gap. */}
+      <TaskOpenSubtasks
+        task={task}
+        className={cn("ms-[8.25rem] me-3", compact ? "pb-1.5" : "pb-2.5")}
+      />
     </div>
   );
 }

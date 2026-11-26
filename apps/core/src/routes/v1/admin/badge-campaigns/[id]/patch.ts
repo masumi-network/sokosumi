@@ -1,4 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -73,7 +74,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // database clock at the mutation, after any lock/network waits.
       const updated = await tx.$executeRaw`
         WITH clock AS (SELECT clock_timestamp() AT TIME ZONE 'UTC' AS now)
-        UPDATE "badge_campaign" SET "startsAt" = ${startsAt}, "endsAt" = ${endsAt}, "updatedAt" = ${now}
+        UPDATE ${sharedTable("badge_campaign")} SET "startsAt" = ${startsAt}, "endsAt" = ${endsAt}, "updatedAt" = ${now}
         FROM clock WHERE "id" = ${id}
           AND ("startsAt" > clock.now OR ${startsAt} <= clock.now)
       `;

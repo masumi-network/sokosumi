@@ -1,0 +1,235 @@
+"use client";
+
+import type { ChatRoom } from "@sokosumi/core-client";
+import { useCallback, useEffect, useRef } from "react";
+import { markThreadReadAction } from "@/app/chat/actions";
+import {
+  type RoomReadAttentionSnapshot,
+  sameRoomReadAttention,
+} from "@/app/chat/utils/room-read-attention";
+import {
+  notifyOrganizationChatRoomsChanged,
+  ORGANIZATION_CHAT_ROOM_READ_EVENT,
+} from "@/components/chat/organization-chat-events";
+import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
+import { roomAttentionAfterRead } from "@/components/chat/room-attention";
+import {
+  applyRoomReadOverlays,
+  beginRoomAttentionChange,
+  settleRoomAttentionChange,
+} from "@/components/chat/room-read-overlay";
+
+interface RoomReadAttentionOptions {
+  room: ChatRoom | null;
+  committedRoomId: string | null;
+  messagesPending: boolean;
+  messageLoadFailed: boolean;
+  messages: RoomReadAttentionSnapshot["messages"];
+  openThreadParentId: string | null;
+  threadMessages: RoomReadAttentionSnapshot["threadMessages"];
+  isThreadLoading: boolean;
+  /**
+   * The reader is at the end of the room transcript, the state in which Jump
+   * to latest is hidden, and no explicit-target jump is still placing them.
+   * Room last-read waits for it; a Thread Look does not.
+   */
+  transcriptAtEnd: boolean;
+  /**
+   * Called after a Look reaches Core. Every Look lowers the room's unread
+   * thread count, including the automatic one this hook writes when the reader
+   * returns to a tab with a thread open, so the header count has to hear about
+   * it here rather than at the call sites that ask for a thread.
+   */
+  onThreadLooked?: (parentMessageId: string) => void;
+}
+
+function dispatchRoomRead(roomId: string, room: ChatRoom): void {
+  window.dispatchEvent(
+    new CustomEvent(ORGANIZATION_CHAT_ROOM_READ_EVENT, {
+      detail: { room, roomId },
+    }),
+  );
+}
+
+/** Owns automatic Room last-read and Thread Look writes for the visible room. */
+export function useRoomReadAttention(options: RoomReadAttentionOptions) {
+  const snapshotRef = useRef(options);
+  snapshotRef.current = options;
+  const mountedRef = useRef(true);
+  const readMarkerRef = useRef<RoomReadAttentionSnapshot | null>(null);
+
+  const canReadRoom = useCallback((roomId: string) => {
+    const current = snapshotRef.current;
+    return (
+      mountedRef.current &&
+      document.visibilityState === "visible" &&
+      current.committedRoomId === roomId &&
+      current.room?.id === roomId &&
+      !current.messagesPending &&
+      !current.messageLoadFailed
+    );
+  }, []);
+
+  const readRoom = useCallback(
+    async (roomId: string, optimistic: boolean): Promise<boolean> => {
+      const current = snapshotRef.current;
+      if (!canReadRoom(roomId) || !current.room || !current.transcriptAtEnd) {
+        return false;
+      }
+      const previousRoom = applyRoomReadOverlays([current.room])[0];
+      const pendingRoom = optimistic
+        ? {
+            ...previousRoom,
+            ...roomAttentionAfterRead(previousRoom),
+          }
+        : previousRoom;
+      const token = beginRoomAttentionChange(pendingRoom, current.room);
+      if (optimistic) {
+        dispatchRoomRead(roomId, pendingRoom);
+      }
+      try {
+        const result = await markOrganizationChatRoomReadAction(roomId);
+        if (
+          !settleRoomAttentionChange(
+            roomId,
+            token,
+            result.ok ? result.value : null,
+          )
+        ) {
+          return result.ok;
+        }
+        dispatchRoomRead(
+          roomId,
+          result.ok ? result.value : applyRoomReadOverlays([current.room])[0],
+        );
+        return result.ok;
+      } catch {
+        if (settleRoomAttentionChange(roomId, token, null)) {
+          dispatchRoomRead(roomId, applyRoomReadOverlays([current.room])[0]);
+        }
+        return false;
+      }
+    },
+    [canReadRoom],
+  );
+
+  const lookThread = useCallback(
+    async (roomId: string, parentMessageId: string): Promise<boolean> => {
+      if (!canReadRoom(roomId)) {
+        return false;
+      }
+      try {
+        const result = await markThreadReadAction(roomId, parentMessageId);
+        if (result.ok) {
+          snapshotRef.current.onThreadLooked?.(parentMessageId);
+          // Core announces a Look only over the control channel, which this
+          // tab may not have, and above the end no room read follows to carry
+          // the fresh room, so the sidebar's Thread row would stay.
+          notifyOrganizationChatRoomsChanged({
+            collections: ["active"],
+            roomId,
+          });
+        }
+        return result.ok;
+      } catch {
+        return false;
+      }
+    },
+    [canReadRoom],
+  );
+
+  const markThreadRead = useCallback(
+    async (roomId: string, parentMessageId: string): Promise<boolean> => {
+      const looked = await lookThread(roomId, parentMessageId);
+      // Loading may complete after a tab hides, closes the panel, or navigates.
+      if (
+        !canReadRoom(roomId) ||
+        snapshotRef.current.openThreadParentId !== parentMessageId
+      ) {
+        readMarkerRef.current = null;
+        return looked;
+      }
+      if (looked) {
+        await readRoom(roomId, false);
+      }
+      return looked;
+    },
+    [canReadRoom, lookThread, readRoom],
+  );
+
+  const syncRoomAttentionAfterThreadLook = useCallback(
+    async (roomId: string): Promise<void> => {
+      // Above the end the room is not read yet, which is no failure: the
+      // marker stays, as in `readCurrentRoom`, so the Thread is not Looked
+      // again for the same content.
+      if (!snapshotRef.current.transcriptAtEnd) return;
+      if (!(await readRoom(roomId, false))) {
+        readMarkerRef.current = null;
+      }
+    },
+    [readRoom],
+  );
+
+  const readCurrentRoom = useCallback(async () => {
+    const current = snapshotRef.current;
+    const roomId = current.room?.id;
+    if (!roomId || !canReadRoom(roomId) || current.isThreadLoading) {
+      return;
+    }
+    const marker = { roomId, ...current };
+    if (sameRoomReadAttention(readMarkerRef.current, marker)) {
+      return;
+    }
+    readMarkerRef.current = marker;
+
+    let looked = true;
+    if (current.openThreadParentId) {
+      looked = await lookThread(roomId, current.openThreadParentId);
+      const latest = snapshotRef.current;
+      if (
+        readMarkerRef.current !== marker ||
+        latest.room?.id !== roomId ||
+        !sameRoomReadAttention(marker, { roomId, ...latest })
+      ) {
+        return;
+      }
+    }
+    // Above the end there is nothing to read yet; the marker stays so the
+    // same content does not Look again, and reaching the end reads it.
+    const read = marker.transcriptAtEnd ? await readRoom(roomId, true) : true;
+    if ((!read || !looked) && readMarkerRef.current === marker) {
+      readMarkerRef.current = null;
+    }
+  }, [canReadRoom, lookThread, readRoom]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    const handleVisible = () => {
+      void readCurrentRoom();
+    };
+    window.addEventListener("focus", handleVisible);
+    document.addEventListener("visibilitychange", handleVisible);
+    return () => {
+      mountedRef.current = false;
+      window.removeEventListener("focus", handleVisible);
+      document.removeEventListener("visibilitychange", handleVisible);
+    };
+  }, [readCurrentRoom]);
+
+  useEffect(() => {
+    void readCurrentRoom();
+  }, [
+    options.room?.id,
+    options.committedRoomId,
+    options.messages,
+    options.openThreadParentId,
+    options.threadMessages,
+    options.messagesPending,
+    options.messageLoadFailed,
+    options.isThreadLoading,
+    options.transcriptAtEnd,
+    readCurrentRoom,
+  ]);
+
+  return { markThreadRead, syncRoomAttentionAfterThreadLook };
+}

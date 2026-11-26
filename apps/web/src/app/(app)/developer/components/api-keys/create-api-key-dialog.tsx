@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useScheduledTimeout } from "@/hooks/effects/use-scheduled-timeout";
 
 import { ApiKeySuccessDisplay } from "./api-key-success-display";
 import type { CreateApiKeyDialogProps, CreateApiKeyRequest } from "./types";
@@ -40,7 +41,7 @@ export function CreateApiKeyDialog({
 }: CreateApiKeyDialogProps) {
   const t = useTranslations("App.Account.ApiKeys");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const cleanupTimeout = useScheduledTimeout();
 
   const schema = createApiKeySchema(t);
 
@@ -51,13 +52,8 @@ export function CreateApiKeyDialog({
 
   const { isSubmitting } = form.formState;
   const showingCredentials = createdKey !== null;
-
-  const clearPendingCleanup = () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-  };
+  // A pending create may still return the one-time key, so it cannot close either.
+  const lockedOpen = showingCredentials || isSubmitting;
 
   const resetDialogState = () => {
     setCreatedKey(null);
@@ -78,12 +74,12 @@ export function CreateApiKeyDialog({
 
   const handleOpenChange = (nextOpen: boolean) => {
     // One-time key must only dismiss via Done.
-    if (!nextOpen && showingCredentials) {
+    if (!nextOpen && lockedOpen) {
       return;
     }
 
     onOpenChange(nextOpen);
-    clearPendingCleanup();
+    cleanupTimeout.cancel();
 
     if (nextOpen) {
       // Avoid re-showing a prior key if reopened during close animation.
@@ -93,44 +89,36 @@ export function CreateApiKeyDialog({
 
     // Clear the one-time secret immediately; delay form reset for animation.
     setCreatedKey(null);
-    timeoutRef.current = setTimeout(() => {
+    cleanupTimeout.schedule(() => {
       form.reset();
-      timeoutRef.current = null;
     }, DIALOG_CLEANUP_TIMEOUT);
   };
 
   const handleSuccessClose = () => {
-    clearPendingCleanup();
+    cleanupTimeout.cancel();
     setCreatedKey(null);
     onOpenChange(false);
-    timeoutRef.current = setTimeout(() => {
+    cleanupTimeout.schedule(() => {
       form.reset();
-      timeoutRef.current = null;
     }, DIALOG_CLEANUP_TIMEOUT);
   };
-
-  useEffect(() => {
-    return () => {
-      clearPendingCleanup();
-    };
-  }, []);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className={showingCredentials ? "[&>button]:hidden" : undefined}
+        className={lockedOpen ? "[&>button]:hidden" : undefined}
         onEscapeKeyDown={(event) => {
-          if (showingCredentials) {
+          if (lockedOpen) {
             event.preventDefault();
           }
         }}
         onPointerDownOutside={(event) => {
-          if (showingCredentials) {
+          if (lockedOpen) {
             event.preventDefault();
           }
         }}
         onInteractOutside={(event) => {
-          if (showingCredentials) {
+          if (lockedOpen) {
             event.preventDefault();
           }
         }}

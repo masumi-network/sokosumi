@@ -6,8 +6,8 @@ import {
   CLI_COMMANDS,
   formatCliCommandHelpLines,
   formatUnknownCommandUsage,
-  runDiscoverCommand,
-} from "../../../src/cli/commands/discover.js";
+} from "../../../src/cli/commands/catalog.js";
+import { runDiscoverCommand } from "../../../src/cli/commands/discover.js";
 
 const config = {
   target: "mainnet" as const,
@@ -64,7 +64,7 @@ test("discover sanitizes the API URL in JSON and text output", async () => {
     ...config,
     target: "custom" as const,
     apiUrl:
-      "https://user:password@host/api?api_key=secret&region=west#fragment",
+      "https://leak-user:leak-password@host/api?api_key=leak-secret&region=west#leak-fragment",
   };
 
   for (const json of [true, false]) {
@@ -76,7 +76,8 @@ test("discover sanitizes the API URL in JSON and text output", async () => {
     });
 
     assert.ok(output.join("").includes("https://host/api?region=west"));
-    assert.doesNotMatch(output.join(""), /user|password|secret|fragment/i);
+    // The command list names `users …` commands, so match the planted values.
+    assert.doesNotMatch(output.join(""), /leak-/i);
   }
 });
 

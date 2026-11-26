@@ -3,8 +3,9 @@
 import { useActionState } from "react";
 
 import type { NameFormState } from "../app/name-actions";
-import { FormAlert, FormField, useFocusFirstInvalid } from "./form-field";
-import { Mascot } from "./mascot";
+import { useFocusFirstInvalid } from "../hooks/effects/use-focus-first-invalid";
+import { FormAlert, FormField } from "./form-field";
+import { Logo } from "./logo";
 import { SubmitButton } from "./submit-button";
 
 interface NameSetupProps {
@@ -61,17 +62,20 @@ export function NameSetup({ saveName, signOut }: NameSetupProps) {
             <SubmitButton className="button" formAction={formAction}>
               Continue
             </SubmitButton>
+          </div>
+          {/* Leaving is possible, not the second choice of the first screen. */}
+          <div className="actions">
             <SubmitButton
-              className="button button-secondary"
+              className="button button-ghost button-small"
               formAction={signOut}
               formNoValidate
             >
-              Sign out
+              Not you? Sign out
             </SubmitButton>
           </div>
         </form>
       </div>
-      <Mascot className="hero-mascot" />
+      <Logo lockup="primary" className="hero-logo" />
     </main>
   );
 }

@@ -32,6 +32,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("../lib/auth", () => ({ getAuth: () => ({ api: { getSession } }) }));
 
 vi.mock("../lib/core", () => ({
+  renderRequestHeaders: async () => new Headers(),
   asSignedInPersonInPage: async () => ({
     headers: { authorization: "Bearer token_123" },
   }),
@@ -56,6 +57,7 @@ vi.mock("./cmo-actions", async (importOriginal) => ({
 }));
 
 const { default: HomePage } = await import("./page");
+const { Home } = await import("./home");
 
 type Page = ReactElement<{
   websiteUrl?: string;
@@ -66,6 +68,9 @@ type Page = ReactElement<{
   cusoPicker?: boolean;
   manyCusos?: boolean;
   overview?: { projectId: string };
+  adsError?: string | null;
+  measureError?: string | null;
+  name?: string;
 }>;
 
 function render(error?: string | string[]): Promise<Page> {
@@ -138,8 +143,7 @@ describe("CMO home page", () => {
     vi.restoreAllMocks();
   });
 
-  // Without a session the proxy serves the waitlist site; what reaches the
-  // page (an error, a stale cookie) goes to the unlinked /login.
+  // Without a session the home page goes to /login, which goes on to sign in.
   it("sends a visitor without a session to /login, without asking Core", async () => {
     getSession.mockResolvedValue(null);
 
@@ -406,4 +410,51 @@ describe("CMO home page", () => {
       );
     },
   );
+
+  it.each([
+    ["failed", "That ad connection didn't finish. Try again."],
+    [
+      "none",
+      "That login has no ad account. Create one in Google Ads or Meta, then connect again.",
+    ],
+  ])(
+    "parses /channels?ads=%s on the server and passes adsError to CmoApp",
+    async (ads, expectedError) => {
+      const page = (await Home({
+        searchParams: Promise.resolve({ project: "project-1", ads }),
+        view: "channels",
+      })) as Page;
+
+      expect(page.type).toBe(CmoApp);
+      expect(page.props.adsError).toBe(expectedError);
+    },
+  );
+
+  it("names the person as Core has them, not as the sign-up session did", async () => {
+    getSession.mockResolvedValue({
+      user: { name: "", email: "ada@example.com" },
+    });
+    const page = (await Home({
+      searchParams: Promise.resolve({ project: "project-1" }),
+      view: "today",
+    })) as Page;
+
+    expect(page.type).toBe(CmoApp);
+    expect(page.props.name).toBe("Ada Lovelace");
+  });
+
+  it("parses /results?measure=failed on the server and passes measureError to CmoApp", async () => {
+    const page = (await Home({
+      searchParams: Promise.resolve({
+        project: "project-1",
+        measure: "failed",
+      }),
+      view: "results",
+    })) as Page;
+
+    expect(page.type).toBe(CmoApp);
+    expect(page.props.measureError).toBe(
+      "That connection didn't finish. Try again.",
+    );
+  });
 });

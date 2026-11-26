@@ -1,4 +1,3 @@
-import type { Prisma } from "@sokosumi/database";
 import {
   type Consumption,
   creditBucketRepository,
@@ -6,6 +5,8 @@ import {
 } from "@sokosumi/database/repositories";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
+
+import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
 
 import { unprocessableEntity } from "./error";
 
@@ -22,7 +23,10 @@ interface CreateTaskEventTransactionInput {
    */
   projectId?: string | null;
   cents: bigint;
-  tx: Prisma.TransactionClient;
+  /** The Network whose credits are spent. */
+  scope: NetworkScope;
+  /** The open shared-side transaction the charge commits or rolls back with. */
+  tx: SharedDb;
 }
 
 export function isInsufficientBalanceError(error: unknown): boolean {
@@ -49,6 +53,7 @@ export async function createTaskEventTransaction(
   let consumptions: Consumption[];
   try {
     consumptions = await creditBucketRepository.prepareConsumption(
+      input.scope.network,
       input.userId,
       input.organizationId,
       input.cents,
@@ -67,26 +72,15 @@ export async function createTaskEventTransaction(
     throw error;
   }
 
-  const transaction = await input.tx.transaction.create({
-    data: {
-      amount: input.cents * BigInt(-1),
-      ...(input.userId ? { user: { connect: { id: input.userId } } } : {}),
-      ...(input.organizationId
-        ? { organization: { connect: { id: input.organizationId } } }
-        : {}),
-      creditConsumptions: {
-        createMany: {
-          data: consumptions.map((consumption) => ({
-            bucketId: consumption.bucketId,
-            amount: consumption.amount,
-          })),
-        },
-      },
+  return await creditBucketRepository.recordSpend(
+    input.scope.network,
+    {
+      // An empty id is no id, as the relation write treated it.
+      userId: input.userId || null,
+      organizationId: input.organizationId || null,
+      cents: input.cents,
+      consumptions,
     },
-    select: {
-      id: true,
-    },
-  });
-
-  return transaction.id;
+    input.tx,
+  );
 }

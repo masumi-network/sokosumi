@@ -8,6 +8,7 @@ import { cacheLife } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import * as z from "zod";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { buildAuthHeaders } from "@/lib/clients/core.client";
 import { getServerCoreAppBaseUrl } from "@/lib/clients/utils/core-api-base-url";
@@ -33,12 +34,21 @@ export interface OAuthClientPublic {
   client_name?: string;
   client_uri?: string;
   logo_uri?: string;
+  /**
+   * True when the client has no owner (dynamic client registration). Core adds
+   * it to Better Auth's public client fields; the consent page treats a missing
+   * value as true.
+   */
+  selfRegistered?: boolean;
 }
 
 const CORE_GET_SESSION_PATH = "/auth/get-session";
 const CORE_LIST_ACCOUNTS_PATH = "/auth/list-accounts";
 const CORE_EMAIL_CHANGE_STATUS_PATH = "/auth/email-change/status";
 const CORE_GET_OAUTH_CLIENT_PUBLIC_PATH = "/auth/oauth2/public-client";
+// Anything but a boolean reads as absent, which the consent page treats as
+// self-registered.
+const SELF_REGISTERED_SCHEMA = z.boolean().optional().catch(undefined);
 /**
  * The one Core auth status that means "this browser has no session". 403 and
  * 404 are deliberately absent: on `/auth/get-session` a 403 is Better Auth's
@@ -383,7 +393,14 @@ const getCachedOAuthClientPublic = cache(
       return ok(null);
     }
 
-    return result;
+    return result.map((client) =>
+      client
+        ? {
+            ...client,
+            selfRegistered: SELF_REGISTERED_SCHEMA.parse(client.selfRegistered),
+          }
+        : null,
+    );
   },
 );
 

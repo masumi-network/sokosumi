@@ -44,11 +44,15 @@ export const SOKO_BOT_CAPABILITIES = [
   "update_schedule",
   "manage_reminder",
   "delete_schedule",
+  "save_task_schedule",
+  "delete_task_schedule",
   "list_chats",
   "read_chat",
   "post_chat",
   "open_direct_chat",
   "ask_coworker",
+  "send_message",
+  "list_recipients",
   "list_files",
   "read_file",
   "list_tables",
@@ -89,6 +93,9 @@ export const SOKO_BOT_CAPABILITIES = [
   "export_contacts_to_table",
   "find_people",
   "enrich_contact",
+  "fundraising_pipeline",
+  "investor_warm_paths",
+  "find_investors",
   "create_project",
   "update_project",
   "list_integrations",
@@ -140,6 +147,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "update_newsletter_subscriber",
   "remove_newsletter_subscriber",
   "update_social_post",
+  "update_social_posts",
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",
@@ -158,7 +166,15 @@ export const SOKO_BOT_CAPABILITIES = [
   "search_exa",
   "read_social_profile",
   "read_writing_skill",
+  "read_skill",
   "find_style_references",
+  "write_month_pieces",
+  "write_strategy",
+  "read_calendar",
+  "read_strategy",
+  "read_brand_brain",
+  "read_report",
+  "read_competitor_moves",
   "list_social_comments",
   "handle_social_comment",
   "read_seo",
@@ -202,6 +218,23 @@ export function isSokoBotAnnouncementCapability(
 }
 
 /**
+ * Cuso's reads of what his organized context leaves out (cmo-v23): the
+ * calendar, the strategy's parts, the Brand Brain's sections, the reports and
+ * the competitor moves. Read-only, capped, and only his own Project's.
+ */
+export const SOKO_BOT_CMO_READ_CAPABILITIES = [
+  "read_calendar",
+  "read_strategy",
+  "read_brand_brain",
+  "read_report",
+  "read_competitor_moves",
+] as const satisfies readonly SokoBotCapability[];
+
+export function isSokoBotCmoReadCapability(value: string): boolean {
+  return (SOKO_BOT_CMO_READ_CAPABILITIES as readonly string[]).includes(value);
+}
+
+/**
  * Tools only CMO (Cuso) bots carry. They write the bot's own marketing
  * workspace (Brand Brain, strategy), so a CMO bot has them on every turn and
  * no other bot ever does; `applyVersionCapabilities` enforces both.
@@ -216,6 +249,12 @@ export const SOKO_BOT_CMO_CAPABILITIES = [
   "read_writing_skill",
   // Old ads, posters and labels a picture can take its look from.
   "find_style_references",
+  // Core writes the month's pieces at once (cmo-v6's production run).
+  "write_month_pieces",
+  // Core writes, checks and saves the strategy in one step (cmo-v25).
+  "write_strategy",
+  // What an organized context leaves out, read when a turn needs it (cmo-v23).
+  ...SOKO_BOT_CMO_READ_CAPABILITIES,
   // The daily reply round: comments on the Project's own posts.
   "list_social_comments",
   "handle_social_comment",
@@ -314,7 +353,7 @@ export function isSokoBotSandboxCapability(
 
 export * from "./policy-taint.js";
 
-const DIRECT_READ_CAPABILITIES = [
+export const SOKO_BOT_DIRECT_READ_CAPABILITIES = [
   ...SOKO_BOT_SEO_READ_CAPABILITIES,
   "refresh_context",
   "get_task_status",
@@ -326,6 +365,7 @@ const DIRECT_READ_CAPABILITIES = [
   "list_schedules",
   "list_chats",
   "read_chat",
+  "list_recipients",
   "list_files",
   "read_file",
   "get_image",
@@ -341,6 +381,8 @@ const DIRECT_READ_CAPABILITIES = [
   "search_companies",
   "get_company",
   "find_contact_duplicates",
+  "fundraising_pipeline",
+  "investor_warm_paths",
   "list_integrations",
   "find_integrations",
   "search_inbox",
@@ -382,10 +424,13 @@ const DIRECT_READ_CAPABILITIES = [
   "find_agents",
 ] as const satisfies readonly SokoBotCapability[];
 
+const DIRECT_READ_CAPABILITIES = SOKO_BOT_DIRECT_READ_CAPABILITIES;
+
 /** Social posts can publish externally, including edits to already queued content. */
 const SOCIAL_WRITE_CAPABILITIES = [
   "create_social_post",
   "update_social_post",
+  "update_social_posts",
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",
@@ -405,13 +450,19 @@ const BACKGROUND_RUN_CAPABILITIES = [
   "stop_background_run",
 ] as const satisfies readonly SokoBotCapability[];
 
-/** Follow-ups the bot sets up for itself; never need owner approval. */
+/**
+ * Follow-ups the bot sets up for itself, and the workspace's Task Schedules
+ * it keeps for the owner. Core asks the owner's own chat for a change to a
+ * Task Schedule someone else made.
+ */
 const SCHEDULE_CAPABILITIES = [
   "wait_for",
   "create_schedule",
   "update_schedule",
   "manage_reminder",
   "delete_schedule",
+  "save_task_schedule",
+  "delete_task_schedule",
 ] as const satisfies readonly SokoBotCapability[];
 
 /**
@@ -440,6 +491,7 @@ const CONTACT_WRITE_CAPABILITIES = [
   "export_contacts_to_table",
   "find_people",
   "enrich_contact",
+  "find_investors",
 ] as const satisfies readonly SokoBotCapability[];
 
 /** Writes into chat and the owner's Drive; not available on read-only routes. */
@@ -465,6 +517,8 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   // Opens a private channel of the owner, the bot and Coworkers and asks them
   // something. Nobody else is in it, so it is not an outward post.
   "ask_coworker",
+  // Writes to whoever the bot names, in a room Core picks with a person in it.
+  "send_message",
   "upload_file",
   "move_file",
   "delete_file",
@@ -653,7 +707,13 @@ export function capabilitiesForClassification(
   > = {
     MEMORY: ["update_memory", ...SKILL_CAPABILITIES],
     SCHEDULE: SCHEDULE_CAPABILITIES,
-    CHAT: ["post_chat", "open_direct_chat", "ask_coworker", "wait_for"],
+    CHAT: [
+      "post_chat",
+      "open_direct_chat",
+      "ask_coworker",
+      "send_message",
+      "wait_for",
+    ],
     // A table the owner asks for is a Files table, not a markdown file.
     FILE: [
       "upload_file",
@@ -714,6 +774,22 @@ export interface TurnClassification {
   unsureRoute?: SokoBotRoute;
   /** Jev's soft reads of a typed message: hints for context, never gates. */
   signals?: SokoBotTurnSignals;
+  /** How much work Jev reads in a typed message; picks the turn's model. */
+  complexity?: SokoBotTurnComplexity;
+}
+
+export const SOKO_BOT_TURN_COMPLEXITIES = [
+  "SIMPLE",
+  "NORMAL",
+  "COMPLEX",
+] as const;
+
+/** Jev's label and the probability it gave each option. */
+export interface SokoBotTurnComplexity {
+  label: (typeof SOKO_BOT_TURN_COMPLEXITIES)[number];
+  probabilities: Partial<
+    Record<(typeof SOKO_BOT_TURN_COMPLEXITIES)[number], number>
+  >;
 }
 
 /** Probabilities, 0–1, that a typed message does each of these. */

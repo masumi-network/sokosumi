@@ -1,17 +1,36 @@
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import { QueryClient } from "@tanstack/react-query";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchRoomMessages } from "@/components/chat/fetch-room-messages";
 import { rememberPinnedRooms } from "@/components/chat/remembered-pinned-rooms";
 import {
   noteChatReadThrottled,
   resetChatReadThrottleForTests,
 } from "@/lib/chat/chat-read-throttle";
+import { chatQueryKeys } from "@/queries/chat";
 import { RoomTranscriptCache } from "./room-transcript-cache";
 
 vi.mock("@/components/chat/fetch-room-messages", () => ({
   fetchRoomMessages: vi.fn(),
 }));
+
+const activeCaches: RoomTranscriptCache[] = [];
+
+function createTestCache(
+  userId = "reader",
+  workspaceId: string | null = "workspace",
+) {
+  const cache = new RoomTranscriptCache(new QueryClient(), userId, workspaceId);
+  activeCaches.push(cache);
+  return cache;
+}
+
+afterEach(() => {
+  for (const cache of activeCaches.splice(0)) {
+    cache.clear();
+    cache.client.clear();
+  }
+});
 
 function message(index: number): ChatRoomMessage {
   return {
@@ -36,11 +55,7 @@ function message(index: number): ChatRoomMessage {
   };
 }
 function retained() {
-  const cache = new RoomTranscriptCache(
-    new QueryClient(),
-    "reader",
-    "workspace",
-  );
+  const cache = createTestCache();
   const entry = cache.seed({
     activeOrganization: null,
     rooms: [],
@@ -79,8 +94,8 @@ describe("authoritative retained history reconciliation", () => {
     first.clear();
     const second = new RoomTranscriptCache(client, "second-user", null);
     expect(registerDefaults.mock.calls.map(([key]) => key)).toEqual([
-      ["room-transcript"],
-      ["room-transcript"],
+      chatQueryKeys.anyTranscript(),
+      chatQueryKeys.anyTranscript(),
     ]);
     expect(client.getQueryDefaults(second.key("room"))).toMatchObject({
       gcTime: 30 * 60 * 1000,
@@ -254,11 +269,7 @@ describe("authoritative retained history reconciliation", () => {
 
 describe("room open prefetched on click", () => {
   function opening() {
-    const cache = new RoomTranscriptCache(
-      new QueryClient(),
-      "reader",
-      "workspace",
-    );
+    const cache = createTestCache();
     const seed = () => {
       const entry = cache.seed({
         activeOrganization: null,
@@ -515,10 +526,49 @@ describe("room open prefetched on click", () => {
     cache.prefetchUnreadWindow("room");
     expect(vi.mocked(fetchRoomMessages).mock.calls[0]?.[2]).toEqual({
       openAtUnread: true,
+      signal: expect.any(AbortSignal),
     });
 
     await expect(cache.takeUnreadWindow("room")).resolves.toEqual(head);
     expect(cache.takeUnreadWindow("room")).toBeUndefined();
+  });
+
+  it("aborts in-flight fetch signals when cleared and issues a fresh signal after activate", () => {
+    const { cache } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    cache.prefetch("room");
+    const firstSignal = vi.mocked(fetchRoomMessages).mock.calls[0]?.[2]?.signal;
+    expect(firstSignal).toBeInstanceOf(AbortSignal);
+    expect(firstSignal?.aborted).toBe(false);
+
+    cache.clear();
+    expect(firstSignal?.aborted).toBe(true);
+
+    cache.activate();
+    cache.prefetch("room");
+    const secondSignal =
+      vi.mocked(fetchRoomMessages).mock.calls[1]?.[2]?.signal;
+    expect(secondSignal).toBeInstanceOf(AbortSignal);
+    expect(secondSignal?.aborted).toBe(false);
+  });
+
+  it("skips the prefetched read fallback after clear and activate instead of issuing a GET on the new controller", async () => {
+    const { cache, seed } = opening();
+    const prefetched = Promise.withResolvers<typeof head | null>();
+    vi.mocked(fetchRoomMessages).mockReturnValueOnce(prefetched.promise);
+
+    cache.prefetch("room");
+    const lifetime = seed();
+    const refreshPromise = cache.refresh("room", lifetime, () => true);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(1);
+
+    cache.clear();
+    cache.activate();
+
+    prefetched.resolve(null);
+    await refreshPromise;
+
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(1);
   });
 
   it("drops a click's open-at-unread read after the open window or an eviction", () => {
@@ -599,5 +649,50 @@ describe("RoomTranscriptCache.forWorkspace", () => {
     const { cache } = cacheWithOpenRoom(null);
 
     expect(cache.forWorkspace("org-3", "room").get("room")).toBeUndefined();
+  });
+});
+
+describe("RoomTranscriptCache top-level normalisation", () => {
+  it("strips leaked thread replies before publishing to the cache", async () => {
+    const cache = new RoomTranscriptCache(
+      new QueryClient(),
+      "reader",
+      "workspace",
+    );
+    const root = message(1);
+    const leakedReply = { ...message(2), parentMessageId: root.id };
+    const entry = cache.seed({
+      activeOrganization: null,
+      rooms: [],
+      organizationMembers: [],
+      currentUserId: "reader",
+      isOrgOwnerOrAdmin: false,
+      coworkers: [],
+      selectedRoomId: "room",
+      messageLoadFailed: false,
+      membersLoadFailed: false,
+      messages: [root, leakedReply],
+      messagesNextCursor: null,
+    });
+    expect(entry.transcript.messages.map((row) => row.id)).toEqual(["m1"]);
+
+    cache.client.setQueryData(cache.key("room"), entry);
+    cache.setTranscript("room", entry.lifetime, (current) => ({
+      ...current,
+      messages: [...current.messages, leakedReply],
+    }));
+    expect(cache.get("room")?.transcript.messages.map((row) => row.id)).toEqual(
+      ["m1"],
+    );
+
+    vi.mocked(fetchRoomMessages).mockResolvedValueOnce({
+      messages: [root, leakedReply, message(3)],
+      nextCursor: null,
+    });
+    await cache.refresh("room", entry.lifetime, () => true);
+    expect(cache.get("room")?.transcript.messages.map((row) => row.id)).toEqual(
+      ["m1", "m3"],
+    );
+    cache.clear();
   });
 });

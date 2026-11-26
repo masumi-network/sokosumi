@@ -1,10 +1,9 @@
 "use client";
 
 import type { Notice } from "@sokosumi/core-client";
-import { useEffect } from "react";
 import type { AccountNotice } from "@/app/components/account-notice-state";
-import { useNoticeDialogHydration } from "@/app/components/notice-dialog-context";
-import { useAccountNoticeHydration } from "@/contexts/account-notice-provider";
+import { useAccountNoticeHydrate } from "@/hooks/effects/use-account-notice-hydrate";
+import { useNoticeDialogHydrate } from "@/hooks/effects/use-notice-dialog-hydrate";
 
 interface AccountNoticeHydratorProps {
   accountNotice: AccountNotice | null;
@@ -13,11 +12,7 @@ interface AccountNoticeHydratorProps {
 export function AccountNoticeHydrator({
   accountNotice,
 }: AccountNoticeHydratorProps) {
-  const hydrateAccountNotice = useAccountNoticeHydration();
-
-  useEffect(() => {
-    hydrateAccountNotice(accountNotice);
-  }, [accountNotice, hydrateAccountNotice]);
+  useAccountNoticeHydrate(accountNotice);
 
   return null;
 }
@@ -31,11 +26,7 @@ export function NoticeDialogHydrator({
   announcementNotices,
   legalNotices,
 }: NoticeDialogHydratorProps) {
-  const hydrateNotices = useNoticeDialogHydration();
-
-  useEffect(() => {
-    hydrateNotices({ announcementNotices, legalNotices });
-  }, [announcementNotices, hydrateNotices, legalNotices]);
+  useNoticeDialogHydrate({ announcementNotices, legalNotices });
 
   return null;
 }

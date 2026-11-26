@@ -20,6 +20,65 @@ const request = () =>
   });
 
 describe("SEO worker request compatibility before Task dispatch", () => {
+  it("keeps submitted sitemaps private to a connected full audit and accepts legacy requests", () => {
+    const base = { ...request(), kind: "audit_full", analyses: undefined };
+    expect(requestSeoAnalysisSchema.parse(base)).not.toHaveProperty(
+      "includeSitemaps",
+    );
+    const approved = requestSeoAnalysisSchema.parse({
+      ...base,
+      includeSitemaps: true,
+      includePropertyTotals: true,
+      includePageDiscovery: true,
+    });
+    expect(seoTaskPacket(approved, [page], "audit-id")).not.toHaveProperty(
+      "includeSitemaps",
+    );
+    expect(seoTaskPacket(approved, [page], "audit-id")).not.toHaveProperty(
+      "includePropertyTotals",
+    );
+    expect(seoTaskPacket(approved, [page], "audit-id")).not.toHaveProperty(
+      "includePageDiscovery",
+    );
+    for (const request of [
+      { ...base, includePageDiscovery: true },
+      { ...approved, allowLimitedAudit: true },
+      { ...approved, kind: "page_check" },
+    ])
+      expect(requestSeoAnalysisSchema.safeParse(request).success).toBe(false);
+  });
+  it("freezes the customer's cost-plus terms independently of the worker data budget", () => {
+    const fullAuditPrice = {
+      kind: "cost_plus",
+      version: 1,
+      minimumCredits: 750,
+      markupPercent: 50,
+    };
+    const terms = { ...request(), kind: "audit_full", fullAuditPrice };
+    const input = requestSeoAnalysisSchema.parse(terms);
+    expect(seoTaskPacket(input, [page], "audit-id")).toMatchObject({
+      price: fullAuditPrice,
+      inspectRelated: true,
+    });
+    for (const invalid of [
+      { ...terms, fullAuditCredits: 750 },
+      { ...terms, fullAuditPrice: { ...fullAuditPrice, maxCredits: 749 } },
+      { ...terms, fullAuditPrice: { ...fullAuditPrice, markupPercent: 0 } },
+      { ...terms, fullAuditPrice: { ...fullAuditPrice, totalMicroUsd: 1 } },
+    ])
+      expect(requestSeoAnalysisSchema.safeParse(invalid).success).toBe(false);
+    expect(() =>
+      validateSeoAnalysis(
+        {
+          ...input,
+          analyses: undefined,
+          devices: ["mobile", "desktop"],
+          fullAuditLimits: { usd: 6, seconds: 300 },
+        },
+        [page, page + "/two"],
+      ),
+    ).toThrow(/data budget/);
+  });
   it("rejects equivalent encoded seed URLs before emitting a fixed-price worker packet", () => {
     expect(() =>
       seoTaskPacket(
@@ -91,12 +150,28 @@ describe("SEO worker request compatibility before Task dispatch", () => {
     );
     expect(full.price).toEqual({ kind: "fixed", credits: 750 });
     expect(full.inspectRelated).toBe(true);
-    expect(
+    const legacy = seoTaskPacket(
+      { ...base, kind: "audit_full" },
+      [page],
+      "01951111-1111-7111-8111-111111111111",
+    );
+    expect(legacy.inspectRelated).toBeUndefined();
+    // A priced full audit may add pages by itself: 4, or what is left of the 10 the worker reads.
+    const added = (pages: number, credits?: 750) =>
       seoTaskPacket(
-        { ...base, kind: "audit_full" },
-        [page],
+        { ...base, kind: "audit_full", fullAuditCredits: credits },
+        Array.from({ length: pages }, (_, n) => `${page}/${n}`),
         "01951111-1111-7111-8111-111111111111",
-      ).inspectRelated,
+      ).autoPages;
+    expect([full.autoPages, added(8, 750), added(10, 750)]).toEqual([
+      4,
+      2,
+      undefined,
+    ]);
+    expect([legacy.autoPages, added(8)]).toEqual([undefined, undefined]);
+    expect(
+      seoTaskPacket(base, [page], "01951111-1111-7111-8111-111111111111")
+        .autoPages,
     ).toBeUndefined();
     expect(
       seoTaskPacket(base, [page], "01951111-1111-7111-8111-111111111111").price,
@@ -116,9 +191,20 @@ describe("SEO worker request compatibility before Task dispatch", () => {
         page,
         `${page}/next`,
       ]),
-    ).toThrow("fixed-price allowance");
+    ).toThrow("provider allowance");
     expect(() =>
       validateSeoAnalysis(base, [page, `${page}/next`]),
+    ).not.toThrow();
+    // One selected page takes the same limits: each full audit is a site Run.
+    expect(() =>
+      validateSeoAnalysis(
+        {
+          ...base,
+          fullAuditCredits: 750,
+          fullAuditLimits: { usd: 5, seconds: 900 },
+        },
+        [page],
+      ),
     ).not.toThrow();
   });
   it("refuses a Task packet the worker would refuse for its length, before dispatch", () => {
@@ -144,4 +230,29 @@ describe("SEO worker request compatibility before Task dispatch", () => {
     );
     expect(JSON.stringify(packet).length).toBeLessThan(SEO_MAX_PACKET_CHARS);
   });
+});
+
+it("retains approved same-origin sitemap hints and refuses off-site or private inputs before dispatch", () => {
+  const base = {
+    ...request(),
+    kind: "audit_full" as const,
+    analyses: undefined,
+    devices: ["desktop", "mobile"] as ("desktop" | "mobile")[],
+    fullAuditCredits: 750 as const,
+  };
+  const inputs = {
+    publicSitemapUrl: "https://example.test/maps/custom.xml",
+    sitemapPageHints: ["https://example.test/topic"],
+  };
+  expect(
+    seoTaskPacket({ ...base, ...inputs }, [page], "audit-id"),
+  ).toMatchObject({ ...inputs, inspectRelated: true, pageUrls: [page] });
+  for (const rejected of [
+    { ...base, publicSitemapUrl: "https://other.test/sitemap.xml" },
+    { ...base, publicSitemapUrl: "https://example.test/private/map.xml" },
+    { ...base, sitemapPageHints: [page + "?token=x"] },
+    { ...base, fullAuditCredits: undefined, ...inputs },
+    { ...base, kind: "page_check" as const, ...inputs },
+  ])
+    expect(() => validateSeoAnalysis(rejected, [page])).toThrow();
 });

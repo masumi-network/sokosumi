@@ -32,7 +32,7 @@ function post(overrides: Partial<SocialPost>): SocialPost {
   } as SocialPost;
 }
 
-function setup(items: WorkspaceSocialPost[], hasMore = false) {
+function setup(items: WorkspaceSocialPost[], hasMore = false, query = "") {
   return render(
     <NextIntlClientProvider
       locale="en"
@@ -43,7 +43,11 @@ function setup(items: WorkspaceSocialPost[], hasMore = false) {
       <SocialProviderAvailabilityProvider
         enabledProviders={SOCIAL_PUBLIC_PROVIDERS}
       >
-        <SocialAllProjectsAttention hasMore={hasMore} items={items} />
+        <SocialAllProjectsAttention
+          query={query}
+          hasMore={hasMore}
+          items={items}
+        />
       </SocialProviderAvailabilityProvider>
     </NextIntlClientProvider>,
   );
@@ -51,6 +55,13 @@ function setup(items: WorkspaceSocialPost[], hasMore = false) {
 
 describe("SocialAllProjectsAttention", () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it("distinguishes an empty search from an empty attention queue", () => {
+    setup([], false, "launch");
+    expect(screen.getByTestId("social-all-attention-empty")).toHaveTextContent(
+      "No matches",
+    );
+  });
 
   it("lists each project's failed and approval posts with the action that fixes them", async () => {
     const user = userEvent.setup();

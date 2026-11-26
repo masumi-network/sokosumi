@@ -9,6 +9,7 @@ import {
   serpRead,
   siteStrategyReport,
 } from "@/test-fixtures/project-seo";
+import { withoutApprovedSearchConsole } from "./project-seo-public-report";
 import {
   assertSeoArtifactMatchesRequest,
   parsePublicSeoArtifact,
@@ -21,6 +22,60 @@ import {
 import { SEO_STRATEGY_NOT_IMPORTED } from "./project-seo-strategy";
 
 describe("public SEO report trust boundary", () => {
+  it.each([
+    ["page", legacyReport()],
+    ["focused", focusedReport()],
+    ["site", siteStrategyReport()],
+    ["site without strategy", { ...siteStrategyReport(), strategy: undefined }],
+  ])(
+    "returns JSON-safe optional strategy fields for a %s audit",
+    (_name, raw) => {
+      const payload = parsePublicSeoArtifact(raw);
+      expect(payload).not.toHaveProperty("strategyDecisions");
+      expect(payload).not.toHaveProperty("decisionSources");
+      expect(payload).toStrictEqual(JSON.parse(JSON.stringify(payload)));
+    },
+  );
+
+  it("omits invalid difficulty from the focused keyword payload and preserves supported values", () => {
+    const raw = focusedRankingsReport();
+    for (const difficulty of [101, "invalid", undefined, 0, null, 55]) {
+      const keyword = {
+        ...raw.keywords[0],
+        ...(difficulty !== undefined && { difficulty }),
+      };
+      const payload = parsePublicSeoArtifact({ ...raw, keywords: [keyword] });
+      const stored = payload.keywords[0]!;
+      if (
+        difficulty === 101 ||
+        difficulty === "invalid" ||
+        difficulty === undefined
+      )
+        expect(stored).not.toHaveProperty("difficulty");
+      else expect(stored.difficulty).toBe(difficulty);
+      expect(payload).toStrictEqual(JSON.parse(JSON.stringify(payload)));
+    }
+  });
+  it("keeps five ranked decisions JSON-safe when stored source references are stale", () => {
+    const decisions = Array.from({ length: 5 }, (_, i) => ({
+      id: `content:${i}`,
+      kind: "content_opportunity",
+      targetUrl: SEO_TEST_PAGE,
+      action: `Revise section ${i}`,
+      reason: "Reference material changed.",
+      alternative: "Keep the current wording.",
+      nextCheck: "Review the next crawl.",
+      evidence: ["Public page capture"],
+    }));
+    const stored = publicSeoPayloadSchema.parse({
+      ...parsePublicSeoArtifact(legacyReport()),
+      strategyDecisions: decisions,
+      decisionSources: [{ snapshotId: "stale" }],
+    });
+    expect(stored.strategyDecisions).toEqual(decisions);
+    expect(stored.decisionSources ?? []).toEqual([]);
+    expect(stored).toStrictEqual(JSON.parse(JSON.stringify(stored)));
+  });
   it("keeps observed forum questions on an audited group and discards unsafe source links", () => {
     const raw = siteStrategyReport();
     const questions = [
@@ -43,7 +98,7 @@ describe("public SEO report trust boundary", () => {
         })),
       },
     }).strategy;
-    expect(parsed?.groups[0].forumQuestions).toEqual([
+    expect(parsed?.groups[0].forumQuestions).toStrictEqual([
       questions[0],
       { title: "When is renewal?" },
     ]);
@@ -216,6 +271,77 @@ describe("public SEO report trust boundary", () => {
     );
   });
 
+  it("retains the worker order up to fifty per page and excludes raw gaps from broad recommendations", () => {
+    const fixture = legacyReport();
+    const list = Array.from({ length: 51 }, (_, i) => ({
+      ...fixture.keywordOpportunities.list[0],
+      keyword: "idea " + i,
+    }));
+    const status = {
+      status: "complete",
+      proposed: 3,
+      checked: 3,
+      qualified: 2,
+    };
+    const parse = (editorialResearch?: typeof status) =>
+      parsePublicSeoArtifact({
+        ...fixture,
+        keywordOpportunities: {
+          list,
+          ...(editorialResearch && { editorialResearch }),
+        },
+      }).keywords;
+    const broad = parse(status);
+    const ranked = broad.filter((row) => row.source === "opportunity");
+    expect(ranked).toHaveLength(50);
+    expect(ranked.at(-1)).toMatchObject({ keyword: "idea 49", ideaRank: 50 });
+    expect(broad.find((row) => row.source === "gap")?.ideaRank).toBeNull();
+    expect(
+      parse().find((row) => row.source === "opportunity"),
+    ).not.toHaveProperty("ideaRank");
+  });
+
+  it("keeps the model origins and DataForSEO receipt with the measured keyword idea", () => {
+    const fixture = legacyReport();
+    const editorial = {
+      models: ["gemini", "codex"],
+      record: "a".repeat(64),
+      angle: {
+        quote: "Battery condition in settings",
+        nextStep:
+          "Explain what each battery condition means beside the settings instructions.",
+      },
+    };
+    const report = parsePublicSeoArtifact({
+      ...fixture,
+      keywordOpportunities: {
+        list: [{ ...fixture.keywordOpportunities.list[0], editorial }],
+      },
+    });
+    expect(
+      report.keywords.find((row) => row.source === "opportunity")?.editorial,
+    ).toEqual(editorial);
+    const newer = parsePublicSeoArtifact({
+      ...fixture,
+      keywordOpportunities: {
+        list: [
+          {
+            ...fixture.keywordOpportunities.list[0],
+            editorial: { ...editorial, models: ["future-editor"] },
+          },
+        ],
+      },
+    });
+    const ordinary = newer.keywords.find((row) => row.source === "opportunity");
+    expect(ordinary).toMatchObject({
+      keyword: fixture.keywordOpportunities.list[0].keyword,
+    });
+    expect(ordinary).not.toHaveProperty("editorial");
+    expect(
+      report.keywords.find((row) => row.source === "focus"),
+    ).not.toHaveProperty("editorial");
+  });
+
   it("keeps a keyword's conversion estimate and feature, and imports the report without a value it cannot read", () => {
     const fixture = legacyReport();
     const estimate = { conversion: "medium", feature: "Low battery alerts" };
@@ -256,8 +382,8 @@ describe("public SEO report trust boundary", () => {
     expect(rows("unread estimate")).toEqual([
       expect.objectContaining({ source: "opportunity", volume: 10 }),
     ]);
-    expect(rows("unread estimate")[0].conversion).toBeUndefined();
-    expect(rows("unread estimate")[0].feature).toBeUndefined();
+    expect(rows("unread estimate")[0]).not.toHaveProperty("conversion");
+    expect(rows("unread estimate")[0]).not.toHaveProperty("feature");
     // A feature of spaces only is no feature: the level stays.
     expect(rows("blank feature")[0].conversion).toBe("low");
     expect(rows("blank feature")[0].feature).toBeUndefined();
@@ -386,6 +512,37 @@ describe("public SEO report trust boundary", () => {
     ).toThrow("Private search evidence");
   });
 
+  it("drops only Search Console sections for an approved audit and still refuses other private evidence", () => {
+    const page = (request: Record<string, unknown>, extra = {}) => ({
+      kind: "site",
+      rulebookVersion: "test",
+      pages: [{ ...legacyReport(), request, ...extra }],
+    });
+    const decisions = {
+      privateStrategyDecisions: [{ decision: "fixture-strategy-marker" }],
+    };
+    const approved = withoutApprovedSearchConsole({
+      ...page(
+        { url: SEO_TEST_PAGE, connections: ["search_console"] },
+        { searchConsole: { clicks: 1 }, searchConsoleNear: [], ...decisions },
+      ),
+      ...decisions,
+    });
+    expect(parsePublicSeoArtifact(approved).pageUrls).toEqual([SEO_TEST_PAGE]);
+    expect(JSON.stringify(approved)).not.toContain("fixture-strategy-marker");
+    expect(() =>
+      parsePublicSeoArtifact({ ...page({ url: SEO_TEST_PAGE }), ...decisions }),
+    ).toThrow("Only public SEO evidence");
+    for (const report of [
+      page({ url: SEO_TEST_PAGE, connections: ["search_console", "bing"] }),
+      page({ url: SEO_TEST_PAGE }, { bing: { clicks: 1 } }),
+      page({ url: SEO_TEST_PAGE }, { outcomeReading: { clicks: 1 } }),
+    ])
+      expect(() =>
+        parsePublicSeoArtifact(withoutApprovedSearchConsole(report)),
+      ).toThrow("Only public SEO evidence");
+  });
+
   it("imports a site audit whose failed page the worker names as skipped, and refuses one that drops a page silently", () => {
     const second = "https://example.test/second";
     const site = (skipped: { url: string; reason: string }[]) => ({
@@ -437,6 +594,48 @@ describe("public SEO report trust boundary", () => {
         ),
       ).toThrow("frozen page scope");
     }
+  });
+
+  it("imports the pages a full audit added, up to the count its frozen request names", () => {
+    const added = "https://shop.example.test/added",
+      other = "https://example.test/other";
+    const site = (
+      urls: string[],
+      skipped: { url: string; reason: string }[] = [],
+    ) => ({
+      kind: "site",
+      rulebookVersion: "test",
+      pages: urls.map((url) => ({ ...legacyReport(), request: { url } })),
+      selection: { pages: [], skipped, picked: [] },
+    });
+    const check = (raw: ReturnType<typeof site>, autoPages?: number) =>
+      assertSeoArtifactMatchesRequest(raw, parsePublicSeoArtifact(raw), {
+        id: SEO_TEST_REQUEST_ID,
+        kind: "audit_full",
+        request: {
+          pageUrls: [SEO_TEST_PAGE],
+          countryCode: "US",
+          languageCode: "en",
+          ...(autoPages ? { autoPages } : {}),
+        },
+      });
+    const one = site([SEO_TEST_PAGE, added]),
+      failed = site(
+        [SEO_TEST_PAGE, added],
+        [{ url: other, reason: "the page Run failed: timeout" }],
+      );
+    // The evidence of an added page is inside the scope: the fixture page has a finding and an action.
+    expect(parsePublicSeoArtifact(one).pageUrls).toEqual([
+      SEO_TEST_PAGE,
+      added,
+    ]);
+    expect(() => check(one, 1)).not.toThrow();
+    // An added page that failed counts too: the worker paid for its try.
+    expect(() => check(failed, 2)).not.toThrow();
+    expect(() => check(failed, 1)).toThrow("frozen page scope");
+    expect(() => check(one)).toThrow("frozen page scope");
+    // The selected page stays required, with or without added pages.
+    expect(() => check(site([added]), 4)).toThrow("frozen page scope");
   });
 
   it("keeps a site audit's strategy results: page per keyword group, and only web links as targets", () => {
@@ -811,4 +1010,64 @@ describe("SERP reads of a focused result", () => {
       ).toThrow("unrequested keywords or devices");
     }
   });
+});
+
+it("rejects owner-only Bing evidence in a full page or a nested site result before importing decisions", () => {
+  const bing = { property: "owner.test", queries: [{ key: "private term" }] };
+  const page = { ...legacyReport(), bing };
+  for (const raw of [page, { ...siteStrategyReport(), pages: [page] }]) {
+    expect(() => parsePublicSeoArtifact(raw)).toThrow(
+      "Only public SEO evidence",
+    );
+  }
+});
+
+it("uses only exact public sitemap roots from the first page of a delivered audit", () => {
+  const url = new URL("/maps/index.xml", SEO_TEST_PAGE).href;
+  const page = { ...legacyReport(), publicSitemaps: [url] };
+  expect(parsePublicSeoArtifact(page).publicSitemaps).toEqual([url]);
+  const site = {
+    ...siteStrategyReport(),
+    pages: [
+      page,
+      {
+        ...legacyReport(),
+        publicSitemaps: [new URL("/other.xml", SEO_TEST_PAGE).href],
+      },
+    ],
+  };
+  expect(parsePublicSeoArtifact(site).publicSitemaps).toEqual([url]);
+  for (const value of [
+    [url + "?session=abc"],
+    ["https://foreign.test/sitemap.xml"],
+    [new URL("/admin/map.xml", SEO_TEST_PAGE).href],
+  ]) {
+    expect(
+      parsePublicSeoArtifact({ ...page, publicSitemaps: value }).publicSitemaps,
+    ).toBeUndefined();
+  }
+});
+
+it("accepts a www homepage root only when the delivery reports the verified mobile final URL", () => {
+  const page = legacyReport(),
+    home = "https://example.test/",
+    twin = "https://www.example.test/";
+  const input = {
+    ...page,
+    request: { ...page.request, url: home },
+    publicSitemaps: [twin + "map.xml"],
+  };
+  expect(parsePublicSeoArtifact(input).publicSitemaps).toBeUndefined();
+  expect(
+    parsePublicSeoArtifact({
+      ...input,
+      header: { ...page.header, finalUrl: { mobile: twin } },
+    }).publicSitemaps,
+  ).toEqual(input.publicSitemaps);
+  expect(
+    parsePublicSeoArtifact({
+      ...input,
+      header: { ...page.header, finalUrl: { mobile: twin + "pricing" } },
+    }).publicSitemaps,
+  ).toBeUndefined();
 });

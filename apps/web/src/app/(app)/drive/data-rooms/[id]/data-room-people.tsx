@@ -1,9 +1,10 @@
 "use client";
 
 import type { DataRoomMember, DataRoomTreeRow } from "@sokosumi/core-client";
+import { useQueryClient } from "@tanstack/react-query";
 import { UserPlus } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -20,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import { cn } from "@/lib/utils";
 import {
   dataRoomRefusal,
@@ -27,6 +29,7 @@ import {
   removeDataRoomMember,
 } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import { invalidateDrive } from "@/queries/drive";
 import { DataRoomDateField } from "./data-room-date-field";
 
 /** Splits pasted addresses on commas, semicolons, spaces and new lines. */
@@ -46,25 +49,22 @@ export function DataRoomPeople({
   roomId,
   members,
   rows,
-  onChanged,
   focusInvite = false,
 }: {
   store: FileStore;
   roomId: string;
   members: DataRoomMember[];
   rows: DataRoomTreeRow[];
-  onChanged: () => void;
   /** Put the cursor in the invite field on arrival. */
   focusInvite?: boolean;
 }) {
   const t = useTranslations("App.Drive.DataRoom.People");
   const format = useFormatter();
+  const queryClient = useQueryClient();
   const emailsId = useId();
   const expiresId = useId();
   const emailsRef = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    if (focusInvite) emailsRef.current?.focus();
-  }, [focusInvite]);
+  useFocusWhen(emailsRef, focusInvite);
   const [emails, setEmails] = useState("");
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [folders, setFolders] = useState<string[]>([]);
@@ -87,11 +87,11 @@ export function DataRoomPeople({
         expiresAt,
         folderPaths: folders,
       });
+      void invalidateDrive(queryClient, store);
       toast.success(t("invited", { count: parsed.length }));
       setEmails("");
       setExpiresAt(null);
       setFolders([]);
-      onChanged();
     } catch (error) {
       toast.error(dataRoomRefusal(error) ?? t("inviteFailed"));
     } finally {
@@ -103,8 +103,8 @@ export function DataRoomPeople({
     setBusy(true);
     try {
       await removeDataRoomMember({ store, roomId, memberId: member.id });
+      void invalidateDrive(queryClient, store);
       toast.success(t("removed", { email: member.email }));
-      onChanged();
     } catch (error) {
       toast.error(dataRoomRefusal(error) ?? t("removeFailed"));
     } finally {

@@ -25,9 +25,11 @@ import {
 import {
   WORKSPACE_SWITCHER_AVATAR_CLASS,
   WORKSPACE_SWITCHER_NAME_CLASS,
+  WORKSPACE_SWITCHER_RAIL_AVATAR_CLASS,
   WORKSPACE_SWITCHER_ROW_CLASS,
   WorkspaceSwitcherArrows,
   type WorkspaceSwitcherPlacement,
+  WorkspaceSwitcherSkeleton,
   WorkspaceSwitcherSkeletonParts,
 } from "./workspace-switcher-skeleton";
 
@@ -36,22 +38,31 @@ import {
  * while open, like the controls under it; the top bar's avatar dims like the
  * icons beside it.
  */
+const SIDEBAR_TRIGGER_CLASS = cn(
+  WORKSPACE_SWITCHER_ROW_CLASS,
+  SIDEBAR_CONTROL_INTERACTION_CLASS,
+  "text-foreground press rounded-full transition-[opacity,background-color]",
+);
+
 const TRIGGER_CLASS: Record<WorkspaceSwitcherPlacement, string> = {
-  sidebar: cn(
-    WORKSPACE_SWITCHER_ROW_CLASS,
-    SIDEBAR_CONTROL_INTERACTION_CLASS,
-    "text-foreground press rounded-full transition-[opacity,background-color]",
-  ),
+  sidebar: SIDEBAR_TRIGGER_CLASS,
+  drawer: cn(SIDEBAR_TRIGGER_CLASS, "w-full"),
   topBar: cn(
     WORKSPACE_SWITCHER_ROW_CLASS,
-    "text-foreground press transition-opacity hover:opacity-80",
+    "text-foreground press w-full justify-start transition-opacity hover:opacity-80",
+  ),
+  rail: cn(
+    SIDEBAR_CONTROL_INTERACTION_CLASS,
+    "press inline-flex size-10 items-center justify-center rounded-full transition-[opacity,background-color]",
   ),
 };
 
 /** Under the trigger's own edge: its start in the sidebar, its end at the top bar's right. */
 const MENU_ALIGN: Record<WorkspaceSwitcherPlacement, "start" | "end"> = {
   sidebar: "start",
+  drawer: "start",
   topBar: "end",
+  rail: "start",
 };
 
 function getWorkspaceKey(workspace: WorkspaceItem): string {
@@ -64,11 +75,14 @@ interface WorkspaceMenuItemProps {
   isSelected: boolean;
   disabled: boolean;
   onSelect: (workspaceId: string | null) => void;
+  /** A second line under the name, e.g. who the workspace is for. */
+  description?: string;
 }
 
 function WorkspaceMenuItem({
   sessionUser,
   workspace,
+  description,
   isSelected,
   disabled,
   onSelect,
@@ -84,8 +98,18 @@ function WorkspaceMenuItem({
         organization={workspace.organization ?? null}
         className="size-6 md:size-6"
         logoSize={14}
+        // The personal row's picture is the person's; its alt would put their
+        // name back into the workspace's name.
+        decorative={!workspace.organization}
       />
-      <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate">{workspace.name}</span>
+        {description ? (
+          <span className="text-muted-foreground truncate text-xs">
+            {description}
+          </span>
+        ) : null}
+      </span>
       <Check
         className={cn("size-4", isSelected ? "opacity-100" : "opacity-0")}
       />
@@ -203,11 +227,13 @@ export default function WorkspaceSwitcherMenu({
   } = useWorkspaceSwitcherState();
   const showOrganizationHeader =
     activeWorkspace !== null && activeOrganizationId !== null;
+  const isRail = placement === "rail";
 
   return (
     <div
       className={cn(
-        "flex h-auto min-w-0 flex-1 items-center gap-1.5",
+        "flex h-auto min-w-0 items-center gap-1.5",
+        !isRail && "flex-1",
         isPending
           ? "pointer-events-none animate-pulse opacity-60"
           : "transition-opacity",
@@ -225,12 +251,26 @@ export default function WorkspaceSwitcherMenu({
             disabled={isPending}
             aria-busy={!activeWorkspace}
             aria-label={
-              activeWorkspace
-                ? undefined
-                : tOrganizationSwitcher("switchWorkspace")
+              isRail
+                ? tOrganizationSwitcher("switchOrganization")
+                : activeWorkspace
+                  ? undefined
+                  : tOrganizationSwitcher("switchWorkspace")
             }
           >
-            {activeWorkspace ? (
+            {isRail ? (
+              activeWorkspace ? (
+                <WorkspaceAvatar
+                  sessionUser={sessionUser}
+                  organization={activeWorkspace.organization ?? null}
+                  className={WORKSPACE_SWITCHER_RAIL_AVATAR_CLASS}
+                  logoSize={18}
+                  decorative
+                />
+              ) : (
+                <WorkspaceSwitcherSkeleton placement="rail" />
+              )
+            ) : activeWorkspace ? (
               <>
                 <WorkspaceAvatar
                   sessionUser={sessionUser}
@@ -239,7 +279,12 @@ export default function WorkspaceSwitcherMenu({
                   logoSize={12}
                   decorative
                 />
-                <span className={WORKSPACE_SWITCHER_NAME_CLASS}>
+                <span
+                  className={cn(
+                    WORKSPACE_SWITCHER_NAME_CLASS,
+                    placement !== "sidebar" && "flex-1",
+                  )}
+                >
                   {activeWorkspace.name}
                 </span>
               </>
@@ -252,7 +297,7 @@ export default function WorkspaceSwitcherMenu({
                 <WorkspaceSwitcherSkeletonParts />
               </span>
             )}
-            <WorkspaceSwitcherArrows placement={placement} />
+            {isRail ? null : <WorkspaceSwitcherArrows placement={placement} />}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -274,6 +319,7 @@ export default function WorkspaceSwitcherMenu({
             <WorkspaceMenuItem
               sessionUser={sessionUser}
               workspace={personalWorkspace}
+              description={tOrganizationSwitcher("justYou")}
               isSelected={activeOrganizationId === null}
               disabled={isBusy}
               onSelect={selectWorkspace}

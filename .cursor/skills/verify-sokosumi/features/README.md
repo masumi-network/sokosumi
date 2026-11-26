@@ -47,20 +47,22 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 
 ## Features
 
-- [Sign in](./sign-in.md) — email/password session, Welcome `/` landing, persist on `/agents`.
-- [Browse agents](./browse-agents.md) — `/agents` coworker gallery + Agent catalog (no app Hire / price).
+- [Sign in](./sign-in.md) — email/password session, Home `/` landing, persist on `/agents`.
+- [Browse agents](./browse-agents.md) — `/agents` coworker gallery + Agent catalog (no app Hire / price). The hero search stays when the coworker list is empty.
 - [Chat landing](./chat-landing.md) — authenticated default home at `/` (**Get your Soko Bot** with no personal bot, or that bot's home when the user has one). **Catch up** is `/chat/catch-up`, not the home page.
 - [Soko Bots](./soko-bots.md) — `/soko-bots` team assistants (top sidebar **Soko Bots**).
 - [Tasks board](./tasks-board.md) — `/tasks` task manager (Board; kanban or list). Old `?tab=calendar` redirects to `/calendar`.
 - [Schedules](./schedules.md) — `/schedules` task-schedule list (All / Active / Paused / Ended).
 - [Contacts](./contacts.md) — `/contacts` team contacts (All / My / Recently added), including the empty state.
-- [Calendar](./calendar.md) — `/calendar` Work sidebar row after Schedules; Month / Week / Agenda with a Show filter.
-- [Content Studio](./studio.md) — `/studio` image studio (named styles with no `?projectId=`; picker only for a missing project).
+- [Calendar](./calendar.md) — `/calendar` Work sidebar row after Schedules; Month / Week / Agenda. Filters open from **Show & filter** (**Follow-ups**, **Marketing strategy**).
+- [Content Studio](./studio.md) — `/studio` image studio. With no projects the scope button is **Start from a website**.
+- [TikTok Studio](./tiktok-studio.md) — `/tiktok-studio` Marketing row after **Content Studio**. With no project, **Choose a project**.
 - [Social posts](./social.md) — `/social` post calendar (Marketing group; sidebar label **Social posts**).
-- [SEO](./seo.md) — `/seo` Marketing row. An empty workspace shows **Start your first SEO audit**; otherwise the audit list.
+- [SEO](./seo.md) — `/seo` Marketing row. The page heading is **Saved audits**; an empty workspace also shows **Start your first SEO audit**.
 - [Ads](./ads.md) — `/ads` Marketing row. With no project in scope, sample ads and **Pick a project**.
-- [Newsletter](./newsletter.md) — `/newsletter` only in the newsletter beta organization. Elsewhere the sidebar row is absent and the URL is a 404.
-- [Projects](./projects.md) — `/projects` card grid or empty state (desktop **Work** row under **Home**).
+- [Competitors](./competitors.md) — `/competitors` Marketing row after **Ads**. With no project, **Pick a project**.
+- [Newsletter](./newsletter.md) — `/newsletter` only in the newsletter beta organization, after **Competitors**. Elsewhere the sidebar row is absent and the URL is a 404.
+- [Projects](./projects.md) opens the `/projects` card grid or empty state from the header project picker. There is no **Projects** sidebar row.
 - [Files](./files.md) — `/drive` Recents / Workspace / Tables (desktop main nav **Files**).
 - [History](./history.md) — `/history` credit history ledger (account menu / You; not a sidebar row).
 - [Sign up](./sign-up.md) — disposable account creation when fixtures are absent.

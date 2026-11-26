@@ -1,11 +1,17 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
   waitFor,
   within,
 } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  resetScopeDialogs,
+  selectProjectScope,
+} from "@/app/components/project-scope/sidebar-project-scope-state";
 
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
@@ -17,6 +23,10 @@ import type {
 } from "./types";
 
 const startImageGeneration = vi.hoisted(() => vi.fn());
+const navMocks = vi.hoisted(() => ({
+  replace: vi.fn(),
+  pathname: "/projects/campaign/studio",
+}));
 // happy-dom has no layout for next/image to measure a `fill` parent by.
 vi.mock("next/image", () => import("@/test/next-image"));
 
@@ -26,8 +36,8 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
   prepareStudioAssetSocialMedia: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn() }),
-  usePathname: () => "/projects/campaign/studio",
+  useRouter: () => ({ replace: navMocks.replace }),
+  usePathname: () => navMocks.pathname,
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("next-intl", () => ({
@@ -160,7 +170,15 @@ function savedSubmission() {
   return screen.findByRole("article", { name: "savedSubmission" });
 }
 
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  navMocks.pathname = "/projects/campaign/studio";
+  resetScopeDialogs();
+});
+
+afterEach(() => {
+  resetScopeDialogs();
+});
 
 describe("submission recovery in the studio", () => {
   it("never replaces a newer draft with an earlier rejected submission", async () => {
@@ -220,9 +238,9 @@ describe("submission recovery in the studio", () => {
     await waitFor(() => expect(startImageGeneration).toHaveBeenCalledTimes(2));
     expect(startImageGeneration.mock.calls[1][0]).toMatchObject({
       prompt: "Adjusted campaign brief",
-      modelId: "model-a",
       settings: { aspectRatio: "4:5", resolution: "1K", outputFormat: "png" },
     });
+    expect(startImageGeneration.mock.calls[1][0]).not.toHaveProperty("modelId");
     expect(startImageGeneration.mock.calls[1][0].idempotencyKey).not.toBe(
       startImageGeneration.mock.calls[0][0].idempotencyKey,
     );
@@ -358,7 +376,6 @@ describe("submission recovery in the studio", () => {
       expect(startImageGeneration.mock.calls[1][0]).toMatchObject({
         projectId: "campaign",
         prompt: "Adjust the campaign light",
-        modelId: "model-a",
         settings: FAILED_JOB.settings,
         parentAssetId,
         referenceAssetIds,
@@ -396,7 +413,6 @@ describe("submission recovery in the studio", () => {
     await waitFor(() => expect(startImageGeneration).toHaveBeenCalledTimes(3));
     expect(startImageGeneration.mock.calls[2][0]).toMatchObject({
       prompt: "Edit only the rejected image",
-      modelId: "model-a",
       settings: startImageGeneration.mock.calls[0][0].settings,
       parentAssetId: null,
       referenceAssetIds: [],
@@ -404,7 +420,7 @@ describe("submission recovery in the studio", () => {
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
   });
 
-  it("withholds Edit when a saved submission's model leaves the catalog", async () => {
+  it("offers Edit while an automatic model can restore the saved settings", async () => {
     startImageGeneration.mockResolvedValueOnce(REJECTION);
     const { rerender } = mount();
     submit("Original campaign brief");
@@ -420,6 +436,36 @@ describe("submission recovery in the studio", () => {
           defaultModelId: "model-b",
           models: [TEST_CATALOG.models[1]],
         }}
+        initialSelectedAssetId={null}
+        initialState={{ assets: [], jobs: [], nextCursor: null }}
+        labels={TEST_LABELS}
+        projectId="campaign"
+      />,
+    );
+
+    expect(
+      within(recovery).getByRole("button", { name: "editSavedBrief" }),
+    ).toBeEnabled();
+
+    rerender(
+      <ImageStudio
+        catalog={{
+          ...TEST_CATALOG,
+          models: [{ ...TEST_CATALOG.models[0], aspectRatios: ["9:16"] }],
+        }}
+        initialSelectedAssetId={null}
+        initialState={{ assets: [], jobs: [], nextCursor: null }}
+        labels={TEST_LABELS}
+        projectId="campaign"
+      />,
+    );
+    expect(
+      within(recovery).queryByRole("button", { name: "editSavedBrief" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <ImageStudio
+        catalog={{ ...TEST_CATALOG, models: [] }}
         initialSelectedAssetId={null}
         initialState={{ assets: [], jobs: [], nextCursor: null }}
         labels={TEST_LABELS}
@@ -458,14 +504,6 @@ describe("submission recovery in the studio", () => {
       assets: [REFERENCE],
       job: { ...FAILED_JOB, projectId: "other-project" },
     },
-    {
-      description: "the saved settings are unsupported",
-      assets: [REFERENCE],
-      job: {
-        ...FAILED_JOB,
-        settings: { ...FAILED_JOB.settings, aspectRatio: "5:4" as const },
-      },
-    },
   ])("withholds Edit when $description", async ({ assets, job }) => {
     startImageGeneration.mockResolvedValueOnce(REJECTION);
     mount({ assets, jobs: [job] });
@@ -479,5 +517,34 @@ describe("submission recovery in the studio", () => {
     ).toBeEnabled();
     expect(promptBox()).toHaveValue("");
     expect(startImageGeneration).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes to the picked project when Core accepts in the still-active Studio", async () => {
+    navMocks.pathname = "/studio";
+    startImageGeneration.mockResolvedValueOnce({
+      ok: true,
+      job: { id: "job" },
+    });
+    render(
+      <ImageStudio
+        catalog={{ ...TEST_CATALOG, models: [TEST_CATALOG.models[0]] }}
+        initialSelectedAssetId={null}
+        initialState={{ assets: [], jobs: [], nextCursor: null }}
+        labels={TEST_LABELS}
+        projectId={null}
+      />,
+    );
+
+    submit("Studio launch creative");
+    act(() => {
+      selectProjectScope("project-picked", vi.fn());
+    });
+
+    await waitFor(() =>
+      expect(navMocks.replace).toHaveBeenCalledWith(
+        "/studio?projectId=project-picked",
+        { scroll: false },
+      ),
+    );
   });
 });

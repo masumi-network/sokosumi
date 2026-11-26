@@ -1,4 +1,13 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { randomUUID } from "node:crypto";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import type { CaseOutcome } from "./eval-case-runner";
 import { infrastructureCaseOutcome } from "./eval-infrastructure";
 
@@ -86,15 +95,21 @@ vi.mock("./eval-case-runner", async (importOriginal) => {
   };
 });
 
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
+import { expectCoreLogWhys } from "@/test/core-log";
+import { withFixtureSchemas } from "@/test/split-layout";
+import { CMO_EVAL_CASES } from "./eval-cmo-cases";
 import {
   cancelEvalRun,
   createEvalRun,
   createWeeklyEvalRun,
+  EVAL_RUN_TIMEOUT_MS,
   evalWeekStart,
   getEvalRunReport,
   listEvalRuns,
   tickEvalRuns,
+  WEEKLY_JUDGE_MODEL,
 } from "./eval-runs.service";
 
 const CASES = ["ambiguous-request", "inbox-summary", "chat-post"];
@@ -115,6 +130,29 @@ describe.skipIf(!enabled)("eval runs", () => {
     infrastructureOutcomes.clear();
     busy.clear();
     await prisma.evalRun.deleteMany({});
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("starts a month result on PostgreSQL time so its turns fall inside the result window", async () => {
+    const month = CMO_EVAL_CASES.find((item) => item.kind === "cmo-month");
+    if (!month) throw new Error("Missing month eval fixture");
+    const run = await createEvalRun({ trigger: "MANUAL", caseIds: [month.id] });
+    const before = await databaseNow();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(before.getTime() + 60 * 60_000);
+
+    await tickEvalRuns();
+
+    const [{ startedAt }] = await prisma.evalResult.findMany({
+      where: { runId: run.id },
+    });
+    expect(startedAt?.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    expect(startedAt?.getTime()).toBeLessThanOrEqual(
+      (await databaseNow()).getTime(),
+    );
   });
 
   afterAll(async () => {
@@ -147,9 +185,9 @@ describe.skipIf(!enabled)("eval runs", () => {
     ]);
   });
 
-  it("runs the weekly run once a week, one repeat; a started run defaults to one too", async () => {
+  it("runs the weekly run once a week, two lanes; a started run defaults to one", async () => {
     const weekly = await createWeeklyEvalRun();
-    expect(weekly?.repeats).toBe(1);
+    expect(weekly?.repeats).toBe(2);
     expect(weekly?.trigger).toBe("DAILY");
     expect(await createWeeklyEvalRun()).toBeNull();
     const manual = await createEvalRun({
@@ -436,7 +474,7 @@ describe.skipIf(!enabled)("eval runs", () => {
               suite: "soko-bot",
               repeat: 2,
               position: 0,
-              status: "PASSED",
+              status: "FAILED",
             },
             {
               caseId: "chat-post",
@@ -505,10 +543,416 @@ describe.skipIf(!enabled)("eval runs", () => {
     const listed = await listEvalRuns(10);
     expect(listed[0]?.id).toBe(run.id);
     expect(listed[0]?.scores["soko-bot"]).toMatchObject({
-      passed: 4,
+      passed: 3,
       scored: 8,
-      passRate: 0.5,
+      passRate: 0.375,
     });
+  });
+
+  it("flags a case that costs more than 1.3 times its usual weekly cost", async () => {
+    for (let index = 0; index < 3; index += 1)
+      await prisma.evalRun.create({
+        data: {
+          trigger: "DAILY",
+          status: "COMPLETED",
+          suites: ["soko-bot"],
+          caseIds: [],
+          repeats: 1,
+          environment: "mainnet",
+          createdAt: new Date(Date.now() - (4 - index) * 86_400_000),
+          results: {
+            create: [
+              {
+                caseId: "chat-post",
+                suite: "soko-bot",
+                repeat: 1,
+                position: 0,
+                status: "PASSED",
+                costUsdMicros: BigInt(100_000 + index * 10_000),
+                durationMs: 60_000,
+              },
+              {
+                caseId: "ambiguous-request",
+                suite: "soko-bot",
+                repeat: 1,
+                position: 1,
+                status: "PASSED",
+                costUsdMicros: BigInt(100_000),
+                durationMs: 60_000,
+              },
+            ],
+          },
+        },
+      });
+    const run = await prisma.evalRun.create({
+      data: {
+        trigger: "MANUAL",
+        status: "COMPLETED",
+        suites: ["soko-bot"],
+        caseIds: [],
+        repeats: 1,
+        environment: "mainnet",
+        results: {
+          create: [
+            {
+              caseId: "chat-post",
+              suite: "soko-bot",
+              repeat: 1,
+              position: 0,
+              status: "PASSED",
+              costUsdMicros: BigInt(200_000),
+              durationMs: 60_000,
+            },
+            {
+              caseId: "ambiguous-request",
+              suite: "soko-bot",
+              repeat: 1,
+              position: 1,
+              status: "PASSED",
+              costUsdMicros: BigInt(110_000),
+              durationMs: 200_000,
+            },
+          ],
+        },
+      },
+    });
+    const report = await getEvalRunReport(run.id);
+    const byCase = Object.fromEntries(
+      report.cases.map((evalCase) => [evalCase.caseId, evalCase]),
+    );
+    expect(byCase["chat-post"]).toMatchObject({
+      costUsd: 0.2,
+      usualCostUsd: 0.11,
+      costlier: true,
+      slower: false,
+    });
+    expect(byCase["ambiguous-request"]).toMatchObject({
+      costlier: false,
+      durationMs: 200_000,
+      usualDurationMs: 60_000,
+      slower: true,
+    });
+    expect(report.summary).toMatchObject({ costlier: 1, slower: 1 });
+  });
+
+  it("keeps errors, stale weeks and extra repeats out of the comparison", async () => {
+    const weekly = (
+      index: number,
+      rows: {
+        caseId: string;
+        status: "PASSED" | "FAILED" | "ERROR";
+        cost?: number;
+      }[],
+    ) =>
+      prisma.evalRun.create({
+        data: {
+          trigger: "DAILY",
+          status: "COMPLETED",
+          suites: ["soko-bot"],
+          caseIds: [],
+          repeats: 1,
+          environment: "mainnet",
+          createdAt: new Date(Date.now() - (10 - index) * 86_400_000),
+          results: {
+            create: rows.map((row, position) => ({
+              caseId: row.caseId,
+              suite: "soko-bot",
+              repeat: 1,
+              position,
+              status: row.status,
+              costUsdMicros:
+                row.cost === undefined ? null : BigInt(row.cost * 1e6),
+              durationMs: row.cost === undefined ? null : 60_000,
+            })),
+          },
+        },
+      });
+    // Weeks 6–8 (oldest) measured chat-post; the five recent weeks could
+    // only error, so they have no cost and no verdict.
+    for (let index = 0; index < 8; index += 1)
+      await weekly(
+        index,
+        index < 3
+          ? [{ caseId: "chat-post", status: "PASSED", cost: 1 }]
+          : [{ caseId: "chat-post", status: "ERROR" }],
+      );
+    const run = await prisma.evalRun.create({
+      data: {
+        trigger: "MANUAL",
+        status: "COMPLETED",
+        suites: ["soko-bot"],
+        caseIds: [],
+        repeats: 2,
+        environment: "mainnet",
+        results: {
+          create: [
+            {
+              caseId: "chat-post",
+              suite: "soko-bot",
+              repeat: 1,
+              position: 0,
+              status: "PASSED",
+              costUsdMicros: BigInt(4_000_000),
+              durationMs: 240_000,
+            },
+            {
+              caseId: "chat-post",
+              suite: "soko-bot",
+              repeat: 2,
+              position: 0,
+              status: "PASSED",
+              costUsdMicros: BigInt(4_000_000),
+              durationMs: 240_000,
+            },
+            {
+              caseId: "files-review",
+              suite: "soko-bot",
+              repeat: 1,
+              position: 1,
+              status: "FAILED",
+            },
+          ],
+        },
+      },
+    });
+    const report = await getEvalRunReport(run.id);
+    const chatPost = report.cases.find(
+      (evalCase) => evalCase.caseId === "chat-post",
+    );
+    expect(chatPost).toMatchObject({
+      outcome: "passing",
+      usualCostUsd: null,
+      costlier: false,
+      slower: false,
+    });
+    expect(chatPost?.history.slice(0, 5)).toEqual([
+      null,
+      null,
+      null,
+      null,
+      null,
+    ]);
+    expect(report.summary.passRate).toBe(0.5);
+    const listed = await listEvalRuns(1);
+    expect(listed[0]?.id).toBe(run.id);
+    expect(listed[0]?.scores["soko-bot"]?.passRate).toBe(0.5);
+  });
+
+  it("compares with the last week that gave a verdict, past a week of errors only", async () => {
+    // Codex round 9: weeks at 100%, then an error-only week, then a failure.
+    for (const [index, status] of (
+      ["PASSED", "PASSED", "PASSED", "ERROR"] as const
+    ).entries())
+      await prisma.evalRun.create({
+        data: {
+          trigger: "DAILY",
+          status: "COMPLETED",
+          suites: ["soko-bot"],
+          caseIds: [],
+          repeats: 1,
+          environment: "mainnet",
+          createdAt: new Date(Date.now() - (5 - index) * 86_400_000),
+          results: {
+            create: [
+              {
+                caseId: "chat-post",
+                suite: "soko-bot",
+                repeat: 1,
+                position: 0,
+                status,
+              },
+            ],
+          },
+        },
+      });
+    const run = await prisma.evalRun.create({
+      data: {
+        trigger: "MANUAL",
+        status: "COMPLETED",
+        suites: ["soko-bot"],
+        caseIds: [],
+        repeats: 1,
+        environment: "mainnet",
+        results: {
+          create: [
+            {
+              caseId: "chat-post",
+              suite: "soko-bot",
+              repeat: 1,
+              position: 0,
+              status: "FAILED",
+            },
+          ],
+        },
+      },
+    });
+    const report = await getEvalRunReport(run.id);
+    expect(report.cases[0]).toMatchObject({
+      caseId: "chat-post",
+      outcome: "regressed",
+      passRate: 0,
+      baselinePassRate: 1,
+    });
+    expect(report.cases[0]?.history.slice(0, 2)).toEqual([null, 1]);
+  });
+
+  it("gives judged cases a second repeat in the weekly run, judged by the cheaper model", async () => {
+    const weekly = await createWeeklyEvalRun();
+    if (!weekly) throw new Error("No weekly run");
+    expect(weekly.repeats).toBe(2);
+    const results = await prisma.evalResult.findMany({
+      where: { runId: weekly.id },
+      select: { caseId: true, repeat: true },
+    });
+    const { evalCase, isJudgedEvalCase } = await import("./eval-cases");
+    const second = results.filter((result) => result.repeat === 2);
+    expect(second.length).toBeGreaterThan(0);
+    expect(
+      second.every((result) => {
+        const found = evalCase(result.caseId);
+        return found !== undefined && isJudgedEvalCase(found);
+      }),
+    ).toBe(true);
+    expect(
+      results.filter((result) => result.repeat === 1).length,
+    ).toBeGreaterThan(second.length);
+
+    const { pollEvalCase } = await import("./eval-case-runner");
+    vi.mocked(pollEvalCase).mockClear();
+    await tickEvalRuns();
+    await tickEvalRuns();
+    const contexts = vi
+      .mocked(pollEvalCase)
+      .mock.calls.map((call) => call[3]?.judgeModel);
+    expect(contexts.length).toBeGreaterThan(0);
+    expect(new Set(contexts)).toEqual(new Set([WEEKLY_JUDGE_MODEL]));
+  });
+
+  it("times out a run stuck for a day so the next run starts", async () => {
+    expectCoreLogWhys("warn", "Timed out an eval run that was stuck", [
+      "It was still running 24 hours after it started",
+    ]);
+    const stuck = await createEvalRun({
+      trigger: "MANUAL",
+      caseIds: ["ambiguous-request", "chat-post"],
+      repeats: 1,
+    });
+    const next = await createEvalRun({
+      trigger: "MANUAL",
+      caseIds: ["chat-post"],
+      repeats: 1,
+    });
+    await tickEvalRuns();
+    await prisma.evalRun.update({
+      where: { id: stuck.id },
+      data: {
+        startedAt: new Date(
+          (await databaseNow()).getTime() - EVAL_RUN_TIMEOUT_MS - 60_000,
+        ),
+      },
+    });
+    expect((await tickEvalRuns()).runId).toBe(next.id);
+    const ended = await prisma.evalRun.findUniqueOrThrow({
+      where: { id: stuck.id },
+    });
+    expect(ended.status).toBe("COMPLETED");
+    expect(await resultStates(stuck.id)).toEqual([
+      "1:ambiguous-request=ERROR",
+      "1:chat-post=ERROR",
+    ]);
+  });
+
+  it("keeps the next run queued while a timed-out run waits on a case's late cost", async () => {
+    expectCoreLogWhys("warn", "Timed out an eval run that was stuck", [
+      "It was still running 24 hours after it started",
+    ]);
+    const userId = randomUUID();
+    // Fixture rows span shared and Network tables: on the split layout they
+    // are written under this run's schemas.
+    const recipient = await withFixtureSchemas(async (tx) => {
+      await tx.user.create({
+        data: {
+          id: userId,
+          name: "Late cost fixture",
+          email: `late-cost-${userId}@sokosumi.test`,
+          emailVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+      const workspace = await tx.workspace.create({ data: { userId } });
+      const bot = await tx.sokoBot.create({
+        data: { userId, workspaceId: workspace.id },
+      });
+      return tx.sokoBotTurn.create({
+        data: {
+          sokoBotId: bot.id,
+          requestedByUserId: userId,
+          workspaceId: workspace.id,
+          source: "CHAT",
+          status: "CANCEL_REQUESTED",
+          clientTurnId: randomUUID(),
+          userMessage: "Fixture",
+          capabilityNames: [],
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+      });
+    });
+    try {
+      const stuck = await createEvalRun({
+        trigger: "MANUAL",
+        caseIds: ["ambiguous-request", "chat-post"],
+        repeats: 1,
+      });
+      const next = await createEvalRun({
+        trigger: "MANUAL",
+        caseIds: ["chat-post"],
+        repeats: 1,
+      });
+      await tickEvalRuns();
+      // One case ended while its recipient was still cancelling.
+      await prisma.evalResult.updateMany({
+        where: { runId: stuck.id, caseId: "ambiguous-request" },
+        data: {
+          status: "ERROR",
+          finishedAt: new Date(),
+          output: {
+            infrastructure: { code: "case_unsettled" },
+            unsettledTurnIds: [recipient.id],
+            caseTurnIds: [recipient.id],
+          },
+        },
+      });
+      await prisma.evalRun.update({
+        where: { id: stuck.id },
+        data: {
+          startedAt: new Date(
+            (await databaseNow()).getTime() - EVAL_RUN_TIMEOUT_MS - 60_000,
+          ),
+        },
+      });
+      expect((await tickEvalRuns()).runId).toBe(stuck.id);
+      expect(
+        (await prisma.evalRun.findUniqueOrThrow({ where: { id: next.id } }))
+          .status,
+      ).toBe("QUEUED");
+
+      await withFixtureSchemas((tx) =>
+        tx.sokoBotTurn.update({
+          where: { id: recipient.id },
+          data: { status: "CANCELLED", costUsdMicros: BigInt(250) },
+        }),
+      );
+      expect((await tickEvalRuns()).runId).toBe(next.id);
+      expect(
+        (await prisma.evalRun.findUniqueOrThrow({ where: { id: stuck.id } }))
+          .status,
+      ).toBe("COMPLETED");
+    } finally {
+      await withFixtureSchemas((tx) =>
+        tx.user.delete({ where: { id: userId } }),
+      );
+    }
   });
 
   it("cancels a run: what had not finished is skipped", async () => {

@@ -50,6 +50,13 @@ export const betterAuthUserAdditionalFields = {
     required: false,
     defaultValue: false,
   },
+  // Whether the person left their week out of the stand-up's week in review.
+  // Included by default; stored as "hide" so false means included.
+  hideWeekFromStandup: {
+    type: "boolean",
+    required: false,
+    defaultValue: false,
+  },
   logo: {
     type: "string",
     required: false,

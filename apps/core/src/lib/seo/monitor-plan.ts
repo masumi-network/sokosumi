@@ -1,5 +1,7 @@
 import { z } from "@hono/zod-openapi";
+import { hideSeoAuditRequest } from "@sokosumi/utils";
 import { conflict, unprocessableEntity } from "@/helpers/error";
+import { seoAuditTextUnchanged } from "@/helpers/seo-task-execution";
 import { toLocalDateKey } from "@/helpers/task-schedule";
 import {
   requestSeoAnalysisSchema,
@@ -21,6 +23,7 @@ const LEGACY_SEO_MONITOR_CRON = {
   weekly: "0 9 * * 1",
 } as const;
 const planFields = {
+  requiresApprovalRecord: z.literal(true).optional(),
   scopeVersion: z.number().int().nonnegative(),
   analysis: requestSeoAnalysisSchema,
 };
@@ -47,6 +50,7 @@ export type SeoMonitorPlan = (
   | { version: 1 }
   | { version: 2; auditId: string }
 ) & {
+  requiresApprovalRecord?: true;
   rule: SeoMonitorRule;
   scopeVersion: number;
   analysis: z.infer<typeof requestSeoAnalysisSchema>;
@@ -69,6 +73,11 @@ export function parseSeoMonitorPlan(
     parsed.data.analysis.scopeId ||
     parsed.data.analysis.setupGoal ||
     parsed.data.analysis.sharedBrief ||
+    parsed.data.analysis.searchConsolePropertyId !== undefined ||
+    parsed.data.analysis.allowLimitedAudit !== undefined ||
+    parsed.data.analysis.includeSitemaps !== undefined ||
+    parsed.data.analysis.includePropertyTotals !== undefined ||
+    parsed.data.analysis.includePageDiscovery !== undefined ||
     !parsed.data.analysis.pageIds?.length ||
     !parsed.data.analysis.coworkerId
   )
@@ -91,6 +100,9 @@ export function parseSeoMonitorPlan(
         };
   return {
     ...owner,
+    ...(data.requiresApprovalRecord && {
+      requiresApprovalRecord: true as const,
+    }),
     rule,
     scopeVersion: data.scopeVersion,
     analysis: data.analysis,
@@ -110,6 +122,31 @@ export function seoMonitorAuditId(description: string | null): string | null {
 /** The schedule description that stores an approved plan. */
 export function seoMonitorDescription(plan: SeoMonitorPlan): string {
   return `${SEO_MONITOR_MARKER}${JSON.stringify(seoMonitorPacketSchema.parse(plan))}`;
+}
+
+/** A saved card's summary: its 4,000-character cut can end inside a full audit's request line. */
+export function savedScheduleSummaryForUser(
+  summary: string | null,
+): string | null {
+  const at = summary?.search(/^seo_audit:/m) ?? -1;
+  return seoMonitorDescriptionForUser(
+    summary && at >= 0 ? summary.slice(0, at).trimEnd() || null : summary,
+  );
+}
+
+/**
+ * The description a schedule edit writes. An SEO monitor keeps its plan, and a full audit's hidden request line
+ * stays when the edit sends back the text a person saw.
+ */
+export function taskScheduleDescriptionForWrite(
+  stored: string | null,
+  input: UpdateTaskScheduleRequest,
+): string | null | undefined {
+  if (isSeoMonitorDescription(stored))
+    return seoMonitorDescriptionWithRule(stored, input);
+  return seoAuditTextUnchanged(stored, input.description)
+    ? undefined
+    : input.description;
 }
 
 /**
@@ -171,13 +208,19 @@ export function isSeoMonitorDescription(description: string | null): boolean {
 /** The check and page count a client needs to write the plan sentence. Null for another schedule or a broken plan. */
 export function seoMonitorSummary(
   description: string | null,
-): { kind: SeoMonitorPlan["analysis"]["kind"]; pageCount: number } | null {
+  readerIsOwner: boolean,
+) {
   try {
     const plan = parseSeoMonitorPlan(description);
     return plan
       ? {
           kind: plan.analysis.kind,
           pageCount: plan.analysis.pageIds?.length ?? 0,
+          ...(readerIsOwner &&
+            plan.version === 2 &&
+            plan.analysis.kind === "audit_full" && {
+              auditId: plan.auditId,
+            }),
         }
       : null;
   } catch {
@@ -189,7 +232,8 @@ export function seoMonitorSummary(
 export function seoMonitorDescriptionForUser(
   description: string | null,
 ): string | null {
-  if (!isSeoMonitorDescription(description)) return description;
+  if (!isSeoMonitorDescription(description))
+    return hideSeoAuditRequest(description);
   try {
     const plan = parseSeoMonitorPlan(description)!;
     const checks = {
@@ -219,9 +263,10 @@ export function seoMonitorDescriptionForUser(
 }
 
 /** New generic schedule writes must approve current pricing too; stored legacy plans keep their terms. */
-export function requireSeoMonitorPriceForWrite(
+export function requireSeoMonitorApprovalForWrite(
   description: string | null | undefined,
   previous?: string | null,
+  approvedMonitor?: "interactive" | "cmo-subscription",
 ): void {
   if (
     !isSeoMonitorDescription(description ?? null) ||
@@ -234,5 +279,13 @@ export function requireSeoMonitorPriceForWrite(
   } catch {
     throw unprocessableEntity("The SEO monitor blueprint is not valid");
   }
-  if (plan) requireSeoFullAuditPriceApproval(plan.analysis);
+  if (plan)
+    requireSeoFullAuditPriceApproval(
+      plan.analysis,
+      approvedMonitor === "cmo-subscription",
+    );
+  if (plan?.analysis.kind === "audit_full" && !approvedMonitor)
+    throw conflict(
+      "Start the recurring full audit from SEO to approve its Search Console coverage.",
+    );
 }

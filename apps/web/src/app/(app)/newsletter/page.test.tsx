@@ -114,6 +114,9 @@ describe("NewsletterPage", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: PAGE.pickProject }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("searchbox", { name: messages.App.PageSearch.find }),
+    ).toBeInTheDocument();
     // Sample issues stay visible until the page's button opens the selector.
     const backdrop = screen.getByTestId("newsletter-backdrop");
     expect(backdrop).toHaveAttribute("aria-hidden", "true");

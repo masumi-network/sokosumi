@@ -5,6 +5,10 @@ vi.mock("@/lib/auth/auth.client", () => ({
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/app/components/sidebar/components/global-rail.client", () => ({
+  GlobalRail: () => null,
+}));
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/agents",
   useSearchParams: () => new URLSearchParams(),
@@ -30,7 +34,7 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   useIsMobile: () => false,
 }));
 
@@ -62,8 +66,7 @@ describe("AppSidebarFallback", () => {
   it("renders the real nav links rather than placeholders", () => {
     renderFallback();
 
-    // `/drive` is desktop-only, and `use-mobile` is mocked to desktop above.
-    for (const href of ["/agents", "/tasks", "/drive"]) {
+    for (const href of ["/agents", "/tasks", "/calendar"]) {
       expect(
         screen.getByRole("link", {
           name: (_, element) => element.getAttribute("href") === href,
@@ -110,60 +113,13 @@ describe("AppSidebarFallback", () => {
     expect(chevron?.getAttribute("class")).toContain("lucide-chevrons-up-down");
   });
 
-  // The header mirrors the loaded one, as in Linear: the switcher as wide as
-  // its content at the start, then Search and New task at the end. Neither
-  // button can work before the frame loads, so both are placeholders.
-  it("holds the sidebar header's switcher and buttons as placeholders", () => {
+  it("keeps the drawer workspace row in the same position while loading", () => {
     const { container } = renderFallback();
-    const header = container.querySelector('[data-slot="sidebar-header"]');
-    const placeholder = header?.querySelector(
-      '[data-testid="workspace-switcher-chrome-skeleton"]',
-    );
-    const actions = [
-      ...(header?.querySelectorAll(
-        '[data-testid="sidebar-header-action-skeleton"]',
-      ) ?? []),
-    ];
-
-    // Shaped like the loaded switcher: avatar, name bar, its small selector
-    // chevron.
-    expect(placeholder).not.toBeNull();
-    const [avatar, name, chevron] = [...(placeholder?.children ?? [])];
-    expect(tokens(avatar?.className ?? "")).toEqual(
-      expect.arrayContaining(["rounded-full", "size-4", "md:size-5"]),
-    );
-    expect(tokens(name?.className ?? "")).toEqual(
-      expect.arrayContaining(["h-3", "w-20"]),
-    );
-    expect(chevron?.getAttribute("class")).toContain("lucide-chevrons-up-down");
-    expect(tokens(placeholder?.parentElement?.className ?? "")).toEqual(
-      expect.arrayContaining(["flex-1", "max-md:hidden"]),
-    );
-
-    // Search, then New task, each an icon button's box, after the switcher.
-    expect(actions).toHaveLength(2);
-    for (const action of actions) {
-      if (!placeholder) break;
-      expect(
-        placeholder.compareDocumentPosition(action) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
-      expect(tokens(action.getAttribute("class") ?? "")).toContain("md:size-8");
-    }
-    expect(header?.querySelector("button")).toBeNull();
-  });
-
-  // The phone sheet keeps its header as it was: the phone's switcher is in
-  // its top bar.
-  it("keeps the wordmark for the phone sheet only", () => {
-    const { container } = renderFallback();
-    const header = container.querySelector('[data-slot="sidebar-header"]');
-    const wordmark = header?.querySelector('a[href="/"]');
-
-    expect(wordmark).not.toBeNull();
-    expect(tokens(wordmark?.parentElement?.className ?? "")).toContain(
-      "md:hidden",
-    );
+    const row = container.querySelector('[data-slot="sidebar-workspace-row"]');
+    expect(row).toHaveClass("md:hidden", "h-12");
+    expect(
+      row?.querySelector('[data-testid="workspace-switcher-chrome-skeleton"]'),
+    ).toBeTruthy();
   });
 
   it("leaves the session-backed surfaces as placeholders", () => {
@@ -269,7 +225,7 @@ describe("AppSidebarFallback", () => {
 
   // As the loaded sidebar: the nav runs into the chat area under its Chats
   // heading, with no rule between them, so the swap draws none either.
-  it("heads the room list like the loaded sidebar, with no rule above it", () => {
+  it("reserves Catch up above the room list, without a rule", () => {
     const { container } = renderFallback();
     const tasks = screen.getByRole("link", {
       name: (_, element) => element.getAttribute("href") === "/tasks",
@@ -284,14 +240,16 @@ describe("AppSidebarFallback", () => {
         '[data-slot="sidebar-content"] [data-slot="sidebar-separator"]',
       ),
     ).toBeNull();
-    expect(scoped?.nextElementSibling).toBe(roomList);
+    expect(scoped?.parentElement?.nextElementSibling).toBe(
+      roomList?.parentElement,
+    );
     const heading = roomList?.firstElementChild;
     expect(heading?.getAttribute("data-slot")).not.toBe(
       "sidebar-group-content",
     );
     expect(
       tokens(heading?.querySelector('[data-slot="skeleton"]')?.className ?? ""),
-    ).toContain("w-10");
+    ).toContain("w-14");
   });
 
   it("hides off-canvas, leaving no rail behind", () => {
@@ -306,9 +264,11 @@ describe("AppSidebarFallback", () => {
 
   it("leaves the collapse control to the top bar", () => {
     const { container } = renderFallback();
-    const header = container.querySelector('[data-slot="sidebar-header"]');
+    const header = container.querySelector(
+      '[data-slot="sidebar-workspace-row"]',
+    );
 
-    expect(header?.querySelector('a[href="/"]')).not.toBeNull();
+    expect(header).not.toBeNull();
     expect(header?.querySelector("button")).toBeNull();
   });
 

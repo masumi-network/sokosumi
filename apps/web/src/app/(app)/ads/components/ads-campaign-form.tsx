@@ -16,7 +16,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useAdsCampaignSavedReset } from "@/hooks/effects/use-ads-campaign-saved-reset";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import type { ActionResultDto } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { AD_CAMPAIGN_NAME_MAX_LENGTH } from "@/lib/ads/campaign";
@@ -88,18 +89,8 @@ export function useSaveCampaign({
   onStartOver,
 }: SaveCampaignOptions) {
   const [refusal, setRefusal] = useState<Refusal | null>(null);
-  const [saved, setSaved] = useState(false);
   const savedRef = useRef(false);
-
-  // Next keeps a visited page mounted but hidden and re-runs its effects when
-  // it shows again. After a save, the page starts over (a create empty, an
-  // edit as it was); an unsent draft stays.
-  useMountEffect(() => {
-    if (!savedRef.current) return;
-    savedRef.current = false;
-    setSaved(false);
-    onStartOver?.();
-  });
+  const { saved, markSaved } = useAdsCampaignSavedReset(savedRef, onStartOver);
 
   async function save(
     send: () => Promise<ActionResultDto<unknown, ActionError>>,
@@ -110,8 +101,7 @@ export function useSaveCampaign({
       const result = await send();
       if (result.ok) {
         toast.success(success.message);
-        savedRef.current = true;
-        setSaved(true);
+        markSaved();
         success.onSaved();
         return "ok";
       }
@@ -157,7 +147,7 @@ export function RefusalAlert({
 }) {
   const tCampaigns = useTranslations("App.Ads.campaigns");
   const ref = useRef<HTMLDivElement>(null);
-  useMountEffect(() => ref.current?.focus());
+  useFocusWhen(ref, true);
 
   const { title, description } = {
     failed: { title: failedTitle, description: null },

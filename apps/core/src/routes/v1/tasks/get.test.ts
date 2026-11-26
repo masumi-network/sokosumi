@@ -578,6 +578,40 @@ describe("GET /tasks", () => {
     });
   });
 
+  it("names open sub-tasks to people only", async () => {
+    taskFindManyMock.mockResolvedValue([
+      {
+        ...createTask(),
+        subtasks: [
+          {
+            id: "tsk_sub",
+            number: 7,
+            name: "Draft plan",
+            status: TaskStatus.DRAFT,
+          },
+        ],
+      },
+    ]);
+    taskCountMock.mockResolvedValue(1);
+    const firstItem = async (auth: AuthenticationContext) => {
+      const response = await createApp(auth).request("http://localhost/");
+      const body = (await response.json()) as {
+        data: Array<Record<string, unknown>>;
+      };
+      return body.data[0];
+    };
+
+    expect(await firstItem(USER_AUTH_CONTEXT)).toMatchObject({
+      openSubtasks: [{ id: "tsk_sub", name: "Draft plan" }],
+    });
+    expect(await firstItem(DELEGATED_COWORKER_AUTH_CONTEXT)).not.toHaveProperty(
+      "openSubtasks",
+    );
+    expect(await firstItem(ORCHESTRATOR_AUTH_CONTEXT)).not.toHaveProperty(
+      "openSubtasks",
+    );
+  });
+
   it("dates statusSince by the latest status change, else by creation", async () => {
     taskFindManyMock.mockResolvedValue([
       {

@@ -1,19 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { MODE_DRAWS, type OrbState, resolvePreset } from "thinking-orbs";
+import { useRef } from "react";
+import type { OrbState } from "thinking-orbs";
 
+import { useThinkingOrbCanvas } from "@/hooks/effects/use-thinking-orb-canvas";
 import { cn } from "@/lib/utils";
 
 /** Brand primary: fallback when the CSS variable can't be resolved. */
 const FALLBACK_PRIMARY = "#ff51ff";
-
-function resolvePrimary(): string {
-  const value = getComputedStyle(document.documentElement)
-    .getPropertyValue("--primary")
-    .trim();
-  return value || FALLBACK_PRIMARY;
-}
 
 /**
  * The chat's thinking animation: a thinking-orbs state painted in the brand
@@ -30,46 +24,11 @@ export function ThinkingOrb({
   className?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const paintSize = size <= 20 ? 20 : 64;
-    canvas.width = paintSize * dpr;
-    canvas.height = paintSize * dpr;
-
-    const { mode, speed, opts } = resolvePreset(state, paintSize);
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-
-    const paint = (seconds: number) => {
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, paintSize, paintSize);
-      MODE_DRAWS[mode](ctx, paintSize, seconds * speed, false, opts);
-      ctx.globalCompositeOperation = "source-in";
-      ctx.fillStyle = resolvePrimary();
-      ctx.fillRect(0, 0, paintSize, paintSize);
-      ctx.globalCompositeOperation = "source-over";
-    };
-
-    if (reduceMotion) {
-      paint(0);
-      return;
-    }
-
-    let raf = 0;
-    const started = performance.now();
-    const tick = (now: number) => {
-      paint((now - started) / 1000);
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [size, state]);
+  useThinkingOrbCanvas(canvasRef, {
+    size,
+    state,
+    fallbackColor: FALLBACK_PRIMARY,
+  });
 
   return (
     <canvas

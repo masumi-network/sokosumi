@@ -1,14 +1,8 @@
 "use client";
 
-import { CalendarClock, ChevronDown, Loader2, Play } from "lucide-react";
+import { CalendarClock, Loader2, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { seoRunAction } from "./seo-setup-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -68,36 +62,25 @@ export function SeoRunButton({
         {t(run.label)}
       </Button>
       {schedule ? (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              size="sm"
-              variant={variant}
-              title={t("monitor.create")}
-              // The line between the halves: a cut in the card colour through the fill, or the border of the outline.
-              className={cn(
-                "rounded-s-none border-s px-2 max-md:min-w-10",
-                variant === "secondary"
-                  ? cn(SECONDARY_ON_CARD_CLASS, "border-s-card-background")
-                  : "-ms-px",
-              )}
-            >
-              <ChevronDown className="size-4" />
-              <span className="sr-only">{t("monitor.create")}</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              disabled={
-                unavailable || model.pending || !model.data.scope.pageIds.length
-              }
-              onSelect={model.openMonitor}
-            >
-              <CalendarClock className="size-4" />
-              {t("monitor.create")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          size="sm"
+          variant={variant}
+          title={t("monitor.create")}
+          disabled={
+            unavailable || model.pending || !model.data.scope.pageIds.length
+          }
+          onClick={model.openMonitor}
+          // The line between the halves: a cut in the card colour through the fill, or the border of the outline.
+          className={cn(
+            "rounded-s-none border-s px-2 max-md:min-w-10",
+            variant === "secondary"
+              ? cn(SECONDARY_ON_CARD_CLASS, "border-s-card-background")
+              : "-ms-px",
+          )}
+        >
+          <CalendarClock className="size-4" />
+          <span className="sr-only">{t("monitor.create")}</span>
+        </Button>
       ) : null}
     </div>
   );

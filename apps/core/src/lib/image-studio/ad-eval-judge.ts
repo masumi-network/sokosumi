@@ -1,8 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
 import { generateText, Output } from "ai";
 import { z } from "zod";
-
 import { unprocessableEntity } from "@/helpers/error";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
 
@@ -127,6 +127,7 @@ export async function judgeAdImage(
   const startedAt = Date.now();
   const result = await generateText({
     ...request,
+    telemetry: { functionId: "ad-eval-judge" },
     providerOptions: {
       gateway: {
         ...request.providerOptions.gateway,
@@ -157,7 +158,7 @@ export async function judgeAdImage(
         ],
       },
     ],
-  });
+  }).catch(rethrowAiGatewayFailure);
   const judge = adEvalJudgeSchema.parse(result.output);
   return {
     judge,
@@ -168,12 +169,4 @@ export async function judgeAdImage(
       : null,
     latencyMs: Date.now() - startedAt,
   };
-}
-
-/** A neutral absence stays absent so a ranker can choose its own default. */
-export function getAdEvalJudgePrior(
-  overall: number | null | undefined,
-): number | null {
-  if (overall == null || !Number.isFinite(overall)) return null;
-  return (Math.max(1, Math.min(5, overall)) - 1) / 4;
 }

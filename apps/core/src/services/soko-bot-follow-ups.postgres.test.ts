@@ -18,6 +18,11 @@ import {
 
 import prisma from "@/lib/db/prisma";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
+import {
+  evaluateSocialWriteAuthority,
+  resolveSocialWriteOriginSource,
+} from "@/lib/soko-bot/owner-authority";
+import { inheritedScheduleRoute } from "@/lib/soko-bot/system-routes";
 import { expectCoreLog } from "@/test/core-log";
 
 // The flow publishes over Ably; the test env has no real key.
@@ -30,12 +35,18 @@ vi.mock("@/services/soko-bot-proactive.service", async (original) => ({
   proactiveGate: async () => ({ ok: true, usedToday: 0, limit: 1_000 }),
 }));
 
-import { sokoBotControlPlane } from "./soko-bot-control-plane.service";
+import {
+  SokoBotStartAbortedError,
+  sokoBotControlPlane,
+} from "./soko-bot-control-plane.service";
 import { sokoBotEventsSyncService } from "./soko-bot-events-sync.service";
-import { sokoBotRuntimeService } from "./soko-bot-runtime.service";
+import { listSchedules } from "./soko-bot-runtime/schedule-reads";
+import {
+  type AuthorizedSokoBotRuntime,
+  sokoBotRuntimeService,
+} from "./soko-bot-runtime.service";
 import {
   createSokoBotSchedule,
-  listSokoBotSchedules,
   purgeSokoBotSchedules,
   SOKO_BOT_SCHEDULE_RETENTION_MS,
 } from "./soko-bot-schedule.service";
@@ -523,7 +534,10 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
   });
 
   describe("a schedule run's own schedule", () => {
-    async function scheduleRun(capabilityNames: string[]) {
+    async function scheduleRun(
+      capabilityNames: string[],
+      prompt = "Check Hannah's Task.",
+    ) {
       const own = await prisma.sokoBotSchedule.create({
         data: {
           sokoBotId: botId,
@@ -532,7 +546,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
           name: "Check on Hannah",
           timezone: "UTC",
           cronExpression: "0 9 * * *",
-          prompt: "Check Hannah's Task.",
+          prompt,
           nextRunAt: new Date(Date.now() + HOUR),
           capabilityNames,
         },
@@ -553,14 +567,46 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       return { own, turn };
     }
 
-    it("deletes its own owner-made schedule even without schedule tools", async () => {
-      const { own, turn } = await scheduleRun([]);
+    it("keeps a legacy null-authority schedule running until an owner opts in with a typed stop rule", async () => {
+      const { own, turn } = await scheduleRun(
+        [],
+        "Check Hannah's Task. Delete this schedule once she is done.",
+      );
+
+      // Legacy null-authority schedule keeps running regardless of prompt text.
+      await expect(
+        tool(turn.id, "delete_schedule", { scheduleId: own.id }),
+      ).rejects.toThrow("doesn't delete or switch off schedules");
+      expect(
+        await prisma.sokoBotSchedule.findUnique({ where: { id: own.id } }),
+      ).not.toBeNull();
+
+      // Owner opts in via direct top-level chat with a typed stop rule.
+      const ownerChat = await liveTurn(["update_schedule"], "CHAT");
+      await tool(ownerChat.id, "update_schedule", {
+        scheduleId: own.id,
+        stopRule: {
+          mode: "ends_on",
+          endsOn: new Date(Date.now() - 60_000).toISOString(),
+        },
+      });
 
       await tool(turn.id, "delete_schedule", { scheduleId: own.id });
 
       expect(
         await prisma.sokoBotSchedule.findUnique({ where: { id: own.id } }),
       ).toBeNull();
+    });
+
+    it("keeps its own schedule when the brief never asks to end it (Codex round 13)", async () => {
+      const { own, turn } = await scheduleRun([]);
+
+      await expect(
+        tool(turn.id, "delete_schedule", { scheduleId: own.id }),
+      ).rejects.toThrow("doesn't delete or switch off schedules");
+      expect(
+        await prisma.sokoBotSchedule.findUnique({ where: { id: own.id } }),
+      ).not.toBeNull();
     });
 
     it("may not touch another schedule with tools it only has for its own", async () => {
@@ -576,13 +622,19 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
 
       await expect(
         tool(turn.id, "delete_schedule", { scheduleId: other.id }),
-      ).rejects.toThrow('only change its own schedule "Check on Hannah"');
+      ).rejects.toThrow("doesn't delete or switch off schedules");
       await expect(
         tool(turn.id, "update_schedule", {
           scheduleName: "Weekly review",
           enabled: false,
         }),
-      ).rejects.toThrow("only change its own schedule");
+      ).rejects.toThrow("doesn't delete or switch off schedules");
+      await expect(
+        tool(turn.id, "update_schedule", {
+          scheduleName: "Weekly review",
+          cronExpression: "0 10 * * 1",
+        }),
+      ).rejects.toThrow('only change its own schedule "Check on Hannah"');
       expect(
         (
           await prisma.sokoBotSchedule.findUniqueOrThrow({
@@ -592,7 +644,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       ).toBe(true);
     });
 
-    it("keeps the schedule tools a bot-written schedule inherited", async () => {
+    it("keeps the schedule tools a bot-written schedule inherited, but never deletes another schedule", async () => {
       const { turn } = await scheduleRun([
         "create_schedule",
         "update_schedule",
@@ -607,11 +659,20 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         prompt: "Old.",
       });
 
-      await tool(turn.id, "delete_schedule", { scheduleId: other.id });
-
+      await tool(turn.id, "update_schedule", {
+        scheduleId: other.id,
+        cronExpression: "0 10 * * 1",
+      });
       expect(
-        await prisma.sokoBotSchedule.findUnique({ where: { id: other.id } }),
-      ).toBeNull();
+        (
+          await prisma.sokoBotSchedule.findUniqueOrThrow({
+            where: { id: other.id },
+          })
+        ).cronExpression,
+      ).toBe("0 10 * * 1");
+      await expect(
+        tool(turn.id, "delete_schedule", { scheduleId: other.id }),
+      ).rejects.toThrow("doesn't delete or switch off schedules");
     });
   });
 
@@ -713,9 +774,15 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         }),
       ).toBe(0);
       // Spent ones are already out of the bot's own list.
-      expect(
-        (await listSokoBotSchedules(botId)).map((schedule) => schedule.name),
-      ).toEqual(["Paused by the owner"]);
+      const listed = (await listSchedules(
+        {
+          turn: { sokoBotId: botId, workspaceId, actingUserId: userId },
+        } as unknown as AuthorizedSokoBotRuntime,
+        {},
+      )) as { schedules: { name: string }[] };
+      expect(listed.schedules.map((schedule) => schedule.name)).toEqual([
+        "Paused by the owner",
+      ]);
 
       // Inside the retention window nothing goes: the Calendar shows the run.
       expect(
@@ -876,6 +943,555 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
           where: { id: recurring.id },
         }),
       ).not.toBeNull();
+    });
+
+    it("stops a monthly ends_after_runs schedule through real claim, settlement, purge, and recovery paths while fencing extra pending runs and preserving runOnce retries", async () => {
+      const monthly = await sokoBotControlPlane.createSchedule({
+        userId,
+        workspaceId,
+        name: "Monthly digest",
+        timezone: "UTC",
+        cronExpression: "0 9 1 * *",
+        prompt: "Send the monthly digest.",
+        stopRule: { mode: "ends_after_runs", maxRuns: 2 },
+      });
+
+      const makeTurn = async (
+        clientTurnId: string,
+        message: string,
+        status: "COMPLETED" | "FAILED",
+      ) =>
+        prisma.sokoBotTurn.create({
+          data: {
+            sokoBotId: botId,
+            requestedByUserId: userId,
+            workspaceId,
+            source: "SCHEDULE",
+            status,
+            clientTurnId,
+            userMessage: message,
+            capabilityNames: [],
+            deadlineAt: new Date(Date.now() + HOUR),
+          },
+        });
+
+      const startSpy = vi.spyOn(sokoBotControlPlane, "startTurn");
+      const mockOutcome = (status: "COMPLETED" | "FAILED") =>
+        startSpy.mockImplementationOnce(async (input) => {
+          const turn = await makeTurn(
+            input.clientTurnId,
+            input.message,
+            status,
+          );
+          return {
+            turnId: turn.id,
+            sokoBotId: botId,
+            sessionId: "fixture",
+            status,
+            route: "DELEGATE_TASK",
+            capabilities: [],
+            duplicate: true,
+          };
+        });
+
+      const sync = new SokoBotSchedulesSyncService();
+
+      // 1. Month 1: real claim + settlement -> completedRuns becomes 1, stays enabled.
+      const month1At = new Date(
+        Date.now() - SOKO_BOT_SCHEDULE_RETENTION_MS - HOUR * 24,
+      );
+      await prisma.sokoBotSchedule.update({
+        where: { id: monthly.id },
+        data: { nextRunAt: month1At },
+      });
+      mockOutcome("COMPLETED");
+      const month1 = await sync.syncDueSchedules({
+        shouldContinue: () => true,
+        scheduleId: monthly.id,
+      });
+      expect(month1).toMatchObject({ claimed: 1, completed: 1, failed: 0 });
+
+      // 2. Seven-day retention purge drops month 1's run row; durable completedRuns stays 1.
+      await purgeSokoBotSchedules();
+      expect(
+        await prisma.sokoBotScheduleRun.count({
+          where: { scheduleId: monthly.id },
+        }),
+      ).toBe(0);
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: monthly.id },
+          select: { enabled: true, completedRuns: true },
+        }),
+      ).toEqual({ enabled: true, completedRuns: 1 });
+
+      // 3. Month 2 attempt 1 FAILS through real claim + settlement: count stays 1, stays enabled.
+      await prisma.sokoBotSchedule.update({
+        where: { id: monthly.id },
+        data: { nextRunAt: new Date(Date.now() - HOUR * 3) },
+      });
+      mockOutcome("FAILED");
+      const month2Fail = await sync.syncDueSchedules({
+        shouldContinue: () => true,
+        scheduleId: monthly.id,
+      });
+      expect(month2Fail).toMatchObject({ claimed: 1, completed: 0, failed: 1 });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: monthly.id },
+          select: { enabled: true, completedRuns: true },
+        }),
+      ).toEqual({ enabled: true, completedRuns: 1 });
+
+      // 4. Busy occurrence queued while final run is due: Month 2 retry settles COMPLETED,
+      //    reaches maxRuns = 2, disables the schedule, and fences the pending occurrence.
+      const queuedPending = await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: monthly.id,
+          scheduledFor: new Date(Date.now() - HOUR),
+          status: "PENDING",
+          leaseExpiresAt: new Date(Date.now() + HOUR),
+        },
+      });
+      await prisma.sokoBotSchedule.update({
+        where: { id: monthly.id },
+        data: { nextRunAt: new Date(Date.now() - HOUR * 2) },
+      });
+      mockOutcome("COMPLETED");
+      const month2Retry = await sync.syncDueSchedules({
+        shouldContinue: () => true,
+        scheduleId: monthly.id,
+      });
+      expect(month2Retry).toMatchObject({
+        claimed: 1,
+        completed: 1,
+        failed: 0,
+      });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: monthly.id },
+          select: { enabled: true, completedRuns: true },
+        }),
+      ).toEqual({ enabled: false, completedRuns: 2 });
+      expect(
+        await prisma.sokoBotScheduleRun.findUniqueOrThrow({
+          where: { id: queuedPending.id },
+          select: { status: true, errorKind: true },
+        }),
+      ).toEqual({ status: "DEAD_LETTER", errorKind: "schedule_stop_rule_met" });
+
+      // 5. Recovery fence: even if an unstarted PENDING run exists on the disabled
+      //    recurring schedule, real recovery claims nothing.
+      await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: monthly.id,
+          scheduledFor: new Date(Date.now() - 30 * 60_000),
+          status: "PENDING",
+          leaseExpiresAt: null,
+        },
+      });
+      const afterExhausted = await sync.syncDueSchedules({
+        shouldContinue: () => true,
+        scheduleId: monthly.id,
+      });
+      expect(afterExhausted).toMatchObject({
+        claimed: 0,
+        completed: 0,
+        failed: 0,
+      });
+
+      // 6. Reservation binding fence: a pre-claimed unstarted occurrence cannot bind
+      //    a turn once the recurring schedule is disabled.
+      startSpy.mockRestore();
+      const leaseToken = randomUUID();
+      const racingRun = await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: monthly.id,
+          scheduledFor: new Date(Date.now() - 10 * 60_000),
+          status: "CLAIMED",
+          attempt: 1,
+          prompt: "Send the monthly digest.",
+          leaseToken,
+          leaseExpiresAt: new Date(Date.now() + HOUR),
+        },
+      });
+      await expect(
+        sokoBotControlPlane.startTurn({
+          userId,
+          sokoBotId: botId,
+          workspaceId,
+          clientTurnId: randomUUID(),
+          message: "Send the monthly digest.",
+          source: "SCHEDULE",
+          presetRoute: inheritedScheduleRoute([]),
+          scheduleReservation: {
+            runId: racingRun.id,
+            attempt: 1,
+            leaseToken,
+          },
+        }),
+      ).rejects.toBeInstanceOf(SokoBotStartAbortedError);
+
+      // 7. Re-enabling an already-exhausted schedule without raising maxRuns,
+      //    or setting an already-met maxRuns on an enabled schedule with
+      //    completedRuns = 2 (e.g. replacement member handoff after departed
+      //    grantor), stops and fences unstarted runs immediately so a 3rd
+      //    occurrence never starts.
+      const queuedBeforeReenable = await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: monthly.id,
+          scheduledFor: new Date(Date.now() - 8 * 60_000),
+          status: "PENDING",
+          leaseExpiresAt: null,
+        },
+      });
+      const reenabledSameLimit = await sokoBotControlPlane.updateSchedule({
+        userId,
+        scheduleId: monthly.id,
+        workspaceId,
+        sokoBotId: botId,
+        enabled: true,
+      });
+      expect(reenabledSameLimit.enabled).toBe(false);
+      expect(
+        await prisma.sokoBotScheduleRun.findUniqueOrThrow({
+          where: { id: queuedBeforeReenable.id },
+          select: { status: true, errorKind: true },
+        }),
+      ).toEqual({ status: "DEAD_LETTER", errorKind: "schedule_stop_rule_met" });
+      await prisma.sokoBotSchedule.update({
+        where: { id: monthly.id },
+        data: { nextRunAt: new Date(Date.now() - 60_000) },
+      });
+      expect(
+        await sync.syncDueSchedules({
+          shouldContinue: () => true,
+          scheduleId: monthly.id,
+        }),
+      ).toMatchObject({ claimed: 0, completed: 0, failed: 0 });
+
+      // Simulate schedule staying enabled at completedRuns = 2 (e.g., grantor
+      // had left before run 2 settled), then an eligible member sets maxRuns=2:
+      // it disables atomically, fences pending runs, and sync claims nothing.
+      await prisma.sokoBotSchedule.update({
+        where: { id: monthly.id },
+        data: { enabled: true, nextRunAt: new Date(Date.now() - 60_000) },
+      });
+      const queuedBeforeHandoff = await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: monthly.id,
+          scheduledFor: new Date(Date.now() - 7 * 60_000),
+          status: "PENDING",
+          leaseExpiresAt: null,
+        },
+      });
+      const handedOff = await sokoBotControlPlane.updateSchedule({
+        userId,
+        scheduleId: monthly.id,
+        workspaceId,
+        sokoBotId: botId,
+        stopRule: { mode: "ends_after_runs", maxRuns: 2 },
+      });
+      expect(handedOff.enabled).toBe(false);
+      expect(
+        await prisma.sokoBotScheduleRun.findUniqueOrThrow({
+          where: { id: queuedBeforeHandoff.id },
+          select: { status: true, errorKind: true },
+        }),
+      ).toEqual({ status: "DEAD_LETTER", errorKind: "schedule_stop_rule_met" });
+      expect(
+        await sync.syncDueSchedules({
+          shouldContinue: () => true,
+          scheduleId: monthly.id,
+        }),
+      ).toMatchObject({ claimed: 0, completed: 0, failed: 0 });
+
+      // Raising maxRuns above completedRuns with enabled: true DOES re-enable.
+      const raised = await sokoBotControlPlane.updateSchedule({
+        userId,
+        scheduleId: monthly.id,
+        workspaceId,
+        sokoBotId: botId,
+        enabled: true,
+        stopRule: { mode: "ends_after_runs", maxRuns: 3 },
+      });
+      expect(raised.enabled).toBe(true);
+      await prisma.sokoBotSchedule.update({
+        where: { id: monthly.id },
+        data: { enabled: false },
+      });
+
+      // Metadata-only chat rename (dispatch-schedules passes resolveAuthority,
+      // which returns undefined for metadata edits) on an active schedule with
+      // completedRuns = 2 >= maxRuns = 2 and an expired grant keeps the
+      // schedule enabled and leaves queued pending occurrences untouched.
+      const existingMonthly = await prisma.sokoBotSchedule.findUniqueOrThrow({
+        where: { id: monthly.id },
+        select: { authority: true },
+      });
+      await prisma.sokoBotSchedule.update({
+        where: { id: monthly.id },
+        data: {
+          enabled: true,
+          authority: {
+            ...(existingMonthly.authority as Record<string, unknown>),
+            stopRule: {
+              mode: "ends_after_runs",
+              scheduleId: monthly.id,
+              maxRuns: 2,
+            },
+            expiresAt: "2020-01-01T00:00:00.000Z",
+          },
+        },
+      });
+      const queuedDuringExpiredRename = await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: monthly.id,
+          scheduledFor: new Date(Date.now() - 6 * 60_000),
+          status: "PENDING",
+          leaseExpiresAt: null,
+        },
+      });
+      const renameChatTurn = await liveTurn(["update_schedule"], "CHAT");
+      await tool(renameChatTurn.id, "update_schedule", {
+        scheduleId: monthly.id,
+        name: "Monthly digest (renamed)",
+      });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: monthly.id },
+          select: { enabled: true, name: true },
+        }),
+      ).toEqual({ enabled: true, name: "Monthly digest (renamed)" });
+      expect(
+        await prisma.sokoBotScheduleRun.findUniqueOrThrow({
+          where: { id: queuedDuringExpiredRename.id },
+          select: { status: true },
+        }),
+      ).toEqual({ status: "PENDING" });
+      await settle(renameChatTurn.id);
+      await prisma.sokoBotSchedule.update({
+        where: { id: monthly.id },
+        data: { enabled: false },
+      });
+
+      // 8. Control: a one-time schedule (`runOnce: true`, disabled on claim) STILL
+      //    recovers its pending retry occurrence cleanly.
+      const oneTime = await createSokoBotSchedule({
+        userId,
+        workspaceId,
+        name: "One-time reminder",
+        timezone: "UTC",
+        runAt: new Date(Date.now() + HOUR).toISOString(),
+        prompt: "Remind me once.",
+      });
+      await prisma.sokoBotSchedule.update({
+        where: { id: oneTime.id },
+        data: { enabled: false },
+      });
+      await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: oneTime.id,
+          scheduledFor: new Date(Date.now() - 5 * 60_000),
+          status: "PENDING",
+          leaseExpiresAt: null,
+        },
+      });
+      const retrySpy = vi
+        .spyOn(sokoBotControlPlane, "startTurn")
+        .mockImplementationOnce(async (input) => {
+          const turn = await makeTurn(
+            input.clientTurnId,
+            input.message,
+            "COMPLETED",
+          );
+          return {
+            turnId: turn.id,
+            sokoBotId: botId,
+            sessionId: "fixture",
+            status: "COMPLETED",
+            route: "DELEGATE_TASK",
+            capabilities: [],
+            duplicate: true,
+          };
+        });
+      const recoveredOneTime = await sync.syncDueSchedules({
+        shouldContinue: () => true,
+        scheduleId: oneTime.id,
+      });
+      expect(recoveredOneTime).toMatchObject({
+        claimed: 1,
+        completed: 1,
+        failed: 0,
+      });
+      retrySpy.mockRestore();
+    });
+
+    it("resolves production admin-retry:<uuid>:<op> chains on PostgreSQL without UUID syntax errors for chat and event turns", async () => {
+      const failedChat = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "CHAT",
+          status: "FAILED",
+          clientTurnId: `chat:${randomUUID()}`,
+          versionId: "v36",
+          userMessage: "Finish editing the launch post.",
+          capabilityNames: ["create_social_post", "update_social_post"],
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+      });
+      const chatRetry = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "ADMIN_RETRY",
+          status: "RUNNING",
+          clientTurnId: `admin-retry:${failedChat.id}:op-chat-1`,
+          versionId: "v36",
+          userMessage: failedChat.userMessage,
+          capabilityNames: ["create_social_post", "update_social_post"],
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+      });
+      const failedEvent = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "EVENT",
+          status: "FAILED",
+          clientTurnId: `event:${randomUUID()}`,
+          versionId: "v36",
+          userMessage: "Delegated task finished.",
+          capabilityNames: ["create_social_post", "update_social_post"],
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+      });
+      const eventRetry = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "ADMIN_RETRY",
+          status: "RUNNING",
+          clientTurnId: `admin-retry:${failedEvent.id}:op-event-1`,
+          versionId: "v36",
+          userMessage: failedEvent.userMessage,
+          capabilityNames: ["create_social_post", "update_social_post"],
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+      });
+      const eventRetryChained = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "ADMIN_RETRY",
+          status: "RUNNING",
+          clientTurnId: `admin-retry:${eventRetry.id}:op-event-2`,
+          versionId: "v36",
+          userMessage: failedEvent.userMessage,
+          capabilityNames: ["create_social_post", "update_social_post"],
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+      });
+      const malformedRetry = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "ADMIN_RETRY",
+          status: "RUNNING",
+          clientTurnId: "admin-retry:not-a-uuid:op-bad",
+          versionId: "v36",
+          userMessage: "Malformed retry.",
+          capabilityNames: ["create_social_post", "update_social_post"],
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+      });
+
+      const chatOrigin = await resolveSocialWriteOriginSource(chatRetry);
+      expect(chatOrigin).toBe("CHAT");
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: {
+            id: chatRetry.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: chatOrigin,
+            actingUserId: userId,
+            askedByKind: "OWNER",
+          },
+          capability: "update_social_post",
+          rawInput: {},
+          tainted: false,
+        }),
+      ).toEqual({ allowed: true, requireUnapprovedDraft: false });
+
+      const eventOrigin = await resolveSocialWriteOriginSource(eventRetry);
+      expect(eventOrigin).toBe("EVENT");
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: {
+            id: eventRetry.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: eventOrigin,
+            actingUserId: userId,
+            askedByKind: "OWNER",
+          },
+          capability: "create_social_post",
+          rawInput: { text: "Draft from retried event" },
+          tainted: false,
+        }),
+      ).toEqual({ allowed: true, requireUnapprovedDraft: false });
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: {
+            id: eventRetry.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: eventOrigin,
+            actingUserId: userId,
+            askedByKind: "OWNER",
+          },
+          capability: "create_social_post",
+          rawInput: {
+            text: "Scheduled from retried event",
+            scheduledAt: "2026-12-01T09:00:00.000Z",
+          },
+          tainted: false,
+        }),
+      ).toMatchObject({ allowed: false, kind: "delegation_event_draft_only" });
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: {
+            id: eventRetry.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: eventOrigin,
+            actingUserId: userId,
+            askedByKind: "OWNER",
+          },
+          capability: "update_social_post",
+          rawInput: {},
+          tainted: false,
+        }),
+      ).toMatchObject({ allowed: false, kind: "delegation_event_draft_only" });
+
+      expect(await resolveSocialWriteOriginSource(eventRetryChained)).toBe(
+        "EVENT",
+      );
+      expect(await resolveSocialWriteOriginSource(malformedRetry)).toBe(
+        "EVENT",
+      );
     });
   });
 });

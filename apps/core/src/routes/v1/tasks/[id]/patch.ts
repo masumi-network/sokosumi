@@ -27,7 +27,10 @@ import {
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
-import { requireSeoTaskExecutionUnchanged } from "@/helpers/seo-task-execution";
+import {
+  requireSeoTaskExecutionUnchanged,
+  seoAuditTextUnchanged,
+} from "@/helpers/seo-task-execution";
 import { requireTaskAssignableSokoBot } from "@/helpers/soko-bot-task-assign";
 import {
   mapTask,
@@ -219,7 +222,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const {
       name,
-      description,
+      description: requestedDescription,
       projectId,
       context,
       assigneeId,
@@ -241,7 +244,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const onlyDueOnOrTags =
       (dueOn !== undefined || editsTags) &&
       name === undefined &&
-      description === undefined &&
+      requestedDescription === undefined &&
       projectId === undefined &&
       context === undefined &&
       assigneeId === undefined &&
@@ -388,6 +391,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // no instructions. It waits in Input required for a person to say what
       // to do (SOKD-279).
       // Queued work turns READY later on its own, so it parks the same way.
+      // People read a full audit's description without its request line, so a
+      // save of the text they saw keeps the stored description.
+      const description = seoAuditTextUnchanged(
+        task.description,
+        requestedDescription,
+      )
+        ? undefined
+        : requestedDescription;
       // The Web edit form sends the description with every save, so only a
       // changed one is new instructions.
       const newInstructions =
@@ -486,17 +497,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               }),
         },
         data: {
-          name,
+          ...(name !== undefined && { name }),
           ...(editsTags ? { updatedAt: new Date() } : {}),
           ...(dismissedTopicIds?.length
             ? dismissTaskTopics(task, dismissedTopicIds)
             : {}),
-          description: nextDescription,
-          projectId,
-          priority,
+          ...(nextDescription !== undefined && {
+            description: nextDescription,
+          }),
+          ...(projectId !== undefined && { projectId }),
+          ...(priority !== undefined && { priority }),
           ...(assigneeWrite ?? {}),
-          runAt: runAtWrite,
-          dueOn: dueOnWrite,
+          ...(runAtWrite !== undefined && { runAt: runAtWrite }),
+          ...(dueOnWrite !== undefined && { dueOn: dueOnWrite }),
           ...(nextStatus !== task.status ? { status: nextStatus } : {}),
         },
         include: buildTaskIncludeForViewer(

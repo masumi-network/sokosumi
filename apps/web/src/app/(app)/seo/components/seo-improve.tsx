@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import {
   type SeoAuditGapFix,
   seoCustomerAuditGaps,
@@ -17,7 +18,7 @@ import {
   seoViewNarrowed,
 } from "./seo-improve-model";
 import { seoRunAction } from "./seo-setup-model";
-import { SEO_ROW_LIST_CLASS } from "./seo-shared";
+import { SEO_ROW_LIST_CLASS, SeoFoldSummary } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** The source a connect fix opens: two fixes share the words "Set up statistics", so the name of each says its source. */
@@ -39,6 +40,7 @@ const FIX_ICONS = {
  */
 export function SeoImproveDialog({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo.improve");
+  const result = useSeoResultTranslations("App.Seo.improve");
   const tSeo = useTranslations("App.Seo");
   const limitations = seoCustomerLimitations();
   const gaps = seoCustomerAuditGaps(model.data, seoViewNarrowed(model.filters));
@@ -71,10 +73,28 @@ export function SeoImproveDialog({ model }: { model: SeoWorkspaceModel }) {
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-6">
-          {/* The one part the owner can change now leads; with no gap it takes no room. */}
+          <section className="space-y-2">
+            <h3 className="font-semibold text-sm">{t("catalog.checks")}</h3>
+            <ul className="list-disc space-y-2 ps-4 text-sm">
+              <li>{t("catalog.audit")}</li>
+              <li>{t("catalog.rankings")}</li>
+              <li>{t("catalog.traffic")}</li>
+            </ul>
+          </section>
+          <section className="space-y-2">
+            <h3 className="text-sm font-medium">{t("summary.title")}</h3>
+            <ul className="text-muted-foreground list-disc space-y-3 ps-4 text-sm">
+              {limitations.map((limitation) => (
+                <li key={limitation}>{t(`summary.${limitation}`)}</li>
+              ))}
+            </ul>
+          </section>
+          {/* Setup actions stay with their missing data source. With no gap the disclosure takes no room. */}
           {gaps.length ? (
-            <section className="space-y-2">
-              <h3 className="text-sm font-medium">{t("gaps.title")}</h3>
+            <details className="border-t">
+              <SeoFoldSummary className="min-h-11 justify-between text-sm font-medium">
+                {t("gaps.title")}
+              </SeoFoldSummary>
               <ul className={SEO_ROW_LIST_CLASS}>
                 {gaps.map((gap) => (
                   <li
@@ -83,7 +103,7 @@ export function SeoImproveDialog({ model }: { model: SeoWorkspaceModel }) {
                   >
                     {/* The text keeps a readable width: on a phone the fix wraps below it. */}
                     <p className="min-w-48 flex-1">
-                      {t(`gaps.${gap.message}`, {
+                      {result(`gaps.${gap.message}`, {
                         count: gap.count ?? 0,
                         limit: gap.count ?? 0,
                       })}
@@ -98,16 +118,8 @@ export function SeoImproveDialog({ model }: { model: SeoWorkspaceModel }) {
                   </li>
                 ))}
               </ul>
-            </section>
+            </details>
           ) : null}
-          <section className="space-y-2">
-            <h3 className="text-sm font-medium">{t("summary.title")}</h3>
-            <ul className="text-muted-foreground list-disc space-y-3 ps-4 text-sm">
-              {limitations.map((limitation) => (
-                <li key={limitation}>{t(`summary.${limitation}`)}</li>
-              ))}
-            </ul>
-          </section>
         </div>
       </DialogContent>
     </Dialog>

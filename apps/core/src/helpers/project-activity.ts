@@ -1,11 +1,14 @@
 import { z } from "@hono/zod-openapi";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
 import { badRequest } from "@/helpers/error";
+import { escapeLikeText } from "@/helpers/query-params";
 
 const projectActivityCursorSchema = z.object({
   workspaceId: z.uuid(),
   id: z.uuid(),
   lastActivityAt: z.iso.datetime(),
+  matchRank: z.number().int().min(0).max(1).optional(),
   // Absent on cursors minted before Pins could lead the order.
   starredAt: z.iso.datetime().nullable().optional(),
 });
@@ -13,6 +16,7 @@ const projectActivityCursorSchema = z.object({
 export interface ProjectActivityRow {
   id: string;
   lastActivityAt: Date;
+  matchRank?: number;
   /** The reader's Pin when the page leads with Pins, otherwise null. */
   starredAt?: Date | null;
 }
@@ -35,6 +39,7 @@ export function encodeProjectActivityCursor(
       id: row.id,
       lastActivityAt: row.lastActivityAt.toISOString(),
       starredAt: row.starredAt?.toISOString() ?? null,
+      matchRank: row.matchRank,
     }),
   ).toString("base64url");
 }
@@ -71,17 +76,24 @@ interface ProjectActivityPageParams {
  * character itself) keeps the query a literal substring match.
  */
 export function literalSubstringPattern(search: string): string {
-  const escaped = search.replace(/[\\%_]/g, (match) => `\\${match}`);
-  return `%${escaped}%`;
+  return `%${escapeLikeText(search)}%`;
 }
 
-function projectNameSearchClause(search: string) {
-  return PrismaRaw.sql`AND p.name ILIKE ${literalSubstringPattern(search)} ESCAPE '\\'`;
+function primaryProjectMatch(pattern: string) {
+  return PrismaRaw.sql`(p.name ILIKE ${pattern} ESCAPE '\\'
+    OR p.identifier ILIKE ${pattern} ESCAPE '\\')`;
+}
+
+function projectSearchClause(search: string) {
+  const pattern = literalSubstringPattern(search);
+  return PrismaRaw.sql`AND (${primaryProjectMatch(pattern)}
+    OR p.briefing ILIKE ${pattern} ESCAPE '\\'
+    OR p."websiteUrl" ILIKE ${pattern} ESCAPE '\\')`;
 }
 
 /** The reader's Hide on project `p`, for `EXISTS` / `NOT EXISTS`. */
 function readerHideClause(readerUserId: string) {
-  return PrismaRaw.sql`(SELECT 1 FROM project_hide h WHERE h."projectId" = p.id AND h."userId" = ${readerUserId})`;
+  return PrismaRaw.sql`(SELECT 1 FROM ${sharedTable("project_hide")} h WHERE h."projectId" = p.id AND h."userId" = ${readerUserId})`;
 }
 
 /**
@@ -121,7 +133,7 @@ function projectListFilterClause({
   state,
   readerUserId = null,
 }: ProjectListFilter) {
-  return PrismaRaw.sql`${search ? projectNameSearchClause(search) : PrismaRaw.empty}
+  return PrismaRaw.sql`${search ? projectSearchClause(search) : PrismaRaw.empty}
       ${projectStateClause(state, readerUserId)}`;
 }
 
@@ -132,7 +144,7 @@ export function projectCountQuery(
 ) {
   return PrismaRaw.sql`
     SELECT COUNT(*)::bigint AS count
-    FROM project p
+    FROM ${sharedTable("project")} p
     WHERE p."workspaceId" = ${workspaceId}::uuid
       ${projectListFilterClause(filter)}
   `;
@@ -159,47 +171,55 @@ export function projectActivityPageQuery({
   const boundary = cursor
     ? decodeProjectActivityCursor(cursor, workspaceId)
     : undefined;
+  const matchRank = search
+    ? PrismaRaw.sql`CASE WHEN ${primaryProjectMatch(literalSubstringPattern(search))} THEN 0 ELSE 1 END`
+    : PrismaRaw.sql`0`;
   return PrismaRaw.sql`
     WITH activity AS (
       SELECT t."projectId", GREATEST(t."createdAt",
-        (SELECT MAX(e."createdAt") FROM "taskEvent" e WHERE e."taskId" = t.id),
-        (SELECT MAX(f."updatedAt") FROM task_file f
+        (SELECT MAX(e."createdAt") FROM ${sharedTable("taskEvent")} e WHERE e."taskId" = t.id),
+        (SELECT MAX(f."updatedAt") FROM ${sharedTable("task_file")} f
          WHERE f."taskId" = t.id AND f.status = 'READY' AND f.origin = 'TASK_OUTPUT' AND f."fileUrl" IS NOT NULL)
       ) AS at
-      FROM task t
+      FROM ${sharedTable("task")} t
       WHERE t."workspaceId" = ${workspaceId}::uuid AND t."projectId" IS NOT NULL
         AND t."archivedAt" IS NULL ${visibility.task}
       UNION ALL
       SELECT j."projectId", GREATEST(j."createdAt",
-        (SELECT MAX(e."createdAt") FROM "jobEvent" e WHERE e."jobId" = j.id)) AS at
-      FROM "Job" j LEFT JOIN task t ON t.id = j."taskId"
+        (SELECT MAX(e."createdAt") FROM ${netTable("mainnet", "jobEvent")} e WHERE e."jobId" = j.id)) AS at
+      FROM ${netTable("mainnet", "Job")} j LEFT JOIN ${sharedTable("task")} t ON t.id = j."taskId"
       WHERE j."workspaceId" = ${workspaceId}::uuid AND j."projectId" IS NOT NULL
         AND (j."taskId" IS NULL OR (t."workspaceId" = ${workspaceId}::uuid AND t."archivedAt" IS NULL))
         ${visibility.job}
       UNION ALL
       SELECT e."projectId", e."createdAt" AS at
-      FROM project_event e JOIN project p ON p.id = e."projectId"
+      FROM ${sharedTable("project_event")} e JOIN ${sharedTable("project")} p ON p.id = e."projectId"
       WHERE p."workspaceId" = ${workspaceId}::uuid
     ), ranked AS (
-      SELECT p.id, GREATEST(p."createdAt", MAX(a.at)) AS "lastActivityAt",
+      SELECT p.id, ${matchRank} AS "matchRank", GREATEST(p."createdAt", MAX(a.at)) AS "lastActivityAt",
         ${
           pinnedFirstUserId
             ? PrismaRaw.sql`MAX(s."starredAt")`
             : PrismaRaw.sql`NULL::timestamp`
         } AS "starredAt"
-      FROM project p LEFT JOIN activity a ON a."projectId" = p.id
+      FROM ${sharedTable("project")} p LEFT JOIN activity a ON a."projectId" = p.id
       ${
         pinnedFirstUserId
-          ? PrismaRaw.sql`LEFT JOIN project_star s ON s."projectId" = p.id AND s."userId" = ${pinnedFirstUserId}`
+          ? PrismaRaw.sql`LEFT JOIN ${sharedTable("project_star")} s ON s."projectId" = p.id AND s."userId" = ${pinnedFirstUserId}`
           : PrismaRaw.empty
       }
       WHERE p."workspaceId" = ${workspaceId}::uuid
       ${projectListFilterClause({ search, state, readerUserId })}
       GROUP BY p.id, p."createdAt"
     )
-    SELECT r.id, r."lastActivityAt", r."starredAt" FROM ranked r
-    ${boundary ? projectActivityBoundaryClause(boundary) : PrismaRaw.empty}
-    ORDER BY r."starredAt" ASC NULLS LAST, r."lastActivityAt" DESC, r.id DESC
+    SELECT r.id, r."lastActivityAt", r."starredAt", r."matchRank" FROM ranked r
+    ${
+      boundary
+        ? PrismaRaw.sql`WHERE r."matchRank" > ${boundary.matchRank ?? 0}
+      OR (r."matchRank" = ${boundary.matchRank ?? 0} AND (${projectActivityBoundaryClause(boundary)}))`
+        : PrismaRaw.empty
+    }
+    ORDER BY r."matchRank", r."starredAt" ASC NULLS LAST, r."lastActivityAt" DESC, r.id DESC
     LIMIT ${take}
   `;
 }
@@ -210,9 +230,9 @@ function projectActivityBoundaryClause(
 ) {
   const afterActivity = PrismaRaw.sql`(r."lastActivityAt", r.id) < (${boundary.lastActivityAt}::timestamp, ${boundary.id}::uuid)`;
   if (!boundary.starredAt) {
-    return PrismaRaw.sql`WHERE r."starredAt" IS NULL AND ${afterActivity}`;
+    return PrismaRaw.sql`r."starredAt" IS NULL AND ${afterActivity}`;
   }
-  return PrismaRaw.sql`WHERE r."starredAt" IS NULL
+  return PrismaRaw.sql`r."starredAt" IS NULL
     OR r."starredAt" > ${boundary.starredAt}::timestamp
     OR (r."starredAt" = ${boundary.starredAt}::timestamp AND ${afterActivity})`;
 }
@@ -268,19 +288,19 @@ export function projectRecentActivityQuery({
       (SELECT DISTINCT ON (t.id) 'task' AS kind, e.id::text AS id, e."createdAt" AS at,
         t."projectId"::text AS "projectId", t.id AS "entityId", t.name AS title,
         e.status::text AS status, NULL::text AS "agentId"
-      FROM "taskEvent" e
-      JOIN task t ON t.id = e."taskId"
-      JOIN project p ON p.id = t."projectId" ${projectFilter}
+      FROM ${sharedTable("taskEvent")} e
+      JOIN ${sharedTable("task")} t ON t.id = e."taskId"
+      JOIN ${sharedTable("project")} p ON p.id = t."projectId" ${projectFilter}
       WHERE t."workspaceId" = ${workspaceId}::uuid AND t."archivedAt" IS NULL
         ${visibility.task}
       ORDER BY t.id, e."createdAt" DESC, e.id DESC)
       UNION ALL
       (SELECT DISTINCT ON (j.id) 'job', e.id::text, e."createdAt",
         j."projectId"::text, j.id, j.name, e.status::text, j."agentId"
-      FROM "jobEvent" e
-      JOIN "Job" j ON j.id = e."jobId"
-      JOIN project p ON p.id = j."projectId" ${projectFilter}
-      LEFT JOIN task t ON t.id = j."taskId"
+      FROM ${netTable("mainnet", "jobEvent")} e
+      JOIN ${netTable("mainnet", "Job")} j ON j.id = e."jobId"
+      JOIN ${sharedTable("project")} p ON p.id = j."projectId" ${projectFilter}
+      LEFT JOIN ${sharedTable("task")} t ON t.id = j."taskId"
       WHERE j."workspaceId" = ${workspaceId}::uuid
         AND (j."taskId" IS NULL OR (t."workspaceId" = ${workspaceId}::uuid AND t."archivedAt" IS NULL))
         ${visibility.job}
@@ -288,8 +308,8 @@ export function projectRecentActivityQuery({
       UNION ALL
       (SELECT DISTINCT ON (p.id) 'project', e.id::text, e."createdAt",
         p.id::text, p.id::text, p.name, e.kind::text, NULL::text
-      FROM project_event e
-      JOIN project p ON p.id = e."projectId" ${projectFilter}
+      FROM ${sharedTable("project_event")} e
+      JOIN ${sharedTable("project")} p ON p.id = e."projectId" ${projectFilter}
       WHERE p."workspaceId" = ${workspaceId}::uuid
       ORDER BY p.id, e."createdAt" DESC, e.id DESC)
     ) a

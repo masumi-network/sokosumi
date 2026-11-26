@@ -1,5 +1,5 @@
 import type { ChatRoom } from "@sokosumi/core-client";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -161,7 +161,7 @@ describe("TaskSendToChatDialog", () => {
     );
     expect(screen.getByLabelText("noteLabel")).toBeDisabled();
     expect(screen.getByRole("button", { name: "cancel" })).toBeDisabled();
-    finish({ ok: true, value: {} });
+    await act(async () => finish({ ok: true, value: {} }));
   });
 
   it("retries a lost response as the same attempt, so it lands once", async () => {
@@ -172,7 +172,13 @@ describe("TaskSendToChatDialog", () => {
     await fill(user, "Please look");
     await user.click(screen.getByRole("button", { name: "send" }));
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("error"));
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("error");
+      expect(screen.getByRole("button", { name: "retry" })).not.toHaveAttribute(
+        "aria-busy",
+        "true",
+      );
+    });
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByLabelText("noteLabel")).toHaveValue("Please look");
     expect(screen.getByRole("status")).toHaveTextContent("retryHint");
@@ -192,7 +198,10 @@ describe("TaskSendToChatDialog", () => {
 
     await fill(user, "Please look");
     await user.click(screen.getByRole("button", { name: "send" }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalled();
+      expect(screen.getByLabelText("noteLabel")).toBeEnabled();
+    });
 
     await user.type(screen.getByLabelText("noteLabel"), " today");
     expect(screen.queryByRole("status")).toBeNull();
@@ -212,7 +221,10 @@ describe("TaskSendToChatDialog", () => {
 
     await fill(user, "Please look");
     await user.click(screen.getByRole("button", { name: "send" }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalled();
+      expect(screen.getByLabelText("roomLabel")).toBeEnabled();
+    });
 
     await user.selectOptions(screen.getByLabelText("roomLabel"), "room-2");
     sendMock.mockResolvedValueOnce({ ok: true, value: {} });

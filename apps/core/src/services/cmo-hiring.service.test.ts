@@ -25,7 +25,6 @@ vi.mock("@/services/project-test-copy", () => ({
 
 import {
   archiveBot,
-  cancelSocialPost,
   chatRoomDelete,
   chatRoomUpdate,
   createBot,
@@ -41,7 +40,6 @@ import {
   memberFindUnique,
   organizationFindFirst,
   organizationUpdate,
-  postFindMany,
   projectCreate,
   projectDelete,
   resetCmoServiceMocks,
@@ -129,6 +127,9 @@ vi.mock("@/services/cmo-brand-visual.service", () => ({
 vi.mock("@/services/cmo-brand-media.service", () => ({
   captureCmoHomepage: vi.fn(async () => undefined),
 }));
+vi.mock("@/services/cmo-site-pages.service", () => ({
+  documentCmoSitePages: vi.fn(async () => undefined),
+}));
 vi.mock("@/config/env", async (importOriginal) =>
   (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.env(
     await importOriginal<typeof import("@/config/env")>(),
@@ -180,9 +181,9 @@ describe("learning state", () => {
   it("is running while the turn keeps making progress", async () => {
     turnFindFirst.mockResolvedValue(turn("RUNNING", 2));
     eventFindFirst.mockResolvedValue({
-      occurredAt: new Date(now.getTime() - 10_000),
+      createdAt: new Date(now.getTime() - 10_000),
     });
-    expect(await cmoLearningState(workspace, now)).toBe("running");
+    expect(await cmoLearningState(workspace)).toBe("running");
     expect(expireTurn).not.toHaveBeenCalled();
   });
 
@@ -190,17 +191,17 @@ describe("learning state", () => {
     // Its run died with the process that ran it: last event 7 minutes ago.
     turnFindFirst.mockResolvedValue(turn("RUNNING", 8));
     eventFindFirst.mockResolvedValue({
-      occurredAt: new Date(now.getTime() - 7 * 60_000),
+      createdAt: new Date(now.getTime() - 7 * 60_000),
     });
-    expect(await cmoLearningState(workspace, now)).toBe("failed");
+    expect(await cmoLearningState(workspace)).toBe("failed");
     expect(expireTurn).toHaveBeenCalledWith("turn-1");
   });
 
   it("reports a failed turn, and done when Cuso finished with questions", async () => {
     turnFindFirst.mockResolvedValueOnce(turn("FAILED", 3));
-    expect(await cmoLearningState(workspace, now)).toBe("failed");
+    expect(await cmoLearningState(workspace)).toBe("failed");
     turnFindFirst.mockResolvedValueOnce(turn("COMPLETED", 3));
-    expect(await cmoLearningState(workspace, now)).toBe("done");
+    expect(await cmoLearningState(workspace)).toBe("done");
   });
 
   it("retries only after a failure, with a fresh turn id", async () => {
@@ -208,10 +209,7 @@ describe("learning state", () => {
     turnFindFirst.mockResolvedValue(turn("FAILED", 3));
     startTurn.mockResolvedValue({ turnId: "turn-2" });
     expect(
-      await retryCmoOnboarding(
-        { projectId: "project-1", userId: "user-1" },
-        now,
-      ),
+      await retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
     ).toEqual({
       turnId: "turn-2",
     });
@@ -221,9 +219,9 @@ describe("learning state", () => {
     expect(input.sokoBotId).toBe("bot-1");
 
     turnFindFirst.mockResolvedValue(turn("RUNNING", 1));
-    eventFindFirst.mockResolvedValue({ occurredAt: new Date() });
+    eventFindFirst.mockResolvedValue({ createdAt: now });
     await expect(
-      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }, now),
+      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
     ).rejects.toThrow("still learning");
   });
 
@@ -231,13 +229,10 @@ describe("learning state", () => {
     cusoFind.mockResolvedValue(workspace);
     // Still making progress, but 15 minutes in: the usual is 7.
     turnFindFirst.mockResolvedValue(turn("RUNNING", 15));
-    eventFindFirst.mockResolvedValue({ occurredAt: new Date() });
+    eventFindFirst.mockResolvedValue({ createdAt: now });
     startTurn.mockResolvedValue({ turnId: "turn-2" });
     expect(
-      await retryCmoOnboarding(
-        { projectId: "project-1", userId: "user-1" },
-        now,
-      ),
+      await retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
     ).toEqual({
       turnId: "turn-2",
     });
@@ -247,9 +242,9 @@ describe("learning state", () => {
   it("keeps research running under twice the usual time", async () => {
     cusoFind.mockResolvedValue(workspace);
     turnFindFirst.mockResolvedValue(turn("RUNNING", 13));
-    eventFindFirst.mockResolvedValue({ occurredAt: new Date() });
+    eventFindFirst.mockResolvedValue({ createdAt: now });
     await expect(
-      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }, now),
+      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
     ).rejects.toThrow("still learning");
     expect(expireTurn).not.toHaveBeenCalled();
     expect(startTurn).not.toHaveBeenCalled();
@@ -263,10 +258,7 @@ describe("learning state", () => {
     turnFindFirst.mockResolvedValue(turn("COMPLETED", 3));
     startTurn.mockResolvedValue({ turnId: "turn-2" });
     expect(
-      await retryCmoOnboarding(
-        { projectId: "project-1", userId: "user-1" },
-        now,
-      ),
+      await retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
     ).toEqual({
       turnId: "turn-2",
     });
@@ -294,7 +286,7 @@ describe("learning state", () => {
       new funding.BillingError("no"),
     );
     await expect(
-      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }, now),
+      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
     ).rejects.toThrow("out of credits");
     expect(startTurn).not.toHaveBeenCalled();
   });
@@ -332,7 +324,7 @@ describe("activity", () => {
         where: {
           sessionId: "sess-1",
           type: "reasoning.completed",
-          occurredAt: { gte: running.createdAt },
+          turnId: running.id,
         },
       }),
     );
@@ -477,23 +469,13 @@ describe("starting over", () => {
     expect(archiveBot).not.toHaveBeenCalled();
   });
 
-  it("archives the Cuso and cancels his unsent posts", async () => {
+  it("archives the Cuso, which cancels his unsent posts", async () => {
     cusoFind.mockResolvedValue({ sokoBotId: "bot-1", workspaceId: "ws-1" });
-    postFindMany.mockResolvedValue([{ id: "post-1", revision: 3 }]);
-    cancelSocialPost.mockResolvedValue({});
     await startCmoOver({ projectId: "project-1", userId: "user-1" });
     expect(archiveBot).toHaveBeenCalledWith("user-1", "ws-1", {
       kind: "id",
       sokoBotId: "bot-1",
     });
-    expect(postFindMany.mock.calls[0]?.[0].where.status.in).toEqual([
-      "DRAFT",
-      "NEEDS_APPROVAL",
-      "SCHEDULED",
-    ]);
-    expect(cancelSocialPost).toHaveBeenCalledWith(
-      expect.objectContaining({ postId: "post-1", revision: 3 }),
-    );
   });
 
   it("names the archived Cuso's room after his website", async () => {
@@ -503,7 +485,6 @@ describe("starting over", () => {
       businessName: "acme.io",
     });
     sokoBotFindUnique.mockResolvedValue({ sharedRoomId: "room-1" });
-    postFindMany.mockResolvedValue([]);
     await startCmoOver({ projectId: "project-1", userId: "user-1" });
     expect(chatRoomUpdate).toHaveBeenCalledWith({
       where: { id: "room-1" },
@@ -511,42 +492,13 @@ describe("starting over", () => {
     });
   });
 
-  it("names every post it could not cancel on one warning, without their text", async () => {
-    const warnings = expectCoreLogWhys(
-      "warn",
-      "Starting over left Social posts unsent but not cancelled",
-      ["Cancelling the posts failed"],
-    );
-    cusoFind.mockResolvedValue({
-      sokoBotId: "bot-1",
-      workspaceId: "ws-1",
-      projectId: "project-1",
-    });
-    postFindMany.mockResolvedValue([
-      { id: "post-1", revision: 3 },
-      { id: "post-2", revision: 4 },
-    ]);
-    cancelSocialPost.mockRejectedValue(
-      new Error("Could not cancel SENTINEL-POST launch day words"),
-    );
-    await startCmoOver({ projectId: "project-1", userId: "user-1" });
-    expect(warnings[0]?.event).toMatchObject({
-      operation: "cmo_start_over",
-      socialPosts: [
-        { id: "post-1", failure: { errorName: "Error" } },
-        { id: "post-2", failure: { errorName: "Error" } },
-      ],
-    });
-    expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-POST");
-  });
-
-  it("leaves posts alone when the person may not archive him", async () => {
+  it("refuses when the person may not archive him", async () => {
     cusoFind.mockResolvedValue({ sokoBotId: "bot-1", workspaceId: "ws-1" });
     archiveBot.mockRejectedValueOnce(new Error("Only an organization owner"));
     await expect(
       startCmoOver({ projectId: "project-1", userId: "user-1" }),
     ).rejects.toThrow("owner");
-    expect(cancelSocialPost).not.toHaveBeenCalled();
+    expect(chatRoomUpdate).not.toHaveBeenCalled();
   });
 });
 
@@ -766,6 +718,18 @@ describe("startCmoOnboarding", () => {
     expect(unpaidCuso).toHaveBeenCalledWith("user-1");
     expect(createOrganizationWorkspace).not.toHaveBeenCalled();
     expect(projectCreate).not.toHaveBeenCalled();
+  });
+
+  it("lets a tester hire beside an unpaid Cuso: Tester credits can pay for either", async () => {
+    unpaidCuso.mockResolvedValue({
+      projectId: "project-0",
+      businessName: "old.io",
+    });
+    envOverrides.CMO_SUBSCRIPTION_SKIP_ALLOWLIST = ["@harborbikes.com"];
+    await expect(startCmoOnboarding(input)).resolves.toMatchObject({
+      projectId: "project-1",
+    });
+    expect(unpaidCuso).not.toHaveBeenCalled();
   });
 
   it("hires Cuso into a new organization named after the website", async () => {

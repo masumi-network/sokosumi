@@ -84,7 +84,7 @@ export async function postChat(
     resultReferences?: ChatResultReference[];
     /** The tool that posted when it was not post_chat, and what it adds to the result. */
     via?: {
-      capability: "open_direct_chat" | "ask_coworker";
+      capability: "open_direct_chat" | "ask_coworker" | "send_message";
       result: Record<string, unknown>;
     };
     publicationId?: string;

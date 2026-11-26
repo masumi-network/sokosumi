@@ -1,3 +1,4 @@
+import { RedirectType, redirect } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 
@@ -12,11 +13,14 @@ const { revalidatePathMock, runNowMock, changeStateMock, requestAnalysisMock } =
     requestAnalysisMock: vi.fn(),
     changeStateMock: vi.fn(),
   }));
-const deleteAuditMock = vi.hoisted(() => vi.fn());
+const setArchivedMock = vi.hoisted(() => vi.fn());
+const createAuditMock = vi.hoisted(() => vi.fn());
+const createMonitorMock = vi.hoisted(() => vi.fn());
 const authenticatedSessionId = vi.hoisted(() =>
   vi.fn<() => string | undefined>(),
 );
 
+vi.mock("next/navigation", { spy: true });
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
 vi.mock("@/middleware/auth-middleware", () => ({
@@ -45,17 +49,22 @@ vi.mock("@/lib/services/task-schedule.service", () => ({
 vi.mock("@/lib/services/seo.service", () => ({
   seoServiceNoRedirect: {
     requestAnalysis: requestAnalysisMock,
-    deleteAudit: deleteAuditMock,
+    createMonitor: createMonitorMock,
+    setAuditArchived: setArchivedMock,
+    createAudit: createAuditMock,
   },
 }));
 
+import { seoTestWorkspace } from "@/app/seo/components/seo-test-fixture";
 import { mutateSeo } from "./action";
-import { deleteSeoAuditAction } from "./delete-audit";
+import { createSeoAuditAction } from "./create-audit";
+import { setSeoAuditArchivedAction } from "./set-audit-archived";
 
 const OWNER = {
   kind: "audit",
   id: "01960001-0001-7001-8001-000000000001",
 } as const;
+const PROJECT_ID = "01960001-0001-7001-8001-000000000002";
 const MONITOR_ID = "01960001-0001-7001-8001-000000000042";
 const CURRENT_SESSION_ID = "current-session";
 
@@ -65,25 +74,65 @@ beforeEach(() => {
 });
 
 it("preserves the Core refusal so the confirmation can explain how to resolve it", async () => {
-  deleteAuditMock.mockRejectedValueOnce(
+  setArchivedMock.mockRejectedValueOnce(
     new CoreApiRequestError("End the schedule first", {
       status: 409,
       kind: "seo_audit_resumable_monitor",
     }),
   );
-  expect(await deleteSeoAuditAction({ auditId: OWNER.id })).toMatchObject({
+  expect(
+    await setSeoAuditArchivedAction({
+      auditId: OWNER.id,
+      projectId: null,
+      archived: true,
+    }),
+  ).toMatchObject({
     ok: false,
     error: { status: 409, kind: "seo_audit_resumable_monitor" },
   });
 });
 
-it("rejects invalid audit IDs before making a deletion request", async () => {
-  deleteAuditMock.mockClear();
+it("rejects invalid audit IDs before making an archive request", async () => {
+  setArchivedMock.mockClear();
   expect(
-    await deleteSeoAuditAction({ auditId: "../another-resource" }),
+    await setSeoAuditArchivedAction({
+      auditId: "../another-resource",
+      projectId: null,
+      archived: true,
+    }),
   ).toMatchObject({ ok: false });
-  expect(deleteAuditMock).not.toHaveBeenCalled();
+  expect(setArchivedMock).not.toHaveBeenCalled();
 });
+
+it.each([
+  { archived: true, projectId: null, href: "/seo" },
+  {
+    archived: true,
+    projectId: PROJECT_ID,
+    href: `/seo?projectId=${PROJECT_ID}`,
+  },
+  {
+    archived: false,
+    projectId: PROJECT_ID,
+    href: `/seo?projectId=${PROJECT_ID}&auditId=${OWNER.id}`,
+  },
+])(
+  "refreshes the report and task views and returns to $href",
+  async ({ archived, projectId, href }) => {
+    setArchivedMock.mockResolvedValueOnce(undefined);
+    await expect(
+      setSeoAuditArchivedAction({ auditId: OWNER.id, projectId, archived }),
+    ).rejects.toThrow("NEXT_REDIRECT");
+    expect(setArchivedMock).toHaveBeenCalledExactlyOnceWith(OWNER.id, archived);
+    expect(revalidatePathMock).toHaveBeenCalledWith("/seo");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/tasks");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/tasks/[taskId]", "page");
+    expect(redirect).toHaveBeenCalledExactlyOnceWith(
+      href,
+      RedirectType.replace,
+    );
+  },
+);
 
 function mutate(command: unknown) {
   return mutateSeo({ owner: OWNER, command: command as SeoCommand });
@@ -115,10 +164,18 @@ describe("mutateSeo monitor commands", () => {
   it("sends a valid monitor command to Core", async () => {
     runNowMock.mockResolvedValue({});
 
-    const result = await mutate({
-      kind: "monitor_run_now",
-      monitorId: MONITOR_ID,
-      expectedRevision: 3,
+    const result = await mutateSeo({
+      owner: OWNER,
+      command: {
+        kind: "monitor_run_now",
+        monitorId: MONITOR_ID,
+        expectedRevision: 3,
+      },
+      briefViewer: {
+        userId: "reader",
+        organizationId: "team",
+        sessionId: CURRENT_SESSION_ID,
+      },
     });
 
     expect(result).toEqual({ ok: true, value: null });
@@ -208,3 +265,172 @@ it.each([
     expect(requestAnalysisMock).not.toHaveBeenCalled();
   },
 );
+
+it("adds the full-audit price terms on the server, never from the browser", async () => {
+  const price = {
+    kind: "cost_plus",
+    version: 1,
+    minimumCredits: 750,
+    markupPercent: 50,
+  };
+  const viewer = {
+    userId: "reader",
+    organizationId: "team",
+    sessionId: CURRENT_SESSION_ID,
+  };
+  // A browser that sends its own terms still gets the server's.
+  const browserPrice = { ...price, markupPercent: 0 };
+  await mutateSeo({
+    owner: OWNER,
+    command: {
+      kind: "request_analysis",
+      body: { kind: "audit_full", fullAuditPrice: browserPrice },
+    } as SeoCommand,
+    briefViewer: viewer,
+  });
+  await mutateSeo({
+    owner: OWNER,
+    command: {
+      kind: "create_monitor",
+      body: {
+        analysis: { kind: "audit_full", fullAuditPrice: browserPrice },
+      },
+    } as SeoCommand,
+    briefViewer: viewer,
+  });
+  await mutateSeo({
+    owner: OWNER,
+    command: {
+      kind: "request_analysis",
+      body: { kind: "rankings" },
+    } as SeoCommand,
+    briefViewer: viewer,
+  });
+  expect(requestAnalysisMock).toHaveBeenNthCalledWith(1, OWNER, {
+    kind: "audit_full",
+    fullAuditPrice: price,
+  });
+  expect(createMonitorMock).toHaveBeenCalledWith(OWNER, {
+    analysis: { kind: "audit_full", fullAuditPrice: price },
+  });
+  expect(requestAnalysisMock).toHaveBeenNthCalledWith(2, OWNER, {
+    kind: "rankings",
+  });
+  // A cap goes on, so Core refuses it as a stale price instead of charging uncapped.
+  await mutateSeo({
+    owner: OWNER,
+    command: {
+      kind: "request_analysis",
+      body: {
+        kind: "audit_full",
+        fullAuditPrice: { ...browserPrice, maxCredits: 750 },
+      },
+    } as SeoCommand,
+    briefViewer: viewer,
+  });
+  expect(requestAnalysisMock).toHaveBeenLastCalledWith(OWNER, {
+    kind: "audit_full",
+    fullAuditPrice: { ...price, maxCredits: 750 },
+  });
+});
+
+it.each(["request_analysis", "create_monitor"] as const)(
+  "rejects a limited %s confirmation from a replaced session",
+  async (kind) => {
+    const analysis = { kind: "audit_full", allowLimitedAudit: true };
+    const body = kind === "create_monitor" ? { analysis } : analysis;
+    const result = await mutateSeo({
+      owner: OWNER,
+      command: { kind, body } as SeoCommand,
+      briefViewer: {
+        userId: "reader",
+        organizationId: "team",
+        sessionId: "previous",
+      },
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      error: { status: 409, kind: "seo_viewer_changed" },
+    });
+    expect(requestAnalysisMock).not.toHaveBeenCalled();
+  },
+);
+
+it("returns only the safe refusal kind when Search Console access fails during launch", async () => {
+  requestAnalysisMock.mockRejectedValueOnce(
+    new CoreApiRequestError("private Google access details", {
+      status: 409,
+      kind: "seo_gsc_unavailable",
+    }),
+  );
+  const result = await mutateSeo({
+    owner: OWNER,
+    command: {
+      kind: "request_analysis",
+      body: { kind: "audit_full" },
+    } as SeoCommand,
+    briefViewer: {
+      userId: "reader",
+      organizationId: "team",
+      sessionId: CURRENT_SESSION_ID,
+    },
+  });
+  expect(result).toMatchObject({
+    ok: false,
+    error: { status: 409, kind: "seo_gsc_unavailable" },
+  });
+  expect(result).not.toHaveProperty("error.message");
+});
+
+it("binds a per-run coverage decision to the viewer's session and forwards only that Run's approval", async () => {
+  const command = {
+    kind: "monitor_run_now",
+    monitorId: MONITOR_ID,
+    expectedRevision: 3,
+    allowLimitedAudit: true,
+  } as const;
+  const viewer = {
+    userId: "reader",
+    organizationId: "team",
+    sessionId: CURRENT_SESSION_ID,
+  };
+  const stale = await mutateSeo({
+    owner: OWNER,
+    command,
+    briefViewer: { ...viewer, sessionId: "previous" },
+  });
+  expect(stale).toMatchObject({
+    ok: false,
+    error: { kind: "seo_viewer_changed" },
+  });
+  expect(runNowMock).not.toHaveBeenCalled();
+  const result = await mutateSeo({
+    owner: OWNER,
+    command,
+    briefViewer: viewer,
+  });
+  expect(result.ok).toBe(true);
+  expect(runNowMock).toHaveBeenCalledWith(MONITOR_ID, {
+    expectedRevision: 3,
+    allowLimitedAudit: true,
+  });
+});
+
+it("starts the free page check of a new audit, and keeps the audit when that check does not start", async () => {
+  const audit = { ...seoTestWorkspace(), auditId: OWNER.id };
+  createAuditMock.mockResolvedValue(audit);
+  requestAnalysisMock.mockRejectedValue(
+    new CoreApiRequestError("refused", { status: 503 }),
+  );
+  const result = await createSeoAuditAction({
+    body: { name: "Example", firstPage: { url: "https://example.com/" } },
+  });
+  expect(result).toMatchObject({ ok: true, value: { auditId: OWNER.id } });
+  expect(requestAnalysisMock).toHaveBeenCalledWith(
+    OWNER,
+    expect.objectContaining({ kind: "page_check", maxProviderCalls: 0 }),
+  );
+  expect(revalidatePathMock).toHaveBeenCalledWith("/seo");
+  // A failed response can still follow a saved Task.
+  expect(revalidatePathMock).toHaveBeenCalledWith("/tasks");
+});

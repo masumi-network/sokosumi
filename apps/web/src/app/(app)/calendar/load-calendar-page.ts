@@ -32,6 +32,7 @@ import {
   type WorkspaceCalendarPage,
 } from "@/lib/services/task.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import { collectCursorPages } from "@/lib/utils/collect-cursor-pages";
 import {
   availableCalendarTypes,
   type CalendarType,
@@ -40,6 +41,8 @@ import {
   parseCalendarTypes,
   selectedCalendarTypes,
 } from "./calendar-types";
+
+const CALENDAR_PAGE_SIZE = 100;
 
 export interface CalendarPageSearchParams {
   assigneeId?: string;
@@ -52,6 +55,7 @@ export interface CalendarPageSearchParams {
   status?: string;
   postStatus?: string;
   provider?: string;
+  showCanceled?: string;
   view?: string;
   timezone?: string;
 }
@@ -177,6 +181,7 @@ function projectOptionFromProject(project: Project): ProjectFilterOption {
 }
 
 export interface WorkspaceCalendarPageInput {
+  complete?: boolean;
   projectId?: string;
   requested: CalendarPageSearchParams;
   /** An embed's fixed features; otherwise the URL's `types`, default every one. */
@@ -191,6 +196,7 @@ export interface WorkspaceCalendarPageInput {
  */
 export async function readWorkspaceCalendarPage(
   {
+    complete = false,
     projectId: routeProjectId,
     requested,
     types,
@@ -272,16 +278,37 @@ export async function readWorkspaceCalendarPage(
     agendaOnly: params.view === "agenda" ? ("true" as const) : undefined,
     assigneeId: params.assigneeId,
     assigneeUserId: params.assigneeUserId,
-    limit: params.view === "agenda" ? 10 : 100,
+    limit: params.view === "agenda" && !complete ? 10 : CALENDAR_PAGE_SIZE,
     scope,
     status: calendarStatus,
   };
 
+  const load = (cursor?: string) => {
+    const query = { ...calendarQuery, ...(cursor && { cursor }) };
+    return project
+      ? projectService.getProjectCalendar(project.id, query)
+      : taskService.getWorkspaceCalendar({
+          ...query,
+          projectId: params.projectId,
+        });
+  };
+  const [firstPage, allProjectOptions] = await Promise.all([
+    load(),
+    project ? [] : getProjectFilterOptions(params.projectId),
+  ]);
+  const items = complete
+    ? await collectCursorPages(
+        firstPage.items,
+        firstPage.pagination?.nextCursor,
+        async (cursor) => {
+          const page = await load(cursor);
+          return { items: page.items, nextCursor: page.pagination?.nextCursor };
+        },
+      )
+    : firstPage.items;
+  const pagination = complete ? null : firstPage.pagination;
+
   if (project) {
-    const { items, pagination } = await projectService.getProjectCalendar(
-      project.id,
-      calendarQuery,
-    );
     const sourceId = `project:${project.id}`;
     const projectSource = sources.find(
       (source) => source.sourceId === sourceId,
@@ -306,13 +333,6 @@ export async function readWorkspaceCalendarPage(
     };
   }
 
-  const [{ items, pagination }, allProjectOptions] = await Promise.all([
-    taskService.getWorkspaceCalendar({
-      ...calendarQuery,
-      projectId: params.projectId,
-    }),
-    getProjectFilterOptions(params.projectId),
-  ]);
   const workspaceSource = sources.find(
     (source) => source.sourceType === "WORKSPACE",
   );
@@ -383,10 +403,12 @@ async function readPrivateCachedWorkspaceCalendarPage(
  * window old.
  */
 export async function loadWorkspaceCalendarPage({
+  complete,
   projectId,
   searchParams,
   types,
 }: {
+  complete?: boolean;
   projectId?: string;
   searchParams: Promise<CalendarPageSearchParams>;
   /** An embed's fixed features; otherwise the URL's `types`, default every one. */
@@ -394,6 +416,7 @@ export async function loadWorkspaceCalendarPage({
 }): Promise<LoadedWorkspaceCalendarPage> {
   const requested = await searchParams;
   const input: WorkspaceCalendarPageInput = {
+    complete,
     projectId,
     requested,
     types,

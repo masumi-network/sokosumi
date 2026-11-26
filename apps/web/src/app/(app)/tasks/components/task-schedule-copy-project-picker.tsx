@@ -3,7 +3,8 @@
 import type { ProjectListItem } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useState } from "react";
+import { useDebouncedCallback } from "use-debounce";
 import { loadMoreProjects } from "@/app/projects/actions";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
@@ -15,15 +16,31 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { useSession } from "@/lib/auth/auth.client";
+import { useScopedInfiniteQuery } from "@/queries/scoped-queries";
 
 /** Open first, then the viewer's Hidden ones: both take new schedules. */
 const DESTINATION_STATES = ["open", "hidden"] as const;
+const PROJECT_PICKER_SEARCH_DEBOUNCE_MS = 250;
+
+let nextOpeningId = 0;
+
+type ProjectPickerScope = readonly [
+  workspaceId: string,
+  organizationId: string | null,
+  viewerId: string | null,
+];
 
 /** Where the next page comes from; `null` once every state is read. */
 type PageCursor = {
   stateIndex: number;
   cursor: string | null;
 } | null;
+
+const INITIAL_PAGE_CURSOR: NonNullable<PageCursor> = {
+  stateIndex: 0,
+  cursor: null,
+};
 
 /** A Project a schedule may be copied into: not its own, CMO, closing or closed. */
 export function isCopyDestination(
@@ -47,15 +64,30 @@ async function loadDestinations(
   from: NonNullable<PageCursor>,
   query: string,
   currentProjectId: string | null,
+  scope: ProjectPickerScope,
+  signal: AbortSignal,
 ): Promise<{ projects: ProjectListItem[]; next: PageCursor }> {
+  const [expectedWorkspaceId, expectedOrganizationId, expectedViewerId] = scope;
   let next: PageCursor = from;
   const projects: ProjectListItem[] = [];
   while (next && (projects.length === 0 || next.cursor === null)) {
+    signal.throwIfAborted();
     const page = await loadMoreProjects({
       cursor: next.cursor,
       query: query || undefined,
       state: DESTINATION_STATES[next.stateIndex],
+      expectedOrganizationId,
+      ...(expectedViewerId ? { expectedViewerId } : {}),
     });
+    signal.throwIfAborted();
+    if (
+      page.projects.some(
+        (project) =>
+          project.workspaceId && project.workspaceId !== expectedWorkspaceId,
+      )
+    ) {
+      throw new Error("Active workspace changed");
+    }
     projects.push(
       ...page.projects.filter((project) =>
         isCopyDestination(project, currentProjectId),
@@ -72,63 +104,95 @@ async function loadDestinations(
 
 /** First step of "Copy to another Project": choose where the copy goes. */
 export function TaskScheduleCopyProjectPicker({
+  workspaceId,
+  organizationId,
   currentProjectId,
   onSelect,
   onClose,
 }: {
+  workspaceId: string;
+  organizationId: string | null;
   currentProjectId: string | null;
   onSelect: (project: ProjectFilterOption) => void;
   onClose: () => void;
 }) {
   const t = useTranslations("App.Tasks.Schedules.Actions");
   const tNewTask = useTranslations("App.Tasks.NewTask");
+  const { data: session } = useSession();
+  const viewerId = session?.user.id ?? null;
+  const [openingId] = useState(() => ++nextOpeningId);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
-  const [projects, setProjects] = useState<ProjectListItem[]>([]);
-  const [next, setNext] = useState<PageCursor>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const requestIdRef = useRef(0);
+  const debouncedSetQuery = useDebouncedCallback((value: string) => {
+    setQuery(value);
+  }, PROJECT_PICKER_SEARCH_DEBOUNCE_MS);
+  const scope: ProjectPickerScope = [workspaceId, organizationId, viewerId];
 
-  const load = useEffectEvent(async (append: boolean) => {
-    const from = append ? next : { stateIndex: 0, cursor: null };
-    if (!from) return;
-    const requestId = ++requestIdRef.current;
-    setIsLoading(true);
-    setHasError(false);
-    try {
-      const page = await loadDestinations(from, query, currentProjectId);
-      if (requestId !== requestIdRef.current) return;
-      setProjects((current) =>
-        append ? [...current, ...page.projects] : page.projects,
-      );
-      setNext(page.next);
-    } catch {
-      if (requestId !== requestIdRef.current) return;
-      if (!append) setProjects([]);
-      setHasError(true);
-    } finally {
-      if (requestId === requestIdRef.current) setIsLoading(false);
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    const trimmed = value.trim();
+    if (!trimmed) {
+      debouncedSetQuery.cancel();
+      setQuery("");
+      return;
     }
+    debouncedSetQuery(trimmed);
+  }
+
+  const {
+    data,
+    error,
+    hasNextPage,
+    isPending,
+    isFetching,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useScopedInfiniteQuery({
+    scope,
+    queryKey: [
+      "task-schedule-copy-project-picker",
+      openingId,
+      { query, currentProjectId },
+    ],
+    enabled: Boolean(viewerId),
+    initialPageParam: INITIAL_PAGE_CURSOR,
+    queryFn: ({ pageParam, signal, queryKey }) => {
+      const [queryScope] = queryKey;
+      return loadDestinations(
+        pageParam,
+        query,
+        currentProjectId,
+        queryScope,
+        signal,
+      );
+    },
+    getNextPageParam: (lastPage) => lastPage.next ?? undefined,
+    staleTime: 0,
+    gcTime: 0,
   });
 
-  useEffect(() => {
-    const timeoutId = window.setTimeout(
-      () => setQuery(search.trim()),
-      search ? 250 : 0,
-    );
-    return () => window.clearTimeout(timeoutId);
-  }, [search]);
-
-  useEffect(() => {
-    void load(false);
-  }, [query]);
+  const projects = data?.pages.flatMap((page) => page.projects) ?? [];
+  const hasError = Boolean(error) && !isFetching;
+  const isInitialLoading =
+    isPending ||
+    (Boolean(error) &&
+      isFetching &&
+      !isFetchingNextPage &&
+      projects.length === 0);
 
   const status = hasError
     ? t("copyToProjectFailed")
-    : isLoading && projects.length === 0
+    : isInitialLoading && projects.length === 0
       ? t("copyToProjectLoading")
       : null;
+
+  function handleLoadMore() {
+    if (!hasNextPage || isFetchingNextPage || isFetching) {
+      return;
+    }
+
+    void fetchNextPage();
+  }
 
   return (
     <CommandDialog
@@ -143,7 +207,7 @@ export function TaskScheduleCopyProjectPicker({
       <CommandInput
         placeholder={tNewTask("projectSearchPlaceholder")}
         value={search}
-        onValueChange={setSearch}
+        onValueChange={handleSearchChange}
       />
       <CommandList>
         {status ? (
@@ -180,13 +244,13 @@ export function TaskScheduleCopyProjectPicker({
                 <span className="truncate">{project.name}</span>
               </CommandItem>
             ))}
-            {next ? (
+            {hasNextPage ? (
               <CommandItem
                 value="load-more"
-                disabled={isLoading}
-                onSelect={() => void load(true)}
+                disabled={isFetchingNextPage || isFetching}
+                onSelect={handleLoadMore}
               >
-                {isLoading ? (
+                {isFetchingNextPage ? (
                   <Loader2
                     className="size-4 animate-spin motion-reduce:animate-pulse"
                     aria-hidden

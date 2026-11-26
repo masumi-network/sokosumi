@@ -3,6 +3,10 @@ import type { CreateProjectSeoMonitorRequest } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
+import {
+  type SearchConsoleWarning,
+  seoSearchConsoleWarning,
+} from "@/lib/seo/search-console-warning";
 import { briefForReview, selectedBriefPages } from "./seo-brief-model";
 import {
   allowedSeoAnalysisKinds,
@@ -82,8 +86,14 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
   const serviceAvailable = monitor
     ? model.data.availableActions.canCreateMonitor === true
     : model.data.availableActions.canRequestAnalysis;
-  async function submit(form: FormData) {
-    if (staleGoal) return;
+  const [warning, setWarning] = useState<{
+    operationId: string;
+    reason: SearchConsoleWarning;
+  } | null>(null);
+  const selectingProperty =
+    kind === "audit_full" && model.statisticsSync?.selectingSearchProperty;
+  async function submit(form: FormData, allowLimited = false) {
+    if (staleGoal || (selectingProperty && !allowLimited)) return;
     if (!serviceAvailable) {
       toast.error(
         t(monitor ? "monitor.unavailable" : "analysis.serviceUnavailable"),
@@ -100,33 +110,8 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
         ...workspace,
         availableActions: model.data.availableActions,
       });
-      if (monitor) {
-        if (!rule) throw new Error("Invalid SEO monitor rule");
-        const request: Omit<CreateProjectSeoMonitorRequest, "operationId"> = {
-          rule,
-          analysis: {
-            ...body,
-            idempotencyKey: model.operationKey(
-              `monitor-analysis:${JSON.stringify(body)}`,
-            ),
-          },
-        };
-        await model.execute(
-          {
-            kind: "create_monitor",
-            body: {
-              ...request,
-              operationId: model.operationKey(
-                `monitor:${JSON.stringify(request)}`,
-              ),
-            },
-          },
-          t("monitor.created"),
-        );
-        return;
-      }
       const sharedBrief =
-        kind === "audit_full"
+        !monitor && kind === "audit_full"
           ? selectedBriefPages(form, reviewBrief, workspace.scope.pageIds)
           : undefined;
       const request = {
@@ -140,18 +125,70 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
         }),
         ...(sharedBrief && { sharedBrief }),
       };
-      await model.execute(
-        {
-          kind: "request_analysis",
-          body: {
-            ...request,
-            idempotencyKey: model.operationKey(
-              `analysis:${JSON.stringify(request)}`,
-            ),
-          },
-        },
-        t("analysis.queued"),
+      const includeSitemaps =
+        kind === "audit_full" && form.get("includeSitemaps") === "on";
+      const includePropertyTotals =
+        kind === "audit_full" && form.get("includePropertyTotals") === "on";
+      const scope = model.setupScopeKey;
+      const analysisKey = model.operationKey(
+        JSON.stringify([
+          monitor ? "monitor-analysis" : "analysis",
+          scope,
+          request,
+          ...(includePropertyTotals
+            ? ["includePropertyTotals", "includePageDiscovery"]
+            : []),
+          ...(includeSitemaps ? ["includeSitemaps"] : []),
+        ]),
       );
+      const operationId = monitor
+        ? model.operationKey(JSON.stringify(["monitor", rule, analysisKey]))
+        : analysisKey;
+      const handleRefusal = (kind: string | undefined) => {
+        const reason = seoSearchConsoleWarning(kind);
+        if (!reason) return false;
+        setWarning({ operationId, reason });
+        return true;
+      };
+      const property = model.statisticsSync?.searchConsolePropertyId;
+      const analysis = {
+        ...request,
+        idempotencyKey: analysisKey,
+        ...(!allowLimited &&
+          includePropertyTotals && {
+            includePropertyTotals: true as const,
+            includePageDiscovery: true as const,
+          }),
+        ...(!allowLimited &&
+          includeSitemaps && { includeSitemaps: true as const }),
+        ...(kind === "audit_full" &&
+          property && { searchConsolePropertyId: property }),
+        ...(kind === "audit_full" &&
+          allowLimited &&
+          warning?.operationId === operationId && {
+            allowLimitedAudit: true as const,
+          }),
+      };
+      setWarning(null);
+      if (monitor) {
+        if (!rule) throw new Error("Invalid SEO monitor rule");
+        const body: CreateProjectSeoMonitorRequest = {
+          rule,
+          analysis,
+          operationId,
+        };
+        await model.execute(
+          { kind: "create_monitor", body },
+          t("monitor.created"),
+          handleRefusal,
+        );
+      } else {
+        await model.execute(
+          { kind: "request_analysis", body: analysis },
+          t("analysis.queued"),
+          handleRefusal,
+        );
+      }
     } catch (error) {
       // The refused value is in a field: show the fields with the message.
       setOptionsOpen(true);
@@ -170,8 +207,10 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
     reviewBrief,
     reviewGoal,
     staleGoal,
+    warning: warning?.reason,
     kinds,
     serviceAvailable,
+    selectingProperty,
     canUsePaidSearchData,
     setKind,
     submit,

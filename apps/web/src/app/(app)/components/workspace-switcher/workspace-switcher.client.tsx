@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { createContext, type ReactNode, use, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
+import { ContactLinkWorkspaceProvider } from "@/app/contacts/components/contact-link-workspace";
 import { CreateOrganizationWizard } from "@/components/organizations/create-organization-wizard/create-organization-wizard";
 import OrganizationBulkInviteModal from "@/components/organizations/organization-bulk-invite/modal";
 import type { OrganizationLogoSource } from "@/components/organizations/organization-logo";
@@ -157,18 +158,12 @@ export function WorkspaceSwitcherProvider({
             id: null,
             role: null,
             memberCount: null,
-            name:
-              sessionUser.name ??
-              sessionUser.email ??
-              tOrganizationSwitcher("personalAccount"),
+            // The choice the person made at setup. Their own name stays on
+            // the account at the sidebar's foot, so it is not shown twice.
+            name: tIdentity("personalTitle"),
           }
         : null,
-    [
-      hasPersonalWorkspace,
-      sessionUser.email,
-      sessionUser.name,
-      tOrganizationSwitcher,
-    ],
+    [hasPersonalWorkspace, tIdentity],
   );
 
   const organizationWorkspaces = useMemo(
@@ -283,6 +278,13 @@ export function WorkspaceSwitcherProvider({
     }
   }
 
+  const workspaceIds = useMemo(
+    () => workspaces.map((workspace) => workspace.id),
+    [workspaces],
+  );
+  const contactWorkspaceReady =
+    !isPending && clientSession?.user?.id === sessionUser.id;
+
   const state: WorkspaceSwitcherState = {
     sessionUser,
     personalWorkspace,
@@ -300,7 +302,19 @@ export function WorkspaceSwitcherProvider({
 
   return (
     <WorkspaceSwitcherContext value={state}>
-      {children}
+      <ContactLinkWorkspaceProvider
+        workspaceId={
+          contactWorkspaceReady
+            ? workspaces.find(
+                (workspace) =>
+                  workspace.organizationId === activeOrganizationId,
+              )?.id
+            : undefined
+        }
+        available={contactWorkspaceReady ? workspaceIds : undefined}
+      >
+        {children}
+      </ContactLinkWorkspaceProvider>
       {CreateOrganizationModal}
       {activeOrganizationId ? (
         <OrganizationBulkInviteModal

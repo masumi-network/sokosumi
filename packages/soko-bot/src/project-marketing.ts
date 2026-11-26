@@ -1,3 +1,4 @@
+import { CMO_VOLUME_LEVELS, SHORT_VIDEO_FORMATS } from "@sokosumi/utils";
 import { z } from "zod";
 
 /**
@@ -5,6 +6,19 @@ import { z } from "zod";
  * plan and a Social post's planning (ADR 0062). Sokosumi validates every
  * write with them; CMO's Cuso is one writer among the Project's bots.
  */
+
+/**
+ * The kinds of picture a cmo-v11 styled picture is drawn as. The reference
+ * lends only its layout, the brand's look sets the rest, and the kind keeps a
+ * month from being one flat illustration after another.
+ */
+export const PICTURE_KINDS = [
+  "flat illustration",
+  "bold graphic",
+  "photographic scene",
+  "isometric illustration",
+] as const;
+export type PictureKind = (typeof PICTURE_KINDS)[number];
 
 export const shortText = z.string().trim().min(1).max(400);
 export const longText = z.string().trim().min(1).max(2_000);
@@ -76,7 +90,6 @@ export const cmoBrandSectionSchema = z.object({
     })
     .optional(),
 });
-export type CmoBrandSection = z.infer<typeof cmoBrandSectionSchema>;
 
 const section = cmoBrandSectionSchema.optional();
 export const cmoBrandProfileSchema = z.object({
@@ -147,7 +160,6 @@ export const cmoBrandRevealSchema = z.object({
     )
     .max(3),
 });
-export type CmoBrandReveal = z.infer<typeof cmoBrandRevealSchema>;
 
 /** How a number was found: read from a source, Cuso's estimate, or not known. */
 export const CMO_MEASURE_BASES = ["measured", "estimated", "unknown"] as const;
@@ -195,7 +207,6 @@ export const cmoMarketingTodaySchema = z.object({
     })
     .optional(),
 });
-export type CmoMarketingToday = z.infer<typeof cmoMarketingTodaySchema>;
 
 export const CMO_BRAND_ANSWERS = ["yes", "no", "unsure"] as const;
 export type CmoBrandAnswer = (typeof CMO_BRAND_ANSWERS)[number];
@@ -318,6 +329,17 @@ export const brandBrainSchema = z.object({
 });
 export type BrandBrain = z.infer<typeof brandBrainSchema>;
 
+/**
+ * The Brand Brain as Core stores and serves it: Cuso's essentials plus what
+ * only Core sets. Cuso's save_brand_brain takes `brandBrainSchema`, so a
+ * save never sets these.
+ */
+export const storedBrandBrainSchema = brandBrainSchema.extend({
+  /** A member rewrote the promise, so it is their words, not the site's. */
+  promiseByOwner: z.boolean().optional(),
+});
+export type StoredBrandBrainBody = z.infer<typeof storedBrandBrainSchema>;
+
 export const CMO_CALENDAR_STATUSES = [
   "idea",
   "draft",
@@ -339,7 +361,6 @@ export const CMO_CONTENT_APPROACHES = [
   "research-led",
   "promotional",
 ] as const;
-export type CmoContentApproach = (typeof CMO_CONTENT_APPROACHES)[number];
 
 /** Why people do not buy yet, which decides the mix. */
 export const CMO_BUYING_BARRIERS = [
@@ -392,6 +413,14 @@ export const cmoSearchAdSchema = z.object({
 });
 export type CmoSearchAd = z.infer<typeof cmoSearchAdSchema>;
 
+/** The funnel's four stages, top to bottom: the classic AIDA funnel. */
+export const CMO_AIDA_STAGES = [
+  "awareness",
+  "interest",
+  "desire",
+  "action",
+] as const;
+
 export const cmoCalendarEntrySchema = z.object({
   /** Stable id Cuso chooses so later saves update the same entry. */
   id: z.string().trim().min(1).max(64),
@@ -416,6 +445,11 @@ export const cmoCalendarEntrySchema = z.object({
   why: shortText.optional(),
   socialPostId: z.string().uuid().optional(),
   /**
+   * Why its post did not go out at its time, in the owner's words. Set by
+   * Core; Cuso never sends it.
+   */
+  notSent: z.string().trim().min(1).max(300).optional(),
+  /**
    * What the piece's picture or video shows, for a format that has one. Core
    * makes it from this, attaches it and makes each carousel slide.
    */
@@ -432,6 +466,12 @@ export const cmoCalendarEntrySchema = z.object({
    * with the brand's logo, colours and DESIGN.md.
    */
   styleReferenceId: z.string().uuid().optional(),
+  /**
+   * The kind of picture a styled picture is drawn as (cmo-v11): it borrows
+   * only its reference's layout and draws it in the brand's look, so the kind
+   * is what keeps a month's pictures varied.
+   */
+  pictureKind: z.enum(PICTURE_KINDS).optional(),
   /**
    * The few words lettered into a styled picture, spelled exactly; left out,
    * the picture carries no words.
@@ -453,6 +493,13 @@ export const cmoCalendarEntrySchema = z.object({
   presenter: z.string().trim().min(1).max(40).optional(),
   /** The stock voice that speaks it. */
   voice: z.string().trim().min(1).max(40).optional(),
+  /**
+   * A short video's kind (cmo-v20): Core cuts it from the brand's pictures
+   * and website to its script. Left out, a short animates its picture.
+   */
+  shortFormat: z.enum(SHORT_VIDEO_FORMATS).optional(),
+  /** A short video's words on screen over its first seconds. */
+  hookLine: z.string().trim().min(1).max(48).optional(),
   /** ISO 639-1 language of the script, e.g. "de". */
   languageCode: z.string().trim().length(2).optional(),
   /**
@@ -470,10 +517,21 @@ export const cmoCalendarEntrySchema = z.object({
    */
   videoOf: z.string().max(64).optional(),
   /**
+   * On a post in another shape (cmo-video-shapes): true when the video it
+   * shows is a talking video, false when it is a short or an animated
+   * picture. Set by Core; Cuso never sends it.
+   */
+  videoOfTalking: z.boolean().optional(),
+  /**
    * The one real moment the piece is built on, from the Brand Brain: a
    * customer and what they did, a launch, a number, a decision.
    */
   story: shortText.optional(),
+  /**
+   * The one point the piece argues, in a sentence (cmo-v8). Core compares
+   * the month's claims by meaning, so no point is made again in other words.
+   */
+  claim: shortText.optional(),
   imageFileId: z.string().max(100).optional(),
   /** A carousel's slides in order, the cover first (also its imageFileId). */
   slideFileIds: z.array(z.string().max(100)).max(10).optional(),
@@ -499,6 +557,8 @@ export const cmoCalendarEntrySchema = z.object({
   approach: z.enum(CMO_CONTENT_APPROACHES).optional(),
   /** The topic (pillar) it covers. */
   pillar: shortText.optional(),
+  /** The funnel step it serves (cmo-v20): every network carries every step. */
+  stage: z.enum(CMO_AIDA_STAGES).optional(),
 });
 export type CmoCalendarEntry = z.infer<typeof cmoCalendarEntrySchema>;
 
@@ -516,20 +576,26 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
   why: true,
   approach: true,
   pillar: true,
+  stage: true,
   campaignId: true,
   visual: true,
   visualFileIds: true,
   styleReferenceId: true,
+  pictureKind: true,
   headline: true,
   slides: true,
   slideHeadlines: true,
   script: true,
   presenter: true,
   voice: true,
+  shortFormat: true,
+  hookLine: true,
   languageCode: true,
   alsoOn: true,
   videoOf: true,
+  videoOfTalking: true,
   story: true,
+  claim: true,
 });
 export type SocialPostPlanning = z.infer<typeof socialPostPlanningSchema>;
 
@@ -563,9 +629,12 @@ export const REFERENCE_PURPOSES = [
   "brand",
 ] as const;
 
-/** The funnel's stages, top to bottom. */
+/**
+ * Every stage a saved funnel may hold: AIDA's four, and the three a Cuso
+ * before cmo-v5 wrote, which older strategies still carry.
+ */
 export const CMO_FUNNEL_STAGES = [
-  "awareness",
+  ...CMO_AIDA_STAGES,
   "consideration",
   "conversion",
   "loyalty",
@@ -583,7 +652,6 @@ const strategyPointSchema = z.object({
 
 /** How hard a plan publishes; Cuso recommends one and the owner can switch. */
 export const CMO_PACES = ["steady", "active", "all_in"] as const;
-export type CmoPace = (typeof CMO_PACES)[number];
 
 /** Who moves a funnel stage: Cuso, the owner (their site, pricing, checkout), or both. */
 export const CMO_STAGE_OWNERS = ["cuso", "you", "shared"] as const;
@@ -640,6 +708,8 @@ const strategyPlanShape = {
       why: shortText,
       /** Pieces a week across all channels. */
       perWeek: z.number().int().min(1).max(200),
+      /** Set by Core: the owner asked for this lower pace. */
+      setByOwner: z.boolean().optional(),
     })
     .optional(),
   /**
@@ -655,6 +725,16 @@ const strategyPlanShape = {
       without: shortText,
       /** The owner set the amount; Cuso keeps it. */
       setByOwner: z.boolean().default(false),
+      /**
+       * What Cuso would start with if the owner says yes to ads (cmo-v5):
+       * ads are planned only after that yes.
+       */
+      suggest: z
+        .object({
+          channel: channelKey,
+          monthly: z.number().min(0).max(10_000_000),
+        })
+        .optional(),
     })
     .optional(),
   /** Each channel before Cuso and in this plan, from the Brand Brain's marketing today. */
@@ -766,9 +846,13 @@ const strategyPlanShape = {
     .array(
       z.object({
         stage: z.enum(CMO_FUNNEL_STAGES),
-        /** What people do here, in their words: "Hear about us". */
-        name: shortText,
+        /** A name of Cuso's own for the stage; only older strategies have one. */
+        name: shortText.optional(),
         goal: shortText,
+        /** What Cuso does at this stage, in one plain sentence. */
+        cusoDoes: shortText.optional(),
+        /** What the owner does at this stage, when it needs them. */
+        youDo: shortText.optional(),
         channels: z.array(channelKey).max(6).default([]),
         metric: shortText,
         target: shortText.optional(),
@@ -797,6 +881,15 @@ const strategyPlanShape = {
       }),
     )
     .max(4)
+    .default([]),
+  /**
+   * Live social networks this strategy leaves out because they clearly do
+   * not fit the buyer, each with its reason. Every other live network is in
+   * `channels` (cmo-v5).
+   */
+  leftOut: z
+    .array(z.object({ channel: channelKey, why: shortText }))
+    .max(6)
     .default([]),
   /**
    * Channels Cuso runs that this plan leaves out because the owner has no
@@ -926,10 +1019,49 @@ export const cmoPreviewSchema = z.object({
   title: shortText,
   body: longText,
 });
-export type CmoPreview = z.infer<typeof cmoPreviewSchema>;
 
-/** The most entries a month's calendar holds (cmo-v3's All-in pace). */
-export const CMO_CALENDAR_MAX_ENTRIES = 240;
+/**
+ * Where Core's calendar for a cmo-v22 month stands: examples before payment,
+ * writing while Core writes it, written once it holds the plan's month,
+ * stopped when every try for the plan's level ended short.
+ */
+export const CMO_MONTH_WRITER_STATES = [
+  "examples",
+  "writing",
+  "written",
+  "stopped",
+] as const;
+
+export const cmoMonthWriterSchema = z.object({
+  state: z.enum(CMO_MONTH_WRITER_STATES),
+  /** The plan level the calendar was last written for. */
+  level: z.enum(CMO_VOLUME_LEVELS).optional(),
+  /** The month's first day, fixed by the first write, so a refill keeps its days. */
+  start: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  /** Writes started for this approval; a failed one is retried. */
+  attempts: z.number().int().min(0).max(1000).default(0),
+  /** When the last write started (ISO), so a stale one is retried. */
+  startedAt: z.string().max(40).optional(),
+  /** When the last write ended (ISO), whole or short. */
+  endedAt: z.string().max(40).optional(),
+  /** Why the last write stopped short, for Core's logs; never shown. */
+  error: z.string().max(300).optional(),
+  /** What every write of this month cost on the model, in US dollars. */
+  costUsd: z.number().min(0).optional(),
+  /** When Core raised that the made month fell short of the plan's floor. */
+  floorAlertAt: z.string().max(40).optional(),
+});
+export type CmoMonthWriter = z.infer<typeof cmoMonthWriterSchema>;
+
+/** Whether Core writes this strategy's calendar after payment (cmo-v22). */
+export function cmoCalendarAfterPayment(
+  plan: { monthWriter?: unknown } | null | undefined,
+): boolean {
+  return plan?.monthWriter != null;
+}
 
 export const marketingStrategyPlanSchema = z.object({
   /** The month the plan covers, YYYY-MM. */
@@ -958,15 +1090,31 @@ export const marketingStrategyPlanSchema = z.object({
         role: z.enum(["main", "side"]).optional(),
         /** The Brand Brain buyer a side channel's pieces are written for. */
         buyer: shortText.optional(),
+        /** Set by Core: the owner asked for this lower cadence. */
+        setByOwner: z.boolean().optional(),
       }),
     )
     .max(10),
   ...strategyPlanShape,
-  calendar: z.array(cmoCalendarEntrySchema).max(CMO_CALENDAR_MAX_ENTRIES),
+  calendar: z.array(cmoCalendarEntrySchema),
   /** Up to one sample each of a post, an ad, an SEO piece, a newsletter. */
   previews: z.array(cmoPreviewSchema).max(4).default([]),
   /** After a change request: what is different from the last version. */
   changes: z.array(shortText).max(10).default([]),
+  /**
+   * Set by Core when Cuso's finish turns could not fill the month and the
+   * strategy was fitted to its calendar: each cadence it lowered, in words
+   * the owner reads. The next whole save clears it.
+   */
+  fitted: z.array(shortText).max(12).optional(),
+  /**
+   * cmo-v22: Core writes the month's calendar after payment, sized to the
+   * plan bought; until then the calendar holds the strategy's example posts.
+   * Present on every strategy of that shape, whatever its state, so a full
+   * calendar written before (every strategy before cmo-v22) never has it.
+   * Set by Core; Cuso never sends it.
+   */
+  monthWriter: cmoMonthWriterSchema.optional(),
   /**
    * What the last patch changed: each entry it touched, with the entry as it
    * was before (null when the patch added it), so CMO can strike it through.
@@ -979,9 +1127,7 @@ export const marketingStrategyPlanSchema = z.object({
         was: cmoCalendarEntrySchema.nullable(),
       }),
     )
-    // Every entry a turn's patches touched or added: a cmo-v3 month adds
-    // weeks two to four by patch, so it can be nearly the whole calendar.
-    .max(CMO_CALENDAR_MAX_ENTRIES)
+    // Every entry a turn's patches touched or added.
     .default([]),
 });
 export type MarketingStrategyPlan = z.infer<typeof marketingStrategyPlanSchema>;

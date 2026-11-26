@@ -1,16 +1,17 @@
 import { createRoute } from "@hono/zod-openapi";
-
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { jsonInput } from "@/helpers/prisma-json";
 import { ok } from "@/helpers/response";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { resolveFileActor } from "@/lib/files/actor";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireProjectAccess } from "@/lib/image-studio/access";
 import { requireStudioReferenceFiles } from "@/lib/image-studio/reference-files";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { imageStudioProjectParamsSchema } from "@/schemas/project-image-studio.schema";
 import { studioProductCatalogSchema } from "@/schemas/studio-product.schema";
@@ -47,12 +48,14 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+    const userContext = requireUserAuthContext(c.var.authContext);
+    const { userId } = userContext;
     const { workspaceId, organizationId } = requireWorkspaceContext(
       c.var.workspaceContext,
     );
     const { id: projectId } = c.req.valid("param");
     const { products, revision } = c.req.valid("json");
+    const storedProducts = jsonInput(products);
     const updated = await serializableTransaction(async (tx) => {
       await requireProjectAccess({ projectId, workspaceId, userId }, tx);
       const project = await tx.project.findUnique({
@@ -82,7 +85,10 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         await requireStudioReferenceFiles(
           {
             workspaceId,
-            actor: { kind: "interactive", organizationId, userId },
+            actor: resolveFileActor(
+              { source: "session", ...userContext },
+              { organizationId },
+            ),
             resourceIds: [...new Set(linkedPhotos)].filter(
               (id) => !existing.has(id),
             ),
@@ -93,13 +99,13 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
 
       if (revision === 0) {
         return tx.projectStudioProductCatalog.createMany({
-          data: { projectId, products, revision: 1 },
+          data: { projectId, products: storedProducts, revision: 1 },
           skipDuplicates: true,
         });
       }
       return tx.projectStudioProductCatalog.updateMany({
         where: { projectId, revision },
-        data: { products, revision: { increment: 1 } },
+        data: { products: storedProducts, revision: { increment: 1 } },
       });
     }, CATALOG_CHANGED);
     if (!updated.count) throw conflict(CATALOG_CHANGED);

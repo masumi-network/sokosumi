@@ -1,4 +1,5 @@
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
 import prisma from "@/lib/db/prisma";
 import { SEO_MONITOR_MARKER } from "@/lib/seo/monitor-plan";
@@ -56,7 +57,7 @@ async function newestResultsOfTaskGroups(
   // One row per Task, its newest result. A Task with many files still returns one row.
   const rows = await prisma.$queryRaw<{ id: string; sourceTaskId: string }[]>`
     SELECT DISTINCT ON ("sourceTaskId") id, "sourceTaskId"
-    FROM "project_seo_observation"
+    FROM ${sharedTable("project_seo_observation")}
     WHERE ${ownerFilter}
       AND "sourceTaskId" = ANY(${taskIds}::text[])
       AND "ownerId" IS NULL

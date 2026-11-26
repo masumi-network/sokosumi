@@ -1,5 +1,6 @@
 import { FileExtractionState, FileMetadataState } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import prisma from "@/lib/db/prisma";
 import { tryUseLiveLogger } from "@/lib/evlog";
@@ -319,12 +320,12 @@ export async function findRelatedFiles(input: {
         SELECT COUNT(*) AS total
         FROM (
           SELECT 1
-          FROM file_resource fr
+          FROM ${sharedTable("file_resource")} fr
           WHERE ${authorized}
             AND EXISTS (
               SELECT 1
-              FROM file_version fv
-              JOIN file_chunk fc ON fc."versionId" = fv.id
+              FROM ${sharedTable("file_version")} fv
+              JOIN ${sharedTable("file_chunk")} fc ON fc."versionId" = fv.id
               WHERE fv."resourceId" = fr.id
             )
           LIMIT ${RELATED_DF_PROBE_CAP}
@@ -371,12 +372,12 @@ export async function findRelatedFiles(input: {
             SELECT COUNT(*)
             FROM (
               SELECT 1
-              FROM file_resource fr
+              FROM ${sharedTable("file_resource")} fr
               WHERE ${authorized}
                 AND EXISTS (
                   SELECT 1
-                  FROM file_version fv
-                  JOIN file_chunk fc ON fc."versionId" = fv.id
+                  FROM ${sharedTable("file_version")} fv
+                  JOIN ${sharedTable("file_chunk")} fc ON fc."versionId" = fv.id
                   WHERE fv."resourceId" = fr.id
                     AND fc.search_vector @@ plainto_tsquery('simple', t.word)
                 )
@@ -461,16 +462,16 @@ export async function findRelatedFiles(input: {
         -- so multiplying it back out gives a figure comparable across
         -- seeds. See RELATED_MIN_RANK.
         MAX(ts_rank(fc.search_vector, q.tsq)) * q.terms AS rank
-      FROM file_resource fr
-      JOIN file_version fv
+      FROM ${sharedTable("file_resource")} fr
+      JOIN ${sharedTable("file_version")} fv
         ON fv."resourceId" = fr.id AND fv.revision = fr."contentRevision"
-      JOIN file_chunk fc ON fc."versionId" = fv.id
+      JOIN ${sharedTable("file_chunk")} fc ON fc."versionId" = fv.id
       CROSS JOIN q
       WHERE ${authorized}
         AND q.tsq IS NOT NULL
         AND fr.id <> ${seed.id}::uuid
         AND (fr."lineageId" IS NULL OR fr."lineageId" IS DISTINCT FROM (
-          SELECT seed."lineageId" FROM file_resource seed WHERE seed.id = ${seed.id}::uuid
+          SELECT seed."lineageId" FROM ${sharedTable("file_resource")} seed WHERE seed.id = ${seed.id}::uuid
         ))
         AND fc.search_vector @@ q.tsq
       GROUP BY fr.id, q.terms

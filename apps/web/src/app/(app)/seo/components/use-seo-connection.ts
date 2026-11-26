@@ -3,7 +3,8 @@
 import type { SeoConnectionStatus } from "@sokosumi/core-client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useSeoConnectionAlive } from "@/hooks/effects/use-seo-connection-alive";
 import { toActionRejectionError } from "@/lib/actions/errors/action-error";
 import {
   connectSeoStatisticsAction,
@@ -67,17 +68,6 @@ export function useSeoConnectionStatus(
 
 export type SeoConnection = ReturnType<typeof useSeoConnection>;
 
-/**
- * True when the Search Console account is connected. Saved statistics are a
- * different fact: an account can be connected with nothing synced yet.
- */
-export function useSearchConsoleConnected(enabled = true) {
-  return (
-    useSeoConnectionStatus("search_console", enabled).status.data?.status ===
-    "connected"
-  );
-}
-
 export function useSeoConnection(
   provider: SeoConnectionProvider,
   onConnected?: () => void,
@@ -90,13 +80,7 @@ export function useSeoConnection(
   const [busy, setBusy] = useState<SeoConnectionAction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const busyRef = useRef(false);
-  const alive = useRef(true);
-  useLayoutEffect(() => {
-    alive.current = true;
-    return () => {
-      alive.current = false;
-    };
-  }, []);
+  const alive = useSeoConnectionAlive();
   const actor = {
     viewerId: session?.user.id ?? "",
     organizationId: session?.session.activeOrganizationId ?? null,

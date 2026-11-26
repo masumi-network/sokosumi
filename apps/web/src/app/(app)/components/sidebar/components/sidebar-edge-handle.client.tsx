@@ -2,19 +2,24 @@
 
 import { useTranslations } from "next-intl";
 import type { KeyboardEvent, PointerEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 
 import { useSidebar } from "@/components/ui/sidebar";
 import { SIDEBAR_HIDE_TRANSITION } from "@/components/ui/sidebar-classes";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import {
+  applySidebarWidth,
+  applyStoredSidebarWidth,
+  useSidebarEdgeRestoreOnOpen,
+} from "@/hooks/effects/use-sidebar-edge-restore-on-open";
+import {
+  readSidebarWidth,
+  useSidebarEdgeWidthLifecycle,
+} from "@/hooks/effects/use-sidebar-edge-width-lifecycle";
 import {
   clampSidebarWidth,
-  parseSidebarWidthCookieHeader,
   SIDEBAR_COLLAPSE_AT,
-  SIDEBAR_DEFAULT_WIDTH,
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
-  SIDEBAR_USER_WIDTH_VAR,
   serializeSidebarWidthCookie,
 } from "@/lib/ui-preferences/sidebar-state";
 import { cn } from "@/lib/utils";
@@ -23,14 +28,10 @@ import { cn } from "@/lib/utils";
 const DRAG_START_PX = 4;
 /** Arrow keys resize by this much. */
 const KEY_STEP_PX = 16;
-/**
- * How long the sidebar takes to slide out (`SIDEBAR_HIDE_TRANSITION`), plus a
- * frame: the width it reopens at is put back only after it is out of sight.
- */
-const SLIDE_OUT_MS = 250;
 
 interface Drag {
   startX: number;
+  railWidth: number;
   /**
    * `pressed` until the pointer travels `DRAG_START_PX`, then `dragging`; a
    * snap-shut ends it as `snapped`, and the rest of the drag does nothing.
@@ -40,28 +41,8 @@ interface Drag {
   opened: boolean;
 }
 
-function readWidth() {
-  return (
-    parseSidebarWidthCookieHeader(document.cookie) ?? SIDEBAR_DEFAULT_WIDTH
-  );
-}
-
-function applyWidth(px: number) {
-  document.documentElement.style.setProperty(SIDEBAR_USER_WIDTH_VAR, `${px}px`);
-}
-
-/** Puts back the stored width, or the default when none was ever stored. */
-function applyStoredWidth() {
-  const stored = parseSidebarWidthCookieHeader(document.cookie);
-  if (stored === null) {
-    document.documentElement.style.removeProperty(SIDEBAR_USER_WIDTH_VAR);
-  } else {
-    applyWidth(stored);
-  }
-}
-
 function commitWidth(px: number) {
-  applyWidth(px);
+  applySidebarWidth(px);
   document.cookie = serializeSidebarWidthCookie(px);
 }
 
@@ -85,49 +66,16 @@ export function SidebarEdgeHandle() {
   const { open, setOpen, toggleSidebar, isMobile } = useSidebar();
   const ref = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
-  const restoreTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // The click that ends a drag must not also toggle.
   const swallowClick = useRef(false);
-  // What the splitter reports; the width itself lives on `<html>` while
-  // dragging, so a move never re-renders.
-  const [width, setWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
 
   const wrapper = () =>
     ref.current?.closest<HTMLElement>('[data-slot="sidebar-wrapper"]');
 
-  /** Ends the wait for the slide-out and puts the stored width back now. */
-  function restoreNow() {
-    if (restoreTimer.current) clearTimeout(restoreTimer.current);
-    restoreTimer.current = null;
-    applyStoredWidth();
-  }
+  const { restoreTimer, restoreNow, restoreAfterSlideOut } =
+    useSidebarEdgeRestoreOnOpen(open);
 
-  /** The narrowed width is for show: restore once the panel is out of sight. */
-  function restoreAfterSlideOut() {
-    if (restoreTimer.current) clearTimeout(restoreTimer.current);
-    restoreTimer.current = setTimeout(restoreNow, SLIDE_OUT_MS);
-  }
-
-  // Reopening inside the slide-out window (⌘B, the header toggle) must start
-  // from the stored width, not wait for the timer.
-  useEffect(() => {
-    if (open && restoreTimer.current) restoreNow();
-  }, [open]);
-
-  // Leaving mid-drag or mid-slide must not strand `data-resizing` on the
-  // wrapper or a timer that writes to a document nobody is dragging.
-  useMountEffect(() => {
-    // The stored width, for the splitter's value: the cookie is not there on
-    // the server.
-    setWidth(readWidth());
-    const node = ref.current;
-    return () => {
-      if (restoreTimer.current) clearTimeout(restoreTimer.current);
-      node
-        ?.closest('[data-slot="sidebar-wrapper"]')
-        ?.removeAttribute("data-resizing");
-    };
-  });
+  const { width, setWidth } = useSidebarEdgeWidthLifecycle(ref, restoreTimer);
 
   if (isMobile) {
     return null;
@@ -143,6 +91,9 @@ export function SidebarEdgeHandle() {
     swallowClick.current = false;
     drag.current = {
       startX: event.clientX,
+      railWidth:
+        wrapper()?.querySelector("[data-global-rail]")?.getBoundingClientRect()
+          .width ?? 0,
       phase: "pressed",
       opened: false,
     };
@@ -172,7 +123,8 @@ export function SidebarEdgeHandle() {
       ref.current?.setAttribute("data-dragging", "true");
     }
 
-    if (event.clientX < SIDEBAR_COLLAPSE_AT) {
+    const contextualWidth = event.clientX - current.railWidth;
+    if (contextualWidth < SIDEBAR_COLLAPSE_AT) {
       // A drag that began collapsed and never passed the line has nothing to
       // hide: it stays shut.
       if (open || current.opened) snapShut(current);
@@ -183,7 +135,7 @@ export function SidebarEdgeHandle() {
       current.opened = true;
       setOpen(true);
     }
-    applyWidth(clampSidebarWidth(event.clientX));
+    applySidebarWidth(clampSidebarWidth(contextualWidth));
   }
 
   function endDrag(event: PointerEvent<HTMLDivElement>, cancelled: boolean) {
@@ -205,12 +157,12 @@ export function SidebarEdgeHandle() {
         setOpen(false);
         restoreAfterSlideOut();
       } else {
-        applyStoredWidth();
+        applyStoredSidebarWidth();
       }
       return;
     }
     if (open || current.opened) {
-      const next = clampSidebarWidth(event.clientX);
+      const next = clampSidebarWidth(event.clientX - current.railWidth);
       commitWidth(next);
       setWidth(next);
     }
@@ -239,7 +191,7 @@ export function SidebarEdgeHandle() {
           : 0;
     if (step === 0) return;
     event.preventDefault();
-    const next = clampSidebarWidth(readWidth() + step);
+    const next = clampSidebarWidth(readSidebarWidth() + step);
     commitWidth(next);
     setWidth(next);
   }
@@ -271,8 +223,8 @@ export function SidebarEdgeHandle() {
       className={cn(
         // Straddles the sidebar's border, 3px each side; hidden, the strip
         // hugs the window's edge. Follows the panel as it slides.
-        "group/edge fixed inset-y-0 z-20 hidden w-1.5 cursor-col-resize touch-none outline-none md:block",
-        "left-[calc(var(--sidebar-width)-3px)] peer-data-[state=collapsed]:left-0 peer-data-[state=collapsed]:w-2",
+        "group/edge fixed inset-y-0 top-16 z-20 hidden w-1.5 cursor-col-resize touch-none outline-none md:block",
+        "left-[calc(var(--app-rail-width,0px)+var(--sidebar-width)-3px)] peer-data-[state=collapsed]:left-[var(--app-rail-width,0px)] peer-data-[state=collapsed]:w-2",
         `transition-[left] ${SIDEBAR_HIDE_TRANSITION} group-data-[resizing=true]/sidebar-wrapper:transition-none`,
         // A 6px strip is too thin to hit: its target reaches 8px into each
         // side, 22px in all, over the sidebar's and the page's own edges.

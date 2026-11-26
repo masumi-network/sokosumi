@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { cmoOverview } from "../test-fixtures/cmo";
 import { PlanPanel } from "./onboarding/plan-tabs";
 import { planPieces } from "./phone-feeds";
-import { goalLine, plural } from "./strategy-reveal";
+import { goalLine, pluralName } from "./strategy-reveal";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
@@ -151,73 +151,73 @@ describe("strategy reveal", () => {
     );
   });
 
-  it("shows each pillar's share, and once the month is made, the share Cuso's pieces have", () => {
+  // Owner, 2026-11-23: the pillar cards sorted the same posts again, with
+  // shares that read as a decision and every network on every pillar.
+  it("names the topics in one line under what the posts do", () => {
     const pillars = [
-      { name: "Setup proof", share: 60, why: "Shows setup takes minutes" },
-      { name: "Founder stories", share: 40 },
+      { name: "Launch timing", share: 60, why: "When buyers launch" },
+      { name: "Community", share: 40 },
     ];
-    const planned = renderToStaticMarkup(
-      <PlanPanel
-        overview={overview({
-          pillars,
-          calendar: calendar.map((piece) => ({
-            ...piece,
-            pillar: "Setup proof",
-          })),
-        })}
-        strategy={
-          overview({
-            pillars,
-            calendar: calendar.map((piece) => ({
-              ...piece,
-              pillar: "Setup proof",
-            })),
-          }).strategy as Strategy
-        }
-      />,
-    );
-    expect(planned).toContain("What the posts are about");
-    expect(planned).toContain("Shows setup takes minutes");
-    expect(planned).toContain("4 posts planned");
-    expect(planned).not.toContain("% made");
-
-    const made = {
-      ...overview({ pillars }),
-      production: {
-        state: "ready" as const,
-        ready: 4,
-        total: 4,
-        written: 4,
-        pictured: 0,
-        needPictures: 0,
-        finishedAt: null,
-        pillars: {
-          shares: [
-            { name: "Setup proof", planned: 60, made: 75, pieces: 3 },
-            { name: "Founder stories", planned: 40, made: 25, pieces: 1 },
-          ],
-          rewriting: true,
-        },
-        level: "all_in" as const,
-        beyondPlan: [],
-      },
-    };
+    const plan = overview({
+      pillars,
+      mix: [{ approach: "educational", share: 100, why: "Launch lessons" }],
+      calendar: calendar.map((piece) => ({ ...piece, pillar: "Community" })),
+    });
     const html = renderToStaticMarkup(
-      <PlanPanel overview={made} strategy={made.strategy as Strategy} />,
+      <PlanPanel overview={plan} strategy={plan.strategy as Strategy} />,
     );
-    expect(html).toContain("75% made · 60% planned");
-    expect(html).toContain("Cuso is rewriting them now.");
+    expect(html).toContain("What the posts do");
+    expect(html).toContain(
+      "Topics Cuso keeps coming back to: Launch timing · Community",
+    );
+    expect(html).not.toContain("Content pillars");
+    expect(html).not.toContain("60%");
+    expect(html).not.toContain("When buyers launch");
   });
 });
 
-describe("plural", () => {
-  it("counts the post in a name that goes on after it", () => {
-    expect(plural("Post with a reply", 8)).toBe("8 posts with a reply");
-    expect(plural("Post with a reply", 1)).toBe("1 post with a reply");
+describe("pluralName", () => {
+  it("puts the post in a name that goes on after it in the plural", () => {
+    expect(pluralName("Post with a reply")).toBe("posts with a reply");
   });
 
-  it("still counts a plain name", () => {
-    expect(plural("Image post", 13)).toBe("13 image posts");
-    expect(plural("YouTube Short", 2)).toBe("2 YouTube Shorts");
+  it("names a plain format in the plural, no count", () => {
+    expect(pluralName("Image post")).toBe("image posts");
+    expect(pluralName("YouTube Short")).toBe("YouTube Shorts");
   });
+
+  it("keeps the platforms' format names", () => {
+    expect(pluralName("Reel")).toBe("Reels");
+    expect(pluralName("Talking YouTube Short")).toBe("Talking YouTube Shorts");
+  });
+});
+
+it("shows a talking video on YouTube too, without counts, and names a network left out with its reason", async () => {
+  const { richPlan } = await import("../test-fixtures/onboarding");
+  const { ChannelPlan } = await import("./strategy-reveal");
+  const html = renderToStaticMarkup(<ChannelPlan strategy={richPlan} />);
+  // YouTube has no entry of its own: its piece is LinkedIn's talking video.
+  const youtube = html.slice(html.indexOf("YouTube</p>"));
+  expect(youtube.slice(0, youtube.indexOf("</li>"))).toMatch(
+    /Talking YouTube Shorts/,
+  );
+  // What Cuso makes, never how many or how often (owner, 2026-11-23).
+  expect(html).not.toMatch(/\d+ (a day|a week|this month)|\d+ (image )?posts/);
+  expect(youtube.slice(0, youtube.indexOf("</li>"))).not.toMatch(/\d/);
+  expect(html).toContain(
+    "<b>Not on Facebook.</b> Product teams do not follow software vendors on Facebook.",
+  );
+  // A network left out is not offered again as one Cuso could add.
+  expect(html).not.toMatch(/can also run[^<]*Facebook[,. ]/);
+});
+
+it("says what Cuso does for the owner's site, which is never on the calendar", async () => {
+  const { richPlan } = await import("../test-fixtures/onboarding");
+  const { ChannelPlan } = await import("./strategy-reveal");
+  const html = renderToStaticMarkup(<ChannelPlan strategy={richPlan} />);
+  expect(html).toContain("Your website and Google search");
+  expect(html).toContain(
+    "A weekly audit of your site, page fixes, and articles",
+  );
+  expect(html).toContain("You put them on your site.");
 });

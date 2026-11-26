@@ -51,6 +51,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
+        $queryRaw: async () => [{ now: new Date("2026-09-07T10:01:00Z") }],
         sokoBotToolCall: { findMany: previewCalls },
         sokoBotTurn: { findUnique: turnFindUnique },
         chatRoomMention: { updateMany: mentionUpdateMany },
@@ -115,6 +116,7 @@ function completedTurn(overrides: Record<string, unknown> = {}) {
     id: "turn-a",
     status: "COMPLETED",
     finalAnswer: "The answer is ready.",
+    errorKind: null,
     errorDetail: null,
     startedAt: new Date("2026-09-07T10:00:00Z"),
     createdAt: new Date("2026-09-07T10:00:00Z"),
@@ -156,6 +158,13 @@ beforeEach(() => {
 });
 
 describe("persistSokoBotChatTurn", () => {
+  it("uses PostgreSQL time for the Thought end when a legacy completed row has no completion stamp", async () => {
+    turnFindUnique.mockResolvedValue(completedTurn({ completedAt: null }));
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+    expect(
+      messageUpdate.mock.calls[0][0].data.metadata.thought_timing_ms.end,
+    ).toBe(Date.parse("2026-09-07T10:01:00Z"));
+  });
   it("persists a successful response once and preserves its completion clock on retry", async () => {
     mentionUpdateMany
       .mockResolvedValueOnce({ count: 1 })
@@ -359,6 +368,52 @@ describe("persistSokoBotChatTurn", () => {
     expect(roomUpdate).not.toHaveBeenCalled();
   });
 
+  it("carries the assistant's usage-limit reason on the failed reply shell", async () => {
+    turnFindUnique.mockResolvedValue(
+      completedTurn({
+        status: "FAILED",
+        finalAnswer: null,
+        errorKind: "ai_budget_exceeded",
+      }),
+    );
+
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+
+    expect(messageUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({
+            mention_failed: true,
+            mention_failure: {
+              kind: "ai_budget_exceeded",
+              message:
+                "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.",
+            },
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("records cancellation on the reply shell", async () => {
+    turnFindUnique.mockResolvedValue(
+      completedTurn({ status: "CANCELLED", finalAnswer: null }),
+    );
+
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+
+    expect(messageUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({
+            mention_failed: true,
+            mention_failure: { kind: "turn_cancelled" },
+          }),
+        }),
+      }),
+    );
+  });
+
   it("does not delete a reply when a silent finalizer loses its claim", async () => {
     turnFindUnique.mockResolvedValue(
       completedTurn({ chainDepth: 1, finalAnswer: "" }),
@@ -402,6 +457,18 @@ describe("introduceSokoBot", () => {
     expect(messageCreate.mock.calls[0]?.[0]?.data?.content).toContain(
       "Hi Ada! I'm **Eve**, your personal assistant",
     );
+  });
+
+  // Home finds the welcome by this marker, not by its text: names change.
+  it("marks the introduction so readers can tell it from later bot posts", async () => {
+    await introduceSokoBot({
+      userId: "owner",
+      workspaceId: "ws-a",
+      roomId: "room-a",
+    });
+    expect(messageCreate.mock.calls[0]?.[0]?.data?.metadata).toEqual({
+      sokoBotIntroduction: true,
+    });
   });
 
   it("names no owner when the bot is shared", async () => {

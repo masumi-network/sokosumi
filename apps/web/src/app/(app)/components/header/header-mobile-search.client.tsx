@@ -1,190 +1,26 @@
 "use client";
 
 import { ChevronLeft, Search } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useDebouncedCallback } from "use-debounce";
 import {
   APP_HEADER_SAFE_AREA_PADDING_CLASS,
   APP_HEADER_SAFE_AREA_UNDERLAY_CLASS,
 } from "@/app/components/app-shell-safe-area";
-import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
-import {
-  HISTORY_FILTER_PARAM_KEYS,
-  HISTORY_SEARCH_MAX_LENGTH,
-} from "@/app/history/utils/history-filters";
+import { HISTORY_SEARCH_MAX_LENGTH } from "@/app/history/utils/history-filters";
 import { Input } from "@/components/ui/input";
-import { getEnvPublicConfig } from "@/config/env.public";
+import { useHeaderMobileSearch } from "@/hooks/effects/use-header-mobile-search";
 import { cn } from "@/lib/utils";
-
-const HISTORY_PATH = "/history";
 
 /** Same chrome as `HeaderLeadingControl` mobile back. */
 const MOBILE_HEADER_BACK_BUTTON_CLASS =
   "text-foreground press hover:bg-accent inline-flex size-10 shrink-0 items-center justify-center rounded-md";
 
-function isHistoryPath(pathname: string): boolean {
-  return pathname === HISTORY_PATH || pathname.endsWith(HISTORY_PATH);
-}
-
-function readLocationSearch(): string {
-  if (typeof window === "undefined") {
-    return "";
-  }
-  return window.location.search;
-}
-
-function readHistoryQueryFromLocation(): string {
-  return (
-    new URLSearchParams(readLocationSearch()).get(
-      HISTORY_FILTER_PARAM_KEYS.q,
-    ) ?? ""
-  );
-}
-
 export function HeaderMobileSearchControl() {
   const t = useTranslations("App.Header.Search");
   const tNav = useTranslations("App.Channels.MobileNav");
-  const [expanded, setExpanded] = useState(false);
-  const [query, setQuery] = useState("");
-  const router = useRouter();
-  const pathname = usePathname();
-  // Soft read: the Instant Nav shell mounts before HistorySearchDialogProvider.
-  const historySearch = useOptionalHistorySearch();
-  const previousPathnameRef = useRef(pathname);
-  const navigatedToHistoryRef = useRef(false);
-  /** Dismissed before `router.push(/history)` committed — bounce on arrival. */
-  const abortPendingHistoryNavigationRef = useRef(false);
-  const queryRef = useRef(query);
-  queryRef.current = query;
-
-  function replaceHistoryQuery(nextQuery: string | null) {
-    const currentPath =
-      typeof window !== "undefined" ? window.location.pathname : pathname;
-    if (!isHistoryPath(currentPath)) {
-      return;
-    }
-
-    const paramsForMerge = new URLSearchParams(readLocationSearch());
-
-    if (nextQuery) {
-      paramsForMerge.set(HISTORY_FILTER_PARAM_KEYS.q, nextQuery);
-    } else {
-      paramsForMerge.delete(HISTORY_FILTER_PARAM_KEYS.q);
-    }
-
-    const nextQueryString = paramsForMerge.toString();
-    router.replace(
-      nextQueryString ? `${HISTORY_PATH}?${nextQueryString}` : HISTORY_PATH,
-    );
-  }
-
-  const debouncedReplaceHistoryQuery = useDebouncedCallback(
-    replaceHistoryQuery,
-    getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
-  );
-
-  useEffect(() => {
-    const previousPathname = previousPathnameRef.current;
-    previousPathnameRef.current = pathname;
-
-    if (abortPendingHistoryNavigationRef.current && isHistoryPath(pathname)) {
-      abortPendingHistoryNavigationRef.current = false;
-      navigatedToHistoryRef.current = false;
-      debouncedReplaceHistoryQuery.cancel();
-      setExpanded(false);
-      setQuery("");
-      router.back();
-      return;
-    }
-
-    if (
-      expanded &&
-      isHistoryPath(previousPathname) &&
-      !isHistoryPath(pathname)
-    ) {
-      debouncedReplaceHistoryQuery.cancel();
-      navigatedToHistoryRef.current = false;
-      abortPendingHistoryNavigationRef.current = false;
-      setExpanded(false);
-      setQuery("");
-      return;
-    }
-
-    // Opened search from a non-history route: typing can race `router.push`.
-    // Debounced replaces no-op off /history and used to be cancelled on arrival.
-    // Flush the local query once navigation lands so `?q=` reaches the URL.
-    if (
-      expanded &&
-      !isHistoryPath(previousPathname) &&
-      isHistoryPath(pathname)
-    ) {
-      debouncedReplaceHistoryQuery.cancel();
-      const trimmedQuery = queryRef.current.trim();
-      if (trimmedQuery) {
-        replaceHistoryQuery(trimmedQuery);
-      }
-    }
-  }, [pathname, expanded, debouncedReplaceHistoryQuery, router]);
-
-  useEffect(() => {
-    return () => {
-      debouncedReplaceHistoryQuery.cancel();
-    };
-  }, [debouncedReplaceHistoryQuery]);
-
-  function openSearch(event: MouseEvent<HTMLButtonElement>) {
-    // Same search as the sidebar and ⌘K (Tasks, tags, files). On Credit
-    // history itself, Search keeps filtering that page in place.
-    if (historySearch && !isHistoryPath(pathname)) {
-      historySearch.openHistorySearch(event.currentTarget);
-      return;
-    }
-    setExpanded(true);
-    abortPendingHistoryNavigationRef.current = false;
-    if (!isHistoryPath(pathname)) {
-      setQuery("");
-      navigatedToHistoryRef.current = true;
-      router.push(HISTORY_PATH);
-      return;
-    }
-    navigatedToHistoryRef.current = false;
-    setQuery(readHistoryQueryFromLocation());
-  }
-
-  function collapse() {
-    debouncedReplaceHistoryQuery.cancel();
-    const shouldNavigateBack = navigatedToHistoryRef.current;
-    const hadQuery =
-      query.trim().length > 0 ||
-      (isHistoryPath(pathname) && readHistoryQueryFromLocation().length > 0);
-    navigatedToHistoryRef.current = false;
-    setQuery("");
-    setExpanded(false);
-    if (shouldNavigateBack) {
-      // Only back once /history has committed; otherwise `router.back()` leaves
-      // the originating route for whatever was before it.
-      if (isHistoryPath(pathname)) {
-        abortPendingHistoryNavigationRef.current = false;
-        router.back();
-      } else {
-        abortPendingHistoryNavigationRef.current = true;
-      }
-      return;
-    }
-    abortPendingHistoryNavigationRef.current = false;
-    if (isHistoryPath(pathname) && hadQuery) {
-      replaceHistoryQuery(null);
-    }
-  }
-
-  function handleInputChange(next: string) {
-    const capped = next.slice(0, HISTORY_SEARCH_MAX_LENGTH);
-    setQuery(capped);
-    debouncedReplaceHistoryQuery(capped.trim() || null);
-  }
+  const { expanded, query, openSearch, collapse, handleInputChange } =
+    useHeaderMobileSearch();
 
   return (
     <>

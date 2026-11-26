@@ -80,6 +80,10 @@ const labels = {
     title: "No closed projects",
     description: "A project you close moves here",
   },
+  noOpen: {
+    title: "No open projects",
+    description: "Your other projects are in another view.",
+  },
   onlyClosed: {
     title: "All projects are closed",
     description: "Closed projects keep their history in the Closed view.",
@@ -285,9 +289,10 @@ describe("ProjectsView toolbar", () => {
     expect(header).toContainElement(toggle);
     expect(screen.getByRole("radio", { name: "Open" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Closed" })).toBeInTheDocument();
-    // Search takes the room the two controls leave.
-    expect(screen.getByLabelText("Filter projects").parentElement).toHaveClass(
-      "flex-1",
+    // Search and create share the trailing group in reading and keyboard order.
+    const field = screen.getByLabelText("Filter projects").parentElement;
+    expect(field?.nextElementSibling).toBe(
+      screen.getByRole("button", { name: "New project" }),
     );
   });
 
@@ -363,10 +368,23 @@ describe("ProjectsView empty states", () => {
   });
 
   it("says every project is closed, and links there, when only Closed has any", () => {
-    renderView({ projects: [], hasClosedProjects: true });
+    renderView({ projects: [], otherViews: ["closed"] });
 
     expect(screen.getByText("All projects are closed")).toBeInTheDocument();
     expect(screen.queryByText("No projects yet")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Show closed projects" }),
+    ).toHaveAttribute("href", "/projects?state=closed");
+  });
+
+  it("says Open is empty, not that there are none, when a project is hidden", () => {
+    renderView({ projects: [], otherViews: ["hidden", "closed"] });
+
+    expect(screen.getByText("No open projects")).toBeInTheDocument();
+    expect(screen.queryByText("No projects yet")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Show hidden projects" }),
+    ).toHaveAttribute("href", "/projects?state=hidden");
     expect(
       screen.getByRole("link", { name: "Show closed projects" }),
     ).toHaveAttribute("href", "/projects?state=closed");

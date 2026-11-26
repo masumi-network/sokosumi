@@ -69,6 +69,7 @@ const unrelated = [
     status: TaskStatus.CANCELED,
   },
   { name: "No due date", ownerId: adaId, dueOn: null },
+  { name: "No due date either", ownerId: adaId, dueOn: null },
   {
     name: "Archived",
     ownerId: adaId,
@@ -111,8 +112,27 @@ function createApp() {
 }
 
 interface Page {
-  data: Array<{ name: string }>;
+  data: Array<{
+    name: string;
+    resultMatch?: string;
+    openSubtasks?: Array<{ name: string; status: string }>;
+    subtaskProgress: { completed: number; total: number };
+  }>;
   meta: { pagination: { total: number; nextCursor: string | null } };
+}
+
+async function dueOnPage(limit: number, cursor?: string): Promise<Page> {
+  const params = new URLSearchParams({
+    scope: "mine",
+    sort: "dueOn",
+    status: TaskStatus.READY,
+    limit: String(limit),
+    ...(cursor ? { cursor } : {}),
+  });
+  const response = await createApp().request(`http://localhost/?${params}`);
+  const body = await response.json();
+  expect(response.status, JSON.stringify(body)).toBe(200);
+  return body as Page;
 }
 
 async function myDayPage(cursor?: string): Promise<Page> {
@@ -198,6 +218,170 @@ describe.skipIf(!enabled)("GET /tasks for Home's My day", () => {
     await prisma.$disconnect();
   });
 
+  it("ranks name and identifier matches ahead of tags and descriptions, then results, across pages", async () => {
+    const project = await prisma.project.create({
+      data: { workspaceId, name: "Search fixture", identifier: "FIND" },
+    });
+    const label = await prisma.workspaceLabel.create({
+      data: {
+        workspaceId,
+        kind: "TAG",
+        displayName: "50%_launch",
+        normalizedName: "50%_launch",
+      },
+    });
+    const taskDefaults = {
+      workspaceId,
+      projectId: project.id,
+      ownerId: adaId,
+      status: TaskStatus.FAILED,
+    };
+    const named = await prisma.task.create({
+      data: {
+        ...taskDefaults,
+        name: "50%_launch announcement",
+        description: "50%_launch",
+        createdAt: day("2026-01-01"),
+      },
+    });
+    await prisma.task.create({
+      data: {
+        ...taskDefaults,
+        name: "Tagged",
+        workspaceTags: { create: { labelId: label.id } },
+      },
+    });
+    await prisma.task.createMany({
+      data: [
+        {
+          name: "Brief only",
+          description: "50%_LAUNCH",
+          createdAt: day("2026-01-02"),
+        },
+        { name: "50 other launch", description: "wildcards must be literal" },
+        {
+          name: "50%_launch private",
+          visibility: TaskVisibility.PRIVATE,
+          ownerId: bobId,
+        },
+      ].map((task) => ({ ...taskDefaults, ...task })),
+    });
+
+    await prisma.task.create({
+      data: {
+        ...taskDefaults,
+        name: "Quarterly report",
+        createdAt: day("2026-01-03"),
+        status: TaskStatus.COMPLETED,
+        events: {
+          create: [
+            { comment: "Draft mentions 50%_launch in passing" },
+            {
+              status: TaskStatus.COMPLETED,
+              comment:
+                "Intro.\n\n## Pricing\nThe **50%_launch** plan costs 20.",
+            },
+          ],
+        },
+      },
+    });
+    // Two results at the same moment: the later id is the latest.
+    const [olderId, newerId] = [randomUUID(), randomUUID()].sort();
+    const at = new Date("2026-01-05T00:00:00.000Z");
+    await prisma.task.create({
+      data: {
+        ...taskDefaults,
+        name: "Supplier notes",
+        createdAt: day("2026-01-04"),
+        status: TaskStatus.COMPLETED,
+        events: {
+          create: [
+            {
+              id: newerId,
+              createdAt: at,
+              status: TaskStatus.COMPLETED,
+              comment: "Newer: 50%_launch",
+            },
+            {
+              id: olderId,
+              createdAt: at,
+              status: TaskStatus.COMPLETED,
+              comment: "Older: 50%_launch",
+            },
+          ],
+        },
+      },
+    });
+    // Only a plain comment mentions it, which is not a result.
+    await prisma.task.create({
+      data: {
+        ...taskDefaults,
+        name: "Discussion",
+        events: { create: { comment: "What about 50%_launch?" } },
+      },
+    });
+    await prisma.task.create({
+      data: {
+        ...taskDefaults,
+        name: "Bob's private report",
+        visibility: TaskVisibility.PRIVATE,
+        ownerId: bobId,
+        status: TaskStatus.COMPLETED,
+        events: {
+          create: { status: TaskStatus.COMPLETED, comment: "50%_launch" },
+        },
+      },
+    });
+
+    async function searchPages(search: string, limit: number) {
+      const params = new URLSearchParams({
+        scope: "workspace",
+        projectId: project.id,
+        search,
+        limit: String(limit),
+      });
+      const names: string[] = [];
+      const matches: Record<string, string> = {};
+      let total = 0;
+      do {
+        const response = await createApp().request(
+          `http://localhost/?${params}`,
+        );
+        const body = (await response.json()) as Page;
+        expect(response.status, JSON.stringify(body)).toBe(200);
+        names.push(...body.data.map(({ name }) => name));
+        for (const { name, resultMatch } of body.data)
+          if (resultMatch) matches[name] = resultMatch;
+        total = body.meta.pagination.total;
+        if (!body.meta.pagination.nextCursor) break;
+        params.set("cursor", body.meta.pagination.nextCursor);
+      } while (names.length <= total);
+      return { names, total, matches };
+    }
+
+    const expected = {
+      names: [
+        named.name,
+        "Tagged",
+        "Brief only",
+        "Supplier notes",
+        "Quarterly report",
+      ],
+      total: 5,
+      matches: {
+        "Supplier notes": "Newer: 50%_launch",
+        "Quarterly report": "Intro. Pricing The 50%_launch plan costs 20.",
+      },
+    };
+    for (const limit of [1, 2, 3, 4])
+      expect(await searchPages("50%_launch", limit)).toEqual(expected);
+    expect(await searchPages(`find-${named.number}`, 2)).toEqual({
+      names: [named.name],
+      total: 1,
+      matches: {},
+    });
+  });
+
   it("pages through exactly the six matching Tasks, earliest due first", async () => {
     const first = await myDayPage();
 
@@ -216,5 +400,67 @@ describe.skipIf(!enabled)("GET /tasks for Home's My day", () => {
     expect(second.data.map((task) => task.name)).toEqual(["Due 6"]);
     expect(second.meta.pagination.total).toBe(6);
     expect(second.meta.pagination.nextCursor).toBeNull();
+  });
+
+  it("names a parent's first three open sub-tasks in sub-task order", async () => {
+    const parent = await prisma.task.create({
+      data: {
+        workspaceId,
+        ownerId: adaId,
+        name: "Parent with steps",
+        // Not READY and no due day, so the other lists here never show it.
+        status: TaskStatus.RUNNING,
+      },
+    });
+    await prisma.task.createMany({
+      data: [
+        { name: "C", position: 3 },
+        { name: "A", position: 1 },
+        { name: "B done", position: 2, status: TaskStatus.COMPLETED },
+        { name: "D", position: 4 },
+        { name: "E", position: 5 },
+        { name: "Archived", position: 0.5, archivedAt: new Date() },
+      ].map((subtask) => ({
+        workspaceId,
+        ownerId: adaId,
+        parentTaskId: parent.id,
+        status: TaskStatus.READY,
+        ...subtask,
+      })),
+    });
+
+    const params = new URLSearchParams({
+      scope: "mine",
+      q: "Parent with steps",
+    });
+    const response = await createApp().request(`http://localhost/?${params}`);
+    const body = (await response.json()) as Page;
+
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.data.map((task) => task.name)).toEqual(["Parent with steps"]);
+    expect(body.data[0]?.subtaskProgress).toEqual({ completed: 1, total: 5 });
+    expect(body.data[0]?.openSubtasks?.map((task) => task.name)).toEqual([
+      "A",
+      "C",
+      "D",
+    ]);
+  });
+
+  // Sort by Due date on the Tasks board pages past the dated Tasks into the
+  // ones without a due day, which sort last.
+  it("pages a dueOn sort into the Tasks without a due day", async () => {
+    const all = (await dueOnPage(100)).data.map((task) => task.name);
+    // Two undated Tasks, so one page's cursor sits on an undated row.
+    expect(all.slice(-2).sort()).toEqual(["No due date", "No due date either"]);
+
+    const paged: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await dueOnPage(2, cursor);
+      paged.push(...page.data.map((task) => task.name));
+      cursor = page.meta.pagination.nextCursor ?? undefined;
+    } while (cursor && paged.length <= all.length);
+
+    expect(paged).toEqual(all);
   });
 });

@@ -3,7 +3,6 @@
 import type { TaskFollower } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useQueryState } from "nuqs";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
@@ -15,39 +14,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useMountEffect } from "@/hooks/use-mount-effect";
-import { followTask, unfollowTask } from "@/lib/actions/task/follow-action";
 import {
-  FOLLOW_AFTER_SETUP_PARAM,
-  taskFollowSetupPath,
-} from "@/lib/workspace-gate";
-
-/**
- * The Task this tab started setup for. A `?follow=1` link alone follows
- * nothing: only a setup started here by a click does.
- */
-const FOLLOW_AFTER_SETUP_SESSION_KEY = "sokosumi.tasks.followAfterSetup";
-
-function rememberFollowAfterSetup(taskId: string) {
-  try {
-    window.sessionStorage.setItem(FOLLOW_AFTER_SETUP_SESSION_KEY, taskId);
-  } catch {
-    // No storage: the return asks for one more click.
-  }
-}
-
-/** Reads and clears the stored Task, so it is used at most once. */
-function takeFollowAfterSetup(): string | null {
-  try {
-    const taskId = window.sessionStorage.getItem(
-      FOLLOW_AFTER_SETUP_SESSION_KEY,
-    );
-    window.sessionStorage.removeItem(FOLLOW_AFTER_SETUP_SESSION_KEY);
-    return taskId;
-  } catch {
-    return null;
-  }
-}
+  rememberFollowAfterSetup,
+  useTaskFollowAfterSetup,
+} from "@/hooks/effects/use-task-follow-after-setup";
+import { followTask, unfollowTask } from "@/lib/actions/task/follow-action";
+import { taskFollowSetupPath } from "@/lib/workspace-gate";
 
 const BUTTON_CLASS = "text-muted-foreground h-7 px-2 text-xs font-medium";
 
@@ -82,9 +54,6 @@ export function TaskFollowControl({
 }: TaskFollowControlProps) {
   const viewerHasSokoBot = viewerSokoBot !== null;
   const t = useTranslations("App.Tasks.Detail");
-  const [followMarker, setFollowMarker] = useQueryState(
-    FOLLOW_AFTER_SETUP_PARAM,
-  );
   const [isPending, startTransition] = useTransition();
   const serverFollowing =
     viewerId != null && followers.some(({ user }) => user.id === viewerId);
@@ -123,17 +92,9 @@ export function TaskFollowControl({
     });
   }
 
-  function resumeAfterSetup() {
-    // No follow offered yet: a copy of this page rendered before the bot
-    // existed, or a read failed for a moment. Keep the hand-off for the
-    // render that offers it.
-    if (arm !== "add" && arm !== "active") return;
-    // Read once: the marker and the stored Task are gone after this, so no
-    // later visit or reload follows without a click.
-    void setFollowMarker(null);
-    const startedHere = takeFollowAfterSetup() === taskId;
-    if (startedHere && arm === "add") run(true, () => followTask({ taskId }));
-  }
+  useTaskFollowAfterSetup(taskId, arm, () =>
+    run(true, () => followTask({ taskId })),
+  );
 
   const others = followers.filter(({ user }) => user.id !== viewerId);
   if (arm === null && others.length === 0) return null;
@@ -146,10 +107,6 @@ export function TaskFollowControl({
 
   return (
     <div className="flex items-center gap-2">
-      {followMarker === "1" ? (
-        // Keyed: a fresh render that now shows the bot runs it again.
-        <OnMount key={arm ?? "none"} run={resumeAfterSetup} />
-      ) : null}
       {arm === "active" ? (
         <Button
           type="button"
@@ -264,14 +221,4 @@ function SokoBotMark({ face }: { face: ViewerSokoBotFace }) {
       className="size-4"
     />
   );
-}
-
-/**
- * Runs once when mounted; mounted only while the setup marker is present.
- * Strict mode runs it twice in development: the stored Task is read once,
- * so the second run follows nothing.
- */
-function OnMount({ run }: { run: () => void }) {
-  useMountEffect(run);
-  return null;
 }

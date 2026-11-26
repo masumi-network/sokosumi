@@ -70,9 +70,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         c,
         responseSchema.parse({
           ...result,
-          posts: result.posts.map((post) =>
-            presentSocialPost(post, actor.coworkerId),
-          ),
+          posts: result.posts.map((post) => presentSocialPost(post, actor)),
         }),
       );
     } catch (error) {

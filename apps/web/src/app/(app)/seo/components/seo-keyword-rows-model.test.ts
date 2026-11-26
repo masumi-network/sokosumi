@@ -1,5 +1,6 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
+import { contentPlanningIdeas } from "./seo-content-planning-model";
 import {
   keywordGroups,
   keywordPage,
@@ -7,7 +8,10 @@ import {
   keywordReadFailed,
   keywordSummary,
   seoDifficultyBand,
+  workspaceKeywordGroups,
 } from "./seo-keyword-rows-model";
+
+import { seoTestObservation, seoTestWorkspace } from "./seo-test-fixture";
 
 type Keyword = ProjectSeoWorkspace["keywords"][number];
 
@@ -468,4 +472,182 @@ describe("seoDifficultyBand", () => {
     expect(seoDifficultyBand(60)).toBe("hard");
     expect(seoDifficultyBand(100)).toBe("hard");
   });
+});
+
+it("mixes recommendations after grouping ideas, including ideas from older audits", () => {
+  const ideas = [
+    row({
+      keyword: "goal one",
+      conversion: "high",
+      volume: 50,
+      difficulty: 41,
+    }),
+    row({
+      keyword: "goal two",
+      conversion: "high",
+      volume: 90,
+      difficulty: null,
+    }),
+    row({ keyword: "both", conversion: "high", volume: 10, difficulty: 29 }),
+    row({
+      keyword: "easy one",
+      conversion: "medium",
+      volume: 60,
+      difficulty: 18,
+    }),
+    row({ keyword: "easy two", conversion: "low", volume: 50, difficulty: 0 }),
+    row({ keyword: "unknown fit", volume: 900, difficulty: 5 }),
+  ].map((item) => ({ ...item, source: "opportunity" }));
+  expect(keywordGroups(ideas).ideas.map((group) => group.lead.keyword)).toEqual(
+    ["both", "easy one", "goal one", "easy two", "goal two", "unknown fit"],
+  );
+});
+
+it("preserves each broad audit's ranking across shared keywords and keeps earlier ideas after the latest audit", () => {
+  const current = {
+    observationId: "latest",
+    observedAt: new Date("2026-11-02T00:00:00Z"),
+    source: "opportunity",
+  };
+  const { ideas, checked } = keywordGroups([
+    row({
+      ...current,
+      keyword: "runner up",
+      ideaRank: 2,
+      conversion: "high",
+      difficulty: 1,
+    }),
+    row({
+      ...current,
+      keyword: "best idea",
+      ideaRank: 1,
+      position: 5,
+      positionStatus: "ranked",
+      saved: true,
+    }),
+    row({ ...current, keyword: "excluded gap", source: "gap", ideaRank: null }),
+    row({
+      ...current,
+      keyword: "other page",
+      pageUrl: "https://example.com/other",
+      observedAt: new Date("2026-11-01T23:59:58Z"),
+      ideaRank: 1,
+    }),
+    row({
+      ...current,
+      keyword: "older idea",
+      observationId: "old",
+      observedAt: new Date("2026-10-01T00:00:00Z"),
+      ideaRank: 1,
+    }),
+    row({ keyword: "historic gap", source: "gap" }),
+  ]);
+  expect(ideas.map((group) => group.lead.keyword)).toEqual([
+    "best idea",
+    "other page",
+    "runner up",
+    "older idea",
+    "historic gap",
+  ]);
+  expect(checked.map((group) => group.lead.keyword)).toEqual(["best idea"]);
+});
+
+it("preserves all distinct ideas across pages and audits so filtering uses a complete reference set", () => {
+  const latest = {
+    source: "opportunity",
+    observationId: "new",
+    observedAt: new Date("2026-11-10T00:00:00Z"),
+  };
+  const rows = ["a", "b"].flatMap((page) =>
+    Array.from({ length: 30 }, (_, i) =>
+      row({
+        ...latest,
+        keyword: i === 0 ? "shared query" : page + " idea " + i,
+        pageUrl: "https://example.com/" + page,
+        ideaRank: i + 1,
+      }),
+    ),
+  );
+  const old = row({
+    ...latest,
+    keyword: "old query",
+    observationId: "old",
+    observedAt: new Date("2026-10-10T00:00:00Z"),
+    ideaRank: 1,
+  });
+  const all = [old, ...rows];
+  const { ideas } = keywordGroups(all);
+  expect(ideas).toHaveLength(60);
+  expect(
+    ideas.filter((group) => group.lead.keyword === "shared query"),
+  ).toHaveLength(1);
+  expect(ideas[0].lead.pageUrl).toBe("https://example.com/a");
+  expect(ideas.some((group) => group.lead.keyword === "old query")).toBe(true);
+  expect(
+    keywordGroups(all.toReversed()).ideas.map((group) => group.lead.id),
+  ).toEqual(ideas.map((group) => group.lead.id));
+  expect(
+    keywordGroups(all.filter((item) => item.keyword === "b idea 29")).ideas[0]
+      .lead.keyword,
+  ).toBe("b idea 29");
+  const legacy = Array.from({ length: 51 }, (_, i) =>
+    row({ source: "gap", keyword: "historic " + i }),
+  );
+  expect(keywordGroups(legacy).ideas).toHaveLength(51);
+  const workspace = seoTestWorkspace();
+  workspace.keywords = legacy;
+  workspace.observations = [
+    {
+      ...seoTestObservation(workspace),
+      kind: "audit_full",
+      checklistBreakdown: {
+        passed: 0,
+        flagged: 0,
+        gaps: [],
+        research: [
+          {
+            scope: "page",
+            pageUrl: "https://example.com/",
+            stages: [],
+            rankedKeywordIdeas: true,
+          },
+        ],
+      },
+    },
+  ];
+  expect(workspaceKeywordGroups(workspace).ideas).toHaveLength(51);
+  expect(workspaceKeywordGroups(workspace, [legacy[50]]).ideas).toHaveLength(1);
+});
+
+it("groups content ideas by audited offer and intent and requires a same-audit competitor observation for a gap", () => {
+  const source = row({
+    source: "opportunity",
+    observationId: "current",
+    keyword: "battery health",
+    feature: "Battery condition",
+    volume: 1000,
+    conversion: "high",
+    intent: "informational",
+  });
+  const rawGap = row({
+    ...source,
+    source: "gap",
+    feature: null,
+    conversion: null,
+  });
+  const related = row({ ...source, keyword: "battery condition" });
+  const groups = keywordGroups([
+    source,
+    rawGap,
+    related,
+    { ...rawGap, keyword: related.keyword },
+    { ...source, keyword: "battery capacity" },
+    { ...rawGap, keyword: "battery capacity", observationId: "older" },
+    { ...rawGap, keyword: "unrelated product" },
+  ]).ideas;
+  const plans = contentPlanningIdeas(groups);
+  expect(plans.filter((p) => p.gap)).toHaveLength(1);
+  expect(plans.find((p) => p.gap)?.related).toHaveLength(1);
+  expect(plans.find((p) => !p.gap)?.idea.keyword).toBe("battery capacity");
+  expect(plans.some((p) => p.idea.keyword === "unrelated product")).toBe(false);
 });

@@ -1,5 +1,6 @@
 import type { Prisma, Subscription } from "../generated/prisma/client.js";
 import { ACTIVE_SUBSCRIPTION_STATUSES } from "../helpers/subscription.js";
+import type { SharedDb } from "../types/shared-db.js";
 
 function activeSubscriptionStatusWhere(): Prisma.SubscriptionWhereInput {
   return {
@@ -26,7 +27,7 @@ function subscriptionPeriodStartedAtOrBefore(
  */
 async function getCurrentInPeriodActiveSubscriptionByReferenceId(
   referenceId: string,
-  tx: Prisma.TransactionClient,
+  tx: SharedDb,
   now: Date,
 ): Promise<Subscription | null> {
   const rows = await tx.subscription.findMany({
@@ -53,7 +54,7 @@ async function getCurrentInPeriodActiveSubscriptionByReferenceId(
  */
 async function getLatestStartedActiveSubscriptionByReferenceId(
   referenceId: string,
-  tx: Prisma.TransactionClient,
+  tx: SharedDb,
   now: Date,
 ): Promise<Subscription | null> {
   return await tx.subscription.findFirst({
@@ -103,7 +104,7 @@ export const subscriptionRepository = {
    */
   async resolveActiveSubscriptionByReferenceId(
     referenceId: string,
-    tx: Prisma.TransactionClient,
+    tx: SharedDb,
     now: Date = new Date(),
   ): Promise<Subscription | null> {
     return (

@@ -65,10 +65,13 @@ export const PROJECTS_WORKSPACE_SHELL_CLASS = "w-full min-w-0";
 export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
 
 /**
- * Toolbar shared by the Projects index and its loading shell: search takes
- * what the Open/Closed control and New project leave.
+ * Toolbar shared by the Projects index and its loading shell: the state control leads
+ * and search comes immediately before New project in the trailing group.
+ * On narrow pages that group wraps below the view switcher. The
+ * loading shell reserves the same width before the list data arrives.
  */
-export const PROJECTS_BROWSE_HEADER_ROW_CLASS = "flex items-center gap-3";
+export const PROJECTS_BROWSE_HEADER_ROW_CLASS =
+  "@container/page-toolbar flex flex-wrap items-center gap-3";
 
 /**
  * Card around the browse grid. Shared by live list and Instant skeleton.
@@ -111,3 +114,6 @@ export const WORKSPACE_COLUMN_STACKED_ROWS = 3;
  */
 export const PROJECTS_OPEN_LAYOUT_CLASS =
   "flex flex-col gap-5 xl:grid xl:grid-cols-[20rem_minmax(0,1fr)] xl:items-start";
+
+/** The date without the time, as the phone's Properties line shows it. */
+export const PROJECT_LINE_DATE = { month: "short", day: "numeric" } as const;

@@ -38,6 +38,14 @@ export function shouldShowBrowserNotification({
   return true;
 }
 
+const permissionStoreListeners = new Set<() => void>();
+
+function notifyPermissionStoreListeners(): void {
+  for (const listener of permissionStoreListeners) {
+    listener();
+  }
+}
+
 export async function requestBrowserNotificationPermission(): Promise<BrowserNotificationPermission> {
   if (!isNotificationApiAvailable()) {
     return "unsupported";
@@ -47,7 +55,27 @@ export async function requestBrowserNotificationPermission(): Promise<BrowserNot
     return await Notification.requestPermission();
   } catch {
     return getBrowserNotificationPermission();
+  } finally {
+    notifyPermissionStoreListeners();
   }
+}
+
+export function getServerBrowserNotificationPermission(): BrowserNotificationPermission | null {
+  return null;
+}
+
+export function subscribeBrowserNotificationPermissionStore(
+  onStoreChange: () => void,
+): () => void {
+  permissionStoreListeners.add(onStoreChange);
+  const unsubscribeExternal = subscribeBrowserNotificationPermission(() => {
+    onStoreChange();
+  });
+
+  return () => {
+    permissionStoreListeners.delete(onStoreChange);
+    unsubscribeExternal();
+  };
 }
 
 /**

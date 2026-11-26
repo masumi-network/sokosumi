@@ -1,0 +1,210 @@
+"use client";
+
+import type { TaskTagSuggestion } from "@sokosumi/core-client";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useTaskTagCatalog } from "@/app/tasks/components/task-tag-catalog";
+
+interface DraftInput {
+  name: string;
+  description: string;
+  workspaceKey: string;
+  enabled: boolean;
+}
+
+interface Suggestion extends TaskTagSuggestion {
+  inputKey: string;
+  wordKey: string;
+}
+
+/**
+ * Keep in step with `MIN_TASK_TAG_SUGGESTION_CHARACTERS` in Core's
+ * `task-tag-suggestion.schema.ts`. A client gate above Core's would hide working
+ * suggestions; a gate below it would spend a request on a guaranteed 422.
+ */
+const MIN_CHARACTERS = 15;
+/** First request after a pause. */
+const DEBOUNCE_MS = 1_200;
+/**
+ * Spacing between requests once one has been spent. The per-user limit is 6 a
+ * minute, so 10s is exactly that budget: a low content gate must not let ordinary
+ * stop-start typing exhaust the window and leave a composer with nothing.
+ */
+const REQUEST_INTERVAL_MS = 10_000;
+/** Client-side ceiling on one suggestion request. */
+const REQUEST_TIMEOUT_MS = 15_000;
+
+export function useTaskTagSuggestions({
+  name,
+  description,
+  workspaceKey,
+  enabled,
+}: DraftInput) {
+  const catalog = useTaskTagCatalog();
+  const normalizedName = name.trim().replace(/\s+/g, " ");
+  const normalizedDescription = description.trim().replace(/\s+/g, " ");
+  const input = { name: normalizedName, description: normalizedDescription };
+  const inputKey = JSON.stringify([
+    workspaceKey,
+    catalog?.vocabularyKey,
+    input,
+  ]);
+  const words =
+    `${input.name}\n${input.description}`
+      .toLowerCase()
+      .match(/[\p{L}\p{N}]+/gu) ?? [];
+  const wordKey = JSON.stringify([
+    workspaceKey,
+    catalog?.vocabularyKey,
+    normalizedName.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [],
+    normalizedDescription.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [],
+  ]);
+  const eligible =
+    enabled &&
+    !catalog?.isPending &&
+    words.join("").length >= MIN_CHARACTERS &&
+    name.length <= 300 &&
+    description.length <= 8000;
+  const generation = useRef(0);
+  useLayoutEffect(() => {
+    generation.current += 1;
+  }, [wordKey, eligible]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [request, setRequest] = useState<{
+    key: string;
+    status: "loading" | "unavailable";
+  } | null>(null);
+  const [settled, setSettled] = useState(0);
+  const mounted = useRef(false);
+  const controller = useRef<AbortController | null>(null);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      const active = controller.current;
+      controller.current = null;
+      if (active) {
+        active.abort();
+        // Activity preserves state across hide/reveal; clear loading so reveal can retry.
+        setRequest((current) =>
+          current?.status === "loading" ? null : current,
+        );
+      }
+    };
+  }, []);
+  const nextRequestAt = useRef(0);
+  const failures = useRef(0);
+  const current = eligible
+    ? suggestions.find((suggestion) => suggestion.wordKey === wordKey)
+    : undefined;
+  const lastShown = useRef<Suggestion | undefined>(undefined);
+  useLayoutEffect(() => {
+    if (current) lastShown.current = current;
+  }, [current]);
+  const shouldRequest = eligible && !current && request?.key !== wordKey;
+  const tags = [...new Set(current?.tags ?? [])].slice(0, 5);
+
+  useEffect(() => {
+    if (!shouldRequest || controller.current) return;
+    const requestGeneration = generation.current;
+    const timer = window.setTimeout(
+      async () => {
+        if (!mounted.current || controller.current) return;
+        const requestController = new AbortController();
+        controller.current = requestController;
+        const isCurrent = () =>
+          mounted.current &&
+          controller.current === requestController &&
+          requestGeneration === generation.current;
+        nextRequestAt.current = Date.now() + REQUEST_INTERVAL_MS;
+        setRequest({ key: wordKey, status: "loading" });
+        const timeout = window.setTimeout(
+          () => requestController.abort(),
+          REQUEST_TIMEOUT_MS,
+        );
+        try {
+          const response = await fetch("/api/tasks/tag-suggestions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: normalizedName,
+              description: normalizedDescription,
+            }),
+            signal: requestController.signal,
+          });
+          if (response.ok) {
+            const value: TaskTagSuggestion = await response.json();
+            if (controller.current === requestController) failures.current = 0;
+            if (isCurrent()) {
+              const next = { inputKey, wordKey, ...value };
+              const previous = lastShown.current;
+              setSuggestions(previous ? [next, previous] : [next]);
+              setRequest(null);
+            }
+          } else {
+            if (controller.current === requestController) {
+              failures.current += 1;
+              nextRequestAt.current =
+                Date.now() +
+                Math.max(
+                  (Number(response.headers.get("Retry-After")) || 30) * 1000,
+                  Math.min(300000, 30000 * 2 ** (failures.current - 1)),
+                );
+            }
+            if (isCurrent())
+              setRequest({ key: wordKey, status: "unavailable" });
+          }
+        } catch {
+          if (controller.current === requestController) {
+            failures.current += 1;
+            nextRequestAt.current =
+              Date.now() +
+              Math.min(300000, 30000 * 2 ** (failures.current - 1));
+          }
+          if (isCurrent()) setRequest({ key: wordKey, status: "unavailable" });
+        } finally {
+          window.clearTimeout(timeout);
+          if (controller.current === requestController) {
+            const stale = requestGeneration !== generation.current;
+            controller.current = null;
+            // A newer input may have been waiting for this single in-flight request.
+            if (mounted.current) {
+              if (stale)
+                setRequest((current) =>
+                  current?.key === wordKey ? null : current,
+                );
+              setSettled((value) => value + 1);
+            }
+          }
+        }
+      },
+      Math.max(DEBOUNCE_MS, nextRequestAt.current - Date.now()),
+    );
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [
+    shouldRequest,
+    inputKey,
+    wordKey,
+    normalizedName,
+    normalizedDescription,
+    settled,
+  ]);
+
+  return {
+    tags,
+    workspaceSuggestions: current?.workspaceSuggestions,
+    /**
+     * Tags are a quiet convenience, so the composer only ever shows that a
+     * suggestion is on its way. An outage, a policy rejection, a timeout or a rate
+     * limit is tracked here for backoff and shown as nothing at all: Core tags the
+     * task on its next `/sync/task-tags` tick either way.
+     */
+    status:
+      enabled && request?.key === wordKey && request.status === "loading"
+        ? ("loading" as const)
+        : null,
+    tagSuggestionReceipt:
+      current?.inputKey === inputKey ? current.receipt : undefined,
+  };
+}

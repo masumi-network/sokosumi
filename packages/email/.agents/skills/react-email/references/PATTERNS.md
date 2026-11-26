@@ -712,6 +712,7 @@ TeamInvitation.PreviewProps = {
 ```
 
 These patterns demonstrate:
+
 - Tailwind CSS utility classes for styling
 - Proper component usage with `pixelBasedPreset`
 - TypeScript typing

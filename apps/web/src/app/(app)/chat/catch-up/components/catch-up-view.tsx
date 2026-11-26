@@ -3,7 +3,6 @@
 import type { ChatCatchUpSummary } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { ChatUnreadViewHeader } from "@/app/chat/components/chat-unread-view-header";
 import { isCatchUpSummaryEmpty } from "@/components/chat/signals/catch-up-summary-body";
 import { fetchCatchUpSummary } from "@/components/chat/signals/fetch-catch-up-summary";
 import { useOtherWorkspaceRooms } from "@/components/chat/use-other-workspace-rooms";
@@ -14,10 +13,10 @@ import {
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { chatQueryKeys } from "@/queries/chat";
 import {
   BriefingHeader,
   BriefingTopics,
-  CATCH_UP_SUMMARY_QUERY_KEY,
   OpenLoopsList,
   QuietRooms,
 } from "./catch-up-briefing";
@@ -49,7 +48,7 @@ export function CatchUpView({
       enabled: true,
     });
   const { data, isError, refetch, isFetching } = useQuery({
-    queryKey: CATCH_UP_SUMMARY_QUERY_KEY,
+    queryKey: chatQueryKeys.catchUpSummary(),
     queryFn: (): Promise<ChatCatchUpSummary> => fetchCatchUpSummary(),
     refetchOnWindowFocus: false,
     retry: false,
@@ -68,7 +67,7 @@ export function CatchUpView({
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-4 pb-4">
-      <ChatUnreadViewHeader title={t("whileYouWereAwayTitle")} />
+      <h1 className="sr-only">{t("catchUp")}</h1>
       {!showsSummary ? (
         <>
           <div className={HOLDER_CLASS}>

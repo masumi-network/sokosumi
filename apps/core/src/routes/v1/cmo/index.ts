@@ -37,6 +37,8 @@ import mountApproveCmoMarketingStrategyForProject from "./projects/[projectId]/m
 import mountConnectCmoMeasurementForProject from "./projects/[projectId]/measurement/[provider]/connect/post.js";
 import mountFinalizeCmoMeasurementForProject from "./projects/[projectId]/measurement/[provider]/finalize/post.js";
 import mountRetryCmoOnboardingForProject from "./projects/[projectId]/onboarding/retry/post.js";
+import mountGetCmoPictureImageForProject from "./projects/[projectId]/pictures/[jobId]/image/get.js";
+import mountGetCmoPicturesForProject from "./projects/[projectId]/pictures/get.js";
 import mountChangeCmoPlanForProject from "./projects/[projectId]/plan/post.js";
 import mountOpenCmoCustomerPortalForProject from "./projects/[projectId]/portal/post.js";
 import mountClearCmoPresenterForProject from "./projects/[projectId]/presenter/delete.js";
@@ -59,6 +61,7 @@ import mountTearDownCmoTestCopyForProject from "./projects/[projectId]/test-copy
 import mountSetCmoTimeZoneForProject from "./projects/[projectId]/time-zone/put.js";
 import mountStartCmoTopUpForProject from "./projects/[projectId]/top-up/post.js";
 import mountRevertCmoUpdateForProject from "./projects/[projectId]/updates/[id]/revert/post.js";
+import mountMarkCmoUpgradeSeenForProject from "./projects/[projectId]/upgrade-seen/post.js";
 
 /**
  * CMO.xyz's API. The CMO app calls it server side with the person's Sign in
@@ -85,6 +88,8 @@ mountPauseCmoCalendarEntryForProject(app);
 mountGetCmoCalendarEntryTextForProject(app);
 mountGetCmoOverviewForProject(app);
 mountGetCmoChatWorkForProject(app);
+mountGetCmoPicturesForProject(app);
+mountGetCmoPictureImageForProject(app);
 mountGetCmoChatWorkTextForProject(app);
 mountGetCmoChatWorkTableForProject(app);
 mountGetCmoCompetitorsForProject(app);
@@ -102,6 +107,7 @@ mountStartCmoOverForProject(app);
 mountCheckCmoTestCopyForProject(app);
 mountTearDownCmoTestCopyForProject(app);
 mountSetCmoTimeZoneForProject(app);
+mountMarkCmoUpgradeSeenForProject(app);
 mountGetCmoSeoForProject(app);
 mountSearchCmoKeywordsForProject(app);
 mountRequestCmoArticleIdeasForProject(app);

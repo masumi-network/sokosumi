@@ -11,6 +11,7 @@
       "**",
       "!.agents/**",
       "!!.claude/worktrees",
+      "!.claude/skills/**",
       "!**/.agents/**",
       "!**/.next/**",
       "!**/.output/**",
@@ -26,7 +27,8 @@
       "!apps/web/src/components/ui/**",
       "!apps/web/public/**/*.svg",
       "!apps/web/next-env.d.ts",
-      "!apps/apple/**"
+      "!apps/apple/**",
+      "!apps/cmo-website/**"
     ]
   },
   "formatter": {

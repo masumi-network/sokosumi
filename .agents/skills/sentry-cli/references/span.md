@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-span
-version: 0.49.0
+version: 0.50.0
 description: List and view spans in projects or traces
 requires:
   bins: ["sentry"]
@@ -17,11 +17,12 @@ List spans in a project or trace
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                    | Description                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------- |
 | `<org/project/trace-id...>` | [&lt;org&gt;/&lt;project&gt;] or [&lt;org&gt;/&lt;project&gt;/]&lt;trace-id&gt; |
 
 **Flags:**
+
 - `-n, --limit <value> - Number of spans (<=1000) - (default: "25")`
 - `-q, --query <value> - Filter spans (e.g., "op:db", "project:backend", "project:[cli,api]")`
 - `-s, --sort <value> - Sort order: date, duration - (default: "date")`
@@ -31,17 +32,17 @@ List spans in a project or trace
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `span_id` | string | Span ID |
-| `trace_id` | string | Trace ID |
-| `parent_span_id` | string \| null | Parent span ID |
-| `op` | string | Span operation (e.g. http.client, db) |
-| `description` | string \| null | Span description |
-| `duration_ms` | number | Duration (ms) |
-| `start_timestamp` | number | Start time (Unix seconds) |
-| `project_slug` | string | Project slug |
-| `transaction` | string | Transaction name |
+| Field             | Type           | Description                           |
+| ----------------- | -------------- | ------------------------------------- |
+| `span_id`         | string         | Span ID                               |
+| `trace_id`        | string         | Trace ID                              |
+| `parent_span_id`  | string \| null | Parent span ID                        |
+| `op`              | string         | Span operation (e.g. http.client, db) |
+| `description`     | string \| null | Span description                      |
+| `duration_ms`     | number         | Duration (ms)                         |
+| `start_timestamp` | number         | Start time (Unix seconds)             |
+| `project_slug`    | string         | Project slug                          |
+| `transaction`     | string         | Transaction name                      |
 
 **Examples:**
 
@@ -86,11 +87,12 @@ View details of specific spans
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                | Description                                                                                                             |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `<trace-id/span-id...>` | [&lt;org&gt;/&lt;project&gt;/]&lt;trace-id&gt; &lt;span-id&gt; [&lt;span-id&gt;...] - Trace ID and one or more span IDs |
 
 **Flags:**
+
 - `--spans <value> - Span tree depth limit (number, "all" for unlimited, "no" to disable) - (default: "3")`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 

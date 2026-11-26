@@ -7,6 +7,8 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
+import { Activity, StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
@@ -19,26 +21,21 @@ const mocks = vi.hoisted(() => ({
   hide: vi.fn(),
   viewed: vi.fn(),
   toast: vi.fn(),
+  replace: vi.fn(),
+  searchParams: new URLSearchParams(),
 }));
 // happy-dom has no layout for next/image to measure a `fill` parent by.
 vi.mock("next/image", () => import("@/test/next-image"));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn() }),
+  useRouter: () => ({ replace: mocks.replace }),
   usePathname: () => "/studio",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mocks.searchParams,
 }));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({ dateTime: () => "today" }),
 }));
-vi.mock("nuqs", async (importOriginal) => {
-  const { useState } = await import("react");
-  return {
-    ...(await importOriginal<typeof import("nuqs")>()),
-    useQueryState: () => useState("newest"),
-  };
-});
 vi.mock("sonner", () => ({ toast: { error: mocks.toast } }));
 vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: vi.fn(),
@@ -89,21 +86,24 @@ const ASSET: StudioAsset = {
   contentPath: "/ad-a",
 };
 
-function mount(assets = [ASSET]) {
+function mount(assets = [ASSET], searchParams = "") {
   return render(
-    <ImageStudio
-      catalog={TEST_CATALOG}
-      initialSelectedAssetId={null}
-      initialState={{ assets, jobs: [], nextCursor: null }}
-      labels={TEST_LABELS}
-      projectId="project-a"
-      readOnly={false}
-    />,
+    <NuqsTestingAdapter hasMemory searchParams={searchParams}>
+      <ImageStudio
+        catalog={TEST_CATALOG}
+        initialSelectedAssetId={null}
+        initialState={{ assets, jobs: [], nextCursor: null }}
+        labels={TEST_LABELS}
+        projectId="project-a"
+        readOnly={false}
+      />
+    </NuqsTestingAdapter>,
   );
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.searchParams = new URLSearchParams();
   mocks.viewed.mockResolvedValue(undefined);
   mocks.rate.mockImplementation(async ({ feedback }) => ({
     ok: true,
@@ -248,6 +248,381 @@ describe("studio ratings", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("loads ?sort=best on mount under StrictMode without a second fetch", async () => {
+    const best = {
+      ...ASSET,
+      id: "best",
+      score: 1.8,
+      product: { id: "mug", name: "Mug" },
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ assets: [best, ASSET], jobs: [], nextCursor: null }),
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <StrictMode>
+        <NuqsTestingAdapter hasMemory searchParams="?sort=best">
+          <ImageStudio
+            catalog={TEST_CATALOG}
+            initialSelectedAssetId={null}
+            initialState={{ assets: [ASSET, best], jobs: [], nextCursor: null }}
+            labels={TEST_LABELS}
+            projectId="project-a"
+            readOnly={false}
+          />
+        </NuqsTestingAdapter>
+      </StrictMode>,
+    );
+
+    expect(screen.getByRole("combobox", { name: "sort" })).toHaveValue("best");
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/projects/project-a/image-studio/state?sort=best&assetId=ad-a",
+        expect.any(Object),
+      ),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(
+      [...document.querySelectorAll("figure[data-asset-id]")].map((tile) =>
+        tile.getAttribute("data-asset-id"),
+      ),
+    ).toEqual(["best", "ad-a"]);
+  });
+
+  it("changes sort and reloads once per Back/Forward URL navigation", async () => {
+    const best = {
+      ...ASSET,
+      id: "best",
+      score: 1.8,
+      product: { id: "mug", name: "Mug" },
+    };
+    const fetchMock = vi.fn(
+      async (url: string) =>
+        new Response(
+          JSON.stringify({
+            assets: url.includes("sort=best") ? [best, ASSET] : [ASSET, best],
+            jobs: [],
+            nextCursor: null,
+          }),
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const view = mount([ASSET, best], "");
+    expect(screen.getByRole("combobox", { name: "sort" })).toHaveValue(
+      "newest",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    // Forward to ?sort=best
+    view.rerender(
+      <NuqsTestingAdapter hasMemory searchParams="?sort=best">
+        <ImageStudio
+          catalog={TEST_CATALOG}
+          initialSelectedAssetId={null}
+          initialState={{ assets: [ASSET, best], jobs: [], nextCursor: null }}
+          labels={TEST_LABELS}
+          projectId="project-a"
+          readOnly={false}
+        />
+      </NuqsTestingAdapter>,
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("sort=best");
+    expect(screen.getByRole("combobox", { name: "sort" })).toHaveValue("best");
+
+    // Back to default newest
+    view.rerender(
+      <NuqsTestingAdapter hasMemory searchParams="">
+        <ImageStudio
+          catalog={TEST_CATALOG}
+          initialSelectedAssetId={null}
+          initialState={{ assets: [ASSET, best], jobs: [], nextCursor: null }}
+          labels={TEST_LABELS}
+          projectId="project-a"
+          readOnly={false}
+        />
+      </NuqsTestingAdapter>,
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1]?.[0]).not.toContain("sort=best");
+    expect(screen.getByRole("combobox", { name: "sort" })).toHaveValue(
+      "newest",
+    );
+
+    // Forward back to ?sort=best
+    view.rerender(
+      <NuqsTestingAdapter hasMemory searchParams="?sort=best">
+        <ImageStudio
+          catalog={TEST_CATALOG}
+          initialSelectedAssetId={null}
+          initialState={{ assets: [ASSET, best], jobs: [], nextCursor: null }}
+          labels={TEST_LABELS}
+          projectId="project-a"
+          readOnly={false}
+        />
+      </NuqsTestingAdapter>,
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(fetchMock.mock.calls[2]?.[0]).toContain("sort=best");
+    expect(screen.getByRole("combobox", { name: "sort" })).toHaveValue("best");
+  });
+
+  it("keeps the URL on project B when project A's pending sort refresh settles after switching projects", async () => {
+    const projectBAsset: StudioAsset = {
+      ...ASSET,
+      id: "ad-b",
+      projectId: "project-b",
+      rootId: "ad-b",
+      jobId: "job-b",
+      contentPath: "/ad-b",
+    };
+    const lateProjectABest: StudioAsset = {
+      ...ASSET,
+      id: "ad-a-best",
+      version: 2,
+      score: 2,
+      jobId: "job-a-best",
+      contentPath: "/ad-a-best",
+    };
+    let resolveProjectASort!: (response: Response) => void;
+    const fetchMock = vi.fn((url: string) => {
+      if (url.includes("/projects/project-a/")) {
+        return new Promise<Response>((resolve) => {
+          resolveProjectASort = resolve;
+        });
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            assets: [projectBAsset],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    mocks.searchParams = new URLSearchParams("projectId=project-a&sort=best");
+    const view = render(
+      <NuqsTestingAdapter
+        hasMemory
+        searchParams="?projectId=project-a&sort=best"
+      >
+        <ImageStudio
+          catalog={TEST_CATALOG}
+          initialSelectedAssetId={null}
+          initialState={{ assets: [ASSET], jobs: [], nextCursor: null }}
+          key="project-a"
+          labels={TEST_LABELS}
+          projectId="project-a"
+          readOnly={false}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock.mock.calls[0]?.[0]).toContain(
+      "/api/projects/project-a/image-studio/state?sort=best",
+    );
+
+    // Switch from project A to project B (StudioPage keys ImageStudio by scopeId).
+    mocks.searchParams = new URLSearchParams("projectId=project-b");
+    view.rerender(
+      <NuqsTestingAdapter
+        hasMemory
+        key="nav-project-b"
+        searchParams="?projectId=project-b"
+      >
+        <ImageStudio
+          catalog={TEST_CATALOG}
+          initialSelectedAssetId={null}
+          initialState={{
+            assets: [projectBAsset],
+            jobs: [],
+            nextCursor: null,
+          }}
+          key="project-b"
+          labels={TEST_LABELS}
+          projectId="project-b"
+          readOnly={false}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    await act(async () => {
+      resolveProjectASort(
+        new Response(
+          JSON.stringify({
+            assets: [lateProjectABest, ASSET],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("still selects a newly arrived result and updates the URL in the active project", async () => {
+    const projectABest: StudioAsset = {
+      ...ASSET,
+      id: "ad-a-best",
+      version: 2,
+      score: 2,
+      jobId: "job-a-best",
+      contentPath: "/ad-a-best",
+    };
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            assets: [projectABest, ASSET],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    mocks.searchParams = new URLSearchParams("projectId=project-a&sort=best");
+    render(
+      <NuqsTestingAdapter
+        hasMemory
+        searchParams="?projectId=project-a&sort=best"
+      >
+        <ImageStudio
+          catalog={TEST_CATALOG}
+          initialSelectedAssetId={null}
+          initialState={{ assets: [ASSET], jobs: [], nextCursor: null }}
+          key="project-a"
+          labels={TEST_LABELS}
+          projectId="project-a"
+          readOnly={false}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith(
+        "/studio?projectId=project-a&sort=best&v=ad-a-best",
+        { scroll: false },
+      ),
+    );
+  });
+
+  it("suppresses URL replacement while hidden under Activity but still updates Best gallery rows on reveal", async () => {
+    const projectABest: StudioAsset = {
+      ...ASSET,
+      id: "ad-a-best",
+      version: 2,
+      score: 2,
+      jobId: "job-a-best",
+      contentPath: "/ad-a-best",
+    };
+    let resolveBest!: (response: Response) => void;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveBest = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    mocks.searchParams = new URLSearchParams("projectId=project-a&sort=best");
+    const view = render(
+      <NuqsTestingAdapter
+        hasMemory
+        searchParams="?projectId=project-a&sort=best"
+      >
+        <Activity mode="visible">
+          <ImageStudio
+            catalog={TEST_CATALOG}
+            initialSelectedAssetId={null}
+            initialState={{ assets: [ASSET], jobs: [], nextCursor: null }}
+            labels={TEST_LABELS}
+            projectId="project-a"
+            readOnly={false}
+          />
+        </Activity>
+      </NuqsTestingAdapter>,
+    );
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      view.rerender(
+        <NuqsTestingAdapter
+          hasMemory
+          searchParams="?projectId=project-a&sort=best"
+        >
+          <Activity mode="hidden">
+            <ImageStudio
+              catalog={TEST_CATALOG}
+              initialSelectedAssetId={null}
+              initialState={{ assets: [ASSET], jobs: [], nextCursor: null }}
+              labels={TEST_LABELS}
+              projectId="project-a"
+              readOnly={false}
+            />
+          </Activity>
+        </NuqsTestingAdapter>,
+      );
+    });
+
+    await act(async () => {
+      resolveBest(
+        new Response(
+          JSON.stringify({
+            assets: [projectABest, ASSET],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+
+    expect(mocks.replace).not.toHaveBeenCalled();
+
+    act(() => {
+      view.rerender(
+        <NuqsTestingAdapter
+          hasMemory
+          searchParams="?projectId=project-a&sort=best"
+        >
+          <Activity mode="visible">
+            <ImageStudio
+              catalog={TEST_CATALOG}
+              initialSelectedAssetId={null}
+              initialState={{ assets: [ASSET], jobs: [], nextCursor: null }}
+              labels={TEST_LABELS}
+              projectId="project-a"
+              readOnly={false}
+            />
+          </Activity>
+        </NuqsTestingAdapter>,
+      );
+    });
+
+    expect(
+      [...document.querySelectorAll("figure[data-asset-id]")].map((tile) =>
+        tile.getAttribute("data-asset-id"),
+      ),
+    ).toEqual(["ad-a-best", "ad-a"]);
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
   it("soft-hides an ad from the menu and keeps it out of the gallery", async () => {
     mount();
     fireEvent.pointerDown(screen.getByRole("button", { name: "more" }), {
@@ -311,5 +686,82 @@ describe("studio ratings", () => {
     render(<StudioLightbox {...props} assets={[ASSET]} />);
     await act(async () => vi.advanceTimersByTime(500));
     expect(viewed).toHaveBeenCalledTimes(2);
+  });
+
+  it("cancels lightbox view debounce while hidden in Activity and resumes on return", async () => {
+    vi.useFakeTimers();
+    const viewed = vi.fn();
+    const props = {
+      catalog: TEST_CATALOG,
+      creditsByAssetId: {},
+      elapsedByAssetId: {},
+      labels: TEST_LABELS,
+      onClose: vi.fn(),
+      onSelect: vi.fn(),
+      onCaptionChange: vi.fn(),
+      onViewed: viewed,
+      siblings: [ASSET],
+    };
+    const view = render(
+      <Activity mode="visible">
+        <StudioLightbox {...props} assets={[ASSET]} />
+      </Activity>,
+    );
+    await act(async () => vi.advanceTimersByTime(300));
+    expect(viewed).not.toHaveBeenCalled();
+
+    view.rerender(
+      <Activity mode="hidden">
+        <StudioLightbox {...props} assets={[ASSET]} />
+      </Activity>,
+    );
+    await act(async () => vi.advanceTimersByTime(2_000));
+    expect(viewed).not.toHaveBeenCalled();
+
+    view.rerender(
+      <Activity mode="visible">
+        <StudioLightbox {...props} assets={[ASSET]} />
+      </Activity>,
+    );
+    await act(async () => vi.advanceTimersByTime(499));
+    expect(viewed).not.toHaveBeenCalled();
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(viewed).toHaveBeenCalledTimes(1);
+    view.unmount();
+  });
+
+  it("resets the 500 ms view window when onViewed changes", async () => {
+    vi.useFakeTimers();
+    const firstViewed = vi.fn();
+    const secondViewed = vi.fn();
+    const assets = [ASSET];
+    const props = {
+      catalog: TEST_CATALOG,
+      creditsByAssetId: {},
+      elapsedByAssetId: {},
+      labels: TEST_LABELS,
+      onClose: vi.fn(),
+      onSelect: vi.fn(),
+      onCaptionChange: vi.fn(),
+      siblings: assets,
+    };
+    const view = render(
+      <StudioLightbox {...props} assets={assets} onViewed={firstViewed} />,
+    );
+    await act(async () => vi.advanceTimersByTime(499));
+    expect(firstViewed).not.toHaveBeenCalled();
+
+    view.rerender(
+      <StudioLightbox {...props} assets={assets} onViewed={secondViewed} />,
+    );
+    await act(async () => vi.advanceTimersByTime(499));
+    expect(firstViewed).not.toHaveBeenCalled();
+    expect(secondViewed).not.toHaveBeenCalled();
+
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(firstViewed).not.toHaveBeenCalled();
+    expect(secondViewed).toHaveBeenCalledTimes(1);
+    expect(secondViewed).toHaveBeenCalledWith(ASSET);
+    view.unmount();
   });
 });

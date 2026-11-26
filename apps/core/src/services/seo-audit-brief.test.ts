@@ -167,6 +167,18 @@ it("keeps an intended exclusion private and withholds stale index advice after a
   });
 });
 
+it("quotes the owner's original wording inside an English recommendation", () => {
+  const job = "Verfügbare Kurse vergleichen";
+  const outcome = "Plus de réservations";
+  const [priority] = briefPriorities(
+    { ...brief, outcome, pages: [{ ...brief.pages[0], job }] },
+    [],
+    new Map(),
+  );
+  expect(priority.nextStep).toContain(`the task described as “${job}”`);
+  expect(priority.nextStep).toContain(`the stated outcome “${outcome}”`);
+});
+
 it("changes discretionary priorities on the same pages when the owner switches from sales to support; a genuine index issue still leads", () => {
   const future = new Map();
   const follow = brief.pages.map((p) => briefFollowUp(p, null, null));
@@ -242,4 +254,69 @@ it("uses matching named events across comparable sales pages and never treats ge
   expect(briefPriorities(content, [], aggregate, sales)[0].pageId).toBe(
     priceId,
   );
+});
+
+it("raises a measured organic goal decline over routine pages with a Search Console next step; a held goal and an index issue keep their order", () => {
+  const follow = brief.pages.map((p) => briefFollowUp(p, null, null));
+  const control = {
+    pageUrl: scope[1].url,
+    timeZone: "Europe/Berlin",
+    event: "sign_up" as const,
+    before: {
+      from: "2026-09-01",
+      to: "2026-09-14",
+      organic: { sessions: 400, rate: 0.05 },
+      direct: { sessions: 200, rate: 0.04 },
+    },
+    after: {
+      from: "2026-09-15",
+      to: "2026-09-28",
+      organic: { sessions: 420, rate: 0.03 },
+      direct: { sessions: 210, rate: 0.04 },
+    },
+    assessment: "organic_declined" as const,
+  };
+  const declined = [follow[0], { ...follow[1], goalInvestigation: control }];
+  // Sales objective: the pricing page fits it, yet the measured decline on the support page leads.
+  const [first] = briefPriorities(brief, declined, new Map());
+  expect(first.pageId).toBe(supportId);
+  expect(first.nextStep).toMatch(
+    /^The organic goal rate fell .*Search Console/,
+  );
+  expect(first.nextStep).toContain(brief.pages[1].job!);
+  expect(first.why).toContain(
+    "GA4 sign_up rate: organic search 5.0% of 400 sessions from 2026-09-01 to 2026-09-14, then 3.0% of 420 sessions from 2026-09-15 to 2026-09-28; direct 4.0% of 200 sessions from 2026-09-01 to 2026-09-14, then 4.0% of 210 sessions from 2026-09-15 to 2026-09-28.",
+  );
+  const uneven = briefPriorities(
+    brief,
+    [
+      follow[0],
+      { ...follow[1], goalInvestigation: { ...control, weekdayMix: "uneven" } },
+    ],
+    new Map(),
+  )[0];
+  expect(uneven.nextStep).toContain("Check the pattern by weekday");
+  const held = briefPriorities(
+    brief,
+    [
+      follow[0],
+      {
+        ...follow[1],
+        goalInvestigation: { ...control, assessment: "goal_held" },
+      },
+    ],
+    new Map(),
+  );
+  expect(held[0].pageId).toBe(priceId);
+  expect(held[1].nextStep).not.toContain("Search Console");
+  expect(held[1].why).toContainEqual(
+    expect.stringContaining("GA4 sign_up rate"),
+  );
+  expect(
+    briefPriorities(
+      brief,
+      [{ ...follow[0], indexReview: "review_indexing" }, declined[1]],
+      new Map(),
+    ).map((p) => p.pageId),
+  ).toEqual([priceId, supportId]);
 });

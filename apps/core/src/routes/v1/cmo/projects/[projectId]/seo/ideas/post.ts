@@ -5,7 +5,10 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { rethrow } from "@/routes/v1/cmo/helpers";
 import { cmoProjectParamsSchema } from "@/schemas/cmo.schema";
-import { requestCmoArticleIdeas } from "@/services/cmo-seo.service";
+import {
+  requestCmoArticle,
+  requestCmoArticleIdeas,
+} from "@/services/cmo-seo.service";
 
 const route = createRoute({
   method: "post",
@@ -13,8 +16,18 @@ const route = createRoute({
   operationId: "requestCmoArticleIdeasForProject",
   tags: ["CMO"],
   description:
-    "More article ideas: Cuso researches keywords and saves new article suggestions; his answer lands in the chat.",
-  request: { params: cmoProjectParamsSchema },
+    "More article ideas: Cuso researches keywords and saves new article suggestions. With write, he picks the best search and writes one whole article instead. His answer lands in the chat.",
+  request: {
+    params: cmoProjectParamsSchema,
+    body: {
+      required: false,
+      content: {
+        "application/json": {
+          schema: z.object({ write: z.boolean().optional() }),
+        },
+      },
+    },
+  },
   responses: {
     200: jsonSuccessResponse(z.object({ turnId: z.string() }), "Cuso started"),
     401: jsonErrorResponse("Unauthorized"),
@@ -28,9 +41,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId } = c.req.valid("param");
+    const body = await c.req.json().catch(() => ({}));
+    const write = z.object({ write: z.boolean().optional() }).safeParse(body)
+      .data?.write;
     return ok(
       c,
-      await requestCmoArticleIdeas({ userId, projectId }).catch(rethrow),
+      await (write
+        ? requestCmoArticle({ userId, projectId })
+        : requestCmoArticleIdeas({ userId, projectId })
+      ).catch(rethrow),
     );
   });
 }

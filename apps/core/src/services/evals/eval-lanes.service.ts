@@ -4,6 +4,7 @@ import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { del } from "@vercel/blob";
 import { z } from "zod";
 import { getEnv } from "@/config/env";
+import { jsonInput } from "@/helpers/prisma-json";
 import { getCredits } from "@/helpers/user";
 import prisma from "@/lib/db/prisma";
 import {
@@ -15,6 +16,7 @@ import { tombstoneDriveUploadResources } from "@/services/file-catalog.service";
 import { freeCreditAdminService } from "@/services/free-credit-admin.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { getDefaultSokoBotVersionId } from "@/services/soko-bot-version.service";
+import { closeA2aWorld } from "./eval-a2a";
 
 /**
  * Eval lanes: one eval organization per lane, each a small, fixed world the
@@ -70,7 +72,7 @@ async function ensureUser(lane: number, who: string, name: string) {
     data: {
       name,
       firstName,
-      lastName,
+      lastName: lastName ?? null,
       email,
       emailVerified: true,
       termsAccepted: true,
@@ -294,7 +296,7 @@ async function createLane(lane: number): Promise<EvalLaneRecord> {
       sokoBotId: bot.id,
       cusoBotId: cuso.id,
       cusoProjectId: cusoProject.id,
-      world,
+      world: jsonInput(world),
     },
   });
   return toRecord(row);
@@ -430,6 +432,52 @@ export async function defaultEvalVersions() {
  * made (Tasks, schedules, posts in the room, Drive files, drafts, contacts)
  * goes, and memory starts empty. The seeded Projects, people and room stay.
  */
+function evalXAccountId(sokoBotId: string): string {
+  return `${EVAL_CONNECTED_ACCOUNT_PREFIX}x-dms:${sokoBotId}`;
+}
+
+/**
+ * A stand-in X connection holding only the DMs a case gives, as contact
+ * capture keeps them: the ingest, stand-up and search_inbox read them, and
+ * nothing ever calls X for it.
+ */
+export async function seedEvalXDms(
+  lane: EvalLaneRecord,
+  dms: readonly {
+    from: string;
+    text: string;
+    minutesAgo: number;
+    conversation: string;
+    fromOwner?: boolean;
+  }[],
+): Promise<void> {
+  const now = Date.now();
+  const cursor = {
+    xDms: dms.map((dm, index) => ({
+      id: `eval-dm-${index + 1}`,
+      conversationId: dm.conversation,
+      from: dm.fromOwner ? "Robin Keller (@robinkeller)" : dm.from,
+      createdAt: new Date(now - dm.minutesAgo * 60_000).toISOString(),
+      text: dm.text,
+      fromOwner: dm.fromOwner ?? false,
+    })),
+  };
+  const composioAccountId = evalXAccountId(lane.sokoBotId);
+  await prisma.sokoBotIntegration.upsert({
+    where: { composioAccountId },
+    create: {
+      sokoBotId: lane.sokoBotId,
+      provider: "twitter",
+      name: "X",
+      composioAccountId,
+      status: "ACTIVE",
+      connectedAt: new Date(now),
+      cursor,
+    },
+    update: { status: "ACTIVE", cursor },
+  });
+}
+
 export async function resetEvalLaneForSokoBot(
   lane: EvalLaneRecord,
 ): Promise<void> {
@@ -477,6 +525,10 @@ export async function resetEvalLaneForSokoBot(
   await prisma.socialPost.deleteMany({ where: { workspaceId } });
   await prisma.newsletterIssue.deleteMany({ where: { workspaceId } });
   await prisma.contact.deleteMany({ where: { workspaceId } });
+  await prisma.sokoBotIntegration.deleteMany({
+    where: { sokoBotId, composioAccountId: evalXAccountId(sokoBotId) },
+  });
   await sokoBotControlPlane.resetMemory(lane.userId, workspaceId);
   await seedEvalMcpServer(lane);
+  await closeA2aWorld(lane);
 }

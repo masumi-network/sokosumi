@@ -14,7 +14,7 @@ vi.mock("@/components/chat/emoji-picker", () => ({
   EmojiPicker: () => null,
 }));
 
-vi.mock("@/hooks/use-keyboard-open", () => ({
+vi.mock("@/hooks/effects/use-keyboard-open", () => ({
   useKeyboardOpen: () => false,
 }));
 

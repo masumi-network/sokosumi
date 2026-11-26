@@ -1,6 +1,17 @@
-import { render, screen, within } from "@testing-library/react";
+vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
+
+import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
+
+let pathname = "/";
+vi.mock("next/navigation", () => ({
+  usePathname: () => pathname,
+  useRouter: () => ({ prefetch: vi.fn() }),
+}));
+vi.mock("@/app/components/sidebar/components/global-rail.client", () => ({
+  GlobalRail: () => null,
+}));
 
 vi.mock("next/link", () => ({
   default: ({
@@ -17,7 +28,7 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   MOBILE_BREAKPOINT: 768,
   useIsMobile: () => false,
 }));
@@ -56,11 +67,12 @@ function tokens(element: Element | null | undefined): string[] {
   return (element?.className ?? "").split(/\s+/).filter(Boolean);
 }
 
-function renderSidebar() {
+function renderSidebar(path = "/agents") {
+  pathname = path;
   return render(
     <SidebarProvider defaultOpen>
       <Sidebar
-        workspaceSwitcher={<button type="button">Acme</button>}
+        workspaceSwitcher={<button type="button">Workspace</button>}
         accountFooter={<div>account</div>}
         chatList={<nav aria-label="chatList" />}
         newsletterEnabled={false}
@@ -69,69 +81,17 @@ function renderSidebar() {
   );
 }
 
-function sidebarHeader(container: HTMLElement): HTMLElement {
-  const header = container.querySelector<HTMLElement>(
-    '[data-slot="sidebar-header"]',
-  );
-  if (!header) throw new Error("no sidebar header");
-  return header;
-}
-
-describe("Sidebar header", () => {
-  // As in Linear: the switcher at the start, Search and New task pushed to
-  // the end.
-  it("leads with the Workspace switcher, then Search, then New task", () => {
-    const { container } = renderSidebar();
-    const header = sidebarHeader(container);
-
-    const switcher = within(header).getByRole("button", { name: "Acme" });
-    const search = within(header).getByRole("button", { name: "search" });
-    const newTask = within(header).getByRole("button", { name: "newTask" });
-
-    expect(follows(switcher, search)).toBe(true);
-    expect(follows(search, newTask)).toBe(true);
-    // The switcher's slot takes the room the buttons leave, so they sit at
-    // the end and its name shortens before it reaches them.
-    expect(tokens(switcher.parentElement)).toEqual(
-      expect.arrayContaining(["min-w-0", "flex-1"]),
-    );
-    expect(switcher.parentElement?.contains(search)).toBe(false);
-    // The same 64px row as the top bar, so the hairline runs straight across.
-    expect(tokens(header)).toEqual(
-      expect.arrayContaining(["h-16", "border-b"]),
-    );
-  });
-
-  // The phone keeps its switcher in the top bar, and its sheet is unchanged.
-  it("leaves the wordmark to the phone sheet, and the switcher to desktop", () => {
-    const { container } = renderSidebar();
-    const header = sidebarHeader(container);
-
-    const switcher = within(header).getByRole("button", { name: "Acme" });
-    const wordmark = within(header).getByRole("link");
-
-    expect(wordmark).toHaveAttribute("href", "/");
-    expect(tokens(wordmark.parentElement)).toContain("md:hidden");
-    expect(tokens(switcher.parentElement)).toContain("max-md:hidden");
-  });
-});
-
-function follows(first: Element, second: Element): boolean {
-  return Boolean(
-    first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING,
-  );
-}
-
 describe("Sidebar project scope", () => {
-  it("titles the nav with the project scope, directly under Soko Bot", () => {
+  it("shows project scope above the Work links and hides Chats", () => {
     renderSidebar();
 
-    const sokoBot = screen.getByRole("link", { name: "sokoBot" });
+    expect(screen.queryByRole("link", { name: "sokoBot" })).toBeNull();
     const title = screen.getByRole("button", { name: "projectTitle" });
     const nav = screen.getByRole("navigation", { name: "menuItems" });
 
-    expect(follows(sokoBot, title)).toBe(true);
-    expect(follows(title, nav)).toBe(true);
+    expect(
+      title.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   // Work, Records and Marketing read as inside the project; the chat
@@ -142,7 +102,7 @@ describe("Sidebar project scope", () => {
     const scoped = screen.getByRole("navigation", {
       name: "menuItems",
     }).parentElement;
-    const chatList = screen.getByRole("navigation", { name: "chatList" });
+    const chatList = document.querySelector('[aria-label="chatList"]');
 
     expect(tokens(scoped)).toEqual(
       expect.arrayContaining(["max-md:border-s", "border-sidebar-border"]),
@@ -153,20 +113,23 @@ describe("Sidebar project scope", () => {
     ).toBe(false);
   });
 
-  // The chat area is headed like the nav groups (its Chats heading lives in
-  // the list), so no rule cuts the sidebar in two between them.
-  it("runs the nav straight into the chat area, with no rule between", () => {
-    const { container } = renderSidebar();
-    const scoped = screen.getByRole("navigation", {
-      name: "menuItems",
-    }).parentElement;
-    const chatList = screen.getByRole("navigation", { name: "chatList" });
+  it("shows the chat list in Chats", () => {
+    renderSidebar("/chat/example");
 
-    expect(
-      container.querySelector(
-        '[data-slot="sidebar-content"] [data-slot="sidebar-separator"]',
-      ),
-    ).toBeNull();
-    expect(scoped?.nextElementSibling).toBe(chatList);
+    expect(screen.getByRole("navigation", { name: "chatList" })).toBeVisible();
+    expect(screen.queryByRole("navigation", { name: "menuItems" })).toBeNull();
   });
+});
+
+it("places workspace selection above the phone drawer panels", () => {
+  const { container } = renderSidebar();
+  const row = container.querySelector('[data-slot="sidebar-workspace-row"]');
+  const panel = container.querySelector("#app-sidebar-panel");
+  expect(row).toHaveClass("md:hidden", "h-12");
+  expect(row).toHaveTextContent("Workspace");
+  expect(
+    panel &&
+      row &&
+      row.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
 });

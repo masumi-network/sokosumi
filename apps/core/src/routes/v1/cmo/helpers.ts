@@ -41,6 +41,7 @@ function mapOverview(overview: CmoOverview) {
     brandVisual: overview.brandVisual,
     projectLogo: overview.projectLogo,
     presenterSet: overview.presenterSet,
+    upgrade: overview.upgrade,
     onboardingStep: overview.onboardingStep,
     routines: overview.routines,
     timeZone: overview.timeZone,
@@ -51,6 +52,7 @@ function mapOverview(overview: CmoOverview) {
     brandBrainConfirmedAt: cuso.brandBrainConfirmedAt,
     brandMedia: overview.brandMedia,
     strategy: overview.strategy,
+    strategyShort: overview.strategyShort,
     approvedStrategy: overview.approvedStrategy,
     media: overview.media,
     postRevisions: overview.postRevisions,
@@ -77,6 +79,7 @@ function mapOverview(overview: CmoOverview) {
     measurement: overview.measurement,
     production: overview.production,
     mailingListSize: overview.mailingListSize,
+    comments: overview.comments,
     billing: overview.billing,
     posts: {
       draft: overview.posts.DRAFT ?? 0,

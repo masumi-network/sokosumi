@@ -8,9 +8,17 @@ import {
   originalAvatarLook,
   parseAvatarCode,
 } from "@sokosumi/soko-bot";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { SETUP_ASSISTANT_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { pickMessages } from "@/i18n/pick-messages";
@@ -47,6 +55,28 @@ function lastCode(onChange: ReturnType<typeof vi.fn>): string {
   return onChange.mock.calls.at(-1)?.[0] as string;
 }
 
+function ControlledStudio({
+  initialCode,
+  onChange,
+  compact,
+}: {
+  initialCode: string;
+  onChange?: (code: string) => void;
+  compact?: boolean;
+}) {
+  const [code, setCode] = useState(initialCode);
+  return (
+    <AvatarStudio
+      code={code}
+      compact={compact}
+      onChange={(next) => {
+        setCode(next);
+        onChange?.(next);
+      }}
+    />
+  );
+}
+
 describe("AvatarStudio", () => {
   it("names every control with setup's messages, not raw keys", () => {
     // `/setup/assistant` hands the client only its own bag; a key outside it
@@ -57,24 +87,21 @@ describe("AvatarStudio", () => {
         messages={pickMessages(en, SETUP_ASSISTANT_MESSAGE_PATHS)}
         onError={() => {}}
       >
-        <AvatarStudio initialCode={formatAvatarCode(fox)} onChange={vi.fn()} />
+        <AvatarStudio code={formatAvatarCode(fox)} onChange={vi.fn()} />
       </NextIntlClientProvider>,
     );
     expect(screen.getByRole("radio", { name: "Idle" })).toBeTruthy();
     expect(document.body.textContent).not.toContain("App.SokoBot");
   });
 
-  it("opens on the code it is given and reports it", () => {
+  it("opens on the code it is given without firing onChange until edited", () => {
     const onChange = vi.fn();
     render(
       withIntl(
-        <AvatarStudio
-          initialCode={formatAvatarCode(fox)}
-          onChange={onChange}
-        />,
+        <AvatarStudio code={formatAvatarCode(fox)} onChange={onChange} />,
       ),
     );
-    expect(lastCode(onChange)).toBe(formatAvatarCode(fox));
+    expect(onChange).not.toHaveBeenCalled();
     expect(screen.getByTestId("preview")).toHaveAttribute(
       "data-code",
       formatAvatarCode(fox),
@@ -84,7 +111,7 @@ describe("AvatarStudio", () => {
   it("disables the backgrounds the animal cannot be read on", () => {
     render(
       withIntl(
-        <AvatarStudio initialCode={formatAvatarCode(fox)} onChange={vi.fn()} />,
+        <AvatarStudio code={formatAvatarCode(fox)} onChange={vi.fn()} />,
       ),
     );
     const row = within(screen.getByRole("radiogroup", { name: "Background" }));
@@ -104,11 +131,7 @@ describe("AvatarStudio", () => {
       (a) => featureOptions(a).mouth.length === 1,
     );
     expect(plain).toBeTruthy();
-    render(
-      withIntl(
-        <AvatarStudio initialCode={formatAvatarCode(fox)} onChange={vi.fn()} />,
-      ),
-    );
+    render(withIntl(<ControlledStudio initialCode={formatAvatarCode(fox)} />));
     await user.click(
       screen.getByRole("button", {
         name: en.App.SokoBot.AvatarStudio.animals[
@@ -126,7 +149,7 @@ describe("AvatarStudio", () => {
     const onChange = vi.fn();
     render(
       withIntl(
-        <AvatarStudio
+        <ControlledStudio
           initialCode={formatAvatarCode(fox)}
           onChange={onChange}
         />,
@@ -148,7 +171,7 @@ describe("AvatarStudio", () => {
       withIntl(
         <AvatarStudio
           compact
-          initialCode={formatAvatarCode(fox)}
+          code={formatAvatarCode(fox)}
           onChange={vi.fn()}
         />,
       ),
@@ -172,15 +195,106 @@ describe("AvatarStudio", () => {
     ).toBeNull();
   });
 
+  // More details sits at the foot of setup, beside the pinned Create, so the
+  // fold would open below the screen with nothing to show it did.
+  it("in setup brings More details to the top once its fold has opened", async () => {
+    const user = userEvent.setup();
+    const scrollIntoView = vi
+      .spyOn(Element.prototype, "scrollIntoView")
+      .mockImplementation(() => {});
+    render(
+      withIntl(
+        <AvatarStudio
+          compact
+          code={formatAvatarCode(fox)}
+          onChange={vi.fn()}
+        />,
+      ),
+    );
+    const trigger = screen.getByRole("button", { name: /More details/ });
+
+    await user.click(trigger);
+    // The fold is still growing; there is nothing below to scroll to yet.
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    fireEvent.animationEnd(
+      screen
+        .getByRole("radiogroup", { name: "Background" })
+        .closest("[data-state]") as Element,
+    );
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView.mock.contexts[0]).toBe(trigger);
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: "start",
+      behavior: "smooth",
+    });
+    vi.restoreAllMocks();
+  });
+
+  // Setup shows a small live preview in its pinned bar while the big one is scrolled away.
+  it("in setup tells the caller when More details opens and closes", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => {});
+    const onMoreDetailsChange = vi.fn();
+    render(
+      withIntl(
+        <AvatarStudio
+          compact
+          code={formatAvatarCode(fox)}
+          onChange={vi.fn()}
+          onMoreDetailsChange={onMoreDetailsChange}
+        />,
+      ),
+    );
+    const trigger = screen.getByRole("button", { name: /More details/ });
+
+    await user.click(trigger);
+    expect(onMoreDetailsChange).toHaveBeenLastCalledWith(true);
+    await user.click(trigger);
+    expect(onMoreDetailsChange).toHaveBeenLastCalledWith(false);
+    vi.restoreAllMocks();
+  });
+
+  it("in setup jumps to More details when motion is reduced", async () => {
+    const user = userEvent.setup();
+    const scrollIntoView = vi
+      .spyOn(Element.prototype, "scrollIntoView")
+      .mockImplementation(() => {});
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query) =>
+        ({
+          matches: query === "(prefers-reduced-motion: reduce)",
+        }) as MediaQueryList,
+    );
+    render(
+      withIntl(
+        <AvatarStudio
+          compact
+          code={formatAvatarCode(fox)}
+          onChange={vi.fn()}
+        />,
+      ),
+    );
+    const trigger = screen.getByRole("button", { name: /More details/ });
+
+    // No animation runs, so the fold has its height on the next frame.
+    await user.click(trigger);
+    await waitFor(() =>
+      expect(scrollIntoView).toHaveBeenCalledWith({
+        block: "start",
+        behavior: "auto",
+      }),
+    );
+    expect(scrollIntoView.mock.contexts[0]).toBe(trigger);
+    vi.restoreAllMocks();
+  });
+
   it("changes the preview state without touching the look", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(
       withIntl(
-        <AvatarStudio
-          initialCode={formatAvatarCode(fox)}
-          onChange={onChange}
-        />,
+        <AvatarStudio code={formatAvatarCode(fox)} onChange={onChange} />,
       ),
     );
     const calls = onChange.mock.calls.length;

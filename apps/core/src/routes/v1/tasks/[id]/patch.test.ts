@@ -20,9 +20,6 @@ import { taskEventApiInclude } from "@/types/task";
 
 import mountPatchTask, { patchTaskRequestSchema } from "./patch";
 
-vi.mock("@/helpers/task-tag-rollout", () => ({
-  TASK_WORKSPACE_JEV_ENABLED: true,
-}));
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
   const { stubAuthMiddleware } = await import(
@@ -633,11 +630,9 @@ describe("PATCH /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(taskUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ priority: TaskPriority.URGENT }),
-      }),
-    );
+    expect(taskUpdateMock.mock.lastCall?.[0].data).toStrictEqual({
+      priority: TaskPriority.URGENT,
+    });
   });
 
   it("stores dueOn as the calendar day it names", async () => {

@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-proguard
-version: 0.49.0
+version: 0.50.0
 description: Work with ProGuard/R8 mapping files
 requires:
   bins: ["sentry"]
@@ -17,11 +17,12 @@ Upload ProGuard/R8 mapping files to Sentry
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument    | Description                        |
+| ----------- | ---------------------------------- |
 | `<path...>` | Paths to ProGuard/R8 mapping files |
 
 **Flags:**
+
 - `--uuid <value> - Force a specific UUID instead of computing from file content (only valid with a single file)`
 - `--no-upload - Compute and print UUIDs without uploading (dry-run)`
 - `--require-one - Require at least one mapping file (error if none provided)`
@@ -51,8 +52,8 @@ Compute the UUID for a ProGuard mapping file
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument | Description                       |
+| -------- | --------------------------------- |
 | `<path>` | Path to the ProGuard mapping file |
 
 **Examples:**

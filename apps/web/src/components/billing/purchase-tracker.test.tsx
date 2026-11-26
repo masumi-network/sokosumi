@@ -16,10 +16,8 @@ vi.mock("@/lib/gtm-events", () => ({
 }));
 
 import { expectConsole } from "@sokosumi/utils/test-console";
-import {
-  PurchaseTracker,
-  resetFiredPurchaseSessionIdsForTests,
-} from "./purchase-tracker";
+import { resetFiredPurchaseSessionIdsForTests } from "@/hooks/effects/use-track-purchase";
+import { PurchaseTracker } from "./purchase-tracker";
 
 const checkoutSession: CheckoutSessionAnalytics = {
   sessionId: "cs_once",

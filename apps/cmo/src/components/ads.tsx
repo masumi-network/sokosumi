@@ -2,8 +2,10 @@
 
 import type { CmoAdCampaigns, CmoOverview } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useAdCampaigns } from "../hooks/effects/use-ad-campaigns";
 import { AGENT_NAME } from "../lib/agent";
+import { adsReturnErrorFromCode } from "../lib/connect-return";
 import type { View } from "../lib/views";
 import { ViewLink } from "./app/view-link";
 
@@ -33,13 +35,9 @@ export interface AdActions {
 /** Why an ad connection came back without an account, from the return address. */
 export function adsReturnError(): string | null {
   if (typeof window === "undefined") return null;
-  const ads = new URLSearchParams(window.location.search).get("ads");
-  if (ads === "none") {
-    return "That login has no ad account. Create one in Google Ads or Meta, then connect again.";
-  }
-  return ads === "failed"
-    ? "That ad connection didn't finish. Try again."
-    : null;
+  return adsReturnErrorFromCode(
+    new URLSearchParams(window.location.search).get("ads"),
+  );
 }
 
 /** Starts connecting Google Ads or Meta Ads; the browser goes to their sign-in. */
@@ -215,26 +213,11 @@ export function AdsPanel({
   onChange: (overview: CmoOverview) => void;
   openView: (view: View) => void;
 }) {
-  const [accounts, setAccounts] = useState<AdAccounts | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const connected = overview.adProviders.length > 0;
   const { loadAdCampaigns } = actions;
-
-  useEffect(() => {
-    if (!connected) return;
-    let current = true;
-    loadAdCampaigns("LAST_7_DAYS")
-      .then((loaded) => {
-        if (current) setAccounts(loaded);
-      })
-      .catch(() => {
-        if (current) setAccounts([]);
-      });
-    return () => {
-      current = false;
-    };
-  }, [connected, loadAdCampaigns]);
+  const [accounts, setAccounts] = useAdCampaigns(connected, loadAdCampaigns);
 
   return (
     <section className="card">
@@ -269,7 +252,7 @@ export function AdsPanel({
                     {campaign.clicks} clicks
                     {campaign.conversions === null
                       ? ""
-                      : ` · ${campaign.conversions} conversions`}{" "}
+                      : ` · ${campaign.conversions} sign-ups or sales`}{" "}
                     · last 7 days
                   </span>
                 </span>

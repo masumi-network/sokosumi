@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { checkFileLabelName } from "@sokosumi/utils";
 
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
@@ -106,14 +107,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           // Task edits lock their workspace FOR UPDATE before reading the applied
           // tag IDs. Wait here before moving assignments or dismissal decisions.
           await tx.$queryRaw`
-            SELECT id FROM "workspace"
+            SELECT id FROM ${sharedTable("workspace")}
             WHERE id = ${context.workspaceId}::uuid FOR KEY SHARE
           `;
         }
         // Task assignments hold shared locks on these rows. Take both locks
         // before moving assignments so a concurrent edit cannot revive the source.
         const active = await tx.$queryRaw<{ id: string }[]>`
-          SELECT id FROM workspace_label
+          SELECT id FROM ${sharedTable("workspace_label")}
           WHERE id IN (${label.id}::uuid, ${target.id}::uuid)
             AND "mergedIntoId" IS NULL
             AND (id = ${label.id}::uuid OR "archivedAt" IS NULL)
@@ -210,14 +211,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ...(body.description !== undefined
           ? { description: body.description ?? null }
           : {}),
-        color: body.color,
+        ...(body.color !== undefined && { color: body.color }),
         // Older clients can still choose a named color or reset to Automatic.
-        customColor:
-          body.customColor !== undefined
-            ? body.customColor
-            : body.color !== undefined
-              ? null
-              : undefined,
+        ...(body.customColor !== undefined
+          ? { customColor: body.customColor }
+          : body.color !== undefined
+            ? { customColor: null }
+            : {}),
         ...(body.archived !== undefined
           ? { archivedAt: body.archived ? new Date() : null }
           : {}),

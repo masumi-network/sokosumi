@@ -1,5 +1,5 @@
 import type { ProjectSeoStrategy } from "@sokosumi/core-client";
-import { useTranslations } from "next-intl";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { SeoPageLink } from "./seo-shared";
 
 const SEARCH_INTENTS = ["buyer", "informational", "other"] as const;
@@ -9,7 +9,7 @@ export function SeoStrategyPurpose({
 }: {
   strategy: ProjectSeoStrategy;
 }) {
-  const t = useTranslations("App.Seo.strategy.purpose");
+  const t = useSeoResultTranslations("App.Seo.strategy.purpose");
   const {
     purpose,
     purposeSource,
@@ -19,7 +19,11 @@ export function SeoStrategyPurpose({
   } = strategy;
   if (!purpose) return null;
   return (
-    <section aria-label={t("title")} className="space-y-3 border-b pb-3">
+    <section
+      lang="en"
+      aria-label={t("title")}
+      className="space-y-3 border-b pb-3"
+    >
       <p>
         <strong className="font-medium">{t(`goal.${purpose}`)}</strong>{" "}
         <span className="text-muted-foreground">

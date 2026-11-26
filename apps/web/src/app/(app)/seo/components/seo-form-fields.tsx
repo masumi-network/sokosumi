@@ -49,6 +49,7 @@ export function SeoSelect({
   placeholder,
   required,
   disabled,
+  lang,
 }: {
   id: string;
   name?: string;
@@ -59,6 +60,7 @@ export function SeoSelect({
   placeholder?: string;
   required?: boolean;
   disabled?: boolean;
+  lang?: string;
 }) {
   return (
     <Select
@@ -69,10 +71,10 @@ export function SeoSelect({
       required={required}
       disabled={disabled}
     >
-      <SelectTrigger id={id} className="w-full">
+      <SelectTrigger id={id} lang={lang} className="w-full">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent lang={lang}>
         {options.map((option) => (
           <SelectItem key={option.value} value={option.value}>
             <bdi>{option.label}</bdi>

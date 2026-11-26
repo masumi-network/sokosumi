@@ -1,3 +1,5 @@
+import { Prisma } from "@sokosumi/database";
+import type { MarketingStrategyPlan } from "@sokosumi/soko-bot";
 import {
   afterEach,
   beforeEach,
@@ -22,6 +24,8 @@ import {
   postFindFirst,
   postFindMany,
   postUpdate,
+  projectFindFirst,
+  projectUpdate,
   referenceFindMany,
   resetCmoServiceMocks,
   revised,
@@ -31,7 +35,20 @@ import {
   strategy,
   strategyRows,
   turnFindFirst,
+  turnFindMany,
+  turnFindUnique,
 } from "@/test-fixtures/cmo-service";
+
+const kickCmoProduction = vi.hoisted(() => vi.fn());
+const postSokoBotOwnerNotice = vi.hoisted(() => vi.fn());
+vi.mock("@/services/soko-bot-chat.service", () => ({
+  postSokoBotOwnerNotice,
+}));
+vi.mock("@/services/cmo-production.service", () => ({ kickCmoProduction }));
+vi.mock("@/services/cmo-industry.service", () => ({
+  cmoIndustryBeforePlan: vi.fn(async () => undefined),
+  cmoIndustryPillarProblems: vi.fn(async () => null),
+}));
 
 const libraryAvailable = vi.hoisted(() => vi.fn(() => false));
 vi.mock("@/services/reference-library.service", () => ({
@@ -39,8 +56,9 @@ vi.mock("@/services/reference-library.service", () => ({
 }));
 
 // PostgreSQL's clock is the test clock here.
+const pgClock = vi.hoisted(() => ({ now: null as Date | null }));
 vi.mock("@/lib/db/database-now", () => ({
-  databaseNow: async () => new Date(),
+  databaseNow: async () => pgClock.now ?? new Date(),
 }));
 vi.mock(
   "@/lib/db/prisma",
@@ -112,11 +130,13 @@ import {
   pauseCmoCalendarEntry,
   requestCmoStrategy,
   requireCmoStrategyFitted,
+  resumeCmoMonthFinishes,
   saveCmoStrategy,
   setCmoAdBudget,
   startCmoPlanAfterResearch,
   startNextCmoChange,
   withoutDashes,
+  withoutUnaskedAds,
 } from "./cmo-strategy.service";
 
 beforeEach(resetCmoServiceMocks);
@@ -172,6 +192,54 @@ describe("requestCmoStrategy", () => {
 
     expect(approvedRows()).toHaveLength(1);
     expect(strategyRows).toHaveLength(1);
+  });
+
+  // NMKR (2026-11-23): approved, never paid, so paused (ADR 0068); a new
+  // strategy goes back to hiring instead of being refused.
+  it("reopens an unpaid hire's approved strategy and writes the new one over it", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    const approved = seedStrategy(strategy, {
+      approvedAt: new Date("2026-10-01T09:00:00Z"),
+    });
+    projectFindFirst.mockResolvedValue({ id: "project-1" });
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    await requestCmoStrategy({ projectId: "project-1", userId: "user-1" });
+
+    expect(approvedRows()).toHaveLength(0);
+    expect(strategyRows).toHaveLength(2);
+    expect(strategyRows.find((row) => row.id === approved.id)?.plan).toEqual(
+      approved.plan,
+    );
+  });
+
+  it("restores the approval when the new strategy does not start", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
+    projectFindFirst.mockResolvedValue({ id: "project-1" });
+    startTurn.mockRejectedValue(new Error("no seat"));
+
+    await expect(
+      requestCmoStrategy({ projectId: "project-1", userId: "user-1" }),
+    ).rejects.toThrow("no seat");
+    expect(approvedRows()).toHaveLength(1);
+  });
+
+  it("starts a new strategy over a draft from an empty month, keeping the draft", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    const draft = seedStrategy(strategy);
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    await requestCmoStrategy({ projectId: "project-1", userId: "user-1" });
+
+    expect(strategyRows).toHaveLength(2);
+    const fresh = strategyRows.find((row) => row.id !== draft.id);
+    expect((fresh?.plan as unknown as MarketingStrategyPlan).calendar).toEqual(
+      [],
+    );
+    expect((draft.plan as unknown as MarketingStrategyPlan).calendar).toEqual(
+      strategy.calendar,
+    );
   });
 
   it("has Cuso correct each section the owner said no to before he plans", async () => {
@@ -245,6 +313,35 @@ describe("requestCmoStrategy", () => {
     );
   });
 
+  // NMKR, 21 Nov 2026: "send the whole calendar" did not fit a 160-entry month.
+  it("has cmo-v13 save an owner's change as a part patch, never the whole calendar", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    sokoBotFindUnique.mockResolvedValueOnce({ versionId: "cmo-v13" });
+    await requestCmoStrategy({
+      projectId: "project-1",
+      userId: "user-1",
+      note: "2 a day on X",
+    });
+    const v13 = JSON.stringify(startTurn.mock.lastCall);
+    expect(v13).toContain(
+      "Save with save_strategy part patch: only the calendar entries you change",
+    );
+    expect(v13).not.toContain("(send the whole calendar)");
+
+    sokoBotFindUnique.mockResolvedValueOnce({ versionId: "cmo-v10" });
+    await requestCmoStrategy({
+      projectId: "project-1",
+      userId: "user-1",
+      note: "2 a day on X",
+    });
+    expect(JSON.stringify(startTurn.mock.lastCall)).toContain(
+      "(send the whole calendar)",
+    );
+  });
+
   it("uses the frozen site language without reading the live German site", async () => {
     cusoFind.mockResolvedValue(cuso);
     startTurn.mockResolvedValue({ turnId: "turn-9" });
@@ -302,6 +399,40 @@ describe("requestCmoStrategy", () => {
     expect(JSON.stringify(startTurn.mock.lastCall)).not.toContain(
       "First correct the Brand Brain",
     );
+  });
+
+  it("keeps a no to ads on the same version when the plan has none", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    const approvedAt = new Date("2026-10-01T09:00:00Z");
+    const row = seedStrategy(
+      {
+        ...strategy,
+        ads: {
+          monthly: 0,
+          currency: "CHF",
+          expect: "More searches.",
+          without: "Posts alone.",
+          suggest: { channel: "google_ads", monthly: 600 },
+        },
+      },
+      { approvedAt },
+    );
+
+    await expect(
+      setCmoAdBudget({
+        projectId: "project-1",
+        userId: "user-1",
+        monthly: 0,
+        currency: "chf",
+      }),
+    ).resolves.toEqual({ turnId: null, queued: false });
+
+    expect(startTurn).not.toHaveBeenCalled();
+    expect(strategyRows).toHaveLength(1);
+    expect(row.approvedAt).toEqual(approvedAt);
+    expect(row.plan).toMatchObject({
+      ads: { monthly: 0, setByOwner: true, suggest: { monthly: 600 } },
+    });
   });
 
   it("writes one version for an ad budget, which Cuso's re-plan completes", async () => {
@@ -370,14 +501,16 @@ describe("the plan starts when the research ends", () => {
   };
   afterEach(() => {
     resetTurns();
+    pgClock.now = null;
     vi.useRealTimers();
   });
 
   beforeEach(() => {
     resetTurns();
+    pgClock.now = now;
     cusoFind.mockResolvedValue(cuso);
     // The plan turn keeps making progress.
-    eventFindFirst.mockResolvedValue({ occurredAt: now });
+    eventFindFirst.mockResolvedValue({ createdAt: now });
   });
 
   it("after a chat turn reads only the Cuso when no fix is open", async () => {
@@ -394,6 +527,43 @@ describe("the plan starts when the research ends", () => {
     expect(startTurn).not.toHaveBeenCalled();
   });
 
+  it("plans an ad budget the owner set while Cuso was busy, once his turn ends", async () => {
+    vi.useFakeTimers({ now, toFake: ["Date"] });
+    seedStrategy(strategy);
+    cusoFind.mockResolvedValue({
+      ...cuso,
+      pendingAdBudget: { monthly: 300, currency: "USD", userId: "user-1" },
+    });
+    turnFindFirst.mockResolvedValue(planTurn(1, "COMPLETED"));
+    startTurn.mockResolvedValue({ turnId: "ads-1" });
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:strategy:bot-1:1",
+      }),
+    ).resolves.toEqual({ turnId: "ads-1" });
+    expect(JSON.stringify(startTurn.mock.calls[0])).toContain(
+      "My ad budget is USD 300 a month",
+    );
+    expect(projectUpdate).toHaveBeenCalledWith({
+      where: { id: "project-1" },
+      data: { cmoPendingAdBudget: Prisma.DbNull },
+    });
+  });
+
+  it("moves the month on when a production run ends, without waiting for the sync", async () => {
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:production:bot-1:1795131677092:1:2",
+      }),
+    ).resolves.toBeNull();
+    expect(kickCmoProduction).toHaveBeenCalledWith("bot-1");
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
   it("starts the plan when the research turn settles", async () => {
     startTurn.mockResolvedValue({ turnId: "plan-1" });
     await expect(
@@ -404,6 +574,265 @@ describe("the plan starts when the research ends", () => {
       }),
     ).resolves.toEqual({ turnId: "plan-1" });
     expect(cusoFind).toHaveBeenCalledTimes(1);
+  });
+
+  it("finishes a weekly month the plan turn left short of four weeks, twice at most", async () => {
+    seedStrategy(strategy);
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
+    startTurn.mockResolvedValue({ turnId: "finish-1" });
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:strategy:bot-1:1",
+      }),
+    ).resolves.toEqual({ turnId: "finish-1" });
+    const started = startTurn.mock.calls[0]?.[0] as {
+      clientTurnId: string;
+      message: string;
+    };
+    expect(started.clientTurnId).toMatch(/^cmo:strategy:bot-1:finish:\d+:1$/);
+    expect(started.message).toContain(
+      "Finish acme.io's marketing strategy: its calendar covers 3 of four weeks, up to 2026-10-20.",
+    );
+
+    startTurn.mockClear();
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: started.clientTurnId.replace(/:1$/, ":2"),
+      }),
+    ).resolves.toBeNull();
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("finishes a cmo-v14 month the fresh plan turn left at one day", async () => {
+    seedStrategy({ ...strategy, calendar: [strategy.calendar[0]] });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v14" });
+    startTurn.mockResolvedValue({ turnId: "finish-1" });
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:strategy:bot-1:1795316055955",
+      }),
+    ).resolves.toEqual({ turnId: "finish-1" });
+    const started = startTurn.mock.calls[0]?.[0] as { message: string };
+    expect(started.message).toContain("covers 1 of four weeks");
+    expect(started.message).toContain("lists the other two in alsoOn");
+  });
+
+  it("resumes a short draft whose finish turn never started, from the production sync", async () => {
+    seedStrategy({ ...strategy, calendar: [strategy.calendar[0]] });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v14" });
+    cusoFind.mockResolvedValue(HIRE);
+    startTurn.mockResolvedValue({ turnId: "finish-1" });
+    const now = new Date("2026-11-22T03:10:00Z");
+    turnFindMany.mockResolvedValueOnce([
+      {
+        id: "plan-1",
+        status: "COMPLETED",
+        eveSessionId: null,
+        createdAt: new Date("2026-11-22T02:54:00Z"),
+        updatedAt: new Date("2026-11-22T02:57:00Z"),
+        clientTurnId: "cmo:strategy:bot-1:1795316055955",
+        sokoBotId: "bot-1",
+        userId: "user-1",
+      },
+    ]);
+    await expect(resumeCmoMonthFinishes(now)).resolves.toBe(1);
+    const started = startTurn.mock.calls[0]?.[0] as { clientTurnId: string };
+    expect(started.clientTurnId).toMatch(/^cmo:strategy:bot-1:finish:\d+:1$/);
+  });
+
+  it("finishes a four-week month short of its cadences: NMKR's test copy planned a third", async () => {
+    // Four weeks, one LinkedIn piece a week against "3 a week".
+    const week = (index: number) => ({
+      ...strategy.calendar[0],
+      id: `w${index}`,
+      date: `2026-10-${String(1 + index * 7).padStart(2, "0")}`,
+    });
+    seedStrategy({ ...strategy, calendar: [0, 1, 2, 3].map(week) });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
+    startTurn.mockResolvedValue({ turnId: "finish-1" });
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:strategy:bot-1:1",
+      }),
+    ).resolves.toEqual({ turnId: "finish-1" });
+    const message = (startTurn.mock.calls[0]?.[0] as { message: string })
+      .message;
+    // entry.fyi's Cuso stopped six times: "I could only see part of the
+    // existing calendar". The message names each week's gap and holdings.
+    expect(message).toContain(
+      "some weeks hold fewer pieces than its cadences say",
+    );
+    expect(message).toContain(
+      `- 2026-10-01 to 2026-10-07: add 2 on linkedin. Saved that week, so make each new piece say something else: ${strategy.calendar[0]?.title}.`,
+    );
+    expect(message).toContain("you need nothing more from the calendar");
+    expect(message).toContain("Never lower the pace or a cadence");
+    // Two weeks a turn; the next turn takes the rest.
+    expect(message).not.toContain("2026-10-15 to");
+  });
+
+  it("fits a month still short after its last finish turn, so the owner can approve it", async () => {
+    const week = (index: number) => ({
+      ...strategy.calendar[0],
+      id: `w${index}`,
+      date: `2026-10-${String(1 + index * 7).padStart(2, "0")}`,
+    });
+    const short = seedStrategy({
+      ...strategy,
+      calendar: [0, 1, 2, 3].map(week),
+    });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
+    await expect(requireCmoStrategyFitted(HIRE, short.id)).rejects.toThrow(
+      "Cuso is still filling this month",
+    );
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:strategy:bot-1:finish:1795308874573:2",
+      }),
+    ).resolves.toBeNull();
+    expect(startTurn).not.toHaveBeenCalled();
+    const fitted = short.plan as unknown as MarketingStrategyPlan;
+    expect(
+      fitted.channels.find((channel) => channel.channel === "linkedin")
+        ?.cadence,
+    ).toBe("1 a week");
+    await requireCmoStrategyFitted(HIRE, short.id);
+  });
+
+  it("fits a cmo-v14 month after its sixth finish turn", async () => {
+    const week = (index: number) => ({
+      ...strategy.calendar[0],
+      id: `v14-${index}`,
+      date: `2026-10-${String(1 + index * 7).padStart(2, "0")}`,
+    });
+    const short = seedStrategy({
+      ...strategy,
+      calendar: [0, 1, 2, 3].map(week),
+    });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v14" });
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:strategy:bot-1:finish:1795308874573:6",
+      }),
+    ).resolves.toBeNull();
+    expect(startTurn).not.toHaveBeenCalled();
+    await requireCmoStrategyFitted(HIRE, short.id);
+  });
+
+  it("finishes a month whose funnel promises video the calendar does not hold", async () => {
+    // Four weeks at the owner's "3 a week", and a play that promises video.
+    const day = (index: number) => ({
+      ...strategy.calendar[0],
+      id: `w${index}`,
+      date: `2026-10-${String(1 + Math.floor(index / 3) * 7 + (index % 3) * 2).padStart(2, "0")}`,
+    });
+    seedStrategy({
+      ...strategy,
+      channels: [
+        { channel: "linkedin", cadence: "3 a week", setByOwner: true },
+      ],
+      pace: { level: "all_in", why: "Top volume.", perWeek: 3 },
+      funnel: [
+        {
+          stage: "interest",
+          goal: "g",
+          cusoDoes: "I post how-tos.",
+          channels: ["linkedin"],
+          metric: "Trials",
+          plays: [{ channel: "linkedin", what: "A weekly founder video" }],
+        },
+      ],
+      calendar: Array.from({ length: 12 }, (_, index) => day(index)),
+    });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
+    startTurn.mockResolvedValue({ turnId: "finish-1" });
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:strategy:bot-1:1",
+      }),
+    ).resolves.toEqual({ turnId: "finish-1" });
+    const message = (startTurn.mock.calls[0]?.[0] as { message: string })
+      .message;
+    expect(message).toContain(
+      "the funnel's interest play on linkedin promises video",
+    );
+    expect(message).toContain(
+      "first add the network to the alsoOn of talking videos already planned",
+    );
+  });
+
+  it("says once that the strategy is ready, only when no round follows", async () => {
+    seedStrategy(strategy);
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
+    startTurn.mockResolvedValue({ turnId: "finish-1" });
+    const ended = {
+      sokoBotId: "bot-1",
+      userId: "user-1",
+      clientTurnId: "cmo:strategy:bot-1:1",
+    };
+    await afterCmoTurn(ended);
+    expect(postSokoBotOwnerNotice).not.toHaveBeenCalled();
+
+    await afterCmoTurn({
+      ...ended,
+      clientTurnId: "cmo:strategy:bot-1:finish:1:2",
+    });
+    expect(postSokoBotOwnerNotice).toHaveBeenCalledTimes(1);
+    const notice = postSokoBotOwnerNotice.mock.calls[0]?.[0];
+    expect(notice).toMatchObject({ sokoBotId: "bot-1" });
+    expect(notice.content).toMatch(/^Your strategy is ready\./);
+    expect(notice.content).not.toContain("@");
+    expect(notice.key).toMatch(/^cmo-strategy-ready:/);
+
+    postSokoBotOwnerNotice.mockClear();
+    seedStrategy(strategy, { approvedAt: new Date() });
+    await afterCmoTurn(ended);
+    await afterCmoTurn({ ...ended, clientTurnId: "chat:1" });
+    expect(postSokoBotOwnerNotice).not.toHaveBeenCalled();
+  });
+
+  it("finishes nothing for a whole month, an approved one, or a Cuso who saves in two calls", async () => {
+    // Four weeks at "3 a week", the cadence the owner asked for: twelve pieces.
+    const day = (index: number) => ({
+      ...strategy.calendar[0],
+      id: `w${index}`,
+      date: `2026-10-${String(1 + Math.floor(index / 3) * 7 + (index % 3) * 2).padStart(2, "0")}`,
+    });
+    seedStrategy({
+      ...strategy,
+      channels: [
+        { channel: "linkedin", cadence: "3 a week", setByOwner: true },
+      ],
+      pace: { level: "all_in", why: "Top volume.", perWeek: 3 },
+      calendar: Array.from({ length: 12 }, (_, index) => day(index)),
+    });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
+    const ended = {
+      sokoBotId: "bot-1",
+      userId: "user-1",
+      clientTurnId: "cmo:strategy:bot-1:1",
+    };
+    await expect(afterCmoTurn(ended)).resolves.toBeNull();
+    seedStrategy(strategy, { approvedAt: new Date() });
+    await expect(afterCmoTurn(ended)).resolves.toBeNull();
+    seedStrategy(strategy);
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v2" });
+    await expect(afterCmoTurn(ended)).resolves.toBeNull();
+    expect(startTurn).not.toHaveBeenCalled();
   });
 
   it("starts no plan in an eval lane: its strategy cases ask for their own", async () => {
@@ -475,14 +904,15 @@ describe("the plan starts when the research ends", () => {
       });
       // A change waits for it to land.
       await expect(
-        requestCmoStrategy(
-          { projectId: "project-1", userId: "user-1", note: "Fewer posts" },
-          now,
-        ),
+        requestCmoStrategy({
+          projectId: "project-1",
+          userId: "user-1",
+          note: "Fewer posts",
+        }),
       ).rejects.toThrow("finishing a change");
       // A plain ask gets it back: the first plan starts once it ends.
       await expect(
-        requestCmoStrategy({ projectId: "project-1", userId: "user-1" }, now),
+        requestCmoStrategy({ projectId: "project-1", userId: "user-1" }),
       ).resolves.toEqual({ turnId: "change-1" });
     }
     expect(expireTurn).not.toHaveBeenCalled();
@@ -493,7 +923,7 @@ describe("the plan starts when the research ends", () => {
     turnFindFirst.mockResolvedValue(planTurn(2));
 
     await expect(
-      requestCmoStrategy({ projectId: "project-1", userId: "user-1" }, now),
+      requestCmoStrategy({ projectId: "project-1", userId: "user-1" }),
     ).resolves.toEqual({ turnId: "plan-1" });
 
     expect(startTurn).not.toHaveBeenCalled();
@@ -514,7 +944,7 @@ describe("the plan starts when the research ends", () => {
 
     const [fromResearch, fromApprove] = await Promise.all([
       startCmoPlanAfterResearch({ sokoBotId: "bot-1", userId: "user-1" }),
-      requestCmoStrategy({ projectId: "project-1", userId: "user-1" }, now),
+      requestCmoStrategy({ projectId: "project-1", userId: "user-1" }),
     ]);
 
     expect(fromResearch).toEqual({ turnId: "plan-1" });
@@ -525,15 +955,16 @@ describe("the plan starts when the research ends", () => {
   it("refuses a change while the plan is still being written", async () => {
     turnFindFirst.mockResolvedValue(planTurn(2));
     await expect(
-      requestCmoStrategy(
-        { projectId: "project-1", userId: "user-1", note: "Fewer posts" },
-        now,
-      ),
+      requestCmoStrategy({
+        projectId: "project-1",
+        userId: "user-1",
+        note: "Fewer posts",
+      }),
     ).rejects.toThrow("still writing the strategy");
     expect(startTurn).not.toHaveBeenCalled();
   });
 
-  it("refuses an ad budget while the plan is still being written", async () => {
+  it("keeps an ad budget set while the plan is being written, for when it lands", async () => {
     // The budget reads the clock itself.
     vi.useFakeTimers({ now, toFake: ["Date"] });
     turnFindFirst.mockResolvedValue(planTurn(2));
@@ -545,8 +976,14 @@ describe("the plan starts when the research ends", () => {
         monthly: 500,
         currency: "eur",
       }),
-    ).rejects.toThrow("still writing the strategy");
+    ).resolves.toEqual({ turnId: null, queued: true });
     expect(startTurn).not.toHaveBeenCalled();
+    expect(projectUpdate).toHaveBeenCalledWith({
+      where: { id: "project-1" },
+      data: {
+        cmoPendingAdBudget: { monthly: 500, currency: "EUR", userId: "user-1" },
+      },
+    });
   });
 });
 
@@ -578,6 +1015,36 @@ describe("saving versions", () => {
     expect(plan(added).summary).toBe("A sharper headline.");
     // The approved version is never rewritten by a new plan.
     expect(plan(running)).toEqual(strategy);
+  });
+
+  const ownerSet = (row: (typeof strategyRows)[number]) =>
+    (plan(row).channels[0] as { setByOwner?: boolean } | undefined)?.setByOwner;
+
+  it("marks a cadence the owner lowered in chat as theirs, and never one Cuso marks himself", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    seedStrategy(strategy);
+    const linkedin = (cadence: string, setByOwner?: boolean) => ({
+      channels: [
+        { channel: "linkedin", cadence, role: "main" as const, setByOwner },
+      ],
+    });
+    turnFindUnique.mockResolvedValueOnce({
+      source: "CHAT",
+      userMessage: "Only 1 a day on LinkedIn, please.",
+    });
+    await saveCmoStrategy({ sokoBotId: "bot-1" }, linkedin("1 a day"), {
+      turnId: "turn-1",
+    });
+    expect(ownerSet(strategyRows.at(-1)!)).toBe(true);
+
+    turnFindUnique.mockResolvedValueOnce({
+      source: "SCHEDULE",
+      userMessage: "Daily check",
+    });
+    await saveCmoStrategy({ sokoBotId: "bot-1" }, linkedin("1 a week", true), {
+      turnId: "turn-2",
+    });
+    expect(ownerSet(strategyRows.at(-1)!)).toBeUndefined();
   });
 
   it("starts a new version once the turn's own one was approved", async () => {
@@ -648,6 +1115,39 @@ describe("saving versions", () => {
           picture({ id: "p2", styleReferenceId: STYLE_A }),
         ]),
       ).rejects.toThrow("p2 and p1 use the same style reference");
+    });
+
+    // cmo-v9 (2026-11-21): NMKR's visuals named "cream paper, dark ink, one
+    // green accent" and "no extra text", and the look overrode the print's.
+    it("refuses a cmo-v9 styled visual that names its own look, and keeps a scene", async () => {
+      const save = (visual: string, sceneVisuals: boolean) =>
+        saveCmoStrategy(
+          { sokoBotId: "bot-1" },
+          {
+            calendar: [
+              picture({ id: "p1", styleReferenceId: STYLE_A, visual }),
+            ],
+          } as never,
+          { turnId: "turn-2", part: "pieces", sceneVisuals },
+        );
+      const styledVisual =
+        "A three-step pictogram of a mint, cream paper, dark ink and one green accent; no extra text.";
+      await expect(save(styledVisual, true)).rejects.toThrow(
+        "p1 (pictogram, accent, cream paper, dark ink, no extra text)",
+      );
+      await expect(save(styledVisual, true)).rejects.toThrow(
+        "Describe the scene only",
+      );
+      expect(postCreateMany).not.toHaveBeenCalled();
+      expect(postUpdate).not.toHaveBeenCalled();
+      // cmo-v8 saves it as before.
+      await expect(save(styledVisual, false)).resolves.toBeDefined();
+      await expect(
+        save(
+          "A crane hook lifting a glowing green token above a factory city.",
+          true,
+        ),
+      ).resolves.toBeDefined();
     });
 
     it("refuses a styled carousel without its words per slide, and an id the library lacks", async () => {
@@ -848,6 +1348,76 @@ describe("saving versions", () => {
     expect(plan(running)).toEqual(strategy);
   });
 
+  describe("a short video made once for TikTok, Reels and Shorts", () => {
+    beforeEach(() => {
+      cusoFind.mockResolvedValue(HIRE);
+      seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
+    });
+
+    it("plans a Reel and a Short of the one TikTok, each in its own format", async () => {
+      await saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        {
+          calendar: [
+            {
+              id: "sv",
+              date: "2026-10-23",
+              channel: "tiktok",
+              title: "Mint in three taps",
+              format: "video",
+              status: "draft" as const,
+              visual: "A phone screen minting an NFT in three taps",
+              alsoOn: ["instagram", "youtube"],
+            },
+          ],
+        },
+        { turnId: "turn-2", part: "pieces" },
+      );
+      const drafts = postCreateMany.mock.calls[0]?.[0].data;
+      expect(
+        drafts.map(
+          (draft: {
+            provider: string;
+            planning: { id: string; format: string; videoOf?: string };
+          }) => [
+            draft.provider,
+            draft.planning.id,
+            draft.planning.format,
+            draft.planning.videoOf ?? null,
+          ],
+        ),
+      ).toEqual([
+        ["tiktok", "sv", "video", null],
+        ["instagram", "sv@instagram", "reel", "sv"],
+        ["youtube", "sv@youtube", "short", "sv"],
+      ]);
+    });
+
+    it("refuses a short video's alsoOn outside TikTok, Reels and Shorts", async () => {
+      await expect(
+        saveCmoStrategy(
+          { sokoBotId: "bot-1" },
+          {
+            calendar: [
+              {
+                id: "sv",
+                date: "2026-10-23",
+                channel: "tiktok",
+                title: "Mint in three taps",
+                format: "video",
+                status: "draft" as const,
+                alsoOn: ["x"],
+              },
+            ],
+          },
+          { turnId: "turn-2", part: "pieces" },
+        ),
+      ).rejects.toThrow(
+        /sv cannot also go out on x: alsoOn takes instagram, youtube/,
+      );
+    });
+  });
+
   describe("a talking video that also goes out on other networks", () => {
     const video = {
       id: "tv",
@@ -990,13 +1560,16 @@ describe("saving versions", () => {
           }),
         }),
       });
+      const planning = postUpdate.mock.lastCall?.[0]?.data.planning;
+      expect(planning?.videoOf).toBe("tv");
+      expect(planning).not.toHaveProperty("alsoOn");
     });
 
     it.each([
       [
         "a network without talking videos",
         { ...video, alsoOn: ["youtube", "x"] },
-        /tv cannot also go out on x: alsoOn takes other live networks with a talking_video format \(linkedin, facebook, youtube, tiktok\)/,
+        /tv cannot also go out on x: alsoOn takes linkedin, facebook, youtube, tiktok, never its own channel/,
       ],
       [
         "its own channel",
@@ -1006,7 +1579,7 @@ describe("saving versions", () => {
       [
         "a piece that is not a talking video",
         { ...video, format: "image", script: undefined },
-        /tv lists alsoOn, which only a talking_video takes/,
+        /tv lists alsoOn, which only a video takes/,
       ],
     ])("refuses %s, writing nothing", async (_name, entry, message) => {
       await expect(
@@ -1077,6 +1650,71 @@ describe("saving versions", () => {
     ]);
   });
 
+  // cmo-v23 (ADR 0080): a chat or rhythm sees no calendar window, so a whole
+  // calendar it sends must not drop pieces it never read.
+  it("keeps every unsent entry for a turn that worked without the calendar", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    turnFindUnique.mockResolvedValue({
+      versionId: "cmo-v23",
+      clientTurnId: "chat:1",
+      source: "CHAT",
+      userMessage: "",
+    });
+    const far = {
+      id: "d",
+      date: "2026-12-01",
+      channel: "linkedin",
+      title: "December",
+      format: "post",
+      status: "idea" as const,
+    };
+    seedStrategy({ ...strategy, calendar: [...strategy.calendar, far] });
+    const saved = await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { ...strategy, calendar: [strategy.calendar[0]!] },
+      { turnId: "turn-1", now: new Date("2026-10-07T12:00:00Z") },
+    );
+    expect(
+      plan(saved)
+        .calendar.map((entry) => entry.id)
+        .sort(),
+    ).toEqual(
+      strategy.calendar
+        .map((entry) => entry.id)
+        .concat("d")
+        .sort(),
+    );
+  });
+
+  it("keeps a strategy turn's window on cmo-v23", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    turnFindUnique.mockResolvedValue({
+      versionId: "cmo-v23",
+      clientTurnId: "cmo:strategy:bot-1:1",
+      source: "EVENT",
+      userMessage: "",
+    });
+    const far = {
+      id: "d",
+      date: "2026-12-01",
+      channel: "linkedin",
+      title: "December",
+      format: "post",
+      status: "idea" as const,
+    };
+    seedStrategy({ ...strategy, calendar: [...strategy.calendar, far] });
+    const saved = await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { ...strategy, calendar: [strategy.calendar[0]!] },
+      { turnId: "turn-1", now: new Date("2026-10-07T12:00:00Z") },
+    );
+    expect(plan(saved).calendar.map((entry) => entry.id)).toEqual([
+      "b",
+      "a",
+      "d",
+    ]);
+  });
+
   it("keeps what a save leaves out, so a plan can arrive in short calls", async () => {
     cusoFind.mockResolvedValue(HIRE);
     seedStrategy(strategy);
@@ -1086,6 +1724,7 @@ describe("saving versions", () => {
       { turnId: "turn-1", now: new Date("2026-10-01T12:00:00Z") },
     );
     expect(plan(saved).summary).toBe("A sharper headline.");
+    expect(saved.plan).toStrictEqual(JSON.parse(JSON.stringify(saved.plan)));
     expect(plan(saved).goals).toEqual(strategy.goals);
     expect(plan(saved).calendar.map((entry) => entry.id)).toEqual(
       strategy.calendar.map((entry) => entry.id),
@@ -1597,6 +2236,26 @@ describe("a patch", () => {
     expect(after.changes).toEqual(["Piece seven is calmer."]);
   });
 
+  it("never stores a draft Cuso sends before approval, so the review never asks for what a patch cannot undo", async () => {
+    const first = await written();
+    const before = planOf(first);
+    const drafted = {
+      ...before.calendar[6]!,
+      title: "A calmer piece seven",
+      draft: "Written before the owner approved.",
+    };
+
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { calendar: [drafted] },
+      { turnId: "turn-2", part: "patch", rules: true },
+    );
+
+    const after = planOf(strategyRows.find((row) => row.id !== first.id)!);
+    expect(after.calendar[6]!.title).toBe("A calmer piece seven");
+    expect(after.calendar.some((entry) => "draft" in entry)).toBe(false);
+  });
+
   it("keeps how an entry was across a turn's saves, even when sent again", async () => {
     const first = await written();
     const before = planOf(first);
@@ -1935,26 +2594,27 @@ describe("changes after the plan", () => {
     turnFindFirst.mockReset();
     startTurn.mockReset();
   };
-  afterEach(resetTurns);
+  afterEach(() => {
+    resetTurns();
+    pgClock.now = null;
+  });
   beforeEach(() => {
     resetTurns();
+    pgClock.now = now;
     cusoFind.mockResolvedValue(cuso);
-    eventFindFirst.mockResolvedValue({ occurredAt: now });
+    eventFindFirst.mockResolvedValue({ createdAt: now });
     startTurn.mockResolvedValue({ turnId: "turn-9" });
   });
 
   it("patches the plan for a pace, never re-plans it", async () => {
     seedStrategy(wholePlan());
 
-    await requestCmoStrategy(
-      {
-        projectId: "project-1",
-        userId: "user-1",
-        note: "Switch to the active pace.",
-        patch: true,
-      },
-      now,
-    );
+    await requestCmoStrategy({
+      projectId: "project-1",
+      userId: "user-1",
+      note: "Switch to the active pace.",
+      patch: true,
+    });
 
     expect(startTurn.mock.lastCall?.[0]).toMatchObject({
       clientTurnId: expect.stringMatching(/^cmo:strategy:bot-1:patch:/),
@@ -1962,6 +2622,35 @@ describe("changes after the plan", () => {
     expect(message()).toContain("Switch to the active pace.");
     expect(message()).toContain("part patch");
     expect(message()).not.toContain("Write Acme's marketing strategy");
+  });
+
+  // cmo-v8: a no to ballcaps once changed the goal and left caps in the
+  // funnel's plays and a question.
+  it("tells a cmo-v8 Cuso a correction is true everywhere", async () => {
+    seedStrategy(wholePlan());
+    sokoBotFindUnique.mockResolvedValueOnce({ versionId: "cmo-v8" });
+    await requestCmoStrategy({
+      projectId: "project-1",
+      userId: "user-1",
+      note: "No, we don't sell ballcaps anymore.",
+      patch: true,
+    });
+    expect(message()).toContain("What the owner says is true everywhere.");
+    expect(message()).not.toContain(
+      "Change only the calendar entries and strategy fields this touches",
+    );
+
+    sokoBotFindUnique.mockResolvedValueOnce({ versionId: "cmo-v7" });
+    await requestCmoStrategy({
+      projectId: "project-1",
+      userId: "user-1",
+      note: "No, we don't sell ballcaps anymore.",
+      patch: true,
+    });
+    expect(message()).toContain(
+      "Change only the calendar entries and strategy fields this touches",
+    );
+    expect(message()).not.toContain("true everywhere");
   });
 
   it("patches the plan for the owner's nos and ad budget", async () => {
@@ -1994,7 +2683,20 @@ describe("changes after the plan", () => {
     expect(message()).toContain("EUR 300");
   });
 
+  it("refuses to approve a month short of the volume it promises", async () => {
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
+    // Three weeks, at steady: short of its weeks and the top volume.
+    const short = seedStrategy(wholePlan());
+    await expect(requireCmoStrategyFitted(HIRE, short.id)).rejects.toThrow(
+      "Cuso is still filling this month",
+    );
+    // A Cuso who saves in two calls has no finish turn to fill it.
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v2" });
+    await requireCmoStrategyFitted(HIRE, short.id);
+  });
+
   it("refuses to approve a strategy that still shows an answer the owner said no to", async () => {
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v2" });
     const question = {
       id: "q1",
       question: "Can you spend about $300 on ads?",
@@ -2025,15 +2727,12 @@ describe("changes after the plan", () => {
   it("refuses a patch while the plan is still being written", async () => {
     turnFindFirst.mockResolvedValue(turn("plan", 2));
     await expect(
-      requestCmoStrategy(
-        {
-          projectId: "project-1",
-          userId: "user-1",
-          note: "Switch to the active pace.",
-          patch: true,
-        },
-        now,
-      ),
+      requestCmoStrategy({
+        projectId: "project-1",
+        userId: "user-1",
+        note: "Switch to the active pace.",
+        patch: true,
+      }),
     ).rejects.toThrow("still writing the strategy");
     expect(startTurn).not.toHaveBeenCalled();
   });
@@ -2051,16 +2750,13 @@ describe("changes after the plan", () => {
       ],
     };
     const answer = (value: "yes" | "no", note?: string) =>
-      answerCmoBrandQuestion(
-        {
-          projectId: "project-1",
-          userId: "user-1",
-          questionId: "q1",
-          answer: value,
-          ...(note ? { note } : {}),
-        },
-        now,
-      );
+      answerCmoBrandQuestion({
+        projectId: "project-1",
+        userId: "user-1",
+        questionId: "q1",
+        answer: value,
+        ...(note ? { note } : {}),
+      });
     beforeEach(() => {
       // The stored brain follows each write.
       brainFindUnique.mockImplementation(async () => ({
@@ -2086,7 +2782,7 @@ describe("changes after the plan", () => {
       cusoFind.mockResolvedValue({ ...cuso, brandBrain: stored });
       turnFindFirst.mockResolvedValue(turn("plan", 1, "COMPLETED"));
       await expect(
-        startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now),
+        startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }),
       ).resolves.toEqual({ turnId: "turn-9" });
       expect(startTurn.mock.lastCall?.[0]).toMatchObject({
         clientTurnId: expect.stringMatching(/^cmo:strategy:bot-1:fix:/),
@@ -2126,7 +2822,7 @@ describe("changes after the plan", () => {
       cusoFind.mockResolvedValue({ ...cuso, brandBrain: stored });
       turnFindFirst.mockResolvedValue(turn("plan", 1, "COMPLETED"));
       await expect(
-        startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now),
+        startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }),
       ).resolves.toBeNull();
     });
 
@@ -2164,15 +2860,12 @@ describe("changes after the plan", () => {
     brainFindUnique.mockResolvedValue({ body: essentials });
     seedStrategy(wholePlan());
 
-    await fixCmoBrandSection(
-      {
-        projectId: "project-1",
-        userId: "user-1",
-        section: "pricing",
-        note: "From 19 dollars a month.",
-      },
-      now,
-    );
+    await fixCmoBrandSection({
+      projectId: "project-1",
+      userId: "user-1",
+      section: "pricing",
+      note: "From 19 dollars a month.",
+    });
 
     // Only that section holds the fix; the others stay as they were.
     const body = brainUpdate.mock.lastCall?.[0].data.body;
@@ -2192,6 +2885,25 @@ describe("changes after the plan", () => {
     expect(message()).not.toContain("- company:");
     expect(message()).toContain("sections holding only these sections");
     expect(message()).toContain("part patch");
+    expect(message()).not.toContain("send brandBrain with the essentials");
+  });
+
+  it("has a cmo-v8 Cuso fix the essentials that say what the fixed section says", async () => {
+    brainFindUnique.mockResolvedValue({ body: essentials });
+    seedStrategy(wholePlan());
+    sokoBotFindUnique.mockResolvedValueOnce({ versionId: "cmo-v8" });
+
+    await fixCmoBrandSection({
+      projectId: "project-1",
+      userId: "user-1",
+      section: "company",
+      note: "We build rockets in Texas, not Ohio.",
+    });
+
+    expect(message()).toContain(
+      "In the same call, send brandBrain with the essentials that say the same thing rewritten to match",
+    );
+    expect(message()).toContain("What the owner says is true everywhere.");
   });
 
   it("names each question the owner said no to in a fix turn, never as 'True instead: Not true'", async () => {
@@ -2237,7 +2949,7 @@ describe("changes after the plan", () => {
     });
     turnFindFirst.mockResolvedValue(turn("plan", 1, "COMPLETED"));
 
-    await startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now);
+    await startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" });
 
     expect(message()).not.toContain("True instead: Not true");
     expect(message()).toContain(
@@ -2253,15 +2965,12 @@ describe("changes after the plan", () => {
     turnFindFirst.mockResolvedValue(turn("plan", 2));
 
     await expect(
-      fixCmoBrandSection(
-        {
-          projectId: "project-1",
-          userId: "user-1",
-          section: "pricing",
-          note: "From 19 dollars a month.",
-        },
-        now,
-      ),
+      fixCmoBrandSection({
+        projectId: "project-1",
+        userId: "user-1",
+        section: "pricing",
+        note: "From 19 dollars a month.",
+      }),
     ).resolves.toEqual({ queued: true });
     expect(startTurn).not.toHaveBeenCalled();
 
@@ -2269,7 +2978,7 @@ describe("changes after the plan", () => {
     cusoFind.mockResolvedValue({ ...cuso, brandBrain: pending });
     turnFindFirst.mockResolvedValue(turn("plan", 1, "COMPLETED"));
     await expect(
-      startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now),
+      startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }),
     ).resolves.toEqual({ turnId: "turn-9" });
     expect(message()).toContain("- pricing: you wrote");
   });
@@ -2294,7 +3003,7 @@ describe("changes after the plan", () => {
     });
 
     await expect(
-      startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now),
+      startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }),
     ).resolves.toBeNull();
     expect(startTurn).not.toHaveBeenCalled();
   });
@@ -2323,10 +3032,212 @@ describe("changes after the plan", () => {
     });
 
     await expect(
-      startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now),
+      startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }),
     ).resolves.toEqual({ turnId: "turn-9" });
     expect(startTurn.mock.lastCall?.[0].clientTurnId).toMatch(
       new RegExp(`:fix:\\d+:${Date.parse(later)}$`),
     );
+  });
+});
+
+describe("withoutUnaskedAds", () => {
+  const plan = {
+    channels: [
+      { channel: "linkedin", cadence: "3 a week" },
+      { channel: "Google_Ads", cadence: "2 ads this month" },
+    ],
+    calendar: [
+      {
+        id: "p1",
+        date: "2026-11-20",
+        channel: "linkedin",
+        format: "post",
+        title: "A post",
+        status: "idea",
+      },
+      {
+        id: "ad1",
+        date: "2026-11-21",
+        channel: "google_ads",
+        format: "search_ad",
+        title: "An ad",
+        status: "idea",
+      },
+    ],
+    funnel: [
+      {
+        stage: "awareness",
+        goal: "g",
+        metric: "Visits",
+        channels: ["linkedin", "google_ads"],
+        plays: [
+          { channel: "linkedin", what: "Posts" },
+          { channel: "google_ads", what: "Search ads" },
+        ],
+      },
+    ],
+    ads: {
+      monthly: 600,
+      currency: "USD",
+      expect: "Clicks",
+      without: "Posts",
+      setByOwner: false,
+    },
+  } as unknown as MarketingStrategyPlan;
+
+  it("takes ads Cuso planned himself out, and keeps his amount as a suggestion", () => {
+    const kept = withoutUnaskedAds(plan);
+    expect(kept.channels.map((channel) => channel.channel)).toEqual([
+      "linkedin",
+    ]);
+    expect(kept.calendar.find((entry) => entry.id === "ad1")?.status).toBe(
+      "skipped",
+    );
+    expect(kept.funnel[0]?.plays.map((play) => play.channel)).toEqual([
+      "linkedin",
+    ]);
+    expect(kept.funnel[0]?.channels).toEqual(["linkedin"]);
+    expect(kept.ads).toMatchObject({
+      monthly: 0,
+      suggest: { channel: "google_ads", monthly: 600 },
+    });
+  });
+
+  it("keeps the ads once the owner said yes and set an amount", () => {
+    const yes = {
+      ...plan,
+      ads: { ...plan.ads, setByOwner: true },
+    } as MarketingStrategyPlan;
+    expect(withoutUnaskedAds(yes)).toBe(yes);
+  });
+});
+
+describe("cmo-v22: the plan and examples before payment", () => {
+  const brandBrain = {
+    summary: "Acme sells rockets.",
+    voice: { tone: "Direct", do: [], dont: [], examples: [] },
+    audience: ["Founders"],
+    products: ["Rockets"],
+    competitors: [],
+    channels: [],
+    profile: {},
+  };
+  const examples = [0, 1, 2].map((index) => ({
+    ...strategy.calendar[0]!,
+    id: `ex-${index}`,
+    date: "2026-10-21",
+    status: "idea" as const,
+  }));
+  const shaped = {
+    ...strategy,
+    calendar: examples,
+    monthWriter: { state: "examples" as const, attempts: 0 },
+  };
+
+  it("asks Cuso for a few example posts, never the month's calendar", async () => {
+    cusoFind.mockResolvedValue({ ...HIRE, businessName: "Acme", brandBrain });
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v22" });
+    await requestCmoStrategy({ projectId: "project-1", userId: "user-1" });
+    const message = (startTurn.mock.lastCall?.[0] as { message: string })
+      .message;
+    expect(message).toContain(
+      "then part calendar with 3 to 5 example posts in full",
+    );
+    expect(message).toContain("Never write the month's calendar");
+    expect(message).toContain("Who is on each network");
+    expect(message).not.toContain("one week a call");
+  });
+
+  it("marks a new month's save as examples, and keeps an older month's shape on a change", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    seedStrategy({ ...strategy, calendar: [] });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v22" });
+    turnFindUnique.mockResolvedValue({
+      clientTurnId: "cmo:strategy:bot-1:1795400000000",
+      userMessage: "Write the strategy",
+      source: "EVENT",
+    });
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { summary: "Launch help first." },
+      { turnId: "turn-1" },
+    );
+    expect(plan(strategyRows.at(-1)!)).toMatchObject({
+      monthWriter: { state: "examples", attempts: 0 },
+    });
+
+    strategyRows.length = 0;
+    seedStrategy(strategy);
+    turnFindUnique.mockResolvedValue({
+      clientTurnId: "cmo:strategy:bot-1:patch:1795400000000",
+      userMessage: "Patch it. The owner asked: fewer posts",
+      source: "EVENT",
+    });
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { calendar: [strategy.calendar[0]!] },
+      { turnId: "turn-2", part: "patch" },
+    );
+    expect(
+      (plan(strategyRows.at(-1)!) as { monthWriter?: unknown }).monthWriter,
+    ).toBeUndefined();
+  });
+
+  it("never marks a cmo-v21 month", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    seedStrategy({ ...strategy, calendar: [] });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v21" });
+    turnFindUnique.mockResolvedValue({
+      clientTurnId: "cmo:strategy:bot-1:1795400000000",
+      userMessage: "Write the strategy",
+      source: "EVENT",
+    });
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { summary: "Launch help first." },
+      { turnId: "turn-1" },
+    );
+    expect(
+      (plan(strategyRows.at(-1)!) as { monthWriter?: unknown }).monthWriter,
+    ).toBeUndefined();
+  });
+
+  it("refuses a calendar longer than the examples, and saves nothing", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    seedStrategy(shaped, { authorTurnId: "turn-1" });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v22" });
+    turnFindUnique.mockResolvedValue({
+      clientTurnId: "cmo:strategy:bot-1:1795400000000",
+      userMessage: "Write the strategy",
+      source: "EVENT",
+    });
+    const six = [0, 1, 2, 3, 4, 5].map((index) => ({
+      ...examples[0]!,
+      id: `six-${index}`,
+    }));
+    await expect(
+      saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        { calendar: six },
+        { turnId: "turn-1", part: "calendar", rules: true },
+      ),
+    ).rejects.toThrow('Rule "5 example posts"');
+    expect(plan(strategyRows.at(-1)!).calendar).toHaveLength(3);
+  });
+
+  it("is approvable with its examples, and starts no turn to fill the month", async () => {
+    const draft = seedStrategy(shaped);
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v22" });
+    await requireCmoStrategyFitted(HIRE, draft.id);
+    startTurn.mockResolvedValue({ turnId: "finish-1" });
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:strategy:bot-1:1",
+      }),
+    ).resolves.toBeNull();
+    expect(startTurn).not.toHaveBeenCalled();
   });
 });

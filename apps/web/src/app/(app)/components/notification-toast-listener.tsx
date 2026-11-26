@@ -1,14 +1,13 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffectEvent } from "react";
 import { toast } from "sonner";
 
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useNotificationRealtime } from "@/hooks/effects/use-notification-realtime";
+import { useNotificationServiceWorkerBridge } from "@/hooks/effects/use-notification-service-worker-bridge";
 import type { NotificationEventData } from "@/lib/ably/schema";
-import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
 import {
   getBrowserNotificationPermission,
@@ -17,13 +16,9 @@ import {
 import { buildNotificationBannerContent } from "@/lib/utils/notification-banner";
 import { getNotificationIcon } from "@/lib/utils/notification-icon";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
-import type { NotificationTarget } from "@/lib/utils/notification-service-worker";
 import {
-  answerShowsNotificationsQuery,
   closeNotificationGroup,
-  getNotificationServiceWorker,
   showNotification,
-  subscribeNotificationClicks,
   toNotificationTarget,
 } from "@/lib/utils/notification-service-worker";
 import {
@@ -113,20 +108,6 @@ export function NotificationToastListener({
   const t = useTranslations("Components.NotificationCenter");
   const formatMessage = useNotificationMessage();
   const openNotification = useOpenNotification(markRead);
-
-  /**
-   * `handleSelectWorkspace` inside the hook is a new function on every render,
-   * so subscribing
-   * on each change would tear the worker's message listener down and back up
-   * constantly, and a click landing in that gap would be lost. This keeps one
-   * stable identity that always runs the current render's callback.
-   */
-  const openClickedNotification = useEffectEvent(
-    (target: NotificationTarget) => {
-      // A banner the reader clicks was unread when it was rendered.
-      openNotification(target, false);
-    },
-  );
 
   const { isReceivingNotifications } = useNotificationRealtime({
     userId,
@@ -240,31 +221,12 @@ export function NotificationToastListener({
     },
   });
 
-  /**
-   * Reply to identify this page as a handler for notification clicks. The
-   * worker routes clicks to a mounted listener even when its channel is down.
-   */
-  const showsNotifications = useEffectEvent(() => isReceivingNotifications());
-
-  // Install the worker ahead of the first banner. A reader who never turns
-  // push on still renders through it, so waiting for an install at banner time
-  // would cost them the banner's timing.
-  useMountEffect(() => {
-    if (getBrowserNotificationPermission() === "granted") {
-      void getNotificationServiceWorker();
-    }
-
-    const unsubscribeClicks = subscribeNotificationClicks((target) => {
-      openClickedNotification(target);
-    });
-    const stopAnswering = answerShowsNotificationsQuery(() =>
-      showsNotifications(),
-    );
-
-    return () => {
-      unsubscribeClicks();
-      stopAnswering();
-    };
+  useNotificationServiceWorkerBridge({
+    onNotificationClick: (target) => {
+      // A banner the reader clicks was unread when it was rendered.
+      openNotification(target, false);
+    },
+    isReceivingNotifications,
   });
 
   return null;

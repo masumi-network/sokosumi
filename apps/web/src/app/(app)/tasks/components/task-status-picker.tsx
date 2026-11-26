@@ -2,7 +2,9 @@
 
 import type { TaskStatus } from "@sokosumi/core-client";
 import { Check, ChevronDown } from "lucide-react";
-import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
+import { type KeyboardEvent, useMemo, useState } from "react";
+import type { KanbanColumnId } from "@/app/tasks/types/task-board";
+import { getColumnId } from "@/app/tasks/utils/task-column";
 import {
   Command,
   CommandEmpty,
@@ -26,10 +28,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
 
+import { COMPOSER_PILL_CLASS } from "./task-composer-pill";
 import { getTaskStatusMarker } from "./task-status-badge";
 
 export interface TaskStatusPickerLabels {
@@ -37,6 +41,8 @@ export interface TaskStatusPickerLabels {
   ariaLabel: string;
   searchPlaceholder: string;
   noResults: string;
+  /** Board column titles, so typing "Done" finds Completed. */
+  columnLabels?: Record<KanbanColumnId, string>;
 }
 
 interface TaskStatusPickerProps {
@@ -53,7 +59,7 @@ interface TaskStatusPickerProps {
   openShortcutKey?: string;
   align?: "start" | "end";
   /** `row` is the quiet icon + label used in the task properties sidebar. */
-  variant?: "pill" | "row";
+  variant?: "pill" | "row" | "composer";
 }
 
 /** The quiet full-width row trigger shared by the task properties sidebar pickers. */
@@ -91,10 +97,10 @@ export function TaskStatusPicker({
     });
   }, [value, options, isOptionDisabled]);
 
-  useEffect(() => {
-    if (!openShortcutKey || disabled || isPending) return;
-
-    function handleKeyDown(event: globalThis.KeyboardEvent) {
+  useEventListener(
+    openShortcutKey && !disabled && !isPending ? "window" : null,
+    "keydown",
+    (event) => {
       if (event.defaultPrevented || event.repeat) return;
       if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
         return;
@@ -103,11 +109,8 @@ export function TaskStatusPicker({
       if (isEditableKeyboardTarget(event.target)) return;
       event.preventDefault();
       setOpen(true);
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [openShortcutKey, disabled, isPending]);
+    },
+  );
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
@@ -146,14 +149,28 @@ export function TaskStatusPicker({
       type="button"
       role="combobox"
       aria-expanded={open}
-      aria-label={labels.ariaLabel}
+      aria-label={
+        variant === "composer"
+          ? `${labels.ariaLabel}: ${labels.statusLabels[value]}`
+          : labels.ariaLabel
+      }
       disabled={disabled || isPending}
-      className={cn(
-        "focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring rounded-sm outline-none focus-visible:ring-2 disabled:cursor-not-allowed",
-        variant === "row" && ROW_TRIGGER_CLASS,
-      )}
+      data-filled={variant === "composer" || undefined}
+      className={
+        variant === "composer"
+          ? COMPOSER_PILL_CLASS
+          : cn(
+              "focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring rounded-sm outline-none focus-visible:ring-2 disabled:cursor-not-allowed",
+              variant === "row" && ROW_TRIGGER_CLASS,
+            )
+      }
     >
-      {variant === "row" ? (
+      {variant === "composer" ? (
+        <>
+          <StatusMarker spec={marker} tone={style.onSurface} live={false} />
+          <span className="truncate">{labels.statusLabels[value]}</span>
+        </>
+      ) : variant === "row" ? (
         <>
           <span className="flex size-5 shrink-0 items-center justify-center">
             {statusMarker}
@@ -217,7 +234,10 @@ export function TaskStatusPicker({
                 <CommandItem
                   key={status}
                   value={status}
-                  keywords={[labels.statusLabels[status]]}
+                  keywords={[
+                    labels.statusLabels[status],
+                    labels.columnLabels?.[getColumnId(status)] ?? "",
+                  ]}
                   disabled={isDisabled}
                   data-current={isCurrent || undefined}
                   onSelect={() => handleSelect(status)}

@@ -1,13 +1,14 @@
 import { z } from "@hono/zod-openapi";
 import {
-  brandBrainSchema,
   CMO_BRAND_SECTION_KEYS,
   cmoReportUpdateInputSchema,
   marketingStrategyPlanSchema,
+  storedBrandBrainSchema,
 } from "@sokosumi/soko-bot";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 import { errorResponseWithExtensionsSchema } from "@/helpers/error";
+import { cmoSeoSuggestionSchema } from "@/schemas/cmo-seo.schema";
 import { marketingStrategyVersionSchema } from "@/schemas/marketing-strategy.schema";
 import { socialAccountChoiceSchema } from "@/schemas/project-social-connection.schema";
 import { tikTokPostSettingsSchema } from "@/schemas/social-post.schema";
@@ -112,14 +113,22 @@ export const cmoMeasurementSchema = z
   .openapi("CmoMeasurement");
 
 /** A plan, named once: the overview carries the newest and the approved one. */
-const cmoPlanSchema = marketingStrategyPlanSchema.openapi("CmoPlan");
+export const cmoPlanSchema = marketingStrategyPlanSchema.openapi("CmoPlan");
 
 export const cmoProductionSchema = z
   .object({
     state: z
-      .enum(["waiting", "starting", "running", "ready", "stuck"])
+      .enum([
+        "waiting",
+        "planning",
+        "starting",
+        "running",
+        "ready",
+        "stuck",
+        "blocked",
+      ])
       .describe(
-        "starting: approved, but no run is working yet; the next sync starts one.",
+        "planning: paid, and Core is writing the month's calendar (cmo-v22). starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.",
       ),
     ready: z.number().int(),
     total: z.number().int(),
@@ -157,6 +166,32 @@ export const cmoProductionSchema = z
       .array(z.string())
       .describe(
         "Calendar entries the plan bought does not make. A bigger plan makes them.",
+      ),
+    withoutPicture: z
+      .array(z.string())
+      .describe(
+        "Written entries whose picture failed the brand check on every visual Cuso wrote. They stay drafts without a picture and no longer hold the month back.",
+      ),
+    retryAt: z
+      .union([z.string(), z.null()])
+      .describe(
+        "When a stuck month's next production run starts. Null unless state is stuck.",
+      ),
+    writerFailed: z
+      .boolean()
+      .describe(
+        "A stuck month stopped because Core's month writer wrote nothing in the last run: a fault on our side, not Cuso's.",
+      ),
+    floor: z
+      .union([
+        z.object({
+          promised: z.number().int(),
+          made: z.number().int(),
+        }),
+        z.null(),
+      ])
+      .describe(
+        "cmo-v22: the posts the plan promises at least, and the month's posts made, gone out or paused by the owner. Null for a month Cuso wrote himself.",
       ),
   })
   .openapi("CmoProduction");
@@ -197,6 +232,20 @@ export const cmoSubscriptionPlanSchema = z
   })
   .openapi("CmoSubscriptionPlan");
 
+/**
+ * CMO.xyz's GA4 ids for a checkout, sent only when the person allowed
+ * analytics: the paid order is reported to GA4 with them.
+ */
+export const cmoCheckoutAnalyticsSchema = z
+  .object({
+    clientId: z.string().regex(/^\d+\.\d+$/),
+    sessionId: z.string().regex(/^\d+$/).optional(),
+  })
+  .optional()
+  .describe(
+    "GA4 client and session id, only with the person's analytics consent; the paid order is reported to GA4 with them.",
+  );
+
 /** The Project of the Cuso a CMO route acts on. */
 export const cmoProjectParamsSchema = z.object({
   projectId: z
@@ -230,6 +279,17 @@ export const cmoBrandFixStartedSchema = z
       ),
   })
   .openapi("CmoBrandFixStarted");
+
+export const cmoAdBudgetStartedSchema = z
+  .object({
+    turnId: z.union([z.string(), z.null()]),
+    queued: z
+      .boolean()
+      .describe(
+        "Cuso is busy with the strategy: the budget is kept and he plans it when his current turn ends.",
+      ),
+  })
+  .openapi("CmoAdBudgetStarted");
 
 /** A version of the plan of the Cuso a CMO route acts on. */
 export const cmoTestCopyCheckSchema = z
@@ -317,9 +377,10 @@ export const cmoChatWorkItemSchema = z
         "question",
         "seo",
         "audit",
+        "seo_saved",
       ])
       .describe(
-        "A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), or the SEO specialist's weekly audit of the site (audit).",
+        "A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), the SEO specialist's weekly audit of the site (audit), or the page changes and articles he saved to the SEO page (seo_saved).",
       ),
     state: z
       .enum(["making", "waiting", "ready", "failed", "stopped"])
@@ -375,6 +436,12 @@ export const cmoChatWorkItemSchema = z
       .union([z.string(), z.null()])
       .describe(
         "A background run's own turn: its report in the room is this card.",
+      ),
+    suggestions: z
+      .array(cmoSeoSuggestionSchema)
+      .optional()
+      .describe(
+        "seo_saved: what Cuso saved to the SEO page, as the page shows it.",
       ),
   })
   .openapi("CmoChatWorkItem");
@@ -652,6 +719,33 @@ export const cmoBrandMediaSchema = z
       .describe(
         "The large pictures on the brand's pages: products, screens, people.",
       ),
+    logos: z
+      .object({
+        logo: z.union([cmoMediaFileSchema, z.null()]),
+        dark: z.union([cmoMediaFileSchema, z.null()]),
+        mark: z.union([cmoMediaFileSchema, z.null()]),
+      })
+      .describe(
+        "The brand's logo as its site shows it, read from its DESIGN.md: the full logo, its version for a dark background and the square mark, each a PNG. Null where the site gave none.",
+      ),
+    site: z
+      .object({
+        pages: z.array(
+          z.object({
+            url: z.string(),
+            title: z.string(),
+            summary: z.string(),
+            facts: z.array(z.string()),
+            desktop: z.union([cmoMediaFileSchema, z.null()]),
+            phone: z.union([cmoMediaFileSchema, z.null()]),
+          }),
+        ),
+        complete: z.boolean(),
+      })
+      .optional()
+      .describe(
+        "Every page of the brand's site Cuso read, home first: what it says and how it looks on a desktop and a phone. complete is false while pages are still to be read. Absent before the first page was read.",
+      ),
   })
   .openapi("CmoBrandMedia");
 export type CmoBrandMedia = z.infer<typeof cmoBrandMediaSchema>;
@@ -704,6 +798,17 @@ export const cmoOverviewSchema = z
     projectLogo: z.union([z.string(), z.null()]),
     /** The owner gave their photo, with consent, to front talking videos. */
     presenterSet: z.boolean(),
+    upgrade: z
+      .union([
+        z.object({
+          versionId: z.string(),
+          lines: z.array(z.string()),
+        }),
+        z.null(),
+      ])
+      .describe(
+        "Cuso was moved onto a newer version and this member has not closed the dialog that says what changed: the version and its plain lines. Null otherwise.",
+      ),
     onboardingStep: z
       .enum(CMO_ONBOARDING_STEPS)
       .describe(
@@ -713,11 +818,25 @@ export const cmoOverviewSchema = z
     timeZone: z
       .string()
       .describe("The time zone Cuso's routines run in, as the owner set it."),
-    brandBrain: z.union([brandBrainSchema, z.null()]),
+    brandBrain: z.union([storedBrandBrainSchema, z.null()]),
     brandBrainUpdatedAt: z.union([dateTimeSchema, z.null()]),
     brandBrainConfirmedAt: z.union([dateTimeSchema, z.null()]),
     brandMedia: z.union([cmoBrandMediaSchema, z.null()]),
     strategy: z.union([cmoPlanSchema, z.null()]),
+    strategyShort: z
+      .union([
+        z.object({
+          planned: z.number().int().describe("Pieces the calendar plans."),
+          promised: z
+            .number()
+            .int()
+            .describe("About how many its pace and cadences promise."),
+        }),
+        z.null(),
+      ])
+      .describe(
+        "Set while the newest draft does not hold what it promises: fewer pieces than its own pace and cadences, or no video where its funnel or a video network promises one (after Cuso's finish turns). Approving it is refused (409); the owner asks for a new strategy instead. `promised` equals `planned` when only a video is missing.",
+      ),
     approvedStrategy: z
       .union([cmoPlanSchema, z.null()])
       .describe(
@@ -780,6 +899,23 @@ export const cmoOverviewSchema = z
       "After approval Cuso makes the whole month at once: how many of its pieces are made.",
     ),
     mailingListSize: z.number().int(),
+    comments: z
+      .array(
+        z.object({
+          id: z.string(),
+          network: z.string(),
+          status: z.enum(["replied", "owner"]),
+          author: z.union([z.string(), z.null()]),
+          text: z.string(),
+          reply: z.union([z.string(), z.null()]),
+          note: z.union([z.string(), z.null()]),
+          handledAt: z.string(),
+          postUrl: z.union([z.string(), z.null()]),
+        }),
+      )
+      .describe(
+        "Comments on the brand's posts that Cuso answered (replied) or left for the owner (owner) in the last three days, newest first, at most 10.",
+      ),
     billing: z
       .object({
         tier: z
@@ -827,3 +963,67 @@ export const cmoOverviewSchema = z
 export const cmoTurnStartedSchema = z
   .object({ turnId: z.string() })
   .openapi("CmoTurnStarted");
+
+const cmoPictureAlternativeSchema = z
+  .object({
+    jobId: z.string(),
+    model: z.string().describe("The image model that made it."),
+    verdict: z
+      .enum(["passed", "rejected", "failed", "waiting"])
+      .describe(
+        "The check's verdict: passed, rejected (why says what failed), failed (the model made nothing) or waiting.",
+      ),
+    why: z.union([z.string(), z.null()]),
+    chosen: z.boolean().describe("The picture that went on the post."),
+    hasImage: z.boolean().describe("A preview is at …/pictures/{jobId}/image."),
+    createdAt: z.string(),
+  })
+  .openapi("CmoPictureAlternative");
+
+export const cmoPictureGroupSchema = z
+  .object({
+    postId: z.string(),
+    network: z.string(),
+    scheduledAt: z.union([z.string(), z.null()]),
+    headline: z.union([z.string(), z.null()]),
+    title: z.union([z.string(), z.null()]),
+    pictureKind: z.union([z.string(), z.null()]),
+    slot: z.number().int().describe("The slide, 0 for a single picture."),
+    postedUrl: z
+      .union([z.string(), z.null()])
+      .describe("The picture on the post, with its logo."),
+    reason: z
+      .union([z.string(), z.null()])
+      .describe("Why the chosen one won the pick (cmo-v11)."),
+    alternatives: z.array(cmoPictureAlternativeSchema),
+  })
+  .openapi("CmoPictureGroup");
+
+export const cmoPicturesSchema = z
+  .object({
+    groups: z.array(cmoPictureGroupSchema),
+    networks: z
+      .array(z.string())
+      .describe("Every network with a picture, whatever the filters."),
+    months: z
+      .array(z.string())
+      .describe("Every month (YYYY-MM) with a picture, whatever the filters."),
+  })
+  .openapi("CmoPictures");
+
+export const cmoPicturesQuerySchema = z.object({
+  network: z.string().max(40).optional(),
+  month: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/)
+    .optional()
+    .describe("YYYY-MM: only posts that go out that month."),
+  chosen: z
+    .enum(["true", "false"])
+    .optional()
+    .describe("true: only pictures that went on a post."),
+});
+
+export const cmoPictureParamsSchema = cmoProjectParamsSchema.extend({
+  jobId: z.string().uuid(),
+});

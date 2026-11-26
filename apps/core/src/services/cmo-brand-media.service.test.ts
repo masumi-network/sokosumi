@@ -9,6 +9,10 @@ const db = vi.hoisted(() => ({
   fileResource: { findUnique: vi.fn() },
   fileProjectLink: { findFirst: vi.fn(), findMany: vi.fn() },
 }));
+const logo = vi.hoisted(() => ({ refresh: vi.fn() }));
+vi.mock("@/services/cmo-brand-visual.service", () => ({
+  refreshCmoBrandLogo: logo.refresh,
+}));
 const files = vi.hoisted(() => ({
   put: vi.fn(),
   list: vi.fn(),
@@ -51,6 +55,10 @@ vi.mock("@sokosumi/net", () => ({
 const site = vi.hoisted(() => ({
   robots: vi.fn(),
   sitemap: vi.fn(),
+  /** A host whose capture throws, as a browser that died does. */
+  dies: { host: "" },
+  /** Set when Chromium does not start. */
+  noBrowser: { on: false },
 }));
 vi.mock("@/lib/site-pages", () => ({
   readRobots: site.robots,
@@ -59,13 +67,19 @@ vi.mock("@/lib/site-pages", () => ({
 vi.mock("@/lib/site-capture", () => ({
   DESKTOP: { width: 1440, height: 900 },
   MOBILE: { width: 390, height: 844 },
-  withBrowser: (work: (browser: unknown) => unknown) => work({}),
+  withBrowser: async (work: (browser: unknown) => unknown) => {
+    if (site.noBrowser.on) throw new Error("Failed to launch the browser");
+    return work({});
+  },
   capturePage: async (
     _browser: unknown,
     url: string,
     viewport?: { sections?: number; fullScreens?: number },
   ) => {
     const own = new URL(url).hostname === "acme.io";
+    if (new URL(url).hostname === site.dies.host) {
+      throw new Error("Protocol error: Target closed");
+    }
     return {
       url: url.endsWith("/moved-home") ? "https://acme.io/" : url,
       title: "Acme",
@@ -112,6 +126,7 @@ import {
   cmoOwnPages,
   listCmoBrandPictures,
   scheduleCmoBrandMedia,
+  scheduleMissingCmoBrandIndex,
 } from "./cmo-brand-media.service";
 
 const finding = (sourceUrl: string) => ({
@@ -320,6 +335,80 @@ describe("captureCmoBrandMedia", () => {
     expect(linked).toHaveLength(files.put.mock.calls.length);
   });
 
+  it("leaves out a file that cannot be saved twice and keeps the rest", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Some of the brand's research files could not be saved",
+      ["Saving a capture file to the Project's Files failed twice"],
+    );
+    const put = files.put.getMockImplementation();
+    files.put.mockImplementation(
+      async (pathname: string, ...rest: unknown[]) => {
+        if (pathname.endsWith("/Full pages/pricing.jpg")) {
+          throw new Error("Vercel Blob: request failed");
+        }
+        return put?.(pathname, ...rest);
+      },
+    );
+    await captureCmoBrandMedia("bot-1");
+    const saved = files.put.mock.calls.map(([pathname]) => pathname);
+    // Tried twice, then left out; the pages after it and the index are kept.
+    expect(
+      saved.filter((path) => path.endsWith("/Full pages/pricing.jpg")),
+    ).toHaveLength(2);
+    expect(saved).toContain(`${ORG}/Full pages/about.jpg`);
+    expect(saved).toContain(`${ORG}/about-mobile.jpg`);
+    expect(saved).toContain(`${ORG}/index.json`);
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_brand_media_save",
+      brandMedia: { failed: 1, folder: "/Full pages", bytes: 4 },
+    });
+  });
+
+  it("still writes the index when the capture throws partway, and says where it stopped", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "The brand capture stopped partway",
+      ["A step of the capture threw; what it saved before is kept"],
+    );
+    site.dies.host = "rival.example";
+    try {
+      await captureCmoBrandMedia("bot-1");
+    } finally {
+      site.dies.host = "";
+    }
+    const index = files.put.mock.calls.find(([pathname]) =>
+      pathname.endsWith("/index.json"),
+    );
+    // The pages read before the browser died are kept and named.
+    expect(JSON.parse(String(index?.[1])).pages).toHaveLength(3);
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_brand_media",
+      brandMedia: { step: "competitors", pagesRead: 3, ownPagesMissed: 0 },
+      failure: { errorName: "Error" },
+    });
+  });
+
+  it("says the browser did not start when Chromium fails to launch", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "The brand capture stopped partway",
+      ["A step of the capture threw; what it saved before is kept"],
+    );
+    site.noBrowser.on = true;
+    try {
+      await captureCmoBrandMedia("bot-1");
+    } finally {
+      site.noBrowser.on = false;
+    }
+    expect(warnings[0]?.event).toMatchObject({
+      brandMedia: { step: "browser", pagesRead: 0 },
+    });
+    expect(files.put.mock.calls.map(([pathname]) => pathname)).toEqual([
+      `${ORG}/index.json`,
+    ]);
+  });
+
   it("reads only what robots.txt allows", async () => {
     site.robots.mockImplementation(async (origin: string) => ({
       allows: (path: string) =>
@@ -341,7 +430,10 @@ describe("captureCmoBrandMedia", () => {
       workspaceId: "ws-1",
       websiteUrl: "https://acme.io",
     });
-    expect(files.put).not.toHaveBeenCalled();
+    // Only the index, which marks the site as read so it is not tried again.
+    expect(files.put.mock.calls.map(([pathname]) => pathname)).toEqual([
+      `${ORG}/index.json`,
+    ]);
   });
 
   it("keeps one copy of a page two addresses lead to", async () => {
@@ -375,13 +467,66 @@ describe("captureCmoBrandMedia", () => {
     expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PAGE");
   });
 
+  it("reads the site's logo again only for a Project without logo files", async () => {
+    // First lookup: a recent capture (none); second: logo files (none).
+    db.fileProjectLink.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    await captureCmoBrandMedia("bot-1");
+    expect(logo.refresh).toHaveBeenCalledTimes(1);
+
+    logo.refresh.mockClear();
+    db.fileProjectLink.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "logo-link" });
+    await captureCmoBrandMedia("bot-1");
+    expect(logo.refresh).not.toHaveBeenCalled();
+  });
+
+  it("starts the index for one Cuso a sync, the first without a page read", async () => {
+    db.fileProjectLink.findMany.mockResolvedValue([{ projectId: "project-1" }]);
+    const now = new Date("2026-11-19T12:00:00Z");
+    await scheduleMissingCmoBrandIndex(
+      [
+        { projectId: "project-1", sokoBotId: "bot-1" },
+        { projectId: "project-2", sokoBotId: "bot-2" },
+        { projectId: "project-3", sokoBotId: "bot-3" },
+      ],
+      now,
+    );
+    // Indexed means a page from the top down; a recent try waits six hours.
+    expect(db.fileProjectLink.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            {
+              resource: {
+                sourceId: { contains: "/Brand research/Full pages/" },
+              },
+            },
+            {
+              updatedAt: { gte: new Date("2026-11-19T06:00:00Z") },
+              resource: {
+                sourceId: { contains: "/Brand research/" },
+                NOT: { sourceId: { contains: "/Brand research/Site/" } },
+              },
+            },
+          ],
+        }),
+      }),
+    );
+    expect(vi.mocked(waitUntil)).toHaveBeenCalledTimes(1);
+    await vi.mocked(waitUntil).mock.calls[0]?.[0];
+    expect(cuso.findForBot).toHaveBeenCalledWith("bot-2");
+  });
+
   it("does not capture again within minutes of the last capture", async () => {
     db.fileProjectLink.findFirst.mockResolvedValue({ id: "link-1" });
     await captureCmoBrandMedia("bot-1");
     expect(files.put).not.toHaveBeenCalled();
   });
 
-  it("does not count the homepage shots hiring took as a recent capture", async () => {
+  it("does not count the homepage shots or the logo hiring took as a recent capture", async () => {
     await captureCmoBrandMedia("bot-1");
     expect(db.fileProjectLink.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -390,6 +535,10 @@ describe("captureCmoBrandMedia", () => {
             NOT: [
               { sourceId: { endsWith: "/Brand research/home.jpg" } },
               { sourceId: { endsWith: "/Brand research/home-mobile.jpg" } },
+              // The logo is read at hire too: a test copy's research saved
+              // its essentials 26 seconds later and read only the homepage.
+              { sourceId: { contains: "/Brand research/Logo/" } },
+              { sourceId: { contains: "/Brand research/Site/" } },
             ],
           }),
         }),
@@ -472,16 +621,31 @@ describe("the Project's brand research", () => {
 
   it("gives Cuso the page screenshots, the sections with the plain ones last, then the pictures", async () => {
     expect(await listCmoBrandPictures("project-1")).toEqual([
-      { fileId: "f-home", alt: "Home page screenshot" },
-      { fileId: "f-phone", alt: "Home on a phone page screenshot" },
-      { fileId: "f-pricing", alt: "Pricing page screenshot" },
+      {
+        fileId: "f-home",
+        alt: "Home page screenshot",
+        kind: "page",
+        phoneFileId: "f-phone",
+        wideFileIds: ["f-home"],
+      },
+      {
+        fileId: "f-pricing",
+        alt: "Pricing page screenshot",
+        kind: "page",
+        wideFileIds: ["f-pricing", "f-plans"],
+      },
       {
         fileId: "f-plans",
         alt: "Pricing cards, Pricing page: plans starter pro",
+        kind: "section",
       },
-      { fileId: "f-plain-part", alt: "Section, Home page: how it works" },
-      { fileId: "f-new", alt: "red sneaker" },
-      { fileId: "f-plain", alt: "" },
+      {
+        fileId: "f-plain-part",
+        alt: "Section, Home page: how it works",
+        kind: "section",
+      },
+      { fileId: "f-new", alt: "red sneaker", kind: "photo" },
+      { fileId: "f-plain", alt: "", kind: "photo" },
     ]);
     expect(db.fileProjectLink.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -491,6 +655,19 @@ describe("the Project's brand research", () => {
         }),
       }),
     );
+  });
+
+  it("offers a page with only its phone shot as that shot", async () => {
+    db.fileProjectLink.findMany.mockResolvedValue([
+      researchFile("f-phone", "home-mobile.jpg"),
+    ]);
+    expect(await listCmoBrandPictures("project-1")).toEqual([
+      {
+        fileId: "f-phone",
+        alt: "Home on a phone page screenshot",
+        kind: "page",
+      },
+    ]);
   });
 
   it("shows CMO the pages read, their sections, competitors and pictures from the Project's files", async () => {
@@ -569,6 +746,7 @@ describe("the Project's brand research", () => {
           alt: "",
         },
       ],
+      logos: { logo: null, dark: null, mark: null },
     });
   });
 

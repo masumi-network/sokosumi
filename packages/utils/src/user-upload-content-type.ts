@@ -1,4 +1,4 @@
-/** Canonical allowlist for user file uploads (kept in sync with Core POST /files). */
+/** Canonical allowlist for user file uploads. */
 export const USER_UPLOAD_ALLOWED_CONTENT_TYPES = [
   "application/gzip",
   "application/json",
@@ -30,7 +30,6 @@ export const USER_UPLOAD_ALLOWED_CONTENT_TYPES = [
   "video/webm",
 ] as const;
 
-/** Set of {@link USER_UPLOAD_ALLOWED_CONTENT_TYPES} for fast membership checks. */
 const USER_UPLOAD_ALLOWED_CONTENT_TYPE_SET = new Set<string>(
   USER_UPLOAD_ALLOWED_CONTENT_TYPES,
 );

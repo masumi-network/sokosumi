@@ -1,12 +1,10 @@
 "use client";
 
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -15,6 +13,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SEO_RESULT_LOCALE } from "@/i18n/seo-result-messages";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { seoDaySpan } from "./seo-day-span";
 import { SeoExportMenu } from "./seo-export-menu";
 import { seoKeywordsExport, seoKeywordsTableExport } from "./seo-export-model";
@@ -27,11 +30,11 @@ import { SeoKeywordHistory } from "./seo-keyword-history";
 import { SeoKeywordIdeas } from "./seo-keyword-ideas";
 import { SeoKeywordReach } from "./seo-keyword-reach";
 import {
-  keywordGroups,
   keywordPage,
   keywordPositions,
   keywordReadFailed,
   keywordSummary,
+  workspaceKeywordGroups,
 } from "./seo-keyword-rows-model";
 import { SeoKeywordSuggestions } from "./seo-keyword-suggestions";
 import { SeoKeywordTrendToggle } from "./seo-keyword-trend";
@@ -46,11 +49,11 @@ import {
   normalizeQuery,
   searchConsoleIndex,
 } from "./seo-search-model";
+import { SeoSeasonalIdeas } from "./seo-seasonal-ideas";
 import { seoSerpMarkers } from "./seo-serp-features-model";
 import {
   SEO_COMPACT_ROWS_CLASS,
   SEO_LIST_PAGE_SIZE,
-  SEO_SEARCH_MIN_ROWS,
   SeoAddButton,
   SeoBarNumber,
   SeoDate,
@@ -72,36 +75,6 @@ import { SeoKeywordDemand, SeoStrategyFold } from "./seo-strategy";
 import { seoStrategyGroupOf } from "./seo-strategy-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-/** One filter for search queries and tracked keywords; it shows once a list is long enough to need it. */
-export function SeoQueryFilter({
-  model,
-  rows,
-}: {
-  model: SeoWorkspaceModel;
-  rows: number;
-}) {
-  const t = useTranslations("App.Seo");
-  if (rows < SEO_SEARCH_MIN_ROWS && !model.keywordSearch) return null;
-  return (
-    <div>
-      <Label className="sr-only" htmlFor="seo-keyword-search">
-        {t("search")}
-      </Label>
-      <Input
-        id="seo-keyword-search"
-        type="search"
-        value={model.keywordSearch}
-        onChange={(event) => model.setKeywordSearch(event.target.value)}
-        placeholder={t(
-          model.data.searchQueries?.rows.length
-            ? "keywords.searchPlaceholder"
-            : "keywords.searchKeywords",
-        )}
-      />
-    </div>
-  );
-}
-
 export function SeoKeywords({
   model,
   section = "keywords",
@@ -111,14 +84,17 @@ export function SeoKeywords({
   section?: SeoRankingsSection;
 }) {
   const t = useTranslations("App.Seo");
-  const format = useFormatter();
+  const result = useSeoResultTranslations("App.Seo");
+  const format = useSeoResultFormatter();
   const dayOf = (value: string | Date | null) =>
     value ? format.dateTime(new Date(value), { dateStyle: "medium" }) : "";
-  const locale = useLocale();
   // One row per keyword: a check reports it once per device, and again as a gap or an idea.
-  const { checked, ideas } = keywordGroups(model.filteredKeywords);
+  const { checked, ideas } = workspaceKeywordGroups(
+    model.data,
+    model.filteredKeywords,
+  );
   // The result line speaks for every keyword; a search narrows the rows only.
-  const all = keywordGroups(model.data.keywords);
+  const all = workspaceKeywordGroups(model.data);
   const summary = keywordSummary(all.checked);
   const [expanded, setExpanded] = useState(false);
   const page = keywordPage(checked, SEO_LIST_PAGE_SIZE);
@@ -178,7 +154,7 @@ export function SeoKeywords({
         summary.newest?.observedAt,
       )
     : 0;
-  const hidden = [shown.volume ? null : t("keywords.volume")].filter(
+  const hidden = [shown.volume ? null : result("keywords.volume")].filter(
     (label): label is string => label !== null,
   );
   // Without paid search data these columns can never fill, so nothing names them.
@@ -228,7 +204,7 @@ export function SeoKeywords({
           // The switch above names the list, so the title is its result: one sentence.
           title={
             summary.read
-              ? t("keywords.summary", {
+              ? result("keywords.summary", {
                   found: summary.found,
                   read: summary.read,
                 })
@@ -242,10 +218,12 @@ export function SeoKeywords({
               {all.checked.length ? (
                 <SeoExportMenu
                   name="keywords"
-                  title={t("keywords.title")}
+                  titleKey="keywords.title"
                   workspace={model.data}
-                  table={() => seoKeywordsExport(checked, t)}
-                  tableCopy={() => seoKeywordsTableExport(checked, t)}
+                  table={(report) => seoKeywordsExport(checked, report)}
+                  tableCopy={(report) =>
+                    seoKeywordsTableExport(checked, report)
+                  }
                   empty={!checked.length}
                 />
               ) : null}
@@ -267,14 +245,14 @@ export function SeoKeywords({
                 [
                   "firstPage",
                   summary.found
-                    ? t("keywords.firstPage", { count: summary.firstPage })
+                    ? result("keywords.firstPage", { count: summary.firstPage })
                     : null,
                 ],
                 [
                   "market",
                   !shown.market && first
                     ? seoMarketName(
-                        locale,
+                        SEO_RESULT_LOCALE,
                         first.countryCode,
                         first.languageCode,
                       )
@@ -290,13 +268,17 @@ export function SeoKeywords({
                     >
                       {namedDays ? (
                         // The runs row over the tabs names these days.
-                        t("keywords.checks", { count: namedDays })
+                        result("keywords.checks", { count: namedDays })
                       ) : checkDays ? (
-                        t("competitors.checkedBetween", checkDays)
+                        result("competitors.checkedBetween", checkDays)
                       ) : (
                         <>
-                          {t("keywords.readOn")}{" "}
-                          <SeoDate day value={summary.newest.observedAt} />
+                          {result("keywords.readOn")}{" "}
+                          <SeoDate
+                            report
+                            day
+                            value={summary.newest.observedAt}
+                          />
                         </>
                       )}
                     </SeoSource>
@@ -329,6 +311,9 @@ export function SeoKeywords({
                     {shown.market ? (
                       <TableHead>{t("keywords.market")}</TableHead>
                     ) : null}
+                    {shown.position ? (
+                      <TableHead>{t("keywords.position")}</TableHead>
+                    ) : null}
                     {shown.volume ? (
                       <TableHead className="text-right">
                         {t("keywords.volume")}
@@ -341,9 +326,6 @@ export function SeoKeywords({
                     ) : null}
                     {shown.conversion ? (
                       <TableHead>{t("keywords.conversion.title")}</TableHead>
-                    ) : null}
-                    {shown.position ? (
-                      <TableHead>{t("keywords.position")}</TableHead>
                     ) : null}
                     {shown.priority ? (
                       <TableHead>{t("keywords.priority")}</TableHead>
@@ -413,7 +395,9 @@ export function SeoKeywords({
                         <TableRow>
                           <TableCell className="min-w-48 whitespace-normal">
                             <p className="font-medium break-words">
-                              <bdi>{row.keyword}</bdi>
+                              <bdi lang={row.languageCode ?? ""}>
+                                {row.keyword}
+                              </bdi>
                             </p>
                             {/* In a one-page scope the page link only repeats; "any page" still says something. */}
                             {row.pageUrl ? (
@@ -428,7 +412,7 @@ export function SeoKeywords({
                               ) : null
                             ) : (
                               <span className="text-muted-foreground text-sm">
-                                {t("keywords.anyPage")}
+                                {result("keywords.anyPage")}
                               </span>
                             )}
                             {/* One page in scope: the target can only be that page. The line also stays away when it
@@ -439,10 +423,10 @@ export function SeoKeywords({
                               ? target.url !== row.pageUrl || !pageNamed
                               : row.pageUrl) ? (
                               <p className="text-muted-foreground mt-1 text-xs">
-                                {t("keywords.target")}:{" "}
+                                {result("keywords.target")}:{" "}
                                 {target?.label ||
                                   target?.url ||
-                                  t("keywords.anyPage")}
+                                  result("keywords.anyPage")}
                               </p>
                             ) : null}
                             <SeoKeywordDemand
@@ -466,45 +450,11 @@ export function SeoKeywords({
                           {shown.market ? (
                             <TableCell data-label={t("keywords.market")}>
                               {seoMarketName(
-                                locale,
+                                SEO_RESULT_LOCALE,
                                 row.countryCode,
                                 row.languageCode,
                               )}
                             </TableCell>
-                          ) : null}
-                          {shown.volume ? (
-                            <TableCell
-                              className="text-right tabular-nums"
-                              // No number, no unit: the label names the empty value.
-                              data-label={
-                                volume === null
-                                  ? t("keywords.volume")
-                                  : undefined
-                              }
-                            >
-                              {volume === null ? (
-                                <span className="text-muted-foreground">
-                                  {t("none")}
-                                </span>
-                              ) : (
-                                <SeoBarNumber
-                                  value={volume}
-                                  max={mostSearched}
-                                  unit={t("keywords.volumeUnit", {
-                                    count: volume,
-                                  })}
-                                />
-                              )}
-                            </TableCell>
-                          ) : null}
-                          {shown.difficulty ? (
-                            <SeoDifficultyCell difficulty={group.difficulty} />
-                          ) : null}
-                          {shown.conversion ? (
-                            <SeoConversionCell
-                              conversion={group.conversion}
-                              feature={group.feature}
-                            />
                           ) : null}
                           {shown.position ? (
                             <TableCell
@@ -520,27 +470,27 @@ export function SeoKeywords({
                                     >
                                       {line.device ? (
                                         <span className="text-muted-foreground">
-                                          {t(`analysis.${line.device}`)}:{" "}
+                                          {result(`analysis.${line.device}`)}:{" "}
                                         </span>
                                       ) : null}
                                       {line.position !== null ? (
                                         <SeoRankPill position={line.position} />
                                       ) : (
-                                        t("keywords.notFound")
+                                        result("keywords.notFound")
                                       )}
                                     </p>
                                   ))}
                                   {olderDay ? (
                                     <p className="text-muted-foreground text-xs">
-                                      {t("observed")}:{" "}
-                                      <SeoDate day value={olderDay} />
+                                      {result("observed")}:{" "}
+                                      <SeoDate report day value={olderDay} />
                                     </p>
                                   ) : null}
                                 </>
                               ) : queries && average?.averagePosition ? (
                                 <>
                                   <p>
-                                    {t("keywords.searchConsoleAverage", {
+                                    {result("keywords.searchConsoleAverage", {
                                       position: format.number(
                                         average.averagePosition,
                                         {
@@ -552,15 +502,16 @@ export function SeoKeywords({
                                     })}
                                   </p>
                                   <p className="text-muted-foreground text-xs">
-                                    {t("keywords.searchConsoleNote")} ·{" "}
+                                    {result("keywords.searchConsoleNote")} ·{" "}
                                     <SeoPeriod
+                                      report
                                       {...seoQueryPeriod(
                                         queries,
                                         model.data.metrics,
                                       )}
                                     />
                                     {queries.truncated
-                                      ? ` · ${t("queries.truncated", { count: queries.rowLimit })}`
+                                      ? ` · ${result("queries.truncated", { count: queries.rowLimit })}`
                                       : null}
                                   </p>
                                 </>
@@ -570,15 +521,16 @@ export function SeoKeywords({
                                   <p>
                                     {/* The daily read asks for this keyword alone: no rows means no impressions. */}
                                     {cellSaysEmpty
-                                      ? t("keywords.trendEmpty")
+                                      ? result("keywords.trendEmpty")
                                       : queries.truncated
-                                        ? t("keywords.notInKeptRows", {
+                                        ? result("keywords.notInKeptRows", {
                                             count: queries.rowLimit,
                                           })
-                                        : t("keywords.notListed")}
+                                        : result("keywords.notListed")}
                                   </p>
                                   <p className="text-muted-foreground text-xs">
                                     <SeoPeriod
+                                      report
                                       {...seoQueryPeriod(
                                         queries,
                                         model.data.metrics,
@@ -587,13 +539,50 @@ export function SeoKeywords({
                                   </p>
                                 </>
                               ) : (
-                                t(
+                                result(
                                   keywordReadFailed({ reads, sources })
                                     ? "keywords.readFailed"
                                     : "keywords.unavailable",
                                 )
                               )}
                             </TableCell>
+                          ) : null}
+                          {shown.volume ? (
+                            <TableCell
+                              className="text-right tabular-nums"
+                              // No number, no unit: the label names the empty value.
+                              data-label={
+                                volume === null
+                                  ? t("keywords.volume")
+                                  : undefined
+                              }
+                            >
+                              {volume === null ? (
+                                <span
+                                  lang="en"
+                                  className="text-muted-foreground"
+                                >
+                                  {result("none")}
+                                </span>
+                              ) : (
+                                <SeoBarNumber
+                                  value={volume}
+                                  max={mostSearched}
+                                  unit={result("keywords.volumeUnit", {
+                                    count: volume,
+                                  })}
+                                />
+                              )}
+                            </TableCell>
+                          ) : null}
+                          {shown.difficulty ? (
+                            <SeoDifficultyCell difficulty={group.difficulty} />
+                          ) : null}
+                          {shown.conversion ? (
+                            <SeoConversionCell
+                              conversion={group.conversion}
+                              feature={group.feature}
+                            />
                           ) : null}
                           {shown.priority ? (
                             <TableCell data-label={t("keywords.priority")}>
@@ -669,7 +658,7 @@ export function SeoKeywords({
               {shown.conversion ? <SeoConversionNote /> : null}
               {hidden.length && !paidOff ? (
                 <p className="text-muted-foreground border-t px-4 py-2 text-xs">
-                  {t("unmeasuredColumns", {
+                  {result("unmeasuredColumns", {
                     columns: format.list(hidden),
                   })}
                 </p>
@@ -718,8 +707,15 @@ export function SeoKeywords({
           </SeoStrategyFold>
         </SeoSection>
       </div>
-      <div className={seoSectionClass(bothLists || section === "ideas")}>
-        <SeoKeywordIdeas model={model} ideas={ideas} />
+      <div
+        className={`space-y-6 ${seoSectionClass(bothLists || section === "ideas") ?? ""}`}
+      >
+        <SeoKeywordIdeas
+          model={model}
+          ideas={ideas}
+          comparisonIdeas={all.ideas}
+        />
+        <SeoSeasonalIdeas model={model} />
       </div>
     </div>
   );
