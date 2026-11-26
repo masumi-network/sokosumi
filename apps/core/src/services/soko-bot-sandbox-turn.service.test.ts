@@ -941,8 +941,16 @@ describe("sandbox turn service", () => {
       source: "CHAT",
       parentTurnId: "parent",
       askedByUserId: null,
+      requestedByUserId: "owner",
       chainDepth: 0,
       chatMentionId: null,
+      parentTurn: {
+        source: "CHAT",
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: "owner",
+        chainDepth: 0,
+      },
     });
     executeToolMock.mockResolvedValue({ ok: true });
     await runSandboxTool(claims, {
@@ -1056,17 +1064,23 @@ describe("sandbox turn service", () => {
       executeToolMock.mockResolvedValue({ ok: true });
     });
 
-    it("lets the owner's request create a post", async () => {
-      await runSandboxTool(claims, {
-        capability: "create_social_post",
-        toolCallId: "c10",
-        toolInput: {},
-      });
-      expect(executeToolMock).toHaveBeenCalledOnce();
-    });
+    it.each([
+      "create_social_post",
+      "update_social_post",
+      "update_social_posts",
+    ] as const)(
+      "lets the owner's request run %s (draft-state enforced in social.ts)",
+      async (capability) => {
+        await runSandboxTool(claims, {
+          capability,
+          toolCallId: `c10-${capability}`,
+          toolInput: capability === "create_social_post" ? {} : { postId },
+        });
+        expect(executeToolMock).toHaveBeenCalledOnce();
+      },
+    );
 
     it.each([
-      "update_social_post",
       "schedule_social_post",
       "cancel_social_post",
       "publish_social_post",
@@ -1081,7 +1095,11 @@ describe("sandbox turn service", () => {
       expect(executeToolMock).not.toHaveBeenCalled();
     });
 
-    it("keeps a scheduled run from creating posts", async () => {
+    it.each([
+      "create_social_post",
+      "update_social_post",
+      "update_social_posts",
+    ] as const)("keeps a scheduled run from running %s", async (capability) => {
       turnFindUniqueMock.mockResolvedValue({
         ...ownerTurn,
         source: "SCHEDULE",
@@ -1089,9 +1107,9 @@ describe("sandbox turn service", () => {
       });
       await expect(
         runSandboxTool(claims, {
-          capability: "create_social_post",
-          toolCallId: "c13",
-          toolInput: {},
+          capability,
+          toolCallId: `c13-${capability}`,
+          toolInput: capability === "create_social_post" ? {} : { postId },
         }),
       ).rejects.toThrow("ask the owner in chat");
       expect(executeToolMock).not.toHaveBeenCalled();

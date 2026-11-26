@@ -208,15 +208,25 @@ function execute(
   });
 }
 
-/** The owner typed this turn in their own chat. */
+/** The owner typed this turn in their own chat (or started a background run from one). */
 function ownerTurn(userMessage: string, parentTurnId: string | null = null) {
   m.ownerTurn.mockResolvedValue({
     source: "CHAT",
     parentTurnId,
     askedByUserId: null,
+    requestedByUserId: "owner",
     chainDepth: 0,
     chatMentionId: "mention",
     userMessage,
+    parentTurn: parentTurnId
+      ? {
+          source: "CHAT",
+          parentTurnId: null,
+          askedByUserId: null,
+          requestedByUserId: "owner",
+          chainDepth: 0,
+        }
+      : null,
   });
 }
 
