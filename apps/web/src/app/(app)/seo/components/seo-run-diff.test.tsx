@@ -137,11 +137,9 @@ it("names the page and the device of a ranking move, and counts the moves it doe
   expect(screen.getByText("and 3 more")).toBeInTheDocument();
 });
 
-it("says that no ranking moved, with no issue lists, between two checks that read only rankings", () => {
+it("shows no issue lists and no ranking moves between two checks that read only rankings and moved none", () => {
   show(diff({}));
-  expect(
-    screen.getByText("No ranking moved between the two checks."),
-  ).toBeInTheDocument();
+  expect(screen.getByText("No ranking moves to show.")).toBeInTheDocument();
   expect(screen.queryByRole("heading", { level: 4 })).not.toBeInTheDocument();
 });
 

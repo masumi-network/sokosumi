@@ -14704,7 +14704,7 @@
         "notCheckedAgain": "{count, plural, one {# earlier issue has no clear result in this check. It counts as neither fixed nor open.} other {# earlier issues have no clear result in this check. They count as neither fixed nor open.}}",
         "notCheckedBefore": "{count, plural, one {# open issue has no clear result in the earlier check. It does not count as new.} other {# open issues have no clear result in the earlier check. They do not count as new.}}",
         "moves": "Ranking moves ({count, number})",
-        "noMoves": "No ranking moved between the two checks.",
+        "noMoves": "No ranking moves to show.",
         "notComparable": {
           "title": "Not compared with the check before",
           "market": "The two checks used different markets, so their issues are not compared.",
