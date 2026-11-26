@@ -58,7 +58,7 @@ export async function repeatedPollRefusal(
       ? await prisma.taskEvent.findFirst({
           where: { taskId: work.taskId },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-          select: { createdAt: true, status: true },
+          select: { id: true, createdAt: true, status: true },
         })
       : await prisma.jobEvent.findFirst({
           where: { jobId: work.jobId },
@@ -89,6 +89,16 @@ export async function repeatedPollRefusal(
       // When the read started: one that began before the change and was
       // saved after it did not see the change.
       ...(latest ? { createdAt: { gt: latest.createdAt } } : {}),
+      // A Task read must also have returned the latest event itself; a read
+      // whose stored result lost its events does not count.
+      ...(latest && "id" in latest
+        ? {
+            result: {
+              path: ["events"],
+              array_contains: [{ id: latest.id }],
+            },
+          }
+        : {}),
     },
     select: { id: true },
   });

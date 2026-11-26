@@ -36,7 +36,11 @@ describe("repeatedPollRefusal", () => {
     );
     db.delegation.mockResolvedValue({ followUp: PLAN });
     db.task.mockResolvedValue({ status: "RUNNING" });
-    db.taskEvent.mockResolvedValue({ createdAt: changed, status: "RUNNING" });
+    db.taskEvent.mockResolvedValue({
+      id: "event-running",
+      createdAt: changed,
+      status: "RUNNING",
+    });
     db.read.mockResolvedValue(null);
   });
 
@@ -72,6 +76,11 @@ describe("repeatedPollRefusal", () => {
           input: { path: ["taskId"], equals: "task-research" },
           // When the read started, not when it was saved.
           createdAt: { gt: changed },
+          // And it returned that latest event.
+          result: {
+            path: ["events"],
+            array_contains: [{ id: "event-running" }],
+          },
         }),
       }),
     );
@@ -128,6 +137,8 @@ describe("repeatedPollRefusal", () => {
     await expect(
       repeatedPollRefusal("run", { kind: "JOB", jobId: "job-1" }),
     ).resolves.toContain("This Job is still running");
+    // A Job's digest carries no event ids: its read is judged by time only.
+    expect(db.read.mock.calls.at(-1)![0].where).not.toHaveProperty("result");
     db.jobEvent.mockResolvedValue({
       createdAt: changed,
       status: "AWAITING_INPUT",
