@@ -276,6 +276,8 @@ interface XWalk {
    * all contacts before it began.
    */
   walked?: boolean;
+  /** At the end of this walk, read everyone once more from the newest. */
+  recheck?: boolean;
   /** When the current walk began at the newest. */
   walkFrom?: string;
 }
@@ -305,19 +307,23 @@ const X_WALKS: Record<
 };
 
 /**
- * The walks, from the old followers fields on first read. The followers walk
- * goes on where it stood: the migration took who follows the owner from the
- * "X followers" list, so nothing is read again. Before `followersWalked`
- * existed, `followsAt` was set only by a finished walk.
+ * The walks, from the old followers fields on first read. The migration took
+ * who follows the owner from the "X followers" list, but an old walk also
+ * joined followers to contacts it never listed, so the followers walk owes
+ * one complete pass: a finished walk starts it at the newest now, an
+ * unfinished one goes on where it stood and then starts it (`recheck`). The
+ * daily page cap holds throughout.
  */
 function xWalksOf(cursor: SourceCursor): Partial<Record<XWalkKind, XWalk>> {
   if (!cursor.xWalks) {
+    const token = cursor.followersToken ?? null;
     cursor.xWalks = cursor.followsAt
       ? {
           followers: {
-            token: cursor.followersToken ?? null,
-            walked: cursor.followersWalked ?? true,
-            walkFrom: cursor.followersWalkFrom,
+            token,
+            walked: false,
+            recheck: Boolean(token),
+            walkFrom: token ? cursor.followersWalkFrom : undefined,
           },
         }
       : {};
@@ -1865,17 +1871,26 @@ export class ContactCaptureService {
     for (let page = 0; page < pages; page += 1) {
       if (budget.calls <= 0 || !this.canRead(context)) return page;
       const token = walk.token ?? null;
-      const result = parseXPage(
-        await this.call(context, budget, X_WALKS[kind].tool, {
-          id: me.id,
-          max_results:
-            walk.walked && !token
-              ? this.limits.xFollowProbeSize
-              : this.limits.xFollowPageSize,
-          user_fields: X_FOLLOWER_FIELDS,
-          ...(token ? { pagination_token: token } : {}),
-        }),
-      );
+      const raw = await this.call(context, budget, X_WALKS[kind].tool, {
+        id: me.id,
+        max_results:
+          walk.walked && !token
+            ? this.limits.xFollowProbeSize
+            : this.limits.xFollowPageSize,
+        user_fields: X_FOLLOWER_FIELDS,
+        ...(token ? { pagination_token: token } : {}),
+      }).catch(async (error: unknown) => {
+        if (!token || !isXPageTokenRefusal(error)) throw error;
+        // A token X no longer takes: this walk starts over at the newest
+        // tomorrow, and the other walk still runs today.
+        walk.token = null;
+        walk.walked = false;
+        delete walk.walkFrom;
+        await save();
+        return null;
+      });
+      if (raw === null) return page + 1;
+      const result = parseXPage(raw);
       const users = result.items.flatMap((raw) => parseXFollower(raw) ?? []);
       const { done, settled } = await this.addXUsers(
         context,
@@ -1888,7 +1903,10 @@ export class ContactCaptureService {
       if (!done) return page + 1;
       const caughtUp = walk.walked === true && settled;
       walk.token = caughtUp ? null : result.nextToken;
-      if (!result.nextToken) walk.walked = true;
+      if (!result.nextToken) {
+        if (walk.recheck) delete walk.recheck;
+        else walk.walked = true;
+      }
       await save();
       if (caughtUp || !result.nextToken) return page + 1;
     }

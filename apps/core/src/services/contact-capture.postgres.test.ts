@@ -81,6 +81,7 @@ vi.mock("@/lib/soko-bot/x-inbox", async (importOriginal) => {
   };
 });
 
+import type { Prisma } from "@sokosumi/database";
 import prisma from "@/lib/db/prisma";
 import { coreLogEvents, expectCoreLog } from "@/test/core-log";
 import { SokoBotIntegrationError } from "./composio-integration-tools.service";
@@ -1918,6 +1919,10 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
           const token = input.pagination_token ?? null;
           followerCalls.push(token);
           followerSizes.push(input.max_results ?? 0);
+          if (token === "stale")
+            throw new SokoBotIntegrationError(
+              "X: 400 Bad Request: Invalid pagination_token",
+            );
           const page = pages[token ?? "first"];
           return {
             data: page.people,
@@ -1987,25 +1992,30 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       ]);
 
       // A cursor from before both walks goes on where its followers walk
-      // stood, at the page it had not read yet, instead of starting over.
+      // stood, at the page it had not read yet; after its end it owes one
+      // complete pass from the newest (day 5 below), full pages, no probe.
       const state = await prisma.contactCaptureState.findFirstOrThrow({
         where: { integration: { sokoBot: { workspaceId: pagedWorkspaceId } } },
       });
-      const { xWalks: _walks, ...x } = (
-        state.cursor as { x: Record<string, unknown> }
-      ).x;
-      await prisma.contactCaptureState.update({
-        where: { id: state.id },
-        data: {
-          cursor: {
-            x: {
-              ...x,
-              followsAt: new Date(start + 3 * day).toISOString(),
-              followersToken: "p3",
-              followersWalked: false,
-            },
-          },
-        },
+      const xCursor = async () =>
+        (
+          (
+            await prisma.contactCaptureState.findUniqueOrThrow({
+              where: { id: state.id },
+            })
+          ).cursor as { x: Prisma.InputJsonObject }
+        ).x;
+      const legacy = async (fields: Prisma.InputJsonObject) => {
+        const { xWalks: _walks, ...x } = await xCursor();
+        await prisma.contactCaptureState.update({
+          where: { id: state.id },
+          data: { cursor: { x: { ...x, ...fields } } },
+        });
+      };
+      await legacy({
+        followsAt: new Date(start + 3 * day).toISOString(),
+        followersToken: "p3",
+        followersWalked: false,
       });
       clock = new Date(start + 4 * day);
       await capture(3);
@@ -2023,6 +2033,9 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       const followingBefore = followingCalls.length;
       clock = new Date(start + 5 * day);
       await capture(4);
+      // The followers walk's owed pass: its two pages, from the newest.
+      expect(followerCalls.slice(6)).toEqual([null, "p2"]);
+      expect(followerSizes.slice(6)).toEqual([100, 100]);
       expect(followingCalls.slice(followingBefore)).toEqual([null, "f2"]);
       const followed = await prisma.contactXFollow.findMany({
         where: {
@@ -2036,6 +2049,47 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         "Bo Chen",
         "Zed Quinn",
       ]);
+
+      // X refuses the followers walk's token: that walk starts over at the
+      // newest tomorrow, and the following walk still runs today.
+      const x = await xCursor();
+      const walks = x.xWalks as Record<string, Prisma.InputJsonObject>;
+      await prisma.contactCaptureState.update({
+        where: { id: state.id },
+        data: {
+          cursor: {
+            x: {
+              ...x,
+              xWalks: {
+                ...walks,
+                followers: { ...walks.followers, token: "stale" },
+              },
+            },
+          },
+        },
+      });
+      const followersBefore = followerCalls.length;
+      const followingBeforeStale = followingCalls.length;
+      clock = new Date(start + 6 * day);
+      await capture(4);
+      expect(followerCalls.slice(followersBefore)).toEqual(["stale"]);
+      expect(followingCalls.slice(followingBeforeStale)).toEqual([null]);
+      clock = new Date(start + 7 * day);
+      await capture(4);
+      expect(followerCalls.slice(followersBefore + 1)).toEqual([null, "p2"]);
+      expect(followerSizes.slice(followersBefore + 1)).toEqual([100, 100]);
+
+      // A finished walk from before both walks owes the same complete pass:
+      // full pages from the newest, not a probe that a backfilled page ends.
+      await legacy({
+        followsAt: new Date(start + 7 * day).toISOString(),
+        followersWalked: true,
+      });
+      const legacyBefore = followerCalls.length;
+      clock = new Date(start + 8 * day);
+      await capture(4);
+      expect(followerCalls.slice(legacyBefore)).toEqual([null, "p2"]);
+      expect(followerSizes.slice(legacyBefore)).toEqual([100, 100]);
     });
   });
 

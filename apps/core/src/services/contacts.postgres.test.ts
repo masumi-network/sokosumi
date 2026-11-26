@@ -1378,6 +1378,34 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     ]);
   });
 
+  it("lets a member go when a merge winner is an organization or archived", async () => {
+    for (const winnerInput of [
+      { name: "Merge Org Winner", kind: "ORGANIZATION" as const },
+      { name: "Merge Archived Winner" },
+    ]) {
+      const linked = await create(asAlice, { name: "Merge Linked Bob" });
+      await inContactTransaction((tx) =>
+        setContactUser(tx, asAlice, linked.contact.id, bob),
+      );
+      const winner = await create(asAlice, winnerInput);
+      if (!winnerInput.kind)
+        await inContactTransaction((tx) =>
+          setContactArchived(tx, asAlice, winner.contact.id, true),
+        );
+      await inContactTransaction((tx) =>
+        mergeContacts(tx, asAlice, winner.contact.id, [linked.contact.id]),
+      );
+      const rows = await prisma.contact.findMany({
+        where: { id: { in: [winner.contact.id, linked.contact.id] } },
+        select: { userId: true },
+      });
+      expect(rows.map((row) => row.userId)).toEqual([null, null]);
+      expect(
+        await prisma.contact.count({ where: { workspaceId, userId: bob } }),
+      ).toBe(0);
+    }
+  });
+
   it("links a member only to a live person, and archiving lets the member go", async () => {
     const address = `member-${bob}@sokosumi.test`;
     const old = await create(asAlice, {

@@ -1224,9 +1224,12 @@ export async function mergeContacts(
   await tx.contactXFollow.deleteMany({
     where: { contactId: { in: loserIdList } },
   });
-  const memberId = winner.userId
-    ? null
-    : (live.find((loser) => loser.userId)?.userId ?? null);
+  // The member moves only to a live person, as `setContactUser` links;
+  // otherwise they are free for capture to link again.
+  const memberId =
+    winner.userId || winner.kind !== "PERSON" || winner.archivedAt
+      ? null
+      : (live.find((loser) => loser.userId)?.userId ?? null);
   await tx.contact.updateMany({
     where: { mergedIntoId: { in: loserIdList } },
     data: { mergedIntoId: winnerId },
