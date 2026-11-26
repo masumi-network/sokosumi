@@ -63,6 +63,7 @@ const SHEET_IMPORT_LIMITS = {
   maxColumns: 100,
   keepHidden: true,
 };
+const SHEET_DATA_ROWS = SHEET_IMPORT_LIMITS.maxRows - 1;
 
 /** A Files CSV's bytes, refused as soon as they pass the import limit. */
 async function readCsvFile(response: Response, name: string, tooLarge: string) {
@@ -193,7 +194,7 @@ export function TableCreateDialog({
   /**
    * A CSV or Excel workbook already in Files or chat: the trigger reads it
    * into the import, ready to map. `kind` comes from the file's type where the
-   * caller knows it: a linked Google Sheet is a workbook without `.xlsx`.
+   * caller knows it: a workbook renamed without `.xlsx` is still Excel.
    */
   sourceFile?: { url: string; name: string; kind?: "csv" | "xlsx" };
   /** The trigger sits beside a chat attachment: quiet, and labelled on phones too. */
@@ -305,6 +306,11 @@ export function TableCreateDialog({
     }
   }
   const fileRead = useCsvFileRead();
+  /** The chosen sheet's data rows (its header aside) and columns, when it passes a limit. */
+  const chosen = sheets[sheetIndex];
+  const sheetCut = chosen?.truncated
+    ? { rows: chosen.size.rows - 1, columns: chosen.size.columns }
+    : null;
   async function handleOpenChange(value: boolean) {
     if (pending) return;
     setOpen(value);
@@ -568,11 +574,28 @@ export function TableCreateDialog({
               </select>
             </div>
           )}
-          {/* Said before Create, never found later: rows or columns past a
-          Table's limits are left out of this import. */}
-          {sheets[sheetIndex]?.truncated && columns.length > 0 && (
+          {/* Said before Create, never found later: each limit the sheet
+          passes, with the sheet's own count, so the cut is plain. */}
+          {sheetCut && columns.length > 0 && (
             <Alert className="sm:col-span-2">
-              <AlertDescription>{t("sheetCut")}</AlertDescription>
+              <AlertDescription>
+                {sheetCut.rows > SHEET_DATA_ROWS && (
+                  <p>
+                    {t("sheetCutRows", {
+                      count: sheetCut.rows,
+                      limit: SHEET_DATA_ROWS,
+                    })}
+                  </p>
+                )}
+                {sheetCut.columns > SHEET_IMPORT_LIMITS.maxColumns && (
+                  <p>
+                    {t("sheetCutColumns", {
+                      count: sheetCut.columns,
+                      limit: SHEET_IMPORT_LIMITS.maxColumns,
+                    })}
+                  </p>
+                )}
+              </AlertDescription>
             </Alert>
           )}
           {columns.length > 0 && (

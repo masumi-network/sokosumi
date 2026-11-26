@@ -28,6 +28,11 @@ export interface Spreadsheet {
   rows: SpreadsheetCell[][];
   /** Rows or columns past the caps were left out. */
   truncated: boolean;
+  /**
+   * The sheet's own size, caps aside: rows with values and the width of its
+   * values. An import says from it what a cut leaves out.
+   */
+  size: { rows: number; columns: number };
   /** Pictures on the sheet as data URLs, such as the charts Google Sheets exports. */
   images: string[];
 }
@@ -91,6 +96,10 @@ function capped(
     name,
     rows: rows.slice(0, maxRows).map((row) => row.slice(0, maxColumns)),
     truncated: wide || rows.length > maxRows,
+    size: {
+      rows: rows.length,
+      columns: Math.max(0, ...rows.map((row) => row.length)),
+    },
     images: [],
   };
 }
@@ -280,35 +289,38 @@ function readSheet(
   }
 
   const grid: SpreadsheetCell[][] = [];
-  let truncated = false;
   let width = 0;
   // Only rows with values count toward the cap: spacer and format-only rows
-  // neither use it up nor, past it, make a sheet look cut.
+  // neither use it up nor, past it, make a sheet look cut. Past the caps the
+  // sheet is still counted, so a cut can say how much it leaves out.
   let filled = 0;
+  let columns = 0;
   for (const row of elements(doc, "row")) {
     if (!keepHidden && row.getAttribute("hidden") === "1") continue;
     const cells: SpreadsheetCell[] = [];
+    let hasValue = false;
+    // Past the caps a cell is only counted, not formatted.
+    const past = filled >= maxRows;
     for (const cell of Array.from(row.children)) {
       if (localName(cell) !== "c") continue;
       const at = position(cell.getAttribute("r") ?? "");
       const column = at ? at[1] : cells.length;
       if (hiddenColumns.has(column)) continue;
-      if (column >= maxColumns) {
-        truncated = true;
+      if (past || column >= maxColumns) {
+        if (cell.textContent) {
+          columns = Math.max(columns, column + 1);
+          hasValue = true;
+        }
         continue;
       }
       const value = readCell(cell, context);
       if (!value.text) continue;
+      columns = Math.max(columns, column + 1);
+      hasValue = true;
       while (cells.length < column) cells.push(EMPTY);
       cells[column] = value;
     }
-    if (cells.length) {
-      if (filled >= maxRows) {
-        truncated = true;
-        break;
-      }
-      filled++;
-    }
+    if (hasValue && ++filled > maxRows) continue;
     grid.push(cells);
     width = Math.max(width, cells.length);
   }
@@ -320,7 +332,8 @@ function readSheet(
   return {
     name,
     rows: grid.map((cells) => visible.map((index) => cells[index] ?? EMPTY)),
-    truncated,
+    truncated: filled > maxRows || columns > maxColumns,
+    size: { rows: filled, columns },
     images: [],
   };
 }

@@ -126,6 +126,9 @@ describe("readSpreadsheet", () => {
       ["2"],
     ]);
     expect(narrow.truncated).toBe(true);
+    // The sheet's own size, past the caps, so a notice can say what is cut.
+    expect(narrow.size).toEqual({ rows: MAX_ROWS + 5, columns: 2 });
+    expect(whole.size).toEqual({ rows: MAX_ROWS + 5, columns: 2 });
   });
 
   it("counts only rows with values toward the cap", async () => {
@@ -142,6 +145,7 @@ describe("readSpreadsheet", () => {
     });
     expect(sheet.rows.map((row) => row[0]?.text ?? "")).toEqual(["1", "", "3"]);
     expect(sheet.truncated).toBe(false);
+    expect(sheet.size).toEqual({ rows: 2, columns: 1 });
   });
 
   it("reads a CSV export, ragged rows and blank headers included", async () => {

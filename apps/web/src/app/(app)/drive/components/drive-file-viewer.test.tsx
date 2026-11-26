@@ -159,7 +159,7 @@ describe("DriveFileViewer", () => {
   it.each([
     ["leads.csv", "text/csv", "csv"],
     ["leads.xlsx", null, "xlsx"],
-    // A linked Google Sheet: Excel by type, its name without the extension.
+    // A workbook renamed without the extension: Excel by its type alone.
     [
       "Q4 report",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

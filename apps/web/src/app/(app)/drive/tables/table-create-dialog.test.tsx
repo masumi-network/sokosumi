@@ -355,7 +355,7 @@ describe("TableCreateDialog from a Files Excel workbook", () => {
     ]);
   });
 
-  it("reads a workbook known by its type, not its name, such as a linked Google Sheet", async () => {
+  it("reads a workbook known by its type, not its name, such as one renamed without .xlsx", async () => {
     openFromFiles(
       await xlsx({
         Leads: [
@@ -409,8 +409,26 @@ describe("TableCreateDialog from a Files Excel workbook", () => {
     const wide = Array.from({ length: 101 }, (_, i) => `C${i}`);
     openFromFiles(await xlsx({ Wide: [wide, wide] }), "Wide.xlsx");
 
-    expect(await screen.findByText("sheetCut")).toBeTruthy();
+    // Names the limit that applies and the sheet's own count, nothing else.
+    expect(
+      await screen.findByText('sheetCutColumns {"count":101,"limit":100}'),
+    ).toBeTruthy();
+    expect(screen.queryByText(/sheetCutRows/)).toBeNull();
     expect(screen.getAllByLabelText("columnName")).toHaveLength(100);
     expect(screen.getByRole("button", { name: "create" })).toBeEnabled();
   });
+
+  it("says how many data rows a sheet has past the Table's 10,000", async () => {
+    const rows = Array.from({ length: 10_002 }, (_, i) => [`r${i}`]);
+    openFromFiles(await xlsx({ Long: [["Name"], ...rows] }), "Long.xlsx");
+
+    expect(
+      await screen.findByText(
+        'sheetCutRows {"count":10002,"limit":10000}',
+        {},
+        { timeout: 10_000 },
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/sheetCutColumns/)).toBeNull();
+  }, 20_000);
 });
