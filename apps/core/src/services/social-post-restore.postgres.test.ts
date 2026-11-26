@@ -17,6 +17,10 @@ vi.mock("@/services/x-subscription-tier.service", () => ({
   }) => connection.subscriptionType,
 }));
 
+import {
+  QUOTED_POST_CANCELLED,
+  QUOTED_POST_FAILED,
+} from "@/helpers/social-post-quote";
 import prisma from "@/lib/db/prisma";
 import {
   cancelSocialPost,
@@ -323,6 +327,95 @@ describe.runIf(enabled)("taking back a cancel", () => {
       where: { id: quote.id },
     });
     expect(row.needsAttentionReason).not.toBeNull();
+  });
+
+  it("clears a quote's stale flag once both posts are back (Neon r19)", async () => {
+    const { scope, socialConnectionId } = await seed();
+    const target = await createSocialPost({
+      ...scope,
+      socialConnectionId,
+      text: "The launch",
+    });
+    const quote = await createSocialPost({
+      ...scope,
+      socialConnectionId,
+      text: "About the launch",
+      quotedPostId: target.id,
+    });
+    const canceledTarget = await cancelSocialPost({
+      ...scope,
+      postId: target.id,
+      revision: target.revision,
+    });
+    const flagged = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: quote.id },
+    });
+    expect(flagged.needsAttentionReason).toBe(QUOTED_POST_CANCELLED);
+    const canceledQuote = await cancelSocialPost({
+      ...scope,
+      postId: quote.id,
+      revision: flagged.revision,
+    });
+    await restoreCanceledSocialPost({
+      ...scope,
+      postId: canceledTarget.id,
+      revision: canceledTarget.revision,
+      status: "DRAFT",
+      scheduledAt: null,
+    });
+    const back = await restoreCanceledSocialPost({
+      ...scope,
+      postId: canceledQuote.id,
+      revision: canceledQuote.revision,
+      status: "DRAFT",
+      scheduledAt: null,
+    });
+    expect(back.status).toBe("DRAFT");
+    const row = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: quote.id },
+    });
+    expect(row.needsAttentionReason).toBeNull();
+    expect(row.lastError).toBeNull();
+  });
+
+  it("warns a quote of a FAILED post it is back as failed, not clean (Neon r19)", async () => {
+    const { scope, socialConnectionId } = await seed();
+    const target = await createSocialPost({
+      ...scope,
+      socialConnectionId,
+      text: "The launch",
+    });
+    // The quote is made first; its quoted post fails afterwards.
+    const quote = await createSocialPost({
+      ...scope,
+      socialConnectionId,
+      text: "About the launch",
+      quotedPostId: target.id,
+    });
+    await prisma.socialPost.update({
+      where: { id: target.id },
+      data: { status: "FAILED", lastError: "media refused" },
+    });
+    const failed = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: target.id },
+    });
+    const canceled = await cancelSocialPost({
+      ...scope,
+      postId: failed.id,
+      revision: failed.revision,
+    });
+    await restoreCanceledSocialPost({
+      ...scope,
+      postId: canceled.id,
+      revision: canceled.revision,
+      status: "FAILED",
+      scheduledAt: null,
+      diagnostics: { lastError: "media refused", needsAttentionReason: null },
+    });
+    const row = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: quote.id },
+    });
+    expect(row.needsAttentionReason).toBe(QUOTED_POST_FAILED);
   });
 
   it("brings back the status it had and refuses a schedule without a time", async () => {
