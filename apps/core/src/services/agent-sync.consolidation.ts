@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { type Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import prisma from "@/lib/db/prisma";
 import { emitCoreWarning } from "@/lib/evlog";
@@ -138,14 +139,14 @@ export async function retargetDuplicateAgentNotifications(
 ): Promise<void> {
   try {
     await prisma.$executeRaw`
-      UPDATE "notification"
+      UPDATE ${sharedTable("notification")}
       SET "metadata" = jsonb_set(
         "metadata"::jsonb,
         '{agentId}',
         to_jsonb(${canonicalAgentId}::text)
       )::text
       WHERE "id" IN (
-        SELECT "id" FROM "notification"
+        SELECT "id" FROM ${sharedTable("notification")}
         WHERE CASE
           WHEN "metadata" IS NULL THEN FALSE
           WHEN NOT pg_input_is_valid("metadata", 'jsonb') THEN FALSE

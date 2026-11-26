@@ -1,3 +1,4 @@
+import { PrismaRaw } from "@sokosumi/database/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -344,10 +345,10 @@ describe("studioVideoOfMedia", () => {
       talking: true,
       reel: true,
     });
-    expect(mocks.queryRaw.mock.calls[0]?.slice(1)).toEqual([
-      "project-1",
-      ["9cc6c00f"],
-    ]);
+    const [strings, ...values] = mocks.queryRaw.mock.calls[0];
+    const query = PrismaRaw.sql(strings, ...values);
+    expect(query.sql).toContain('from "public"."project_image_job" job');
+    expect(query.values).toEqual(["project-1", ["9cc6c00f"]]);
 
     mocks.queryRaw.mockClear();
     await expect(

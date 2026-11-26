@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   type BrandBrain,
   type CmoCalendarEntry,
@@ -718,7 +719,7 @@ async function lockedPlan(
   tx: Prisma.TransactionClient,
   versionId: string,
 ): Promise<{ plan: MarketingStrategyPlan; approvedAt: Date } | null> {
-  await tx.$executeRaw`SELECT 1 FROM marketing_strategy WHERE id = ${versionId}::uuid FOR UPDATE`;
+  await tx.$executeRaw`SELECT 1 FROM ${sharedTable("marketing_strategy")} WHERE id = ${versionId}::uuid FOR UPDATE`;
   const version = await tx.marketingStrategy.findUnique({
     where: { id: versionId },
     select: { plan: true, approvedAt: true },

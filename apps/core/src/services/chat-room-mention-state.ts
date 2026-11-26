@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { readSokoBotAttemptAt } from "@sokosumi/utils";
 import prisma from "@/lib/db/prisma";
 import { emitCoreError } from "@/lib/evlog";
@@ -181,7 +182,7 @@ async function lockMention(
   mentionId: string,
 ): Promise<{ updatedAt: Date } | undefined> {
   const [locked] = await tx.$queryRaw<{ updatedAt: Date }[]>`
-    SELECT "updatedAt" FROM "chat_room_mention"
+    SELECT "updatedAt" FROM ${sharedTable("chat_room_mention")}
     WHERE "id" = ${mentionId}::uuid FOR UPDATE`;
   return locked;
 }

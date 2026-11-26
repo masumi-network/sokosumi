@@ -1,3 +1,4 @@
+import { PrismaRaw } from "@sokosumi/database/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectCoreLogWhys } from "@/test/core-log";
 
@@ -119,8 +120,13 @@ beforeEach(() => {
   ]);
   m.prisma.$transaction.mockImplementation((run) => run(m.prisma));
   // The grant locks its subscription row by id; the Cuso is live.
-  m.prisma.$queryRaw.mockImplementation(async (_sql, id) =>
-    subscriptions.filter((row) => row.id === id),
+  m.prisma.$queryRaw.mockImplementation(
+    async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const {
+        values: [id],
+      } = PrismaRaw.sql(strings, ...values);
+      return subscriptions.filter((row) => row.id === id);
+    },
   );
   m.prisma.sokoBot.findFirst.mockResolvedValue({ id: "bot_1" });
   // The grant write-locks the live Cuso's row.
@@ -270,8 +276,13 @@ describe("syncPolarYearlyGrants", () => {
       [{ ...SUBSCRIPTION, endedAt: new Date() }],
       [{ ...SUBSCRIPTION, lastPaidOrderRefundedAt: new Date() }],
     ];
-    m.prisma.$queryRaw.mockImplementation(async (sql: string[]) =>
-      sql.join("?").includes('"polar_subscription"') ? locked.shift() : [],
+    m.prisma.$queryRaw.mockImplementation(
+      async (strings: TemplateStringsArray, ...values: unknown[]) =>
+        PrismaRaw.sql(strings, ...values).sql.includes(
+          'UPDATE "public"."polar_subscription"',
+        )
+          ? locked.shift()
+          : [],
     );
 
     expect(await sync()).toEqual({
@@ -294,12 +305,12 @@ describe("syncPolarYearlyGrants", () => {
 
     // A refund is Serializable: only a write of the row, not a lock, makes
     // its update fail when its snapshot predates the grant (coding conventions).
-    const queries = m.prisma.$queryRaw.mock.calls.map(([sql]) =>
-      (sql as string[]).join("?"),
+    const queries = m.prisma.$queryRaw.mock.calls.map(
+      ([strings, ...values]) => PrismaRaw.sql(strings, ...values).sql,
     );
     expect(queries).toContainEqual(
       expect.stringMatching(
-        /^\s*UPDATE "polar_subscription"\s+SET "updatedAt" = "updatedAt"/,
+        /^\s*UPDATE "public"\."polar_subscription"\s+SET "updatedAt" = "updatedAt"/,
       ),
     );
   });
