@@ -91,7 +91,7 @@ const answerSchema = z.object({
   toOwner: z.string().trim().min(1).max(700),
 });
 type Answer = z.infer<typeof answerSchema>;
-type StrategyAnswer = Answer["strategy"];
+export type StrategyAnswer = Answer["strategy"];
 const ANSWER_TOOL = "answer_strategy";
 
 export type StepEnd =
@@ -122,7 +122,7 @@ export function cmoStrategyStepSystem(version: SokoBotVersion): string {
   return [
     "You are Cuso, an AI marketer, writing a business's marketing strategy for Core, which saves it and checks it.",
     `Answer with one ${ANSWER_TOOL} call. strategy holds everything your strategy skill and the brief ask you to save: every field of the plan and the example posts in calendar. Where they say to save with save_strategy, in parts or calls, put all of it in this one answer instead: Core saves it. toOwner is what you tell the owner afterwards, in their language: one or two sentences on what the strategy does first (for a change, one sentence on what changed). Never mention tools, saves, Core or checks.`,
-    "When Core sends back problems, answer once more with only what changes: each plan field you change, whole, and each calendar entry you change or add, whole under its id (status skipped drops one). Fix every problem named; change nothing else.",
+    "When Core sends back problems, answer once more with only what changes: each plan field you change, whole, and each calendar entry you change or add, whole under its id (status skipped drops one). Fix every problem named; change nothing else. toOwner is again what the owner hears about the strategy as it now stands (what it does first, or for a change what changed), never what you fixed.",
     ...strategySkills(version),
   ].join("\n\n");
 }
@@ -149,15 +149,6 @@ export function cmoStrategyChangeBrief(businessName: string, change: string) {
   ].join("\n");
 }
 
-/** What Cuso tells the owner after a repair: a new strategy keeps its first line. */
-export function cmoOwnerLine(
-  part: "all" | "patch",
-  first: string,
-  repaired: string,
-): string {
-  return part === "all" ? first || repaired : repaired || first;
-}
-
 /** The repair's message: every problem at once, as Core's checks name them. */
 export function cmoStrategyRepairPrompt(
   problems: readonly string[],
@@ -172,13 +163,15 @@ export function cmoStrategyRepairPrompt(
 }
 
 /**
- * A fresh strategy with its repair: each field the fix sends replaces the
- * candidate's, each entry replaces its own by id or is added, and an entry
- * the fix skips leaves the calendar.
+ * A try with its repair: each field the fix sends replaces the try's, each
+ * entry replaces its own by id or is added. An entry the fix skips leaves a
+ * new strategy's calendar; a patch keeps it skipped, which is how a patch
+ * drops a saved entry.
  */
 export function withStrategyFix(
   candidate: StrategyAnswer,
   fix: StrategyAnswer,
+  keepSkipped = false,
 ): StrategyAnswer {
   const { calendar, ...fields } = fix;
   const sent = Object.fromEntries(
@@ -193,13 +186,13 @@ export function withStrategyFix(
     (candidate.calendar ?? []).map((entry) => [entry.id, entry]),
   );
   for (const entry of calendar ?? []) {
-    if (entry.status === "skipped") entries.delete(entry.id);
+    if (entry.status === "skipped" && !keepSkipped) entries.delete(entry.id);
     else entries.set(entry.id, { ...entries.get(entry.id), ...entry });
   }
   return { ...candidate, ...sent, calendar: [...entries.values()] };
 }
 
-interface StepContext {
+export interface StepContext {
   runtime: RuntimeOperations;
   input: ExecuteSokoBotToolInput;
   authorized: AuthorizedSokoBotRuntime;
@@ -279,7 +272,10 @@ export function cmoFitStrategy(value: unknown): {
   let current: unknown = structuredClone(value);
   for (let pass = 0; pass < 5; pass++) {
     const parsed = STRATEGY_SCHEMA.safeParse(current);
-    if (parsed.success) return { strategy: parsed.data, issues: [] };
+    // The answer as sent, cut to fit: the parsed value would carry every
+    // default, and a patch would send an empty list for each field it keeps.
+    if (parsed.success)
+      return { strategy: current as StrategyAnswer, issues: [] };
     let cut = false;
     for (const issue of parsed.error.issues) {
       if (issue.code !== "too_big" || typeof issue.maximum !== "number")
@@ -312,18 +308,20 @@ export function cmoFitStrategy(value: unknown): {
   return { strategy: current as StrategyAnswer, issues: ["strategy: invalid"] };
 }
 
-interface SaveOutcome {
+export interface SaveOutcome {
   /** The version saved; null when nothing was. */
   versionId: string | null;
   problems: string[];
 }
 
 /** A refusal's lines, as problems. */
-function refusalProblems(message: string): string[] {
-  return message
+export function refusalProblems(message: string): string[] {
+  const lines = message
     .split("\n")
     .map((line) => line.replace(/^- /, "").trim())
     .filter((line) => line && !line.startsWith("save_strategy saved nothing"));
+  // A one-line refusal is its own problem: an empty list read as a clean save.
+  return lines.length > 0 ? lines : [message.trim() || "the save was refused"];
 }
 
 /** Saves through Cuso's own save_strategy, so its hard rules and review hold. */
@@ -353,21 +351,26 @@ async function save(
 }
 
 /** Saves an answer the schema takes; an answer it refuses saves nothing. */
-async function saveAnswer(
-  context: StepContext,
+export async function cmoSaveAnswer(
+  context: Pick<StepContext, "runtime" | "input"> &
+    Partial<Pick<StepContext, "authorized">>,
   round: number,
   part: "all" | "patch",
   strategy: StrategyAnswer,
   issues: readonly string[],
+  checkCalendar: (versionId: string) => Promise<string[]> = (versionId) =>
+    calendarChecks(context as StepContext, versionId),
 ): Promise<SaveOutcome> {
   if (issues.length > 0) return { versionId: null, problems: [...issues] };
-  const saved = await save(context, round, { part, strategy });
-  return saved.versionId && strategy.calendar?.length
+  const saved = await save(context as StepContext, round, { part, strategy });
+  // The saved version is checked whole, whatever this save sent: a patch of
+  // the goals alone must not read an open calendar problem as fixed.
+  return saved.versionId
     ? {
         ...saved,
         problems: [
           ...saved.problems,
-          ...(await calendarChecks(context, saved.versionId)),
+          ...(await checkCalendar(saved.versionId)),
         ],
       }
     : saved;
@@ -429,75 +432,121 @@ async function runStep(context: StepContext): Promise<StepEnd> {
     { role: "user", content: cmoStrategyStepPrompt(brief, context_) },
   ];
   const first = await answer(context, system, messages);
-  const part = change ? "patch" : "all";
-  let candidate = first.strategy;
-  let toOwner = first.toOwner;
-  let saved = await saveAnswer(context, 1, part, candidate, first.issues);
-  const problems = saved.problems;
   let last = first.message;
+  return cmoRepairLoop({
+    part: change ? "patch" : "all",
+    first,
+    save: (round, strategy, issues) =>
+      cmoSaveAnswer(context, round, change ? "patch" : "all", strategy, issues),
+    mayRepair: () =>
+      STEP_BUDGET_MS - (Date.now() - context.startedAt) >= REPAIR_MIN_MS,
+    repair: async (round, problems) => {
+      const call = last.find((message) => message.role === "assistant");
+      const toolCall = (Array.isArray(call?.content) ? call.content : []).find(
+        (item) => item.type === "tool-call",
+      );
+      const repairPrompt = cmoStrategyRepairPrompt(problems, round);
+      messages.push(
+        ...last,
+        toolCall?.type === "tool-call"
+          ? {
+              role: "tool",
+              content: [
+                {
+                  type: "tool-result",
+                  toolCallId: toolCall.toolCallId,
+                  toolName: ANSWER_TOOL,
+                  output: { type: "text", value: repairPrompt },
+                },
+              ],
+            }
+          : { role: "user", content: repairPrompt },
+      );
+      const repaired = await answer(context, system, messages);
+      last = repaired.message;
+      return repaired;
+    },
+  });
+}
+
+/** One answer of the model, fitted to the save's schema. */
+export interface CmoStepAnswer {
+  strategy: StrategyAnswer;
+  toOwner: string;
+  issues: string[];
+}
+
+/**
+ * The step after its first answer: save, then repair while problems remain.
+ * What was last tried and what was last saved are kept apart (Codex round
+ * 5): a refused repair never reports success, the owner hears the sentence
+ * of the answer whose save landed, a failed patch's corrections carry into
+ * the next try, and every save is checked whole again.
+ */
+export async function cmoRepairLoop(input: {
+  part: "all" | "patch";
+  first: CmoStepAnswer;
+  /** Saves one try; its problems are the saved version's, checked whole, or why nothing was saved. */
+  save: (
+    round: number,
+    strategy: StrategyAnswer,
+    issues: readonly string[],
+  ) => Promise<SaveOutcome>;
+  repair: (
+    round: number,
+    problems: readonly string[],
+  ) => Promise<CmoStepAnswer>;
+  mayRepair: () => boolean;
+}): Promise<StepEnd> {
+  const { part, first } = input;
+  // A new strategy's try is always whole. A change's try is the patch not
+  // saved yet: a refused patch's corrections stay in it for the next try.
+  let attempt = first.strategy;
+  let outcome = await input.save(1, attempt, first.issues);
+  let saved: { versionId: string; problems: string[]; toOwner: string } | null =
+    outcome.versionId
+      ? {
+          versionId: outcome.versionId,
+          problems: outcome.problems,
+          toOwner: first.toOwner,
+        }
+      : null;
+  if (outcome.versionId && part === "patch") attempt = {};
+  const initial = outcome.problems.length;
   for (
     let round = 1;
-    round <= REPAIR_ROUNDS &&
-    saved.problems.length > 0 &&
-    STEP_BUDGET_MS - (Date.now() - context.startedAt) >= REPAIR_MIN_MS;
+    round <= REPAIR_ROUNDS && outcome.problems.length > 0 && input.mayRepair();
     round++
   ) {
-    const call = last.find((message) => message.role === "assistant");
-    const toolCall = (Array.isArray(call?.content) ? call.content : []).find(
-      (item) => item.type === "tool-call",
+    const fix = await input.repair(round, outcome.problems);
+    const fitted = cmoFitStrategy(
+      withStrategyFix(attempt, fix.strategy, part === "patch"),
     );
-    const repairPrompt = cmoStrategyRepairPrompt(saved.problems, round);
-    messages.push(
-      ...last,
-      toolCall?.type === "tool-call"
-        ? {
-            role: "tool",
-            content: [
-              {
-                type: "tool-result",
-                toolCallId: toolCall.toolCallId,
-                toolName: ANSWER_TOOL,
-                output: { type: "text", value: repairPrompt },
-              },
-            ],
-          }
-        : { role: "user", content: repairPrompt },
-    );
-    const repair = await answer(context, system, messages);
-    last = repair.message;
-    // A new strategy's line says what it does first; a repair's says what
-    // it fixed, which is Core's business. A change's line is the change.
-    toOwner = cmoOwnerLine(part, toOwner, repair.toOwner);
-    // A change saves its fix as one more patch onto the version it saved.
-    // A new strategy saves whole, so a first answer that never saved lands.
-    const fix =
-      part === "patch" && saved.versionId
-        ? repair.strategy
-        : withStrategyFix(candidate, repair.strategy);
-    const fitted = cmoFitStrategy(fix);
-    if (part === "all") candidate = fitted.strategy;
-    const fixed = await saveAnswer(
-      context,
-      round + 1,
-      part,
-      fitted.strategy,
-      fitted.issues,
-    );
-    if (fixed.versionId) saved = fixed;
-    else saved = { ...saved, problems: fixed.problems };
+    attempt = fitted.strategy;
+    outcome = await input.save(round + 1, attempt, fitted.issues);
+    if (!outcome.versionId) continue;
+    saved = {
+      versionId: outcome.versionId,
+      problems: outcome.problems,
+      toOwner: fix.toOwner || saved?.toOwner || first.toOwner,
+    };
+    if (part === "patch") attempt = {};
   }
-  const left = saved.problems;
-  if (!saved.versionId || !toOwner)
+  if (!saved)
     return {
       state: "failed",
-      reason: `the strategy could not be saved: ${left.join("; ").slice(0, 600)}`,
+      reason: `the strategy could not be saved: ${outcome.problems.join("; ").slice(0, 600)}`,
     };
   return {
     state: "saved",
     versionId: saved.versionId,
-    toOwner,
-    fixed: Math.max(0, problems.length - left.length),
-    left,
+    toOwner:
+      saved.toOwner ||
+      (part === "all"
+        ? "Your strategy is ready."
+        : "Your strategy is changed."),
+    fixed: Math.max(0, initial - saved.problems.length),
+    left: saved.problems,
   };
 }
 
