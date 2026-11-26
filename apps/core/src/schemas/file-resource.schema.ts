@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import {
   FILE_LABEL_DESCRIPTION_MAX_LENGTH,
   FILE_LABEL_NAME_MAX_GRAPHEMES,
+  strictBody,
 } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -277,30 +278,45 @@ export const updateWorkspaceLabelRequestSchema = z.object({
   mergeIntoLabelId: z.string().optional(),
 });
 
-export const updateFileMetadataRequestSchema = z
-  .object({
-    expectedMetadataRevision: z.number().int().openapi({
-      description:
-        "Reject the edit if someone else changed this document's metadata first.",
-    }),
-    addTagLabelIds: z.array(z.string()).max(20).optional(),
-    removeTagLabelIds: z.array(z.string()).max(20).optional(),
-    /** null clears the category and re-opens it to suggestions. */
-    categoryLabelId: z.string().nullish(),
-    confirmProjectIds: z.array(z.string()).max(20).optional(),
-    removeProjectIds: z.array(z.string()).max(20).optional(),
-    /** Re-open a pinned field so suggestions may apply again. */
-    allowSuggestionsFor: z.array(z.enum(["category", "tags"])).optional(),
-    /**
-     * Withdraw the veto on these labels: delete each one's rejection so the
-     * model may propose it again. Applies to tags and categories alike.
-     *
-     * It does not re-apply the label. A person vetoes or withdraws a veto;
-     * the model still decides. Distinct from `allowSuggestionsFor`, which is
-     * field-scoped and clears a manual pin rather than a rejection.
-     */
-    allowSuggestionsForLabelIds: z.array(z.string()).max(20).optional(),
-  })
+// Strict: `tagIds` and other guesses were dropped, the edit changed nothing
+// and the revision still moved (SOKD-485).
+const updateFileMetadataFields = {
+  expectedMetadataRevision: z.number().int().openapi({
+    description:
+      "Reject the edit if someone else changed this document's metadata first.",
+  }),
+  addTagLabelIds: z.array(z.string()).max(20).optional(),
+  removeTagLabelIds: z.array(z.string()).max(20).optional(),
+  /** null clears the category and re-opens it to suggestions. */
+  categoryLabelId: z.string().nullish(),
+  confirmProjectIds: z.array(z.string()).max(20).optional(),
+  removeProjectIds: z.array(z.string()).max(20).optional(),
+  /** Re-open a pinned field so suggestions may apply again. */
+  allowSuggestionsFor: z.array(z.enum(["category", "tags"])).optional(),
+  /**
+   * Withdraw the veto on these labels: delete each one's rejection so the
+   * model may propose it again. Applies to tags and categories alike.
+   *
+   * It does not re-apply the label. A person vetoes or withdraws a veto;
+   * the model still decides. Distinct from `allowSuggestionsFor`, which is
+   * field-scoped and clears a manual pin rather than a rejection.
+   */
+  allowSuggestionsForLabelIds: z.array(z.string()).max(20).optional(),
+};
+const metadataChangeFields = Object.keys(updateFileMetadataFields).filter(
+  (field) => field !== "expectedMetadataRevision",
+);
+
+export const updateFileMetadataRequestSchema = strictBody(
+  updateFileMetadataFields,
+)
+  .refine(
+    (body) =>
+      metadataChangeFields.some(
+        (field) => body[field as keyof typeof body] !== undefined,
+      ),
+    `Send at least one change: ${metadataChangeFields.join(", ")}.`,
+  )
   .openapi("UpdateFileMetadataRequest");
 
 export const fileMetadataBatchRequestSchema = z
