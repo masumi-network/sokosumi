@@ -14988,6 +14988,7 @@
         "brandLimited": "There are more query rows than the split can read. The branded and non-branded numbers are a lower limit.",
         "brandListedOnly": "These numbers count the listed queries only. The day totals could not be compared, so there are no shares.",
         "brandUnavailable": "Could not read the queries for this period, so there is no brand split.",
+        "brandLoading": "Reading the brand split…",
         "brandEmpty": "Add your brand terms to see how much traffic comes from searches for your name."
       },
       "traffic": {
@@ -15039,6 +15040,7 @@
           "non_branded": "Non-branded"
         },
         "brandTotals": "Listed queries: {branded} clicks branded ({brandedShare}), {nonBranded} clicks non-branded ({nonBrandedShare})",
+        "brandTotalsNoShare": "Listed queries: {branded} clicks branded, {nonBranded} clicks non-branded",
         "brandSuggested": "Suggested from your website name. Check the terms before you save.",
         "editBrandTerms": "Edit brand terms",
         "addBrandTerms": "Add brand terms",

@@ -952,6 +952,55 @@ describe("SEO Traffic branded split", () => {
     expect(section.queryByRole("button", { name: "Branded" })).toBeNull();
   });
 
+  it("reads the report again for a saved term list and keeps the totals in view", async () => {
+    const user = userEvent.setup();
+    const workspace = brandWorkspace(["acme"]);
+    renderTraffic(workspace, "", true);
+    const heading = await screen.findByRole("heading", { name: "Brand split" });
+    const section = within(heading.closest("section") as HTMLElement);
+    await section.findByRole("button", { name: "Branded" });
+    // The read for the new list waits, so the page shows what it holds meanwhile.
+    const read = vi.mocked(fetch).getMockImplementation() as typeof fetch;
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const trafficBodies: string[] = [];
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (String(input).endsWith("/statistics/traffic")) {
+        trafficBodies.push(String(init?.body));
+        await held;
+      }
+      return read(input, init);
+    });
+    mutate.mockImplementation(async () => {
+      workspace.brandTerms = ["acme", "acme shop"];
+      return { ok: true, value: null };
+    });
+    await user.click(section.getByRole("button", { name: "Edit brand terms" }));
+    await user.type(section.getByLabelText("Brand terms"), "{enter}acme shop");
+    await user.click(section.getByRole("button", { name: "Save brand terms" }));
+    expect(await section.findByText("Reading the brand split…")).toBeVisible();
+    expect(trafficBodies).toHaveLength(1);
+    expect(section.queryByRole("button", { name: "Branded" })).toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "Traffic by page" }),
+    ).toBeVisible();
+    release();
+    expect(
+      await section.findByRole("button", { name: "Branded" }),
+    ).toBeVisible();
+  });
+
+  it("shows no share when the listed queries have no click", async () => {
+    const workspace = brandWorkspace(["acme"]);
+    for (const row of workspace.searchQueries?.rows ?? []) row.clicks = 0;
+    renderTraffic(workspace);
+    expect(await screen.findByTestId("seo-brand-totals")).toHaveTextContent(
+      "Listed queries: 0 clicks branded, 0 clicks non-branded",
+    );
+  });
+
   it("shows no split for a feed, which has no queries", async () => {
     renderTraffic(brandWorkspace(["acme"]), "&searchType=discover", true);
     await screen.findByRole("heading", { name: "Traffic by page" });

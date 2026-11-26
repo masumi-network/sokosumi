@@ -80,17 +80,27 @@ export function useSeoSiteTraffic(
       !model.invalidDates,
   );
   const terms = model.data.brandTerms ?? [];
+  const key = [
+    "seo-site-traffic",
+    session?.user.id,
+    session?.session.activeOrganizationId,
+    owner,
+    connection.data?.connectionVersion,
+    body,
+    // The split in the report follows the brand terms: a saved list reads this report again.
+    terms,
+  ];
   const query = useQuery<SeoSiteTrafficReport>({
-    queryKey: [
-      "seo-site-traffic",
-      session?.user.id,
-      session?.session.activeOrganizationId,
-      owner,
-      connection.data?.connectionVersion,
-      body,
-      // The split in the report follows the brand terms: a saved list reads this report again.
-      terms,
-    ],
+    queryKey: key,
+    // A saved term list changes the split only: the totals and pages of the last read stay
+    // in view, without the split of the old list, while the report loads again.
+    placeholderData: (previous, previousQuery) =>
+      previous &&
+      previousQuery &&
+      JSON.stringify(previousQuery.queryKey.slice(0, -1)) ===
+        JSON.stringify(key.slice(0, -1))
+        ? { ...previous, brand: undefined }
+        : undefined,
     enabled: enabled && available,
     staleTime: TRAFFIC_FRESH_MS,
     retry: false,

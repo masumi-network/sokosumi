@@ -14988,6 +14988,7 @@
         "brandLimited": "Hay más filas de consultas de las que la división puede leer. Las cifras de marca y sin marca son un límite inferior.",
         "brandListedOnly": "Estas cifras solo cuentan las consultas listadas. No se pudieron comparar los totales diarios, por lo que no hay porcentajes.",
         "brandUnavailable": "No se pudieron leer las consultas de este periodo, por lo que no hay división por marca.",
+        "brandLoading": "Leyendo la división por marca…",
         "brandEmpty": "Añade tus términos de marca para ver cuánto tráfico viene de búsquedas de tu nombre."
       },
       "traffic": {
@@ -15039,6 +15040,7 @@
           "non_branded": "Sin marca"
         },
         "brandTotals": "Consultas listadas: {branded} clics de marca ({brandedShare}), {nonBranded} clics sin marca ({nonBrandedShare})",
+        "brandTotalsNoShare": "Consultas listadas: {branded} clics de marca, {nonBranded} clics sin marca",
         "brandSuggested": "Sugerencia a partir del nombre de tu sitio web. Revisa los términos antes de guardar.",
         "editBrandTerms": "Editar términos de marca",
         "addBrandTerms": "Añadir términos de marca",
