@@ -120,7 +120,7 @@ pnpm evals:local --plan --ownerbench --suite cmo --cuso-version cmo-v26
 pnpm evals:local --plan --cases owner-codepat-daily-post
 ```
 
-A new Soko Bot or Cuso default must pass the owner benchmark at least as well as the current default, with cost per turn no worse.
+A new Soko Bot or Cuso default must pass the owner benchmark at least as well as the current default, with cost per turn no worse, on **both** the dev journeys and the held-out set below: one baseline run and one candidate run, each with `--holdout`, and `scripts/ownerbench-compare.mts` reporting the bar met on each set.
 
 **A new version against the baseline.** Run the benchmark twice from the same checkout, once on the baseline versions and once on the candidate, then compare. Each journey's `totals` carry its tokens (`inputTokens`, `cachedInputTokens`, `outputTokens`, `inputTokensPerTurn`, background runs included), which is the cost proxy on the plan, where no price is reported.
 
@@ -130,7 +130,9 @@ pnpm evals:local --plan --ownerbench --soko-bot-version v39 --cuso-version cmo-v
 pnpm --filter @sokosumi/core exec tsx scripts/ownerbench-compare.mts baseline.json candidate.json
 ```
 
-It prints each journey side by side, marks every journey that passed on the baseline and fails on the candidate, and says whether the bar holds: at least as many journeys passed and steps right, no such regression, and input tokens per turn no higher.
+**Held-out journeys.** A second set nobody iterates on, written from real prod requests and kept out of this repository so builders never tune to it. Whoever owns the benchmark keeps the file outside every checkout and hands its path only to whoever runs a version comparison; builders don't read it. Its results are reported beside the dev set's, per journey and as totals, and don't enter the dev scoreboard. It's a JSON array of journeys in the same shape as `journeys.ts`, with ids starting `owner-holdout-`, using only the benchmark's world, `prepare` kinds and outcome kinds (`ownerbench/holdout.ts` checks every journey and names each problem). Run it with `--holdout FILE` beside `--ownerbench`, in both the baseline and the candidate run. It shows on the admin page as "Owner bench (held out)". Fix mechanisms, never a journey's wording: no prompt text, rule or check may name a benchmark case, account, Coworker or phrasing.
+
+It prints each journey side by side, marks every journey that passed on the baseline and fails on the candidate, and says whether the bar holds, on the dev set and on the held-out set separately: at least as many journeys passed and steps right, no such regression, and input tokens per turn no higher. It must hold on both; a dev gain with a held-out drop is overfitting, and without held-out journeys in both runs the bar is not met.
 
 **Runtime parity.** `evals:local` always runs the in-process runtime: its own loop, no sandbox tools (shell, files, helper agents) and no final report call when time runs out. Deployments run the sandbox runtime. Each journey's output records where it ran (`runtime.adapter`, and `runtime.models`: `chatgpt-plan` or `gateway`). Before a local delta decides anything, run the same journeys once on a deployment and compare:
 

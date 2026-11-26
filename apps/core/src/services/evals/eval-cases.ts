@@ -28,6 +28,7 @@ import {
   SCHEDULES_SCENARIO,
 } from "./eval-schedules";
 import type { StandupEvalSetup } from "./eval-standup";
+import { holdoutJourneys } from "./ownerbench/holdout";
 import { OWNER_JOURNEYS, type OwnerJourney } from "./ownerbench/journeys";
 
 export const EVAL_SUITES = ["soko-bot", "cmo"] as const;
@@ -275,11 +276,18 @@ export const EVAL_CASES: readonly EvalCase[] = [
             ),
   ),
   scenarioCase(CMO_COMMENT_SCENARIO, "cmo", "Replies", "cmo-comments"),
-  ...OWNER_JOURNEYS.map(
-    (journey): EvalCase => ({
+  ...[
+    ...OWNER_JOURNEYS.map((journey) => ({ journey, area: "Owner bench" })),
+    // Loaded from a file outside the repository when a run names one.
+    ...holdoutJourneys().map((journey) => ({
+      journey,
+      area: "Owner bench (held out)",
+    })),
+  ].map(
+    ({ journey, area }): EvalCase => ({
       id: journey.id,
       suite: journey.bot === "cuso" ? "cmo" : "soko-bot",
-      area: "Owner bench",
+      area,
       title: journey.title,
       intent: journey.intent,
       kind: "journey",

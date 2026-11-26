@@ -5,6 +5,7 @@
  * turn no worse. Both runs should come from the same code, only the
  * versions differ.
  */
+import { HOLDOUT_PREFIX } from "./holdout";
 import type { ParityReport } from "./parity";
 
 interface Side {
@@ -70,6 +71,35 @@ function totals(
           ) / turns,
         )
       : null,
+  };
+}
+
+/**
+ * The bar on each set: the dev journeys builders iterate on, and the held-out
+ * ones nobody sees. It must hold on both; a gain on the dev set with a drop
+ * on the held-out set is overfitting. Without held-out journeys in both runs,
+ * that half is missing and the bar is not met.
+ */
+export function versionDeltaBySet(
+  baseline: ParityReport,
+  candidate: ParityReport,
+): { dev: VersionDelta; holdout: VersionDelta | null; meetsBar: boolean } {
+  const only = (report: ParityReport, holdout: boolean): ParityReport => ({
+    cases: report.cases.filter(
+      (evalCase) => evalCase.caseId.startsWith(HOLDOUT_PREFIX) === holdout,
+    ),
+  });
+  const dev = versionDelta(only(baseline, false), only(candidate, false));
+  const hasHoldout = [baseline, candidate].every(
+    (report) => only(report, true).cases.length > 0,
+  );
+  const holdout = hasHoldout
+    ? versionDelta(only(baseline, true), only(candidate, true))
+    : null;
+  return {
+    dev,
+    holdout,
+    meetsBar: dev.meetsBar && Boolean(holdout?.meetsBar),
   };
 }
 

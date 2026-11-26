@@ -27,8 +27,13 @@ const { values } = parseArgs({
     "json-out": { type: "string" },
     /** Only write the report of this finished run (with --json-out). */
     report: { type: "string" },
+    /** The held-out journeys' JSON file (kept outside the repository); --ownerbench then runs both sets. */
+    holdout: { type: "string" },
   },
 });
+
+// Read where the eval cases are built, on the first import below.
+if (values.holdout) process.env.OWNERBENCH_HOLDOUT_FILE = values.holdout;
 
 async function writeReport(runId: string, path: string) {
   const { getEvalRunReport } = await import(

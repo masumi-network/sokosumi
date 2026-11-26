@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ParityReport } from "./parity";
-import { versionDelta } from "./version-delta";
+import { versionDelta, versionDeltaBySet } from "./version-delta";
 
 function report(
   rows: Record<string, [status: string, steps: number, tokens: number | null]>,
@@ -52,6 +52,30 @@ describe("versionDelta", () => {
       true,
     );
     expect(delta.meetsBar).toBe(false);
+  });
+
+  it("needs the bar on the held-out set too: a dev gain with a held-out drop fails", () => {
+    const both = (dev: string, held: string) =>
+      report({
+        "owner-a": [dev, 2, 100],
+        "owner-holdout-a": [held, 2, 100],
+      });
+    const overfit = versionDeltaBySet(
+      both("FAILED", "PASSED"),
+      both("PASSED", "FAILED"),
+    );
+    expect(overfit.dev.meetsBar).toBe(true);
+    expect(overfit.holdout?.meetsBar).toBe(false);
+    expect(overfit.meetsBar).toBe(false);
+    expect(
+      versionDeltaBySet(both("PASSED", "PASSED"), both("PASSED", "PASSED"))
+        .meetsBar,
+    ).toBe(true);
+    const devOnly = report({ "owner-a": ["PASSED", 2, 100] });
+    expect(versionDeltaBySet(devOnly, devOnly)).toMatchObject({
+      holdout: null,
+      meetsBar: false,
+    });
   });
 
   it("fails the bar on more tokens per turn, a missing journey or no token counts", () => {
