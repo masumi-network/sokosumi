@@ -3,6 +3,7 @@ import { loadCliEnvironment } from "../config/loader.js";
 import {
   type AuthEnvironment,
   type AuthManager,
+  envBearerCredential,
   getAuthManager,
 } from "./auth-manager.js";
 import {
@@ -190,7 +191,9 @@ export async function resolveInitialAuth({
   const envApiKey = String(environment.SOKOSUMI_API_KEY || "").trim();
   if (envApiKey) assertApiKeyTarget(envApiKey, config, targetExplicit);
 
-  const storedApiKey = authManager.getApiKeyCredentials();
+  // An environment token wins over stored credentials, so skip the OS vault.
+  const envBearer = envBearerCredential(environment);
+  const storedApiKey = envBearer ? null : authManager.getApiKeyCredentials();
   if (storedApiKey?.apiKey) {
     assertApiKeyTarget(storedApiKey.apiKey, config, targetExplicit);
     if (storedApiKey.target && storedApiKey.target !== config.target) {
@@ -207,12 +210,11 @@ export async function resolveInitialAuth({
     environment,
   });
   const authMethod = authManager.getAuthMethod(environment);
-  const credentials = authManager.getCredentials();
-  const apiKeyCredentials = authManager.getApiKeyCredentials();
-  const expiresAt =
-    authMethod === "api-key"
-      ? apiKeyCredentials?.expiresAt || null
-      : credentials?.expiresAt || null;
+  const expiresAt = envBearer
+    ? null
+    : authMethod === "api-key"
+      ? authManager.getApiKeyCredentials()?.expiresAt || null
+      : authManager.getCredentials()?.expiresAt || null;
 
   return {
     authenticated: Boolean(token),
