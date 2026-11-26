@@ -156,7 +156,7 @@ export SOKOSUMI_API_KEY=soko_mainnet_...   # set in the agent's environment, not
 sokosumi auth status --json                # reads no keychain item
 ```
 
-When `SOKOSUMI_API_KEY` or `SOKOSUMI_AUTH_TOKEN` is set, user authentication reads no keychain item. Without an environment token, the CLI reads only the keychain items that the command needs. `runtime` commands use a separate Coworker key from the keychain. Give them the key with `--api-key-stdin` from an operator-controlled secret reader to skip the keychain.
+When `SOKOSUMI_API_KEY` or `SOKOSUMI_AUTH_TOKEN` is set, commands that use it read no keychain item. `auth login` and `auth logout` still use the keychain, because they save or clear stored credentials. `runtime` commands use a separate Coworker key. With `--api-key-stdin`, `runtime` commands other than `key-import` skip the keychain; `key-import` stores the key in it.
 
 For interactive use, run the CLI on a signed `node`. Put the nvm or fnm `bin` directory before `/opt/homebrew/bin` on `PATH`, then click "Always Allow" once. Approve the same binary that the launcher runs, not only the one that `command -v node` shows.
 
