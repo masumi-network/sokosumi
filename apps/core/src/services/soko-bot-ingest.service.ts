@@ -364,7 +364,10 @@ export class SokoBotIngestSyncService {
       );
     });
     const dayAgo = new Date(now.getTime() - LOOKBACK_MS);
-    const xDms = await ownerXDms(bot, { briefing, since: dayAgo });
+    const xDms = await ownerXDms(
+      bot,
+      { briefing, since: dayAgo },
+    );
     if (!briefing && dueMail.length === 0 && xDms.messages.length === 0)
       return "skipped";
 
