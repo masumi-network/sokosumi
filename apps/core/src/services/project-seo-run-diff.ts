@@ -158,21 +158,25 @@ export function compareSeoRuns(
       if (before.open.has(key)) stillOpen.push(issue);
       // New only where the earlier check read the rule on a device that fails now and found no issue there:
       // a pass beside a row that fired on the same device is no clear result.
-      else if (
-        // The devices its findings name, or every device it failed on where a finding names none.
-        [
-          ...((after.issued.get(key)?.has(null)
-            ? after.failed.get(key)
-            : after.issued.get(key)) ?? []),
-        ].some(
-          (device) =>
-            !before.failed.get(key)?.has(device) &&
-            (before.passed.get(key)?.has(device) ||
-              before.noted.get(key)?.has(device)),
+      else {
+        const clear = (device: string | null) =>
+          !before.failed.get(key)?.has(device) &&
+          (before.passed.get(key)?.has(device) ||
+            before.noted.get(key)?.has(device));
+        // A finding that names no device is new only where every device a row fired on was clear before, and
+        // never without such a row.
+        const anyDevice = after.issued.get(key)?.has(null);
+        const devices = anyDevice
+          ? [...(after.failed.get(key) ?? [])].filter((device) => device)
+          : [...(after.issued.get(key) ?? [])];
+        if (
+          anyDevice
+            ? devices.length > 0 && devices.every(clear)
+            : devices.some(clear)
         )
-      )
-        added.push(issue);
-      else notCheckedBefore += 1;
+          added.push(issue);
+        else notCheckedBefore += 1;
+      }
     }
     for (const [key, issue] of before.open) {
       if (after.open.has(key)) continue;
@@ -236,8 +240,15 @@ function readsEveryUrl(
   selectedUrls: ReadonlySet<string>,
 ) {
   if (!PAGE_RULE_KINDS.has(payload.kind)) return true;
-  if (!payload.checks.length)
-    return payload.keywords.some((row) => row.positionStatus !== "unavailable");
+  if (!payload.checks.length) {
+    // Such a check read a page only where it holds a usable rank for that page.
+    const ranked = new Set(
+      payload.keywords
+        .filter((row) => row.positionStatus !== "unavailable")
+        .map((row) => normalizeSeoUrl(row.pageUrl)),
+    );
+    return [...selectedUrls].every((url) => ranked.has(normalizeSeoUrl(url)));
+  }
   const read = new Set(
     [
       ...payload.checks.filter(

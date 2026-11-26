@@ -48,7 +48,7 @@ function failed(
       rowId,
       title: `Title of ${rowId}`,
       pageUrl,
-      device,
+      device: device as Device | null,
       severity,
       evidence: [],
       sourceRef: "ref",
@@ -584,6 +584,63 @@ describe("withSeoRunDiffs edge cases", () => {
       comparable: true,
       from: "2026-11-01T09:00:00.000Z",
     });
+  });
+
+  it("pairs past a check of ranks whose usable rank is on another page", () => {
+    const diff = diffOf([
+      source(8, lite(15), { kind: "audit_lite" }),
+      source(
+        5,
+        payload({
+          kind: "audit_lite",
+          keywords: [ranked(null), { ...ranked(5), pageUrl: OTHER }],
+        }),
+        { kind: "audit_lite" },
+      ),
+      source(1, lite(5), { kind: "audit_lite" }),
+    ]);
+    expect(diff).toMatchObject({
+      from: "2026-11-01T09:00:00.000Z",
+      numbers: { moveCount: 1 },
+    });
+  });
+
+  it("counts no new issue from a finding without a device where only one failed device was clear before", () => {
+    const anyDevice = {
+      ...failed({ rowId: "A", device: "mobile" }),
+      finding: { ...failed({ rowId: "A" }).finding, device: null },
+    };
+    const diff = diffOf([
+      source(8, result([anyDevice, check("fired", { rowId: "A" })])),
+      source(1, result([check("pass", { rowId: "A", device: "mobile" })])),
+    ]);
+    expect(diff).toMatchObject({ newCount: 0, notCheckedBefore: 1 });
+  });
+
+  it("counts a finding without a device as new where every device it fired on was clear before", () => {
+    const anyDevice = {
+      ...failed({ rowId: "A" }),
+      finding: { ...failed({ rowId: "A" }).finding, device: null },
+    };
+    const diff = diffOf([
+      source(8, result([anyDevice])),
+      source(1, result([check("pass", { rowId: "A" })])),
+    ]);
+    expect(diff).toMatchObject({ newCount: 1, notCheckedBefore: 0 });
+  });
+
+  it("counts no new issue from a finding without a device or a row that fired", () => {
+    const diff = diffOf([
+      source(
+        8,
+        result([
+          { finding: { ...failed({ rowId: "A" }).finding, device: null } },
+          check("pass", { rowId: "B" }),
+        ]),
+      ),
+      source(1, result([check("pass", { rowId: "A" })])),
+    ]);
+    expect(diff).toMatchObject({ newCount: 0, notCheckedBefore: 1 });
   });
 
   it("gives no issue totals to checks that measured no page rule", () => {
