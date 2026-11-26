@@ -131,7 +131,7 @@ vi.mock("./components/soko-bot-home", () => ({
 
 import { composeSokoBotIntroduction } from "@sokosumi/soko-bot";
 import { expectConsole } from "@sokosumi/utils/test-console";
-import WelcomePage, { generateMetadata } from "./page";
+import WelcomePage, { generateMetadata } from "./home-page";
 
 async function renderPage() {
   render(await WelcomePage({ searchParams: Promise.resolve({}) }));

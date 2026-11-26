@@ -48,7 +48,9 @@ import {
   TOOL_CALL_STALE_MS,
 } from "./execution-limits";
 import { fundraisingActor, isFundraisingCapability } from "./fundraising";
+import { readMemory } from "./memory";
 import { type RuntimeOperations } from "./operations";
+import { isSkillRead, readSkillAgain } from "./read-skill";
 import { persistedErrorDetail } from "./seller-recovery";
 
 export async function executeTool(
@@ -175,6 +177,10 @@ export async function executeTool(
       if (isSokoBotSeoCapability(input.capability)) {
         return runtime.executeSeoTool(input, authorized, true);
       }
+      // A skill read changes nothing and its stored row is a shortened audit
+      // copy: the replay reads the whole skill again.
+      if (isSkillRead(input.capability))
+        return readSkillAgain(authorized, input.capability, input.input);
       let replayResult = existing.result;
       if (input.capability === "preview_result") {
         if (authorized.askedByKind !== "OWNER")
@@ -189,6 +195,15 @@ export async function executeTool(
         if (!preview || preview.state !== "available")
           throw new SokoBotRuntimeAuthorizationError("Result unavailable");
         return { ...snapshot, data: preview };
+      }
+      if (input.capability === "read_memory") {
+        // The stored result is the 16 KB audit copy; the model gets the
+        // revision the first read saw, whole.
+        // A first read that found no memory replays as that: no memory,
+        // even if a revision was saved since.
+        const pinned = (existing.result as { id?: unknown } | null)?.id;
+        if (typeof pinned !== "string") return existing.result;
+        return readMemory(authorized.turn.sokoBotId, pinned);
       }
       if (
         [

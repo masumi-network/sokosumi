@@ -44,6 +44,7 @@ import {
 import { CMO_INDUSTRY, cmoV21Strategy } from "./cmo-v21-skills.js";
 import { cmoV22Strategy } from "./cmo-v22-skills.js";
 import { CMO_CONTEXT_ON_DEMAND } from "./cmo-v23-skills.js";
+import { CMO_TOOL_HIGHLIGHTS } from "./cmo-v24-skills.js";
 import { CMO_STRATEGY_STEP } from "./cmo-v25-skills.js";
 import type { SokoBotSkill } from "./skills.js";
 
@@ -766,4 +767,5 @@ export const CMO_SKILLS: readonly SokoBotSkill[] = [
   CMO_CONTEXT_ON_DEMAND,
   CMO_STRATEGY_STEP,
   CMO_PLAYBOOKS,
+  CMO_TOOL_HIGHLIGHTS,
 ];

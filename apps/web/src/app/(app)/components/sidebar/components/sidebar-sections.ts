@@ -2,14 +2,16 @@ import { AnnouncedFeature } from "@sokosumi/core-client";
 import {
   Binoculars,
   Bot,
+  Briefcase,
   CalendarDays,
   Clapperboard,
+  FolderArchive,
   HardDrive,
-  House,
   ImagePlus,
   ListTodo,
   Mail,
   Megaphone,
+  PanelsTopLeft,
   Repeat,
   SearchCheck,
   Share2,
@@ -17,7 +19,7 @@ import {
 } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
-import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { isPathActive } from "@/lib/utils/is-path-active";
 
 interface MenuItemConfig {
@@ -36,9 +38,9 @@ interface MenuItemConfig {
 
 /** The headings the nav's destinations sit under, in the order they show. */
 export const NAV_GROUPS = [
-  { id: "work", Icon: House },
-  { id: "records", Icon: Users },
-  { id: "marketing", Icon: Megaphone },
+  { id: "work", Icon: Briefcase },
+  { id: "records", Icon: FolderArchive },
+  { id: "marketing", Icon: PanelsTopLeft },
 ] as const;
 
 type NavGroup = (typeof NAV_GROUPS)[number]["id"];
@@ -51,20 +53,12 @@ interface NavDestination extends MenuItemConfig {
   requiresNewsletter?: true;
 }
 
+export const AGENTS_ROUTE = "/agents";
+
 export const NAV_DESTINATIONS = [
-  // Desktop only: the phone's top bar leads to Home from its Sokosumi icon.
-  {
-    key: "home",
-    href: "/",
-    labelKey: "home",
-    Icon: House,
-    group: "work",
-    desktopOnly: true,
-    prefetchContent: true,
-  },
   {
     key: "explore-agents",
-    href: "/agents",
+    href: AGENTS_ROUTE,
     labelKey: "exploreAgents",
     Icon: Bot,
     feature: AnnouncedFeature.AGENTS,
@@ -186,10 +180,9 @@ export type SidebarDestination = NavDestination &
 export type SidebarSection = NavGroup | "chats";
 
 export function sidebarSection(pathname: string): SidebarSection | null {
+  if (pathname === "/") return "chats";
   if (
-    ["/chat", SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE].some((route) =>
-      isPathActive(pathname, route),
-    )
+    ["/chat", SOKO_BOT_ROUTE].some((route) => isPathActive(pathname, route))
   ) {
     return "chats";
   }

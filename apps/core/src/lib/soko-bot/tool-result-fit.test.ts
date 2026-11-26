@@ -38,8 +38,20 @@ describe("fitToolResult", () => {
     expect(fitted.note).toContain("more narrowly");
   });
 
-  it("leaves the context refresh whole: the packet has its own budget", () => {
-    const result = { text: "z".repeat(40_000) };
-    expect(fitToolResult("refresh_context", result)).toBe(result);
+  it.each([
+    "refresh_context",
+    "read_memory",
+    "read_strategy",
+    "read_brand_brain",
+    "read_calendar",
+  ])("leaves %s whole: it bounds itself", (capability) => {
+    const result = { markdown: '"q" \\ '.repeat(4_000) };
+    expect(fitToolResult(capability, result)).toBe(result);
+  });
+
+  it("leaves a skill read whole: the model follows all of it", () => {
+    const skill = { content: `${"rule ".repeat(10_000)}LAST RULE` };
+    expect(fitToolResult("read_skill", skill)).toBe(skill);
+    expect(fitToolResult("read_writing_skill", skill)).toBe(skill);
   });
 });

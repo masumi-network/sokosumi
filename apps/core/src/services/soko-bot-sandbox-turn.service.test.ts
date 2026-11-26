@@ -107,6 +107,7 @@ vi.mock("@/services/soko-bot-version.service", () => ({
   resolveRunnableSokoBotVersion: vi.fn().mockResolvedValue({
     model: "google/gemini-3.6-flash",
     inferenceRegion: "eu",
+    skills: [],
   }),
 }));
 vi.mock("@/lib/soko-bot/sandbox/sandbox-runtime", () => ({
@@ -122,6 +123,7 @@ import {
   failSandboxTurn,
   grantSandboxUpload,
   proxySandboxModelCall,
+  reasoningSummaryOptions,
   recordSandboxAction,
   recordSandboxActionResult,
   runSandboxTool,
@@ -870,6 +872,16 @@ describe("sandbox turn service", () => {
     ).rejects.toThrow("Unknown Sokosumi tool");
   });
 
+  it("answers a short-form save without saving, so the runner offers the full tool", async () => {
+    const result = await runSandboxTool(claims, {
+      capability: "save_strategy",
+      toolCallId: "short",
+      toolInput: { shortForm: true, what: "move Friday's post" },
+    });
+    expect(result).toMatchObject({ saved: false });
+    expect(executeToolMock).not.toHaveBeenCalled();
+  });
+
   it("gives a script's read its own call id and the bare result", async () => {
     executeToolMock.mockResolvedValue({ messages: [], nextPageToken: null });
     const result = await runSandboxTool(claims, {
@@ -1384,5 +1396,35 @@ describe("sandbox turn service", () => {
         expect(stopSandboxMock).toHaveBeenCalled();
       },
     );
+  });
+});
+
+describe("reasoningSummaryOptions", () => {
+  it("passes a prompt cache key through with the longest cache life, and nothing else", () => {
+    expect(
+      reasoningSummaryOptions(
+        {
+          openai: {
+            reasoningSummary: "auto",
+            promptCacheKey: "cmo-v24:0123456789abcdef",
+            store: true,
+          },
+          gateway: { only: ["openai"] },
+        },
+        "openai/gpt-6-luna",
+      ),
+    ).toEqual({
+      openai: {
+        reasoningSummary: "auto",
+        promptCacheKey: "cmo-v24:0123456789abcdef",
+        promptCacheOptions: { ttl: "12h" },
+      },
+    });
+    expect(
+      reasoningSummaryOptions(
+        { openai: { promptCacheKey: "anything else" } },
+        "openai/gpt-6-luna",
+      ),
+    ).toEqual({});
   });
 });

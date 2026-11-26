@@ -85,7 +85,7 @@ describe("HeaderLeadingControl", () => {
   });
 
   it("shows brand link to home on chats list", () => {
-    mockPathname = "/chat";
+    mockPathname = "/chat/rooms";
     render(<HeaderLeadingControl />);
     expect(screen.getByTestId("sokosumi-icon")).toBeTruthy();
     expect(screen.getByRole("link", { name: "goHome" })).toHaveAttribute(
@@ -98,7 +98,7 @@ describe("HeaderLeadingControl", () => {
     mockPathname = "/chat/rooms/r1";
     render(<HeaderLeadingControl />);
     const back = screen.getByRole("link", { name: "backToChats" });
-    expect(back).toHaveAttribute("href", "/chat");
+    expect(back).toHaveAttribute("href", "/chat/rooms");
   });
 
   describe("room back, against the tab's history", () => {
@@ -117,7 +117,7 @@ describe("HeaderLeadingControl", () => {
     // A pushed list would leave the room behind it: swipe back reopened it.
     it("pops back to the chat list the room was opened from", () => {
       mockPathname = "/chat/rooms/r1";
-      stubHistory("/", "/chat", "/chat/rooms/r1");
+      stubHistory("/", "/chat/rooms", "/chat/rooms/r1");
       render(<HeaderLeadingControl />);
 
       fireEvent.click(screen.getByRole("link", { name: "backToChats" }));
@@ -133,7 +133,7 @@ describe("HeaderLeadingControl", () => {
 
       fireEvent.click(screen.getByRole("link", { name: "backToChats" }));
 
-      expect(routerReplaceMock).toHaveBeenCalledWith("/chat");
+      expect(routerReplaceMock).toHaveBeenCalledWith("/chat/rooms");
       expect(routerBackMock).not.toHaveBeenCalled();
     });
   });
@@ -331,7 +331,7 @@ describe("HeaderLeadingControl", () => {
     mockPathname = "/personal-assistant";
     render(<HeaderLeadingControl />);
     const back = screen.getByRole("link", { name: "backToChats" });
-    expect(back).toHaveAttribute("href", "/chat");
+    expect(back).toHaveAttribute("href", "/chat/rooms");
   });
 
   it("shows back to list root on nested tasks", () => {

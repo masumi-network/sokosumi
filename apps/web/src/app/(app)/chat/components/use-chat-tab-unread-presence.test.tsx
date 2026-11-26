@@ -606,7 +606,8 @@ describe("Elsewhere rooms in the unread signals", () => {
     const chats = await screen.findByRole("button", {
       name: "chats, chatsUnread",
     });
-    expect(chats).toHaveAttribute("aria-pressed", "true");
+    expect(chats).toHaveAttribute("aria-pressed", "false");
+    expect(chats).toHaveAttribute("aria-current", "location");
   });
 });
 

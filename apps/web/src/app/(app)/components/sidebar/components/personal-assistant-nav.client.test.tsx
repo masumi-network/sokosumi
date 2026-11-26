@@ -71,10 +71,11 @@ import { type ChatRoom, SokoBotStatus } from "@sokosumi/core-client";
 import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
 import { LastActive } from "@/components/soko-bot/soko-bot-status-line";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import PersonalAssistantNav, {
   type SidebarSokoBotLive,
 } from "./personal-assistant-nav.client";
+import { AGENTS_ROUTE, sidebarSection } from "./sidebar-sections";
 
 const bot: SidebarSokoBotLive = {
   id: "bot-1",
@@ -139,11 +140,11 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
     expect(slot?.querySelector("svg")).not.toBeNull();
   });
 
-  it("links the named row to the team's Soko Bots", () => {
+  it("links the named row directly to Agents for the team's bots", () => {
     renderNav();
     expect(screen.getByRole("link", { name: "sokoBot" })).toHaveAttribute(
       "href",
-      SOKO_BOTS_ROUTE,
+      AGENTS_ROUTE,
     );
   });
 });
@@ -158,8 +159,8 @@ describe("PersonalAssistantNav static entry current destination", () => {
     return screen.getByRole("link", { name: "sokoBot" });
   }
 
-  it("marks the row when the reader is on Soko Bots", () => {
-    pathnameRef.current = SOKO_BOTS_ROUTE;
+  it("marks the row when the reader is on Agents", () => {
+    pathnameRef.current = AGENTS_ROUTE;
     renderNav();
     expect(link()).toHaveAttribute("aria-current", "page");
   });
@@ -168,6 +169,15 @@ describe("PersonalAssistantNav static entry current destination", () => {
     pathnameRef.current = `${SOKO_BOT_ROUTE}/bot-1`;
     renderNav();
     expect(link()).toHaveAttribute("aria-current", "page");
+  });
+
+  it("leaves the legacy route inactive and assigns Agents to Work", () => {
+    pathnameRef.current = "/soko-bots";
+    renderNav();
+    expect(link()).not.toHaveAttribute("aria-current");
+    expect(sidebarSection("/soko-bots")).toBeNull();
+    expect(sidebarSection(AGENTS_ROUTE)).toBe("work");
+    expect(sidebarSection(SOKO_BOT_ROUTE)).toBe("chats");
   });
 
   it("marks nothing on a route it does not own", () => {
@@ -283,8 +293,8 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
     expect(row()).toHaveAttribute("aria-current", "page");
   });
 
-  it("does not mark your bot's row on the team page", () => {
-    pathnameRef.current = SOKO_BOTS_ROUTE;
+  it("marks only the team link on Agents", () => {
+    pathnameRef.current = AGENTS_ROUTE;
     renderNav({ bot });
     expect(row()).not.toHaveAttribute("aria-current");
     expect(screen.getByRole("link", { name: "team" })).toHaveAttribute(
@@ -293,11 +303,11 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
     );
   });
 
-  it("offers the team's Soko Bots from a people icon at the end", () => {
+  it("opens Agents from the team people icon", () => {
     renderNav({ bot });
     expect(screen.getByRole("link", { name: "team" })).toHaveAttribute(
       "href",
-      SOKO_BOTS_ROUTE,
+      AGENTS_ROUTE,
     );
   });
 

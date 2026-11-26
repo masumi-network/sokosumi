@@ -24,6 +24,7 @@ import { dispatchTablesTools } from "./dispatch-tables";
 import { dispatchTaskInterestTools } from "./dispatch-task-interest";
 import { dispatchTasksTools } from "./dispatch-tasks";
 import { type RuntimeOperations } from "./operations";
+import { readSkill } from "./read-skill";
 
 export async function executeAuthorizedTool(
   runtime: RuntimeOperations,
@@ -157,6 +158,8 @@ async function executeTool(
     case "check_competitors":
     case "save_competitor_feed":
       return dispatchOtherTools(runtime, input, authorized);
+    case "read_skill":
+      return readSkill(authorized, input.input);
     case "read_calendar":
     case "read_strategy":
     case "read_brand_brain":

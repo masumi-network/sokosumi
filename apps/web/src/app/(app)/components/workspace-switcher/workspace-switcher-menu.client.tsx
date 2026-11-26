@@ -36,21 +36,25 @@ import {
  * while open, like the controls under it; the top bar's avatar dims like the
  * icons beside it.
  */
+const SIDEBAR_TRIGGER_CLASS = cn(
+  WORKSPACE_SWITCHER_ROW_CLASS,
+  SIDEBAR_CONTROL_INTERACTION_CLASS,
+  "text-foreground press rounded-full transition-[opacity,background-color]",
+);
+
 const TRIGGER_CLASS: Record<WorkspaceSwitcherPlacement, string> = {
-  sidebar: cn(
-    WORKSPACE_SWITCHER_ROW_CLASS,
-    SIDEBAR_CONTROL_INTERACTION_CLASS,
-    "text-foreground press rounded-full transition-[opacity,background-color]",
-  ),
+  sidebar: SIDEBAR_TRIGGER_CLASS,
+  drawer: cn(SIDEBAR_TRIGGER_CLASS, "w-full"),
   topBar: cn(
     WORKSPACE_SWITCHER_ROW_CLASS,
-    "text-foreground press transition-opacity hover:opacity-80",
+    "text-foreground press w-full justify-start transition-opacity hover:opacity-80",
   ),
 };
 
 /** Under the trigger's own edge: its start in the sidebar, its end at the top bar's right. */
 const MENU_ALIGN: Record<WorkspaceSwitcherPlacement, "start" | "end"> = {
   sidebar: "start",
+  drawer: "start",
   topBar: "end",
 };
 
@@ -252,7 +256,12 @@ export default function WorkspaceSwitcherMenu({
                   logoSize={12}
                   decorative
                 />
-                <span className={WORKSPACE_SWITCHER_NAME_CLASS}>
+                <span
+                  className={cn(
+                    WORKSPACE_SWITCHER_NAME_CLASS,
+                    placement !== "sidebar" && "flex-1",
+                  )}
+                >
                   {activeWorkspace.name}
                 </span>
               </>
