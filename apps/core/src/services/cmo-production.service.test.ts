@@ -1272,6 +1272,7 @@ describe("syncCmoProduction", () => {
     const now = new Date("2026-11-18T21:00:00Z");
     await expect(syncCmoProduction(() => true, now)).resolves.toEqual({
       checked: 1,
+      skipped: 0,
     });
     expect(keepCusoFirstCompetitorCheck).toHaveBeenCalledWith(cuso, now);
   });
@@ -1296,7 +1297,11 @@ describe("syncCmoProduction", () => {
     cmoRunnerUserId.mockRejectedValue(
       new Error("Plan SENTINEL-PLAN launch week could not be read"),
     );
-    await expect(syncCmoProduction()).resolves.toEqual({ checked: 0 });
+    // Skipped Cusos are the run's failed work, never its idleness.
+    await expect(syncCmoProduction()).resolves.toEqual({
+      checked: 0,
+      skipped: 2,
+    });
     expect(warnings.map((warning) => warning.event.sokoBot)).toEqual(
       expect.arrayContaining([{ id: "bot-1" }, { id: "bot-2" }]),
     );

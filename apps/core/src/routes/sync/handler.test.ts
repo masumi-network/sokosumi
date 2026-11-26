@@ -49,10 +49,16 @@ async function run(
   return response;
 }
 
-const finished = () =>
+type CheckIn = { monitorSlug: string; status: string };
+
+/** The end status of each monitor's check-ins, by monitor. */
+const finished = (monitorSlug = "lock-key") =>
   captureCheckIn.mock.calls
-    .map(([checkIn]) => checkIn as { status: string })
-    .filter((checkIn) => checkIn.status !== "in_progress")
+    .map(([checkIn]) => checkIn as CheckIn)
+    .filter(
+      (checkIn) =>
+        checkIn.monitorSlug === monitorSlug && checkIn.status !== "in_progress",
+    )
     .map((checkIn) => checkIn.status);
 
 describe("cron monitors", () => {
@@ -90,21 +96,42 @@ describe("cron monitors", () => {
     expect(finished()).toEqual(["error"]);
   });
 
-  it("fails an opted-in run that reports no work, so N idle runs open an issue", async () => {
-    await run(async ({ reportWork }) => reportWork(0), { idleRunsAlert: 6 });
-    expect(captureCheckIn.mock.calls[0]?.[1]).toMatchObject({
-      failureIssueThreshold: 6,
+  it("counts an opted-in run with no work on its idle monitor, after N runs", async () => {
+    await run(async ({ reportWork }) => reportWork({ done: 0 }), {
+      idleRunsAlert: 6,
     });
-    expect(finished()).toEqual(["error"]);
+    expect(finished()).toEqual(["ok"]);
+    expect(finished("lock-key-idle")).toEqual(["error"]);
+    const idleCheckIn = captureCheckIn.mock.calls.find(
+      ([checkIn]) => (checkIn as CheckIn).monitorSlug === "lock-key-idle",
+    );
+    expect(idleCheckIn?.[1]).toMatchObject({ failureIssueThreshold: 6 });
 
     captureCheckIn.mockClear();
-    await run(async ({ reportWork }) => reportWork(4), { idleRunsAlert: 6 });
+    await run(async ({ reportWork }) => reportWork({ done: 4 }), {
+      idleRunsAlert: 6,
+    });
+    expect(finished()).toEqual(["ok"]);
+    expect(finished("lock-key-idle")).toEqual(["ok"]);
+  });
+
+  it("fails a run whose five claimed jobs all failed, and never reads it as idle or healthy", async () => {
+    await run(async ({ reportWork }) => reportWork({ done: 0, failed: 5 }), {
+      idleRunsAlert: 60,
+    });
+    expect(finished()).toEqual(["error"]);
+    expect(finished("lock-key-idle")).toEqual(["ok"]);
+  });
+
+  it("keeps a run with some work done healthy beside a failed item", async () => {
+    await run(async ({ reportWork }) => reportWork({ done: 3, failed: 1 }));
     expect(finished()).toEqual(["ok"]);
   });
 
-  it("does not fail an idle run of a sync that did not opt in", async () => {
-    await run(async ({ reportWork }) => reportWork(0));
+  it("does not watch idleness of a sync that did not opt in", async () => {
+    await run(async ({ reportWork }) => reportWork({ done: 0 }));
     expect(finished()).toEqual(["ok"]);
+    expect(finished("lock-key-idle")).toEqual([]);
   });
 
   it("tells the monitor a cron is alive when the last run still holds the lock", async () => {

@@ -49,7 +49,12 @@ export default function mount(app: Hono) {
           },
         });
         context.log.set({ result });
-        context.reportWork(result.claimed);
+        // A claimed run that failed is not work done: five failed claims
+        // fail the run, never read as a healthy one.
+        context.reportWork({
+          done: result.completed + result.deferred,
+          failed: result.failed,
+        });
         await purgeSchedules(context);
       },
       // About 85 built-in rhythm runs an hour across the fleet: an hour of
