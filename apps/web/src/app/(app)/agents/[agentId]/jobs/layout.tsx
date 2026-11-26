@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, unstable_rethrow } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import {
   JobsListHeaderSkeleton,
@@ -27,10 +28,13 @@ export async function generateMetadata({
   params,
 }: JobLayoutProps): Promise<Metadata> {
   const { agentId } = await params;
-  const agent = await getCoreAgentById(agentId);
+  const [agent, t] = await Promise.all([
+    getCoreAgentById(agentId),
+    getTranslations("App.Agents.Jobs.Header"),
+  ]);
 
   return {
-    title: agent?.name ?? agentId,
+    title: agent?.name ?? t("unavailableAgent"),
     description: agent?.description ?? undefined,
   };
 }
@@ -92,9 +96,13 @@ async function JobLayoutInner({
   }
 
   const { agentId } = await params;
-  const coreAgent = await getCoreAgentById(agentId);
+  const [coreAgent, t] = await Promise.all([
+    getCoreAgentById(agentId),
+    getTranslations("App.Agents.Jobs.Header"),
+  ]);
 
-  const agent = coreAgent ?? createUnavailableCoreAgent(agentId);
+  const agent =
+    coreAgent ?? createUnavailableCoreAgent(agentId, t("unavailableAgent"));
   const disabled = !coreAgent;
 
   const [agentJobsPage, canRate, existingRating] = await Promise.all([

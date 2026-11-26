@@ -9386,7 +9386,8 @@
           "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}",
           "backToAgent": "Zurück zu {name}",
           "yourJobs": "Deine Jobs",
-          "yourJobsCount": "Deine Jobs · {count}"
+          "yourJobsCount": "Deine Jobs · {count}",
+          "unavailableAgent": "Nicht verfügbarer Agent"
         },
         "Modal": {
           "back": "Zurück",
@@ -9485,7 +9486,7 @@
         "chatName": "Mit {name} chatten",
         "giveTaskName": "{name} eine Aufgabe geben",
         "startTask": "Aufgabe starten",
-        "startTaskName": "Aufgabe mit {name} starten"
+        "startTaskName": "Aufgabe starten mit {name}"
       }
     },
     "EmailVerificationNotice": {

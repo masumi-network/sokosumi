@@ -9422,7 +9422,8 @@
           "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}}",
           "backToAgent": "Back to {name}",
           "yourJobs": "Your jobs",
-          "yourJobsCount": "Your jobs · {count}"
+          "yourJobsCount": "Your jobs · {count}",
+          "unavailableAgent": "Unavailable agent"
         },
         "Modal": {
           "back": "Back",
@@ -9519,7 +9520,7 @@
         "messageName": "Message {name}",
         "chat": "Chat",
         "chatName": "Chat with {name}",
-        "giveTaskName": "Give {name} a task",
+        "giveTaskName": "Give a task to {name}",
         "startTask": "Start a task",
         "startTaskName": "Start a task with {name}"
       }
