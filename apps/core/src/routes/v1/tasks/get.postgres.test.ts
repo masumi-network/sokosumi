@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { TaskStatus, TaskVisibility } from "@sokosumi/database";
+import { seoTaskDescription } from "@sokosumi/utils";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -379,6 +380,67 @@ describe.skipIf(!enabled)("GET /tasks for Home's My day", () => {
       names: [named.name],
       total: 1,
       matches: {},
+    });
+  });
+
+  it("does not find a full audit Task by text only its hidden seo_audit line holds", async () => {
+    const project = await prisma.project.create({
+      data: { workspaceId, name: "Audit search fixture", identifier: "AUDS" },
+    });
+    const packet = { price: { markupPercent: 7345 } };
+    await prisma.task.createMany({
+      data: [
+        {
+          name: "Full audit",
+          description: seoTaskDescription(
+            "Audit of shop.example",
+            "seo_audit",
+            packet,
+          ),
+        },
+        {
+          name: "Same words in the summary",
+          description: seoTaskDescription(
+            "Audit of other.example, markupPercent 7345",
+            "seo_audit",
+            packet,
+          ),
+        },
+      ].map((task) => ({
+        workspaceId,
+        projectId: project.id,
+        ownerId: adaId,
+        status: TaskStatus.FAILED,
+        ...task,
+      })),
+    });
+    async function names(search: string) {
+      const params = new URLSearchParams({
+        scope: "workspace",
+        projectId: project.id,
+        search,
+      });
+      const response = await createApp().request(`http://localhost/?${params}`);
+      const body = (await response.json()) as Page;
+      expect(response.status, JSON.stringify(body)).toBe(200);
+      return {
+        names: body.data.map(({ name }) => name).sort(),
+        total: body.meta.pagination.total,
+      };
+    }
+    // Only the hidden line holds these: no hit for the person searching.
+    expect(await names("markupPercent")).toEqual({
+      names: ["Same words in the summary"],
+      total: 1,
+    });
+    expect(await names("7345")).toEqual({
+      names: ["Same words in the summary"],
+      total: 1,
+    });
+    // The visible summary stays searchable.
+    expect(await names("shop.example")).toEqual({
+      names: ["Full audit"],
+      total: 1,
     });
   });
 

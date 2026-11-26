@@ -559,6 +559,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ? searchTaskList({
           search: queryParams.search,
           workspaceId: c.var.workspaceContext?.workspaceId,
+          rawReaderCoworkerId: isCoworkerAuthContext(authContext)
+            ? authContext.coworkerId
+            : null,
           where,
           take: takePlusOne,
           cursor,

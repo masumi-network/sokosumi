@@ -7,7 +7,6 @@ import {
 } from "@sokosumi/soko-bot";
 import { buildTaskWriteAccessWhere } from "@/helpers/access-control";
 import { jsonInput } from "@/helpers/prisma-json";
-import { seoAuditTextUnchanged } from "@/helpers/seo-task-execution";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   actionInputHash,
@@ -28,6 +27,7 @@ import {
 import { actionPrincipalId } from "./acting-scope";
 import { type RuntimeOperations } from "./operations";
 import { refuseCusoPersonTask, toolAssigneeFields } from "./task-policy";
+import { isNoopTaskUpdate } from "./task-update-noop";
 
 export async function mutateTask(
   runtime: RuntimeOperations,
@@ -204,17 +204,7 @@ export async function applyTaskMutation(
       });
       return result;
     }
-    if (
-      before &&
-      !input.archive &&
-      (input.name === undefined || input.name === before.name) &&
-      (input.description === undefined ||
-        input.description === before.description ||
-        seoAuditTextUnchanged(before.description, input.description)) &&
-      (input.status === undefined || input.status === before.status) &&
-      (input.projectId === undefined || input.projectId === before.projectId) &&
-      !unassign
-    ) {
+    if (before && isNoopTaskUpdate(before, input, unassign)) {
       if (
         input.expectedUpdatedAt &&
         before.updatedAt.toISOString() !== input.expectedUpdatedAt

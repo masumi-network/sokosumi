@@ -33,6 +33,7 @@ src/helpers/access-control.postgres.test.ts 19  # part 2: sync_history_from_task
 src/helpers/calendar-erasure.postgres.test.ts 19  # part 2: scope_notification_to_workspace_membership cannot find workspace
 src/helpers/cuso-project-credits.postgres.test.ts 19  # slice B: sync_history_from_transaction cannot find Job
 src/helpers/history-sort-at.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
+src/helpers/seo-audit-search-hits.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
 src/helpers/soko-bot-owner-scope-backfill.postgres.test.ts 18  # replayed migration: SQL outside a trigger names bare soko_bot
 src/helpers/task-number.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
 src/helpers/task-ref.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task

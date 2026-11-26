@@ -553,6 +553,8 @@ vi.mock("@/lib/db/database-now", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    // The search for text only a full audit's hidden line holds finds none.
+    $queryRaw: () => Promise.resolve([]),
     sokoBotMemoryRevision: { findFirst: memoryRevisionFindFirstMock },
     taskEvent: { findMany: taskChargeEventsMock },
     fileChunk: { findMany: files.chunks },
@@ -2615,7 +2617,18 @@ describe("SokoBotRuntimeService authorization", () => {
       total: 1,
       byStatus: {},
     });
-    const { where } = taskFindManyMock.mock.calls[0][0];
+    const { where } = taskCountMock.mock.calls[0][0];
+    // The description a reader sees: a hit only in the hidden `seo_audit` line is no hit.
+    const visibleDescription = (word: string) => ({
+      OR: [
+        {
+          description: { contains: word, mode: "insensitive", not: null },
+          NOT: {
+            description: { contains: "seo\\_audit", mode: "insensitive" },
+          },
+        },
+      ],
+    });
     expect(where.AND).toEqual(
       expect.arrayContaining([
         { workspaceId: SCOPE.workspaceId, archivedAt: null },
@@ -2624,13 +2637,13 @@ describe("SokoBotRuntimeService authorization", () => {
         {
           OR: [
             { name: { contains: "launch", mode: "insensitive" } },
-            { description: { contains: "launch", mode: "insensitive" } },
+            visibleDescription("launch"),
           ],
         },
         {
           OR: [
             { name: { contains: "copy", mode: "insensitive" } },
-            { description: { contains: "copy", mode: "insensitive" } },
+            visibleDescription("copy"),
           ],
         },
         { assigneeId: null, assigneeUserId: null, assigneeSokoBotId: null },

@@ -4,7 +4,7 @@ import { hasAssignedOrganizationSeat } from "@sokosumi/database/helpers";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { lockCalendarScope } from "@/helpers/calendar-locks";
-import { notFound } from "@/helpers/error";
+import { conflict, notFound } from "@/helpers/error";
 import {
   createPaginationMeta,
   parseCursorPagination,
@@ -23,6 +23,7 @@ import {
   requireSeoWorkspace,
   type SeoWorkspaceActor,
   seoLinkedTaskWhere,
+  sha256,
 } from "./project-seo-store";
 import { requireScopedProject } from "./project-social-connections.service";
 import { seoAnalysisStatus } from "./seo-analysis-status";
@@ -200,29 +201,50 @@ export async function createSeoAudit(
   actor: SeoWorkspaceActor,
   raw: z.infer<typeof createSeoAuditSchema>,
 ) {
-  const input = createSeoAuditSchema.parse(raw);
+  const { idempotencyKey, ...input } = createSeoAuditSchema.parse(raw);
+  const requestHash = idempotencyKey ? sha256(JSON.stringify(input)) : null;
   const audit = await serializableTransaction(async (tx) => {
-    if (
-      !(await lockCalendarScope(
-        tx,
-        actor.workspaceId,
-        input.projectId ? [input.projectId] : [],
-        actor.userId,
-      ))
-    )
-      throw notFound("SEO workspace or linked Project not found");
+    // The key check comes before the Project: a reused key answers 409 for
+    // any changed input, also a Project that does not exist.
+    if (!(await lockCalendarScope(tx, actor.workspaceId, [], actor.userId)))
+      throw notFound("SEO workspace not found");
     await requireSeoWorkspace(actor, tx);
-    if (input.projectId)
+    if (idempotencyKey) {
+      const previous = await tx.seoAudit.findUnique({
+        where: {
+          workspaceId_idempotencyKey: {
+            workspaceId: actor.workspaceId,
+            idempotencyKey,
+          },
+        },
+      });
+      if (previous) {
+        if (
+          previous.requestHash !== requestHash ||
+          previous.createdById !== actor.userId
+        )
+          throw conflict("This audit key was already used for another request");
+        return previous;
+      }
+    }
+    // Only a fresh create needs an open Project: a replay returns the Audit
+    // the first create made, also after its Project closed.
+    if (input.projectId) {
+      if (!(await lockCalendarScope(tx, actor.workspaceId, [input.projectId])))
+        throw notFound("SEO workspace or linked Project not found");
       await requireScopedProject(
         { projectId: input.projectId, workspaceId: actor.workspaceId },
         { client: tx, requireOpen: true },
       );
+    }
     return tx.seoAudit.create({
       data: {
         workspaceId: actor.workspaceId,
         projectId: input.projectId ?? null,
         name: input.name,
         createdById: actor.userId,
+        idempotencyKey: idempotencyKey ?? null,
+        requestHash,
         pages: {
           create: {
             url: normalizeSeoUrl(input.firstPage.url),

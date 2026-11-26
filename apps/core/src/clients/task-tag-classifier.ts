@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
+import { hideSeoAuditRequest } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import {
   type TaskWorkspaceTagCatalogEntry,
@@ -202,6 +203,8 @@ export async function classifyTaskTags(
   catalog: readonly TaskWorkspaceTagCatalogEntry[] = [],
 ) {
   const questions = questionsFor(catalog);
+  // A full audit's `seo_audit` line holds the owner's price terms: never send it to the gateway.
+  const visibleDescription = hideSeoAuditRequest(description);
   const signal = AbortSignal.any([
     callerSignal,
     AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -228,7 +231,7 @@ export async function classifyTaskTags(
       signal.throwIfAborted();
       result = await evaluateBatch(
         name.slice(0, 300),
-        (description ?? "").slice(0, MAX_CONTENT_LENGTH),
+        (visibleDescription ?? "").slice(0, MAX_CONTENT_LENGTH),
         batch,
         signal,
       );

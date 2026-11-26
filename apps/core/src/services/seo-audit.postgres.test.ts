@@ -377,6 +377,137 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
     expect((await routeApp().request(url)).status).toBe(200);
   });
 
+  it("returns the first Audit for a retried create with the same key and refuses the key with other input", async () => {
+    const idempotencyKey = `create-${randomUUID()}`;
+    const before = await prisma.seoAudit.count({ where: { workspaceId } });
+    const first = await createSeoAudit(actor, {
+      name: "Retried create",
+      firstPage,
+      idempotencyKey,
+    });
+    const retry = await createSeoAudit(actor, {
+      name: "Retried create",
+      firstPage,
+      idempotencyKey,
+    });
+    expect(retry.auditId).toBe(first.auditId);
+    expect(await prisma.seoAudit.count({ where: { workspaceId } })).toBe(
+      before + 1,
+    );
+    await expect(
+      createSeoAudit(actor, {
+        name: "Other name",
+        firstPage,
+        idempotencyKey,
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    // Changed input stays a 409, also with a Project that does not exist.
+    await expect(
+      createSeoAudit(actor, {
+        name: "Retried create",
+        firstPage,
+        projectId: randomUUID(),
+        idempotencyKey,
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    // A create without a key never matches an earlier one.
+    const keyless = await createSeoAudit(actor, {
+      name: "Retried create",
+      firstPage,
+    });
+    expect(keyless.auditId).not.toBe(first.auditId);
+  });
+
+  it("returns the first Audit for a retried create after its Project closed", async () => {
+    const project = await prisma.project.create({
+      data: { workspaceId, name: "Closed after create" },
+    });
+    const request = {
+      name: "Replay on closed Project",
+      firstPage,
+      projectId: project.id,
+      idempotencyKey: `create-${randomUUID()}`,
+    };
+    const first = await createSeoAudit(actor, request);
+    await prisma.project.update({
+      where: { id: project.id },
+      data: { closedAt: new Date() },
+    });
+    const retry = await createSeoAudit(actor, request);
+    expect(retry.auditId).toBe(first.auditId);
+    // A fresh create on the closed Project is still refused.
+    await expect(
+      createSeoAudit(actor, {
+        ...request,
+        idempotencyKey: `create-${randomUUID()}`,
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(
+      await prisma.seoAudit.count({ where: { projectId: project.id } }),
+    ).toBe(1);
+  });
+
+  it("refuses a create key another member of the same workspace already used", async () => {
+    const [owner, teammate, organizationId, orgWorkspaceId] = [
+      randomUUID(),
+      randomUUID(),
+      randomUUID(),
+      randomUUID(),
+    ];
+    for (const id of [owner, teammate])
+      await prisma.user.create({
+        data: {
+          id,
+          name: "SEO key fixture",
+          email: `${id}@example.test`,
+          emailVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+    await prisma.organization.create({
+      data: {
+        id: organizationId,
+        name: "SEO key fixture",
+        slug: organizationId,
+        workspace: { create: { id: orgWorkspaceId } },
+        members: {
+          create: [owner, teammate].map((id) => ({
+            userId: id,
+            role: "member",
+            seatAssignedAt: new Date(),
+          })),
+        },
+      },
+    });
+    try {
+      const idempotencyKey = `create-${randomUUID()}`;
+      const request = { name: "Shared key", firstPage, idempotencyKey };
+      await createSeoAudit(
+        { userId: owner, workspaceId: orgWorkspaceId, organizationId },
+        request,
+      );
+      // The same input from a teammate: the key is the first member's, not a replay for another.
+      await expect(
+        createSeoAudit(
+          { userId: teammate, workspaceId: orgWorkspaceId, organizationId },
+          request,
+        ),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(
+        await prisma.seoAudit.count({ where: { workspaceId: orgWorkspaceId } }),
+      ).toBe(1);
+    } finally {
+      await prisma.seoAudit.deleteMany({
+        where: { workspaceId: orgWorkspaceId },
+      });
+      await prisma.organization.deleteMany({ where: { id: organizationId } });
+      await prisma.user.deleteMany({
+        where: { id: { in: [owner, teammate] } },
+      });
+    }
+  });
+
   it("rejects a foreign optional Project link without retaining an Audit or its first page", async () => {
     const foreignProject = await prisma.project.create({
       data: { workspaceId: foreignWorkspaceId, name: "Foreign native Project" },

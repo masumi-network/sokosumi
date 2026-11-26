@@ -180,6 +180,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           cursor: taskCursor,
           take: taskTake,
           ...(searchQuery ? { searchQuery } : {}),
+          rawReaderCoworkerId: isCoworkerAuthContext(authContext)
+            ? authContext.coworkerId
+            : null,
         }),
       ...(tableActor
         ? {
