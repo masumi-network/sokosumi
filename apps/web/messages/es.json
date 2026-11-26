@@ -8769,7 +8769,8 @@
           "key": "Key",
           "status": "Estado",
           "actions": "Acciones",
-          "created": "Creado"
+          "created": "Creado",
+          "lastUsed": "Último uso"
         },
         "Status": {
           "enabled": "Activada",
@@ -8799,7 +8800,8 @@
           "confirmLabelPrefix": "Escribe",
           "confirmLabelSuffix": "para confirmar la eliminación:",
           "cancelButton": "Cancelar",
-          "deleteButton": "Eliminar API Key"
+          "deleteButton": "Eliminar API Key",
+          "recentUse": "Esta clave se usó {when}. Todo lo que aún la use dejará de funcionar."
         },
         "Messages": {
           "loadError": "No se pudieron cargar las API Keys",
@@ -8820,7 +8822,11 @@
           "keyIdRequired": "El ID de la API Key es obligatorio",
           "confirmNameRequired": "Por favor, confirma el nombre de la API Key"
         },
-        "retry": "Reintentar"
+        "retry": "Reintentar",
+        "LastUsed": {
+          "used": "Usada {when}",
+          "none": "Sin uso registrado"
+        }
       },
       "AuthorizedClients": {
         "title": "Aplicaciones autorizadas",

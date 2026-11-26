@@ -8805,7 +8805,8 @@
           "key": "Key",
           "status": "Status",
           "actions": "Actions",
-          "created": "Created"
+          "created": "Created",
+          "lastUsed": "Last used"
         },
         "Status": {
           "enabled": "Enabled",
@@ -8835,7 +8836,8 @@
           "confirmLabelPrefix": "Type",
           "confirmLabelSuffix": "to confirm deletion:",
           "cancelButton": "Cancel",
-          "deleteButton": "Delete API key"
+          "deleteButton": "Delete API key",
+          "recentUse": "This key was used {when}. Anything still using it will stop working."
         },
         "Messages": {
           "loadError": "Failed to load API keys",
@@ -8856,7 +8858,11 @@
           "keyIdRequired": "API key ID is required",
           "confirmNameRequired": "Please confirm the API key name"
         },
-        "retry": "Retry"
+        "retry": "Retry",
+        "LastUsed": {
+          "used": "Used {when}",
+          "none": "No recorded use"
+        }
       },
       "AuthorizedClients": {
         "title": "Authorized applications",

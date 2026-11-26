@@ -5,7 +5,11 @@ import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
-
+import {
+  useFormatShortTimeAgo,
+  useSharedNow,
+} from "@/components/short-time-ago";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -31,7 +35,12 @@ import type {
   DeleteApiKeyDialogProps,
   DeleteApiKeyFormData,
 } from "./types";
-import { deleteApiKeySchema, validateConfirmationName } from "./utils";
+import {
+  deleteApiKeySchema,
+  lastUsedAt,
+  usedInLastWeek,
+  validateConfirmationName,
+} from "./utils";
 
 interface DeleteApiKeyFormProps {
   apiKey: ApiKeyRecord;
@@ -127,6 +136,22 @@ function DeleteApiKeyForm({
   );
 }
 
+/** A key used this week likely still powers something; say so before it goes. */
+function RecentUseWarning({ apiKey }: { apiKey: ApiKeyRecord }) {
+  const t = useTranslations("App.Account.ApiKeys");
+  const now = useSharedNow();
+  const timeAgo = useFormatShortTimeAgo();
+  const at = lastUsedAt(apiKey);
+  if (!at || !usedInLastWeek(apiKey, now)) return null;
+  return (
+    <Alert role="note" variant="destructive">
+      <AlertDescription>
+        {t("DeleteDialog.recentUse", { when: timeAgo(at, now) })}
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 export function DeleteApiKeyDialog({
   apiKey,
   open,
@@ -145,6 +170,8 @@ export function DeleteApiKeyDialog({
             {t("DeleteDialog.description")}
           </AlertDialogDescription>
         </AlertDialogHeader>
+
+        {apiKey && <RecentUseWarning apiKey={apiKey} />}
 
         {apiKey && (
           <DeleteApiKeyForm
