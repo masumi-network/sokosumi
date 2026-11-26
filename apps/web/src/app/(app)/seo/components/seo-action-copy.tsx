@@ -68,7 +68,6 @@ export function useSeoActionInstructions(
     action.edit?.target.trim()
       ? `${t("actions.copyTarget")}: ${action.edit.target}`
       : null,
-    // An empty value under its label reads as a missing part of the text: both say it in words.
     action.edit
       ? `${t("actions.before")}:\n${action.edit.before?.trim() ? action.edit.before : t("actions.noBefore")}`
       : null,

@@ -7767,7 +7767,6 @@ describe("SEO workspace integration", () => {
         "A descriptive search result",
         "The title is missing",
         "What to change: title",
-        // The check recorded no value before: the text says so, and does not leave the part empty.
         "Before:\nNo previous value recorded",
         "Suggested change:\n<title>Battery Sensei</title>",
       ].join("\n\n"),
