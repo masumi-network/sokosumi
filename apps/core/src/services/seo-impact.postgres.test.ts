@@ -606,7 +606,7 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     }
   });
 
-  it("records no second change when done is sent for a verified change", async () => {
+  it("checks a verified change again and records it once more when done is sent", async () => {
     const { id } = await doneChange("https://battery-sensei.app/pricing", {
       status: "open",
     });
@@ -617,11 +617,19 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
       where: { id },
       data: { status: "verified", verifiedAt: CHANGED_AT },
     });
+    const doneAgainAt = new Date(CHANGED_AT.getTime() + DAY_MS);
 
-    expect(await setCmoSeoSuggestionStatus(owner, id, "done")).toMatchObject({
-      status: "verified",
+    expect(
+      await setCmoSeoSuggestionStatus(owner, id, "done", doneAgainAt),
+    ).toMatchObject({
+      status: "done",
+      doneAt: doneAgainAt.toISOString(),
+      verifiedAt: null,
     });
-    expect(await rowsOf(id)).toHaveLength(1);
+    expect((await rowsOf(id)).map((row) => row.changedAt)).toEqual([
+      CHANGED_AT,
+      doneAgainAt,
+    ]);
   });
 
   it("records nothing on a status write while the flag is off", async () => {

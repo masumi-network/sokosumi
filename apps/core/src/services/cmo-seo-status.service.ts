@@ -26,12 +26,8 @@ export async function setCmoSeoSuggestionStatus(
     });
     if (!row) throw new CmoNotFoundError("Suggestion not found");
     // A retried request changes nothing: a second done would record a second
-    // change. A verified change is done already.
-    if (
-      row.status === status ||
-      (status === "done" && row.status === "verified")
-    )
-      return toSuggestion(row);
+    // change. Done on a verified change asks for a new check and records it.
+    if (row.status === status) return toSuggestion(row);
     try {
       return toSuggestion(
         await updateSeoSuggestion({
