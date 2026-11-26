@@ -175,7 +175,10 @@ export async function readAuditPerformanceSummaries(
         coverage: data.coverage,
         ...(data.auditDiscovery && {
           discovery: auditDiscoveryResult(
-            data.auditDiscovery,
+            // A change compares with an earlier snapshot of the requester's, which can sit on a Task the reader cannot see.
+            requester
+              ? data.auditDiscovery
+              : { ...data.auditDiscovery, changes: [] },
             data.propertyId,
             publicRoots.get(row.sourceTaskId) ?? [],
           ),

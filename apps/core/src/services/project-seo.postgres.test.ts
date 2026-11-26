@@ -3603,6 +3603,17 @@ describe.skipIf(!enabled)(
           retry: [],
           propertyClicks: [900],
         });
+        // An archived audit Task leaves the workspace, so its snapshot leaves with it.
+        await prisma.task.update({
+          where: { id: audits.PUBLIC },
+          data: { archivedAt: now },
+        });
+        expect(await read(otherId)).toEqual({
+          snapshots: [],
+          retry: [],
+          propertyClicks: [],
+        });
+        expect((await read(userId)).snapshots).toEqual([audits.PRIVATE]);
       } finally {
         await prisma.task.deleteMany({
           where: { workspaceId: sharedWorkspaceId },
