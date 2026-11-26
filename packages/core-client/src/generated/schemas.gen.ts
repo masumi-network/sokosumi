@@ -68376,7 +68376,8 @@ export const SokoBotVersionSchema = {
             ]
         },
         systemPrompt: {
-            type: 'string'
+            type: 'string',
+            description: 'The composed system prompt. Sent to platform admins only, for the behaviour lab.'
         }
     },
     required: [
@@ -68386,8 +68387,7 @@ export const SokoBotVersionSchema = {
         'summary',
         'model',
         'skills',
-        'capabilities',
-        'systemPrompt'
+        'capabilities'
     ]
 } as const;
 
