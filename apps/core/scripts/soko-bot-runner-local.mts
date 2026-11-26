@@ -5,7 +5,6 @@
  *
  *   tsx --env-file=.env scripts/soko-bot-runner-local.mts <userId> <workspaceId> "<message>"
  */
-
 import { spawn } from "node:child_process";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";

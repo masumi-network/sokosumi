@@ -3,6 +3,7 @@ import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created, ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -119,7 +120,7 @@ export function mountSokoBotScheduleByIdRoutes(app: OpenAPIHonoWithAuth) {
         c.req.valid("param").sokoBotId,
       );
       const schedule = await sokoBotControlPlane.createSchedule({
-        network: c.var.networkScope.network,
+        network: DETACHED_SOKO_BOT_NETWORK,
         userId: auth.userId,
         workspaceId: workspace.workspaceId,
         sokoBotId: bot.id,

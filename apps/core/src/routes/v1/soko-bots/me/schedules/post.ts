@@ -2,6 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -38,7 +39,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspace = requireWorkspaceContext(c.var.workspaceContext);
     try {
       const schedule = await sokoBotControlPlane.createSchedule({
-        network: c.var.networkScope.network,
+        network: DETACHED_SOKO_BOT_NETWORK,
         userId: auth.userId,
         workspaceId: workspace.workspaceId,
         ...c.req.valid("json"),

@@ -1,5 +1,6 @@
 import { SOKO_BOT_SYSTEM_SCHEDULES } from "@sokosumi/soko-bot";
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
+
 import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
 import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";

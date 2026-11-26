@@ -42,6 +42,7 @@ RESET lock_timeout;
 ```
 
 Reset the timeout before backfills and `VALIDATE CONSTRAINT`. Use plain `SET lock_timeout` because `SET LOCAL` has no effect outside an explicit transaction block.
+Keep the timeout during a backfill that rewrites rows a live lease writes so a blocked backfill releases the rows it already locked.
 
 After `prisma migrate dev`, add both lines by hand, even if `ALTER TABLE` only adds a foreign key to a table created in the same migration, because the foreign key also locks the referenced table. For pull requests, Test Packages runs this check only when the PR is ready for review, so add the lines before marking it ready.
 

@@ -50,10 +50,10 @@ function startTurn() {
   const app = new OpenAPIHonoWithAuth();
   app.use("*", coreEvlogMiddleware());
   app.use("*", async (c, next) => {
-    c.set(
-      "networkScope",
-      Object.create(testNetworkScope(), { network: { value: "preprod" } }),
-    );
+    c.set("networkScope", {
+      ...testNetworkScope(),
+      network: "preprod" as const,
+    });
     c.set("authContext", {
       actor: "user",
       userId: "user-1",

@@ -106,6 +106,7 @@ vi.mock("@/services/soko-bot-state.service", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
+  networkPrisma: vi.fn(),
   default: {
     sokoBotTurn: { findFirst: turnFindFirstMock },
     // Cuso lives in the CMO Project only.
@@ -165,10 +166,10 @@ function createApp() {
   }>();
   parent.use("*", async (c, next) => {
     c.set("requestId", "req_shared_routes");
-    c.set(
-      "networkScope",
-      Object.create(testNetworkScope(), { network: { value: "preprod" } }),
-    );
+    c.set("networkScope", {
+      ...testNetworkScope(),
+      network: "preprod" as const,
+    });
     c.set("isAuthenticated", true);
     c.set("authContext", {
       actor: "user",
@@ -504,7 +505,7 @@ describe("shared Soko Bot routes", () => {
         createdAt: now,
         updatedAt: now,
       };
-      const storedSchedule = { ...scheduleResponse, network: "preprod" };
+      const storedSchedule = { ...scheduleResponse, network: "mainnet" };
       createScheduleMock.mockResolvedValue(storedSchedule);
       updateScheduleMock.mockResolvedValue(storedSchedule);
       resolveMock.mockResolvedValue({ id: BOT_ID });
@@ -521,7 +522,7 @@ describe("shared Soko Bot routes", () => {
       expect(createdMe.status).toBe(201);
       expect(createScheduleMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          network: "preprod",
+          network: "mainnet",
           userId: USER_ID,
           workspaceId: WORKSPACE_ID,
           stopRule,
@@ -538,7 +539,7 @@ describe("shared Soko Bot routes", () => {
       expect(createdById.status).toBe(201);
       expect(createScheduleMock).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          network: "preprod",
+          network: "mainnet",
           userId: USER_ID,
           workspaceId: WORKSPACE_ID,
           sokoBotId: BOT_ID,

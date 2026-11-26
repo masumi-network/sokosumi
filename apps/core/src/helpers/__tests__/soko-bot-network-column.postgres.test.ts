@@ -12,9 +12,8 @@ const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
 
-const { netTable, netType, sharedTable } = createSqlTables(
-  sqlTableLayoutFromEnv(process.env),
-);
+const layout = sqlTableLayoutFromEnv(process.env);
+const { netTable, netType, sharedTable } = createSqlTables(layout);
 const migration = readFileSync(
   new URL(
     "../../../../../packages/database/prisma/migrations/20261126144339_soko_bot_network/migration.sql",
@@ -190,6 +189,7 @@ describe.skipIf(!enabled)("Soko Bot network migration", () => {
       const validated = await tx.$queryRaw<{ conname: string }[]>`
         SELECT conname FROM pg_constraint
         WHERE contype = 'c' AND convalidated
+          AND connamespace = (SELECT oid FROM pg_namespace WHERE nspname = ${layout.shared})
           AND conname = ANY(${TABLES.map((table) => `${table}_network_check`)})
         ORDER BY conname
       `;

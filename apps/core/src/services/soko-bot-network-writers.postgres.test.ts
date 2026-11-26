@@ -1,25 +1,30 @@
 import { randomUUID } from "node:crypto";
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { netType } from "@sokosumi/database/sql-tables";
 import type { JobWithListSummaryRelations } from "@sokosumi/database/types/job";
 import type { SokoBotCapability } from "@sokosumi/soko-bot";
+import { err } from "neverthrow";
 import { afterAll, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { createAgentJobForUser } from "@/helpers/job";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
+import * as transactions from "@/lib/db/transaction";
+import type { EnvVariables } from "@/lib/hono";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
+import mountConsoleSchedule from "@/routes/v1/soko-bots/me/schedules/post";
 import {
   onSplitLayout,
   testSchemaNames,
   withFixtureSchemas,
 } from "@/test/split-layout";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 
 import { sokoBotControlPlane } from "./soko-bot-control-plane.service";
 import { ensureSystemSchedules } from "./soko-bot-proactive.service";
 import { sokoBotRuntimeService } from "./soko-bot-runtime.service";
 import { adoptCoworkerSpawnedTasks } from "./soko-bot-spawned-task-adoption.service";
-import * as taskDomain from "./task-domain.service";
 
 vi.mock("@/lib/ably/client", async () =>
   (await import("@/test/ably-client")).fakeAblyClientModule(),
@@ -36,6 +41,18 @@ vi.mock("@/helpers/job", async (original) => ({
   ...(await original<typeof import("@/helpers/job")>()),
   createAgentJobForUser: vi.fn(),
 }));
+
+vi.mock("@sokosumi/masumi", async (original) => {
+  const masumi = await original<typeof import("@sokosumi/masumi")>();
+  return {
+    ...masumi,
+    createAgentClient: () => ({
+      ...masumi.createAgentClient(),
+      provideJobInput: async () =>
+        err({ kind: "unreachable", message: "Seller fixture refused input" }),
+    }),
+  };
+});
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -99,6 +116,29 @@ async function seedLiveTurn(
   });
 }
 
+function allowLegacyTaskHistoryTrigger() {
+  if (!onSplitLayout) return;
+  const { DATABASE_SCHEMA_SHARED: shared, DATABASE_SCHEMA_MAINNET: mainnet } =
+    testSchemaNames();
+  const serializable = transactions.serializableTransaction;
+  const spy = vi
+    .spyOn(transactions, "serializableTransaction")
+    .mockImplementation((run, message, timing) =>
+      serializable(
+        async (tx) => {
+          // The legacy History trigger still uses an unqualified name.
+          await tx.$executeRawUnsafe(
+            `SET LOCAL search_path TO "${shared}", "${mainnet}"`,
+          );
+          return run(tx);
+        },
+        message,
+        timing,
+      ),
+    );
+  onTestFinished(() => spy.mockRestore());
+}
+
 function tool(turnId: string, capability: SokoBotCapability, input: unknown) {
   const toolCallId = randomUUID();
   const result = sokoBotRuntimeService.executeTool({
@@ -144,10 +184,13 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
     },
   );
 
-  it("tags a hire reservation before seller dispatch and keeps its tag when attaching the Job", async () => {
+  it("tags hire reservation, Job attachment and provision of Job input", async () => {
     const fixture = await seedBot();
     const { userId, workspaceId, bot } = fixture;
-    const turn = await seedLiveTurn(fixture, ["hire_agent"]);
+    const turn = await seedLiveTurn(fixture, [
+      "hire_agent",
+      "provide_job_input",
+    ]);
     const { networkDb, networkTable } = createNetworkScope("mainnet");
     const agent = await networkDb.agent.create({
       data: {
@@ -226,28 +269,59 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
       jobId,
       outcome: "accepted",
     });
+
+    if (onSplitLayout) {
+      // These Job models in the decision service still use the legacy client.
+      const findInput = vi
+        .spyOn(prisma.jobInput, "findUnique")
+        .mockImplementation((args) => networkDb.jobInput.findUnique(args));
+      const findEvent = vi
+        .spyOn(prisma.jobEvent, "findFirst")
+        .mockImplementation((args) => networkDb.jobEvent.findFirst(args));
+      onTestFinished(() => {
+        findInput.mockRestore();
+        findEvent.mockRestore();
+      });
+    }
+    const eventId = randomUUID();
+    await withFixtureSchemas(
+      (tx) => tx.$executeRaw`
+      INSERT INTO ${networkTable("jobEvent")} ("id", "updatedAt", "jobId", "status", "inputSchema")
+      VALUES (${eventId}, NOW(), ${jobId}, 'AWAITING_INPUT'::${netType("mainnet", "AgentJobStatus")},
+        '{"input_data":[]}')
+    `,
+    );
+    const provide = await prisma.sokoBotPendingDecision.create({
+      data: {
+        turnId: turn.id,
+        sokoBotId: bot.id,
+        workspaceId,
+        requestedByUserId: userId,
+        toolName: "provide_job_input",
+        reason: "Fixture",
+        proposal: { jobId, eventId, inputData: {} },
+        expiresAt: decision.expiresAt,
+      },
+    });
+    await expect(
+      sokoBotRuntimeService.resolveDecision(userId, provide.id, true),
+    ).rejects.toThrow("Seller fixture refused input");
+    await expect(
+      prisma.sokoBotDelegation.findFirstOrThrow({
+        where: { turnId: turn.id, toolCallId: `decision:${provide.id}` },
+      }),
+    ).resolves.toMatchObject({
+      network: "mainnet",
+      jobId,
+      outcome: "failed",
+    });
   });
 
   it("tags the Task delegation and the spawned Task adopted in bulk", async () => {
     const fixture = await seedBot();
     const { bot, userId, workspaceId } = fixture;
     const turn = await seedLiveTurn(fixture, ["create_task"]);
-    if (onSplitLayout) {
-      const {
-        DATABASE_SCHEMA_SHARED: shared,
-        DATABASE_SCHEMA_MAINNET: mainnet,
-      } = testSchemaNames();
-      const createTask = taskDomain.createTaskForActor;
-      const writeTask = vi.spyOn(taskDomain, "createTaskForActor");
-      writeTask.mockImplementationOnce(async (input, tx) => {
-        // The Task's legacy History trigger still uses an unqualified name.
-        await tx.$executeRawUnsafe(
-          `SET LOCAL search_path TO "${shared}", "${mainnet}"`,
-        );
-        return createTask(input, tx);
-      });
-      onTestFinished(() => writeTask.mockRestore());
-    }
+    allowLegacyTaskHistoryTrigger();
     const creation = tool(turn.id, "create_task", {
       name: "Parent Task",
       status: "READY",
@@ -304,6 +378,48 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
     });
   });
 
+  it.each([
+    ["archive_task", {}],
+    ["update_task", { name: "Updated Task" }],
+    ["assign_task", { assignToOwner: true, ready: false }],
+    ["update_assigned_task", { status: "RUNNING", comment: "Starting" }],
+    ["reply_to_task", { comment: "Noted" }],
+  ] as const)("tags the %s delegation", async (capability, input) => {
+    const fixture = await seedBot();
+    const turn = await seedLiveTurn(fixture, [capability]);
+    const task = await withFixtureSchemas((tx) =>
+      tx.task.create({
+        data: {
+          name: "Fixture Task",
+          workspaceId: fixture.workspaceId,
+          ownerId: fixture.userId,
+          ...(capability === "archive_task" ? { archivedAt: new Date() } : {}),
+          ...(capability === "update_assigned_task"
+            ? { assigneeSokoBotId: fixture.bot.id, status: "READY" }
+            : {}),
+        },
+      }),
+    );
+    allowLegacyTaskHistoryTrigger();
+    const call = tool(turn.id, capability, {
+      taskId: task.id,
+      ...input,
+      ...(capability === "archive_task"
+        ? { expectedUpdatedAt: task.updatedAt.toISOString() }
+        : {}),
+    });
+    await call.result;
+    await expect(
+      prisma.sokoBotDelegation.findFirstOrThrow({
+        where: { turnId: turn.id, toolCallId: call.toolCallId },
+      }),
+    ).resolves.toMatchObject({
+      network: "mainnet",
+      taskId: task.id,
+      action: capability,
+    });
+  });
+
   it("tags ordinary, watched and built-in schedules and preserves both tool receipt shapes", async () => {
     const fixture = await seedBot();
     const { userId, workspaceId, bot } = fixture;
@@ -321,14 +437,33 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
       cronExpression: "0 9 * * *",
       prompt: "Check in",
     };
-    const ordinary = await sokoBotControlPlane.createSchedule({
-      userId,
-      workspaceId,
-      network: "preprod",
-      name: "Console schedule",
-      ...scheduleInput,
+    const app = new OpenAPIHono<EnvVariables>();
+    app.use("*", async (c, next) => {
+      c.set("networkScope", {
+        ...testNetworkScope(),
+        network: "preprod" as const,
+      });
+      c.set("authContext", {
+        actor: "user",
+        role: "user",
+        userId,
+        organizationId: null,
+      });
+      c.set("workspaceContext", { userId, workspaceId, organizationId: null });
+      await next();
     });
-    expect(ordinary.network).toBe("preprod");
+    mountConsoleSchedule(app);
+    const response = await app.request("/me/schedules", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Console schedule", ...scheduleInput }),
+    });
+    expect(response.status).toBe(201);
+    await expect(
+      prisma.sokoBotSchedule.findFirstOrThrow({
+        where: { sokoBotId: bot.id, name: "Console schedule" },
+      }),
+    ).resolves.toMatchObject({ network: "mainnet" });
     await ensureSystemSchedules(bot);
     const builtIns = await prisma.sokoBotSchedule.findMany({
       where: { sokoBotId: bot.id, systemKey: { not: null } },

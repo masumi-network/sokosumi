@@ -141,10 +141,8 @@ export async function dispatchSchedulesTools(
           } = authorized.turn;
           const scope = { userId, workspaceId, sokoBotId };
           let schedule:
-            | SokoBotSchedule
-            | (Awaited<ReturnType<typeof deleteSokoBotSchedule>> & {
-                network?: never;
-              });
+            | Omit<SokoBotSchedule, "network">
+            | Awaited<ReturnType<typeof deleteSokoBotSchedule>>;
           if (input.capability === "create_schedule") {
             const {
               stopRule,
@@ -156,7 +154,7 @@ export async function dispatchSchedulesTools(
               capabilities,
               authorized.grant.capabilities,
             );
-            schedule = await createSokoBotSchedule(
+            const row = await createSokoBotSchedule(
               {
                 ...scope,
                 ...scheduleInput,
@@ -175,6 +173,8 @@ export async function dispatchSchedulesTools(
               },
               tx,
             );
+            const { network: _network, ...created } = row;
+            schedule = created;
           } else if (input.capability === "update_schedule") {
             const {
               stopRule,
@@ -199,7 +199,7 @@ export async function dispatchSchedulesTools(
                     authorized.grant.capabilities,
                   )
                 : undefined;
-            schedule = await updateSokoBotSchedule(
+            const row = await updateSokoBotSchedule(
               {
                 ...scope,
                 ...scheduleInput,
@@ -223,6 +223,8 @@ export async function dispatchSchedulesTools(
               },
               tx,
             );
+            const { network: _network, ...updated } = row;
+            schedule = updated;
           } else {
             schedule = await deleteSokoBotSchedule(
               scope.userId,
@@ -230,11 +232,10 @@ export async function dispatchSchedulesTools(
               tx,
             );
           }
-          const { network: _network, ...scheduleResult } = schedule;
           const result =
             input.capability === "delete_schedule"
-              ? { ...scheduleResult, deleted: true }
-              : scheduleResult;
+              ? { ...schedule, deleted: true }
+              : schedule;
           await commitActionReceipt(tx, {
             turnId: authorized.turn.id,
             toolCallId: input.toolCallId,
