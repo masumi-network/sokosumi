@@ -15165,7 +15165,7 @@
         "unavailable": "Google could not return usable measurements.",
         "not_checked": "In diesem Audit nicht geprüft.",
         "no_data": "Google hat für diese URL keine Daten echter Besucher gemeldet.",
-        "quota": "Das Testlimit von Google wurde erreicht.",
+        "quota": "Ein Testlimit wurde erreicht.",
         "deadline": "Die Testzeit ist abgelaufen.",
         "single": "One run",
         "multiple": "Median of {ok} usable runs out of {runs}",

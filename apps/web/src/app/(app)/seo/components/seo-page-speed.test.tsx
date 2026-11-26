@@ -85,9 +85,7 @@ it("displays lab timings and checks beside a separate real-user gap on the Actio
   expect(
     panel.getByText("Google reported no real-user data for this URL."),
   ).toBeVisible();
-  expect(
-    panel.getByText("Desktop · Google’s test limit was reached."),
-  ).toBeVisible();
+  expect(panel.getByText("Desktop · A test limit was reached.")).toBeVisible();
 });
 
 it("counts pages without calling an unmeasured URL tested", () => {
