@@ -6,7 +6,8 @@ vi.mock("@/services/soko-bot-schedule.service", () => ({
   SokoBotScheduleValidationError: class extends Error {},
 }));
 
-import { briefAsksToEnd, requireScheduledRunMayEnd } from "./schedule-scope";
+import { briefAsksToEnd } from "@/lib/soko-bot/schedule-brief";
+import { requireScheduledRunMayEnd } from "./schedule-scope";
 
 const OWN = "01960001-0001-7001-8001-000000000001";
 const OTHER = "01960001-0001-7001-8001-000000000002";
@@ -31,6 +32,9 @@ describe("briefAsksToEnd", () => {
     "Remind me about the invoice; remove the reminder when it is paid.",
     "Stop the check-ins when the launch ships.",
     "Prüfe täglich den Stand und lösche den Zeitplan, sobald es fertig ist.",
+    // The verb split around the noun (Codex round 15).
+    "Turn this schedule off once the invoice is paid.",
+    "Schalte den Zeitplan ab, wenn alles erledigt ist.",
     // A negation elsewhere does not cancel a real ask.
     "Don't ping Hannah on weekends. Delete this schedule once the launch ships.",
   ])("reads an ask to end: %s", (brief) => {
@@ -46,6 +50,7 @@ describe("briefAsksToEnd", () => {
     "Do not turn off this schedule.",
     "Don't remove the reminder until I say so.",
     "Lösche diesen Zeitplan nicht.",
+    "Never turn this schedule off.",
     "Diesen Zeitplan niemals beenden; entferne keine Erinnerung.",
   ])("reads no ask to end: %s", (brief) => {
     expect(briefAsksToEnd(brief)).toBe(false);

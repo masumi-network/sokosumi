@@ -249,6 +249,15 @@ describe("a scheduled run", () => {
         ),
       ).rejects.toThrow(/scheduled run doesn't delete, pause or end/);
     expect(mocks.update).not.toHaveBeenCalled();
+    // Nor does it make a new one already paused (Codex round 15).
+    await expect(
+      saveTaskSchedule(
+        runtime,
+        call({ name: "x", cron: "0 9 * * *", state: "PAUSED" }),
+        run,
+      ),
+    ).rejects.toThrow(/scheduled run doesn't delete, pause or end/);
+    expect(mocks.create).not.toHaveBeenCalled();
     await expect(
       removeTaskSchedule(
         runtime,

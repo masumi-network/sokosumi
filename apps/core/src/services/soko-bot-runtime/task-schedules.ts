@@ -172,6 +172,19 @@ export async function saveTaskSchedule(
       assigneeSokoBotId: parsed.assigneeSokoBotId,
     }),
   };
+  // A scheduled run never pauses or ends a Task Schedule, a new one included
+  // (Codex round 15), and never gives an existing one an end date or a run
+  // count, which end it too, just later (Neon round 6).
+  if (
+    authorized.turn.source === "SCHEDULE" &&
+    (parsed.state === "PAUSED" ||
+      parsed.state === "ENDED" ||
+      (parsed.scheduleId !== undefined &&
+        ((parsed.endsOn !== undefined && parsed.endsOn !== null) ||
+          (parsed.endsAfterRuns !== undefined &&
+            parsed.endsAfterRuns !== null))))
+  )
+    throw new SokoBotRefusedUnsentError(SCHEDULED_RUN_REFUSAL);
   const saved = await refusingHttp(async () => {
     if (!parsed.scheduleId) {
       if (!parsed.name || !parsed.cron)
@@ -210,15 +223,6 @@ export async function saveTaskSchedule(
         ? changeTaskScheduleState(actor, created.id, "pause")
         : created;
     }
-    if (
-      authorized.turn.source === "SCHEDULE" &&
-      (parsed.state === "PAUSED" ||
-        parsed.state === "ENDED" ||
-        // An end date or a run count ends it too, just later (Neon round 6).
-        (parsed.endsOn !== undefined && parsed.endsOn !== null) ||
-        (parsed.endsAfterRuns !== undefined && parsed.endsAfterRuns !== null))
-    )
-      throw new SokoBotRefusedUnsentError(SCHEDULED_RUN_REFUSAL);
     const current = await requireChangeable(
       actor,
       authorized,

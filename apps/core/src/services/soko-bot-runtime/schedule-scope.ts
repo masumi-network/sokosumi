@@ -4,6 +4,7 @@ import {
   sokoBotScheduleIdInputSchema as scheduleIdInputSchema,
   sokoBotUpdateScheduleInputSchema as updateScheduleInputSchema,
 } from "@sokosumi/soko-bot";
+import { briefAsksToEnd } from "@/lib/soko-bot/schedule-brief";
 import { OWN_SCHEDULE_CAPABILITIES } from "@/lib/soko-bot/system-routes";
 import {
   SokoBotScheduleNotFoundError,
@@ -24,36 +25,6 @@ export async function runScheduleTool<T>(run: () => Promise<T>): Promise<T> {
     }
     throw error;
   }
-}
-
-/**
- * Words in a brief that ask the run to end its own schedule ("delete this
- * schedule once Mira is done", "stop the check-ins when it ships"), in
- * English and German. A brief without them never ends its schedule, and a
- * negated one ("never delete this schedule", "lösche den Zeitplan nicht")
- * forbids it rather than asking (Neon round 6).
- */
-const ASKS_TO_END =
-  /\b(delete|remove|stop|cancel|end|turn off|disable|pause|lösch\w*|entfern\w*|beend\w*|stopp\w*)\b[^.!?\n]{0,60}\b(this|the|that|it|diese[nrs]?|den|die|das)?\s*(schedule|check-?ins?|checks?|reminders?|follow-?ups?|watch|zeitplan|erinnerung\w*)\b/gi;
-/** Negation shortly before the verb, in the same sentence. */
-const NEGATED_BEFORE =
-  /\b(never|not|don'?t|doesn'?t|do not|must not|mustn'?t|nie|niemals|nicht|kein\w*)\b[^.!?\n]{0,20}$/i;
-/** German negates after the object: "lösche diesen Zeitplan nicht". */
-const NEGATED_AFTER = /^[^.!?\n]{0,15}\b(nicht|nie|niemals)\b/i;
-const NEGATION_INSIDE = /\b(never|not|don'?t|nicht|nie|niemals)\b/i;
-
-export function briefAsksToEnd(prompt: string): boolean {
-  for (const match of prompt.matchAll(ASKS_TO_END)) {
-    const before = prompt.slice(Math.max(0, match.index - 40), match.index);
-    const after = prompt.slice(match.index + match[0].length);
-    if (
-      !NEGATED_BEFORE.test(before) &&
-      !NEGATION_INSIDE.test(match[0]) &&
-      !NEGATED_AFTER.test(after)
-    )
-      return true;
-  }
-  return false;
 }
 
 /**
