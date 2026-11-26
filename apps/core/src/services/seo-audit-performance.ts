@@ -41,6 +41,7 @@ export async function readAuditSearchConsoleBinding(
       workspaceId: true,
       organizationId: true,
       projectId: true,
+      archivedAt: true,
     },
   });
   if (
@@ -62,6 +63,8 @@ export async function readAuditSearchConsoleBinding(
     requester &&
     (requester.sokoBotId ||
       task.status !== "COMPLETED" ||
+      // An archived audit Task leaves the workspace, so its report takes no new Google reads.
+      task.archivedAt ||
       requester.userId !== actor.userId ||
       requester.workspaceId !== actor.workspaceId ||
       requester.organizationId !== actor.organizationId ||
