@@ -2,11 +2,17 @@ import {
   type SokoBotPlanLoopUpdatePlanInput,
   sokoBotPlanLoopUpdatePlanInputSchema,
 } from "@sokosumi/soko-bot";
+import { jsonInput } from "@/helpers/prisma-json";
+import prisma from "@/lib/db/prisma";
+import {
+  sanitizePersistedValue,
+  TOOL_RESULT_MAX_BYTES,
+} from "@/lib/soko-bot/persisted-value";
 import {
   type ChainPlan,
   type PlanStep,
-  readChainPlan,
-  resolveRequestChain,
+  readRequestPlan,
+  resolveRequestId,
 } from "@/lib/soko-bot/request-chain";
 import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
 import {
@@ -76,35 +82,63 @@ function withIds(steps: PlanStep[], previous: ChainPlan | null): PlanStep[] {
 /**
  * update_plan on a planLoop version: the plan is kept for the whole owner
  * request. Every step of the current plan stays in the next one; a step
- * that is no longer wanted is skipped with a reason, never dropped.
+ * that is no longer wanted is skipped with a reason, never dropped. One
+ * update of a request at a time: each reads the newest plan under the
+ * request's lock and writes its own before the lock goes, so a sibling's
+ * steps are never lost and no two updates share a revision.
  */
 export async function updatePlan(
   authorized: AuthorizedSokoBotRuntime,
-  input: unknown,
+  call: { toolCallId: string; input: unknown },
 ): Promise<ChainPlan> {
   const version = await resolveSokoBotVersion(authorized.turn.versionId);
   if (!version.planLoop)
     throw new SokoBotRuntimeValidationError(
       "update_plan runs in your sandbox on this version.",
     );
-  const parsed = sokoBotPlanLoopUpdatePlanInputSchema.parse(input);
-  const chain = await resolveRequestChain(authorized.turn.id);
-  const previous = await readChainPlan(chain);
-  const steps = withIds(parsed.steps.map(settled), previous);
-  const dropped = (previous?.steps ?? []).filter(
-    (earlier) => !steps.some((step) => step.id === earlier.id),
-  );
-  if (dropped.length)
-    throw new SokoBotRuntimeValidationError(
-      `The plan must keep every step it had. Missing: ${dropped
-        .map((step) => `${step.id} "${step.step}"`)
-        .join(
-          ", ",
-        )}. Keep them (by id), and mark one skipped with a reason if it is no longer needed.`,
+  const parsed = sokoBotPlanLoopUpdatePlanInputSchema.parse(call.input);
+  const requestId = await resolveRequestId(authorized.turn.id);
+  const { sokoBotId } = authorized.turn;
+  return prisma.$transaction(async (tx) => {
+    const key = `soko-bot-plan:${requestId}`;
+    await tx.$executeRaw`
+      SELECT pg_advisory_xact_lock(hashtextextended(${key}::TEXT, 0))
+    `;
+    const previous = await readRequestPlan(sokoBotId, requestId, tx);
+    const steps = withIds(parsed.steps.map(settled), previous);
+    const dropped = (previous?.steps ?? []).filter(
+      (earlier) => !steps.some((step) => step.id === earlier.id),
     );
-  return {
-    requestId: chain[0] as string,
-    revision: (previous?.revision ?? 0) + 1,
-    steps,
-  };
+    if (dropped.length)
+      throw new SokoBotRuntimeValidationError(
+        `The plan must keep every step it has now (revision ${previous?.revision}). Missing: ${dropped
+          .map((step) => `${step.id} "${step.step}"`)
+          .join(
+            ", ",
+          )}. Keep them (by id), and mark one skipped with a reason if it is no longer needed.`,
+      );
+    const plan: ChainPlan = {
+      requestId,
+      revision: (previous?.revision ?? 0) + 1,
+      steps,
+    };
+    // Stored whole or not at all: a cut plan would be lost to the next turn.
+    const bytes = Buffer.byteLength(
+      JSON.stringify(sanitizePersistedValue(plan)),
+      "utf8",
+    );
+    if (bytes > TOOL_RESULT_MAX_BYTES)
+      throw new SokoBotRuntimeValidationError(
+        `The plan is too long to keep (${bytes} of ${TOOL_RESULT_MAX_BYTES} bytes). Shorten its steps and reasons.`,
+      );
+    await tx.sokoBotToolCall.updateMany({
+      where: {
+        turnId: authorized.turn.id,
+        toolCallId: call.toolCallId,
+        capability: "update_plan",
+      },
+      data: { result: jsonInput(sanitizePersistedValue(plan)) },
+    });
+    return plan;
+  });
 }

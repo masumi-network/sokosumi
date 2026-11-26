@@ -1,9 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const turns = new Map<string, { parentTurnId: string | null }>();
+interface Turn {
+  sokoBotId: string;
+  parentTurnId: string | null;
+  source: string;
+  clientTurnId: string;
+}
+const turns = new Map<string, Turn>();
 const delegations: { turnId: string; followUpTurnId: string }[] = [];
 const watches: { turnId: string; firedTurnId: string }[] = [];
-const planCalls: { turnId: string; result: unknown }[] = [];
+const planCalls: { result: unknown }[] = [];
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -19,27 +25,43 @@ vi.mock("@/lib/db/prisma", () => ({
               .filter((row) => row.followUpTurnId === where.followUpTurnId)
               .map((row) => row.turnId),
           ),
-        ]
-          .slice(0, 2)
-          .map((turnId) => ({ turnId })),
+        ].map((turnId) => ({ turnId })),
     },
     sokoBotWatch: {
       findFirst: async ({ where }: { where: { firedTurnId: string } }) =>
         watches.find((row) => row.firedTurnId === where.firedTurnId) ?? null,
     },
     sokoBotToolCall: {
-      findMany: async ({ where }: { where: { turnId: { in: string[] } } }) =>
-        planCalls
-          .filter((row) => where.turnId.in.includes(row.turnId))
-          .reverse(),
+      findMany: async ({ where }: { where: { result: { equals: string } } }) =>
+        planCalls.filter(
+          (row) =>
+            (row.result as { requestId?: string }).requestId ===
+            where.result.equals,
+        ),
     },
   },
 }));
 
-const { planRecital, readChainPlan, resolveRequestChain, withChainPlan } =
+const { planRecital, readRequestPlan, resolveRequestId, withChainPlan } =
   await import("./request-chain");
 
-describe("the request chain", () => {
+function turn(id: string, extra: Partial<Turn> = {}) {
+  turns.set(id, {
+    sokoBotId: "bot-1",
+    parentTurnId: null,
+    source: "CHAT",
+    clientTurnId: id,
+    ...extra,
+  });
+}
+
+const plan = (requestId: string, revision: number, step = "Draft") => ({
+  requestId,
+  revision,
+  steps: [{ id: "s1", step, status: "pending" as const }],
+});
+
+describe("the request a turn belongs to", () => {
   beforeEach(() => {
     turns.clear();
     delegations.length = 0;
@@ -48,53 +70,56 @@ describe("the request chain", () => {
   });
 
   it("follows background runs, follow-up wakes and watch wakes to the chat turn", async () => {
-    turns.set("chat", { parentTurnId: null });
-    turns.set("run", { parentTurnId: "chat" });
-    turns.set("wake", { parentTurnId: null });
-    turns.set("watch-wake", { parentTurnId: null });
+    turn("chat");
+    turn("run", { parentTurnId: "chat" });
+    turn("wake", { source: "EVENT" });
+    turn("watch-wake", { source: "EVENT" });
     delegations.push({ turnId: "run", followUpTurnId: "wake" });
     watches.push({ turnId: "wake", firedTurnId: "watch-wake" });
-    await expect(resolveRequestChain("watch-wake")).resolves.toEqual([
-      "chat",
-      "run",
-      "wake",
-      "watch-wake",
-    ]);
+    await expect(resolveRequestId("watch-wake")).resolves.toBe("chat");
   });
 
-  it("starts a new request at a chat turn and at a wake for several requests", async () => {
-    turns.set("chat", { parentTurnId: null });
-    turns.set("wake", { parentTurnId: null });
-    delegations.push(
-      { turnId: "chat-a", followUpTurnId: "wake" },
-      { turnId: "chat-b", followUpTurnId: "wake" },
-    );
-    await expect(resolveRequestChain("chat")).resolves.toEqual(["chat"]);
-    await expect(resolveRequestChain("wake")).resolves.toEqual(["wake"]);
-  });
-
-  it("reads the latest plan Core kept, not a sandbox's own list", async () => {
-    planCalls.push(
-      {
-        turnId: "chat",
-        result: {
-          requestId: "chat",
-          revision: 1,
-          steps: [{ id: "s1", step: "Draft", status: "pending" }],
-        },
-      },
-      { turnId: "run", result: { output: "{}", sources: [] } },
-    );
-    await expect(readChainPlan(["chat", "run"])).resolves.toMatchObject({
-      revision: 1,
+  it("keeps an operator's retry in the request of the turn it retries", async () => {
+    turn("chat");
+    turn("retry", {
+      source: "ADMIN_RETRY",
+      clientTurnId: "admin-retry:chat:op-1",
     });
-    await expect(readChainPlan(["other"])).resolves.toBeNull();
+    await expect(resolveRequestId("retry")).resolves.toBe("chat");
+  });
+
+  it("joins a wake for several hand-overs of one request, not of two", async () => {
+    turn("chat");
+    turn("run", { parentTurnId: "chat" });
+    turn("wake", { source: "EVENT" });
+    delegations.push(
+      { turnId: "chat", followUpTurnId: "wake" },
+      { turnId: "run", followUpTurnId: "wake" },
+    );
+    await expect(resolveRequestId("wake")).resolves.toBe("chat");
+    turn("other-chat");
+    delegations.push({ turnId: "other-chat", followUpTurnId: "wake" });
+    await expect(resolveRequestId("wake")).resolves.toBe("wake");
+    await expect(resolveRequestId("other-chat")).resolves.toBe("other-chat");
+  });
+
+  it("reads the request's highest revision, not a sandbox's own list", async () => {
+    planCalls.push(
+      { result: plan("chat", 3, "Newest") },
+      { result: plan("chat", 2) },
+      { result: { output: "{}", sources: [] } },
+      { result: plan("other", 9) },
+    );
+    await expect(readRequestPlan("bot-1", "chat")).resolves.toMatchObject({
+      revision: 3,
+    });
+    await expect(readRequestPlan("bot-1", "none")).resolves.toBeNull();
   });
 
   it("ends a later turn's message with the plan", async () => {
-    turns.set("chat", { parentTurnId: null });
-    turns.set("run", { parentTurnId: "chat" });
-    const plan = {
+    turn("chat");
+    turn("run", { parentTurnId: "chat" });
+    const kept = {
       requestId: "chat",
       revision: 2,
       steps: [
@@ -109,14 +134,14 @@ describe("the request chain", () => {
         { id: "s3", step: "Report", status: "pending" as const },
       ],
     };
-    planCalls.push({ turnId: "chat", result: plan });
-    expect(planRecital(plan)).toBe(
+    planCalls.push({ result: kept });
+    expect(planRecital(kept)).toBe(
       "[Your plan for this request, kept from earlier in it (revision 2). Carry on from it and keep it current with update_plan:\n- s1 [done] Draft\n- s2 [blocked on owner: Which account?] Post\n- s3 [pending] Report]",
     );
     await expect(withChainPlan("run", "Brief")).resolves.toBe(
-      `Brief\n\n${planRecital(plan)}`,
+      `Brief\n\n${planRecital(kept)}`,
     );
-    turns.set("fresh", { parentTurnId: null });
+    turn("fresh");
     await expect(withChainPlan("fresh", "Hi")).resolves.toBe("Hi");
   });
 });

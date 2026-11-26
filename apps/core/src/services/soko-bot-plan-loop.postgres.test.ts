@@ -73,7 +73,11 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
     });
   });
 
-  async function turn(source: "CHAT", parentTurnId?: string) {
+  async function turn(
+    source: "CHAT" | "ADMIN_RETRY",
+    parentTurnId?: string,
+    clientTurnId?: string,
+  ) {
     const id = randomUUID();
     await prisma.sokoBotTurn.create({
       data: {
@@ -88,7 +92,7 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
         capabilityNames: ["update_plan"],
         deadlineAt: new Date(Date.now() + 60 * 60 * 1000),
         leaseExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
-        clientTurnId: parentTurnId ? `background:${id}` : id,
+        clientTurnId: clientTurnId ?? (parentTurnId ? `background:${id}` : id),
         userMessage: parentTurnId ? "The brief." : "Plan my launch week.",
         ...(parentTurnId ? { parentTurnId, chainDepth: 1 } : {}),
         contextSnapshot: {
@@ -173,5 +177,77 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
     await expect(
       updatePlan(chat, [{ step: "Ask what launches", status: "pending" }]),
     ).resolves.toMatchObject({ requestId: chat, revision: 1 });
+  });
+
+  const write = { step: "Write the posts", status: "in_progress" };
+
+  it("shows a run the step a sibling run added, and holds it to that step", async () => {
+    const chat = await turn("CHAT");
+    await updatePlan(chat, [write]);
+    const first = await turn("CHAT", chat);
+    await expect(
+      updatePlan(first, [
+        { id: "s1", ...write },
+        { step: "Send the edited draft", status: "pending" },
+      ]),
+    ).resolves.toMatchObject({ requestId: chat, revision: 2 });
+
+    const second = await turn("CHAT", chat);
+    expect(await firstMessage(second, "The brief.")).toContain(
+      "- s2 [pending] Send the edited draft",
+    );
+    await expect(
+      updatePlan(second, [
+        { id: "s1", step: "Write the posts", status: "done" },
+      ]),
+    ).rejects.toThrow(/Missing: s2 "Send the edited draft"/);
+  });
+
+  it("gives two updates at once their own revisions", async () => {
+    const chat = await turn("CHAT");
+    await updatePlan(chat, [write]);
+    const both = await Promise.all([
+      updatePlan(chat, [{ id: "s1", step: "Write the posts", status: "done" }]),
+      updatePlan(chat, [{ id: "s1", ...write }]),
+    ]);
+    expect(
+      both.map((plan) => (plan as { revision: number }).revision).sort(),
+    ).toEqual([2, 3]);
+  });
+
+  it("keeps the plan for an operator's retry of the failed chat", async () => {
+    const chat = await turn("CHAT");
+    await updatePlan(chat, [write]);
+    await prisma.sokoBotTurn.update({
+      where: { id: chat },
+      data: { status: "FAILED" },
+    });
+    const retry = await turn(
+      "ADMIN_RETRY",
+      undefined,
+      `admin-retry:${chat}:operation-1`,
+    );
+    expect(await firstMessage(retry, "Plan my launch week.")).toContain(
+      "- s1 [in_progress] Write the posts",
+    );
+  });
+
+  it("refuses a plan too long to keep whole and keeps the one before", async () => {
+    const chat = await turn("CHAT");
+    await updatePlan(chat, [write]);
+    // Within each field's limit, but three bytes a character.
+    const long = (n: number) => `${"計画".repeat(99)}${n}`;
+    await expect(
+      updatePlan(chat, [
+        { id: "s1", ...write },
+        ...Array.from({ length: 19 }, (_, n) => ({
+          step: long(n),
+          status: "skipped",
+          reason: long(n),
+        })),
+      ]),
+    ).rejects.toThrow(/too long to keep/);
+    const run = await turn("CHAT", chat);
+    expect(await firstMessage(run, "The brief.")).toContain("(revision 1)");
   });
 });

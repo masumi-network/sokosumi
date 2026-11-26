@@ -164,7 +164,7 @@ async function executeTool(
     case "read_skill":
       return readSkill(authorized, input.input);
     case "update_plan":
-      return updatePlan(authorized, input.input);
+      return updatePlan(authorized, input);
     case "read_calendar":
     case "read_strategy":
     case "read_brand_brain":

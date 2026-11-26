@@ -1,45 +1,58 @@
+import type { Prisma } from "@sokosumi/database";
 import { SOKO_BOT_PLAN_STEP_STATUSES } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 
 const MAX_CHAIN_TURNS = 8;
+/** An operator's retry of one failed turn (soko-bot-notice-room.ts). */
+const ADMIN_RETRY_KEY = /^admin-retry:([^:]+):/;
 
 /**
- * The turns of one owner request, oldest first, ending with `turnId`: a
- * background run or watch wake belongs to the turn that started it, a
- * Coworker or Agent follow-up wake to the turn that handed the work over. A
- * new chat turn is a request of its own. A wake that carries follow-ups from
- * several requests belongs to none of them.
+ * The turn that started the owner request `turnId` belongs to; the plan is
+ * kept under its id. A background run or watch wake belongs to the turn that
+ * started it, a Coworker or Agent follow-up wake (its retry too) to the turn
+ * that handed the work over, an operator's retry to the turn it retries. A
+ * new chat turn is a request of its own, and so is a wake that carries
+ * follow-ups from different requests.
  */
-export async function resolveRequestChain(turnId: string): Promise<string[]> {
-  const chain = [turnId];
-  while (chain.length < MAX_CHAIN_TURNS) {
-    const origin = await originTurnId(chain[0] as string);
-    if (!origin || chain.includes(origin)) break;
-    chain.unshift(origin);
-  }
-  return chain;
+export async function resolveRequestId(turnId: string): Promise<string> {
+  return rootOf(turnId, 0);
 }
 
-async function originTurnId(turnId: string): Promise<string | null> {
+async function rootOf(turnId: string, depth: number): Promise<string> {
+  if (depth >= MAX_CHAIN_TURNS) return turnId;
+  const origins = await originTurnIds(turnId);
+  if (!origins.length) return turnId;
+  const roots = new Set(
+    await Promise.all(origins.map((origin) => rootOf(origin, depth + 1))),
+  );
+  return roots.size === 1 ? ([...roots][0] as string) : turnId;
+}
+
+async function originTurnIds(turnId: string): Promise<string[]> {
   const turn = await prisma.sokoBotTurn.findUnique({
     where: { id: turnId },
-    select: { parentTurnId: true },
+    select: { parentTurnId: true, source: true, clientTurnId: true },
   });
-  if (turn?.parentTurnId) return turn.parentTurnId;
+  if (!turn) return [];
+  if (turn.parentTurnId) return [turn.parentTurnId];
+  const retried =
+    turn.source === "ADMIN_RETRY"
+      ? ADMIN_RETRY_KEY.exec(turn.clientTurnId ?? "")?.[1]
+      : undefined;
+  if (retried) return [retried];
   const delegations = await prisma.sokoBotDelegation.findMany({
     where: { followUpTurnId: turnId },
     select: { turnId: true },
     distinct: ["turnId"],
-    take: 2,
+    take: 10,
   });
-  if (delegations.length === 1) return delegations[0]?.turnId ?? null;
-  if (delegations.length > 1) return null;
+  if (delegations.length) return delegations.map(({ turnId }) => turnId);
   const watch = await prisma.sokoBotWatch.findFirst({
     where: { firedTurnId: turnId },
     select: { turnId: true },
   });
-  return watch?.turnId ?? null;
+  return watch ? [watch.turnId] : [];
 }
 
 export const planStepSchema = z.object({
@@ -59,28 +72,38 @@ export const chainPlanSchema = z.object({
 });
 export type ChainPlan = z.infer<typeof chainPlanSchema>;
 
+/** Accepted plans of one request that a newer one might not yet follow. */
+const READ_PLANS = 20;
+
 /**
- * The request's current plan: the latest update_plan Core accepted in the
- * chain. A sandbox's own turn-local plan (older versions) is not one.
+ * The request's current plan: the highest revision Core accepted for it, in
+ * any turn of the request. A sandbox's own turn-local plan (older versions)
+ * is not one.
  */
-export async function readChainPlan(
-  chain: readonly string[],
+export async function readRequestPlan(
+  sokoBotId: string,
+  requestId: string,
+  db: Prisma.TransactionClient = prisma,
 ): Promise<ChainPlan | null> {
-  const rows = await prisma.sokoBotToolCall.findMany({
+  const rows = await db.sokoBotToolCall.findMany({
     where: {
-      turnId: { in: [...chain] },
+      turn: { sokoBotId },
       capability: "update_plan",
-      status: "COMPLETED",
+      // Written under the request's lock before the call settles.
+      status: { not: "FAILED" },
+      result: { path: ["requestId"], equals: requestId },
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     select: { result: true },
-    take: 10,
+    take: READ_PLANS,
   });
+  let latest: ChainPlan | null = null;
   for (const row of rows) {
     const plan = chainPlanSchema.safeParse(row.result);
-    if (plan.success) return plan.data;
+    if (plan.success && plan.data.revision > (latest?.revision ?? 0))
+      latest = plan.data;
   }
-  return null;
+  return latest;
 }
 
 function stepLine(step: PlanStep): string {
@@ -103,6 +126,14 @@ export async function withChainPlan(
   turnId: string,
   text: string,
 ): Promise<string> {
-  const plan = await readChainPlan(await resolveRequestChain(turnId));
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: turnId },
+    select: { sokoBotId: true },
+  });
+  if (!turn) return text;
+  const plan = await readRequestPlan(
+    turn.sokoBotId,
+    await resolveRequestId(turnId),
+  );
   return plan ? `${text}\n\n${planRecital(plan)}` : text;
 }
