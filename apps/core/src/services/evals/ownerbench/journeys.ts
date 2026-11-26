@@ -191,6 +191,8 @@ export type JourneyOutcome =
       label: string;
       /** Every pattern must match the delivered text. */
       textMatches?: string[];
+      /** No pattern may match it (a promise of later work is no delivery). */
+      textAvoids?: string[];
       /** At least this many characters (default 40). */
       minLength?: number;
     }
@@ -325,6 +327,12 @@ export interface FixtureTask {
   assignee?: "Mira" | "owner";
   createdDaysAgo: number;
   touchedDaysAgo: number;
+  /**
+   * Last changed inside the previous Monday-to-Sunday week (Europe/Berlin),
+   * whatever weekday the run is on: a weekly report counts it as last
+   * week's. It replaces both day counts.
+   */
+  inPreviousWeek?: true;
   /** Due this many days from today (Europe/Berlin). */
   dueInDays?: number;
   /** What the assignee last asked on it. */
@@ -441,6 +449,7 @@ const WEEKLY_BOARD: readonly FixtureTask[] = [
     assignee: "Mira",
     createdDaysAgo: 9,
     touchedDaysAgo: 3,
+    inPreviousWeek: true,
   },
   {
     name: "Draft the partner FAQ",
@@ -799,8 +808,12 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
           {
             kind: "delivered",
             label: "The run delivers a report from the real board",
-            // Only a board read knows these: what was finished and what waits on the owner.
-            textMatches: ["invoicing", "webinar"],
+            // Only a board read knows these: what was finished, what is
+            // stuck, what waits on the owner. A promise to report is no report.
+            textMatches: ["invoicing", "partner faq|faq", "webinar"],
+            textAvoids: [
+              "\\b(i will|i'll|i am going to|i'm going to) (check|look|pull|prepare|compile|send)\\b.*\\b(tomorrow|later|soon)\\b",
+            ],
           },
         ],
       },

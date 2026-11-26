@@ -22,7 +22,7 @@ import {
   scheduleToFire,
   stepExpectationChecks,
 } from "./journey-runner";
-import { investorNotes } from "./journey-world";
+import { investorNotes, previousWeekMidpoint } from "./journey-world";
 import {
   type FixtureInvestor,
   INVESTOR_FIXTURE,
@@ -184,6 +184,25 @@ describe("a fired Task Schedule", () => {
     ).toEqual({
       error: "The owner's schedule is gone",
     });
+  });
+});
+
+describe("previousWeekMidpoint", () => {
+  it("lands in last week's Berlin Monday-to-Sunday on Thursday through Sunday", () => {
+    // Thu 26 Nov 2026 to Sun 29 Nov, late in the Berlin evening too.
+    for (const now of [
+      "2026-11-26T08:00:00Z",
+      "2026-11-27T12:00:00Z",
+      "2026-11-28T22:30:00Z",
+      "2026-11-29T22:30:00Z",
+    ])
+      expect(previousWeekMidpoint(new Date(now)).toISOString(), now).toBe(
+        "2026-11-18T11:00:00.000Z",
+      );
+    // Monday 30 Nov: last week is 23 to 29 Nov.
+    expect(
+      previousWeekMidpoint(new Date("2026-11-30T07:00:00Z")).toISOString(),
+    ).toBe("2026-11-25T11:00:00.000Z");
   });
 });
 

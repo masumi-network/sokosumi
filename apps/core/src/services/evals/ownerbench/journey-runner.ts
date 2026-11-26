@@ -40,6 +40,7 @@ import {
   type DurableSchedule,
   durableSchedules,
   outcomeCheck,
+  withDescendants,
 } from "./journey-checks";
 import {
   freshCusoRoom,
@@ -172,7 +173,7 @@ async function startStep(
         )[0]?.id,
     );
     if (typeof taskId !== "string") return taskId;
-    await deliverCoworkerAnswer(taskId, coworkerId, step);
+    memo.answerEvent = [await deliverCoworkerAnswer(taskId, coworkerId, step)];
     return null;
   }
   const schedule = await scheduleToFire(
@@ -472,8 +473,8 @@ export async function deliverCoworkerAnswer(
   taskId: string,
   coworkerId: string,
   step: Extract<JourneyStep, { kind: "coworker" }>,
-): Promise<void> {
-  await prisma.$transaction([
+): Promise<string> {
+  const [event] = await prisma.$transaction([
     prisma.taskEvent.create({
       data: {
         taskId,
@@ -481,12 +482,15 @@ export async function deliverCoworkerAnswer(
         comment: step.comment,
         coworkerId,
       },
+      select: { id: true },
     }),
     prisma.task.update({
       where: { id: taskId },
       data: { status: step.status },
     }),
   ]);
+  // The step waits for, and scores, the wake by exactly this event.
+  return event.id;
 }
 
 /** The events cron's scan, for this bot only; a busy bot is woken on a later poll. */
@@ -523,10 +527,8 @@ async function stepSettled(
 ): Promise<boolean> {
   if (awaits === "wake") {
     await wakeOnDelegatedWork(botId);
-    const woken = await prisma.sokoBotTurn.count({
-      where: { sokoBotId: botId, source: "EVENT", createdAt: { gte: since } },
-    });
-    if (woken === 0) return false;
+    if ((await answerWakes(botId, since, memo.answerEvent?.[0])) === 0)
+      return false;
   }
   if (awaits === "schedule") {
     const run = await claimedRunState(memo, botId);
@@ -707,32 +709,46 @@ export function stepExpectationChecks(
 
 /**
  * The Coworker's answer was delivered once and the scan ran twice: one wake
- * is right, none is a missing wake, more is a duplicate. With a released
- * Task, only a wake by that Task's answer counts.
+ * is right, none is a missing wake, more is a duplicate. Only a wake by that
+ * answer's own TaskEvent counts.
  */
 export async function wakeCheck(
   botId: string,
   since: Date,
   coworker: string,
-  releasedTaskId: string | undefined,
+  answerEventId: string | undefined,
 ): Promise<ScenarioCheck> {
-  const wakes = await prisma.sokoBotTurn.count({
+  const wakes = answerEventId
+    ? await answerWakes(botId, since, answerEventId)
+    : 0;
+  return {
+    label: `Woken once by ${coworker}'s answer`,
+    pass: wakes === 1,
+    actual: answerEventId
+      ? `${wakes} wake(s) by that answer`
+      : "no answer delivered",
+  };
+}
+
+/**
+ * The bot's wakes since the step started that carry exactly this answer's
+ * TaskEvent (a retry adds a suffix to it): an earlier update on the same
+ * Task is a different event and earns nothing.
+ */
+async function answerWakes(
+  botId: string,
+  since: Date,
+  answerEventId: string | undefined,
+): Promise<number> {
+  if (!answerEventId) return 0;
+  return prisma.sokoBotTurn.count({
     where: {
       sokoBotId: botId,
       source: "EVENT",
       createdAt: { gte: since },
-      ...(releasedTaskId
-        ? { eventInbox: { some: { entityId: releasedTaskId } } }
-        : {}),
+      eventInbox: { some: { eventId: { startsWith: answerEventId } } },
     },
   });
-  return {
-    label: releasedTaskId
-      ? `Woken once by ${coworker}'s answer on the released Task`
-      : `Woken once by ${coworker}'s answer`,
-    pass: wakes === 1,
-    actual: `${wakes} wake(s)`,
-  };
 }
 
 async function finishStep(
@@ -773,7 +789,7 @@ async function finishStep(
         botOf(journey, lane),
         new Date(record.startedAt),
         step.coworker,
-        state.memo.releasedTask?.[0],
+        state.memo.answerEvent?.[0],
       ),
     );
   const toolCalls = await journeyToolCalls(state, turnIds);
@@ -1147,22 +1163,7 @@ export async function routingFailures(
   return { calls, failed };
 }
 
-/** The turns and every turn they started, at any depth (a background run's own runs too). */
-export async function withDescendants(
-  turnIds: readonly string[],
-): Promise<{ id: string }[]> {
-  const seen = new Set(turnIds);
-  let frontier = [...turnIds];
-  while (frontier.length) {
-    const children = await prisma.sokoBotTurn.findMany({
-      where: { parentTurnId: { in: frontier }, id: { notIn: [...seen] } },
-      select: { id: true },
-    });
-    frontier = children.map((child) => child.id);
-    for (const id of frontier) seen.add(id);
-  }
-  return [...seen].map((id) => ({ id }));
-}
+export { withDescendants };
 
 /** Progress: the share of checks passed and how many steps in a row were right. */
 export function journeyScore(

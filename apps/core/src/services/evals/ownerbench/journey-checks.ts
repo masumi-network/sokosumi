@@ -1293,30 +1293,91 @@ async function noHiresCheck(
   };
 }
 
+/** The turns and every turn they started, at any depth (a background run's own runs too). */
+export async function withDescendants(
+  turnIds: readonly string[],
+): Promise<{ id: string }[]> {
+  const seen = new Set(turnIds);
+  let frontier = [...turnIds];
+  while (frontier.length) {
+    const children = await prisma.sokoBotTurn.findMany({
+      where: { parentTurnId: { in: frontier }, id: { notIn: [...seen] } },
+      select: { id: true },
+    });
+    frontier = children.map((child) => child.id);
+    for (const id of frontier) seen.add(id);
+  }
+  return [...seen].map((id) => ({ id }));
+}
+
 /**
- * What the step delivered, newest last, each made after the step started:
- * the bot's answer to the owner, the Coworker's delivered result on the Task
- * this journey's schedule released (a comment, not a bare status change),
- * and text files saved. Nothing seeded or left by an earlier case counts.
+ * The bot turns this step's work traces to, with every run they started:
+ * the claimed scheduled run's turn; the wake by the answer on the Task this
+ * journey's schedule released; else every bot turn of the step.
+ */
+async function deliveringTurnIds(context: CheckContext): Promise<string[]> {
+  const since = context.stepStartedAt;
+  const [kind] = context.memo.scheduleKind ?? [];
+  const [, runId] = context.memo.scheduleRun ?? [];
+  const [released] = context.memo.releasedTask ?? [];
+  let roots: string[];
+  if (kind === "bot" && runId) {
+    const run = await prisma.sokoBotScheduleRun.findUnique({
+      where: { id: runId },
+      select: { turnId: true },
+    });
+    roots = run?.turnId ? [run.turnId] : [];
+  } else if (released)
+    roots = (
+      await prisma.sokoBotTurn.findMany({
+        where: {
+          sokoBotId: context.botId,
+          createdAt: { gte: since },
+          eventInbox: { some: { entityId: released } },
+        },
+        select: { id: true },
+      })
+    ).map((turn) => turn.id);
+  else
+    roots = (
+      await prisma.sokoBotTurn.findMany({
+        where: { sokoBotId: context.botId, createdAt: { gte: since } },
+        select: { id: true },
+      })
+    ).map((turn) => turn.id);
+  return (await withDescendants(roots)).map((turn) => turn.id);
+}
+
+/**
+ * What the step delivered to the owner: the messages its run's turns posted
+ * in a room the owner is in, made after the step started, each with the text
+ * of any file saved in the step that it links. A Coworker's comment, a
+ * report saved but never sent, an earlier message: none reached the owner.
  */
 export async function deliveredTexts(
   context: CheckContext,
 ): Promise<{ source: string; text: string }[]> {
   const since = context.stepStartedAt;
-  const [released] = context.memo.releasedTask ?? [];
-  const [results, files] = await Promise.all([
-    released
-      ? prisma.taskEvent.findMany({
-          where: {
-            taskId: released,
-            coworkerId: { not: null },
-            comment: { not: null },
-            createdAt: { gte: since },
-          },
-          orderBy: { createdAt: "asc" },
-          select: { comment: true },
-        })
-      : [],
+  const turnIds = await deliveringTurnIds(context);
+  const deliveries = await prisma.sokoBotDelivery.findMany({
+    where: {
+      turnId: { in: turnIds },
+      status: { in: ["PERSISTED", "PUBLISHED"] },
+      messageId: { not: null },
+    },
+    select: { messageId: true },
+  });
+  const [messages, files] = await Promise.all([
+    prisma.chatRoomMessage.findMany({
+      where: {
+        id: { in: deliveries.flatMap((delivery) => delivery.messageId ?? []) },
+        deletedAt: null,
+        createdAt: { gte: since },
+        room: { userMembers: { some: { userId: context.lane.userId } } },
+      },
+      orderBy: { createdAt: "asc" },
+      select: { content: true },
+    }),
     prisma.fileResource.findMany({
       where: {
         workspaceId: context.lane.workspaceId,
@@ -1329,25 +1390,27 @@ export async function deliveredTexts(
       select: { id: true, displayName: true },
     }),
   ]);
-  return [
-    ...(context.answer
-      ? [{ source: "the bot's answer", text: context.answer }]
-      : []),
-    ...results.map((event) => ({
-      source: "the Coworker's result on the released Task",
-      text: event.comment ?? "",
-    })),
-    ...savedFileTexts(
-      files,
-      context.toolCalls,
-      await indexedTexts(files.map((file) => file.id)),
-    )
-      .filter((file) => file.text !== null)
-      .map((file) => ({
-        source: `file "${file.name}"`,
-        text: file.text ?? "",
-      })),
-  ];
+  const saved = savedFileTexts(
+    files,
+    context.toolCalls,
+    await indexedTexts(files.map((file) => file.id)),
+  ).map((file, index) => ({ ...file, id: files[index]?.id ?? "" }));
+  return messages.map((message) => {
+    const linked = saved.filter(
+      (file) =>
+        file.text !== null &&
+        (message.content.includes(file.id) ||
+          message.content.includes(file.name)),
+    );
+    return {
+      source: linked.length
+        ? `a message to the owner linking ${linked.map((file) => `"${file.name}"`).join(", ")}`
+        : "a message to the owner",
+      text: [message.content, ...linked.map((file) => file.text ?? "")].join(
+        "\n",
+      ),
+    };
+  });
 }
 
 async function deliveredCheck(
@@ -1359,7 +1422,8 @@ async function deliveredCheck(
   const good = delivered.find(
     (entry) =>
       entry.text.trim().length >= minLength &&
-      matchesAll(entry.text, outcome.textMatches).pass,
+      matchesAll(entry.text, outcome.textMatches).pass &&
+      !matchesAny(entry.text, outcome.textAvoids),
   );
   return {
     label: outcome.label,
@@ -1367,8 +1431,8 @@ async function deliveredCheck(
     actual: good
       ? `delivered as ${good.source}`
       : delivered.length
-        ? `${delivered.length} delivery(ies), none long enough or matching`
-        : "nothing delivered in this step",
+        ? `${delivered.length} message(s) to the owner, none with every part of the report`
+        : "nothing reached the owner in this step",
   };
 }
 
