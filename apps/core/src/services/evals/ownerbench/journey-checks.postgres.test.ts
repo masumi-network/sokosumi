@@ -9,6 +9,7 @@
 import { randomUUID } from "node:crypto";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
 import type { EvalLaneRecord } from "../eval-lanes.service";
 import {
@@ -22,6 +23,7 @@ import {
   foregroundTurnId,
   freshConversationCheck,
   journeyTokens,
+  organizerFailures,
   routingFailures,
   withDescendants,
 } from "./journey-runner";
@@ -486,6 +488,64 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     expect((await journeyTokens([root.id])).inputTokensPerTurn).toBe(150);
     await prisma.sokoBotModelCall.deleteMany({
       where: { turnId: { in: [root.id, child.id] } },
+    });
+    await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
+    await prisma.sokoBot.deleteMany({ where: { id: botId } });
+  });
+
+  it("finds turns whose context organizer lost its read, background runs included", async () => {
+    const botId = (
+      await prisma.sokoBot.create({
+        data: { userId, workspaceId },
+        select: { id: true },
+      })
+    ).id;
+    const turn = (parentTurnId?: string) =>
+      prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          source: "CHAT",
+          status: "COMPLETED",
+          clientTurnId: `lab:fixture:${randomUUID()}`,
+          userMessage: "hello",
+          capabilityNames: [],
+          deadlineAt: new Date(Date.now() + 60_000),
+          ...(parentTurnId ? { parentTurnId } : {}),
+        },
+        select: { id: true },
+      });
+    const snapshot = (turnId: string, organizer: unknown) =>
+      prisma.sokoBotContextSnapshot.create({
+        data: {
+          turnId,
+          generatedAt: new Date(),
+          schemaVersion: 1,
+          hash: randomUUID(),
+          packet: jsonInput({ workspace: { marketing: { organizer } } }),
+          byteSize: 1,
+          tokenEstimate: 1,
+          counts: {},
+          omissions: [],
+        },
+      });
+    const root = await turn();
+    const child = await turn(root.id);
+    const plain = await turn(root.id);
+    await snapshot(root.id, { kind: "chat", jev: { ms: 900, asked: 4 } });
+    await snapshot(plain.id, null);
+    expect(await organizerFailures([root.id])).toEqual({
+      turns: 1,
+      failed: 0,
+    });
+    await snapshot(child.id, {
+      kind: "chat",
+      jev: { ms: 4000, asked: 4, failed: "TimeoutError" },
+    });
+    expect(await organizerFailures([root.id])).toEqual({
+      turns: 2,
+      failed: 1,
     });
     await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
     await prisma.sokoBot.deleteMany({ where: { id: botId } });

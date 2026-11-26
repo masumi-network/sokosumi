@@ -920,6 +920,44 @@ export async function journeyTokens(turnIds: readonly string[]) {
 }
 
 /**
+ * Cuso turns whose context organizer ran, and how many lost its Jev read (on
+ * the plan, a stand-in timeout). Such a turn gets fallback picks, so on a
+ * plan run it is an infrastructure error, like a failed route pick.
+ */
+export async function organizerFailures(
+  turnIds: readonly string[],
+): Promise<{ turns: number; failed: number }> {
+  const turns = await withDescendants(turnIds);
+  const snapshots = await prisma.sokoBotContextSnapshot.findMany({
+    where: { turnId: { in: turns.map((turn) => turn.id) } },
+    select: { packet: true },
+  });
+  let organized = 0;
+  let failed = 0;
+  for (const { packet } of snapshots) {
+    const jev = organizerJev(packet);
+    if (jev === undefined) continue;
+    organized += 1;
+    if (jev?.failed) failed += 1;
+  }
+  return { turns: organized, failed };
+}
+
+/** The organizer's Jev log in a stored packet; undefined when no organizer ran. */
+export function organizerJev(
+  packet: unknown,
+): { failed?: string } | null | undefined {
+  const organizer = (
+    packet as {
+      workspace?: { marketing?: { organizer?: { jev?: unknown } } | null };
+    } | null
+  )?.workspace?.marketing?.organizer;
+  if (!organizer || typeof organizer !== "object") return undefined;
+  const jev = organizer.jev;
+  return jev && typeof jev === "object" ? (jev as { failed?: string }) : null;
+}
+
+/**
  * Classifier calls of the journey's turns, and how many failed. A failed
  * route pick sends the turn down a fallback (read-only clarification), so a
  * journey with any is an infrastructure error, not a verdict on the bot.
@@ -1001,6 +1039,17 @@ async function journeyOutcome(
       checks: [],
       output: { journey: journey.id, routing, steps: state.steps },
       error: `Routing was unavailable: ${routing.failed} of ${routing.calls} classifier call(s) failed, so turns ran on the fallback route and the journey measures that, not the bot`,
+      turnIds,
+    };
+  const organizer = localChatGptPlanEnabled()
+    ? await organizerFailures(turnIds)
+    : { turns: 0, failed: 0 };
+  if (organizer.failed > 0)
+    return {
+      status: "ERROR",
+      checks: [],
+      output: { journey: journey.id, organizer, steps: state.steps },
+      error: `The context organizer was unavailable: its plan stand-in failed on ${organizer.failed} of ${organizer.turns} organized turn(s), so those turns ran on fallback context and the journey measures that, not the bot`,
       turnIds,
     };
   const unreached = journey.steps
