@@ -626,7 +626,7 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
       expect(prompt).toContain(
         "Since your plan's revision 1, Core's receipts show:\n- schedule_social_post: done",
       );
-      expect(prompt).toContain("do not do them again");
+      expect(prompt).toContain("do not do it again");
       expect(prompt).not.toContain("upload_file");
       await expect(openStepsNote(chat)).resolves.toContain(
         "- schedule_social_post: done",
@@ -700,40 +700,41 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
       };
     };
 
-    it("never calls a step still to do once Core has the saved file", async () => {
+    const savedOnly = (file: string) =>
+      `(Core saved ${file}: that proves the save only)`;
+
+    it("shows a saved file beside its step and says a finished step is never still to do", async () => {
       const chat = await turn("CHAT");
       await updatePlan(chat, [
         { step: "Save the meeting notes as notes.md", status: "pending" },
         { step: "Send Maria the summary", status: "pending" },
       ]);
-      await childReceipts(chat, [savedFile("notes.md")]);
-      const note = await openStepsNote(chat);
-      expect(note).toContain("- s2 [pending] Send Maria the summary");
-      expect(note).not.toContain("[pending] Save the meeting notes");
-      expect(note).toContain(
-        "Done by Core's receipts, though the plan still lists them",
-      );
-      const prompt = await check(chat);
-      expect(prompt).toMatch(
-        /^Your plan still lists open steps:\n- s2 \[pending\] Send Maria the summary\n/,
-      );
-      expect(prompt).toContain("- s1 Save the meeting notes as notes.md");
+      await childReceipts(chat, [savedFile("Notes.md")]);
+      for (const text of [await openStepsNote(chat), await check(chat)]) {
+        expect(text).toContain(
+          `- s1 [pending] Save the meeting notes as notes.md ${savedOnly("notes.md")}`,
+        );
+        expect(text).toContain("- s2 [pending] Send Maria the summary\n");
+        expect(text).toContain("never call it still to do");
+      }
     });
 
-    it("asks only for the plan to catch up when every open step is saved", async () => {
+    it("keeps an attach step open when only the upload is recorded", async () => {
       const chat = await turn("CHAT");
       await updatePlan(chat, [
-        { step: "Write the agenda", status: "done" },
-        { step: "Save minutes.md", status: "pending" },
+        { step: "Prepare the illustration", status: "done" },
+        { step: "Attach illustration.png to the draft", status: "pending" },
       ]);
-      await childReceipts(chat, [savedFile("Minutes.md")]);
+      await childReceipts(chat, [savedFile("illustration.png")]);
       const prompt = await check(chat);
-      expect(prompt).toMatch(/^Done by Core's receipts/);
-      expect(prompt).toContain("reply without calling any of them still to do");
-      expect(prompt).not.toContain("Your plan still lists open steps");
+      expect(prompt).toMatch(
+        /^Your plan still lists open steps:\n- s2 \[pending\] Attach illustration\.png to the draft/,
+      );
+      expect(prompt).toContain(savedOnly("illustration.png"));
+      expect(prompt).toContain("attached, sent or used is done only once");
     });
 
-    it("takes a saved file as proof of no step but the one that only saves it", async () => {
+    it("ties a saved file to the steps naming that exact file, not a shared word", async () => {
       const chat = await turn("CHAT");
       await updatePlan(chat, [
         { step: "Save chart.png", status: "pending" },
@@ -742,24 +743,13 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
       ]);
       await childReceipts(chat, [savedFile("chart.png")]);
       const note = await openStepsNote(chat);
-      expect(note).toContain("- s2 [pending] Attach chart.png to the draft");
-      expect(note).toContain("- s3 [pending] Save chart-summary.pdf");
-      expect(note).not.toContain("Done by Core's receipts");
-      const prompt = await check(chat);
-      expect(prompt).toContain('("chart.png", id ');
-      expect(prompt).not.toContain("Done by Core's receipts");
-    });
-
-    it("leaves a step naming two files open while one is unsaved", async () => {
-      const chat = await turn("CHAT");
-      await updatePlan(chat, [
-        { step: "Save chart.png and chart-summary.pdf", status: "pending" },
-        { step: "Send Maria the summary", status: "pending" },
-      ]);
-      await childReceipts(chat, [savedFile("chart.png")]);
-      expect(await openStepsNote(chat)).toContain(
-        "- s1 [pending] Save chart.png and chart-summary.pdf",
+      expect(note).toContain(
+        `- s1 [pending] Save chart.png ${savedOnly("chart.png")}`,
       );
+      expect(note).toContain(
+        `- s2 [pending] Attach chart.png to the draft ${savedOnly("chart.png")}`,
+      );
+      expect(note).toContain("- s3 [pending] Save chart-summary.pdf\n");
     });
 
     it("tells the bot to wait on a strategy Core is still writing", async () => {

@@ -29,8 +29,33 @@ function openSteps(plan: ChainPlan): PlanStep[] {
   );
 }
 
-const stepList = (steps: readonly PlanStep[]) =>
-  steps.map((step) => `- ${step.id} [${step.status}] ${step.step}`).join("\n");
+/**
+ * The open steps, each beside the confirmed saves of a file it names. Core
+ * never closes a step by name: a saved file proves the save, not that it
+ * was attached, sent or finished, so the bot decides what the step needed.
+ */
+function stepList(
+  steps: readonly PlanStep[],
+  saves: readonly SaveReceipt[] = [],
+): string {
+  const done = saves.filter((save) => save.outcome === "done");
+  return steps
+    .map((step) => {
+      const files = [
+        ...new Set(
+          done.flatMap((save) =>
+            save.names.filter((name) => names(step, name)),
+          ),
+        ),
+      ];
+      return `- ${step.id} [${step.status}] ${step.step}${
+        files.length
+          ? ` (Core saved ${files.join(", ")}: that proves the save only)`
+          : ""
+      }`;
+    })
+    .join("\n");
+}
 
 async function turnPlan(turnId: string) {
   const turn = await prisma.sokoBotTurn.findUnique({
@@ -67,50 +92,28 @@ async function turnPlan(turnId: string) {
 export async function openStepsNote(turnId: string): Promise<string | null> {
   const found = await turnPlan(turnId);
   if (!found || !openSteps(found.plan).length) return null;
-  const left = await stepsLeft(
+  const saves = await savesSince(
     found,
     await requestTurnIds(found.turn.sokoBotId, found.requestId, turnId),
   );
-  const saved = savedNote(left.saves, found.plan.revision).trim();
   return [
-    left.open.length
-      ? `Open steps in your plan (revision ${found.plan.revision}):\n${stepList(left.open)}`
-      : `Every open step in your plan (revision ${found.plan.revision}) is done by Core's receipts.`,
-    doneNote(left.done),
-    saved,
+    `Open steps in your plan (revision ${found.plan.revision}):\n${stepList(openSteps(found.plan), saves)}`,
+    savedNote(saves, found.plan.revision).trim(),
   ]
     .filter(Boolean)
     .join("\n");
 }
 
-/**
- * The plan's open steps as Core's receipts leave them: a step that names an
- * artifact a confirmed save made is done, whatever the plan's text still
- * says, so no reply calls it still to do.
- */
-async function stepsLeft(
+function savesSince(
   found: NonNullable<Awaited<ReturnType<typeof turnPlan>>>,
   turnIds: readonly string[],
 ) {
-  const saves = await savesSincePlan(
+  return savesSincePlan(
     found.turn.sokoBotId,
     found.requestId,
     found.plan,
     turnIds,
   );
-  const open = openSteps(found.plan);
-  const done = doneByReceipts(open, saves);
-  return {
-    saves,
-    open: open.filter((step) => !done.has(step)),
-    done: open.filter((step) => done.has(step)),
-  };
-}
-
-function doneNote(done: readonly PlanStep[]): string {
-  return done.length
-    ? `Done by Core's receipts, though the plan still lists them (mark them done; do not say they are left):\n${done.map((step) => `- ${step.id} ${step.step}`).join("\n")}`
-    : "";
 }
 
 const MAX_REQUEST_DEPTH = 6;
@@ -235,7 +238,7 @@ function receiptLabel(targetId: string | null, result: unknown): string {
     .join(", ");
 }
 
-/** "Minutes.md" is named "minutes.md" or, in a step, just "minutes". */
+/** "Minutes.md" is named "minutes.md". */
 function receiptNames(result: unknown): string[] {
   const name = artifactName(result)?.toLowerCase().trim();
   return name && name.length >= 3 ? [name] : [];
@@ -249,37 +252,11 @@ function namesIn(text: string): string[] {
   );
 }
 
-/**
- * The open steps a confirmed save finished. A save finishes a step only when
- * that step is the one open step naming its file, and every file the step
- * names was saved: a shared word, a second step about the same file (attach
- * it) or a second file are not proof.
- */
-function doneByReceipts(
-  open: readonly PlanStep[],
-  saves: readonly SaveReceipt[],
-): Set<PlanStep> {
-  const saved = new Set(
-    saves
-      .filter((save) => save.outcome === "done")
-      .flatMap((save) => save.names),
-  );
-  // A saved name may hold spaces ("q3 report.pdf"); the step's own file
-  // tokens then end in its last word.
-  const isSaved = (each: string) =>
-    [...saved].some((name) => name === each || name.endsWith(` ${each}`));
-  const names = (step: PlanStep, name: string) =>
-    name.includes(" ")
-      ? step.step.toLowerCase().includes(name)
-      : namesIn(step.step).includes(name);
-  const done = new Set<PlanStep>();
-  for (const name of saved) {
-    const naming = open.filter((step) => names(step, name));
-    const [only] = naming;
-    if (naming.length === 1 && only && namesIn(only.step).every(isSaved))
-      done.add(only);
-  }
-  return done;
+/** The step names this file: as a whole file token, not a shared word. */
+function names(step: PlanStep, name: string): boolean {
+  return name.includes(" ")
+    ? step.step.toLowerCase().includes(name)
+    : namesIn(step.step).includes(name);
 }
 
 const STUDIO_RUNNING = new Set(["PENDING", "SUBMITTING", "QUEUED", "RUNNING"]);
@@ -387,7 +364,7 @@ function savedNote(saves: readonly SaveReceipt[], revision: number): string {
         `- ${save.capability}${save.label ? ` (${save.label})` : ""}: ${OUTCOME_WORDS[save.outcome]}`,
     )
     .join("\n");
-  return `Since your plan's revision ${revision}, Core's receipts show:\n${lines}\nMark the steps done saves finished done with update_plan (revision ${revision}) and do not do them again. A step whose save did not happen is still open: do it again if you can, or mark it blocked with the reason. One whose work only started is under way: do not start it again; wait for it (follow what its tool said) and keep its step in progress until it finishes. One Core could not confirm may have happened: read back whether it did before anything else, never repeat it blind, and if you cannot tell, mark it blocked with the reason and say so.\n`;
+  return `Since your plan's revision ${revision}, Core's receipts show:\n${lines}\nA step these saves finished is done: mark it done with update_plan (revision ${revision}), do not do it again, and never call it still to do. A saved file proves only that it was saved: a step that also needs it attached, sent or used is done only once that is done too. A step whose save did not happen is still open: do it again if you can, or mark it blocked with the reason. One whose work only started is under way: do not start it again; wait for it (follow what its tool said) and keep its step in progress until it finishes. One Core could not confirm may have happened: read back whether it did before anything else, never repeat it blind, and if you cannot tell, mark it blocked with the reason and say so.\n`;
 }
 
 /** The draft asks the owner something: its clarification, or a question. */
@@ -447,32 +424,26 @@ export async function evaluateTurnDoneCheck(input: {
     found.requestId,
     input.turnId,
   );
-  const left = await stepsLeft(found, turnIds);
-  const { open } = left;
+  const open = openSteps(found.plan);
   const working = open.some((step) => step.status === "in_progress");
   if (!working && (await waitingOnOthers(input.turnId, turnIds))) return null;
-  const saved = savedNote(left.saves, found.plan.revision);
-  const done = doneNote(left.done);
-  const claim = () =>
-    new RuntimeEventLog(input.turnId, input.sessionId).appendUnless(
-      runtimeEvent(DONE_CHECK_BOUNCED_EVENT, {
-        openSteps: open.map((step) => step.id),
-      }),
-      [DONE_CHECK_BOUNCED_EVENT],
-    );
-  // Nothing left but steps the plan has not caught up with: the reply must
-  // not call them still to do.
-  if (!open.length)
-    return (await claim())
-      ? `${done}\n${saved}Call update_plan (revision ${found.plan.revision}) to mark them done, then reply without calling any of them still to do.`
-      : null;
   const onOwner = asksOwner(input.draft) || (await ownerBlocker(input.turnId));
   // Waiting on the owner with one step left: the answer is what that step
   // needs, so the question goes to them now. With more, the rest may not.
   if (onOwner && open.length === 1) return null;
-  if (!(await claim())) return null;
-  const known = `${done ? `${done}\n` : ""}${saved}`;
+  const saves = await savesSince(found, turnIds);
+  const claimed = await new RuntimeEventLog(
+    input.turnId,
+    input.sessionId,
+  ).appendUnless(
+    runtimeEvent(DONE_CHECK_BOUNCED_EVENT, {
+      openSteps: open.map((step) => step.id),
+    }),
+    [DONE_CHECK_BOUNCED_EVENT],
+  );
+  if (!claimed) return null;
+  const known = savedNote(saves, found.plan.revision);
   if (onOwner)
-    return `You are waiting on the owner, and your plan still lists open steps:\n${stepList(open)}\n${known}Call update_plan (revision ${found.plan.revision}) and mark each step that needs their answer blocked, with blockedOn owner and the question as its reason. Do the steps that do not need it now. Then reply, asking your question again.`;
-  return `Your plan still lists open steps:\n${stepList(open)}\n${known}Do what you can of the rest now. A step that waits on someone: call update_plan (revision ${found.plan.revision}) and mark it blocked, with blockedOn and a reason; one no longer needed: skipped, with a reason. Then reply.`;
+    return `You are waiting on the owner, and your plan still lists open steps:\n${stepList(open, saves)}\n${known}Call update_plan (revision ${found.plan.revision}) and mark each step that needs their answer blocked, with blockedOn owner and the question as its reason. Do the steps that do not need it now. Then reply, asking your question again.`;
+  return `Your plan still lists open steps:\n${stepList(open, saves)}\n${known}Do what you can of the rest now. A step that waits on someone: call update_plan (revision ${found.plan.revision}) and mark it blocked, with blockedOn and a reason; one no longer needed: skipped, with a reason. Then reply.`;
 }
