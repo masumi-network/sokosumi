@@ -1,8 +1,10 @@
+import { PrismaRaw as Prisma } from "@sokosumi/database/client";
 import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 import { evalWorkspaceIds } from "@/lib/evals/eval-guard";
+import { labTurnIdsWhere } from "@/lib/soko-bot/lab-turns";
 import {
   CUSO_BOT_WHERE,
   cmoBusinessNameFromUrl,
@@ -134,6 +136,20 @@ export async function cmoSpend(
   if (hires.length === 0) return [];
   const bots = hires.map((cuso) => cuso.sokoBotId);
   const projects = hires.map((cuso) => cuso.projectId);
+  // A customer's Cuso can carry our lab runs and the runs below them; they
+  // are ours, as on the fleet charts. An eval lane's Cuso is all ours anyway,
+  // and shown as it is. Tool calls and charges in the period can belong to a
+  // turn that started just before it, hence the day's margin.
+  const customerBots = hires
+    .filter((cuso) => !cuso.evalLane)
+    .map((cuso) => cuso.sokoBotId);
+  const lab =
+    customerBots.length === 0
+      ? []
+      : await labTurnIdsWhere(
+          Prisma.sql`t."sokoBotId" = ANY(${customerBots}::uuid[])
+            AND t."createdAt" >= ${since}::timestamp - interval '1 day'`,
+        );
 
   const [owners, turns, sources, tools, images, charged, saves] =
     await Promise.all([
@@ -152,6 +168,7 @@ export async function cmoSpend(
         SUM("overheadCostUsdMicros") AS overhead
       FROM ${sharedTable("soko_bot_turn")}
       WHERE "sokoBotId" = ANY(${bots}::uuid[]) AND "createdAt" >= ${since}
+        AND NOT ("id" = ANY(${lab}::uuid[]))
       GROUP BY "sokoBotId"`,
       // Each turn keeps its spend split by source. Older turns only know their
       // total and their model, so they count under that model.
@@ -173,6 +190,7 @@ export async function cmoSpend(
       FROM ${sharedTable("soko_bot_turn")} t
       CROSS JOIN LATERAL jsonb_each(t.usage->'bySource') s
       WHERE t."sokoBotId" = ANY(${bots}::uuid[]) AND t."createdAt" >= ${since}
+        AND NOT (t.id = ANY(${lab}::uuid[]))
         AND jsonb_typeof(t.usage->'bySource') = 'object'
       GROUP BY t."sokoBotId", s.key
       UNION ALL
@@ -185,6 +203,7 @@ export async function cmoSpend(
           THEN (t.usage->>'outputTokens')::float8 ELSE 0 END) AS output
       FROM ${sharedTable("soko_bot_turn")} t
       WHERE t."sokoBotId" = ANY(${bots}::uuid[]) AND t."createdAt" >= ${since}
+        AND NOT (t.id = ANY(${lab}::uuid[]))
         AND jsonb_typeof(t.usage->'bySource') IS DISTINCT FROM 'object'
         AND COALESCE(t."costUsdMicros", 0) > 0
       GROUP BY t."sokoBotId", COALESCE(t."modelId", 'unknown')`,
@@ -195,6 +214,7 @@ export async function cmoSpend(
       FROM ${sharedTable("soko_bot_tool_call")} c
       JOIN ${sharedTable("soko_bot_turn")} t ON t.id = c."turnId"
       WHERE t."sokoBotId" = ANY(${bots}::uuid[]) AND c."createdAt" >= ${since}
+        AND NOT (t.id = ANY(${lab}::uuid[]))
       GROUP BY t."sokoBotId", c.capability`,
       // A quote only counts once it was charged, in the period it was charged.
       prisma.$queryRaw<{ projectId: string; cents: bigint | null }[]>`
@@ -207,13 +227,15 @@ export async function cmoSpend(
       SELECT "sokoBotId", SUM(cents) AS cents
       FROM ${netTable("mainnet", "soko_bot_usage")}
       WHERE "sokoBotId" = ANY(${bots}::uuid[]) AND "createdAt" >= ${since}
+        -- A lab turn's charge names the turn; other charges name no turn.
+        AND NOT (COALESCE("referenceId", '') = ANY(${lab}::text[]))
       GROUP BY "sokoBotId"`,
       // Newest first, so the first save with problems is the latest.
       prisma.sokoBotToolCall.findMany({
         where: {
           capability: "save_strategy",
           createdAt: { gte: since },
-          turn: { sokoBotId: { in: bots } },
+          turn: { sokoBotId: { in: bots }, id: { notIn: lab } },
         },
         select: {
           createdAt: true,

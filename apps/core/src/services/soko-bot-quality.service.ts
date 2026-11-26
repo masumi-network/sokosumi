@@ -5,7 +5,7 @@ import { DAY_MS } from "@/config/constants";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { evalWorkspaceIds } from "@/lib/evals/eval-guard";
-import { labTurnIdsSince } from "@/lib/soko-bot/lab-turns";
+import { labRootedTurnIds } from "@/lib/soko-bot/lab-turns";
 
 const receiptIdSchema = z.uuid();
 
@@ -72,42 +72,38 @@ export async function getSokoBotQualityOverview(
 ): Promise<SokoBotQualityOverview> {
   const now = (await databaseNow()).getTime();
   const since = new Date(now - DAYS * DAY_MS);
+  const fetched = await prisma.sokoBotTurn.findMany({
+    where: {
+      status: { in: ["COMPLETED", "FAILED"] },
+      NOT: { clientTurnId: { startsWith: "lab:" } },
+      OR: [{ createdAt: { gte: since } }, { ownerFeedbackAt: { gte: since } }],
+      // One bot's own page shows its turns; the fleet view is customers only.
+      ...(options.sokoBotId
+        ? { sokoBotId: options.sokoBotId }
+        : { workspaceId: { notIn: await evalWorkspaceIds() } }),
+    },
+    select: {
+      id: true,
+      workspaceId: true,
+      intentId: true,
+      intentRevision: true,
+      fulfillmentState: true,
+      deliveries: { select: { status: true } },
+      responseContract: true,
+      createdAt: true,
+      qualityScore: true,
+      versionId: true,
+      source: true,
+      sokoBotId: true,
+      finalAnswer: true,
+      ownerFeedback: true,
+      ownerFeedbackAt: true,
+    },
+  });
   // A lab turn's background runs have their own client ids; only their root
-  // marks them as lab work.
-  const [labTurns, fetched] = await Promise.all([
-    labTurnIdsSince(since),
-    prisma.sokoBotTurn.findMany({
-      where: {
-        status: { in: ["COMPLETED", "FAILED"] },
-        NOT: { clientTurnId: { startsWith: "lab:" } },
-        OR: [
-          { createdAt: { gte: since } },
-          { ownerFeedbackAt: { gte: since } },
-        ],
-        // One bot's own page shows its turns; the fleet view is customers only.
-        ...(options.sokoBotId
-          ? { sokoBotId: options.sokoBotId }
-          : { workspaceId: { notIn: await evalWorkspaceIds() } }),
-      },
-      select: {
-        id: true,
-        workspaceId: true,
-        intentId: true,
-        intentRevision: true,
-        fulfillmentState: true,
-        deliveries: { select: { status: true } },
-        responseContract: true,
-        createdAt: true,
-        qualityScore: true,
-        versionId: true,
-        source: true,
-        sokoBotId: true,
-        finalAnswer: true,
-        ownerFeedback: true,
-        ownerFeedbackAt: true,
-      },
-    }),
-  ]);
+  // marks them as lab work, however old it is (a recent rating can land on an
+  // old run).
+  const labTurns = await labRootedTurnIds(fetched.map((turn) => turn.id));
   const candidateTurns = fetched.filter((turn) => !labTurns.has(turn.id));
   const recentTurns = candidateTurns.filter((turn) => turn.createdAt >= since);
 

@@ -216,7 +216,7 @@ export async function sokoBotFleetDays(
 ): Promise<SokoBotFleetDay[]> {
   const start = Prisma.sql`date_trunc('day', now() AT TIME ZONE 'UTC') - make_interval(days => ${days - 1})`;
   const rows = await prisma.$queryRaw<FleetDayRow[]>`
-    WITH RECURSIVE ${labTurnTree(start)},
+    WITH RECURSIVE ${labTurnTree(Prisma.sql`t."createdAt" >= ${start}`)},
     days AS (
       SELECT generate_series(
         ${start},

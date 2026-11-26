@@ -168,6 +168,20 @@ describe.skipIf(!enabled)("sokoBotFleetDays", () => {
       parentTurnId: labChild.id,
       costUsdMicros: 600_000n,
     });
+    // A run started today below a lab turn from forty days ago is still ours.
+    const oldLabRoot = await turn({
+      requestedByUserId: ada,
+      clientTurnId: `lab:${randomUUID()}`,
+      createdAt: new Date(Date.now() - 40 * 86_400_000),
+      costUsdMicros: 0n,
+    });
+    await turn({
+      requestedByUserId: ada,
+      source: "SCHEDULE",
+      clientTurnId: `background:${oldLabRoot.id}:late`,
+      parentTurnId: oldLabRoot.id,
+      costUsdMicros: 700_000n,
+    });
     // A customer's own background run stays the customer's.
     const ownRoot = await turn({
       requestedByUserId: null,
@@ -218,8 +232,8 @@ describe.skipIf(!enabled)("sokoBotFleetDays", () => {
     expect(today?.cmoCostUsd).toBeCloseTo(0.101);
     expect(yesterday?.cmoCostUsd).toBe(0);
     // Eval Soko Bot 0.201 + eval Cuso 0.301 + lab root 0.401, its child
-    // 0.501 and grandchild 0.601.
-    expect(today?.evalCostUsd).toBeCloseTo(2.005);
+    // 0.501 and grandchild 0.601 + the late run of the old lab turn 0.701.
+    expect(today?.evalCostUsd).toBeCloseTo(2.706);
     expect(yesterday?.evalCostUsd).toBe(0);
   });
 });

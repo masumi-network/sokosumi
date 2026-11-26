@@ -2,12 +2,15 @@
  * RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… pnpm --filter @sokosumi/core test src/services/soko-bot-fleet-move.postgres.test.ts
  */
 import { randomUUID } from "node:crypto";
+import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import prisma from "@/lib/db/prisma";
-import { labTurnIdsSince } from "@/lib/soko-bot/lab-turns";
+import { labRootedTurnIds } from "@/lib/soko-bot/lab-turns";
 
+import { cmoSpend } from "./cmo-spend.service";
 import { fleetBotsToMove } from "./soko-bot-control-plane.service";
+import { getSokoBotQualityOverview } from "./soko-bot-quality.service";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -92,9 +95,10 @@ describe.skipIf(!enabled)("fleet moves and lab trees", () => {
     ]);
   });
 
-  it("finds a lab turn's background runs on a customer's workspace", async () => {
-    // Ten days back, outside the fleet-per-day test's window on a shared DB.
-    const at = new Date(Date.now() - 10 * 24 * 60 * 60_000);
+  it("finds a lab turn's background runs on a customer's workspace, however old the root", async () => {
+    // Forty days back: older than the quality window, and outside the
+    // fleet-per-day test's window on a shared DB. A rating can land on it today.
+    const at = new Date(Date.now() - 40 * 24 * 60 * 60_000);
     const turn = (data: { clientTurnId: string; parentTurnId?: string }) =>
       prisma.sokoBotTurn.create({
         data: {
@@ -119,11 +123,96 @@ describe.skipIf(!enabled)("fleet moves and lab trees", () => {
       parentTurnId: own.id,
     });
 
-    const lab = await labTurnIdsSince(new Date(at.getTime() - 60 * 60_000));
+    // Rated two days ago: inside the quality window, though the run and its
+    // lab root are forty days old.
+    const ratedAt = new Date(Date.now() - 2 * 24 * 60 * 60_000);
+    await prisma.sokoBotTurn.update({
+      where: { id: child.id },
+      data: { ownerFeedback: -1, ownerFeedbackAt: ratedAt },
+    });
 
-    expect(lab.has(root.id)).toBe(true);
-    expect(lab.has(child.id)).toBe(true);
-    expect(lab.has(own.id)).toBe(false);
-    expect(lab.has(ownChild.id)).toBe(false);
+    const lab = await labRootedTurnIds([
+      child.id,
+      own.id,
+      ownChild.id,
+      root.id,
+    ]);
+
+    expect(lab).toEqual(new Set([child.id, root.id]));
+
+    // Codex's case end to end: the thumbs-down on the old lab run is not
+    // customer feedback; the same-day one on the customer's own run is.
+    // Ratings count on delivered updates nobody typed.
+    await prisma.sokoBotTurn.updateMany({
+      where: { id: { in: [child.id, ownChild.id] } },
+      data: { status: "COMPLETED", source: "SCHEDULE", finalAnswer: "Done." },
+    });
+    await prisma.sokoBotTurn.update({
+      where: { id: ownChild.id },
+      data: { ownerFeedback: -1, ownerFeedbackAt: ratedAt },
+    });
+    const quality = await getSokoBotQualityOverview({
+      sokoBotId: customerBotId,
+    });
+    const day = ratedAt.toISOString().slice(0, 10);
+    expect(quality.daily.find((entry) => entry.date === day)).toMatchObject({
+      thumbsDown: 1,
+    });
+  });
+
+  it("leaves lab runs on a customer's Cuso out of its CMO spend", async () => {
+    const at = new Date(Date.now() - 10 * 24 * 60 * 60_000);
+    const projectId = (
+      await prisma.project.create({
+        data: { workspaceId: customerWorkspaceId, name: "Cuso's brand" },
+      })
+    ).id;
+    const cusoId = (
+      await prisma.sokoBot.create({
+        data: {
+          workspaceId: customerWorkspaceId,
+          projectId,
+          createdByUserId: userId,
+          versionId: CMO_SOKO_BOT_VERSION_ID,
+        },
+      })
+    ).id;
+    const turn = (data: {
+      clientTurnId: string;
+      costUsdMicros: bigint;
+      parentTurnId?: string;
+    }) =>
+      prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: cusoId,
+          workspaceId: customerWorkspaceId,
+          // Outside the fleet-per-day test's window on a shared DB.
+          createdAt: at,
+          source: "EVENT",
+          userMessage: "Write the month",
+          capabilityNames: [],
+          deadlineAt: new Date(Date.now() + 60_000),
+          modelId: "openai/gpt-6-luna",
+          overheadCostUsdMicros: 1_000n,
+          ...data,
+        },
+      });
+    await turn({ clientTurnId: randomUUID(), costUsdMicros: 100_000n });
+    const labRoot = await turn({
+      clientTurnId: `lab:${randomUUID()}`,
+      costUsdMicros: 2_000_000n,
+    });
+    await turn({
+      clientTurnId: `background:${labRoot.id}:child`,
+      parentTurnId: labRoot.id,
+      costUsdMicros: 3_000_000n,
+    });
+
+    const spend = await cmoSpend(new Date(at.getTime() - 60 * 60_000));
+    const cuso = spend.find((bot) => bot.sokoBotId === cusoId);
+
+    // Only the customer's own turn: 0.100 for the model + 0.001 overhead.
+    expect(cuso).toMatchObject({ turns: 1, evalLane: false });
+    expect(cuso?.totalUsd).toBeCloseTo(0.101);
   });
 });
