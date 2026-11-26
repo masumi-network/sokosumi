@@ -424,6 +424,9 @@ function transactionClient() {
     chatRoomSokoBotMember: {
       deleteMany: sokoBotMemberDeleteManyMock,
     },
+    chatRoomMention: {
+      findUnique: vi.fn().mockResolvedValue({ status: "sent" }),
+    },
     sokoBot: {
       create: botCreateMock,
       findFirst: botFindFirstMock,

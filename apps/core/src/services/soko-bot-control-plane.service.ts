@@ -257,6 +257,22 @@ export class SokoBotIdempotencyConflictError extends Error {}
 export class SokoBotRetryableStartError extends Error {}
 export class SokoBotStartAbortedError extends Error {}
 
+/**
+ * A mention closed before its turn started (its case or its asker gave up on
+ * it) starts nothing: no classification, no charge, no late answer.
+ */
+async function requireOpenMention(
+  client: Pick<Prisma.TransactionClient, "chatRoomMention">,
+  mentionId: string,
+) {
+  const mention = await client.chatRoomMention.findUnique({
+    where: { id: mentionId },
+    select: { status: true },
+  });
+  if (mention?.status === "failed")
+    throw new SokoBotStartAbortedError("The mention is no longer open");
+}
+
 function observedStartResult(
   turn: SokoBotTurn,
   fallbackSessionId: string | null,
@@ -2324,6 +2340,9 @@ export class SokoBotControlPlane {
       isSharedSokoBot(bot),
     );
 
+    if (input.chat?.mentionId)
+      await requireOpenMention(prisma, input.chat.mentionId);
+
     try {
       await requireSokoBotTurnFunding(input.userId, bot.id);
     } catch (error) {
@@ -2840,6 +2859,9 @@ export class SokoBotControlPlane {
           if (active)
             throw new SokoBotTurnInProgressError("Soko Bot is already working");
         }
+        // Again here: it may have closed while this start waited for the bot.
+        if (input.chat?.mentionId)
+          await requireOpenMention(tx, input.chat.mentionId);
         const memoryVersion = context.packet.memory.version;
         const memoryRevision = requireContextMemoryRevision(
           memoryVersion,
