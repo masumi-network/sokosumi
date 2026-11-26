@@ -63,10 +63,21 @@ function readCheck(value: unknown, stored = false) {
   return check.success ? check.data : undefined;
 }
 
-/** The URL template of a row: a path, and public text. */
+/**
+ * The URL template of a row: a path, and public text. The worker writes "#" for a number segment. The text
+ * guard reads "#" as a URL fragment, so it reads the template with a digit in that segment.
+ */
 function publicGroup(value: unknown) {
-  const group = publicSpeedText(value, SITE_SPEED_GROUP_CHARS);
-  return group && /^\/[^\s?#]*$/.test(group) ? group : undefined;
+  if (typeof value !== "string") return undefined;
+  const group = value.trim();
+  const read = group
+    .split("/")
+    .map((segment) => (segment === "#" ? "0" : segment))
+    .join("/");
+  return publicSpeedText(read, SITE_SPEED_GROUP_CHARS) &&
+    /^\/[^\s?#]*$/.test(read)
+    ? group
+    : undefined;
 }
 
 function readNotChecked(value: unknown): StoredSiteSpeed["notChecked"] {

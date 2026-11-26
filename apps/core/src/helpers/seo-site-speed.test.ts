@@ -121,8 +121,14 @@ describe("a site Report's speed table", () => {
         cause: "entry",
         tier: "full",
       }),
+      // The worker's template of a path with a number segment.
+      extra("https://example.test/2026/books", { group: "/#/*" }),
+      // A "#" that is no whole segment starts a fragment.
+      extra("https://example.test/frag", { group: "/a#b" }),
     ])?.rows;
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(5);
+    expect(rows![3]).toMatchObject({ group: "/#/*" });
+    expect(rows![4]).not.toHaveProperty("group");
     for (const row of rows!.slice(0, 2)) expect(row).not.toHaveProperty("why");
     for (const key of ["cause", "tier", "group"])
       expect(rows![0]).not.toHaveProperty(key);
