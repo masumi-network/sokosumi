@@ -82,6 +82,7 @@ import {
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { evalWorkspaceIds } from "@/lib/evals/eval-guard";
 import {
   createCoreLogger,
   emitCoreWarning,
@@ -181,6 +182,7 @@ import {
   type CreateSokoBotScheduleInput,
   createSokoBotSchedule,
   deleteSokoBotSchedule,
+  isPlatformTurnFailure,
   SokoBotScheduleNotFoundError,
   SokoBotScheduleValidationError,
   type UpdateSokoBotScheduleInput,
@@ -712,6 +714,26 @@ function storedContinuation(classification: unknown): string | null {
   const continuation = (classification as { continuation?: unknown })
     .continuation;
   return typeof continuation === "string" ? continuation : null;
+}
+
+/**
+ * The live bots a fleet move takes, oldest id first. Eval lanes pick their
+ * own version per run, so they are left out, and in this same query: a lane
+ * made a moment ago is never moved because of a list read earlier.
+ */
+export async function fleetBotsToMove(
+  fromVersionId?: string,
+): Promise<{ id: string; versionId: string | null }[]> {
+  return prisma.$queryRaw<{ id: string; versionId: string | null }[]>`
+    SELECT b."id", b."versionId"
+    FROM ${sharedTable("soko_bot")} b
+    WHERE b."archivedAt" IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM ${sharedTable("eval_lane")} e WHERE e."workspaceId" = b."workspaceId"
+      )
+      ${fromVersionId ? PrismaRaw.sql`AND b."versionId" = ${fromVersionId}` : PrismaRaw.empty}
+    ORDER BY b."id" ASC
+  `;
 }
 
 export class SokoBotControlPlane {
@@ -1925,7 +1947,11 @@ export class SokoBotControlPlane {
               : {}),
           },
         });
-        if (scheduleRunUpdate.count === 1) {
+        // A turn the platform failed says nothing about its schedule.
+        if (
+          scheduleRunUpdate.count === 1 &&
+          (completed || !isPlatformTurnFailure(errorKind ?? null))
+        ) {
           await tx.sokoBotSchedule.update({
             where: { id: scheduleRun.scheduleId },
             data: completed
@@ -4053,9 +4079,15 @@ export class SokoBotControlPlane {
    * moves every matching bot in the database.
    */
   async versionUsage(): Promise<{ versionId: string; count: number }[]> {
+    // Eval lanes pick their own version per run; they are not the fleet.
+    const evalWorkspaces = await evalWorkspaceIds();
     const rows = await prisma.sokoBot.groupBy({
       by: ["versionId"],
-      where: { archivedAt: null, versionId: { not: null } },
+      where: {
+        archivedAt: null,
+        versionId: { not: null },
+        workspaceId: { notIn: evalWorkspaces },
+      },
       _count: { _all: true },
     });
     return rows
@@ -4123,14 +4155,7 @@ export class SokoBotControlPlane {
       }
       return pinned;
     };
-    const bots = await prisma.sokoBot.findMany({
-      where: {
-        archivedAt: null,
-        ...(input.fromVersionId ? { versionId: input.fromVersionId } : {}),
-      },
-      select: { id: true, versionId: true },
-      orderBy: { id: "asc" },
-    });
+    const bots = await fleetBotsToMove(input.fromVersionId);
     // One base per run, not one supplied by the caller. A caller-supplied id
     // would make a retry replay each bot's recorded outcome, which is exactly
     // backwards: the bots worth retrying are the ones that failed.
@@ -4254,9 +4279,18 @@ export class SokoBotControlPlane {
       cursor?: string;
       take?: number;
       kind?: "all" | "assistant" | "cmo";
+      evals?: "exclude" | "include" | "only";
     } = {},
   ) {
     const take = Math.min(Math.max(options.take ?? 50, 1), 100);
+    const evalWorkspaces = await evalWorkspaceIds();
+    const evals = options.evals ?? "exclude";
+    const evalWhere: Prisma.SokoBotWhereInput =
+      evals === "exclude"
+        ? { workspaceId: { notIn: evalWorkspaces } }
+        : evals === "only"
+          ? { workspaceId: { in: evalWorkspaces } }
+          : {};
     const term = query?.trim();
     const idTerm =
       term &&
@@ -4281,10 +4315,15 @@ export class SokoBotControlPlane {
               ],
             }
           : {};
+    const fleetWhere: Prisma.SokoBotWhereInput = {
+      deletedAt: null,
+      AND: [kindWhere, evalWhere],
+    };
     const where: Prisma.SokoBotWhereInput = {
       deletedAt: null,
       AND: [
         kindWhere,
+        evalWhere,
         term
           ? {
               OR: [
@@ -4307,50 +4346,101 @@ export class SokoBotControlPlane {
           : {},
       ],
     };
-    const [items, total] = await prisma.$transaction([
-      prisma.sokoBot.findMany({
-        where,
-        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-        take: take + 1,
-        ...(options.cursor
-          ? { cursor: { id: options.cursor }, skip: 1 }
-          : undefined),
-        include: {
-          user: { select: { id: true, name: true, email: true } },
-          createdByUser: { select: { id: true, name: true, email: true } },
-          workspace: { select: { organizationId: true } },
-          _count: {
-            select: {
-              turns: true,
-              // Auto-accepted actions leave ACCEPTED rows; only PENDING waits.
-              pendingDecisions: { where: { status: "PENDING" } },
-              schedules: true,
-            },
-          },
+    const include = {
+      user: { select: { id: true, name: true, email: true } },
+      createdByUser: { select: { id: true, name: true, email: true } },
+      workspace: { select: { organizationId: true } },
+      _count: {
+        select: {
+          turns: true,
+          // Auto-accepted actions leave ACCEPTED rows; only PENDING waits.
+          pendingDecisions: { where: { status: "PENDING" as const } },
+          schedules: true,
         },
+      },
+    } satisfies Prisma.SokoBotInclude;
+    const active: Prisma.SokoBotWhereInput = {
+      AND: [fleetWhere, { archivedAt: null }],
+    };
+    const recentSince = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [items, total, activeCount, activeRecently, pendingDecisions] =
+      await prisma.$transaction([
+        prisma.sokoBot.findMany({
+          where,
+          orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+          take: take + 1,
+          ...(options.cursor
+            ? { cursor: { id: options.cursor }, skip: 1 }
+            : undefined),
+          include,
+        }),
+        prisma.sokoBot.count({ where }),
+        prisma.sokoBot.count({ where: active }),
+        prisma.sokoBot.count({
+          where: { AND: [active, { lastActivityAt: { gte: recentSince } }] },
+        }),
+        prisma.sokoBotPendingDecision.count({
+          where: { status: "PENDING", sokoBot: active },
+        }),
+      ]);
+    // The same bots as attentionReasons in Web: errored, paused, failing, waiting.
+    const needsOperator: Prisma.SokoBotWhereInput = {
+      AND: [
+        active,
+        {
+          OR: [
+            { status: { in: ["ERROR", "PAUSED"] } },
+            { consecutiveTurnFailures: { gt: 0 } },
+            { pendingDecisions: { some: { status: "PENDING" } } },
+          ],
+        },
+      ],
+    };
+    const [attention, attentionTotal] = await prisma.$transaction([
+      prisma.sokoBot.findMany({
+        where: needsOperator,
+        orderBy: [
+          { lastActivityAt: { sort: "desc", nulls: "last" } },
+          { id: "desc" },
+        ],
+        take: 50,
+        include,
       }),
-      prisma.sokoBot.count({ where }),
+      prisma.sokoBot.count({ where: needsOperator }),
     ]);
     const hasMore = items.length > take;
-    if (hasMore) items.pop();
+    const page = items.slice(0, take);
+    const evalSet = new Set(evalWorkspaces);
     const outOfCredits = await sokoBotIdsOutOfCredits(
-      items.map((bot) => ({
+      [...page, ...attention].map((bot) => ({
         id: bot.id,
         userId: bot.userId,
         organizationId: bot.workspace.organizationId,
         projectId: bot.projectId,
       })),
     );
+    const listed = <T extends (typeof items)[number]>({
+      workspace: _workspace,
+      ...bot
+    }: T) => ({
+      ...bot,
+      kind: cmoVersionIds.includes(bot.versionId ?? "")
+        ? ("cmo" as const)
+        : ("assistant" as const),
+      outOfCredits: outOfCredits.has(bot.id),
+      evalLane: evalSet.has(bot.workspaceId),
+    });
     return {
-      items: items.map(({ workspace: _workspace, ...bot }) => ({
-        ...bot,
-        kind: cmoVersionIds.includes(bot.versionId ?? "")
-          ? ("cmo" as const)
-          : ("assistant" as const),
-        outOfCredits: outOfCredits.has(bot.id),
-      })),
+      items: page.map(listed),
       total,
       hasMore,
+      summary: {
+        active: activeCount,
+        activeRecently,
+        pendingDecisions,
+        attention: attention.map(listed),
+        attentionTotal,
+      },
     };
   }
 

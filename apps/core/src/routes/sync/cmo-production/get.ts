@@ -23,8 +23,11 @@ export default function mount(app: Hono) {
         );
         const result = await syncCmoProduction(context.shouldContinue);
         context.log.set({ result, testCopies });
+        context.reportWork({ done: result.checked, failed: result.skipped });
       },
-      { errorDetail: "safe-fields" },
+      // Paying Cusos always have an approved plan: an hour of 10-minute runs
+      // that check none means the list or the sync broke.
+      { errorDetail: "safe-fields", idleRunsAlert: 6 },
     );
   });
 }

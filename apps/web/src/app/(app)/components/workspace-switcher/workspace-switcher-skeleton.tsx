@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
  * Where a Workspace switcher trigger sits. CSS decides which one shows; the
  * placement decides what differs between them.
  */
-export type WorkspaceSwitcherPlacement = "sidebar" | "topBar";
+export type WorkspaceSwitcherPlacement = "sidebar" | "drawer" | "topBar";
 
 interface WorkspaceSwitcherPlacementProps {
   placement: WorkspaceSwitcherPlacement;
@@ -30,7 +30,7 @@ export const WORKSPACE_SWITCHER_AVATAR_CLASS = "size-4 shrink-0 md:size-5";
 
 /** Shortened with "…" in the sidebar; read out but not shown on a phone. */
 export const WORKSPACE_SWITCHER_NAME_CLASS =
-  "min-w-0 truncate text-left font-medium max-md:sr-only";
+  "min-w-0 truncate text-left font-medium ";
 
 /**
  * The up/down chevrons, the same mark the project selector uses, so both
@@ -44,7 +44,7 @@ export function WorkspaceSwitcherArrows({
     <ChevronsUpDown
       className={cn(
         "text-muted-foreground shrink-0",
-        placement === "sidebar" ? "size-3" : "size-4",
+        placement === "topBar" ? "size-4" : "size-3",
       )}
     />
   );
@@ -60,7 +60,7 @@ export function WorkspaceSwitcherSkeletonParts() {
           WORKSPACE_SWITCHER_AVATAR_CLASS,
         )}
       />
-      <span className="bg-muted h-3 w-20 animate-pulse rounded-md max-md:hidden" />
+      <span className="bg-muted h-3 w-20 animate-pulse rounded-md " />
     </>
   );
 }
@@ -71,7 +71,10 @@ export function WorkspaceSwitcherSkeleton({
 }: WorkspaceSwitcherPlacementProps) {
   return (
     <div
-      className={WORKSPACE_SWITCHER_ROW_CLASS}
+      className={cn(
+        WORKSPACE_SWITCHER_ROW_CLASS,
+        placement !== "sidebar" && "w-full",
+      )}
       aria-hidden
       data-testid="workspace-switcher-chrome-skeleton"
     >

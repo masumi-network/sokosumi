@@ -13,7 +13,9 @@ const {
   startTurnMock,
   botFindUniqueMock,
   memberFindManyMock,
+  toolCallFindFirstMock,
 } = vi.hoisted(() => ({
+  toolCallFindFirstMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
   memberFindManyMock: vi.fn(),
   metadataUpsertMock: vi.fn(),
@@ -46,6 +48,7 @@ vi.mock("@/lib/db/prisma", () => ({
     taskEvent: { findMany: taskEventFindManyMock },
     sokoBot: { findUnique: botFindUniqueMock },
     member: { findMany: memberFindManyMock },
+    sokoBotToolCall: { findFirst: toolCallFindFirstMock },
     sokoBotDelegation: {
       findMany: delegationFindManyMock,
       update: delegationUpdateMock,
@@ -61,6 +64,8 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
   },
 }));
 
+import { computeJobStatus } from "@sokosumi/database/helpers";
+import { digestJob } from "@/helpers/job-digest";
 import { SokoBotBusyError } from "@/services/soko-bot-control-plane.service";
 
 import {
@@ -159,6 +164,7 @@ describe("SokoBotEventsSyncService", () => {
       workspace: { organizationId: null },
     });
     memberFindManyMock.mockReset().mockResolvedValue([]);
+    toolCallFindFirstMock.mockReset().mockResolvedValue(null);
   });
 
   it("bounds each pass and resumes its persisted cursor without starving older delegations", async () => {
@@ -402,7 +408,257 @@ describe("SokoBotEventsSyncService", () => {
 
     expect(result.woken).toBe(0);
     expect(startTurnMock).not.toHaveBeenCalled();
-    expect(delegationUpdateMock).toHaveBeenCalledOnce();
+    // Left unseen, so a run that fails before reading it does not lose it.
+    expect(delegationUpdateMock).not.toHaveBeenCalled();
+  });
+
+  describe("a background run's Coworker Task with a follow-up", () => {
+    const runTurn = { ...turn, parentTurnId: "chat_turn", status: "RUNNING" };
+    function runDelegation() {
+      const delegation = plannedDelegation(
+        "d1",
+        "COMPLETED",
+        "Use the review in the owner's draft.",
+      );
+      return { ...delegation, turnId: "run_turn", turn: runTurn };
+    }
+    const sync = () => new SokoBotEventsSyncService().syncDelegatedWork(input);
+
+    beforeEach(() => {
+      runTurn.status = "RUNNING";
+    });
+
+    it("hands the follow-up on when the Task completed before the run failed", async () => {
+      delegationFindManyMock.mockResolvedValue([runDelegation()]);
+      expect((await sync()).woken).toBe(0);
+      expect(delegationUpdateMock).not.toHaveBeenCalled();
+
+      runTurn.status = "FAILED";
+      expect((await sync()).woken).toBe(1);
+      const call = startTurnMock.mock.calls[0]![0];
+      expect(call.message).toContain(
+        'Your plan: "Use the review in the owner\'s draft."',
+      );
+      expect(call.eventBatch[0].followUpDelegationIds).toEqual(["d1"]);
+    });
+
+    it("hands the follow-up on when the Task completed after the run failed", async () => {
+      runTurn.status = "FAILED";
+      delegationFindManyMock.mockResolvedValue([runDelegation()]);
+      expect((await sync()).woken).toBe(1);
+      expect(
+        startTurnMock.mock.calls[0]![0].eventBatch[0].followUpDelegationIds,
+      ).toEqual(["d1"]);
+    });
+
+    it("wakes nobody when the finished run read the result itself", async () => {
+      runTurn.status = "COMPLETED";
+      toolCallFindFirstMock.mockResolvedValue({ id: "read" });
+      delegationFindManyMock.mockResolvedValue([runDelegation()]);
+      expect((await sync()).woken).toBe(0);
+      expect(toolCallFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            turnId: "run_turn",
+            capability: "get_task_status",
+            input: { path: ["taskId"], equals: "task_shared" },
+            // Only a read that returned the change counts.
+            result: { path: ["status"], equals: "COMPLETED" },
+            updatedAt: { gte: new Date("2026-10-23T10:00:00Z") },
+          }),
+        }),
+      );
+      expect(delegationUpdateMock).toHaveBeenCalledOnce();
+    });
+
+    describe("a hired Agent's Job the run read", () => {
+      const at = new Date("2026-10-23T10:00:00Z");
+      type Where = Record<string, unknown>;
+      /** The stored-read filter, applied to one saved get_job_status result. */
+      function matches(where: Where, result: unknown): boolean {
+        if (Array.isArray(where.OR))
+          return where.OR.some((part: Where) => matches(part, result));
+        const filter = where.result as
+          | { path: string[]; equals: string }
+          | undefined;
+        if (!filter) return true;
+        const value = filter.path.reduce<unknown>(
+          (node, key) => (node as Record<string, unknown> | null)?.[key],
+          result,
+        );
+        return value === filter.equals;
+      }
+      function jobDelegation(status: string, eventId: string) {
+        return {
+          id: "d1",
+          turnId: "run_turn",
+          kind: "JOB",
+          lastSeenStatus: "INITIATED",
+          lastSeenEventId: null,
+          lastSeenEventAt: null,
+          task: null,
+          job: {
+            id: "job_1",
+            name: "Market scan",
+            ownerId: "user_1",
+            workspaceId: "ws_1",
+            task: null,
+            events: [{ id: eventId, status, createdAt: at }],
+          },
+          turn: runTurn,
+          followUp: "Draft the post from the scan.",
+          followUpTurnId: null,
+        };
+      }
+      async function wakesAfterRead(
+        delegation: ReturnType<typeof jobDelegation>,
+        saved: unknown,
+      ) {
+        runTurn.status = "COMPLETED";
+        toolCallFindFirstMock.mockImplementation(
+          async ({ where }: { where: Where }) =>
+            matches(where, saved) ? { id: "read" } : null,
+        );
+        delegationFindManyMock.mockResolvedValue([delegation]);
+        return (await sync()).woken;
+      }
+
+      it("counts a read of a completed Job in the Job's own words", async () => {
+        const status = computeJobStatus({
+          jobType: "FREE",
+          events: [{ status: "COMPLETED", input: null, createdAt: at }],
+        } as never);
+        expect(status).toBe("completed");
+        expect(
+          await wakesAfterRead(jobDelegation("COMPLETED", "done"), { status }),
+        ).toBe(0);
+      });
+
+      it("counts a read of a refunded paid Job", async () => {
+        const status = computeJobStatus({
+          jobType: "PAID",
+          refundedTransactionId: "refund",
+          events: [{ status: "COMPLETED", input: null, createdAt: at }],
+        } as never);
+        expect(status).toBe("refund_resolved");
+        expect(
+          await wakesAfterRead(jobDelegation("COMPLETED", "done"), { status }),
+        ).toBe(0);
+      });
+
+      it("wakes for a second input request the read did not see", async () => {
+        // The read saw the first request, req_1; the Agent then asked again.
+        const saved = digestJob({
+          status: "input_required",
+          input: null,
+          inputSchema: null,
+          result: null,
+          events: [
+            {
+              id: "req_1",
+              status: "AWAITING_INPUT",
+              inputSchema: null,
+              result: null,
+              blobs: [],
+              links: [],
+            },
+          ],
+        } as never);
+        expect(saved.inputRequest?.eventId).toBe("req_1");
+        expect(
+          await wakesAfterRead(jobDelegation("AWAITING_INPUT", "req_2"), saved),
+        ).toBe(1);
+        startTurnMock.mockClear();
+        expect(
+          await wakesAfterRead(jobDelegation("AWAITING_INPUT", "req_1"), saved),
+        ).toBe(0);
+      });
+    });
+
+    it("does not count a read saved after the change that still returned RUNNING", async () => {
+      runTurn.status = "COMPLETED";
+      const reads = [
+        {
+          turnId: "run_turn",
+          capability: "get_task_status",
+          status: "COMPLETED",
+          input: { taskId: "task_shared" },
+          // Started a moment before the Task completed, saved after it.
+          result: { status: "RUNNING" },
+          updatedAt: new Date("2026-10-23T10:00:00.002Z"),
+        },
+      ];
+      toolCallFindFirstMock.mockImplementation(
+        async ({
+          where,
+        }: {
+          where: {
+            turnId: string;
+            capability: string;
+            input: { equals: string };
+            result: { equals: string };
+            updatedAt: { gte: Date };
+          };
+        }) =>
+          reads.find(
+            (read) =>
+              read.turnId === where.turnId &&
+              read.capability === where.capability &&
+              read.input.taskId === where.input.equals &&
+              read.result.status === where.result.equals &&
+              read.updatedAt >= where.updatedAt.gte,
+          ) ?? null,
+      );
+      delegationFindManyMock.mockResolvedValue([runDelegation()]);
+      expect((await sync()).woken).toBe(1);
+      expect(
+        startTurnMock.mock.calls[0]![0].eventBatch[0].followUpDelegationIds,
+      ).toEqual(["d1"]);
+    });
+
+    it("hands the follow-up on when the run read the result and then failed", async () => {
+      runTurn.status = "FAILED";
+      toolCallFindFirstMock.mockResolvedValue({ id: "read" });
+      delegationFindManyMock.mockResolvedValue([runDelegation()]);
+      expect((await sync()).woken).toBe(1);
+      expect(
+        startTurnMock.mock.calls[0]![0].eventBatch[0].followUpDelegationIds,
+      ).toEqual(["d1"]);
+    });
+
+    it("never restarts a plan the owner stopped with the run", async () => {
+      runTurn.status = "CANCEL_REQUESTED";
+      delegationFindManyMock.mockResolvedValue([runDelegation()]);
+      expect((await sync()).woken).toBe(0);
+      runTurn.status = "CANCELLED";
+      expect((await sync()).woken).toBe(0);
+      expect(startTurnMock).not.toHaveBeenCalled();
+      expect(delegationUpdateMock).toHaveBeenCalledOnce();
+    });
+
+    it("carries the follow-up out once, however often the scan replays", async () => {
+      runTurn.status = "FAILED";
+      const delegation = runDelegation();
+      delegationFindManyMock.mockResolvedValue([delegation]);
+      // What Core records when it starts the wake: the change is seen and
+      // the plan is claimed by that turn.
+      startTurnMock.mockImplementation(async () => {
+        Object.assign(delegation, {
+          lastSeenStatus: "COMPLETED",
+          lastSeenEventId: delegation.task.events[0]!.id,
+          lastSeenEventAt: delegation.task.events[0]!.createdAt,
+          followUpTurnId: "turn_event",
+        });
+        return {
+          turnId: "turn_event",
+          status: "RUNNING",
+          reconciliationLeaseToken: "lease",
+        };
+      });
+      expect((await sync()).woken).toBe(1);
+      expect((await sync()).woken).toBe(0);
+      expect(startTurnMock).toHaveBeenCalledOnce();
+    });
   });
 
   it("does not wake the bot for a status change it made itself", async () => {

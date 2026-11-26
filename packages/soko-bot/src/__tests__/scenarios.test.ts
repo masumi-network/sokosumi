@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CMO_SCENARIOS,
   evaluateScenario,
   SOKO_BOT_SCENARIOS,
   type SokoBotLabTurn,
@@ -437,5 +438,49 @@ describe("evaluateScenario", () => {
       }),
     );
     expect(result.passed).toBeLessThan(result.total);
+  });
+});
+
+describe("readsSkills", () => {
+  const scenario: SokoBotScenario = {
+    id: "reads-landing-page",
+    title: "Reads the landing page skill",
+    intent: "",
+    prompt: "",
+    rubric: "",
+    expect: { routes: ["DELEGATE_TASK"], readsSkills: ["landing-page"] },
+  };
+  const check = (calls: SokoBotLabTurn["toolCalls"]) =>
+    evaluateScenario(scenario, turn({ toolCalls: calls })).checks.find(
+      (c) => c.label === "Reads skill landing-page",
+    );
+
+  it("passes when either read tool returned the skill", () => {
+    expect(
+      check([call("read_writing_skill", { skill: "landing-page" })])?.pass,
+    ).toBe(true);
+    expect(check([call("read_skill", { skill: "landing-page" })])?.pass).toBe(
+      true,
+    );
+  });
+
+  it("fails when only another skill was read", () => {
+    expect(
+      check([call("read_writing_skill", { skill: "brand-voice" })])?.actual,
+    ).toBe("not read: read brand-voice");
+  });
+});
+
+describe("playbook cases", () => {
+  const emails = CMO_SCENARIOS.find((s) => s.id === "cmo-trial-welcome-emails");
+  const avoids = (answer: string) =>
+    evaluateScenario(
+      emails!,
+      turn({ route: "MANAGE_WORK", finalAnswer: answer }),
+    ).checks.find((c) => c.label.startsWith("Answer avoids"))?.pass;
+
+  it("lets a draft link its button but not leave a placeholder", () => {
+    expect(avoids("[Start your trial](https://cal.com/teams)")).toBe(true);
+    expect(avoids("Hi [first name], welcome.")).toBe(false);
   });
 });

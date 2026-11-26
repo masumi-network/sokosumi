@@ -207,6 +207,7 @@ export async function refreshProjectLatestUpdate({
 
   try {
     const generation = await generateText({
+      telemetry: { functionId: "project-latest-update" },
       model: aiGateway("project-memory").languageModel(modelId),
       system: PROJECT_LATEST_UPDATE_SYSTEM_PROMPT,
       prompt,

@@ -17,6 +17,8 @@ const {
 
 vi.mock("@sentry/node", () => ({
   captureException: captureExceptionMock,
+  captureCheckIn: vi.fn(() => "check-in-id"),
+  flush: vi.fn(async () => true),
 }));
 
 vi.mock("@/services/agent-sync.service", () => ({

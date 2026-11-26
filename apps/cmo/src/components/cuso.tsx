@@ -9,7 +9,7 @@ export type CusoArt =
   | "friendly"
   | "pointing"
   | "thinking"
-  | "done"
+  | "correct"
   | "researching";
 
 /** The drawing each status pose shows. */
@@ -18,11 +18,26 @@ const POSE_ART: Record<Pose, CusoArt> = {
   thinking: "thinking",
   "needs-you": "pointing",
   reporting: "friendly",
-  done: "done",
+  done: "correct",
 };
 
 export function cusoArt(art: CusoArt): string {
   return `/cuso/${art}.svg`;
+}
+
+/** Cuso's profile picture, his face on Iris (the brand guide's `cmo-xyz-pfp-face-iris`), always round. */
+export function CusoFace({ size }: { size: 26 | 36 | 48 }) {
+  return (
+    <img
+      className="cuso-face"
+      src="/cuso/face-128.webp"
+      srcSet="/cuso/face-64.webp 64w, /cuso/face-128.webp 128w, /cuso/face-256.webp 256w"
+      sizes={`${size}px`}
+      alt=""
+      width={size}
+      height={size}
+    />
+  );
 }
 
 interface CusoAvatarProps {

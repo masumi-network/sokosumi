@@ -113,6 +113,14 @@ describe("cmo-v5", () => {
     expect(skill).toContain("with that channel's own cadence");
   });
 
+  it("gives an ads range only from real data, and never invents one", () => {
+    const ads = skill.split("\n").find((line) => line.startsWith("- ads: "));
+    expect(ads).toContain("give the range and name where it comes from");
+    expect(ads).toContain("say what the first month's budget will teach");
+    expect(ads).toContain("Never invent clicks, sign-ups, trial starts");
+    expect(ads).not.toContain("should bring as a range");
+  });
+
   it("plans no ads until the owner said yes, and asks no question about them", () => {
     const ads = skill.split("\n").find((line) => line.startsWith("- ads: "));
     expect(ads).toContain(

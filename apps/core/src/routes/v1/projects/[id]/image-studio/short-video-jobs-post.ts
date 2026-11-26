@@ -74,6 +74,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
             { organizationId: workspaceContext.organizationId },
           ),
         },
+        ...(input.shapes ? { shapes: input.shapes } : {}),
         idempotencyKey: input.idempotencyKey,
       });
 

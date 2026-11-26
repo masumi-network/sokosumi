@@ -113,8 +113,8 @@ def main() -> None:
         "pointing": ((952, 1364, 597), inner(pose_svg(root, "pointing"), "cuso-p-")),
         "thinking": ((952, 1372, 602), inner(pose_svg(root, "thinking"), "cuso-t-")),
         "researching": ((952, 1390, 779), inner(pose_svg(root, "researching"), "cuso-r-")),
-        # Done stands a little left of centre, so his check mark stays inside the sidebar.
-        "done": ((954, 1466, 780), inner(pose_svg(root, "done"), "cuso-d-")),
+        # Correct stands a little left of centre, so his check mark stays inside the sidebar.
+        "correct": ((1261, 1836, 1000), inner(pose_svg(root, "correct"), "cuso-c-")),
     }
     nested = "".join(
         f'<svg data-pose="{k}" width="100" height="100" viewBox="{box(*m)}" overflow="visible" visibility="hidden">{body}</svg>'

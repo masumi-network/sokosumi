@@ -130,9 +130,8 @@ export function SidebarChatListSkeleton({
 } = {}) {
   return (
     <SidebarGroup className="w-full" aria-hidden>
-      {/* The Chats heading the whole list hangs from, which every reader
-          has: its row is held so the sections land where they will be. */}
-      <SectionHeaderSkeleton titleWidth="w-10" />
+      {/* Catch up leads the sections, so hold its row while the list loads. */}
+      <SectionHeaderSkeleton titleWidth="w-14" />
       <SidebarGroupContent className="space-y-2">
         {hasOrganization ? (
           <>

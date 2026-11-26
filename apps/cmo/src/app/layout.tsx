@@ -2,11 +2,15 @@ import "./globals.css";
 
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import type { ReactNode } from "react";
 
+import { Analytics } from "../components/analytics";
 import { Logo } from "../components/logo";
+import { analyticsConsent, CONSENT_COOKIE } from "../lib/analytics";
+import { getAuth } from "../lib/auth";
 import { readTheme, THEME_COOKIE } from "../lib/theme";
+import { readAnalyticsUser } from "./actions";
 
 export const metadata: Metadata = {
   title: "CMO.xyz",
@@ -43,7 +47,19 @@ interface RootLayoutProps {
 }
 
 export default async function RootLayout({ children }: RootLayoutProps) {
-  const theme = readTheme((await cookies()).get(THEME_COOKIE)?.value);
+  const [cookieStore, requestHeaders] = await Promise.all([
+    cookies(),
+    headers(),
+  ]);
+  const theme = readTheme(cookieStore.get(THEME_COOKIE)?.value);
+  const consent = analyticsConsent(
+    cookieStore.get(CONSENT_COOKIE)?.value,
+    requestHeaders.get("x-vercel-ip-country"),
+  );
+  // Pages that need no sign-in still render when auth is not configured.
+  const session = await Promise.resolve()
+    .then(() => getAuth().api.getSession({ headers: requestHeaders }))
+    .catch(() => null);
   return (
     <html lang="en" className={mori.variable} data-theme={theme ?? undefined}>
       <body>
@@ -51,6 +67,11 @@ export default async function RootLayout({ children }: RootLayoutProps) {
           <Logo />
         </header>
         {children}
+        <Analytics
+          consent={consent}
+          signedIn={session !== null}
+          readUser={readAnalyticsUser}
+        />
       </body>
     </html>
   );

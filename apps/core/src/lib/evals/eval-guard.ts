@@ -43,6 +43,19 @@ async function evalLanes(): Promise<NonNullable<typeof cache> | null> {
   return cache;
 }
 
+/**
+ * Workspaces of the eval lanes, read now rather than from the cache: admin
+ * reads use it to leave lanes out, and a lane made a moment ago must count.
+ * A change to many bots resolves lanes inside its own query instead.
+ */
+export async function evalWorkspaceIds(): Promise<string[]> {
+  if (typeof prisma.evalLane?.findMany !== "function") return [];
+  const lanes = await prisma.evalLane.findMany({
+    select: { workspaceId: true },
+  });
+  return lanes.map((lane) => lane.workspaceId);
+}
+
 export async function isEvalWorkspace(workspaceId: string): Promise<boolean> {
   return (await evalLanes())?.workspaceIds.has(workspaceId) ?? false;
 }
@@ -108,12 +121,15 @@ export function simulatedEvalTool(
 
 function coworkerIdsIn(input: unknown): string[] {
   if (!input || typeof input !== "object") return [];
-  const { coworkerId, coworkerIds } = input as {
+  const { coworkerId, coworkerIds, assigneeCoworkerId } = input as {
     coworkerId?: unknown;
     coworkerIds?: unknown;
+    /** save_task_schedule: the Coworker every run hands work to. */
+    assigneeCoworkerId?: unknown;
   };
   return [
     ...(typeof coworkerId === "string" ? [coworkerId] : []),
+    ...(typeof assigneeCoworkerId === "string" ? [assigneeCoworkerId] : []),
     ...(Array.isArray(coworkerIds)
       ? coworkerIds.filter((id): id is string => typeof id === "string")
       : []),

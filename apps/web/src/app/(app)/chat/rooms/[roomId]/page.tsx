@@ -39,7 +39,7 @@ interface ChatRoomShellProps {
   organizationIdForRoster: string | null;
 }
 
-const ROOM_UNAVAILABLE_HREF = "/?notice=room-unavailable";
+const ROOM_UNAVAILABLE_HREF = "/chat?notice=room-unavailable";
 
 /** The caller's own membership; the personal workspace has none. */
 async function readMyMember(organizationId: string | null) {

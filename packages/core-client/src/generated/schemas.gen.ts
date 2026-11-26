@@ -1256,11 +1256,15 @@ export const AdminSokoBotListSchema = {
         total: {
             type: 'integer',
             minimum: 0
+        },
+        summary: {
+            $ref: '#/components/schemas/AdminSokoBotFleetSummary'
         }
     },
     required: [
         'items',
-        'total'
+        'total',
+        'summary'
     ]
 } as const;
 
@@ -1366,6 +1370,9 @@ export const AdminSokoBotListItemSchema = {
                 }
             ]
         },
+        evalLane: {
+            type: 'boolean'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -1395,6 +1402,7 @@ export const AdminSokoBotListItemSchema = {
         'pendingDecisionCount',
         'scheduleCount',
         'owner',
+        'evalLane',
         'createdAt',
         'updatedAt'
     ]
@@ -1431,6 +1439,41 @@ export const AdminSokoBotOwnerSchema = {
         'id',
         'name',
         'email'
+    ]
+} as const;
+
+export const AdminSokoBotFleetSummarySchema = {
+    type: 'object',
+    properties: {
+        active: {
+            type: 'integer',
+            minimum: 0
+        },
+        activeRecently: {
+            type: 'integer',
+            minimum: 0
+        },
+        pendingDecisions: {
+            type: 'integer',
+            minimum: 0
+        },
+        attention: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdminSokoBotListItem'
+            }
+        },
+        attentionTotal: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'active',
+        'activeRecently',
+        'pendingDecisions',
+        'attention',
+        'attentionTotal'
     ]
 } as const;
 
@@ -2300,6 +2343,9 @@ export const AdminCmoSpendSchema = {
                     businessName: {
                         type: 'string'
                     },
+                    evalLane: {
+                        type: 'boolean'
+                    },
                     ownerEmail: {
                         type: 'string'
                     },
@@ -2419,6 +2465,7 @@ export const AdminCmoSpendSchema = {
                 required: [
                     'sokoBotId',
                     'businessName',
+                    'evalLane',
                     'ownerEmail',
                     'turns',
                     'totalUsd',
@@ -2551,6 +2598,9 @@ export const AdminSokoBotFleetDaysSchema = {
                     },
                     cmoCostUsd: {
                         type: 'number'
+                    },
+                    evalCostUsd: {
+                        type: 'number'
                     }
                 },
                 required: [
@@ -2560,7 +2610,8 @@ export const AdminSokoBotFleetDaysSchema = {
                     'turns',
                     'totalTokens',
                     'costUsd',
-                    'cmoCostUsd'
+                    'cmoCostUsd',
+                    'evalCostUsd'
                 ]
             }
         }
@@ -7320,6 +7371,18 @@ export const EvalRunReportSchema = {
                         }
                     }
                 },
+                costlier: {
+                    type: 'integer'
+                },
+                slower: {
+                    type: 'integer'
+                },
+                passRate: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
                 passed: {
                     type: 'integer'
                 },
@@ -7335,6 +7398,9 @@ export const EvalRunReportSchema = {
             },
             required: [
                 'counts',
+                'costlier',
+                'slower',
+                'passRate',
                 'passed',
                 'scored',
                 'open',
@@ -7405,6 +7471,36 @@ export const EvalCaseReportSchema = {
                 ]
             }
         },
+        costUsd: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        usualCostUsd: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        costlier: {
+            type: 'boolean'
+        },
+        durationMs: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        usualDurationMs: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        slower: {
+            type: 'boolean'
+        },
         results: {
             type: 'array',
             items: {
@@ -7423,6 +7519,12 @@ export const EvalCaseReportSchema = {
         'passRate',
         'baselinePassRate',
         'history',
+        'costUsd',
+        'usualCostUsd',
+        'costlier',
+        'durationMs',
+        'usualDurationMs',
+        'slower',
         'results'
     ]
 } as const;
@@ -24974,6 +25076,21 @@ export const ProjectTalkingVideoSchema = {
                     type: 'null'
                 }
             ]
+        },
+        shape: {
+            type: 'string',
+            enum: [
+                '9:16',
+                '4:5',
+                '1:1',
+                '16:9'
+            ]
+        },
+        sourceJobId: {
+            type: [
+                'string',
+                'null'
+            ]
         }
     },
     required: [
@@ -24983,7 +25100,9 @@ export const ProjectTalkingVideoSchema = {
         'siteShots',
         'broll',
         'music',
-        'format'
+        'format',
+        'shape',
+        'sourceJobId'
     ]
 } as const;
 
@@ -35687,7 +35806,8 @@ export const MarketingStrategySchema = {
                                     enum: [
                                         'examples',
                                         'writing',
-                                        'written'
+                                        'written',
+                                        'stopped'
                                     ]
                                 },
                                 level: {
@@ -37726,7 +37846,8 @@ export const MarketingStrategyRequestSchema = {
                             enum: [
                                 'examples',
                                 'writing',
-                                'written'
+                                'written',
+                                'stopped'
                             ]
                         },
                         level: {
@@ -46418,6 +46539,20 @@ export const CreateProjectTalkingVideoJobRequestSchema = {
             type: 'boolean',
             default: false
         },
+        shapes: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    '9:16',
+                    '4:5',
+                    '1:1',
+                    '16:9'
+                ]
+            },
+            minItems: 1,
+            maxItems: 4
+        },
         idempotencyKey: {
             type: 'string',
             minLength: 8,
@@ -46501,6 +46636,20 @@ export const CreateProjectShortVideoJobRequestSchema = {
             },
             maxItems: 6,
             default: []
+        },
+        shapes: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    '9:16',
+                    '4:5',
+                    '1:1',
+                    '16:9'
+                ]
+            },
+            minItems: 1,
+            maxItems: 4
         },
         idempotencyKey: {
             type: 'string',
@@ -63212,7 +63361,8 @@ export const CmoPlanSchema = {
                     enum: [
                         'examples',
                         'writing',
-                        'written'
+                        'written',
+                        'stopped'
                     ]
                 },
                 level: {

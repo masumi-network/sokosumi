@@ -391,6 +391,7 @@ async function refreshProjectMemoryIteration({
     };
     const generation = await generateText({
       ...generationOptions,
+      telemetry: { functionId: "project-memory" },
       system: PROJECT_MEMORY_SYSTEM_PROMPT,
       prompt,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
@@ -407,6 +408,7 @@ async function refreshProjectMemoryIteration({
     ) {
       const compaction = await generateText({
         ...generationOptions,
+        telemetry: { functionId: "project-memory-compaction" },
         system: `${PROJECT_MEMORY_SYSTEM_PROMPT}
 
 The candidate exceeds the size budget. Compact it once using the original sources as evidence. Preserve constraints, unresolved approvals and essential links; remove history and repetition first. Return the whole document, never just a prefix or a patch.`,

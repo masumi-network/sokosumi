@@ -177,3 +177,16 @@ describe("latestExchange", () => {
     expect(latestExchange({ memory: {} }, now)).toEqual([]);
   });
 });
+
+describe("modelContextParts", () => {
+  it("keeps the packet out of the fixed part", async () => {
+    const { modelContextParts } = await import("./turn-model-context");
+    const packet = { memory: "Prefers short answers", recentTurns: [] };
+    const parts = await modelContextParts(packet, false);
+    expect(parts.fixed.join("\n")).not.toContain("Prefers short answers");
+    expect(parts.perTurn.join("\n")).toContain("Prefers short answers");
+    expect([...parts.fixed, ...parts.perTurn]).toEqual(
+      await modelContextBlock(packet, false),
+    );
+  });
+});

@@ -154,6 +154,7 @@ describe("OrganizationChatList section visibility", () => {
     expect(
       screen
         .getAllByRole("button")
+        .filter((button) => button.hasAttribute("aria-expanded"))
         .map((button) => button.textContent)
         // Section headings only, not the delete dialog's own buttons.
         .filter(

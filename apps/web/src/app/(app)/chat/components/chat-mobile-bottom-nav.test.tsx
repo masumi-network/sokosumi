@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-let mockPathname = "/chat";
+let mockPathname = "/chat/rooms";
 let mockSearchParams = new URLSearchParams();
 let mockIsApple = false;
 let mockShowUnreadDot = false;
@@ -64,8 +64,9 @@ import {
 describe("resolveChatMobileActiveTabId", () => {
   it("marks each tab active only on its exact list-root pathname", () => {
     expect(resolveChatMobileActiveTabId("/")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/chat")).toBe("home");
     expect(resolveChatMobileActiveTabId("/tasks")).toBe("tasks");
-    expect(resolveChatMobileActiveTabId("/chat")).toBe("chats");
+    expect(resolveChatMobileActiveTabId("/chat/rooms")).toBe("chats");
     expect(resolveChatMobileActiveTabId("/projects")).toBe("projects");
     expect(resolveChatMobileActiveTabId("/you")).toBe("you");
     expect(resolveChatMobileActiveTabId("/history")).toBe("home");
@@ -81,16 +82,22 @@ describe("resolveChatMobileActiveTabId", () => {
   it("returns null on rooms and nested routes", () => {
     expect(
       resolveChatMobileActiveTabId(
-        "/chat",
+        "/chat/rooms",
         new URLSearchParams("create=channel"),
       ),
     ).toBe("chats");
     expect(
-      resolveChatMobileActiveTabId("/chat", new URLSearchParams("dm=new")),
+      resolveChatMobileActiveTabId(
+        "/chat/rooms",
+        new URLSearchParams("dm=new"),
+      ),
     ).toBe("chats");
     // Retired param: bare /chat list stays the Chats tab.
     expect(
-      resolveChatMobileActiveTabId("/chat", new URLSearchParams("welcome=1")),
+      resolveChatMobileActiveTabId(
+        "/chat/rooms",
+        new URLSearchParams("welcome=1"),
+      ),
     ).toBe("chats");
     expect(resolveChatMobileActiveTabId("/chat/rooms/abc")).toBeNull();
     expect(resolveChatMobileActiveTabId("/tasks/t1")).toBeNull();
@@ -110,7 +117,7 @@ describe("resolveChatMobileActiveTabId", () => {
 
 describe("ChatMobileBottomNav", () => {
   beforeEach(() => {
-    mockPathname = "/chat";
+    mockPathname = "/chat/rooms";
     mockSearchParams = new URLSearchParams();
     mockIsApple = false;
     mockShowUnreadDot = false;
@@ -127,9 +134,9 @@ describe("ChatMobileBottomNav", () => {
 
     const links = screen.getAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
-      "/",
-      "/tasks",
       "/chat",
+      "/tasks",
+      "/chat/rooms",
       "/projects",
       "/you",
     ]);
@@ -173,8 +180,8 @@ describe("ChatMobileBottomNav", () => {
     expect(screen.queryByTestId("mobile-you-tab-avatar")).toBeNull();
   });
 
-  it("sets aria-current on the Chats link for /chat", () => {
-    mockPathname = "/chat";
+  it("sets aria-current on the Chats link for /chat/rooms", () => {
+    mockPathname = "/chat/rooms";
     render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     expect(screen.getByRole("link", { name: "chats" })).toHaveAttribute(

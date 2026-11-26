@@ -111,8 +111,8 @@ export function CreateSokoBotDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline">
-          <Plus aria-hidden className="size-4" />
+        <Button type="button" size="sm">
+          <Plus aria-hidden />
           {t("trigger")}
         </Button>
       </DialogTrigger>

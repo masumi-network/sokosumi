@@ -67,6 +67,7 @@ export async function pickNews(
 ): Promise<{ news: PickedNews[]; costUsd: number }> {
   if (candidates.length === 0) return { news: [], costUsd: 0 };
   const { output, costUsd } = await ask({
+    label: "competitor-news-pick",
     system: SYSTEM,
     schema: picksSchema,
     prompt: JSON.stringify({

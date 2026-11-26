@@ -776,6 +776,20 @@ export {
   type VideoPriceFigures,
 } from "./video-credits.js";
 export {
+  DEFAULT_VIDEO_SHAPE,
+  VIDEO_KINDS,
+  VIDEO_RECIPES,
+  VIDEO_SHAPE_FRAMES,
+  VIDEO_SHAPE_LABELS,
+  VIDEO_SHAPES,
+  type VideoKind,
+  type VideoRecipe,
+  type VideoRecipeNeeds,
+  type VideoShape,
+  videoRecipeFor,
+  videoShapesFor,
+} from "./video-recipes.js";
+export {
   isEmptyOrValidWebsiteUrl,
   isValidHttpUrl,
   normalizeWebsiteUrl,

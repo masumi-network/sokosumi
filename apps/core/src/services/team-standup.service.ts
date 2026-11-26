@@ -560,6 +560,7 @@ export async function hostStandup(input: {
   );
   if (input.needs.length === 0) return { matches: [], costUsd: 0 };
   const { output, costUsd } = await askSmallModel({
+    label: "team-standup-host",
     purpose: "soko-bot",
     system: HOST_SYSTEM,
     prompt: JSON.stringify({
@@ -655,6 +656,7 @@ export async function writeBotUpdate(record: AgentRecord): Promise<BotUpdate> {
   let costUsd = 0;
   try {
     const answer = await askSmallModel({
+      label: "team-standup-bot-update",
       purpose: "soko-bot",
       ...botUpdatePrompt(record),
       schema: z.object({ message: z.string() }),
@@ -717,6 +719,7 @@ export async function shortenTitles(
   if (unique.length === 0) return { short, costUsd: 0 };
   try {
     const { output, costUsd } = await askSmallModel({
+      label: "team-standup-short",
       purpose: "soko-bot",
       system: SHORT_SYSTEM,
       prompt: JSON.stringify({ titles: unique }),

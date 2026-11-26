@@ -16,13 +16,15 @@ const PERIODS = [7, 30, 90] as const;
 export default async function AdminCmoSpendPage({
   searchParams,
 }: {
-  searchParams: Promise<{ days?: string }>;
+  searchParams: Promise<{ days?: string; evals?: string }>;
 }) {
-  const requested = Number((await searchParams).days);
+  const params = await searchParams;
+  const requested = Number(params.days);
   const days = PERIODS.find((period) => period === requested) ?? 30;
+  const withEvals = params.evals === "include";
   const [t, spend] = await Promise.all([
     getTranslations("App.Admin.CmoSpend"),
-    adminSokoBotService.cmoSpend(days),
+    adminSokoBotService.cmoSpend(days, withEvals ? "include" : "exclude"),
   ]);
   return (
     <div className="min-h-full w-full">
@@ -33,7 +35,12 @@ export default async function AdminCmoSpendPage({
           </h1>
           <p className="text-muted-foreground text-sm">{t("description")}</p>
         </div>
-        <CmoSpendTable spend={spend} days={days} periods={[...PERIODS]} />
+        <CmoSpendTable
+          spend={spend}
+          days={days}
+          periods={[...PERIODS]}
+          withEvals={withEvals}
+        />
       </div>
     </div>
   );

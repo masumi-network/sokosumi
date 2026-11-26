@@ -23,6 +23,7 @@ import {
   isTextMimeType,
   MAX_DIRECT_READ_BYTES,
   readDriveText,
+  readPendingDriveDocument,
 } from "./drive-reading";
 import { type RuntimeOperations } from "./operations";
 import { TASK_TEXT_MAX_CHARS } from "./task-policy";
@@ -207,28 +208,29 @@ export async function readFile(
     take: needed + 1,
     select: { text: true },
   });
-  const indexed = joinExtractedChunks(chunks.slice(0, needed));
-  const moreIndexed = chunks.length > needed;
-  const direct = indexed ? null : await readDriveText(file);
-  const text = indexed || direct || "";
+  const document =
+    chunks.length === 0 ? await readPendingDriveDocument(file) : null;
+  const passages = document?.chunks ?? chunks;
+  const extracted = joinExtractedChunks(passages.slice(0, needed));
+  const direct = extracted || document ? null : await readDriveText(file);
+  const text = extracted || direct || "";
+  const partial =
+    document?.state === "PARTIAL" ||
+    (chunks.length > 0 && file.extractionState === "PARTIAL");
+  let note = document?.reason ?? (partial ? file.extractionReason : null);
+  if (!note && text && (document || direct))
+    note = "Read from the file itself; search has not indexed it yet.";
+  if (!note && !text)
+    note =
+      file.extractionState === "PENDING" || file.extractionState === "RUNNING"
+        ? "The file is still being processed; its text is not ready yet."
+        : `No text was extracted${file.extractionReason ? ` (${file.extractionReason})` : ""}.`;
   return {
     id: file.id,
     name: file.displayName,
     type: file.mimeType,
     text: text.slice(0, limit),
-    truncated: text.length > limit || moreIndexed,
-    ...(direct
-      ? {
-          note: "Read from the file itself; search has not indexed it yet.",
-        }
-      : text
-        ? {}
-        : {
-            note:
-              file.extractionState === "PENDING" ||
-              file.extractionState === "RUNNING"
-                ? "The file is still being processed; its text is not ready yet."
-                : `No text was extracted${file.extractionReason ? ` (${file.extractionReason})` : ""}.`,
-          }),
+    truncated: text.length > limit || passages.length > needed || partial,
+    ...(note && { note }),
   };
 }

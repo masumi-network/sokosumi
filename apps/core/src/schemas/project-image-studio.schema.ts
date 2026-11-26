@@ -6,6 +6,7 @@ import {
   SHORT_VIDEO_MAX_PICTURES,
   TALKING_VIDEO_SCRIPT_MAX_LENGTH,
   TALKING_VIDEO_SCRIPT_MIN_LENGTH,
+  VIDEO_SHAPES,
 } from "@sokosumi/utils";
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -128,8 +129,31 @@ export const imageStudioTalkingVideoSchema = z
     music: z.boolean(),
     /** A short without a presenter, in this format. Null for a presenter video. */
     format: z.union([z.enum(SHORT_VIDEO_FORMATS), z.null()]),
+    /** The shape this video is cut in. */
+    shape: z.enum(VIDEO_SHAPES),
+    /**
+     * The job this shape was cut from, or null for the first shape of a
+     * video. Each other shape is its own job, made once the first is
+     * delivered, from the same paid parts, at no extra cost.
+     */
+    sourceJobId: z.string().nullable(),
   })
   .openapi("ProjectTalkingVideo");
+
+/**
+ * The shapes to cut a video in: 9:16 (TikTok, Reels, Shorts), 4:5
+ * (Instagram and Facebook feed), 1:1 (square) or 16:9 (YouTube, LinkedIn and
+ * X on a desktop). Omitted, 9:16 alone. The first in that order is made and
+ * charged; each other shape is its own job, cut from the same voice,
+ * presenter, B-roll and music once the first is delivered, at no extra cost.
+ * A shape the kind of video does not read well in (a website tour in 1:1) is
+ * left out.
+ */
+const videoShapesSchema = z
+  .array(z.enum(VIDEO_SHAPES))
+  .min(1)
+  .max(VIDEO_SHAPES.length)
+  .optional();
 
 export const IMAGE_STUDIO_MEDIA_TYPES = ["IMAGE", "VIDEO"] as const;
 
@@ -423,6 +447,7 @@ export const createTalkingVideoJobRequestSchema = z
     broll: z.boolean().default(false),
     /** Lay generated instrumental music under the voice. Off by default. */
     music: z.boolean().default(false),
+    shapes: videoShapesSchema,
     idempotencyKey: z.string().trim().min(8).max(200),
   })
   .openapi("CreateProjectTalkingVideoJobRequest");
@@ -467,6 +492,7 @@ export const createShortVideoJobRequestSchema = z
       .array(z.string().uuid())
       .max(SHORT_VIDEO_MAX_PICTURES)
       .default([]),
+    shapes: videoShapesSchema,
     idempotencyKey: z.string().trim().min(8).max(200),
   })
   .openapi("CreateProjectShortVideoJobRequest");

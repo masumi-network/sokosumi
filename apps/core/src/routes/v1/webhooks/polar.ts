@@ -6,6 +6,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { accepted, ok } from "@/helpers/response";
 import { defaultValidationHook } from "@/lib/hono";
 import { handlePolarTopUpPaid } from "@/services/cmo-top-up.service";
+import { reportPolarEventToGa4 } from "@/services/ga4-measurement.service";
 import {
   handlePolarOrderPaid,
   handlePolarOrderRefunded,
@@ -71,6 +72,9 @@ app.openapi(route, async (c) => {
   } else {
     return accepted(c, { received: true });
   }
+  // After Core's own work: a delivery Polar retries may report again, and the
+  // order id as transaction_id lets GA4 drop the duplicate purchase.
+  await reportPolarEventToGa4(event);
   return ok(c, { received: true });
 });
 

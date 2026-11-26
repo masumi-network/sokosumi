@@ -89,6 +89,12 @@ export const CMO_MONTH_CALENDAR_STALE_MS = 15 * 60_000;
 export const CMO_MONTH_CALENDAR_ATTEMPTS = 3;
 /** How long Core waits after its tries ran out, before the next. */
 export const CMO_MONTH_CALENDAR_RETRY_MS = 3 * 60 * 60_000;
+/**
+ * Writes after which Core stops: the quick tries, then a day of tries every
+ * three hours. Every write is a round of strong-model calls, so a month that
+ * cannot be written must not cost them forever; the error says it stopped.
+ */
+export const CMO_MONTH_CALENDAR_MAX_ATTEMPTS = CMO_MONTH_CALENDAR_ATTEMPTS + 8;
 
 const DAY_MS = 86_400_000;
 
@@ -433,6 +439,7 @@ async function writeSlots(
       try {
         const call = await generateText({
           ...request,
+          telemetry: { functionId: "cmo-month-calendar" },
           providerOptions: {
             ...request.providerOptions,
             openai: { reasoningEffort: "low" },
@@ -581,6 +588,21 @@ export async function writeCmoMonthCalendar(context: WriteContext): Promise<{
   };
 }
 
+/** What Core does after a short or failed write, for the alert to say. */
+function monthRetryNote(attempts: number): string {
+  if (attempts >= CMO_MONTH_CALENDAR_MAX_ATTEMPTS)
+    return `Core stopped after ${attempts} writes; a new strategy version or plan level starts it again, or reset monthWriter.attempts on this version to retry`;
+  return attempts >= CMO_MONTH_CALENDAR_ATTEMPTS
+    ? "Core tries again in three hours"
+    : "The next CMO production sync tries again";
+}
+
+function monthStuckAlert(attempts: number): string {
+  return attempts >= CMO_MONTH_CALENDAR_MAX_ATTEMPTS
+    ? "cmo_month_calendar_gave_up"
+    : "cmo_month_calendar_stuck";
+}
+
 type WriterState = CmoMonthWriter;
 
 /** Whether the month is written for this plan level. */
@@ -591,9 +613,27 @@ export function cmoMonthCalendarWritten(
   return writer?.state === "written" && writer.level === level;
 }
 
+/** Whether Core stopped writing the month for this plan level. */
+export function cmoMonthCalendarStopped(
+  writer: WriterState | undefined,
+  level: CmoVolumeLevel,
+): boolean {
+  return writer?.state === "stopped" && writer.level === level;
+}
+
+function writeTiming(writer: WriterState, now: Date) {
+  const started = writer.startedAt ? Date.parse(writer.startedAt) : null;
+  const ended = writer.endedAt ? Date.parse(writer.endedAt) : null;
+  const running = started !== null && (ended === null || ended < started);
+  const stale =
+    running && now.getTime() - started >= CMO_MONTH_CALENDAR_STALE_MS;
+  return { ended, running, stale };
+}
+
 /**
  * Whether a write may start now: none is running (or it went stale), and
- * after its tries ran out Core waits a few hours between tries.
+ * after its tries ran out Core waits a few hours between tries. Every try
+ * counts, a write that never ended included, so the cap holds.
  */
 export function cmoMonthCalendarDue(
   writer: WriterState,
@@ -601,13 +641,77 @@ export function cmoMonthCalendarDue(
   now: Date,
 ): boolean {
   if (cmoMonthCalendarWritten(writer, level)) return false;
-  const started = writer.startedAt ? Date.parse(writer.startedAt) : null;
-  const ended = writer.endedAt ? Date.parse(writer.endedAt) : null;
-  const running = started !== null && (ended === null || ended < started);
-  if (running) return now.getTime() - started >= CMO_MONTH_CALENDAR_STALE_MS;
+  const { ended, running, stale } = writeTiming(writer, now);
+  if (running && !stale) return false;
   const attempts = writer.level === level ? writer.attempts : 0;
-  if (attempts < CMO_MONTH_CALENDAR_ATTEMPTS || ended === null) return true;
+  if (attempts >= CMO_MONTH_CALENDAR_MAX_ATTEMPTS) return false;
+  if (running || attempts < CMO_MONTH_CALENDAR_ATTEMPTS || ended === null)
+    return true;
   return now.getTime() - ended >= CMO_MONTH_CALENDAR_RETRY_MS;
+}
+
+/**
+ * Whether every try for this level is spent and none is still running: the
+ * last one ended short, or went stale without ending.
+ */
+export function cmoMonthCalendarOutOfTries(
+  writer: WriterState,
+  level: CmoVolumeLevel,
+  now: Date,
+): boolean {
+  if (writer.level !== level || writer.state === "written") return false;
+  if (writer.attempts < CMO_MONTH_CALENDAR_MAX_ATTEMPTS) return false;
+  const { running, stale } = writeTiming(writer, now);
+  return !running || stale;
+}
+
+/**
+ * Saves that Core stopped this level's month, for a last write that never
+ * ended (a crash or a deploy): the owner then reads that it is stuck on our
+ * side, not that Cuso is still planning.
+ */
+export async function stopCmoMonthCalendar(
+  cuso: Cuso,
+  versionId: string,
+  level: CmoVolumeLevel,
+  now: Date,
+): Promise<boolean> {
+  const stopped = await prisma.$transaction(async (tx) => {
+    const locked = await lockedPlan(tx, versionId);
+    const writer = locked?.plan.monthWriter;
+    if (
+      !locked ||
+      !writer ||
+      writer.state === "stopped" ||
+      !cmoMonthCalendarOutOfTries(writer, level, now)
+    )
+      return null;
+    const plan: MarketingStrategyPlan = {
+      ...locked.plan,
+      monthWriter: {
+        ...writer,
+        state: "stopped",
+        endedAt: now.toISOString(),
+        error: writer.error ?? "The last write never ended",
+      },
+    };
+    await tx.marketingStrategy.update({
+      where: { id: versionId },
+      data: { plan: jsonInput(plan) },
+    });
+    return writer.attempts;
+  });
+  if (stopped === null) return false;
+  emitCoreError(
+    { operation: "cmo_month_calendar", sokoBot: { id: cuso.sokoBotId } },
+    {
+      message: "Core could not write a whole CMO month",
+      why: `Its last of ${stopped} writes never ended; ${monthRetryNote(stopped)}`,
+      fix: "Look up this Cuso's earlier cmo_month_calendar events for the writes; the owner sees the month stuck on our side.",
+    },
+    { alert: monthStuckAlert(stopped) },
+  );
+  return true;
 }
 
 /** Reads the approved version under a row lock, for one write at a time. */
@@ -708,7 +812,11 @@ async function saveWrite(input: {
         monthWriter: own
           ? {
               ...writer,
-              state: input.whole ? "written" : "writing",
+              state: input.whole
+                ? "written"
+                : writer.attempts >= CMO_MONTH_CALENDAR_MAX_ATTEMPTS
+                  ? "stopped"
+                  : "writing",
               endedAt: input.now.toISOString(),
               error: input.whole ? undefined : input.error?.slice(0, 300),
               costUsd:
@@ -819,10 +927,13 @@ export async function runCmoMonthCalendar(
         { operation: "cmo_month_calendar", sokoBot: { id: cuso.sokoBotId } },
         {
           message: "Core could not write a whole CMO month",
-          why: `${writer.attempts} writes ended with ${result.missing} posts missing; Core tries again in three hours`,
+          why: `${writer.attempts} writes ended with ${result.missing} posts missing; ${monthRetryNote(writer.attempts)}`,
           fix: "Look up this event's earlier cmo_month_calendar warnings for the chunk errors; the owner sees that Cuso is planning the month.",
         },
-        { alert: "cmo_month_calendar_stuck", missing: result.missing },
+        {
+          alert: monthStuckAlert(writer.attempts),
+          missing: result.missing,
+        },
       );
     if (whole && options.kickProduction !== false) {
       const { kickCmoProduction } = await import(
@@ -850,10 +961,10 @@ export async function runCmoMonthCalendar(
     const said = {
       message: "Core's write of a CMO month failed",
       why: `Attempt ${writer.attempts} threw`,
-      fix: "The next CMO production sync tries again, every 10 minutes until three tries, then every three hours. Look up the error name and code under failure.",
+      fix: `${monthRetryNote(writer.attempts)}. Look up the error name and code under failure.`,
     };
     if (writer.attempts >= CMO_MONTH_CALENDAR_ATTEMPTS)
-      emitCoreError(context, said, { alert: "cmo_month_calendar_stuck" });
+      emitCoreError(context, said, { alert: monthStuckAlert(writer.attempts) });
     else emitCoreWarning(context, said);
     return false;
   }

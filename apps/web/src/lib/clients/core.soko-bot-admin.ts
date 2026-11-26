@@ -80,6 +80,7 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
     query?: string;
     limit?: number;
     kind?: "all" | "assistant" | "cmo";
+    evals?: "exclude" | "include" | "only";
   }) {
     return executeCoreOperation(
       getClient,
@@ -100,7 +101,10 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getAdminCmoSpend(query: { days: number }) {
+  async function getAdminCmoSpend(query: {
+    days: number;
+    evals?: "exclude" | "include" | "only";
+  }) {
     return executeCoreOperation(
       getClient,
       (client) => coreGetAdminCmoSpend({ client, query, cache: "no-store" }),

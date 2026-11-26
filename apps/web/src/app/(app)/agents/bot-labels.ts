@@ -6,12 +6,15 @@ type Translate = Awaited<
   ReturnType<typeof getTranslations<"App.Agents.Directory">>
 >;
 
-export function botName(bot: DirectoryBot, t: Translate): string {
+export function botName(bot: Pick<DirectoryBot, "name">, t: Translate): string {
   return bot.name?.trim() || t("botFallbackName");
 }
 
 /** "Yours", "Alice's", "Team", or the Project it works on. */
-export function botOwnerLabel(bot: DirectoryBot, t: Translate): string {
+export function botOwnerLabel(
+  bot: Pick<DirectoryBot, "owner">,
+  t: Translate,
+): string {
   switch (bot.owner.kind) {
     case "you":
       return t("ownerYou");
@@ -39,7 +42,10 @@ export function botPurpose(bot: DirectoryBot, t: Translate): string {
   }
 }
 
-export function botStatusLabel(bot: DirectoryBot, t: Translate): string {
+export function botStatusLabel(
+  bot: Pick<DirectoryBot, "status">,
+  t: Translate,
+): string {
   return t(`status.${bot.status}`);
 }
 

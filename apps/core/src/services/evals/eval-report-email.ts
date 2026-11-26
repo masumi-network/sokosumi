@@ -10,10 +10,23 @@ function escapeHtml(text: string): string {
     .replaceAll('"', "&quot;");
 }
 
+function percent(rate: number | null): string {
+  return rate === null ? "–" : `${Math.round(rate * 100)}%`;
+}
+
+function money(usd: number | null): string {
+  return usd === null ? "–" : `$${usd.toFixed(2)}`;
+}
+
+function minutes(ms: number | null): string {
+  return ms === null ? "–" : `${(ms / 60_000).toFixed(1)} min`;
+}
+
 /**
- * After the daily run: one email to `EVALS_REPORT_EMAILS` when a case
- * regressed, naming the cases and the PR the run came after. A run with no
- * regression sends nothing, so an email always means something.
+ * After the weekly run: one email to `EVALS_REPORT_EMAILS` when a case
+ * regressed or cost more than 1.3 times its usual run, naming the cases and
+ * the PR the run came after. Slower cases are listed beside them. A run with
+ * neither sends nothing, so an email always means something.
  */
 export async function sendEvalRegressionEmail(runId: string): Promise<boolean> {
   const recipients = (getEnv().EVALS_REPORT_EMAILS ?? "")
@@ -25,7 +38,9 @@ export async function sendEvalRegressionEmail(runId: string): Promise<boolean> {
   const regressed = report.cases.filter(
     (evalCase) => evalCase.outcome === "regressed",
   );
-  if (regressed.length === 0) return false;
+  const costlier = report.cases.filter((evalCase) => evalCase.costlier);
+  const slower = report.cases.filter((evalCase) => evalCase.slower);
+  if (regressed.length === 0 && costlier.length === 0) return false;
   const url = new URL(
     `/admin/evals/runs/${runId}`,
     getWebAppBaseUrl(),
@@ -43,11 +58,25 @@ export async function sendEvalRegressionEmail(runId: string): Promise<boolean> {
     }
     return evalCase.results.find((result) => result.error)?.error ?? "";
   };
-  const lines = regressed.map(
-    (evalCase) =>
-      `${evalCase.title} (${evalCase.caseId}): ${Math.round((evalCase.passRate ?? 0) * 100)}%, was ${Math.round((evalCase.baselinePassRate ?? 0) * 100)}%. ${reason(evalCase).slice(0, 200)}`,
-  );
-  const subject = `Evals: ${regressed.length} ${regressed.length === 1 ? "case" : "cases"} regressed after ${after}`;
+  const lines = [
+    ...regressed.map(
+      (evalCase) =>
+        `Regressed: ${evalCase.title} (${evalCase.caseId}): ${percent(evalCase.passRate)}, was ${percent(evalCase.baselinePassRate)}. ${reason(evalCase).slice(0, 200)}`,
+    ),
+    ...costlier.map(
+      (evalCase) =>
+        `Costlier: ${evalCase.title} (${evalCase.caseId}): ${money(evalCase.costUsd)}, usually ${money(evalCase.usualCostUsd)}.`,
+    ),
+    ...slower.map(
+      (evalCase) =>
+        `Slower: ${evalCase.title} (${evalCase.caseId}): ${minutes(evalCase.durationMs)}, usually ${minutes(evalCase.usualDurationMs)}.`,
+    ),
+  ];
+  const counts = [
+    regressed.length ? `${regressed.length} regressed` : null,
+    costlier.length ? `${costlier.length} costlier` : null,
+  ].filter(Boolean);
+  const subject = `Evals: ${counts.join(", ")} after ${after}`;
   await sendEmail({
     to: recipients,
     subject,

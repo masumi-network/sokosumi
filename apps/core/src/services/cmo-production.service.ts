@@ -27,6 +27,7 @@ import {
   recordCoreWarning,
   runAsBackgroundWork,
 } from "@/lib/evlog";
+import { failOpen } from "@/lib/fail-open";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getSeoAnalysisExecution } from "@/lib/seo/analysis-executor-config";
 import { evaluateWithJev } from "@/lib/soko-bot/jev";
@@ -57,8 +58,11 @@ import {
 } from "@/services/cmo-media-maker.service";
 import {
   cmoMonthCalendarDue,
+  cmoMonthCalendarOutOfTries,
+  cmoMonthCalendarStopped,
   cmoMonthCalendarWritten,
   kickCmoMonthCalendar,
+  stopCmoMonthCalendar,
 } from "@/services/cmo-month-calendar.service";
 import {
   advanceCmoMonthReview,
@@ -285,7 +289,10 @@ export interface CmoProductionStatus {
    * drafts without one and no longer hold the month back.
    */
   withoutPicture: string[];
-  /** When a stopped month's next run starts; null unless stuck. */
+  /**
+   * When a stopped month's next run starts; null unless stuck, and null for
+   * a month Core stopped writing (stuck with writerFailed): no run follows.
+   */
   retryAt: string | null;
   /** Stuck because Core's month writer wrote nothing in the last run: ours. */
   writerFailed: boolean;
@@ -936,7 +943,12 @@ export async function readCmoProduction(
     restart,
   });
   if (!context.subscribed) return read("waiting");
-  // Paid: Core writes the month's calendar before any piece is made.
+  // Paid: Core writes the month's calendar before any piece is made. A
+  // month Core stopped writing is stuck on our side, with no retry time.
+  if (byCore && cmoMonthCalendarStopped(plan.monthWriter, level)) {
+    writerFailed = true;
+    return read("stuck");
+  }
   if (byCore && !cmoMonthCalendarWritten(plan.monthWriter, level))
     return read("planning");
   // Runs' createdAt is PostgreSQL time, so their day is measured on it.
@@ -1029,6 +1041,10 @@ export async function advanceCmoProduction(
   if (current.state === "planning" && version && strategy?.monthWriter) {
     if (cmoMonthCalendarDue(strategy.monthWriter, current.level, now))
       kickCmoMonthCalendar(cuso, version.id, current.level);
+    else if (
+      cmoMonthCalendarOutOfTries(strategy.monthWriter, current.level, now)
+    )
+      await stopCmoMonthCalendar(cuso, version.id, current.level, now);
     return current;
   }
   // Core makes the pictures from the visuals saved so far, runs or no runs.
@@ -1320,24 +1336,45 @@ export function cmoSyncOrder<T>(hires: T[], now: Date): T[] {
   return [...hires.slice(start), ...hires.slice(0, start)];
 }
 
+/** A step of the production sync that failed; the sync goes on without it. */
+function syncStepFailed<T>(fallback: T, step: string): (error: unknown) => T {
+  return failOpen(
+    fallback,
+    { operation: "cmo_production_sync", cmoSyncStep: step },
+    {
+      message: "A CMO production sync step failed",
+      why: "The step threw; the sync went on without it",
+      fix: "Read the failure fields on this event; the next sync (every few minutes) runs the step again.",
+    },
+  );
+}
+
 /** The cron: every Cuso with an approved plan, so new and missing pieces get made. */
 export async function syncCmoProduction(
   shouldContinue: () => boolean = () => true,
   now: Date = new Date(),
-): Promise<{ checked: number }> {
+): Promise<{ checked: number; skipped: number }> {
   await pauseSeoAuditsOfEndedCusos();
   // A hiring strategy left short gets its next finish turn (or its fit).
   await import("@/services/cmo-strategy.service")
     .then(({ resumeCmoMonthFinishes }) => resumeCmoMonthFinishes(now))
-    .catch(() => undefined);
+    .catch(syncStepFailed(undefined, "resume_month_finishes"));
   const hires = cmoSyncOrder(await listCusosWithApprovedStrategy(), now);
   // In the background from the start, so it has the whole run; one browser
   // a sync, so the site's pages wait for a sync without a brand capture.
-  const capturing = await scheduleMissingCmoBrandIndex(hires).catch(() => true);
-  if (!capturing) await scheduleCmoSitePages(hires, now).catch(() => undefined);
+  const capturing = await scheduleMissingCmoBrandIndex(hires).catch(
+    syncStepFailed(true, "brand_index"),
+  );
+  if (!capturing)
+    await scheduleCmoSitePages(hires, now).catch(
+      syncStepFailed(undefined, "site_pages"),
+    );
   // cmo-v21: the buyer's industry again from the 25th, before the 27th's strategy.
-  await scheduleCmoIndustry(hires, now).catch(() => undefined);
+  await scheduleCmoIndustry(hires, now).catch(
+    syncStepFailed(undefined, "industry"),
+  );
   let checked = 0;
+  let skipped = 0;
   for (const cuso of hires) {
     if (!shouldContinue()) break;
     try {
@@ -1347,6 +1384,7 @@ export async function syncCmoProduction(
       await keepCmoCompetitors(cuso, now);
       checked += 1;
     } catch (error) {
+      skipped += 1;
       // One event per Cuso skipped; the error can quote the plan or a prompt.
       recordCoreWarning(
         { operation: "cmo_production_sync", sokoBot: { id: cuso.sokoBotId } },
@@ -1359,5 +1397,5 @@ export async function syncCmoProduction(
       );
     }
   }
-  return { checked };
+  return { checked, skipped };
 }

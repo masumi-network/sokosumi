@@ -354,28 +354,12 @@ describe("HeaderMobileSearchControl", () => {
     expect(trigger.className).toMatch(/md:hidden/);
   });
 
-  it("renders trailing tools without requiring organization context", () => {
+  it("renders notifications without duplicating the Search and workspace controls", () => {
     render(<HeaderTrailingTools />);
-
-    expect(screen.getByTestId("header-trailing-tools")).toBeInTheDocument();
-    const notifications = screen.getByRole("button", {
-      name: "Notifications",
-    });
-    const search = screen.getByRole("button", { name: "Search" });
-    expect(notifications).toBeInTheDocument();
-    expect(search).toBeInTheDocument();
     expect(
-      notifications.compareDocumentPosition(search) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-  });
-
-  it("keeps Notification Center and Search without Workspace chrome", () => {
-    const { container } = render(<HeaderTrailingTools />);
-
-    expect(screen.getByTestId("header-trailing-tools")).toBeInTheDocument();
-    expect(
-      container.querySelector("[data-testid='workspace-switcher-chrome']"),
-    ).toBeNull();
+      screen.getByRole("button", { name: "Notifications" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
+    expect(screen.queryByTestId("workspace-switcher-chrome")).toBeNull();
   });
 });

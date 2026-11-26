@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const listSharedMock = vi.fn();
@@ -8,6 +9,11 @@ const loadAdsMock = vi.fn();
 
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
+}));
+vi.mock("@/components/back-link", () => ({
+  BackLink: ({ href, children }: { href: string; children: ReactNode }) => (
+    <a href={href}>{children}</a>
+  ),
 }));
 vi.mock("next/navigation", () => ({
   notFound: () => {
@@ -146,7 +152,7 @@ describe("SharedSokoBotPage", () => {
     expect(screen.queryByTestId("console")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "back" })).toHaveAttribute(
       "href",
-      "/soko-bots",
+      "/agents",
     );
   });
 

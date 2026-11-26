@@ -43,6 +43,7 @@ vi.mock("@/lib/composio/oauth-popup-protocol", () => ({
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/personal-assistant",
 }));
 vi.mock("next-intl", () => ({
   useTranslations: () =>

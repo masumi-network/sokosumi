@@ -96,12 +96,12 @@ describe("pre-hire Site", () => {
       />,
     );
     expect(html).toContain(
-      "Give me your website. I&#x27;ll show you a month of posts.",
+      "Give me your website. I&#x27;ll show you a plan and the first posts.",
     );
     expect(html).toContain("Start reading");
     expect(html).toContain('value="acme.io"');
     expect(html).not.toContain("3 min");
-    expect(html).toContain("Drafts your first month");
+    expect(html).toContain("Drafts your first posts");
     expect(html).toMatch(/aria-current="step"[^>]*>(?:(?!<\/li>).)*Research/);
     // No organizations: nothing asks where Cuso goes.
     expect(html).not.toContain('name="organizationId"');

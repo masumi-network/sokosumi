@@ -1,7 +1,8 @@
-import type { Prisma, SokoBotScheduleRunStatus } from "@sokosumi/database";
+import type { SokoBotScheduleRunStatus } from "@sokosumi/database";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 
 import { getEnv } from "@/config/env";
+import { visibleSokoBotWhere } from "@/helpers/visible-soko-bots";
 import prisma from "@/lib/db/prisma";
 import {
   type EffectiveRun,
@@ -25,34 +26,6 @@ const RUN_STATE = {
   FAILED: "failed",
   DEAD_LETTER: "failed",
 } as const satisfies Record<SokoBotScheduleRunStatus, string>;
-
-/**
- * The Soko Bots whose runs a member sees: their own personal bot, and every
- * Project and workspace bot of the workspace when it belongs to an
- * Organization, as `memberSokoBot` reaches them. Someone else's personal bot
- * never. The route already proved the member reaches the workspace.
- */
-function visibleBotWhere(
-  userId: string,
-  workspaceId: string,
-  options: { projectId?: string; sourceId?: string },
-): Prisma.SokoBotWhereInput {
-  return {
-    workspaceId,
-    archivedAt: null,
-    deletedAt: null,
-    // A Project's calendar shows its own bot; the workspace source, none.
-    ...(options.projectId
-      ? { projectId: options.projectId }
-      : options.sourceId
-        ? { projectId: null }
-        : {}),
-    OR: [
-      { userId },
-      { userId: null, workspace: { organizationId: { not: null } } },
-    ],
-  };
-}
 
 /**
  * Soko Bot schedule runs the member may see: the ones still to come, from
@@ -80,7 +53,7 @@ export const readSokoBot: CalendarReader = async (ctx) => {
       systemKey: null,
       taskId: null,
       jobId: null,
-      sokoBot: visibleBotWhere(userId, workspaceId, options),
+      sokoBot: visibleSokoBotWhere(userId, workspaceId, options),
     },
     select: {
       id: true,

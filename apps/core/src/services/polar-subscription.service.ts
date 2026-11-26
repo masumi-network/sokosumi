@@ -151,7 +151,7 @@ export function reportUnusableEvent(
   });
 }
 
-function planOfProduct(
+export function planOfProduct(
   metadata: Record<string, unknown>,
   interval: string | null,
 ): CmoPlanOfProduct | null {

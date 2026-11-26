@@ -17,6 +17,7 @@ import {
   sqlChatSignalHasTag,
   storedChatSignalTags,
 } from "@/lib/chat-signals/derive";
+import { sokoBotFace } from "@/lib/cuso-face";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import { readBackgroundMessageContent } from "@/lib/soko-bot/background-failure";
@@ -124,6 +125,7 @@ const defaultDeps: ChatSummaryDeps = {
     });
     const result = await generateText({
       ...request,
+      telemetry: { functionId: "chat-catch-up" },
       providerOptions: {
         ...request.providerOptions,
         google: { thinkingConfig: { thinkingLevel: "low" } },
@@ -257,7 +259,9 @@ const messageSelect = {
   createdAt: true,
   senderUser: { select: { name: true, image: true } },
   senderCoworker: { select: { name: true, image: true } },
-  senderSokoBot: { select: { name: true, avatarImageUrl: true } },
+  senderSokoBot: {
+    select: { name: true, avatarImageUrl: true, versionId: true },
+  },
   signal: { select: chatSignalSelect },
 } as const satisfies Prisma.ChatRoomMessageSelect;
 
@@ -324,7 +328,11 @@ async function mentionNames(
 interface MessageSender {
   senderUser: { name: string; image: string | null } | null;
   senderCoworker: { name: string; image: string | null } | null;
-  senderSokoBot: { name: string | null; avatarImageUrl: string | null } | null;
+  senderSokoBot: {
+    name: string | null;
+    avatarImageUrl: string | null;
+    versionId: string | null;
+  } | null;
 }
 
 /** Who wrote it: a person, a Coworker or a Soko Bot, with their picture. */
@@ -344,9 +352,10 @@ function messageSender(message: MessageSender): {
       senderImageUrl: message.senderCoworker.image,
     };
   }
+  const bot = message.senderSokoBot;
   return {
-    senderName: message.senderSokoBot?.name ?? "Someone",
-    senderImageUrl: message.senderSokoBot?.avatarImageUrl ?? null,
+    senderName: bot?.name ?? "Someone",
+    senderImageUrl: bot ? sokoBotFace(bot).avatarImageUrl : null,
   };
 }
 

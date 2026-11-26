@@ -369,7 +369,7 @@ describe("ChatRoomPage org deep-link guard", () => {
 
     await expect(
       ChatRoomPageContent({ params: Promise.resolve({ roomId: ROOM_ID }) }),
-    ).rejects.toThrow(`REDIRECT:/?notice=room-unavailable`);
+    ).rejects.toThrow(`REDIRECT:/chat?notice=room-unavailable`);
     expect(listMessagesMock).not.toHaveBeenCalled();
     expect(loadRoomShellRosterMock).not.toHaveBeenCalled();
   });
@@ -385,9 +385,9 @@ describe("ChatRoomPage org deep-link guard", () => {
       ChatRoomPageContent({
         params: Promise.resolve({ roomId: "not-a-real-room-id" }),
       }),
-    ).rejects.toThrow(`REDIRECT:/?notice=room-unavailable`);
+    ).rejects.toThrow(`REDIRECT:/chat?notice=room-unavailable`);
 
-    expect(redirectMock).toHaveBeenCalledWith("/?notice=room-unavailable");
+    expect(redirectMock).toHaveBeenCalledWith("/chat?notice=room-unavailable");
     expect(getRoomMock).not.toHaveBeenCalled();
     expect(listMessagesMock).not.toHaveBeenCalled();
     expect(loadRoomShellRosterMock).not.toHaveBeenCalled();

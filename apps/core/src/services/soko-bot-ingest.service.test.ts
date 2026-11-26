@@ -6,6 +6,9 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
   sokoBotControlPlane: {},
 }));
 vi.mock("@/services/soko-bot-integrations.service", () => ({}));
+vi.mock("@/services/soko-bot-x-dms.service", async (importOriginal) => ({
+  ...(await importOriginal()),
+}));
 
 import type { SokoBotInboxMessage } from "@sokosumi/soko-bot";
 import type { TriagedMail } from "@/lib/soko-bot/mail-triage";
@@ -90,6 +93,35 @@ describe("soko-bot ingest", () => {
     expect(message).toContain(
       "**Contract draft** — Can you review by Friday? [gmail:m1] · urgent 90%",
     );
+  });
+
+  it("lists X direct messages under their own heading, with the private rule", () => {
+    const message = buildIngestMessage({
+      kind: "delta",
+      timeZone: "UTC",
+      mail: [],
+      events: [],
+      xMessages: [
+        urgent({
+          provider: "twitter",
+          id: "dm1",
+          threadId: "1-2",
+          from: "Ruth Weber (@ruthw)",
+          to: [],
+          subject: "X DM",
+          snippet: "Can you sign today?",
+          receivedAt: "2026-08-26T05:00:00Z",
+          unread: true,
+          labels: ["X_DM"],
+        }),
+      ],
+    });
+    expect(message).toContain("New mail or X direct messages arrived");
+    expect(message).toContain("never answer on X yourself");
+    expect(message).toContain("## X direct messages (1), triaged by Jev");
+    expect(message).toContain("[twitter:dm1] · urgent 90%");
+    expect(message).not.toContain("## Mail");
+    expect(message).not.toContain("Nothing new in mail or calendar.");
   });
 
   it("puts the people from Contacts between the calendar and the mail", () => {
