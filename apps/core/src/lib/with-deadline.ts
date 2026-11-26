@@ -20,10 +20,11 @@ export async function withDeadline<T>(
     return await Promise.race([
       work,
       new Promise<never>((_, reject) => {
-        const end = Date.now() + ms;
+        // The monotonic clock: a wall clock set back would extend the deadline.
+        const end = performance.now() + ms;
         // A deadline past the longest timer waits in steps; Infinity never ends.
         const wait = () => {
-          const left = end - Date.now();
+          const left = end - performance.now();
           if (left > 0) timer = setTimeout(wait, Math.min(left, MAX_TIMER_MS));
           else reject(new Error(message));
         };

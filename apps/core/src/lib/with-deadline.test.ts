@@ -61,6 +61,20 @@ describe("withDeadline", () => {
     }
   });
 
+  it("keeps the deadline when the wall clock is set back", async () => {
+    vi.useFakeTimers();
+    try {
+      const work = Promise.withResolvers<string>();
+      const result = withDeadline(work.promise, 1_000, "timed out");
+      result.catch(() => {});
+      vi.setSystemTime(Date.now() - 60_000);
+      await vi.advanceTimersByTimeAsync(1_000);
+      await expect(result).rejects.toThrow("timed out");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("waits for the work with no deadline", async () => {
     // Node fires a timer past 2^31-1 ms at once: an uncapped Infinity rejects.
     await expect(
