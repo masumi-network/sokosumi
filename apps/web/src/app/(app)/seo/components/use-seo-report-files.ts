@@ -114,16 +114,16 @@ export function useSeoReportFiles(
         ],
       };
       // A filtered view can show a done action the response does not hold. Only that view reads again.
-      if (!property)
-        for (const [
-          queryKey,
-          cached,
-        ] of queryClient.getQueriesData<ProjectSeoWorkspace>(views))
-          if (
-            cached?.auditSearchConsoleRetryTaskIds?.includes(id) &&
-            missesFreshSeoActionImpact(cached.actions, workspace.actions)
-          )
-            void queryClient.invalidateQueries({ queryKey, exact: true });
+      const stale = property
+        ? []
+        : queryClient
+            .getQueriesData<ProjectSeoWorkspace>(views)
+            .flatMap(([queryKey, cached]) =>
+              cached?.auditSearchConsoleRetryTaskIds?.includes(id) &&
+              missesFreshSeoActionImpact(cached.actions, workspace.actions)
+                ? [queryKey]
+                : [],
+            );
       // The response describes the original audit pages. Keep each cached view's current filters and other runs.
       queryClient.setQueriesData<ProjectSeoWorkspace>(views, (cached) => {
         if (property) {
@@ -163,6 +163,9 @@ export function useSeoReportFiles(
                 ),
         };
       });
+      // After the patch above, which would mark the view fresh again.
+      for (const queryKey of stale)
+        void queryClient.invalidateQueries({ queryKey, exact: true });
       if (property && needsPropertyEvidence(saved))
         throw new Error("Property evidence incomplete");
     },
