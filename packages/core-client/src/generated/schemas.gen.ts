@@ -827,6 +827,134 @@ export const ProjectSeoActionImpactSchema = {
     ]
 } as const;
 
+export const AdminSeoImpactVerdictsSchema = {
+    type: 'object',
+    properties: {
+        total: {
+            type: 'integer',
+            minimum: 0
+        },
+        rows: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    organizationSlug: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    projectId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    projectName: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    suggestionTitle: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    changeSource: {
+                        type: 'string',
+                        enum: [
+                            'cuso_done',
+                            'audit_recheck'
+                        ]
+                    },
+                    changedAt: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    crawledAt: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'date-time'
+                    },
+                    windowStart: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                        example: '2026-11-27'
+                    },
+                    windowEnd: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                        example: '2026-11-27'
+                    },
+                    windowReadyOn: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                        example: '2026-11-27'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'waiting_crawl',
+                            'waiting_window',
+                            'not_measurable'
+                        ]
+                    },
+                    reason: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        enum: [
+                            'no_cuso',
+                            'not_connected',
+                            'no_property',
+                            'inspection_failed',
+                            'not_crawled_yet',
+                            null
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'organizationSlug',
+                    'projectId',
+                    'projectName',
+                    'pageUrl',
+                    'suggestionTitle',
+                    'changeSource',
+                    'changedAt',
+                    'crawledAt',
+                    'windowStart',
+                    'windowEnd',
+                    'windowReadyOn',
+                    'state',
+                    'reason'
+                ]
+            }
+        }
+    },
+    required: [
+        'total',
+        'rows'
+    ]
+} as const;
+
 export const AdminAgentListSchema = {
     type: 'array',
     items: {
@@ -13369,7 +13497,8 @@ export const CreateChatRoomRequestSchema = {
             },
             required: [
                 'kind'
-            ]
+            ],
+            additionalProperties: false
         },
         {
             type: 'object',
@@ -13953,8 +14082,49 @@ export const UpdateChatRoomRequestSchema = {
             maxLength: 80,
             description: 'Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.',
             example: 'Launch crew'
+        },
+        memberUserIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            maxItems: 500,
+            description: 'Ignored. Add members with POST /chats/rooms/{id}/members.',
+            example: [
+                'user_123',
+                'user_456'
+            ],
+            deprecated: true
+        },
+        coworkerIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            maxItems: 50,
+            description: 'Ignored. Add members with POST /chats/rooms/{id}/members.',
+            example: [
+                'cow_123'
+            ],
+            deprecated: true
+        },
+        sokoBotIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 50,
+            description: 'Ignored. Add members with POST /chats/rooms/{id}/members.',
+            example: [
+                '01960001-0001-7001-8001-000000000099'
+            ],
+            deprecated: true
         }
-    }
+    },
+    additionalProperties: false
 } as const;
 
 export const OrgChannelDiscoverabilitySchema = {
@@ -13999,7 +14169,8 @@ export const CreateChatRoomInvitationRequestSchema = {
     },
     required: [
         'email'
-    ]
+    ],
+    additionalProperties: false
 } as const;
 
 export const ChatRoomGuestInviteLinkSchema = {
@@ -14082,7 +14253,8 @@ export const CreateChatRoomGuestInviteLinkRequestSchema = {
             minimum: 1,
             maximum: 10000
         }
-    }
+    },
+    additionalProperties: false
 } as const;
 
 export const RevokeChatRoomGuestInviteLinkResultSchema = {
@@ -14158,7 +14330,8 @@ export const AddChatRoomMembersRequestSchema = {
                 '01960001-0001-7001-8001-000000000099'
             ]
         }
-    }
+    },
+    additionalProperties: false
 } as const;
 
 export const ChatRoomThreadSchema = {
@@ -17413,7 +17586,8 @@ export const ContactMergeSuggestionSchema = {
             enum: [
                 'shared_channel',
                 'same_name'
-            ]
+            ],
+            description: '`same_name` is any duplicate group: the same name, or the same surname, first initial and company email domain. `GET /contacts/duplicates?contactId=` says which.'
         },
         contactIds: {
             type: 'array',
@@ -17527,6 +17701,14 @@ export const ContactDuplicateGroupSchema = {
         name: {
             type: 'string'
         },
+        reason: {
+            type: 'string',
+            enum: [
+                'same_name',
+                'same_company'
+            ],
+            description: 'Why they were grouped: `same_name` (the same name, case and spacing ignored) or `same_company` (the same surname and first initial, with emails at the same company domain).'
+        },
         contacts: {
             type: 'array',
             items: {
@@ -17536,6 +17718,7 @@ export const ContactDuplicateGroupSchema = {
     },
     required: [
         'name',
+        'reason',
         'contacts'
     ]
 } as const;
@@ -19928,12 +20111,19 @@ export const LinkDriveGoogleSheetRequestSchema = {
             maxLength: 1000,
             example: 'Finance',
             description: 'Folder to put the copy in; the Drive root when omitted'
+        },
+        folderPath: {
+            type: 'string',
+            maxLength: 1000,
+            example: 'Finance',
+            description: 'The same as `folder`, as other Drive writes name it.'
         }
     },
     required: [
         'url',
         'scope'
-    ]
+    ],
+    additionalProperties: false
 } as const;
 
 export const DriveItemsSchema = {
@@ -20670,69 +20860,6 @@ export const FileMetadataBatchResponseSchema = {
     ]
 } as const;
 
-export const FileMetadataBatchRequestSchema = {
-    type: 'object',
-    properties: {
-        resourceIds: {
-            type: 'array',
-            items: {
-                type: 'string'
-            },
-            maxItems: 100
-        },
-        selectionToken: {
-            type: 'string'
-        },
-        idempotencyKey: {
-            type: 'string',
-            minLength: 8,
-            maxLength: 200
-        },
-        addTagLabelIds: {
-            type: 'array',
-            items: {
-                type: 'string'
-            },
-            maxItems: 20
-        },
-        removeTagLabelIds: {
-            type: 'array',
-            items: {
-                type: 'string'
-            },
-            maxItems: 20
-        },
-        categoryLabelId: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        expectedRevisions: {
-            type: 'array',
-            items: {
-                type: 'object',
-                properties: {
-                    resourceId: {
-                        type: 'string'
-                    },
-                    metadataRevision: {
-                        type: 'integer'
-                    }
-                },
-                required: [
-                    'resourceId',
-                    'metadataRevision'
-                ]
-            },
-            maxItems: 120
-        }
-    },
-    required: [
-        'idempotencyKey'
-    ]
-} as const;
-
 export const FileResourceSchema = {
     type: 'object',
     properties: {
@@ -21286,7 +21413,8 @@ export const UpdateFileMetadataRequestSchema = {
     },
     required: [
         'expectedMetadataRevision'
-    ]
+    ],
+    additionalProperties: false
 } as const;
 
 export const FileSuggestionDecisionRequestSchema = {
@@ -21379,6 +21507,10 @@ export const FileSearchMetaSchema = {
                 'null'
             ]
         },
+        windowCursor: {
+            type: 'string',
+            description: 'This result window, for `POST /drive/resources/selection-token` (`windowCursor`). Set on every page, also when the window fits on one page and `nextCursor` is null.'
+        },
         restarted: {
             type: 'boolean',
             description: 'The previous cursor no longer applied (access, query or index changed) and a fresh window was taken.'
@@ -21417,6 +21549,7 @@ export const FileSearchMetaSchema = {
         'truncated',
         'hasMore',
         'nextCursor',
+        'windowCursor',
         'restarted',
         'catalogIncomplete',
         'indexCoverage'
@@ -25769,13 +25902,13 @@ export const DesignMdWriteSchema = {
                 'string',
                 'null'
             ],
+            default: null,
             example: '12345',
-            description: 'Extraction id of the generated DESIGN.md, when known'
+            description: 'Extraction id of the generated DESIGN.md, when known. Leave it out (or send null) for a DESIGN.md you wrote.'
         }
     },
     required: [
-        'content',
-        'extractionId'
+        'content'
     ]
 } as const;
 
@@ -27308,12 +27441,15 @@ export const UpdateUserNameSchema = {
             type: 'string',
             minLength: 1,
             example: 'Lovelace'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128,
+            example: 'Ada Lovelace',
+            description: 'The display name other members see. Omitted, it stays as it is.'
         }
-    },
-    required: [
-        'firstName',
-        'lastName'
-    ]
+    }
 } as const;
 
 export const OrganizationDeletionEvaluationSchema = {
@@ -28032,7 +28168,8 @@ export const UpdateTeamStandupSchema = {
             maximum: 7,
             description: 'Week in review weekday, 1 Monday … 7 Sunday.'
         }
-    }
+    },
+    additionalProperties: false
 } as const;
 
 export const OrganizationLogoCleanupResultSchema = {
@@ -46879,7 +47016,21 @@ export const SaveStudioBrandCopySchema = {
     type: 'object',
     properties: {
         copy: {
-            $ref: '#/components/schemas/StudioBrandCopy'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/StudioBrandCopy'
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        tone: {
+                            type: 'string',
+                            maxLength: 400,
+                            description: 'The voice tone. Empty or omitted, the stored tone stays. A Project with no tone yet needs one.'
+                        }
+                    }
+                }
+            ]
         },
         version: {
             type: [
@@ -47275,7 +47426,8 @@ export const CreateProjectTalkingVideoJobRequestSchema = {
                         'consent'
                     ]
                 }
-            ]
+            ],
+            description: 'A stock presenter, `{"kind": "stock", "id": "<presenter id from the catalog>"}`, or the caller\'s own photo in Files, `{"kind": "file", "fileId": "<Drive file id>", "consent": true}`. Only a person can start a video of their own photo: an agent gets 403 `person_approval_required` with the Studio link to send the person to.'
         },
         siteShots: {
             type: 'boolean'
@@ -54816,7 +54968,8 @@ export const RequestProjectSeoAnalysisRequestSchema = {
                 'minimumCredits',
                 'markupPercent'
             ],
-            additionalProperties: false
+            additionalProperties: false,
+            description: 'Required for `kind: "audit_full"`: `{kind: "cost_plus", version: 1, minimumCredits: 750, markupPercent: 50}`. The audit costs its provider cost plus 50%, at least 750 credits. It has no credit cap: `fullAuditLimits.usd` bounds the provider cost. Leave out `maxCredits`. Confirm the price with the person first.'
         },
         searchConsolePropertyId: {
             type: 'string',
@@ -75647,13 +75800,13 @@ export const AdHocDesignMdWriteSchema = {
                 'string',
                 'null'
             ],
+            default: null,
             example: '12345',
-            description: 'Extraction id of the generated DESIGN.md, when known'
+            description: 'Extraction id of the generated DESIGN.md, when known. Leave it out (or send null) for a DESIGN.md you wrote.'
         }
     },
     required: [
-        'content',
-        'extractionId'
+        'content'
     ]
 } as const;
 

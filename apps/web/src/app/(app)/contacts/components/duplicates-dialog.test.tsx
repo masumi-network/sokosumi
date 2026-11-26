@@ -20,6 +20,7 @@ function contact(id: string, channels: Contact["channels"]): Contact {
 
 const group: ContactDuplicateGroup = {
   name: "adam rusch",
+  reason: "same_name",
   contacts: [
     contact("c-1", []),
     contact("c-2", [
