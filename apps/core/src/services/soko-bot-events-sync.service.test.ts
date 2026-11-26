@@ -13,7 +13,9 @@ const {
   startTurnMock,
   botFindUniqueMock,
   memberFindManyMock,
+  toolCallFindFirstMock,
 } = vi.hoisted(() => ({
+  toolCallFindFirstMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
   memberFindManyMock: vi.fn(),
   metadataUpsertMock: vi.fn(),
@@ -46,6 +48,7 @@ vi.mock("@/lib/db/prisma", () => ({
     taskEvent: { findMany: taskEventFindManyMock },
     sokoBot: { findUnique: botFindUniqueMock },
     member: { findMany: memberFindManyMock },
+    sokoBotToolCall: { findFirst: toolCallFindFirstMock },
     sokoBotDelegation: {
       findMany: delegationFindManyMock,
       update: delegationUpdateMock,
@@ -159,6 +162,7 @@ describe("SokoBotEventsSyncService", () => {
       workspace: { organizationId: null },
     });
     memberFindManyMock.mockReset().mockResolvedValue([]);
+    toolCallFindFirstMock.mockReset().mockResolvedValue(null);
   });
 
   it("bounds each pass and resumes its persisted cursor without starving older delegations", async () => {
@@ -402,7 +406,89 @@ describe("SokoBotEventsSyncService", () => {
 
     expect(result.woken).toBe(0);
     expect(startTurnMock).not.toHaveBeenCalled();
-    expect(delegationUpdateMock).toHaveBeenCalledOnce();
+    // Left unseen, so a run that fails before reading it does not lose it.
+    expect(delegationUpdateMock).not.toHaveBeenCalled();
+  });
+
+  describe("a background run's Coworker Task with a follow-up", () => {
+    const runTurn = { ...turn, parentTurnId: "chat_turn", status: "RUNNING" };
+    function runDelegation() {
+      const delegation = plannedDelegation(
+        "d1",
+        "COMPLETED",
+        "Use the review in the owner's draft.",
+      );
+      return { ...delegation, turnId: "run_turn", turn: runTurn };
+    }
+    const sync = () => new SokoBotEventsSyncService().syncDelegatedWork(input);
+
+    beforeEach(() => {
+      runTurn.status = "RUNNING";
+    });
+
+    it("hands the follow-up on when the Task completed before the run failed", async () => {
+      delegationFindManyMock.mockResolvedValue([runDelegation()]);
+      expect((await sync()).woken).toBe(0);
+      expect(delegationUpdateMock).not.toHaveBeenCalled();
+
+      runTurn.status = "FAILED";
+      expect((await sync()).woken).toBe(1);
+      const call = startTurnMock.mock.calls[0]![0];
+      expect(call.message).toContain(
+        'Your plan: "Use the review in the owner\'s draft."',
+      );
+      expect(call.eventBatch[0].followUpDelegationIds).toEqual(["d1"]);
+    });
+
+    it("hands the follow-up on when the Task completed after the run failed", async () => {
+      runTurn.status = "FAILED";
+      delegationFindManyMock.mockResolvedValue([runDelegation()]);
+      expect((await sync()).woken).toBe(1);
+      expect(
+        startTurnMock.mock.calls[0]![0].eventBatch[0].followUpDelegationIds,
+      ).toEqual(["d1"]);
+    });
+
+    it("wakes nobody when the run read the result itself before it ended", async () => {
+      runTurn.status = "COMPLETED";
+      toolCallFindFirstMock.mockResolvedValue({ id: "read" });
+      delegationFindManyMock.mockResolvedValue([runDelegation()]);
+      expect((await sync()).woken).toBe(0);
+      expect(toolCallFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            turnId: "run_turn",
+            capability: "get_task_status",
+            input: { path: ["taskId"], equals: "task_shared" },
+          }),
+        }),
+      );
+      expect(delegationUpdateMock).toHaveBeenCalledOnce();
+    });
+
+    it("carries the follow-up out once, however often the scan replays", async () => {
+      runTurn.status = "FAILED";
+      const delegation = runDelegation();
+      delegationFindManyMock.mockResolvedValue([delegation]);
+      // What Core records when it starts the wake: the change is seen and
+      // the plan is claimed by that turn.
+      startTurnMock.mockImplementation(async () => {
+        Object.assign(delegation, {
+          lastSeenStatus: "COMPLETED",
+          lastSeenEventId: delegation.task.events[0]!.id,
+          lastSeenEventAt: delegation.task.events[0]!.createdAt,
+          followUpTurnId: "turn_event",
+        });
+        return {
+          turnId: "turn_event",
+          status: "RUNNING",
+          reconciliationLeaseToken: "lease",
+        };
+      });
+      expect((await sync()).woken).toBe(1);
+      expect((await sync()).woken).toBe(0);
+      expect(startTurnMock).toHaveBeenCalledOnce();
+    });
   });
 
   it("does not wake the bot for a status change it made itself", async () => {
