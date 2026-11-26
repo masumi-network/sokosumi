@@ -1,5 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import {
+  type CmoCalendarEntry,
   getSokoBotVersion,
   SOKO_BOT_SKILLS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
@@ -34,6 +35,7 @@ import {
   cmoSideChannelFit,
   cmoStrategyRules,
 } from "@/services/cmo-plan-review.service";
+import { cmoWorkingStrategy } from "@/services/cmo-strategy.service";
 import {
   cmoStrategyBrief,
   cmoStrategyStepTurn,
@@ -141,12 +143,44 @@ export function cmoStrategyStepPrompt(
 }
 
 /** The brief for an owner's change asked in chat, without a strategy turn's. */
-export function cmoStrategyChangeBrief(businessName: string, change: string) {
+export function cmoStrategyChangeBrief(
+  businessName: string,
+  change: string,
+  calendar: readonly CmoCalendarEntry[] = [],
+) {
+  const lines = cmoCalendarLines(calendar);
   return [
     `Change ${businessName}'s marketing strategy. The owner asked: ${change}`,
-    "Change only the strategy fields and calendar entries this touches, and nothing else: answer with each field you change, whole, and each calendar entry you change or add, whole under its id (status skipped drops one). Leave out every field and entry you keep; they stay exactly as they are. List each difference in changes, in plain words.",
+    "Change only the strategy fields and calendar entries this touches, and nothing else: answer with each field you change, whole, and each calendar entry you change or add under its id (status skipped drops one). Leave out every field and entry you keep; they stay exactly as they are. List each difference in changes, in plain words.",
+    "When the request corrects a fact, change every field and entry that rests on it, and never name what it corrected.",
     "Do not write a new strategy or touch the Brand Brain.",
+    ...(lines.length > 0
+      ? [
+          "",
+          `Every calendar entry (id · date time · network/format · status · pillar · title), ${lines.length} of ${calendar.length}:`,
+          ...lines,
+          "To change an entry, send it under its id with its date, time, channel, format, status and title as listed and every field you change; Core keeps the fields you leave out (its brief, words, picture, script). A new entry takes a new id. Never ask the owner for an entry or the calendar: they are all here.",
+        ]
+      : []),
   ].join("\n");
+}
+
+/** Most entries a change lists: a Scale month is about 900. */
+const CALENDAR_LINES_MAX = 1_000;
+
+/**
+ * One short line per calendar entry, for a change: the step has no read
+ * tools, and a talking-video change once asked the owner to paste the entry.
+ */
+export function cmoCalendarLines(
+  calendar: readonly CmoCalendarEntry[],
+): string[] {
+  return calendar
+    .slice(0, CALENDAR_LINES_MAX)
+    .map(
+      (entry) =>
+        `- ${entry.id} · ${entry.date}${entry.time ? ` ${entry.time}` : ""} · ${entry.channel}/${entry.format} · ${entry.status} · ${entry.pillar ?? ""} · ${entry.title}`,
+    );
 }
 
 /** The repair's message: every problem at once, as Core's checks name them. */
@@ -416,8 +450,19 @@ async function runStep(context: StepContext): Promise<StepEnd> {
     select: { userMessage: true },
   });
   const cuso = await findCusoForBot(authorized.turn.sokoBotId);
+  // A change lands on the version a save builds on: its whole calendar.
+  const working =
+    change && cuso
+      ? parseMarketingPlan(
+          (await cmoWorkingStrategy(cuso.projectId, false))?.plan,
+        )
+      : null;
   const brief = change
-    ? cmoStrategyChangeBrief(cuso?.businessName ?? "the business", change)
+    ? cmoStrategyChangeBrief(
+        cuso?.businessName ?? "the business",
+        change,
+        working?.calendar ?? [],
+      )
     : cmoStrategyBrief(turn.userMessage);
   if (!brief)
     throw new SokoBotRuntimeValidationError(
@@ -682,11 +727,19 @@ export async function writeCmoStrategy(
     select: { userMessage: true, clientTurnId: true },
   });
   // A step turn's change is the owner's note in its message.
+  const brief = cmoStrategyBrief(turn.userMessage);
   const change =
     parsed.change ??
-    (cmoStrategyBrief(turn.userMessage) !== null
+    (brief !== null
       ? (turn.userMessage.match(/The owner asked: (.+)/)?.[1] ?? null)
       : null);
+  // Without change it writes only the strategy a step turn's brief asks for:
+  // a Brand Brain fix turn once called it bare, and its failed step cost
+  // the turn the time its own patch needed.
+  if (change === null && brief === null)
+    throw new SokoBotRuntimeValidationError(
+      "write_strategy without change writes only the strategy a turn's message asks you to write with it. To change the strategy, call it with change: what the owner asked. A Brand Brain fix patches the strategy with save_strategy, as its message says.",
+    );
   const log = new RuntimeEventLog(input.turnId, input.sessionId);
   const startedAt = Date.now();
   const event = runtimeEvent(STARTED, { change, step: 0 });

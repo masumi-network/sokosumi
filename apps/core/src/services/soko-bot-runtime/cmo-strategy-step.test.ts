@@ -98,6 +98,23 @@ describe("Core's strategy step", () => {
     expect(cmoStrategyStepSystem(getSokoBotVersion("cmo-v25"))).toBe(system);
   });
 
+  it("lists every calendar entry for a change, so it never asks the owner for one", () => {
+    const brief = cmoStrategyChangeBrief(
+      "Cal.com",
+      "Make the Dec 2 Instagram Reel a talking video",
+      [
+        { ...entry("ig-dec-2", "Routing in 20 seconds"), date: "2026-12-02" },
+        entry("li-1", "One link for the team"),
+      ],
+    );
+    expect(brief).toContain(
+      "- ig-dec-2 · 2026-12-02 · linkedin/post · idea ·  · Routing in 20 seconds",
+    );
+    expect(brief).toContain("2 of 2");
+    expect(brief).toContain("Never ask the owner for an entry");
+    expect(brief).toContain("change every field and entry that rests on it");
+  });
+
   it("asks a change to touch only what the owner named", () => {
     const brief = cmoStrategyChangeBrief("NMKR", "LinkedIn once a week");
     expect(brief).toContain("The owner asked: LinkedIn once a week");
