@@ -134,7 +134,7 @@ src/services/seo-chat-quota.postgres.test.ts 19  # trigger body
 src/services/seo-chat.postgres.test.ts 19  # trigger body
 src/services/seo-connections.postgres.test.ts 19  # trigger body
 src/services/seo-console-export.postgres.test.ts 19  # trigger body
-src/services/seo-credit-gate.postgres.test.ts 27  # balance fixture uses the shared client for Network credit_bucket
+src/services/seo-credit-gate.postgres.test.ts 19  # transaction history trigger names bare Job
 src/services/seo-shared-context.postgres.test.ts 19  # trigger body
 src/services/seo-task-execution.postgres.test.ts 19  # trigger body
 src/services/social-post-restore.postgres.test.ts 19  # trigger body
