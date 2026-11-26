@@ -4,14 +4,17 @@ import { TaskStatus } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 import { marketingStrategyPlanSchema } from "@sokosumi/soko-bot";
 import { socialProviderUnavailableMessage } from "@sokosumi/utils";
+import JSZip from "jszip";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { badRequest } from "@/helpers/error";
 import * as exaAgent from "@/lib/exa-agent";
+import { buildPdfFixture } from "@/lib/files/pdf-fixture";
 import { actionInputHash } from "@/lib/soko-bot/action-receipts";
 import { websiteOnlyBrain } from "@/services/evals/eval-cmo-cases";
 import cmoBrandBrains from "@/services/evals/fixtures/cmo-brand-brains.json";
 import * as portfolio from "@/services/fundraising-paths.service";
+import { dispatchFilesTools } from "./dispatch-files";
 
 const {
   botFindFirstMock,
@@ -11221,6 +11224,134 @@ describe("Drive file tools", () => {
     await expect(
       service["readFile"](authorized as never, { fileId: "someone-elses" }),
     ).rejects.toThrow("File not found");
+  });
+
+  it.each([
+    { ext: "pdf", state: "PENDING", type: "application/pdf" },
+    {
+      ext: "docx",
+      state: "RUNNING",
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    },
+  ])(
+    "reads a newly uploaded $ext before indexing finishes",
+    async ({ ext, state, type }) => {
+      const words = "Typed memory ships on Tuesday. ".repeat(25);
+      const bytes =
+        ext === "pdf"
+          ? buildPdfFixture({ pages: [words] })
+          : await new JSZip()
+              .file(
+                "word/document.xml",
+                `<w:document><w:body><w:p><w:r><w:t>${words}</w:t></w:r></w:p></w:body></w:document>`,
+              )
+              .generateAsync({ type: "uint8array" });
+      files.loadLive.mockResolvedValueOnce([
+        {
+          id: "brief",
+          displayName: `launch.${ext}`,
+          mimeType: type,
+          sizeBytes: bytes.byteLength,
+          sourceId: `drive/u/launch.${ext}`,
+          sourceKind: "DRIVE_UPLOAD",
+          contentRevision: 1,
+          extractionState: state,
+        },
+      ]);
+      files.chunks.mockResolvedValueOnce([]);
+      files.download.mockResolvedValueOnce(bytes);
+      const result = await dispatchFilesTools(
+        service["operations"],
+        {
+          ...SCOPE,
+          capability: "read_file",
+          toolCallId: "read-launch-brief",
+          input: { fileId: "brief", maxChars: 500 },
+        },
+        authorized as never,
+      );
+      expect(result).toMatchObject({
+        text: expect.stringContaining("Typed memory ships on Tuesday"),
+        truncated: true,
+      });
+      expect(result).toHaveProperty("text.length", 500);
+    },
+  );
+
+  it.each([6 * 1024 * 1024, null])(
+    "leaves documents with an oversized or unknown size to the index (%s)",
+    async (sizeBytes) => {
+      files.loadLive.mockResolvedValueOnce([
+        {
+          id: "large",
+          displayName: "long.pdf",
+          mimeType: "application/pdf",
+          sizeBytes,
+          sourceId: "drive/u/long.pdf",
+          sourceKind: "DRIVE_UPLOAD",
+          contentRevision: 1,
+          extractionState: "PENDING",
+        },
+      ]);
+      files.chunks.mockResolvedValueOnce([]);
+      files.download.mockClear();
+      await expect(
+        service["readFile"](authorized as never, { fileId: "large" }),
+      ).resolves.toMatchObject({
+        text: "",
+        note: expect.stringContaining("still being processed"),
+      });
+      expect(files.download).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps the stored partial-read reason when document passages have been indexed", async () => {
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: "deck",
+        displayName: "slides.pptx",
+        contentRevision: 1,
+        extractionState: "PARTIAL",
+        extractionReason: "Only the first slides could be read.",
+      },
+    ]);
+    files.chunks.mockResolvedValueOnce([{ text: "Slide one" }]);
+    await expect(
+      service["readFile"](authorized as never, { fileId: "deck" }),
+    ).resolves.toMatchObject({
+      text: "Slide one",
+      truncated: true,
+      note: "Only the first slides could be read.",
+    });
+  });
+
+  it("prefers indexed document text and reports a scanned PDF without a text layer", async () => {
+    const file = {
+      id: "scan",
+      displayName: "scan.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 5000,
+      sourceId: "drive/u/scan.pdf",
+      sourceKind: "DRIVE_UPLOAD",
+      contentRevision: 1,
+      extractionState: "RUNNING",
+    };
+    files.loadLive.mockResolvedValueOnce([file]).mockResolvedValueOnce([file]);
+    files.chunks
+      .mockResolvedValueOnce([{ text: "Already indexed" }])
+      .mockResolvedValueOnce([]);
+    files.download.mockClear();
+    await expect(
+      service["readFile"](authorized as never, { fileId: "scan" }),
+    ).resolves.toMatchObject({ text: "Already indexed" });
+    expect(files.download).not.toHaveBeenCalled();
+    files.download.mockResolvedValueOnce(buildPdfFixture({ pages: [""] }));
+    await expect(
+      service["readFile"](authorized as never, { fileId: "scan" }),
+    ).resolves.toMatchObject({
+      text: "",
+      note: expect.stringContaining("no text layer"),
+    });
   });
 
   it("waits out the 404 a just-rewritten file gives", async () => {
