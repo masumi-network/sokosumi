@@ -209,6 +209,27 @@ describe("imported full-audit PageSpeed evidence", () => {
         },
       )[1],
     ).toBe("unavailable");
+    // An outcome kind that is no string is no failed source, and it does not stop the read of the page.
+    expect(
+      status(
+        { none: "not read" },
+        {
+          none: "not read",
+          sourceRefs: [
+            {
+              port: "psi",
+              request: {
+                port: "psi",
+                url: SEO_TEST_PAGE,
+                device: "mobile",
+                params: { run: 1 },
+              },
+              outcome: JSON.parse('{"kind":{"toString":1}}'),
+            },
+          ],
+        },
+      )[1],
+    ).toBe("not_checked");
     // A device History without data does not say that the current record holds no data.
     expect(
       status({

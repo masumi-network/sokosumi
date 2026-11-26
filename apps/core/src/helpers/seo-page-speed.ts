@@ -83,11 +83,11 @@ function gap(raw: unknown, isField: boolean) {
     return { status: "not_checked" as const };
   if (
     Array.isArray(row?.sourceRefs) &&
-    row.sourceRefs.some((ref) =>
-      ["error", "wall"].includes(
-        String(reportObject(reportObject(ref)?.outcome)?.kind),
-      ),
-    )
+    row.sourceRefs.some((ref) => {
+      // A kind that is no string is no failed source: it is compared, not converted.
+      const kind = reportObject(reportObject(ref)?.outcome)?.kind;
+      return kind === "error" || kind === "wall";
+    })
   )
     return { status: "unavailable" as const };
   // The worker's words for a read it did not send. A read with a failed source was sent (the check above).
