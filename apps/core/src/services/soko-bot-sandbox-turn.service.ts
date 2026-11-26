@@ -50,6 +50,7 @@ import {
 } from "@/lib/soko-bot/stream-model-call";
 import {
   announceTurn,
+  changeTools,
   closeTurn,
   failTurn,
   finishTurn,
@@ -188,6 +189,8 @@ export interface SandboxTurnStart
   background: boolean;
   /** The owner's setup commands and allowed keys, when this turn has a shell. */
   shell?: SokoBotSandboxShell;
+  /** Tools whose completed call Core records as a change (planLoop). */
+  changeTools?: string[];
 }
 
 /** What the runner needs to run the loop; records the turn as started once. */
@@ -241,6 +244,7 @@ export async function startSandboxTurn(
     ...turn,
     message: shellNote ? `${message}\n\n${shellNote}` : message,
     ...(shell ? { shell } : {}),
+    ...(turn.planLoop ? { changeTools: [...changeTools()] } : {}),
     deadlineAt: stored.deadlineAt.toISOString(),
     budgetMs: Math.max(
       30_000,

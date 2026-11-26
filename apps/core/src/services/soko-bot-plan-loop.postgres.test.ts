@@ -733,6 +733,35 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
       expect(prompt).not.toContain("Your plan still lists open steps");
     });
 
+    it("takes a saved file as proof of no step but the one that only saves it", async () => {
+      const chat = await turn("CHAT");
+      await updatePlan(chat, [
+        { step: "Save chart.png", status: "pending" },
+        { step: "Attach chart.png to the draft", status: "pending" },
+        { step: "Save chart-summary.pdf", status: "pending" },
+      ]);
+      await childReceipts(chat, [savedFile("chart.png")]);
+      const note = await openStepsNote(chat);
+      expect(note).toContain("- s2 [pending] Attach chart.png to the draft");
+      expect(note).toContain("- s3 [pending] Save chart-summary.pdf");
+      expect(note).not.toContain("Done by Core's receipts");
+      const prompt = await check(chat);
+      expect(prompt).toContain('("chart.png", id ');
+      expect(prompt).not.toContain("Done by Core's receipts");
+    });
+
+    it("leaves a step naming two files open while one is unsaved", async () => {
+      const chat = await turn("CHAT");
+      await updatePlan(chat, [
+        { step: "Save chart.png and chart-summary.pdf", status: "pending" },
+        { step: "Send Maria the summary", status: "pending" },
+      ]);
+      await childReceipts(chat, [savedFile("chart.png")]);
+      expect(await openStepsNote(chat)).toContain(
+        "- s1 [pending] Save chart.png and chart-summary.pdf",
+      );
+    });
+
     it("tells the bot to wait on a strategy Core is still writing", async () => {
       const chat = await turn("CHAT");
       await updatePlan(chat, twoSteps);

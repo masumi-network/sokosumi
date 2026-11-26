@@ -84,6 +84,8 @@ interface TurnStart {
   planLoop?: boolean;
   /** The turn starts with a plan from earlier in its request. */
   planInherited?: boolean;
+  /** Tools whose completed call Core records as a change (planLoop). */
+  changeTools?: string[];
   /** The provider's prompt cache key for this system and tool set. */
   cacheKey?: string | null;
   /** The key once the full save tools replace their short forms. */
@@ -551,6 +553,7 @@ async function main(): Promise<void> {
                   .note,
               openSteps: async () =>
                 (await callCore<{ note: string | null }>("/plan", {})).note,
+              changeTools: new Set(start.changeTools ?? []),
             },
           }
         : {}),

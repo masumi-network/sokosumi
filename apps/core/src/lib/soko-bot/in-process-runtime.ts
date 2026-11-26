@@ -56,6 +56,7 @@ import {
 import { estimateInputTokens, turnTokenBudget } from "./turn-budget";
 import {
   announceTurn,
+  changeTools,
   closeTurn,
   failTurn,
   finishTurn,
@@ -318,6 +319,7 @@ async function runTurn(
                     draft,
                   }),
                 openSteps: () => openStepsNote(input.turnId),
+                changeTools: changeTools(),
               },
             }
           : {}),

@@ -92,6 +92,8 @@ export interface TurnLoopPlan {
   doneCheck: (draft: string) => Promise<string | null>;
   /** The plan's open steps, for the keep-going nudge and the time-up report. */
   openSteps: () => Promise<string | null>;
+  /** Tools whose completed call Core records as a change (a receipt). */
+  changeTools: ReadonlySet<string>;
 }
 
 const PLAN_ANSWER_TIMEOUT_MS = 10_000;
@@ -208,7 +210,11 @@ export async function runTurnLoop(
               ...each,
               execute: async (...args: Parameters<typeof execute>) => {
                 const output = await execute(...args);
-                if (draft) workedAfterCheck = true;
+                if (draft) {
+                  workedAfterCheck = true;
+                  if (input.plan?.changeTools.has(name))
+                    changedAfterCheck = true;
+                }
                 return output;
               },
             },
@@ -227,6 +233,7 @@ export async function runTurnLoop(
   let draft: TurnLoopResult | undefined;
   /** The extra round called tools: the reply sent back no longer tells it all. */
   let workedAfterCheck = false;
+  let changedAfterCheck = false;
   const roomForAnotherRound = () =>
     !refused &&
     stepsLeft > 1 &&
@@ -426,7 +433,12 @@ export async function runTurnLoop(
       if (draft) return null;
       throw error;
     });
-    if (!result) return draft as TurnLoopResult;
+    // After a change, the reply the check sent back is stale: an empty answer
+    // lets Core's receipts say what was done.
+    if (!result)
+      return changedAfterCheck
+        ? { text: "", finishReason: "error" }
+        : (draft as TurnLoopResult);
     // The one wrap-up call: never refused, always booked.
     for (const step of result.steps) admission.settle(step.usage.inputTokens);
     text = result.text || text;

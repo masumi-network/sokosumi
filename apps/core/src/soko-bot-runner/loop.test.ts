@@ -798,7 +798,8 @@ describe("the done check (planLoop)", () => {
   const loopInput = (
     model: MockLanguageModelV3,
     // A plan from earlier in the request, unless a test says otherwise.
-    plan: Omit<TurnLoopPlan, "inherited"> & { inherited?: boolean },
+    plan: Omit<TurnLoopPlan, "inherited" | "changeTools"> &
+      Partial<Pick<TurnLoopPlan, "inherited" | "changeTools">>,
     extra: Partial<Parameters<typeof runTurnLoop>[0]> = {},
   ) => ({
     model,
@@ -810,7 +811,7 @@ describe("the done check (planLoop)", () => {
     deadline: 60 * MINUTE,
     stopped: new AbortController().signal,
     now: () => 0,
-    plan: { inherited: true, ...plan },
+    plan: { inherited: true, changeTools: new Set(["work"]), ...plan },
     ...extra,
   });
 
@@ -1035,6 +1036,59 @@ describe("the done check (planLoop)", () => {
     expect(result.text).toBe("The note is saved in Files.");
   });
 
+  /** Stale reply, then one tool call, then every model call fails. */
+  const failingAfterTool = () => {
+    let calls = 0;
+    return new MockLanguageModelV3({
+      doStream: async () => {
+        calls += 1;
+        if (calls === 1)
+          return streamOf({
+            content: [{ type: "text", text: "The note still needs saving." }],
+            finishReason: { unified: "stop", raw: "stop" },
+            warnings: [],
+            usage,
+          });
+        if (calls === 2)
+          return streamOf({
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "call_2",
+                toolName: "work",
+                input: "{}",
+              },
+            ],
+            finishReason: { unified: "tool-calls", raw: "tool_calls" },
+            warnings: [],
+            usage,
+          });
+        throw new Error("provider down");
+      },
+    });
+  };
+  const workTool = {
+    work: tool({ inputSchema: z.object({}), execute: async () => "saved" }),
+  };
+
+  it("leaves the answer to Core's receipts when a change ran and the wrap-up failed too", async () => {
+    const result = await runTurnLoop(
+      loopInput(failingAfterTool(), goBack, { tools: workTool }),
+    );
+    expect(result).toEqual({ text: "", finishReason: "error" });
+  });
+
+  it("keeps the reply when only a read ran and the wrap-up failed too", async () => {
+    const result = await runTurnLoop(
+      loopInput(
+        failingAfterTool(),
+        { ...goBack, changeTools: new Set() },
+        { tools: workTool },
+      ),
+    );
+    expect(result.text).toBe("The note still needs saving.");
+  });
+
   it("keeps the finished answer when the extra round fails", async () => {
     const { model } = scriptedModel([
       "Here is your summary.",
@@ -1227,6 +1281,7 @@ describe("the done check (planLoop)", () => {
         doneCheck: async () => null,
         openSteps: async () =>
           "Open steps in your plan (revision 2):\n- s2 [pending] Rows 13 to 30",
+        changeTools: new Set(),
       },
     });
     const report = calls.at(-1);

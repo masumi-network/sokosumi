@@ -830,6 +830,11 @@ export const RECORDED_SAVES: Record<
   },
 };
 
+/** Tools whose completed call Core records as a change: receipts and recorded saves. */
+export function changeTools(): Set<string> {
+  return new Set([...ACTION_CAPABILITIES, ...Object.keys(RECORDED_SAVES)]);
+}
+
 async function confirmedChanges(turnId: string): Promise<string[]> {
   const calls = await prisma.sokoBotToolCall.findMany({
     where: {

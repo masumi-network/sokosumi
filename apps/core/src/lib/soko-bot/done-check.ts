@@ -1,10 +1,7 @@
 import { SOKO_BOT_TOOL_REFUSED } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
-import {
-  ACTION_CAPABILITIES,
-  STUDIO_JOB_CAPABILITIES,
-} from "@/lib/soko-bot/action-receipts";
+import { STUDIO_JOB_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
 import { parseActionNarrativeText } from "@/lib/soko-bot/action-response";
 import { isOwnerRequest } from "@/lib/soko-bot/owner-request";
 import {
@@ -14,6 +11,7 @@ import {
   resolveRequestId,
 } from "@/lib/soko-bot/request-chain";
 import {
+  changeTools,
   RECORDED_SAVES,
   RuntimeEventLog,
   runtimeEvent,
@@ -101,10 +99,11 @@ async function stepsLeft(
     turnIds,
   );
   const open = openSteps(found.plan);
+  const done = doneByReceipts(open, saves);
   return {
     saves,
-    open: open.filter((step) => !doneByReceipt(step, saves)),
-    done: open.filter((step) => doneByReceipt(step, saves)),
+    open: open.filter((step) => !done.has(step)),
+    done: open.filter((step) => done.has(step)),
   };
 }
 
@@ -239,18 +238,48 @@ function receiptLabel(targetId: string | null, result: unknown): string {
 /** "Minutes.md" is named "minutes.md" or, in a step, just "minutes". */
 function receiptNames(result: unknown): string[] {
   const name = artifactName(result)?.toLowerCase().trim();
-  if (!name) return [];
-  const base = name.replace(/\.[a-z0-9]{1,5}$/, "");
-  return [...new Set([name, base])].filter((each) => each.length >= 3);
+  return name && name.length >= 3 ? [name] : [];
 }
 
-/** A step a save Core confirmed already did: it names that save's artifact. */
-function doneByReceipt(step: PlanStep, saves: readonly SaveReceipt[]): boolean {
-  const text = step.step.toLowerCase();
-  return saves.some(
-    (save) =>
-      save.outcome === "done" && save.names.some((name) => text.includes(name)),
+const FILE_NAME = /[\w-]+(?:\.[\w-]+)*\.[a-z0-9]{1,5}\b/gi;
+
+function namesIn(text: string): string[] {
+  return (text.toLowerCase().match(FILE_NAME) ?? []).map((name) =>
+    name.replace(/\.$/, ""),
   );
+}
+
+/**
+ * The open steps a confirmed save finished. A save finishes a step only when
+ * that step is the one open step naming its file, and every file the step
+ * names was saved: a shared word, a second step about the same file (attach
+ * it) or a second file are not proof.
+ */
+function doneByReceipts(
+  open: readonly PlanStep[],
+  saves: readonly SaveReceipt[],
+): Set<PlanStep> {
+  const saved = new Set(
+    saves
+      .filter((save) => save.outcome === "done")
+      .flatMap((save) => save.names),
+  );
+  // A saved name may hold spaces ("q3 report.pdf"); the step's own file
+  // tokens then end in its last word.
+  const isSaved = (each: string) =>
+    [...saved].some((name) => name === each || name.endsWith(` ${each}`));
+  const names = (step: PlanStep, name: string) =>
+    name.includes(" ")
+      ? step.step.toLowerCase().includes(name)
+      : namesIn(step.step).includes(name);
+  const done = new Set<PlanStep>();
+  for (const name of saved) {
+    const naming = open.filter((step) => names(step, name));
+    const [only] = naming;
+    if (naming.length === 1 && only && namesIn(only.step).every(isSaved))
+      done.add(only);
+  }
+  return done;
 }
 
 const STUDIO_RUNNING = new Set(["PENDING", "SUBMITTING", "QUEUED", "RUNNING"]);
@@ -319,7 +348,7 @@ async function savesSincePlan(
       turnId: { in: [...turnIds] },
       status: "COMPLETED",
       capability: {
-        in: [...ACTION_CAPABILITIES, ...Object.keys(RECORDED_SAVES)],
+        in: [...changeTools()],
       },
       createdAt: { gt: written.createdAt },
     },
