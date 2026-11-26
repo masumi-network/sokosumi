@@ -848,6 +848,42 @@ describe("withSeoRunDiffs edge cases", () => {
     });
   });
 
+  it("counts no new issue from a finding without a device while a device its other finding names was not clear before", () => {
+    const anyDevice = {
+      ...failed({ rowId: "A" }),
+      finding: { ...failed({ rowId: "A" }).finding, device: null },
+    };
+    const diff = diffOf([
+      source(
+        8,
+        result([anyDevice, findingOnly({ rowId: "A", device: "mobile" })]),
+      ),
+      source(
+        1,
+        result([
+          check("pass", { rowId: "A" }),
+          check("fired", { rowId: "A", device: "mobile" }),
+        ]),
+      ),
+    ]);
+    expect(diff).toMatchObject({ newCount: 0, notCheckedBefore: 1 });
+  });
+
+  it("counts no new issue from a finding without a device beside a finding of one device, with no row that fired", () => {
+    const diff = diffOf([
+      source(
+        8,
+        result([
+          { finding: { ...failed({ rowId: "A" }).finding, device: null } },
+          findingOnly({ rowId: "A", device: "mobile" }),
+          check("pass", { rowId: "B" }),
+        ]),
+      ),
+      source(1, result([check("pass", { rowId: "A", device: "mobile" })])),
+    ]);
+    expect(diff).toMatchObject({ newCount: 0, notCheckedBefore: 1 });
+  });
+
   it("counts no new issue from a finding without a device or a row that fired", () => {
     const diff = diffOf([
       source(

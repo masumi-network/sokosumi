@@ -231,15 +231,25 @@ export function compareSeoRuns(
           !before.failed.get(key)?.has(device) &&
           (before.passed.get(key)?.has(device) ||
             before.noted.get(key)?.has(device));
-        // A finding that names no device is new only where every device a row fired on was clear before, and
-        // never without such a row.
+        // A finding that names no device is new only where every device a row fired on, and every device another
+        // finding names, was clear before, and never without a row that fired.
         const anyDevice = after.issued.get(key)?.has(null);
+        const firedOn = [...(after.fired.get(key) ?? [])].filter(
+          (device) => device,
+        );
         const devices = anyDevice
-          ? [...(after.fired.get(key) ?? [])].filter((device) => device)
+          ? [
+              ...new Set([
+                ...firedOn,
+                ...[...(after.issued.get(key) ?? [])].filter(
+                  (device) => device,
+                ),
+              ]),
+            ]
           : [...(after.issued.get(key) ?? [])];
         if (
           anyDevice
-            ? devices.length > 0 && devices.every(clear)
+            ? firedOn.length > 0 && devices.every(clear)
             : devices.some(clear)
         )
           added.push(issue);
