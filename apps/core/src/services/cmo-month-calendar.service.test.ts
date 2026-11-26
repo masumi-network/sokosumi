@@ -44,7 +44,9 @@ import {
   CMO_MONTH_CALENDAR_RETRY_MS,
   CMO_MONTH_CALENDAR_STALE_MS,
   cmoMonthCalendarDue,
+  cmoMonthCalendarOutOfTries,
   cmoMonthCalendarProblems,
+  cmoMonthCalendarStopped,
   cmoMonthCalendarSystem,
   cmoMonthChunkPrompt,
   cmoMonthRepeats,
@@ -396,6 +398,46 @@ describe("cmoMonthCalendarDue", () => {
         now,
       ),
     ).toBe(true);
+  });
+
+  it("holds the cap when the eleventh write was interrupted and never ended", () => {
+    const interrupted = {
+      state: "writing" as const,
+      level: "steady" as const,
+      attempts: CMO_MONTH_CALENDAR_MAX_ATTEMPTS,
+      startedAt: ago(CMO_MONTH_CALENDAR_STALE_MS + 60_000),
+      endedAt: ago(CMO_MONTH_CALENDAR_STALE_MS + 4 * 60 * 60_000),
+    };
+    expect(cmoMonthCalendarDue(interrupted, "steady", now)).toBe(false);
+    expect(cmoMonthCalendarOutOfTries(interrupted, "steady", now)).toBe(true);
+    // A stale write with tries left is still taken over.
+    expect(
+      cmoMonthCalendarDue(
+        { ...interrupted, attempts: CMO_MONTH_CALENDAR_ATTEMPTS },
+        "steady",
+        now,
+      ),
+    ).toBe(true);
+    // The eleventh write still running is not out of tries yet.
+    expect(
+      cmoMonthCalendarOutOfTries(
+        { ...interrupted, startedAt: ago(60_000) },
+        "steady",
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it("reads a stopped month as stopped only for its own plan level", () => {
+    const stopped = {
+      state: "stopped" as const,
+      level: "steady" as const,
+      attempts: CMO_MONTH_CALENDAR_MAX_ATTEMPTS,
+    };
+    expect(cmoMonthCalendarStopped(stopped, "steady")).toBe(true);
+    expect(cmoMonthCalendarStopped(stopped, "all_in")).toBe(false);
+    expect(cmoMonthCalendarDue(stopped, "steady", now)).toBe(false);
+    expect(cmoMonthCalendarDue(stopped, "all_in", now)).toBe(true);
   });
 });
 

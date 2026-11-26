@@ -12,6 +12,7 @@
 import { randomUUID } from "node:crypto";
 import {
   type CmoCalendarEntry,
+  type CmoMonthWriter,
   marketingStrategyPlanSchema,
 } from "@sokosumi/soko-bot";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -39,12 +40,15 @@ vi.mock("@/services/cmo-production.service", async (actual) => ({
   cmoPraiseOnly: async (points: string[]) => ({ points, costUsd: 0 }),
 }));
 
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
 import {
   CMO_MONTH_CALENDAR_ATTEMPTS,
+  CMO_MONTH_CALENDAR_MAX_ATTEMPTS,
   CMO_MONTH_CALENDAR_RETRY_MS,
   runCmoMonthCalendar,
+  stopCmoMonthCalendar,
 } from "@/services/cmo-month-calendar.service";
 import { readCmoProduction } from "@/services/cmo-production.service";
 import {
@@ -237,6 +241,15 @@ function answerEvery(fail?: (prompt: string) => boolean) {
   });
 }
 
+/** Puts the month's writer where a run of earlier writes left it. */
+async function setWriter(versionId: string, writer: CmoMonthWriter) {
+  const plan = await stored(versionId);
+  await prisma.marketingStrategy.update({
+    where: { id: versionId },
+    data: { plan: jsonInput({ ...plan, monthWriter: writer }) },
+  });
+}
+
 async function stored(versionId: string) {
   const version = await prisma.marketingStrategy.findUniqueOrThrow({
     where: { id: versionId },
@@ -410,6 +423,73 @@ describe.skipIf(!enabled)(
         ),
       ).toBe(true);
       expect(await posts(hire.versionId)).toBe(STARTER_POSTS);
+    });
+
+    it("stops after its last try ends short, and the owner reads the month stuck on our side", async () => {
+      const hire = await seedCuso({ byCore: true });
+      expectCoreLog("error", "Core's write of a CMO month failed", 1);
+      await setWriter(hire.versionId, {
+        state: "writing",
+        level: "steady",
+        attempts: CMO_MONTH_CALENDAR_MAX_ATTEMPTS - 1,
+        startedAt: new Date(Date.now() - 4 * 3_600_000).toISOString(),
+        endedAt: new Date(Date.now() - 4 * 3_600_000 + 60_000).toISOString(),
+      });
+      generateText.mockRejectedValue(new Error("gateway down"));
+      expect(
+        await runCmoMonthCalendar(hire.cuso, hire.versionId, "steady"),
+      ).toBe(false);
+      expect((await stored(hire.versionId)).monthWriter).toMatchObject({
+        state: "stopped",
+        attempts: CMO_MONTH_CALENDAR_MAX_ATTEMPTS,
+      });
+      const { status } = await production(hire.cuso);
+      expect(status).toMatchObject({
+        state: "stuck",
+        writerFailed: true,
+        retryAt: null,
+      });
+      answerEvery();
+      expect(
+        await runCmoMonthCalendar(
+          hire.cuso,
+          hire.versionId,
+          "steady",
+          new Date(Date.now() + DAY),
+        ),
+      ).toBe(false);
+    });
+
+    it("stops a month whose eleventh write was interrupted, without a twelfth", async () => {
+      const hire = await seedCuso({ byCore: true });
+      expectCoreLog("error", "Core could not write a whole CMO month", 1);
+      await setWriter(hire.versionId, {
+        state: "writing",
+        level: "steady",
+        attempts: CMO_MONTH_CALENDAR_MAX_ATTEMPTS,
+        startedAt: new Date(Date.now() - 60 * 60_000).toISOString(),
+        endedAt: new Date(Date.now() - 4 * 3_600_000).toISOString(),
+      });
+      answerEvery();
+      expect(
+        await runCmoMonthCalendar(hire.cuso, hire.versionId, "steady"),
+      ).toBe(false);
+      expect(generateText).not.toHaveBeenCalled();
+      expect((await production(hire.cuso)).status.state).toBe("planning");
+
+      expect(
+        await stopCmoMonthCalendar(
+          hire.cuso,
+          hire.versionId,
+          "steady",
+          new Date(),
+        ),
+      ).toBe(true);
+      expect((await stored(hire.versionId)).monthWriter?.state).toBe("stopped");
+      expect((await production(hire.cuso)).status).toMatchObject({
+        state: "stuck",
+        writerFailed: true,
+      });
     });
 
     it("adds the bigger plan's posts after an upgrade", async () => {

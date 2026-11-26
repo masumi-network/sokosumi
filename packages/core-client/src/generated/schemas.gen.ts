@@ -35748,7 +35748,8 @@ export const MarketingStrategySchema = {
                                     enum: [
                                         'examples',
                                         'writing',
-                                        'written'
+                                        'written',
+                                        'stopped'
                                     ]
                                 },
                                 level: {
@@ -37787,7 +37788,8 @@ export const MarketingStrategyRequestSchema = {
                             enum: [
                                 'examples',
                                 'writing',
-                                'written'
+                                'written',
+                                'stopped'
                             ]
                         },
                         level: {
@@ -63301,7 +63303,8 @@ export const CmoPlanSchema = {
                     enum: [
                         'examples',
                         'writing',
-                        'written'
+                        'written',
+                        'stopped'
                     ]
                 },
                 level: {

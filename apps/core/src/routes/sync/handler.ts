@@ -19,6 +19,7 @@ import { syncLockService } from "@/services/sync-lock.service";
 import {
   cronStillRunning,
   flushCronMonitor,
+  reportCronIdleness,
   startCronMonitor,
 } from "./monitor.js";
 
@@ -38,10 +39,11 @@ export interface SyncRunContext extends SyncExecutionContext {
    */
   log: Pick<RequestLogger, "set" | "warn" | "getContext">;
   /**
-   * The rows this run worked on, for a sync with `idleRunsAlert`: a run
-   * that reports 0 (or nothing) counts as a failed run of its cron monitor.
+   * The items this run took on: those it `done` and those that `failed`.
+   * A run whose every item failed is a failed run of its cron monitor; a
+   * run with neither is idle, which only `idleRunsAlert` watches.
    */
-  reportWork: (count: number) => void;
+  reportWork: (work: { done: number; failed?: number }) => void;
 }
 
 type SyncOperation = (context: SyncRunContext) => Promise<void>;
@@ -57,8 +59,8 @@ export interface SyncRequestOptions {
   errorDetail?: "cause" | "safe-fields";
   /**
    * For a sync that always has work in production: this many runs in a row
-   * that report no work (`reportWork`) open a Sentry issue on its cron
-   * monitor, as failed runs do. Without it, only failed runs count.
+   * that report no work (`reportWork`) open a Sentry issue on the cron's
+   * idle monitor. Failed runs stay on the run monitor.
    */
   idleRunsAlert?: number;
 }
@@ -153,9 +155,8 @@ function runBackgroundSync(
       path,
       lockKey: lock.key,
       maxRuntimeMs: timeoutMs,
-      ...(idleRunsAlert ? { failedRunsAlert: idleRunsAlert } : {}),
     });
-    let work: number | null = null;
+    const work = { done: 0, failed: 0 };
     const cancellationController = new AbortController();
     // One standalone event per run: its outcome, the lock, and the sync's
     // own counts (`context.log`). The request's event is already emitted.
@@ -198,8 +199,9 @@ function runBackgroundSync(
         );
       },
       log,
-      reportWork: (count) => {
-        work = (work ?? 0) + count;
+      reportWork: ({ done, failed = 0 }) => {
+        work.done += done;
+        work.failed += failed;
       },
     };
 
@@ -242,10 +244,21 @@ function runBackgroundSync(
           fix: "If it repeats, the sync runs past LOCK_TIMEOUT and two runs overlap; its run events show where the time goes.",
         });
       }
-      const idle = idleRunsAlert !== undefined && !work;
-      if (idle) log.set({ sync: { idle: true } });
+      // Every item it took on failed: a failed run, never an idle one.
+      const workFailed = work.failed > 0 && work.done === 0;
+      const idle = work.done === 0 && work.failed === 0;
+      log.set({ sync: { work, ...(workFailed ? { workFailed } : {}) } });
       log.emit();
-      monitor?.finish(failed || idle ? "error" : "ok");
+      monitor?.finish(failed || workFailed ? "error" : "ok");
+      // Only an observed run counts toward idleness: one that threw says
+      // nothing about whether there was work, yet still checks in.
+      if (idleRunsAlert !== undefined)
+        reportCronIdleness({
+          path,
+          lockKey: lock.key,
+          idle: !failed && idle,
+          idleRunsAlert,
+        });
       await flushCronMonitor();
     }
   })();
@@ -267,7 +280,9 @@ export async function handleSyncRequest(
     acquiredLock = await syncLockService.acquireLock(lockKey);
   } catch (error) {
     if (error instanceof Error && error.message === "LOCK_IS_LOCKED") {
-      cronStillRunning(c.req.path, lockKey);
+      cronStillRunning(c.req.path, lockKey, idleRunsAlert);
+      // Sent before the function may freeze, as a run's check-ins are.
+      waitUntil(flushCronMonitor());
       return new Response(
         JSON.stringify({ message: "Syncing already in progress" }),
         {
