@@ -243,4 +243,13 @@ it("names no share of visitors when Google gave no device mix", () => {
   expect(
     seoDeviceReason({ ...check, basis: "default", mix: null })?.basis,
   ).toBe("default");
+  // Review pass 19: the worker's default device is mobile, so a default desktop check has no reason to name.
+  expect(
+    seoDeviceReason({
+      ...check,
+      device: "desktop",
+      basis: "default",
+      mix: null,
+    })?.basis,
+  ).toBe("unknown");
 });

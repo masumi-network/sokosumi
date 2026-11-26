@@ -318,6 +318,9 @@ export function seoPageTrend(
  * took the default device and a limit then cut that device's read. The row cannot tell the two apart, so the text holds for both.
  */
 export function seoDeviceReason(check: NonNullable<SeoSiteSpeedRow["check"]>) {
+  // The worker's default device is mobile: a default basis on desktop is a check the row cannot explain.
+  if (check.basis === "default" && check.device !== "mobile")
+    return { basis: "unknown" as const, share: null };
   if (check.basis === "default" && check.notChecked)
     return { basis: "stopped" as const, share: null };
   const share =
