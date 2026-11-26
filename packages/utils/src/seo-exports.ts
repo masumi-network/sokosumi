@@ -79,6 +79,7 @@ export {
   seoStatisticsQueryRowsCutNote,
 } from "./seo-statistics-notes.js";
 export {
+  editSeoTaskProse,
   hideSeoAuditRequest,
   removeSeoTaskRequest,
   type SeoTaskMarker,

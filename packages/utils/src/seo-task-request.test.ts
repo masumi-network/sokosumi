@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  editSeoTaskProse,
   hideSeoAuditRequest,
   removeSeoTaskRequest,
   seoTaskDescription,
   seoTaskRequestPacket,
 } from "./seo-task-request.js";
+import { removeTaskContextAttachmentLinks } from "./task-context-attachment.js";
 
 const packet = { version: 1, pageUrls: ["https://example.com/"] };
 
@@ -83,5 +85,25 @@ describe("hideSeoAuditRequest", () => {
     const focused = 'Check titles\n\nseo_job: {"version":1}';
     expect(hideSeoAuditRequest(focused)).toBe(focused);
     expect(hideSeoAuditRequest('seo_audit: {"version":1}')).toBeNull();
+  });
+});
+
+describe("editSeoTaskProse", () => {
+  const linkInPacket = { note: "see [BRIEFING.md](https://x)" };
+  const edit = removeTaskContextAttachmentLinks;
+
+  it("edits the prose and keeps the request line byte for byte", () => {
+    const description = seoTaskDescription(
+      "Summary [BRIEFING.md](https://x)",
+      "seo_audit",
+      linkInPacket,
+    );
+    expect(editSeoTaskProse(description, edit)).toBe(
+      seoTaskDescription("Summary", "seo_audit", linkInPacket),
+    );
+  });
+
+  it("passes text without a request line to the edit whole", () => {
+    expect(editSeoTaskProse("a [BRIEFING.md](https://x) b", edit)).toBe("a  b");
   });
 });

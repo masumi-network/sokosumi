@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/node";
 import { Channel, TaskStatus } from "@sokosumi/database";
 import {
   calendarDateSchema,
+  editSeoTaskProse,
   isTaskEditableStatus,
   parseTaskContextFromDescription,
   removeTaskContextAttachmentLinks,
@@ -446,7 +447,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ).selection.brandUrl;
         nextDescription = await resolveTaskDescriptionWithContext({
           context,
-          description: removeTaskContextAttachmentLinks(proseSource) || null,
+          // The stored request line is JSON for the SEO worker: never edit inside it.
+          description:
+            editSeoTaskProse(proseSource, removeTaskContextAttachmentLinks) ||
+            null,
           organizationId: task.organizationId,
           ownerId: task.ownerId ?? userContext.userId,
           actorUserId: userContext.userId,

@@ -69,3 +69,23 @@ export function hideSeoAuditRequest(
 ): string | null {
   return text ? removeSeoTaskRequest(text, ["seo_audit"]) || null : null;
 }
+
+/**
+ * Runs a text edit on the prose of a description and keeps its request lines
+ * (`seo_audit:` / `seo_job:`) byte for byte. The worker parses the line as
+ * JSON, so an edit made for prose (such as removing Context links) must not
+ * reach inside it. Text without a request line goes through `edit` whole.
+ */
+export function editSeoTaskProse(
+  markdown: string,
+  edit: (prose: string) => string,
+): string {
+  const lines = markdown.split(LINE_BREAK);
+  const markers: readonly SeoTaskMarker[] = ["seo_audit", "seo_job"];
+  const requests = lines.filter((line) => isRequestLine(line, markers));
+  if (requests.length === 0) return edit(markdown);
+  const prose = edit(
+    lines.filter((line) => !requests.includes(line)).join("\n"),
+  );
+  return [prose, requests.join("\n")].filter(Boolean).join("\n\n");
+}
