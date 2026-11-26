@@ -281,6 +281,8 @@ export async function handleSyncRequest(
   } catch (error) {
     if (error instanceof Error && error.message === "LOCK_IS_LOCKED") {
       cronStillRunning(c.req.path, lockKey, idleRunsAlert);
+      // Sent before the function may freeze, as a run's check-ins are.
+      waitUntil(flushCronMonitor());
       return new Response(
         JSON.stringify({ message: "Syncing already in progress" }),
         {

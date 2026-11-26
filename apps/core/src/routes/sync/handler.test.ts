@@ -141,6 +141,8 @@ describe("cron monitors", () => {
     expect(captureCheckIn.mock.calls).toEqual([
       [{ monitorSlug: "lock-key", status: "ok" }],
     ]);
+    // Flushed under waitUntil, so the 409 cannot freeze it unsent.
+    expect(flush).toHaveBeenCalledOnce();
   });
 
   describe("an opted-in cron's idle monitor across ticks", () => {
