@@ -39,6 +39,14 @@ People who use Sokosumi from Claude.ai, Claude Desktop and mobile, or ChatGPT se
 - Images wait for a later ADR that decides which hosts a view may load from.
 - Follow-up tickets under SOKD-413: the package, build, shell and host harness (SOKD-415), then Core serving `ui://` resources (SOKD-416), then the views in waves, starting with the Task board.
 
+## Amendment 2026-11-26: Sokosumi's style in every host (SOKD-475)
+
+Owner decision: views look like Web, as Web looks, in every host. In Claude and ChatGPT they had taken the host's font and colours and read as generic host UI.
+
+- **Theme.** Only light or dark follows the host's `theme` (else the system's). The host's style variables and fonts are ignored. Colours are Sokosumi's tokens from `apps/web/src/app/globals.css`, which `tokens.test.ts` keeps in sync.
+- **Font.** Inter, Web's font, is embedded in each view as a 26 KB subset and loaded from bytes with `FontFace`. The spec's default CSP has no `font-src`, which blocks an `@font-face` with a `data:` URL; bytes are not a fetch. Still no remote font and no CSP domain.
+- **Markdown.** Task descriptions and comments, Job results and Job input questions render as Markdown, as on Web, by a small renderer in the package that builds React elements only. Raw HTML stays text, images show their alt text, and a link opens only under `webBaseUrl`. This replaces "record text renders as plain text" for those fields. A parser library would cost 55 to 80 KB of the 600 KB budget.
+
 ## Sources
 
 - MCP Apps overview: https://modelcontextprotocol.io/extensions/apps/overview

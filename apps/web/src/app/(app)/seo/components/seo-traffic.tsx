@@ -142,6 +142,7 @@ function SeoTrafficContent({
               key={scope + live.site}
               report={live}
               model={model}
+              brandLoading={query.isPlaceholderData}
             />
           ) : live ? (
             <p role="status" className="text-muted-foreground text-sm">

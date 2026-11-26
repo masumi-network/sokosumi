@@ -27,6 +27,7 @@ import {
   resolveSocialWriteOrigin,
   resolveSocialWriteOriginSource,
   resolveWatchWakeAuthority,
+  resolveWorkItemParentAuthority,
   SCHEDULE_AUTHORITY_EXPIRED_MESSAGE,
   SCHEDULE_AUTHORITY_INVALID_MESSAGE,
   SCHEDULE_AUTHORITY_MISMATCH_MESSAGE,
@@ -35,6 +36,11 @@ import {
   SCHEDULE_SOCIAL_DRAFT_ONLY_MESSAGE,
   SCHEDULE_SOCIAL_PUBLISH_BLOCKED_MESSAGE,
   TAINTED_SOCIAL_SCHEDULE_DETAIL,
+  WATCH_AUTHORITY_EXPIRED_MESSAGE,
+  WATCH_AUTHORITY_INVALID_MESSAGE,
+  WATCH_AUTHORITY_SCOPE_MISMATCH_MESSAGE,
+  WATCH_AUTHORITY_UNAVAILABLE_MESSAGE,
+  WATCH_SOCIAL_DRAFT_ONLY_MESSAGE,
 } from "./owner-authority";
 
 const BOT_ID = "01960000-0000-7000-8000-000000000001";
@@ -2422,9 +2428,11 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
       scheduleAuthority: {
         kind: "schedule",
         scheduleId: SCHED_ID,
+        occurrenceKey: `run:${RUN_ID}`,
         authority,
         botProjectId: null,
       },
+      watchAuthority: { kind: "none" },
     });
 
     // admin-schedule-retry:<runId>:<op>
@@ -2438,9 +2446,11 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
       scheduleAuthority: {
         kind: "schedule",
         scheduleId: SCHED_ID,
+        occurrenceKey: `run:${RUN_ID}`,
         authority,
         botProjectId: null,
       },
+      watchAuthority: { kind: "none" },
     });
 
     // admin-retry:<scheduleTurnId>:<op> even when run.turnId was rebound elsewhere (fallback via schedule:<id>:<iso>)
@@ -2454,9 +2464,11 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
       scheduleAuthority: {
         kind: "schedule",
         scheduleId: SCHED_ID,
+        occurrenceKey: "slot:2026-11-26T11:00:00.000Z",
         authority,
         botProjectId: null,
       },
+      watchAuthority: { kind: "none" },
     });
 
     // Legacy authority=null schedule resolves to { kind: "none" }
@@ -2468,6 +2480,7 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
     ).toEqual({
       source: "SCHEDULE",
       scheduleAuthority: { kind: "none" },
+      watchAuthority: { kind: "none" },
     });
 
     // Cross-bot and malformed admin-schedule-retry fail closed without throwing 22P02
@@ -2486,6 +2499,7 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
         kind: "unresolved",
         detail: SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
       },
+      watchAuthority: { kind: "none" },
     });
     expect(
       await resolveSocialWriteOrigin(
@@ -2498,6 +2512,7 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
         kind: "unresolved",
         detail: SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
       },
+      watchAuthority: { kind: "none" },
     });
   });
 
@@ -2780,5 +2795,495 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
       ok: false,
       droppedWriteCapabilities: ["publish_social_post"],
     });
+  });
+
+  it("resolves and enforces SokoBotWatch OwnerAuthority across chat_reply, SCHEDULE wakes, ADMIN_RETRY, Project scope, expiry, and malformed/missing rows", async () => {
+    const WATCH_ID = "01960000-0000-7000-8000-000000000101";
+    const LEGACY_WATCH_ID = "01960000-0000-7000-8000-000000000102";
+    const CORRUPT_WATCH_ID = "01960000-0000-7000-8000-000000000103";
+    const WAKE_TURN_ID = "01960000-0000-7000-8000-000000000104";
+    const RETRY_TURN_ID = "01960000-0000-7000-8000-000000000105";
+    const SCHED_WATCH_TURN_ID = "01960000-0000-7000-8000-000000000106";
+    const RUN_ID = "01960000-0000-7000-8000-000000000107";
+    const PROJECT_ID = PROJECT_A;
+    const OTHER_PROJECT_ID = "01960000-0000-7000-8000-000000000037";
+    const SLOT_TIME = new Date("2026-11-26T09:00:00.000Z");
+
+    const projectWatchAuthority = {
+      version: 1 as const,
+      grantId: "watch-grant-1",
+      origin: "owner_chat" as const,
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      ownerUserId: OWNER_ID,
+      rootTurnId: TURN_ID,
+      targetScope: { kind: "project" as const, projectId: PROJECT_ID },
+      scope: "draft_and_workspace" as const,
+      socialMode: "full" as const,
+      stopRule: { mode: "never" as const },
+    };
+
+    const watchRows = new Map<string, Record<string, unknown>>([
+      [
+        WATCH_ID,
+        {
+          id: WATCH_ID,
+          kind: "chat_reply",
+          projectId: PROJECT_ID,
+          sokoBotId: BOT_ID,
+          authority: projectWatchAuthority,
+          turn: {
+            id: TURN_ID,
+            requestedByUserId: OWNER_ID,
+            askedByUserId: OWNER_ID,
+            chainDepth: 0,
+            workspaceId: WS_ID,
+            source: "CHAT",
+            versionId: "v36",
+            sokoBot: { userId: OWNER_ID, projectId: null },
+          },
+        },
+      ],
+      [
+        LEGACY_WATCH_ID,
+        {
+          id: LEGACY_WATCH_ID,
+          kind: "chat_reply",
+          projectId: null,
+          sokoBotId: BOT_ID,
+          authority: null,
+          turn: {
+            id: TURN_ID,
+            requestedByUserId: OWNER_ID,
+            askedByUserId: OWNER_ID,
+            chainDepth: 0,
+            workspaceId: WS_ID,
+            source: "CHAT",
+            versionId: "v36",
+            sokoBot: { userId: OWNER_ID, projectId: null },
+          },
+        },
+      ],
+      [
+        CORRUPT_WATCH_ID,
+        {
+          id: CORRUPT_WATCH_ID,
+          kind: "studio_job",
+          projectId: PROJECT_ID,
+          sokoBotId: BOT_ID,
+          authority: { invalid: true },
+          turn: {
+            id: TURN_ID,
+            requestedByUserId: OWNER_ID,
+            askedByUserId: OWNER_ID,
+            chainDepth: 0,
+            workspaceId: WS_ID,
+            source: "CHAT",
+            versionId: "v36",
+            sokoBot: { userId: OWNER_ID, projectId: null },
+          },
+        },
+      ],
+    ]);
+
+    const turnRows = new Map<
+      string,
+      { id: string; sokoBotId: string; source: string; clientTurnId: string }
+    >([
+      [
+        WAKE_TURN_ID,
+        {
+          id: WAKE_TURN_ID,
+          sokoBotId: BOT_ID,
+          source: "CHAT",
+          clientTurnId: `watch:${WATCH_ID}`,
+        },
+      ],
+      [
+        RETRY_TURN_ID,
+        {
+          id: RETRY_TURN_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: `admin-retry:${WAKE_TURN_ID}:op-1`,
+        },
+      ],
+      [
+        SCHED_WATCH_TURN_ID,
+        {
+          id: SCHED_WATCH_TURN_ID,
+          sokoBotId: BOT_ID,
+          source: "SCHEDULE",
+          clientTurnId: `watch:${WATCH_ID}`,
+        },
+      ],
+    ]);
+
+    let watchLookups = 0;
+    const mockClient = {
+      sokoBotTurn: {
+        findFirst: async ({
+          where,
+        }: {
+          where: { id: string; sokoBotId: string };
+        }) => {
+          const row = turnRows.get(where.id);
+          return row && row.sokoBotId === where.sokoBotId ? row : null;
+        },
+        findUnique: async () => null,
+      },
+      sokoBotWatch: {
+        findFirst: async ({
+          where,
+        }: {
+          where: { id: string; sokoBotId: string };
+        }) => {
+          watchLookups += 1;
+          const row = watchRows.get(where.id);
+          return row && row.sokoBotId === where.sokoBotId ? row : null;
+        },
+      },
+      sokoBotScheduleRun: {
+        findFirst: async ({
+          where,
+        }: {
+          where: { id?: string; turnId?: string };
+        }) =>
+          where.id === RUN_ID || where.turnId === TURN_ID
+            ? {
+                id: RUN_ID,
+                scheduledFor: SLOT_TIME,
+                schedule: {
+                  id: SCHED_ID,
+                  systemKey: null,
+                  authority: {
+                    ...projectWatchAuthority,
+                    scheduleId: SCHED_ID,
+                    socialMode: "draft_only",
+                  },
+                  sokoBot: { projectId: null },
+                },
+              }
+            : null,
+      },
+    } as never;
+
+    // 1. chat_reply watch wake (direct CHAT, SCHEDULE, and ADMIN_RETRY) resolves
+    //    watchAuthority and clamps social writes to draft_only on the scoped Project.
+    for (const candidate of [
+      {
+        id: WAKE_TURN_ID,
+        sokoBotId: BOT_ID,
+        source: "CHAT",
+        clientTurnId: `watch:${WATCH_ID}`,
+      },
+      {
+        id: SCHED_WATCH_TURN_ID,
+        sokoBotId: BOT_ID,
+        source: "SCHEDULE",
+        clientTurnId: `watch:${WATCH_ID}`,
+      },
+      {
+        id: RETRY_TURN_ID,
+        sokoBotId: BOT_ID,
+        source: "ADMIN_RETRY",
+        clientTurnId: `admin-retry:${WAKE_TURN_ID}:op-1`,
+      },
+    ]) {
+      const origin = await resolveSocialWriteOrigin(candidate, mockClient);
+      expect(origin.watchAuthority?.kind).toBe("watch");
+      expect(origin.scheduleAuthority.kind).toBe("none");
+
+      const baseTurn = {
+        id: candidate.id,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: origin.source,
+        actingUserId: OWNER_ID,
+        askedByKind: "OWNER" as const,
+        sharedBot: false,
+      };
+      // Unscheduled draft on matching Project allowed.
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: baseTurn,
+          capability: "create_social_post",
+          rawInput: { projectId: PROJECT_ID, text: "Draft" },
+          tainted: false,
+          watchAuthority: origin.watchAuthority,
+        }),
+      ).toEqual({ allowed: true, requireUnapprovedDraft: false });
+
+      // Scheduled create, schedule_social_post, and update_social_post refused (draft_only).
+      for (const [capability, rawInput] of [
+        [
+          "create_social_post",
+          {
+            projectId: PROJECT_ID,
+            text: "Scheduled",
+            scheduledAt: "2026-12-01T10:00:00Z",
+          },
+        ],
+        ["schedule_social_post", { projectId: PROJECT_ID, postId: "post-1" }],
+        ["update_social_post", { projectId: PROJECT_ID, postId: "post-1" }],
+      ] as const) {
+        expect(
+          evaluateSocialWriteAuthority({
+            turn: baseTurn,
+            capability,
+            rawInput,
+            tainted: false,
+            watchAuthority: origin.watchAuthority,
+          }),
+        ).toEqual({
+          allowed: false,
+          kind: "watch_authority",
+          detail: WATCH_SOCIAL_DRAFT_ONLY_MESSAGE,
+        });
+      }
+
+      // Wrong Project refused.
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: baseTurn,
+          capability: "create_social_post",
+          rawInput: { projectId: OTHER_PROJECT_ID, text: "Wrong project" },
+          tainted: false,
+          watchAuthority: origin.watchAuthority,
+        }),
+      ).toEqual({
+        allowed: false,
+        kind: "watch_authority",
+        detail: WATCH_AUTHORITY_SCOPE_MISMATCH_MESSAGE,
+      });
+    }
+
+    // 2. Expired watch authority refuses even unscheduled drafts.
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: {
+          id: WAKE_TURN_ID,
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "v36",
+          source: "CHAT",
+          actingUserId: OWNER_ID,
+          askedByKind: "OWNER",
+          sharedBot: false,
+        },
+        capability: "create_social_post",
+        rawInput: { projectId: PROJECT_ID, text: "Expired" },
+        tainted: false,
+        watchAuthority: {
+          kind: "watch",
+          watchId: WATCH_ID,
+          watchKind: "studio_job",
+          authority: {
+            ...projectWatchAuthority,
+            expiresAt: "2020-01-01T00:00:00.000Z",
+          },
+          watchProjectId: PROJECT_ID,
+          botProjectId: null,
+        },
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "watch_authority",
+      detail: WATCH_AUTHORITY_EXPIRED_MESSAGE,
+    });
+
+    // 3. Corrupt non-null JSONB fails closed in BOTH resolveWatchWakeAuthority and social writes.
+    const corruptWake = resolveWatchWakeAuthority(
+      watchRows.get(CORRUPT_WATCH_ID) as never,
+    );
+    expect(corruptWake.origin).toBe("system");
+    expect(corruptWake.scope).toBe("read_only");
+    expect(corruptWake.socialMode).toBe("none");
+
+    const corruptOrigin = await resolveSocialWriteOrigin(
+      {
+        id: WAKE_TURN_ID,
+        sokoBotId: BOT_ID,
+        source: "CHAT",
+        clientTurnId: `watch:${CORRUPT_WATCH_ID}`,
+      },
+      mockClient,
+    );
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: {
+          id: WAKE_TURN_ID,
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "v36",
+          source: "CHAT",
+          actingUserId: OWNER_ID,
+          askedByKind: "OWNER",
+          sharedBot: false,
+        },
+        capability: "create_social_post",
+        rawInput: { projectId: PROJECT_ID, text: "Corrupt" },
+        tainted: false,
+        watchAuthority: corruptOrigin.watchAuthority,
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "watch_authority",
+      detail: WATCH_AUTHORITY_INVALID_MESSAGE,
+    });
+
+    // 4. Legacy authority === null watch still derives chat_reply draft_only safely.
+    const legacyOrigin = await resolveSocialWriteOrigin(
+      {
+        id: WAKE_TURN_ID,
+        sokoBotId: BOT_ID,
+        source: "CHAT",
+        clientTurnId: `watch:${LEGACY_WATCH_ID}`,
+      },
+      mockClient,
+    );
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: {
+          id: WAKE_TURN_ID,
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "v36",
+          source: "CHAT",
+          actingUserId: OWNER_ID,
+          askedByKind: "OWNER",
+          sharedBot: false,
+        },
+        capability: "schedule_social_post",
+        rawInput: { projectId: PROJECT_ID, postId: "post-1" },
+        tainted: false,
+        watchAuthority: legacyOrigin.watchAuthority,
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "watch_authority",
+      detail: WATCH_SOCIAL_DRAFT_ONLY_MESSAGE,
+    });
+
+    // 5. Malformed non-UUID watch clientTurnId fails closed WITHOUT hitting DB;
+    //    missing/cross-bot watch fails closed too.
+    const lookupsBeforeMalformed = watchLookups;
+    const malformedOrigin = await resolveSocialWriteOrigin(
+      {
+        id: WAKE_TURN_ID,
+        sokoBotId: BOT_ID,
+        source: "CHAT",
+        clientTurnId: "watch:not-a-uuid",
+      },
+      mockClient,
+    );
+    expect(watchLookups).toBe(lookupsBeforeMalformed);
+    expect(malformedOrigin.watchAuthority).toEqual({
+      kind: "unresolved",
+      detail: WATCH_AUTHORITY_UNAVAILABLE_MESSAGE,
+    });
+    const crossBotOrigin = await resolveSocialWriteOrigin(
+      {
+        id: WAKE_TURN_ID,
+        sokoBotId: OTHER_BOT_ID,
+        source: "CHAT",
+        clientTurnId: `watch:${WATCH_ID}`,
+      },
+      mockClient,
+    );
+    expect(crossBotOrigin.watchAuthority).toEqual({
+      kind: "unresolved",
+      detail: WATCH_AUTHORITY_UNAVAILABLE_MESSAGE,
+    });
+
+    // 6. Canonical per-occurrence key matches across initial SCHEDULE run,
+    //    admin-schedule-retry, and deriveWatchAuthority on that scheduled run.
+    const directSchedOrigin = await resolveSocialWriteOrigin(
+      { id: TURN_ID, sokoBotId: BOT_ID, source: "SCHEDULE" },
+      mockClient,
+    );
+    const adminSchedRetryTurnId = "01960000-0000-7000-8000-000000000108";
+    turnRows.set(adminSchedRetryTurnId, {
+      id: adminSchedRetryTurnId,
+      sokoBotId: BOT_ID,
+      source: "ADMIN_RETRY",
+      clientTurnId: `admin-schedule-retry:${RUN_ID}:op-1`,
+    });
+    const retrySchedOrigin = await resolveSocialWriteOrigin(
+      { id: adminSchedRetryTurnId, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+      mockClient,
+    );
+    expect(directSchedOrigin.scheduleAuthority).toMatchObject({
+      kind: "schedule",
+      occurrenceKey: `slot:${SLOT_TIME.toISOString()}`,
+    });
+    expect(retrySchedOrigin.scheduleAuthority).toMatchObject({
+      kind: "schedule",
+      occurrenceKey: `slot:${SLOT_TIME.toISOString()}`,
+    });
+
+    // 7. Chained child work (resolveWorkItemParentAuthority) created inside a
+    //    chat_reply watch wake or schedule admin-retry preserves narrowed authority
+    //    (draft_only, Project scope, occurrence-scoped grantId) and fails closed
+    //    on corrupt watches rather than re-widening to root CHAT.
+    const chainedWatchParent = await resolveWorkItemParentAuthority(
+      {
+        id: WAKE_TURN_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "CHAT",
+        clientTurnId: `watch:${WATCH_ID}`,
+        parentTurnId: TURN_ID,
+        askedByUserId: OWNER_ID,
+        requestedByUserId: OWNER_ID,
+        actingUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      mockClient,
+    );
+    expect(chainedWatchParent.socialMode).toBe("draft_only");
+    expect(chainedWatchParent.targetScope).toEqual({
+      kind: "project",
+      projectId: PROJECT_ID,
+    });
+    const corruptWatchParent = await resolveWorkItemParentAuthority(
+      {
+        id: WAKE_TURN_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "CHAT",
+        clientTurnId: `watch:${CORRUPT_WATCH_ID}`,
+        parentTurnId: TURN_ID,
+        askedByUserId: OWNER_ID,
+        requestedByUserId: OWNER_ID,
+        actingUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      mockClient,
+    );
+    expect(corruptWatchParent.origin).toBe("system");
+    expect(corruptWatchParent.scope).toBe("read_only");
+    const retrySchedParent = await resolveWorkItemParentAuthority(
+      {
+        id: adminSchedRetryTurnId,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "ADMIN_RETRY",
+        clientTurnId: `admin-schedule-retry:${RUN_ID}:op-1`,
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: OWNER_ID,
+        actingUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      mockClient,
+    );
+    expect(retrySchedParent.grantId).toBe(
+      `watch-grant-1:slot:${SLOT_TIME.toISOString()}`,
+    );
   });
 });

@@ -4674,14 +4674,16 @@
         "voiceover": "Story with voice",
         "site_tour": "Website tour",
         "top_three": "Top 3 list",
-        "slideshow": "Photo slideshow"
+        "slideshow": "Photo slideshow",
+        "launch": "Launch"
       },
       "kindHints": {
         "presenter": "A presenter says your script to camera.",
         "voiceover": "A voice tells a short story over your pictures and website.",
         "site_tour": "A voice walks people through your website.",
         "top_three": "A voice gives three numbered points.",
-        "slideshow": "Your pictures to music, with one line on each."
+        "slideshow": "Your pictures to music, with one line on each.",
+        "launch": "A voice announces something new, with its date on a card."
       },
       "kindNeedsSite": "Add your website to the project first.",
       "stepShows": "What it shows",
@@ -4698,17 +4700,23 @@
         "voiceover": "Most people get this wrong about…",
         "site_tour": "This is our website. Here is what you can do on it…",
         "top_three": "Three ways to… One, … Two, … Three, … Try it today.",
-        "slideshow": "Shipped the code?\nNow ship the page.\nTry it free today"
+        "slideshow": "Shipped the code?\nNow ship the page.\nTry it free today",
+        "launch": "Our winter menu is here. It starts on 3 December. Six warm dishes, made fresh each morning. Book your table today."
       },
       "scriptHints": {
         "voiceover": "The first sentence is the hook.",
         "site_tour": "Say what people see on your site, from the top down.",
         "top_three": "A sentence that names the list, one per point, then what to do next.",
-        "slideshow": "One short line per picture, one per row."
+        "slideshow": "One short line per picture, one per row.",
+        "launch": "Say what is new, then when. The date shows on a card while the second sentence is spoken."
       },
       "hookLine": "Words on screen at the start",
       "hookLinePlaceholder": "Leave empty and we write them for you",
       "hookLineHint": "Up to six words that tell people why to keep watching.",
+      "launchDate": "Date",
+      "launchDatePlaceholder": "3 December",
+      "launchDateHint": "When it starts, as it should show on the card.",
+      "launchDateMissing": "Add the date of what you are announcing.",
       "shortIncludes": "Captions, music and your logo at the end are included.",
       "slideshowIncludes": "Music and your logo at the end are included.",
       "costDetailShort": "charged only when the video is ready, in about a minute",
@@ -14988,6 +14996,7 @@
         "brandLimited": "There are more query rows than the split can read. The branded and non-branded numbers are a lower limit.",
         "brandListedOnly": "These numbers count the listed queries only. The day totals could not be compared, so there are no shares.",
         "brandUnavailable": "Could not read the queries for this period, so there is no brand split.",
+        "brandLoading": "Reading the brand split…",
         "brandEmpty": "Add your brand terms to see how much traffic comes from searches for your name."
       },
       "traffic": {
@@ -15039,6 +15048,7 @@
           "non_branded": "Non-branded"
         },
         "brandTotals": "Listed queries: {branded} clicks branded ({brandedShare}), {nonBranded} clicks non-branded ({nonBrandedShare})",
+        "brandTotalsNoShare": "Listed queries: {branded} clicks branded, {nonBranded} clicks non-branded",
         "brandSuggested": "Suggested from your website name. Check the terms before you save.",
         "editBrandTerms": "Edit brand terms",
         "addBrandTerms": "Add brand terms",

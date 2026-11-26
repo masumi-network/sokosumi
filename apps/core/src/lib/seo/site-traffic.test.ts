@@ -339,6 +339,27 @@ describe("website-scoped Search Console traffic", () => {
       },
     ]);
   });
+  it("drops the split when a query page is over the 5 MB limit", async () => {
+    // 4,000 rows of 1,500 bytes each: about 6 MB, in one page of the read.
+    const rows = Array.from({ length: 4_000 }, (_, index) => ({
+      keys: ["2026-11-17", `${"q".repeat(1_460)} ${index}`],
+      clicks: 1,
+      impressions: 1,
+    }));
+    const report = await readSiteTraffic(
+      request,
+      apex,
+      [apex],
+      [inspection],
+      (args) =>
+        (args.dimensions as string[]).includes("query")
+          ? Promise.resolve({ rows })
+          : google(args),
+      ["Sample Site"],
+    );
+    expect(report.brand).toBeUndefined();
+    expect(report.totals).toEqual({ clicks: 12, impressions: 97 });
+  });
   it("returns the totals when the query read never answers", async () => {
     vi.useFakeTimers();
     try {

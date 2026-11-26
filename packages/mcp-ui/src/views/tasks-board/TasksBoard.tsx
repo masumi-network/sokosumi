@@ -1,18 +1,15 @@
-import { useEffect, useId, useState } from "react";
+import { type ReactNode, useEffect, useId, useState } from "react";
 import { z } from "zod";
 import type { ViewContext } from "../../shell/Shell.tsx";
+import { isPlainReference, type MessageKey, t } from "../../shell/text.ts";
+import { Button, PrimaryButton } from "../../shell/ui.tsx";
 import {
-  formatDay,
-  isPlainReference,
-  type MessageKey,
-  t,
-} from "../../shell/text.ts";
-import { PrimaryButton, QuietButton } from "../../shell/ui.tsx";
-import {
-  AssigneeBadge,
+  Avatar,
+  DueDate,
   Party,
+  PriorityIcon,
   partyName,
-  statusWord as taskStatusWord,
+  TaskStatus,
   taskWebUrl,
 } from "../task.tsx";
 
@@ -24,6 +21,7 @@ const BoardTask = z.object({
   identifier: z.string().nullish(),
   name: z.string(),
   status: z.string(),
+  priority: z.string().nullish(),
   dueOn: z.string().nullish(),
   assignee: Party,
   workspace: z.object({ organization: Named }).partial().nullish(),
@@ -48,15 +46,27 @@ export const BOARD_EMPTY = {
  * status word. An unknown status lands in Todo, as on Web.
  */
 const COLUMNS = [
-  { id: "backlog", statuses: ["DRAFT", "QUEUED"], main: "DRAFT" },
-  { id: "todo", statuses: ["READY", "CREDITS_TOPPED_UP"], main: "READY" },
+  {
+    id: "backlog",
+    statuses: ["DRAFT", "QUEUED"],
+    main: "DRAFT",
+    dot: "bg-status-done",
+  },
+  {
+    id: "todo",
+    statuses: ["READY", "CREDITS_TOPPED_UP"],
+    main: "READY",
+    dot: "bg-status-external",
+  },
   {
     id: "inProgress",
     statuses: ["RUNNING", "AWAITING_EXTERNAL"],
     main: "RUNNING",
+    dot: "bg-status-working",
   },
   {
     id: "inputRequired",
+    dot: "bg-semantic-warning",
     statuses: [
       "GRANT_PENDING",
       "INPUT_REQUIRED",
@@ -69,15 +79,41 @@ const COLUMNS = [
     id: "done",
     statuses: ["COMPLETED", "FAILED", "CANCELED"],
     main: "COMPLETED",
+    dot: "bg-semantic-success",
   },
 ] as const satisfies {
   id: string;
   statuses: readonly string[];
   main?: string;
+  /** Web's column dot (task-board.ts `COLUMN_STATUS_COLORS`). */
+  dot: string;
 }[];
 type Column = (typeof COLUMNS)[number];
 
 const INLINE_PER_COLUMN = 3;
+const INLINE_IN_LIST = 5;
+
+/**
+ * Web shows a phone the list of cards and a wider screen the board
+ * (tasks-view-mode.server.ts, task-list-view.tsx). A view knows only its
+ * own width, so it switches at Tailwind's `sm`.
+ */
+const BOARD_MEDIA = "(min-width: 640px)";
+
+function useMedia(query: string): boolean {
+  const [matches, setMatches] = useState(
+    () => window.matchMedia?.(query).matches ?? true,
+  );
+  useEffect(() => {
+    const media = window.matchMedia?.(query);
+    if (!media) return;
+    const update = () => setMatches(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, [query]);
+  return matches;
+}
 
 function columnOf(status: string): Column {
   return (
@@ -87,9 +123,9 @@ function columnOf(status: string): Column {
   );
 }
 
-function statusWord(task: BoardTask, column: Column): string | undefined {
-  if ("main" in column && column.main === task.status) return undefined;
-  return taskStatusWord(task.status);
+/** The column title already names its main status, so a card there shows only the marker. */
+function isQuiet(task: BoardTask, column?: Column): boolean {
+  return !!column && "main" in column && column.main === task.status;
 }
 
 /**
@@ -114,6 +150,7 @@ export function TasksBoard({
     [context.displayMode],
   );
   const fullscreen = mode === "fullscreen";
+  const board = useMedia(BOARD_MEDIA);
   const otherMode = fullscreen ? "inline" : "fullscreen";
   const [selectedId, setSelectedId] = useState<string>();
   const [refreshing, setRefreshing] = useState<"idle" | "busy" | "failed">(
@@ -149,8 +186,31 @@ export function TasksBoard({
     setRefreshing((await refresh()) ? "idle" : "failed");
   };
 
+  const card = (task: BoardTask, column?: Column) => {
+    const selected = task.id === selectedId;
+    const url = selected ? taskWebUrl(task.id, context.webBaseUrl) : undefined;
+    return (
+      <TaskCard
+        key={task.id}
+        task={task}
+        quiet={isQuiet(task, column)}
+        selected={selected}
+        context={context}
+        onSelect={() => select(task)}
+      >
+        {url && (
+          <PrimaryButton
+            onClick={() => app.openLink({ url }).catch(warn("ui/open-link"))}
+          >
+            {t("task.open")}
+          </PrimaryButton>
+        )}
+      </TaskCard>
+    );
+  };
+
   return (
-    <article className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 flex-col gap-0.5">
           <h1 className="text-base font-semibold tracking-tight">
@@ -169,20 +229,21 @@ export function TasksBoard({
         </div>
         <div className="-mx-3 flex items-center">
           {refresh && (
-            <QuietButton
+            <Button
+              variant="ghost"
               onClick={runRefresh}
               disabled={refreshing === "busy"}
               aria-busy={refreshing === "busy"}
             >
               {refreshing === "busy" ? t("view.refreshing") : t("view.refresh")}
-            </QuietButton>
+            </Button>
           )}
           {availableDisplayModes.includes(otherMode) && (
-            <QuietButton onClick={switchMode}>
+            <Button variant="ghost" onClick={switchMode}>
               {fullscreen
                 ? t("tasksBoard.exitFullscreen")
                 : t("tasksBoard.fullscreen")}
-            </QuietButton>
+            </Button>
           )}
         </div>
       </header>
@@ -190,136 +251,162 @@ export function TasksBoard({
         {refreshing === "failed" ? t("view.refreshFailed") : ""}
       </p>
 
-      <div
-        className={
-          fullscreen
-            ? "-mx-4 flex gap-6 overflow-x-auto px-4 pb-2"
-            : "flex flex-col gap-5"
-        }
-      >
-        {COLUMNS.map((column) => {
-          const inColumn = tasks.filter(
-            (task) => columnOf(task.status) === column,
-          );
-          const shown = fullscreen
-            ? inColumn
-            : inColumn.slice(0, INLINE_PER_COLUMN);
-          return (
-            <ColumnSection
-              key={column.id}
-              title={t(`tasksBoard.column.${column.id}`)}
-              count={inColumn.length}
-              more={inColumn.length - shown.length}
-              className={fullscreen ? "flex-[1_0_14rem]" : ""}
-            >
-              {shown.map((task) => {
-                const selected = task.id === selectedId;
-                const url = selected
-                  ? taskWebUrl(task.id, context.webBaseUrl)
-                  : undefined;
-                return (
-                  <li key={task.id} className="flex flex-col gap-2">
-                    <TaskRow
-                      task={task}
-                      status={statusWord(task, column)}
-                      selected={selected}
-                      context={context}
-                      onSelect={() => select(task)}
-                    />
-                    {url && (
-                      <div className="px-3 pb-1">
-                        <PrimaryButton
-                          onClick={() =>
-                            app.openLink({ url }).catch(warn("ui/open-link"))
-                          }
-                        >
-                          {t("task.open")}
-                        </PrimaryButton>
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ColumnSection>
-          );
-        })}
-      </div>
-    </article>
+      {board ? (
+        <div className="-mx-4 flex items-stretch gap-3 overflow-x-auto px-4 pb-2">
+          {COLUMNS.map((column) => {
+            const inColumn = tasks.filter(
+              (task) => columnOf(task.status) === column,
+            );
+            const shown = fullscreen
+              ? inColumn
+              : inColumn.slice(0, INLINE_PER_COLUMN);
+            return (
+              <BoardColumn
+                key={column.id}
+                title={t(`tasksBoard.column.${column.id}`)}
+                dot={column.dot}
+                count={inColumn.length}
+                more={inColumn.length - shown.length}
+              >
+                {shown.map((task) => card(task, column))}
+              </BoardColumn>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="bg-card-background flex flex-col gap-2 rounded-xl p-2">
+          {(fullscreen ? tasks : tasks.slice(0, INLINE_IN_LIST)).map((task) =>
+            card(task),
+          )}
+          {!fullscreen && tasks.length > INLINE_IN_LIST && (
+            <More count={tasks.length - INLINE_IN_LIST} />
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
-function ColumnSection({
+function More({ count }: { count: number }) {
+  return (
+    <p className="text-muted-foreground px-1 pb-1 text-xs">
+      {t("tasksBoard.more", { count })}
+    </p>
+  );
+}
+
+/** Web's kanban-column.tsx and column-header.tsx. */
+function BoardColumn({
   title,
+  dot,
   count,
   more,
-  className,
   children,
 }: {
   title: string;
+  dot: string;
   count: number;
   more: number;
-  className: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const headingId = useId();
   return (
     <section
       aria-labelledby={headingId}
-      className={`flex flex-col gap-1 ${className}`}
+      className="bg-card-background flex min-w-[260px] flex-1 shrink-0 flex-col rounded-xl sm:min-w-[280px]"
     >
-      <h2
-        id={headingId}
-        className="text-muted-foreground flex items-baseline gap-2 text-xs font-medium"
-      >
-        {title}
-        <span className="tabular-nums">{count}</span>
-      </h2>
-      {count > 0 && <ul className="-mx-3 flex flex-col">{children}</ul>}
-      {more > 0 && (
-        <p className="text-muted-foreground text-xs">
-          {t("tasksBoard.more", { count: more })}
-        </p>
-      )}
+      <header className="flex items-center justify-between gap-2 px-[21px] pt-3 pb-2">
+        <h2
+          id={headingId}
+          className="flex min-w-0 items-center gap-2 text-sm font-medium"
+        >
+          <span
+            aria-hidden="true"
+            className="flex size-3.5 shrink-0 items-center justify-center"
+          >
+            <span className={`size-2 rounded-full ${dot}`} />
+          </span>
+          <span className="truncate">{title}</span>
+        </h2>
+        <span className="text-muted-foreground text-xs tabular-nums">
+          {count}
+        </span>
+      </header>
+      <div className="flex flex-1 flex-col gap-2 px-2 pb-2">
+        {children}
+        {more > 0 && <More count={more} />}
+        {count === 0 && (
+          <p className="text-muted-foreground flex flex-1 items-center justify-center py-8 text-sm">
+            {t("tasksBoard.column.empty")}
+          </p>
+        )}
+      </div>
     </section>
   );
 }
 
-function TaskRow({
+/**
+ * Web's task-card.tsx: the status and identifier, the title, then the due day
+ * and the assignee. The title is the button that selects the Task; it covers
+ * the card, as Web's title link does.
+ */
+function TaskCard({
   task,
-  status,
+  quiet,
   selected,
   context,
   onSelect,
+  children,
 }: {
   task: BoardTask;
-  status?: string;
+  quiet: boolean;
   selected: boolean;
   context: ViewContext;
   onSelect: () => void;
+  children?: ReactNode;
 }) {
   const assignee = partyName(task.assignee);
-  const meta = [
-    task.identifier,
-    status,
-    task.dueOn && t("task.due", { date: formatDay(task.dueOn, context) }),
-  ].filter(Boolean);
-
   return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      onClick={onSelect}
-      className={`hover:bg-accent focus-visible:outline-ring flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 ${selected ? "bg-accent" : ""}`}
+    <article
+      className={`bg-background hover:border-control-border relative isolate flex flex-col gap-2 rounded-lg border p-3 transition-[border-color,box-shadow] hover:shadow-sm ${selected ? "border-control-border shadow-sm" : "border-border"}`}
     >
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="line-clamp-2 font-medium">{task.name}</span>
-        {meta.length > 0 && (
-          <span className="text-muted-foreground text-xs">
-            {meta.join(" · ")}
+      <div className="flex h-4 items-center gap-2 text-xs">
+        <TaskStatus status={task.status} quiet={quiet} />
+        {task.identifier && (
+          <span className="text-muted-foreground shrink-0 tabular-nums">
+            {task.identifier}
           </span>
         )}
-      </span>
-      {assignee && <AssigneeBadge name={assignee} />}
-    </button>
+        {task.priority && (
+          <PriorityIcon priority={task.priority} className="size-3.5" />
+        )}
+      </div>
+      <h3 className="line-clamp-2 text-sm leading-5 font-medium">
+        <button
+          type="button"
+          aria-pressed={selected}
+          onClick={onSelect}
+          className="press text-left outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-ring"
+        >
+          {task.name}
+        </button>
+      </h3>
+      <div className="flex h-5 items-center gap-2">
+        {task.dueOn && (
+          <DueDate dueOn={task.dueOn} status={task.status} context={context} />
+        )}
+        <span className="ms-auto">
+          <Avatar
+            name={assignee}
+            label={
+              assignee
+                ? t("task.assignee", { name: assignee })
+                : t("task.unassigned")
+            }
+          />
+        </span>
+      </div>
+      {children && <div className="relative z-10 grid">{children}</div>}
+    </article>
   );
 }

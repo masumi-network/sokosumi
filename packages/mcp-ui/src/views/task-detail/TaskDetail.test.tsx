@@ -86,7 +86,7 @@ const timelineItems = () =>
 afterEach(cleanup);
 
 describe("TaskDetail header", () => {
-  it("shows the name, identifier, status, assignee, due date and workspace", async () => {
+  it("shows the identifier, status and name, then Web's properties", async () => {
     await openTask(TASK.result);
 
     expect(
@@ -95,44 +95,65 @@ describe("TaskDetail header", () => {
         name: "Research competitor pricing in the DACH market",
       }),
     ).toBeTruthy();
-    expect(screen.getByText("ACME-39 · Ready")).toBeTruthy();
-    expect(screen.getByText("Due Nov 28, 2026 · Acme Studio")).toBeTruthy();
-    expect(screen.getByText("MA")).toBeTruthy();
-    expect(screen.getByText("Assigned to Market Analyst")).toBeTruthy();
+    expect(screen.getByText("ACME-39")).toBeTruthy();
+    expect(screen.getByText("Ready")).toBeTruthy();
+    const property = (name: string) => screen.getByRole("group", { name });
+    expect(property("Priority: Medium").textContent).toBe("Medium");
+    expect(property("Assignee: Market Analyst").textContent).toContain(
+      "Market Analyst",
+    );
+    expect(
+      within(property("Assignee: Market Analyst")).getByText("MA"),
+    ).toBeTruthy();
+    expect(property("Due date: Nov 28").textContent).toBe("Due Nov 28");
+    expect(property("Workspace: Acme Studio").textContent).toBe("Acme Studio");
   });
 
   it("leaves out what a bare Task does not have", async () => {
     await openTask(TASK.bare);
 
     expect(screen.getByText("No description")).toBeTruthy();
-    expect(screen.queryByText(/^Due/)).toBeNull();
-    expect(screen.queryByText("Acme Studio")).toBeNull();
-    expect(screen.queryByText(/^Assigned to/)).toBeNull();
+    expect(screen.queryByRole("group", { name: /^Due date/ })).toBeNull();
+    expect(screen.queryByRole("group", { name: /^Workspace/ })).toBeNull();
+    expect(
+      screen.getByRole("group", { name: "Assignee: No assignee" }),
+    ).toBeTruthy();
   });
 });
 
 describe("TaskDetail description", () => {
-  it("renders record text as text, never as markup", async () => {
+  it("renders Markdown as Web does, with record HTML as text", async () => {
     await openTask(TASK.result);
 
+    expect(
+      screen.getAllByRole("listitem").map((item) => item.textContent),
+    ).toContain("List each plan's monthly price and what it includes.");
     expect(screen.getByText(/<b>Markup stays text\.<\/b>/)).toBeTruthy();
     expect(document.querySelector("main b")).toBeNull();
   });
 
+  it("opens a Sokosumi link in the description through the host, and no other", async () => {
+    const sent = await openTask(TASK.result);
+
+    expect(
+      screen.queryByRole("link", { name: "the competitor's site" }),
+    ).toBeNull();
+    await act(async () =>
+      fireEvent.click(screen.getByRole("link", { name: "pricing brief" })),
+    );
+    expect(sent.links).toHaveBeenCalledWith(
+      "https://app.sokosumi.com/tasks/0196a000-0000-7000-8000-000000000012",
+    );
+  });
+
   it("wraps a long description in full instead of scrolling inside the card", async () => {
     await openTask(TASK.long);
-    const description = screen.getByText(/a-very-long-link-without-any-spaces/);
+    const link = screen.getByText(/a-very-long-link-without-any-spaces/);
 
-    expect(description.textContent).toBe(TASK.longDescription);
-    expect(description.className).toContain("whitespace-pre-wrap");
-    expect(description.className).toContain("break-words");
-    for (
-      let node: HTMLElement | null = description;
-      node;
-      node = node.parentElement
-    ) {
+    for (let node: HTMLElement | null = link; node; node = node.parentElement) {
       expect(node.className).not.toMatch(/overflow-|max-h-|line-clamp/);
     }
+    expect(link.closest(".wrap-anywhere")).toBeTruthy();
   });
 });
 
@@ -156,12 +177,12 @@ describe("TaskDetail timeline", () => {
 
     expect(timelineItems()).toEqual([
       expect.stringMatching(
-        /^Ada Lovelace · Nov 21, 2026, 10:15 AMPlease include annual prices/,
+        /^ALAda Lovelace · Nov 21, 2026, 10:15 AMPlease include annual prices/,
       ),
       "Job · Nov 22, 2026, 9:30 AMCompetitor pricing scan · Failed",
       "Job · Nov 24, 2026, 2:00 PMCompetitor pricing scan, second try · Completed",
       expect.stringMatching(
-        /^Market Analyst · Nov 24, 2026, 4:40 PMFirst pass/,
+        /^MAMarket Analyst · Nov 24, 2026, 4:40 PMFirst pass/,
       ),
     ]);
   });
@@ -214,7 +235,7 @@ describe("TaskDetail actions", () => {
   it("sends a Task that waits for approval to Sokosumi, with no approve control", async () => {
     const sent = await openTask(TASK.approval);
 
-    expect(screen.getByText("ACME-39 · Approval required")).toBeTruthy();
+    expect(screen.getByText("Approval required")).toBeTruthy();
     await act(async () =>
       fireEvent.click(
         screen.getByRole("button", { name: "Review in Sokosumi" }),

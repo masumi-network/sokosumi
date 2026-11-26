@@ -18,7 +18,7 @@ import {
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
 import {
-  SHORT_VIDEO_FORMATS,
+  CMO_WRITTEN_SHORT_VIDEO_FORMATS,
   SHORT_VIDEO_TEXT_FORMATS,
   TALKING_VIDEO_SCRIPT_MAX_LENGTH,
   TALKING_VIDEO_SCRIPT_MIN_LENGTH,
@@ -179,7 +179,7 @@ const writtenPieceSchema = z.object({
    * Nullable, never optional: strict structured output refuses a schema with
    * a key outside `required`, and every chunk then wrote nothing.
    */
-  shortFormat: z.enum(SHORT_VIDEO_FORMATS).nullable(),
+  shortFormat: z.enum(CMO_WRITTEN_SHORT_VIDEO_FORMATS).nullable(),
   hookLine: z.string().nullable(),
 });
 export const cmoWrittenChunkSchema = z.object({

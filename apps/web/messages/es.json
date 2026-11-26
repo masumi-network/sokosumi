@@ -4674,14 +4674,16 @@
         "voiceover": "Historia con voz",
         "site_tour": "Recorrido por la web",
         "top_three": "Lista de 3",
-        "slideshow": "Pase de fotos"
+        "slideshow": "Pase de fotos",
+        "launch": "Lanzamiento"
       },
       "kindHints": {
         "presenter": "Una persona dice tu guion a cámara.",
         "voiceover": "Una voz cuenta una historia corta sobre tus imágenes y tu web.",
         "site_tour": "Una voz recorre tu web.",
         "top_three": "Una voz da tres puntos numerados.",
-        "slideshow": "Tus imágenes con música y una frase en cada una."
+        "slideshow": "Tus imágenes con música y una frase en cada una.",
+        "launch": "Una voz anuncia algo nuevo, con su fecha en una tarjeta."
       },
       "kindNeedsSite": "Añade primero tu web al proyecto.",
       "stepShows": "Qué muestra",
@@ -4698,17 +4700,23 @@
         "voiceover": "Casi todo el mundo se equivoca con…",
         "site_tour": "Esta es nuestra web. Esto es lo que puedes hacer en ella…",
         "top_three": "Tres formas de… Uno, … Dos, … Tres, … Pruébalo hoy.",
-        "slideshow": "¿Código listo?\nAhora la página.\nPruébalo gratis hoy"
+        "slideshow": "¿Código listo?\nAhora la página.\nPruébalo gratis hoy",
+        "launch": "Llega nuestro menú de invierno. Empieza el 3 de diciembre. Seis platos calientes, hechos cada mañana. Reserva tu mesa hoy."
       },
       "scriptHints": {
         "voiceover": "La primera frase es el gancho.",
         "site_tour": "Di lo que se ve en tu web, de arriba abajo.",
         "top_three": "Una frase que nombra la lista, una por punto y luego el siguiente paso.",
-        "slideshow": "Una frase corta por imagen, una por línea."
+        "slideshow": "Una frase corta por imagen, una por línea.",
+        "launch": "Di qué es nuevo y luego cuándo. La fecha aparece en una tarjeta mientras se dice la segunda frase."
       },
       "hookLine": "Texto en pantalla al principio",
       "hookLinePlaceholder": "Déjalo vacío y lo escribimos por ti",
       "hookLineHint": "Hasta seis palabras que digan por qué seguir viendo.",
+      "launchDate": "Fecha",
+      "launchDatePlaceholder": "3 de diciembre",
+      "launchDateHint": "Cuándo empieza, tal como debe aparecer en la tarjeta.",
+      "launchDateMissing": "Añade la fecha de lo que anuncias.",
       "shortIncludes": "Incluye subtítulos, música y tu logo al final.",
       "slideshowIncludes": "Incluye música y tu logo al final.",
       "costDetailShort": "solo se cobra cuando el vídeo está listo, en un minuto aproximadamente",
@@ -14988,6 +14996,7 @@
         "brandLimited": "Hay más filas de consultas de las que la división puede leer. Las cifras de marca y sin marca son un límite inferior.",
         "brandListedOnly": "Estas cifras solo cuentan las consultas listadas. No se pudieron comparar los totales diarios, por lo que no hay porcentajes.",
         "brandUnavailable": "No se pudieron leer las consultas de este periodo, por lo que no hay división por marca.",
+        "brandLoading": "Leyendo la división por marca…",
         "brandEmpty": "Añade tus términos de marca para ver cuánto tráfico viene de búsquedas de tu nombre."
       },
       "traffic": {
@@ -15039,6 +15048,7 @@
           "non_branded": "Sin marca"
         },
         "brandTotals": "Consultas listadas: {branded} clics de marca ({brandedShare}), {nonBranded} clics sin marca ({nonBrandedShare})",
+        "brandTotalsNoShare": "Consultas listadas: {branded} clics de marca, {nonBranded} clics sin marca",
         "brandSuggested": "Sugerencia a partir del nombre de tu sitio web. Revisa los términos antes de guardar.",
         "editBrandTerms": "Editar términos de marca",
         "addBrandTerms": "Añadir términos de marca",
