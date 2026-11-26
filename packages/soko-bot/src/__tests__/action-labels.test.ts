@@ -79,4 +79,40 @@ describe("withoutActionReceipts", () => {
       ),
     ).toBe("Done.");
   });
+
+  it("keeps bracketed prose that starts like a receipt", () => {
+    const text =
+      "Already satisfied [with the draft]? I would still verify the numbers.\n\nHere are the details.";
+    expect(withoutActionReceipts(text)).toBe(text);
+  });
+
+  it("keeps a linked receipt that goes on in a sentence", () => {
+    const text =
+      "Already satisfied [with the draft](/tasks/1)? I would still verify the numbers.\n\nHere are the details.";
+    expect(withoutActionReceipts(text)).toBe(text);
+    const trailing =
+      "Created task [Plan](/tasks/1). I would still check it.\n\nDone.";
+    expect(withoutActionReceipts(trailing)).toBe(trailing);
+  });
+
+  it("reads a link's whole label before the next receipt, even one that starts like one", () => {
+    expect(
+      withoutActionReceipts(
+        "Created task [Week 1\nUpdated task tracker](/tasks/1).\n\nDone.",
+      ),
+    ).toBe("Done.");
+  });
+
+  it("drops a SEO receipt and a counted list of links", () => {
+    expect(
+      withoutActionReceipts(
+        [
+          "Created SEO action task [Fix titles](/tasks/9) ([Open SEO](/seo?projectId=p&view=project)).",
+          "Archived 2 Tasks: [A](/tasks/1), [B](/tasks/2).",
+          "",
+          "Done.",
+        ].join("\n"),
+      ),
+    ).toBe("Done.");
+  });
 });

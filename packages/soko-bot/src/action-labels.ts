@@ -116,22 +116,35 @@ const HEAD = `(?:Previously verified: )?(?:${RECEIPT_HEADS.map((head) => {
 }).join("|")})`;
 
 /**
- * Only the unambiguous forms: a bare head, or a head whose target opens with
- * a markdown link (`[Name](/tasks/1)`, `([Open table](…))`), alone or after a
- * colon. Prose that starts with a label ("Updated memory with…") is not one.
- * Only a link's text may span lines (Core keeps a Task name's newlines), so
- * lines split where a head starts and a line of prose after a receipt stays.
+ * A whole markdown link as Core writes one: escaped text that may span lines
+ * (a Task name keeps its newlines), then a destination without spaces.
  */
-const LINK_TEXT = String.raw`\[(?:\\.|[^\]\\])*\]`;
+const LINK = String.raw`\[(?:\\[\s\S]|[^\]\\])*\]\([^\s()]*\)`;
+
+/**
+ * A target Core links: `[Name](/tasks/1)`, with who got it (`→ Ada`) or a
+ * linked-out page beside it, or a linked-out page alone (`([Open table](…))`).
+ */
+const TARGET = String.raw`(?:${LINK}(?: → [^\n.]+| \(${LINK}\))?|\(${LINK}\))`;
+
+/**
+ * One complete receipt line from where the last one ended: a head, then
+ * nothing or its linked targets, then the period that ends the line. Read as
+ * a whole, a link's label never starts the next receipt, and a sentence after
+ * the period, or text that is not a link, makes the paragraph the bot's own.
+ * Plain-name targets (a contact, an old file) read like prose, so they stay.
+ */
 const RECEIPT = new RegExp(
-  String.raw`^${HEAD}(?:(?: |: )\(?${LINK_TEXT}(?:${LINK_TEXT}|[^\n[])*)?\.$`,
+  String.raw`${HEAD}(?:(?: |: )${TARGET}(?:, ${TARGET})*)?\.(?:\n|$)`,
+  "y",
 );
-const NEXT_RECEIPT = new RegExp(`\\n(?=${HEAD})`);
 
 function isReceiptParagraph(paragraph: string): boolean {
-  return paragraph
-    .split(NEXT_RECEIPT)
-    .every((line) => RECEIPT.test(line.trim()));
+  RECEIPT.lastIndex = 0;
+  while (RECEIPT.lastIndex < paragraph.length) {
+    if (!RECEIPT.test(paragraph)) return false;
+  }
+  return true;
 }
 
 /**
