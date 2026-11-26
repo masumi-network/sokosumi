@@ -7,11 +7,18 @@ import {
 import { describe, expect, it } from "vitest";
 import {
   attenuateForChildWork,
+  DELEGATION_EVENT_SOCIAL_DRAFT_ONLY_MESSAGE,
+  deriveTurnOwnerAuthority,
+  evaluateSocialWriteAuthority,
+  evaluateTurnWebTaint,
   intersectOwnerAuthority,
+  isCapabilityWebTaintSensitive,
   isReadOnlyToolCall,
   isToolCallAllowedByAuthority,
   mintTurnOwnerAuthority,
   mintUiOwnerAuthority,
+  resolveSocialWriteOriginSource,
+  TAINTED_SOCIAL_SCHEDULE_DETAIL,
 } from "./owner-authority";
 
 const BOT_ID = "01960000-0000-7000-8000-000000000001";
@@ -905,5 +912,408 @@ describe("intersectOwnerAuthority", () => {
     expect(live.effective).toBe(true);
     expect(live.privateChannelAllowed).toBe(false);
     expect(live.allowedCapabilities).toContain("create_social_post");
+  });
+
+  it("derives monotonic turn-chain authority and rejects cross-bot, cross-workspace, owner-switch, or non-CHAT hops", () => {
+    const ownerNode = {
+      id: TURN_ID,
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      versionId: "v36",
+      source: "CHAT",
+      clientTurnId: "chat:1",
+      parentTurnId: null as string | null,
+      askedByUserId: null as string | null,
+      requestedByUserId: OWNER_ID,
+      chainDepth: 0,
+      sokoBot: { userId: OWNER_ID as string | null },
+    };
+
+    const direct = deriveTurnOwnerAuthority([ownerNode]);
+    expect(direct?.origin).toBe("owner_chat");
+    expect(direct?.ownerUserId).toBe(OWNER_ID);
+
+    const bgChild = deriveTurnOwnerAuthority([
+      { ...ownerNode, id: BG_TURN_ID, parentTurnId: TURN_ID },
+      ownerNode,
+    ]);
+    expect(bgChild?.origin).toBe("owner_chat");
+    expect(bgChild?.rootTurnId).toBe(TURN_ID);
+
+    // Shared Cuso workspace-member CHAT mints owner_chat; personal bot teammate fails closed.
+    const cusoMember = deriveTurnOwnerAuthority([
+      {
+        ...ownerNode,
+        versionId: "cmo-v24",
+        askedByUserId: TEAMMATE_ID,
+        requestedByUserId: OWNER_ID,
+        sokoBot: { userId: null },
+      },
+    ]);
+    expect(cusoMember?.origin).toBe("owner_chat");
+
+    const personalTeammate = deriveTurnOwnerAuthority([
+      {
+        ...ownerNode,
+        versionId: "cmo-v24",
+        askedByUserId: TEAMMATE_ID,
+        requestedByUserId: OWNER_ID,
+        sokoBot: { userId: OWNER_ID },
+      },
+    ]);
+    expect(personalTeammate?.origin).toBe("system");
+
+    // Cross-bot, cross-workspace, owner-switch, EVENT child, and dangling parent all fail closed.
+    expect(
+      deriveTurnOwnerAuthority([
+        { ...ownerNode, id: BG_TURN_ID, parentTurnId: TURN_ID },
+        { ...ownerNode, sokoBotId: OTHER_BOT_ID },
+      ])?.origin,
+    ).toBe("system");
+    expect(
+      deriveTurnOwnerAuthority([
+        { ...ownerNode, id: BG_TURN_ID, parentTurnId: TURN_ID },
+        { ...ownerNode, workspaceId: "01960000-0000-7000-8000-000000000088" },
+      ])?.origin,
+    ).toBe("system");
+    expect(
+      deriveTurnOwnerAuthority([
+        {
+          ...ownerNode,
+          id: BG_TURN_ID,
+          parentTurnId: TURN_ID,
+          requestedByUserId: TEAMMATE_ID,
+        },
+        ownerNode,
+      ])?.origin,
+    ).toBe("system");
+    expect(
+      deriveTurnOwnerAuthority([
+        {
+          ...ownerNode,
+          id: BG_TURN_ID,
+          source: "EVENT",
+          parentTurnId: TURN_ID,
+        },
+        ownerNode,
+      ])?.origin,
+    ).toBe("system");
+    expect(
+      deriveTurnOwnerAuthority([
+        { ...ownerNode, id: BG_TURN_ID, parentTurnId: "missing-root" },
+      ])?.origin,
+    ).toBe("system");
+    expect(
+      deriveTurnOwnerAuthority([{ ...ownerNode, sokoBotId: "" }]),
+    ).toBeNull();
+  });
+
+  it("evaluates web taint and social write authority uniformly across create, schedule, cancel, and edits", () => {
+    const ownerNode = {
+      id: TURN_ID,
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      versionId: "v36",
+      source: "CHAT",
+      clientTurnId: "chat:1",
+      parentTurnId: null,
+      askedByUserId: null,
+      requestedByUserId: OWNER_ID,
+      chainDepth: 0,
+      sokoBot: { userId: OWNER_ID },
+    };
+    const ownerAuth = deriveTurnOwnerAuthority([ownerNode])!;
+
+    expect(
+      isCapabilityWebTaintSensitive("investor_warm_paths", {
+        contactId: CONTACT_ID,
+        research: false,
+      }),
+    ).toBe(false);
+    expect(
+      isCapabilityWebTaintSensitive("investor_warm_paths", {
+        contactId: CONTACT_ID,
+        research: true,
+      }),
+    ).toBe(true);
+    expect(
+      evaluateTurnWebTaint(
+        { turn: ownerNode, authority: ownerAuth },
+        "create_social_post",
+        { text: "Unscheduled draft" },
+      ),
+    ).toEqual({ blocked: false });
+    expect(
+      evaluateTurnWebTaint(
+        { turn: ownerNode, authority: ownerAuth },
+        "create_social_post",
+        { text: "Scheduled post", scheduledAt: "2026-12-01T09:00:00.000Z" },
+      ),
+    ).toEqual({ blocked: true, detail: TAINTED_SOCIAL_SCHEDULE_DETAIL });
+    expect(
+      evaluateTurnWebTaint(
+        { turn: ownerNode, authority: ownerAuth },
+        "investor_warm_paths",
+        { contactId: CONTACT_ID, research: true },
+      ),
+    ).toEqual({ blocked: true });
+
+    // Web-tainted owner CHAT: unscheduled create allowed, scheduledAt blocked, edit requires unapproved draft.
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: { ...ownerNode, actingUserId: OWNER_ID, askedByKind: "OWNER" },
+        capability: "create_social_post",
+        rawInput: { text: "Draft copy" },
+        tainted: true,
+        turnAuthority: ownerAuth,
+      }),
+    ).toEqual({ allowed: true, requireUnapprovedDraft: false });
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: { ...ownerNode, actingUserId: OWNER_ID, askedByKind: "OWNER" },
+        capability: "create_social_post",
+        rawInput: {
+          text: "Scheduled copy",
+          scheduledAt: "2026-12-01T09:00:00.000Z",
+        },
+        tainted: true,
+        turnAuthority: ownerAuth,
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "tainted",
+      detail: TAINTED_SOCIAL_SCHEDULE_DETAIL,
+    });
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: { ...ownerNode, actingUserId: OWNER_ID, askedByKind: "OWNER" },
+        capability: "update_social_post",
+        rawInput: {},
+        tainted: true,
+        turnAuthority: ownerAuth,
+      }),
+    ).toEqual({ allowed: true, requireUnapprovedDraft: true });
+
+    // Non-CMO EVENT turn: untainted allows unscheduled draft, blocks scheduledAt/schedule/publish/cancel/edits;
+    // tainted EVENT blocks even unscheduled create_social_post.
+    const eventNode = {
+      ...ownerNode,
+      source: "EVENT",
+      clientTurnId: "taskboard:1",
+    };
+    const eventAuth = deriveTurnOwnerAuthority([eventNode])!;
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: { ...eventNode, actingUserId: OWNER_ID, askedByKind: "OWNER" },
+        capability: "create_social_post",
+        rawInput: { text: "Draft from event" },
+        tainted: false,
+      }),
+    ).toEqual({ allowed: true, requireUnapprovedDraft: false });
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: { ...eventNode, actingUserId: OWNER_ID, askedByKind: "OWNER" },
+        capability: "cancel_social_post",
+        rawInput: {},
+        tainted: false,
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "delegation_event_draft_only",
+      detail: DELEGATION_EVENT_SOCIAL_DRAFT_ONLY_MESSAGE,
+    });
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: { ...eventNode, actingUserId: OWNER_ID, askedByKind: "OWNER" },
+        capability: "create_social_post",
+        rawInput: { text: "Injected draft" },
+        tainted: true,
+        turnAuthority: eventAuth,
+      }),
+    ).toEqual({ allowed: false, kind: "tainted" });
+
+    // Clean CMO EVENT allowed; tainted CMO EVENT refused.
+    const cmoEventNode = { ...eventNode, versionId: "cmo-v24" };
+    const cmoEventAuth = deriveTurnOwnerAuthority([cmoEventNode])!;
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: { ...cmoEventNode, actingUserId: OWNER_ID, askedByKind: "OWNER" },
+        capability: "schedule_social_post",
+        rawInput: {},
+        tainted: false,
+      }),
+    ).toEqual({ allowed: true, requireUnapprovedDraft: false });
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: { ...cmoEventNode, actingUserId: OWNER_ID, askedByKind: "OWNER" },
+        capability: "schedule_social_post",
+        rawInput: {},
+        tainted: true,
+        turnAuthority: cmoEventAuth,
+      }),
+    ).toEqual({ allowed: false, kind: "tainted" });
+  });
+
+  it("traces production admin-retry:<uuid>:<op> chains with bot-scoped lookup and fails closed on missing, malformed, or cross-bot targets", async () => {
+    const ORIG_EVENT_ID = "01960000-0000-7000-8000-000000000101";
+    const RETRY_EVENT_ID = "01960000-0000-7000-8000-000000000102";
+    const RETRY_EVENT_2_ID = "01960000-0000-7000-8000-000000000103";
+    const ORIG_CHAT_ID = "01960000-0000-7000-8000-000000000104";
+    const RETRY_CHAT_ID = "01960000-0000-7000-8000-000000000105";
+    const OTHER_BOT_CHAT_ID = "01960000-0000-7000-8000-000000000106";
+    const RETRY_CROSS_BOT_ID = "01960000-0000-7000-8000-000000000107";
+    const RETRY_MALFORMED_ID = "01960000-0000-7000-8000-000000000108";
+    const RETRY_SCHEDULE_ID = "01960000-0000-7000-8000-000000000109";
+    const MISSING_ID = "01960000-0000-7000-8000-000000000199";
+    const UUID_RE =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    const rows = new Map<
+      string,
+      { id: string; sokoBotId: string; source: string; clientTurnId: string }
+    >([
+      [
+        RETRY_EVENT_ID,
+        {
+          id: RETRY_EVENT_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: `admin-retry:${ORIG_EVENT_ID}:op-1`,
+        },
+      ],
+      [
+        RETRY_EVENT_2_ID,
+        {
+          id: RETRY_EVENT_2_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: `admin-retry:${RETRY_EVENT_ID}:op-2`,
+        },
+      ],
+      [
+        ORIG_EVENT_ID,
+        {
+          id: ORIG_EVENT_ID,
+          sokoBotId: BOT_ID,
+          source: "EVENT",
+          clientTurnId: "event:1",
+        },
+      ],
+      [
+        RETRY_CHAT_ID,
+        {
+          id: RETRY_CHAT_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: `admin-retry:${ORIG_CHAT_ID}:op-3`,
+        },
+      ],
+      [
+        ORIG_CHAT_ID,
+        {
+          id: ORIG_CHAT_ID,
+          sokoBotId: BOT_ID,
+          source: "CHAT",
+          clientTurnId: "chat:1",
+        },
+      ],
+      [
+        RETRY_CROSS_BOT_ID,
+        {
+          id: RETRY_CROSS_BOT_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: `admin-retry:${OTHER_BOT_CHAT_ID}:op-4`,
+        },
+      ],
+      [
+        OTHER_BOT_CHAT_ID,
+        {
+          id: OTHER_BOT_CHAT_ID,
+          sokoBotId: OTHER_BOT_ID,
+          source: "CHAT",
+          clientTurnId: "chat:2",
+        },
+      ],
+      [
+        RETRY_MALFORMED_ID,
+        {
+          id: RETRY_MALFORMED_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: "admin-retry:not-a-uuid:op-5",
+        },
+      ],
+      [
+        RETRY_SCHEDULE_ID,
+        {
+          id: RETRY_SCHEDULE_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: `admin-schedule-retry:${SCHED_ID}:op-6`,
+        },
+      ],
+    ]);
+    const fakeClient = {
+      sokoBotTurn: {
+        findFirst: async ({
+          where,
+        }: {
+          where: { id: string; sokoBotId: string };
+        }) => {
+          // Mirror PostgreSQL @db.Uuid rejection on non-UUID query params.
+          if (!UUID_RE.test(where.id)) {
+            throw new Error(
+              `22P02 invalid input syntax for type uuid: ${where.id}`,
+            );
+          }
+          const row = rows.get(where.id);
+          return row && row.sokoBotId === where.sokoBotId ? row : null;
+        },
+      },
+    } as never;
+
+    expect(
+      await resolveSocialWriteOriginSource(
+        { id: RETRY_EVENT_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toBe("EVENT");
+    expect(
+      await resolveSocialWriteOriginSource(
+        { id: RETRY_EVENT_2_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toBe("EVENT");
+    expect(
+      await resolveSocialWriteOriginSource(
+        { id: RETRY_CHAT_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toBe("CHAT");
+    expect(
+      await resolveSocialWriteOriginSource(
+        { id: RETRY_CROSS_BOT_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toBe("EVENT");
+    expect(
+      await resolveSocialWriteOriginSource(
+        { id: RETRY_MALFORMED_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toBe("EVENT");
+    expect(
+      await resolveSocialWriteOriginSource(
+        { id: MISSING_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toBe("EVENT");
+    expect(
+      await resolveSocialWriteOriginSource(
+        { id: RETRY_SCHEDULE_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toBe("SCHEDULE");
   });
 });

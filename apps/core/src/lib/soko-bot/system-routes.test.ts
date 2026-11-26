@@ -6,8 +6,8 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { presetClassificationResult } from "@/lib/soko-bot/classifier";
+import { evaluateSocialWriteAuthority } from "@/lib/soko-bot/owner-authority";
 import {
-  delegationEventPostRefusal,
   failedTurnRoute,
   inheritedFollowUpRoute,
   inheritedScheduleRoute,
@@ -82,48 +82,96 @@ describe("a delegation follow-up", () => {
   });
 
   describe("posting", () => {
-    const eventTurn = { clientTurnId: "event:abc", versionId: "v34" };
+    const eventTurn = {
+      id: "turn-event-1",
+      sokoBotId: "bot-1",
+      workspaceId: "ws-1",
+      source: "EVENT",
+      clientTurnId: "event:abc",
+      versionId: "v34",
+      actingUserId: "owner-1",
+    };
 
-    it("keeps a post a draft", () => {
+    it("keeps a post a draft across all social writes on non-CMO EVENT turns", () => {
       expect(
-        delegationEventPostRefusal(eventTurn, {
+        evaluateSocialWriteAuthority({
+          turn: eventTurn,
           capability: "create_social_post",
-          input: {
+          rawInput: {
             projectId: "01a0af3b-32c5-76bb-ab34-5cf4a81a5014",
             connectionId: "01a0af3b-32c5-76bb-ab34-5cf4a81a5015",
             text: "How we keep a bot's memory",
             scheduledAt: "2026-11-27T09:00:00.000Z",
           },
+          tainted: false,
         }),
-      ).toContain("stays a draft");
-      for (const capability of ["publish_social_post", "schedule_social_post"])
+      ).toMatchObject({
+        allowed: false,
+        kind: "delegation_event_draft_only",
+        detail: expect.stringContaining("stays a draft"),
+      });
+      for (const capability of [
+        "publish_social_post",
+        "schedule_social_post",
+        "cancel_social_post",
+        "update_social_post",
+        "update_social_posts",
+      ] as const) {
         expect(
-          delegationEventPostRefusal(eventTurn, { capability, input: {} }),
-        ).toContain("stays a draft");
+          evaluateSocialWriteAuthority({
+            turn: eventTurn,
+            capability,
+            rawInput: {},
+            tainted: false,
+          }),
+        ).toMatchObject({
+          allowed: false,
+          kind: "delegation_event_draft_only",
+          detail: expect.stringContaining("stays a draft"),
+        });
+      }
+      // Enforced by typed source === "EVENT" even without an "event:" clientTurnId prefix.
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: { ...eventTurn, clientTurnId: "taskboard:abc" },
+          capability: "schedule_social_post",
+          rawInput: {},
+          tainted: false,
+        }),
+      ).toMatchObject({
+        allowed: false,
+        kind: "delegation_event_draft_only",
+      });
     });
 
-    it("lets it create the draft", () => {
+    it("lets it create an unscheduled draft", () => {
       expect(
-        delegationEventPostRefusal(eventTurn, {
+        evaluateSocialWriteAuthority({
+          turn: eventTurn,
           capability: "create_social_post",
-          input: { text: "How we keep a bot's memory" },
+          rawInput: { text: "How we keep a bot's memory" },
+          tainted: false,
         }),
-      ).toBeNull();
+      ).toEqual({ allowed: true, requireUnapprovedDraft: false });
     });
 
     it("leaves other turns and Cuso's own posting alone", () => {
       expect(
-        delegationEventPostRefusal(
-          { clientTurnId: "chat:1", versionId: "v34" },
-          { capability: "publish_social_post", input: {} },
-        ),
-      ).toBeNull();
+        evaluateSocialWriteAuthority({
+          turn: { ...eventTurn, source: "CHAT", clientTurnId: "chat:1" },
+          capability: "publish_social_post",
+          rawInput: {},
+          tainted: false,
+        }),
+      ).toEqual({ allowed: true, requireUnapprovedDraft: false });
       expect(
-        delegationEventPostRefusal(
-          { clientTurnId: "event:abc", versionId: "cmo-v23" },
-          { capability: "schedule_social_post", input: {} },
-        ),
-      ).toBeNull();
+        evaluateSocialWriteAuthority({
+          turn: { ...eventTurn, versionId: "cmo-v23" },
+          capability: "schedule_social_post",
+          rawInput: {},
+          tainted: false,
+        }),
+      ).toEqual({ allowed: true, requireUnapprovedDraft: false });
     });
   });
 });
