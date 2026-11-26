@@ -166,7 +166,7 @@ describe("saveTaskSchedule", () => {
     await expect(
       saveTaskSchedule(
         runtime,
-        call({ scheduleId: SCHEDULE.id, state: "PAUSED" }),
+        call({ scheduleId: SCHEDULE.id, name: "Renamed" }),
         authorized({ source: "SCHEDULE" }),
       ),
     ).rejects.toThrow(/made by someone else/);
@@ -229,6 +229,32 @@ describe("saveTaskSchedule retries and states", () => {
       authorized(),
     );
     expect(mocks.changeState).not.toHaveBeenCalled();
+  });
+});
+
+describe("a scheduled run", () => {
+  it("never deletes, pauses or ends a Task Schedule", async () => {
+    const run = authorized({ source: "SCHEDULE" });
+    for (const state of ["PAUSED", "ENDED"])
+      await expect(
+        saveTaskSchedule(
+          runtime,
+          call({ scheduleId: SCHEDULE.id, state }),
+          run,
+        ),
+      ).rejects.toThrow(/scheduled run doesn't delete, pause or end/);
+    await expect(
+      removeTaskSchedule(
+        runtime,
+        {
+          ...call({ scheduleId: SCHEDULE.id }),
+          capability: "delete_task_schedule",
+        },
+        run,
+      ),
+    ).rejects.toThrow(/scheduled run doesn't delete, pause or end/);
+    expect(mocks.changeState).not.toHaveBeenCalled();
+    expect(mocks.remove).not.toHaveBeenCalled();
   });
 });
 

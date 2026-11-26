@@ -95,6 +95,10 @@ export function toolCallOperationId(
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-8${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
+/** A scheduled run never deletes, pauses or ends a Task Schedule (Codex round 13). */
+const SCHEDULED_RUN_REFUSAL =
+  "A scheduled run doesn't delete, pause or end Task Schedules. Report what you found and let the owner decide.";
+
 /** The day's end in UTC; the rule is read in its own timezone anyway. */
 const endOfDay = (day: string) => `${day}T23:59:59.000Z`;
 
@@ -206,6 +210,11 @@ export async function saveTaskSchedule(
         ? changeTaskScheduleState(actor, created.id, "pause")
         : created;
     }
+    if (
+      authorized.turn.source === "SCHEDULE" &&
+      (parsed.state === "PAUSED" || parsed.state === "ENDED")
+    )
+      throw new SokoBotRefusedUnsentError(SCHEDULED_RUN_REFUSAL);
     const current = await requireChangeable(
       actor,
       authorized,
@@ -271,6 +280,8 @@ export async function removeTaskSchedule(
   const { scheduleId } = sokoBotDeleteTaskScheduleInputSchema.parse(
     input.input,
   );
+  if (authorized.turn.source === "SCHEDULE")
+    throw new SokoBotRefusedUnsentError(SCHEDULED_RUN_REFUSAL);
   const actor = await botScheduleActor(authorized);
   const current = await refusingHttp(async () => {
     const schedule = await requireChangeable(actor, authorized, scheduleId);
