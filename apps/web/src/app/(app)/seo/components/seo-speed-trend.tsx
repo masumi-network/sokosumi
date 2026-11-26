@@ -21,7 +21,8 @@ const y = (share: number) => PAD + share * (HEIGHT - 2 * PAD);
 
 /**
  * The weekly values of each Core Web Vital for real visitors. The drawing is hidden from a screen reader: the
- * caption gives the direction, and a hidden list gives each week's value, so a week over the limit is not lost.
+ * caption gives the direction, and a hidden list gives each week, with its value or "no data", so a week over the
+ * limit or a gap is not lost. The list comes before the caption: a figcaption is the first or last child.
  */
 export function SeoSpeedTrend({ history }: { history: SeoSpeedHistory }) {
   const t = useSeoResultTranslations("App.Seo");
@@ -104,6 +105,18 @@ export function SeoSpeedTrend({ history }: { history: SeoSpeedHistory }) {
                   />
                 )}
               </svg>
+              <ul className="sr-only">
+                {trend.series.map((point) => (
+                  <li key={point.week}>
+                    {point.value == null
+                      ? t("siteSpeed.trendWeekNone", { date: day(point.week) })
+                      : t("siteSpeed.trendWeek", {
+                          date: day(point.week),
+                          value: seoSpeedValue(metric, point.value),
+                        })}
+                  </li>
+                ))}
+              </ul>
               <figcaption className="text-muted-foreground mt-1 text-xs tabular-nums">
                 <span className="text-foreground font-medium">
                   {t(`siteSpeed.trend.${trend.direction}`)}
@@ -119,18 +132,6 @@ export function SeoSpeedTrend({ history }: { history: SeoSpeedHistory }) {
                   good: seoSpeedValue(metric, SEO_VITAL_LIMITS[metric].good),
                 })}
               </figcaption>
-              <ul className="sr-only">
-                {trend.series.map((point) => (
-                  <li key={point.week}>
-                    {point.value == null
-                      ? t("siteSpeed.trendWeekNone", { date: day(point.week) })
-                      : t("siteSpeed.trendWeek", {
-                          date: day(point.week),
-                          value: seoSpeedValue(metric, point.value),
-                        })}
-                  </li>
-                ))}
-              </ul>
             </figure>
           );
         })}

@@ -147,6 +147,9 @@ it("says the trend in words, why a short check used one device and how many page
   expect(
     screen.getByText("28 days to Oct 25, 2026: 3.6 s").closest("ul"),
   ).toHaveClass("sr-only");
+  // Review pass 20: a figcaption is the first or last child of its figure.
+  for (const figure of document.querySelectorAll("figure"))
+    expect(figure.lastElementChild?.tagName).toBe("FIGCAPTION");
   // Review pass 19: a week without a value is in the list, so a reader hears the gap the chart shows.
   expect(
     screen.getByText("28 days to Oct 25, 2026: no data"),
