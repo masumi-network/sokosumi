@@ -101,6 +101,10 @@ it("names the devices of a pass when another device has no verdict (review pass 
   expect(
     seoPageVerdict([good, { ...good, device: "desktop" }]).passOn,
   ).toBeNull();
+  // Review pass 21: a caller that left out a slow device (the site speed table shows it) gets a pass of the rest only.
+  expect(seoPageVerdict([{ ...good, device: "desktop" }]).passOn).toEqual([
+    "desktop",
+  ]);
 });
 
 const weeks = ["2026-10-04", "2026-10-11", "2026-10-18", "2026-10-25"];

@@ -67,7 +67,7 @@ export function seoSpeedVerdictText(
   if (verdict === "pass" && passOn)
     return t("pageSpeed.verdict.passOn", {
       devices: passOn
-        .map((device) => t(`breakdown.devices.${device}`))
+        .map((device) => t(`breakdown.devices.${device}`).toLowerCase())
         .join(", "),
     });
   return verdict === "over"

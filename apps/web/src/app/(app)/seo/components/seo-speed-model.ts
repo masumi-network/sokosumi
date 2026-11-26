@@ -138,10 +138,16 @@ export interface SeoPageVerdict {
   worst: SeoVitalStatus;
   /** The source of the devices that decided the verdict. Null: no device decided one. */
   source: SeoSpeedSource | "mixed" | null;
-  /** A pass with a listed device that has no verdict: the devices that passed. Null for a pass of every device. */
+  /** A pass that is not one of mobile and desktop both: the devices that passed. Null for a pass of both. */
   passOn: SeoDeviceVerdict["device"][] | null;
   devices: SeoDeviceVerdict[];
 }
+
+/** The devices a pass of the whole page needs. */
+const PASS_DEVICES: readonly SeoDeviceVerdict["device"][] = [
+  "mobile",
+  "desktop",
+];
 
 /** One device over a limit puts the page over it: a good device does not hide a slow one. */
 export function seoPageVerdict(rows: SeoSpeedDevice[]): SeoPageVerdict {
@@ -165,10 +171,13 @@ export function seoPageVerdict(rows: SeoSpeedDevice[]): SeoPageVerdict {
         deciding.some((device) => device.worst === status),
       ) ?? "too_little_data",
     source: sources.size > 1 ? "mixed" : (deciding[0]?.source ?? null),
-    // A device without a verdict is not within the limits: the pass names the devices it holds for.
+    // A pass holds only for the devices that passed. A device without a verdict, or one the caller left out (the
+    // site speed table shows it), is not within the limits: the pass names its devices unless both passed.
     passOn:
       verdict === "pass" &&
-      devices.some((device) => device.verdict === "unknown")
+      !PASS_DEVICES.every((name) =>
+        deciding.some((device) => device.device === name),
+      )
         ? deciding.map((device) => device.device)
         : null,
     devices,
