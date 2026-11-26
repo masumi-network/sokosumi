@@ -14,6 +14,10 @@ model SeoAudit {
   archivedAt   DateTime?
   /// Tasks archived by the current report archive, eligible for restoration with it.
   archivedTaskIds String[] @default([])
+  /// Set when the create form sends a key: a retried create returns this Audit. Null for older Audits.
+  idempotencyKey String?
+  /// Hash of the create request without its key, to refuse a reused key with other input.
+  requestHash  String?
   pages        ProjectSeoPage[]
   scopes       ProjectSeoScope[]
   observations ProjectSeoObservation[]
@@ -23,6 +27,7 @@ model SeoAudit {
   actionTasks  ProjectSeoActionTask[]
   chatTurns    SeoAuditChatTurn[]
 
+  @@unique([workspaceId, idempotencyKey])
   @@index([workspaceId, createdAt, id])
   @@index([projectId])
   @@map("seo_audit")
