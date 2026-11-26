@@ -38,7 +38,7 @@ const identity = (pageUrl: string, ...parts: Array<string | null>) =>
   JSON.stringify([normalizeSeoUrl(pageUrl), ...parts]);
 
 /** The checks of a Run that gave a result, one per page, rule and device. */
-export function seoCheckResults(payload: PublicSeoPayload) {
+function checkResults(payload: PublicSeoPayload) {
   const results = new Map<string, PublicSeoPayload["checks"][number]>();
   for (const check of payload.checks)
     if (check.result === "pass" || check.result === "fired")
@@ -126,10 +126,10 @@ export function compareSeoMonitorRuns(
       moveCount: 0,
       dropCount: 0,
     };
-  const earlier = seoCheckResults(before);
+  const earlier = checkResults(before);
   const newFailures: SeoMonitorChange["newFailures"] = [];
   const fixed: SeoMonitorChange["fixed"] = [];
-  for (const [key, check] of seoCheckResults(after)) {
+  for (const [key, check] of checkResults(after)) {
     const old = earlier.get(key);
     if (!old || old.result === check.result) continue;
     const failed = check.result === "fired";

@@ -207,6 +207,8 @@ describe("withSeoRunDiffs", () => {
           failed({ rowId: "B", device: "mobile" }),
           failed({ rowId: "C", device: "mobile" }),
           failed({ rowId: "D", device: "mobile" }, "test"),
+          failed({ rowId: "E", device: "mobile" }),
+          check("fired", { rowId: "E", device: "desktop" }),
         ]),
       ),
       source(
@@ -218,13 +220,16 @@ describe("withSeoRunDiffs", () => {
           check("pass", { rowId: "C", device: "desktop" }),
           check("fired", { rowId: "C", device: "mobile" }),
           failed({ rowId: "D", device: "mobile" }),
+          check("pass", { rowId: "E", device: "mobile" }),
         ]),
       ),
     ]);
+    // E fails on mobile by its finding and fired on desktop without one: no single device names it.
+    expect(diff?.new.map((item) => item.device)).toEqual(["mobile", null]);
     // A: the desktop note was no failure, so the mobile pass fixes it. B: a note before, an issue now, is new.
     // C: the earlier pass was on another device. D: a finding that is not a note does not say the rule was read.
     expect(rows(diff?.fixed ?? [])).toEqual(["A"]);
-    expect(rows(diff?.new ?? [])).toEqual(["B"]);
+    expect(rows(diff?.new ?? [])).toEqual(["B", "E"]);
     expect(diff).toMatchObject({ notCheckedBefore: 1, notCheckedAgain: 1 });
   });
 
@@ -238,6 +243,8 @@ describe("withSeoRunDiffs", () => {
           check("pass", { rowId: "E", device: "desktop" }),
           check("pass", { rowId: "F", device: "mobile" }),
           check("fired", { rowId: "F", device: "desktop" }),
+          check("fired", { rowId: "G" }),
+          check("pass", { rowId: "G" }),
         ]),
       ),
       source(
@@ -248,17 +255,18 @@ describe("withSeoRunDiffs", () => {
           failed({ rowId: "D", device: "mobile" }),
           findingOnly({ rowId: "E", device: "mobile" }),
           failed({ rowId: "F", device: "mobile" }),
+          failed({ rowId: "G" }),
         ]),
       ),
     ]);
     // A is absent, B was not checked, D and E passed only on the device that never failed, and F fired on another
-    // device with no finding to say how bad it is.
+    // device with no finding to say how bad it is. G has a row that passed and a row that fired on one device.
     expect(diff).toMatchObject({
       comparable: true,
       fixed: [],
       fixedCount: 0,
-      notCheckedAgain: 5,
-      numbers: { issues: { from: 5, to: 0 } },
+      notCheckedAgain: 6,
+      numbers: { issues: { from: 6, to: 0 } },
     });
   });
 

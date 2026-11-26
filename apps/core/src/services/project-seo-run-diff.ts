@@ -8,11 +8,7 @@ import {
   issueIdentity,
   SEO_ISSUE_SEVERITIES,
 } from "./project-seo-check-identity";
-import {
-  seoCheckResults,
-  seoRankMoves,
-  seoRunMismatch,
-} from "./project-seo-monitor-change";
+import { seoRankMoves, seoRunMismatch } from "./project-seo-monitor-change";
 import { normalizeSeoUrl } from "./project-seo-store";
 
 /** One stored check of the selected pages with its parsed result. */
@@ -96,7 +92,9 @@ function readIssueStates(payload: PublicSeoPayload, selected: Selected) {
   }
   const passed: Devices = new Map(),
     fired: Devices = new Map();
-  for (const check of seoCheckResults(payload).values()) {
+  // Every row counts, also two rows of one rule on one device: one that fired still blocks a fix.
+  for (const check of payload.checks) {
+    if (check.result !== "pass" && check.result !== "fired") continue;
     if (!selected(check.pageUrl)) continue;
     const key = issueKey(payload, check);
     addDevice(check.result === "pass" ? passed : fired, key, check.device);
@@ -104,6 +102,10 @@ function readIssueStates(payload: PublicSeoPayload, selected: Selected) {
     if (check.result === "fired" && !noted.get(key)?.has(check.device))
       addDevice(failed, key, check.device);
   }
+  // A rule that also fired on a device without a finding failed on more than the device its finding names.
+  for (const [key, issue] of open)
+    if ((failed.get(key)?.size ?? 0) > 1)
+      open.set(key, { ...issue, device: null });
   return { open, passed, fired, failed, noted };
 }
 
