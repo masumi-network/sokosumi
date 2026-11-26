@@ -6,9 +6,11 @@ const {
   requireProjectAccessMock,
   delegationFindManyMock,
   turnFindFirstMock,
+  turnFindManyMock,
   watchFindFirstMock,
   scheduleRunFindFirstMock,
   scheduleFindFirstMock,
+  scheduleFindManyMock,
   authoritySpendFindManyMock,
 } = vi.hoisted(() => ({
   countMock: vi.fn(),
@@ -16,9 +18,11 @@ const {
   requireProjectAccessMock: vi.fn(),
   delegationFindManyMock: vi.fn(),
   turnFindFirstMock: vi.fn(),
+  turnFindManyMock: vi.fn(),
   watchFindFirstMock: vi.fn(),
   scheduleRunFindFirstMock: vi.fn(),
   scheduleFindFirstMock: vi.fn(),
+  scheduleFindManyMock: vi.fn(),
   authoritySpendFindManyMock: vi.fn(),
 }));
 
@@ -28,10 +32,13 @@ vi.mock("@/lib/db/prisma", () => ({
     project: { findUnique: projectFindUniqueMock },
     sokoBotDelegation: { findMany: delegationFindManyMock },
     sokoBotEventInbox: { findMany: async () => [] },
-    sokoBotTurn: { findFirst: turnFindFirstMock },
+    sokoBotTurn: { findFirst: turnFindFirstMock, findMany: turnFindManyMock },
     sokoBotWatch: { findFirst: watchFindFirstMock },
     sokoBotScheduleRun: { findFirst: scheduleRunFindFirstMock },
-    sokoBotSchedule: { findFirst: scheduleFindFirstMock },
+    sokoBotSchedule: {
+      findFirst: scheduleFindFirstMock,
+      findMany: scheduleFindManyMock,
+    },
     sokoBotAuthoritySpend: { findMany: authoritySpendFindManyMock },
   },
 }));
@@ -792,5 +799,249 @@ describe("mayMakeMediaForOwner", () => {
         capability: "generate_image",
       }),
     ).toBeNull();
+  });
+
+  it("refuses media when a schedule, child watch, or delegation grant is revoked while keeping spent one-time schedules and live siblings authorized", async () => {
+    vi.mocked(runtime.mayActForOwner).mockResolvedValue(false);
+    const BOT_ID = "01960000-0000-7000-8000-000000000901";
+    const SCHED_ID = "01960000-0000-7000-8000-000000000902";
+    const WATCH_ID = "01960000-0000-7000-8000-000000000903";
+    const ROOT_TURN_ID = "01960000-0000-7000-8000-000000000904";
+    const LIVE_ROOT_ID = "01960000-0000-7000-8000-000000000905";
+    const RUN_ID = "01960000-0000-7000-8000-000000000906";
+    const SLOT = new Date("2026-12-01T09:00:00.000Z");
+
+    const scheduleAuthority = {
+      version: 1,
+      grantId: "sched-rev-media-1",
+      origin: "owner_chat",
+      sokoBotId: BOT_ID,
+      workspaceId: "workspace-1",
+      ownerUserId: "user-1",
+      rootTurnId: LIVE_ROOT_ID,
+      targetScope: { kind: "project", projectId: "project-1" },
+      scheduleId: SCHED_ID,
+      scope: "owner_writes",
+      socialMode: "draft_only",
+      limits: {
+        grantId: "sched-rev-media-1",
+        period: "per_occurrence",
+        images: 1,
+        maxMediaCredits: 10,
+      },
+      stopRule: { mode: "never" },
+    };
+
+    const scheduleTurn = {
+      askedByKind: "OWNER",
+      reader: { sharedScope: null },
+      turn: {
+        id: "turn-sched-rev",
+        sokoBotId: BOT_ID,
+        workspaceId: "workspace-1",
+        versionId: "v36",
+        source: "SCHEDULE",
+        clientTurnId: `schedule:${SCHED_ID}:${SLOT.toISOString()}`,
+        actingUserId: "user-1",
+        chainDepth: 0,
+      },
+    } as unknown as Parameters<typeof mayMakeMediaForOwner>[1];
+
+    // 1. Paused recurring schedule throws revoked error.
+    scheduleRunFindFirstMock.mockResolvedValueOnce({
+      id: RUN_ID,
+      scheduledFor: SLOT,
+      schedule: {
+        id: SCHED_ID,
+        enabled: false,
+        runOnce: false,
+        lastRunAt: SLOT,
+        systemKey: null,
+        authority: scheduleAuthority,
+        sokoBot: { projectId: null },
+      },
+    });
+    await expect(
+      mayMakeMediaForOwner(runtime, scheduleTurn, {
+        projectId: "project-1",
+        capability: "generate_image",
+      }),
+    ).rejects.toThrow(/was revoked/);
+
+    // 2. Spent one-time schedule stays authorized when rootTurnId is not cancelled.
+    turnFindManyMock.mockResolvedValueOnce([]);
+    scheduleRunFindFirstMock.mockResolvedValueOnce({
+      id: RUN_ID,
+      scheduledFor: SLOT,
+      schedule: {
+        id: SCHED_ID,
+        enabled: false,
+        runOnce: true,
+        lastRunAt: SLOT,
+        systemKey: null,
+        authority: scheduleAuthority,
+        sokoBot: { projectId: null },
+      },
+    });
+    const spentAllowance = await mayMakeMediaForOwner(runtime, scheduleTurn, {
+      projectId: "project-1",
+      capability: "generate_image",
+    });
+    expect(spentAllowance?.images).toBe(1);
+
+    // 3. Child watch carrying scheduleId: authorized while enabled, revoked once disabled.
+    const watchTurn = {
+      askedByKind: "OWNER",
+      reader: { sharedScope: null },
+      turn: {
+        id: "turn-watch-rev",
+        sokoBotId: BOT_ID,
+        workspaceId: "workspace-1",
+        versionId: "v36",
+        source: "SCHEDULE",
+        clientTurnId: `watch:${WATCH_ID}`,
+        actingUserId: "user-1",
+        chainDepth: 0,
+      },
+    } as unknown as Parameters<typeof mayMakeMediaForOwner>[1];
+    const watchRow = {
+      id: WATCH_ID,
+      kind: "studio_job",
+      projectId: "project-1",
+      sokoBotId: BOT_ID,
+      authority: scheduleAuthority,
+      turn: {
+        id: "turn-sched-rev",
+        requestedByUserId: "user-1",
+        askedByUserId: "user-1",
+        chainDepth: 0,
+        workspaceId: "workspace-1",
+        source: "SCHEDULE",
+        versionId: "v36",
+        sokoBot: { userId: "user-1", projectId: null },
+      },
+    };
+    watchFindFirstMock.mockResolvedValueOnce(watchRow);
+    scheduleFindManyMock.mockResolvedValueOnce([
+      {
+        id: SCHED_ID,
+        sokoBotId: BOT_ID,
+        enabled: true,
+        runOnce: false,
+        lastRunAt: null,
+      },
+    ]);
+    turnFindManyMock.mockResolvedValueOnce([]);
+    expect(
+      (
+        await mayMakeMediaForOwner(runtime, watchTurn, {
+          projectId: "project-1",
+          capability: "generate_image",
+        })
+      )?.images,
+    ).toBe(1);
+
+    watchFindFirstMock.mockResolvedValueOnce(watchRow);
+    scheduleFindManyMock.mockResolvedValueOnce([
+      {
+        id: SCHED_ID,
+        sokoBotId: BOT_ID,
+        enabled: false,
+        runOnce: false,
+        lastRunAt: SLOT,
+      },
+    ]);
+    turnFindManyMock.mockResolvedValueOnce([]);
+    await expect(
+      mayMakeMediaForOwner(runtime, watchTurn, {
+        projectId: "project-1",
+        capability: "generate_image",
+      }),
+    ).rejects.toThrow(/was revoked/);
+
+    // 4. EVENT delegation wake: cancelled rootTurnId throws revoked; live sibling survives.
+    const eventTurn = {
+      askedByKind: "OWNER",
+      reader: { sharedScope: null },
+      turn: {
+        id: "turn-event-rev",
+        sokoBotId: BOT_ID,
+        workspaceId: "workspace-1",
+        versionId: "v36",
+        source: "EVENT",
+        actingUserId: "user-1",
+        chainDepth: 0,
+      },
+    } as unknown as Parameters<typeof mayMakeMediaForOwner>[1];
+    const revokedDelegation = {
+      id: "del-rev-1",
+      authority: {
+        ...scheduleAuthority,
+        grantId: "del-rev-grant",
+        scheduleId: undefined,
+        rootTurnId: ROOT_TURN_ID,
+        scope: "draft_and_workspace",
+        limits: {
+          grantId: "del-rev-grant",
+          period: "lifetime",
+          images: 1,
+          maxMediaCredits: 10,
+        },
+      },
+      followUpAllows: { images: 1, maxCredits: 10 },
+      turn: {
+        id: ROOT_TURN_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: "workspace-1",
+        versionId: "v36",
+        source: "CHAT",
+        chainDepth: 0,
+        askedByUserId: "user-1",
+        requestedByUserId: "user-1",
+        parentTurnId: null,
+        parentTurn: null,
+        sokoBot: { userId: "user-1", projectId: null },
+      },
+    };
+    delegationFindManyMock.mockResolvedValueOnce([revokedDelegation]);
+    turnFindManyMock.mockResolvedValueOnce([
+      { id: ROOT_TURN_ID, sokoBotId: BOT_ID },
+    ]);
+    await expect(
+      mayMakeMediaForOwner(runtime, eventTurn, {
+        projectId: "project-1",
+        capability: "generate_image",
+      }),
+    ).rejects.toThrow(/was revoked/);
+
+    const liveDelegation = {
+      ...revokedDelegation,
+      id: "del-live-2",
+      authority: {
+        ...revokedDelegation.authority,
+        grantId: "del-live-grant",
+        rootTurnId: LIVE_ROOT_ID,
+        limits: {
+          grantId: "del-live-grant",
+          period: "lifetime",
+          images: 2,
+          maxMediaCredits: 20,
+        },
+      },
+    };
+    delegationFindManyMock.mockResolvedValueOnce([
+      revokedDelegation,
+      liveDelegation,
+    ]);
+    turnFindManyMock.mockResolvedValueOnce([
+      { id: ROOT_TURN_ID, sokoBotId: BOT_ID },
+    ]);
+    const siblingAllowance = await mayMakeMediaForOwner(runtime, eventTurn, {
+      projectId: "project-1",
+      capability: "generate_image",
+    });
+    expect(siblingAllowance?.images).toBe(2);
+    expect(siblingAllowance?.grants).toHaveLength(1);
+    expect(siblingAllowance?.grants?.[0]?.grantId).toBe("del-live-grant");
   });
 });
