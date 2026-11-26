@@ -2905,8 +2905,7 @@
         },
         "copy": {
           "trigger": "Copy from a project",
-          "copied": "Copied the briefing from {name}",
-          "saveHint": "Edit it if you like, then save to keep it.",
+          "copied": "Copied from {name}. Save to keep it.",
           "undo": "Undo"
         }
       },

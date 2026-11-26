@@ -1,11 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ProjectBriefingField } from "@/app/projects/components/project-briefing-field";
-
-const toast = vi.hoisted(() => vi.fn());
-vi.mock("sonner", () => ({ toast }));
 
 vi.mock("next-intl", () => ({
   useTranslations: () => {
@@ -18,11 +16,22 @@ vi.mock("next-intl", () => ({
       if (key === "encouragementMet") return "Strong briefing";
       if (key === "chips.goals") return "Goals";
       if (key.startsWith("chips.")) return key.slice("chips.".length);
-      if (key === "copy.copied") return `Copied from ${values?.name}`;
+      if (key === "copy.copied") return `Copied from ${values?.name}.`;
       return key;
     };
   },
 }));
+
+function StatefulField({ initial }: { initial: string }) {
+  const [value, setValue] = useState(initial);
+  return (
+    <ProjectBriefingField
+      value={value}
+      onChange={setValue}
+      copySources={[{ id: "a", name: "Alpha", briefing: "Alpha brief" }]}
+    />
+  );
+}
 
 describe("ProjectBriefingField", () => {
   it("inserts a heading chip and updates the word count", async () => {
@@ -50,26 +59,41 @@ describe("ProjectBriefingField", () => {
     );
   });
 
-  it("copies another project's briefing into the field, with undo", async () => {
+  it("replaces the draft with a copied briefing, and Undo by keyboard restores it", async () => {
     const user = userEvent.setup();
-    const handleChange = vi.fn();
-
-    render(
-      <ProjectBriefingField
-        value="Old draft"
-        onChange={handleChange}
-        copySources={[{ id: "a", name: "Alpha", briefing: "Alpha brief" }]}
-      />,
-    );
+    render(<StatefulField initial="Old draft" />);
 
     await user.click(screen.getByRole("button", { name: "copy.trigger" }));
     await user.click(await screen.findByRole("menuitem", { name: "Alpha" }));
 
-    expect(handleChange).toHaveBeenLastCalledWith("Alpha brief");
-    const [message, options] = toast.mock.lastCall ?? [];
-    expect(message).toBe("Copied from Alpha");
-    options.action.onClick();
-    expect(handleChange).toHaveBeenLastCalledWith("Old draft");
+    const field = screen.getByRole("textbox");
+    expect(field).toHaveValue("Alpha brief");
+    expect(screen.getByRole("status")).toHaveTextContent("Copied from Alpha.");
+
+    // Focus returns to the menu button; Undo is the next stop.
+    await user.tab();
+    expect(screen.getByRole("button", { name: "copy.undo" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+
+    expect(field).toHaveValue("Old draft");
+    expect(field).toHaveFocus();
+    expect(
+      screen.queryByRole("button", { name: "copy.undo" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("drops Undo once the copied text is edited", async () => {
+    const user = userEvent.setup();
+    render(<StatefulField initial="" />);
+
+    await user.click(screen.getByRole("button", { name: "copy.trigger" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Alpha" }));
+    await user.type(screen.getByRole("textbox"), " More.");
+
+    expect(screen.getByRole("textbox")).toHaveValue("Alpha brief More.");
+    expect(
+      screen.queryByRole("button", { name: "copy.undo" }),
+    ).not.toBeInTheDocument();
   });
 
   it("hides the copy menu when no other project has a briefing", () => {

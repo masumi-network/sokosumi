@@ -1,9 +1,8 @@
 "use client";
 
-import { Copy } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef } from "react";
-import { toast } from "sonner";
+import { useRef, useState } from "react";
 
 import {
   BRIEFING_CHIP_IDS,
@@ -47,10 +46,16 @@ export function ProjectBriefingField({
 }: ProjectBriefingFieldProps) {
   const t = useTranslations("App.Projects.Briefing");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // The last copy, kept until the text changes again so Undo restores it.
+  const [copied, setCopied] = useState<{
+    name: string;
+    previous: string;
+  } | null>(null);
   const wordCount = countBriefingWords(value);
   const targetMet = wordCount >= BRIEFING_WORD_TARGET;
 
   function handleChipClick(chipId: BriefingChipId) {
+    setCopied(null);
     const next = insertBriefingHeading(value, t(`chips.${chipId}`));
     onChange(next);
     // Hand focus back to the textarea with the caret at the end so the user
@@ -66,14 +71,15 @@ export function ProjectBriefingField({
 
   // Fills the field only; nothing is saved until the form is submitted.
   function handleCopy(source: BriefingCopySource) {
-    const previous = value;
+    setCopied({ name: source.name, previous: value });
     onChange(source.briefing);
-    toast(t("copy.copied", { name: source.name }), {
-      // The default bottom corner sits on the form's Save button.
-      position: "top-center",
-      description: t("copy.saveHint"),
-      action: { label: t("copy.undo"), onClick: () => onChange(previous) },
-    });
+  }
+
+  function handleUndo() {
+    if (!copied) return;
+    onChange(copied.previous);
+    setCopied(null);
+    textareaRef.current?.focus();
   }
 
   return (
@@ -113,6 +119,34 @@ export function ProjectBriefingField({
         </p>
       </div>
 
+      {copySources.length > 0 ? (
+        // Idle, the live region stays mounted but takes no room.
+        <div className={copied ? "flex items-center gap-2" : "sr-only"}>
+          <p
+            role="status"
+            className="flex min-w-0 items-center gap-1.5 text-sm"
+          >
+            {copied ? (
+              <>
+                <Check className="check-pop size-4 shrink-0" aria-hidden />
+                {t("copy.copied", { name: copied.name })}
+              </>
+            ) : null}
+          </p>
+          {copied ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleUndo}
+              disabled={disabled}
+            >
+              {t("copy.undo")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
       <p className="text-muted-foreground text-sm leading-relaxed">
         {t("guidance")}
       </p>
@@ -138,7 +172,10 @@ export function ProjectBriefingField({
         maxLength={PROJECT_BRIEFING_MAX_LENGTH}
         placeholder={t("placeholder")}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => {
+          setCopied(null);
+          onChange(event.target.value);
+        }}
         disabled={disabled}
         autoFocus={autoFocus}
         className="min-h-48 flex-1 resize-none"

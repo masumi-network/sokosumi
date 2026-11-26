@@ -2905,8 +2905,7 @@
         },
         "copy": {
           "trigger": "Copiar de un proyecto",
-          "copied": "Briefing copiado de {name}",
-          "saveHint": "Edítalo si quieres y guarda para conservarlo.",
+          "copied": "Copiado de {name}. Guarda para conservarlo.",
           "undo": "Deshacer"
         }
       },

@@ -8,8 +8,9 @@ import { resolveBaseUrl } from "./base-url.ts";
 import { createMailbox } from "./mailbox.ts";
 
 // A new user with two Projects starts the second one's briefing from the
-// first: Edit, Copy from a project, pick it, Save. The copy fills the field
-// only until Save, and the first project's briefing stays as it was. Each size
+// first: Edit, Copy from a project, pick it, Save. The copy replaces the
+// draft in the field, Undo (by keyboard) brings the draft back, and the
+// first project's briefing stays as it was. Each size
 // signs up its own disposable mail.tm inbox.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
@@ -58,7 +59,7 @@ after(() => browser.close());
 
 for (const { name: size, isMobile, ...viewport } of SIZES) {
   describe(size, () => {
-    test("a user copies another project's briefing, edits nothing else, and saves", async () => {
+    test("a user copies a briefing over a draft, undoes it by keyboard, copies again and saves", async () => {
       const context = await browser.newContext({
         viewport,
         isMobile,
@@ -90,14 +91,33 @@ for (const { name: size, isMobile, ...viewport } of SIZES) {
       await page.getByRole("menuitem", { name: "Edit" }).click();
       await page.waitForURL(/\/edit$/);
       const field = page.getByRole("textbox", { name: "Briefing" });
-      assert.equal(await field.inputValue(), "");
-      await page.getByRole("button", { name: "Copy from a project" }).click();
+      const trigger = page.getByRole("button", { name: "Copy from a project" });
+      await field.fill("Draft note.");
+
+      // Copying replaces the draft; Undo, reached by keyboard, restores it.
+      await trigger.click();
       await shot(page, size, "menu");
       await page.getByRole("menuitem", { name: SOURCE }).click();
       assert.equal(await field.inputValue(), BRIEFING);
-      await page.getByText(`Copied the briefing from ${SOURCE}`).waitFor();
+      await page
+        .getByRole("status")
+        .getByText(`Copied from ${SOURCE}. Save to keep it.`)
+        .waitFor();
       await shot(page, size, "copied");
+      await page.keyboard.press("Tab");
+      const undo = page.getByRole("button", { name: "Undo" });
+      assert.equal(
+        await undo.evaluate((el) => el === document.activeElement),
+        true,
+        "Undo is the next stop after the menu button",
+      );
+      await page.keyboard.press("Enter");
+      assert.equal(await field.inputValue(), "Draft note.");
+      await undo.waitFor({ state: "detached" });
 
+      await trigger.click();
+      await page.getByRole("menuitem", { name: SOURCE }).click();
+      assert.equal(await field.inputValue(), BRIEFING);
       await page.getByRole("button", { name: "Save" }).click();
       await page.waitForURL(targetUrl);
       await page

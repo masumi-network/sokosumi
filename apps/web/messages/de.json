@@ -2905,8 +2905,7 @@
         },
         "copy": {
           "trigger": "Aus Projekt kopieren",
-          "copied": "Briefing aus {name} kopiert",
-          "saveHint": "Passe es bei Bedarf an und speichere, um es zu behalten.",
+          "copied": "Aus {name} kopiert. Speichere, um es zu behalten.",
           "undo": "Rückgängig"
         }
       },

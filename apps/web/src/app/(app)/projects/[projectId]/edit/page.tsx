@@ -3,8 +3,9 @@ import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { ProjectEditModal } from "@/app/projects/components/project-edit-modal";
-import { briefingCopySources } from "@/app/projects/project-briefing";
 import { projectService } from "@/lib/services/project.service";
+
+import { loadBriefingCopySources } from "./briefing-copy-sources";
 
 export const metadata: Metadata = {
   title: "Edit project",
@@ -16,12 +17,7 @@ export default async function EditProjectPage({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = await params;
-  // Core lists only the active workspace's projects the reader can open.
-  const [project, { projects }] = await Promise.all([
-    projectService.getProjectById(projectId),
-    // ponytail: first 100 projects only; page through if a workspace outgrows it.
-    projectService.listProjects({ limit: 100 }),
-  ]);
+  const project = await projectService.getProjectById(projectId);
 
   if (!project) {
     return notFound();
@@ -29,7 +25,10 @@ export default async function EditProjectPage({
   // CMO edits a CMO Project; the Project page says so and links there.
   if (project.cmo) redirect(`/projects/${projectId}`);
 
-  const t = await getTranslations("App.Projects");
+  const [t, copySources] = await Promise.all([
+    getTranslations("App.Projects"),
+    loadBriefingCopySources(projectId),
+  ]);
 
   return (
     <ProjectEditModal
@@ -44,7 +43,7 @@ export default async function EditProjectPage({
         cancel: t("EditProject.cancel"),
         error: t("Detail.errors.update"),
       }}
-      briefingCopySources={briefingCopySources(projects, projectId)}
+      briefingCopySources={copySources}
       initialValues={{
         name: project.name,
         identifier: project.identifier,
