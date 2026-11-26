@@ -71,9 +71,11 @@ export function AgentsSection({
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 px-1">
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex items-center gap-2">
+            {/* Focusable from script only: the phone section bar's jumps land here. */}
             <h2
               id={id}
-              className="text-foreground text-lg font-semibold tracking-tight"
+              tabIndex={-1}
+              className="text-foreground focus-visible:ring-ring rounded-sm text-lg font-semibold tracking-tight outline-none focus-visible:ring-2 max-md:scroll-mt-[calc(8.75rem+env(safe-area-inset-top))]"
             >
               {title}
             </h2>

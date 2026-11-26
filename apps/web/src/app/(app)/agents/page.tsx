@@ -56,6 +56,7 @@ import {
 } from "./components/card-actions.client";
 import { Marketplace } from "./components/marketplace.client";
 import { NotSetUpLine } from "./components/not-set-up-line";
+import { AgentsSectionNav } from "./components/section-nav.client";
 import type { DirectoryBot } from "./soko-bot-directory";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -405,6 +406,7 @@ export default async function AgentsPage() {
     <div className={AGENTS_PAGE_CLASS}>
       <RefreshPrefetchedPage />
       <h1 className="sr-only">{t("title")}</h1>
+      <AgentsSectionNav />
       <Suspense fallback={<SectionFallback title={t("sokoBotsTitle")} />}>
         <SokoBotsSection />
       </Suspense>
