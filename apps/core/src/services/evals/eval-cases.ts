@@ -28,6 +28,7 @@ import {
   SCHEDULES_SCENARIO,
 } from "./eval-schedules";
 import type { StandupEvalSetup } from "./eval-standup";
+import { OWNER_JOURNEYS, type OwnerJourney } from "./ownerbench/journeys";
 
 export const EVAL_SUITES = ["soko-bot", "cmo"] as const;
 export type EvalSuite = (typeof EVAL_SUITES)[number];
@@ -58,6 +59,11 @@ export type EvalCase =
       /** The organization's daily agent stand-up, run by Core in the lane. */
       kind: "standup";
       setup: StandupEvalSetup;
+    })
+  | (EvalCaseCommon & {
+      /** An owner benchmark journey: several steps, checked and judged as one. */
+      kind: "journey";
+      journey: OwnerJourney;
     });
 
 /** Soko Bot scenarios by area, in the order they run: later ones use what earlier ones made. */
@@ -269,7 +275,23 @@ export const EVAL_CASES: readonly EvalCase[] = [
             ),
   ),
   scenarioCase(CMO_COMMENT_SCENARIO, "cmo", "Replies", "cmo-comments"),
+  ...OWNER_JOURNEYS.map(
+    (journey): EvalCase => ({
+      id: journey.id,
+      suite: journey.bot === "cuso" ? "cmo" : "soko-bot",
+      area: "Owner bench",
+      title: journey.title,
+      intent: journey.intent,
+      kind: "journey",
+      journey,
+    }),
+  ),
 ];
+
+/** The owner benchmark's cases; they run only when named (`evals:local --ownerbench`). */
+export const OWNER_BENCH_CASE_IDS: readonly string[] = OWNER_JOURNEYS.map(
+  (journey) => journey.id,
+);
 
 export function evalCase(id: string): EvalCase | undefined {
   return EVAL_CASES.find((evalCase) => evalCase.id === id);
@@ -283,14 +305,17 @@ export function selectEvalCases(input: {
   const unknown = input.caseIds.filter((id) => !evalCase(id));
   if (unknown.length)
     throw new Error(`Unknown eval cases: ${unknown.join(", ")}`);
+  // Owner journeys run many turns each, so a suite run leaves them out.
   return EVAL_CASES.filter(
     (evalCase) =>
       input.suites.includes(evalCase.suite) &&
-      (input.caseIds.length === 0 || input.caseIds.includes(evalCase.id)),
+      (input.caseIds.length === 0
+        ? evalCase.kind !== "journey"
+        : input.caseIds.includes(evalCase.id)),
   );
 }
 
 /** Scenario cases end in a judge's verdict; the others are scored by checks alone. */
 export function isJudgedEvalCase(evalCase: EvalCase): boolean {
-  return evalCase.kind === "scenario";
+  return evalCase.kind === "scenario" || evalCase.kind === "journey";
 }

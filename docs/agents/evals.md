@@ -104,6 +104,24 @@ Credits: each lane's organization is topped up to 2,000 free credits before a ru
 - **CMO chat:** add to `CMO_SCENARIOS`; it runs on the lane's Cuso, after the CMO research and strategy cases. A `follow_up` trigger starts the case as the follow-up of the chat turn an earlier case asked (`ask` is that case's prompt), the way the watch sync starts one, so put it right after that case.
 - **CMO research or strategy:** add the brand to `fixtures/cmo-brands.json` and to `RESEARCH_BRANDS` or `STRATEGY_BRANDS` in `eval-cmo-cases.ts`. A strategy case needs the brand's Brand Brain in `fixtures/cmo-brand-brains.json`: run its research case once and copy the saved Brand Brain in.
 
+## Owner benchmark
+
+The north-star cases: real, multi-step owner requests that must work end to end ("create a daily schedule where CodePat writes an architecture note, make 2-3 minimal images, draft it on my Padierfind X, tell me so I can approve"; "I want to launch something new"; "I made a YouTube video, use it"). They live in `apps/core/src/services/evals/ownerbench/` as journeys (`journeys.ts`), area "Owner bench", one case each.
+
+- **Steps.** A journey is a few steps: the owner's messages, a Coworker answering on the Task the bot gave it (`coworker`), or the bot's own schedule firing (`schedule_fires`, started as the cron starts it). A step ends when its turns, follow-ups and waits have settled. Core answers for CodePat and Mira; a chat question to them gets no reply, and that wait ends after 90 seconds of quiet.
+- **Checks.** After each step: the tools and answer (as scenario `expect`), then the world it left (`outcomes`: the schedule's days, time and brief, the Coworker's Task brief, image prompts, drafts on the right Project and network, nothing sent). The judge grades the whole chain against what a strong human assistant or Claude Code would have done.
+- **Progress, not just pass/fail.** Each result's output has `score` (steps passed, steps right in a row from the start, checks passed) and `totals` (turns, tool calls, tool errors, retries after a failed call, time, cost), and each step's own record.
+- **World.** `journey-world.ts` adds CodePat (coding Coworker), the owner's Padierfind Project with an X account, and the PDFs or posts a journey needs, on top of the lane's world.
+- **Running.** They are left out of suite runs and the weekly run (each is many turns). Run them by name or all at once:
+
+```bash
+pnpm evals:local --plan --ownerbench                       # all journeys
+pnpm evals:local --plan --ownerbench --suite cmo --cuso-version cmo-v26
+pnpm evals:local --plan --cases owner-codepat-daily-post
+```
+
+A new Soko Bot or Cuso default must pass the owner benchmark at least as well as the current default, with cost per turn no worse.
+
 ## Cuso versions
 
 Cuso changes ship on a version, as Soko Bot's do. To release one, add `cmo-vN` to `SOKO_BOT_PRODUCT_VERSIONS` and run the CMO suite with `--cuso-version cmo-vN`. When nothing regresses, point `CMO_SOKO_BOT_VERSION_ID` at it so new hires get it. Lookups accept every Cuso version (`CMO_SOKO_BOT_VERSION_IDS`). Existing Cusos stay on their version until an administrator moves them: `POST /v1/admin/soko-bots/versions/migrate` with `fromVersionId` and `toVersionId` both Cuso versions (always give `fromVersionId`: without it every bot moves). The admin page only offers personal versions as targets.

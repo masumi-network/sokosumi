@@ -8,6 +8,7 @@
  *
  *   pnpm --filter @sokosumi/core evals:local --plan --cases ambiguous-request
  *   pnpm --filter @sokosumi/core evals:local --plan --suite cmo --cuso-version cmo-v23
+ *   pnpm --filter @sokosumi/core evals:local --plan --ownerbench --suite soko-bot
  */
 import { execFileSync } from "node:child_process";
 import { parseArgs } from "node:util";
@@ -17,6 +18,8 @@ const { values } = parseArgs({
     plan: { type: "boolean", default: false },
     suite: { type: "string", multiple: true },
     cases: { type: "string" },
+    /** The owner benchmark's journeys, of --suite when given. */
+    ownerbench: { type: "boolean", default: false },
     repeats: { type: "string", default: "1" },
     "soko-bot-version": { type: "string" },
     "cuso-version": { type: "string" },
@@ -34,6 +37,15 @@ const { default: prisma } = await import("@/lib/db/prisma");
 const { createEvalRun, tickEvalRuns } = await import(
   "@/services/evals/eval-runs.service"
 );
+const { EVAL_CASES } = await import("@/services/evals/eval-cases");
+const suites = values.suite as ("soko-bot" | "cmo")[] | undefined;
+const caseIds = values.ownerbench
+  ? EVAL_CASES.filter(
+      (evalCase) =>
+        evalCase.kind === "journey" &&
+        (!suites || suites.includes(evalCase.suite)),
+    ).map((evalCase) => evalCase.id)
+  : values.cases?.split(",").map((id) => id.trim());
 if (plan) {
   const { chatGptPlanAccessToken } = await import("@/lib/local-chatgpt-plan");
   await chatGptPlanAccessToken();
@@ -53,8 +65,8 @@ const git = (...args: string[]) =>
   execFileSync("git", args, { encoding: "utf8" }).trim();
 const run = await createEvalRun({
   trigger: "MANUAL",
-  suites: values.suite as ("soko-bot" | "cmo")[] | undefined,
-  caseIds: values.cases?.split(",").map((id) => id.trim()),
+  suites,
+  caseIds,
   repeats: Number(values.repeats),
   sokoBotVersionId: values["soko-bot-version"] ?? null,
   cusoVersionId: values["cuso-version"] ?? null,
@@ -86,8 +98,18 @@ const results = await prisma.evalResult.findMany({
     status: true,
     durationMs: true,
     error: true,
+    output: true,
   },
 });
+const progress = (output: unknown) => {
+  const { score, totals } = (output ?? {}) as {
+    score?: { stepsPassed: number; stepsTotal: number; reached: number };
+    totals?: { toolErrors: number; retries: number; costUsd: number };
+  };
+  return score && totals
+    ? `steps ${score.stepsPassed}/${score.stepsTotal}, first ${score.reached} in a row, ${totals.toolErrors} tool errors, ${totals.retries} retries, $${totals.costUsd.toFixed(2)}`
+    : "";
+};
 for (const result of results)
   console.log(
     [
@@ -97,6 +119,7 @@ for (const result of results)
       result.durationMs == null
         ? ""
         : `${Math.round(result.durationMs / 1000)}s`,
+      progress(result.output),
       result.error?.slice(0, 160) ?? "",
     ].join("\t"),
   );
