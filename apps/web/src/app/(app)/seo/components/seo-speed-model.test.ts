@@ -218,21 +218,41 @@ it("keeps for the research panel the measurements that the speed table does not 
   const audited = seoTestSpeedDevice({
     pageUrl: "https://example.com/pricing",
     testedUrl: "https://example.com/pricing",
-    lab: lab({ lcp: 1800, cls: 0.02 }),
+    lab: {
+      status: "measured",
+      median: { lcp: 1800, cls: 0.02, fcp: null, tbt: null, si: null },
+      runs: 1,
+      ok: 1,
+      lighthouse: null,
+      pageSpeed: {
+        scores: { performance: 91 },
+        insights: [
+          {
+            id: "unused-javascript",
+            title: "Unused JavaScript",
+            detail: "108 KiB could be saved.",
+            action: "Check the bundle.",
+          },
+        ],
+      },
+    },
   });
   const report = { ...audited, lab: { status: "quota" as const } };
   expect(
     seoSpeedOutsideTable([audited], { rows: [{ devices: [report] }] }),
   ).toEqual([audited]);
-  // A copy of the shown read in another key order, nested objects too, is the same read: it is hidden.
+  // A copy of the shown read in another key order, nested objects and objects in arrays too, is the
+  // same read: it is hidden.
   const reversed = (value: unknown): unknown =>
-    value && typeof value === "object" && !Array.isArray(value)
-      ? Object.fromEntries(
-          Object.entries(value)
-            .reverse()
-            .map(([k, v]) => [k, reversed(v)]),
-        )
-      : value;
+    Array.isArray(value)
+      ? value.map(reversed)
+      : value && typeof value === "object"
+        ? Object.fromEntries(
+            Object.entries(value)
+              .reverse()
+              .map(([k, v]) => [k, reversed(v)]),
+          )
+        : value;
   const copy = reversed(audited) as typeof audited;
   expect(
     seoSpeedOutsideTable([audited], { rows: [{ devices: [copy] }] }),

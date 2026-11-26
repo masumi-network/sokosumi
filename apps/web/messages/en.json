@@ -15207,7 +15207,7 @@
         },
         "caveat": {
           "origin": "Google has too few visits to this page alone. These values are for the whole site, so they do not describe this page.",
-          "normalized": "Google has too few visits to this exact address. These values are for a group of similar addresses, so they can differ for this page."
+          "normalized": "These values are for a group of similar addresses, so they can differ for this page."
         },
         "labNote": "A lab test loads the page once on a simulated device. It shows what to fix, but real visitors can see other values.",
         "labNoInp": "A lab test cannot measure the response to taps and clicks.",
