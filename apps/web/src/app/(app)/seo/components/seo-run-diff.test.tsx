@@ -161,6 +161,10 @@ it("shows the counts and the first new issues open on the Agent tab, and says wh
     }),
   ).toBeInTheDocument();
   expect(within(card).getByText("Fixed").nextSibling).toHaveTextContent("2");
+  // The issue count above the card is the "now" total: the counts add up to it.
+  expect(
+    within(card).getAllByText("Open page issues: 1 before, 4 now"),
+  ).toHaveLength(2);
   expect(
     within(within(card).getByRole("list", { name: "First new issues" }))
       .getAllByRole("listitem")

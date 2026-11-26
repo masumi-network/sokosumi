@@ -1,6 +1,7 @@
 "use client";
 
 import type { ProjectSeoRunDiff } from "@sokosumi/core-client";
+import { useId } from "react";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import {
@@ -19,6 +20,7 @@ export function SeoRunDiffCard({ diff }: { diff: ProjectSeoRunDiff }) {
   const t = useSeoResultTranslations("App.Seo");
   const title = useSeoRunDiffTitle(diff);
   const view = seoRunDiffView(diff);
+  const listId = useId();
   const fold = (label: string) => (
     <details data-testid="seo-agent-run-diff">
       <SeoFoldSummary className="text-muted-foreground text-sm">
@@ -37,19 +39,25 @@ export function SeoRunDiffCard({ diff }: { diff: ProjectSeoRunDiff }) {
     // No region of its own: the full comparison in its fold already is one, under the same name.
     <div
       lang="en"
-      className="space-y-2 text-sm"
+      className="border-border space-y-3 border-t pt-3 text-sm"
       data-testid="seo-agent-run-diff-card"
     >
-      <h4 className="font-medium">{title}</h4>
+      <div>
+        <h4 className="font-medium">{title}</h4>
+        {/* Before and now, so the counts add up to the issue count above the card. */}
+        <p className="text-muted-foreground text-xs">
+          {t("runDiff.issues", view.issues)}
+        </p>
+      </div>
       <dl className="grid grid-cols-3 gap-2">
         {view.lists.map((list) => (
-          <div key={list.id} className="rounded-md border px-3 py-2">
+          <div key={list.id} className="bg-muted rounded-md px-3 py-2">
             <dt className="text-muted-foreground text-xs">
               {t(`runDiff.count.${list.id}`)}
             </dt>
             <dd
               className={cn(
-                "text-lg font-semibold tabular-nums",
+                "text-xl font-semibold tabular-nums",
                 list.total > 0 &&
                   list.id === "new" &&
                   "text-status-destructive",
@@ -61,37 +69,42 @@ export function SeoRunDiffCard({ diff }: { diff: ProjectSeoRunDiff }) {
           </div>
         ))}
       </dl>
-      {/* The counts cover only the rules both checks ran: say so beside them, not only in the fold. */}
-      {view.rulebookChange ? (
-        <p className="text-muted-foreground">
-          {t("runDiff.rulebookChange", view.rulebookChange)}
-        </p>
-      ) : null}
-      {/* Issues with no clear result in one check are outside the counts: say so beside them. */}
-      {view.notCheckedAgain ? (
-        <p className="text-muted-foreground">
-          {t("runDiff.notCheckedAgain", { count: view.notCheckedAgain })}
-        </p>
-      ) : null}
-      {view.notCheckedBefore ? (
-        <p className="text-muted-foreground">
-          {t("runDiff.notCheckedBefore", { count: view.notCheckedBefore })}
-        </p>
+      {view.rulebookChange || view.notCheckedAgain || view.notCheckedBefore ? (
+        <div className="text-muted-foreground space-y-1 text-xs">
+          {/* The counts cover only the rules both checks ran: say so beside them, not only in the fold. */}
+          {view.rulebookChange ? (
+            <p>{t("runDiff.rulebookChange", view.rulebookChange)}</p>
+          ) : null}
+          {/* Issues with no clear result in one check are outside the counts: say so beside them. */}
+          {view.notCheckedAgain ? (
+            <p>
+              {t("runDiff.notCheckedAgain", { count: view.notCheckedAgain })}
+            </p>
+          ) : null}
+          {view.notCheckedBefore ? (
+            <p>
+              {t("runDiff.notCheckedBefore", {
+                count: view.notCheckedBefore,
+              })}
+            </p>
+          ) : null}
+        </div>
       ) : null}
       {added?.items.length ? (
-        // Safari drops the list role of a list without markers.
-        <ul
-          role="list"
-          aria-label={t("runDiff.firstNew")}
-          className="space-y-1"
-        >
-          {added.items.slice(0, SEO_RUN_DIFF_CARD_ISSUES).map((item) => (
-            <SeoRunDiffIssue
-              key={JSON.stringify([item.pageUrl, item.rowId])}
-              issue={item}
-            />
-          ))}
-        </ul>
+        <div className="space-y-1">
+          <p id={listId} className="text-muted-foreground text-xs font-medium">
+            {t("runDiff.firstNew")}
+          </p>
+          {/* Safari drops the list role of a list without markers. */}
+          <ul role="list" aria-labelledby={listId} className="space-y-1">
+            {added.items.slice(0, SEO_RUN_DIFF_CARD_ISSUES).map((item) => (
+              <SeoRunDiffIssue
+                key={JSON.stringify([item.pageUrl, item.rowId])}
+                issue={item}
+              />
+            ))}
+          </ul>
+        </div>
       ) : null}
       {fold(t("runDiff.all"))}
     </div>
