@@ -327,6 +327,7 @@ describe("SokoBotSchedulesSyncService", () => {
 
     expect(result).toEqual({
       claimed: 1,
+      runIds: [expect.any(String)],
       completed: 0,
       failed: 0,
       deferred: 1,
@@ -1034,6 +1035,7 @@ describe("SokoBotSchedulesSyncService", () => {
 
     expect(result).toEqual({
       claimed: 1,
+      runIds: [expect.any(String)],
       completed: 0,
       failed: 1,
       deferred: 0,

@@ -204,6 +204,49 @@ describe("SokoBotEventsSyncService", () => {
     );
   });
 
+  it("scans one bot's delegations from the start without moving the shared cursor", async () => {
+    metadataUpsertMock.mockResolvedValue({
+      key: "soko-events-v2",
+      createdAt: new Date(0),
+      cursorId: "d499",
+    });
+    delegationFindManyMock.mockResolvedValue([]);
+    await new SokoBotEventsSyncService().syncDelegatedWork({
+      ...input,
+      sokoBotId: "bot_fixture",
+    });
+    const [query] = delegationFindManyMock.mock.calls[0] as [
+      { where: Record<string, unknown> },
+    ];
+    expect(query.where.id).toBeUndefined();
+    expect(query.where.turn).toEqual(
+      expect.objectContaining({ sokoBotId: "bot_fixture" }),
+    );
+    expect(metadataUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("reads every page of a scoped scan, delegation 501 included", async () => {
+    const page = Array.from({ length: 500 }, (_, i) =>
+      taskDelegation(`d${i}`, "READY", "READY"),
+    );
+    delegationFindManyMock
+      .mockResolvedValueOnce(page)
+      .mockResolvedValueOnce([taskDelegation("d500", "READY", "FAILED")]);
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork({
+      ...input,
+      sokoBotId: "bot_fixture",
+    });
+    expect(result.scanned).toBe(501);
+    expect(delegationFindManyMock).toHaveBeenCalledTimes(2);
+    expect(delegationFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: { gt: "d499" } }),
+      }),
+    );
+    expect(result.woken).toBe(1);
+    expect(metadataUpdateMock).not.toHaveBeenCalled();
+  });
+
   it("baselines historical actionable events before the persisted cutover", async () => {
     metadataUpsertMock.mockResolvedValue({
       key: "soko-events-v2",

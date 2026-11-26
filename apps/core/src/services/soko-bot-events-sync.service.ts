@@ -87,9 +87,21 @@ function readSawChange(
   };
 }
 
+/**
+ * The scan's sync row. Its `createdAt` is the cutover: Task events older than
+ * it are baselined, never woken. Whoever writes events before a first scan
+ * (the owner benchmark) creates the row first.
+ */
+export const SOKO_EVENTS_SYNC_KEY = "soko-events-v2";
+
 export interface SokoBotEventsSyncInput {
   abortSignal: AbortSignal;
   shouldContinue: () => boolean;
+  /**
+   * Scan only this bot's delegations, from the first, and leave the shared
+   * cursor where it is. The owner benchmark wakes its fixture bot this way.
+   */
+  sokoBotId?: string;
 }
 
 export interface SokoBotEventsSyncResult {
@@ -318,8 +330,8 @@ export class SokoBotEventsSyncService {
     if (getEnv().SOKO_BOT_PROACTIVE_PAUSED) return result;
 
     const scan = await prisma.syncMetadata.upsert({
-      where: { key: "soko-events-v2" },
-      create: { key: "soko-events-v2", lastSyncedAt: new Date() },
+      where: { key: SOKO_EVENTS_SYNC_KEY },
+      create: { key: SOKO_EVENTS_SYNC_KEY, lastSyncedAt: new Date() },
       update: {},
     });
     const readPage = (cursor?: string | null) =>
@@ -331,6 +343,7 @@ export class SokoBotEventsSyncService {
           // Unattended work the bot starts itself honours the owner's pause,
           // not just the administrator's.
           turn: {
+            ...(input.sokoBotId ? { sokoBotId: input.sokoBotId } : {}),
             sokoBot: {
               archivedAt: null,
               adminPausedAt: null,
@@ -399,7 +412,15 @@ export class SokoBotEventsSyncService {
           },
         },
       });
-    const delegations = await readPage(scan.cursorId);
+    const delegations = await readPage(input.sokoBotId ? null : scan.cursorId);
+    // A scoped scan has no cursor to resume from: it reads every page.
+    if (input.sokoBotId) {
+      let page = delegations;
+      while (page.length === BATCH_SIZE) {
+        page = await readPage(page.at(-1)?.id);
+        delegations.push(...page);
+      }
+    }
     result.scanned = delegations.length;
 
     const byBot = new Map<string, BotWork>();
@@ -814,7 +835,11 @@ export class SokoBotEventsSyncService {
         log.emit();
       }
     }
-    if (input.shouldContinue() && !input.abortSignal.aborted) {
+    if (
+      !input.sokoBotId &&
+      input.shouldContinue() &&
+      !input.abortSignal.aborted
+    ) {
       await prisma.syncMetadata.update({
         where: { key: scan.key },
         data: {
