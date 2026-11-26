@@ -62,7 +62,7 @@ export function AgentsSectionNav() {
     <nav
       ref={setNav}
       aria-label={t("sectionNavLabel")}
-      className="bg-background sticky -top-4 z-10 -mx-4 -my-4 px-4 py-2 md:hidden"
+      className="bg-background sticky -top-4 z-30 -mx-4 -my-4 px-4 py-2 md:hidden"
     >
       <div className={cn(SEGMENTED_CONTROL_CLASS_NAME, "flex w-full")}>
         {AGENTS_SECTION_IDS.map((id) => (
