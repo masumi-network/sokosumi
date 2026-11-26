@@ -2,6 +2,7 @@ import { expect, it } from "vitest";
 import {
   seoDeviceReason,
   seoDeviceVerdict,
+  seoHistoryGap,
   seoPageTrend,
   seoPageVerdict,
   seoSpeedOutsideTable,
@@ -281,13 +282,28 @@ it("gives a reason and no chart for one week or for weeks that cannot be compare
       lcp: [null, null, null, 2400],
     }),
   ).toEqual({ chart: false, reason: "too_few" });
+  // Review pass 32: an audit saved before the worker wrote weeks has a comparable history without them; it has no
+  // series, not too few weeks.
+  for (const old of [
+    { status: "comparable" as const },
+    { status: "comparable" as const, weeks: [] },
+  ]) {
+    expect(seoHistoryGap(old)).toBe("no_series");
+    expect(seoVitalTrend("lcp", old)).toEqual({
+      chart: false,
+      reason: "no_series",
+    });
+  }
+  expect(
+    seoHistoryGap({ status: "comparable", weeks, lcp: [1, 2, 3, 4] }),
+  ).toBeNull();
   expect(seoVitalTrend("lcp", { status: "incompatible_population" })).toEqual({
     chart: false,
     reason: "incompatible_population",
   });
 });
 
-it("names no share of visitors when Google gave no device mix", () => {
+it("names no share of page loads when Google gave no device mix", () => {
   const check = {
     device: "mobile" as const,
     basis: "crux-url" as const,

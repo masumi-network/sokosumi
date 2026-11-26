@@ -41,9 +41,9 @@ type SiteSpeedCheck = NonNullable<StoredSiteSpeed["rows"][number]["check"]>;
 /** The slack of a share sum: CrUX rounds each share. The worker allows the same, plus float error. */
 const SITE_SPEED_MIX_SLACK = 0.01 + 1e-9;
 /**
- * A device mix the check cannot show: shares that do not add up to all visits, a level that is not the one
+ * A device mix the check cannot show: shares that do not add up to all page loads, a level that is not the one
  * its basis names (a basis without a level has no mix), or a device the shares do not pick. The worker picks
- * desktop only when more visitors use it than a phone. The check stays and shows no mix.
+ * desktop only when more page loads use it than a phone. The check stays and shows no mix.
  */
 function contradicts(
   { basis, device }: SiteSpeedCheck,

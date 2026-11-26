@@ -242,16 +242,27 @@ export type SeoVitalTrend =
     }
   | {
       chart: false;
-      reason: Exclude<SeoSpeedHistory["status"], "comparable"> | "too_few";
+      reason: SeoHistoryGap | "too_few";
     };
+
+/** Why a history shows no weekly chart at all. no_series: a comparable history without weeks (an audit saved before the worker wrote them). */
+export type SeoHistoryGap =
+  | Exclude<SeoSpeedHistory["status"], "comparable">
+  | "no_series";
+
+export function seoHistoryGap(history: SeoSpeedHistory): SeoHistoryGap | null {
+  if (history.status !== "comparable") return history.status;
+  return history.weeks?.length ? null : "no_series";
+}
 
 /** The weekly values of one Core Web Vital for real visitors. A lower value is the better one for each vital. */
 export function seoVitalTrend(
   metric: SeoVital,
   history: SeoSpeedHistory,
 ): SeoVitalTrend {
-  if (history.status !== "comparable")
-    return { chart: false, reason: history.status };
+  const gap = seoHistoryGap(history);
+  if (gap || history.status !== "comparable")
+    return { chart: false, reason: gap ?? "no_series" };
   const weeks = history.weeks ?? [];
   const values = weeks.map((_, index) => history[metric]?.[index] ?? null);
   const measured = weeks.flatMap((week, index) => {
@@ -339,7 +350,7 @@ export function seoPageTrend(
 
 /**
  * Why a page with the short check has its one device. The text names the chosen device and does not say its read ran (a gap
- * can stop that read). The share is that device's part of the visits, when Google gave one.
+ * can stop that read). The share is that device's part of the page loads, when Google gave one.
  * stopped: basis default with a gap. The worker writes it when a limit cut the read of the shares, and also when it found no shares,
  * took the default device and a limit then cut that device's read. The row cannot tell the two apart, so the text holds for both.
  * unknown: a counted basis without a share, or basis default on a device other than mobile (the worker's default).

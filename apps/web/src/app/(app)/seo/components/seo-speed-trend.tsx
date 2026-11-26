@@ -6,6 +6,7 @@ import {
   SEO_VITAL_LIMITS,
   SEO_VITALS,
   type SeoSpeedHistory,
+  seoHistoryGap,
   seoSpeedValue,
   seoVitalTrend,
 } from "./seo-speed-model";
@@ -27,10 +28,11 @@ const y = (share: number) => PAD + share * (HEIGHT - 2 * PAD);
 export function SeoSpeedTrend({ history }: { history: SeoSpeedHistory }) {
   const t = useSeoResultTranslations("App.Seo");
   const format = useSeoResultFormatter();
-  if (history.status !== "comparable")
+  const gap = seoHistoryGap(history);
+  if (gap || history.status !== "comparable")
     return (
       <p className="text-muted-foreground max-w-prose text-xs">
-        {t(`siteSpeed.noTrend.${history.status}`)}
+        {t(`siteSpeed.noTrend.${gap ?? "no_series"}`)}
       </p>
     );
   const day = (week: string) =>

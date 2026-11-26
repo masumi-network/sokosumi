@@ -23,11 +23,11 @@ export const SITE_SPEED_TIERS = ["full", "reduced", "none"] as const;
 export const SITE_SPEED_GAPS = ["deadline", "quota", "other"] as const;
 const share = z.number().min(0).max(1);
 export const siteSpeedMixPeriod = z.object({ first: speedDay, last: speedDay });
-/** How a page with the reduced test was read: one device, chosen from the visitors' device mix. */
+/** How a page with the reduced test was read: one device, chosen from the device mix of the page loads. */
 export const siteSpeedCheck = z.object({
   device: z.enum(["mobile", "desktop"]),
   basis: z.enum(["crux-url", "crux-origin", "page-type", "default"]),
-  /** The share of visits per device, 0 to 1. Null: CrUX gave no mix. */
+  /** The share of page loads per device, 0 to 1. Null: CrUX gave no mix. */
   mix: z.union([
     z.object({
       level: z.enum(["url", "origin"]),
