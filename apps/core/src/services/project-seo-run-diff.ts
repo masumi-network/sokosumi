@@ -66,7 +66,8 @@ function readIssueStates(payload: PublicSeoPayload, selected: Selected) {
     if (!selected(finding.pageUrl)) continue;
     const key = issueKey(payload, finding);
     if (!SEO_ISSUE_SEVERITIES.has(finding.severity)) {
-      addDevice(noted, key, finding.device);
+      // A note alone says the rule was read. Other kinds of finding say nothing about the issue.
+      if (finding.severity === "note") addDevice(noted, key, finding.device);
       continue;
     }
     addDevice(failed, key, finding.device);
@@ -99,7 +100,9 @@ function readIssueStates(payload: PublicSeoPayload, selected: Selected) {
     if (!selected(check.pageUrl)) continue;
     const key = issueKey(payload, check);
     addDevice(check.result === "pass" ? passed : fired, key, check.device);
-    if (check.result === "fired") addDevice(failed, key, check.device);
+    // A rule that fired with a note only did not fail there.
+    if (check.result === "fired" && !noted.get(key)?.has(check.device))
+      addDevice(failed, key, check.device);
   }
   return { open, passed, fired, failed, noted };
 }
@@ -109,7 +112,7 @@ const bySeverity = (a: Issue, b: Issue) =>
 
 /**
  * What the later check changed against the earlier one, per issue of the selected pages. An issue is new only where
- * the earlier check passed its rule, and fixed only where the later check read it on every device it failed on and
+ * the earlier check read its rule on a device that fails now and found no issue, and fixed only where the later check read it on every device it failed on and
  * found no issue: a pass, or a note alone.
  */
 export function compareSeoRuns(
@@ -131,7 +134,15 @@ export function compareSeoRuns(
   if (!reason) {
     for (const [key, issue] of after.open) {
       if (before.open.has(key)) stillOpen.push(issue);
-      else if (before.passed.has(key)) added.push(issue);
+      // New only where the earlier check read the rule on a device that fails now and found no issue there.
+      else if (
+        [...(after.failed.get(key) ?? [])].some(
+          (device) =>
+            before.passed.get(key)?.has(device) ||
+            before.noted.get(key)?.has(device),
+        )
+      )
+        added.push(issue);
       else notCheckedBefore += 1;
     }
     for (const [key, issue] of before.open) {
@@ -180,8 +191,8 @@ export function compareSeoRuns(
 }
 
 /**
- * The check to compare with: the latest earlier check of the same kind that read every selected page, in the same
- * Market where one exists. Checks of two Markets that take turns each keep their own line.
+ * The check to compare with: the latest earlier check of the same kind that read every selected page, with the same
+ * Market and rulebook where one exists. Checks of two Markets that take turns each keep their own line.
  */
 function seoRunDiffOf(
   run: SeoRunDiffSource,
@@ -210,10 +221,12 @@ function seoRunDiffOf(
         moves: [],
       },
     };
+  const mismatch = (source: SeoRunDiffSource) =>
+    seoRunMismatch(source.payload, run.payload);
   const previous =
-    full.find(
-      (source) => seoRunMismatch(source.payload, run.payload) !== "market",
-    ) ?? full[0];
+    full.find((source) => !mismatch(source)) ??
+    full.find((source) => mismatch(source) !== "market") ??
+    full[0];
   return { previous, diff: compareSeoRuns(previous, run, selected) };
 }
 

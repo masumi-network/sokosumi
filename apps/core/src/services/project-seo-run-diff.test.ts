@@ -35,7 +35,10 @@ const check = (
   { rowId, device = "desktop", pageUrl = PAGE }: Row,
 ) => ({ rowId, pageUrl, device, result });
 /** A failed rule as a check stores it: the fired check and its finding, whose id changes with every check. */
-function failed(row: Row, severity: "critical" | "major" | "note" = "major") {
+function failed(
+  row: Row,
+  severity: "critical" | "major" | "note" | "test" = "major",
+) {
   const { rowId, device = "desktop", pageUrl = PAGE } = row;
   return {
     check: check("fired", row),
@@ -180,6 +183,49 @@ describe("withSeoRunDiffs", () => {
       stillOpenCount: 1,
       newCount: 0,
     });
+  });
+
+  it("compares with the earlier check of the same rulebook when another rulebook ran in between", () => {
+    const diff = diffOf([
+      source(8, result([failed({ rowId: "A" })])),
+      source(5, result([], { rulebookVersion: "r2" })),
+      source(1, result([failed({ rowId: "A" })])),
+    ]);
+    expect(diff).toMatchObject({
+      from: "2026-11-01T09:00:00.000Z",
+      comparable: true,
+      stillOpenCount: 1,
+    });
+  });
+
+  it("reads a note as a rule the check read without an issue, on its device only", () => {
+    const diff = diffOf([
+      source(
+        8,
+        result([
+          check("pass", { rowId: "A", device: "mobile" }),
+          failed({ rowId: "B", device: "mobile" }),
+          failed({ rowId: "C", device: "mobile" }),
+          failed({ rowId: "D", device: "mobile" }, "test"),
+        ]),
+      ),
+      source(
+        1,
+        result([
+          failed({ rowId: "A", device: "mobile" }),
+          failed({ rowId: "A", device: "desktop" }, "note"),
+          failed({ rowId: "B", device: "mobile" }, "note"),
+          check("pass", { rowId: "C", device: "desktop" }),
+          check("fired", { rowId: "C", device: "mobile" }),
+          failed({ rowId: "D", device: "mobile" }),
+        ]),
+      ),
+    ]);
+    // A: the desktop note was no failure, so the mobile pass fixes it. B: a note before, an issue now, is new.
+    // C: the earlier pass was on another device. D: a finding that is not a note does not say the rule was read.
+    expect(rows(diff?.fixed ?? [])).toEqual(["A"]);
+    expect(rows(diff?.new ?? [])).toEqual(["B"]);
+    expect(diff).toMatchObject({ notCheckedBefore: 1, notCheckedAgain: 1 });
   });
 
   it("never counts an issue as fixed when the later check did not read its rule again", () => {
