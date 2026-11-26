@@ -13692,9 +13692,22 @@ export type ProjectSeoMonitorChange = {
         device: 'mobile' | 'desktop' | null;
         from: number;
         to: number;
+    } | {
+        keyword: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        from: number;
+        to: null;
+        checkedResults: number;
     }>;
     moveCount: number;
     dropCount: number;
+    lostCitations: Array<{
+        keyword: string;
+        device: 'mobile' | 'desktop';
+        shown: boolean;
+    }>;
+    lostCitationCount: number;
 };
 
 export type AddProjectSeoPageRequest = {

@@ -7950,7 +7950,7 @@
         "search_console": "Search Console",
         "ga4": "Google Analytics 4",
         "connectionSummary": "Connections to reconnect: {count}",
-        "summary": "Last 30 days: {critical} critical, {warning, plural, one {# warning} other {# warnings}}",
+        "summary": "Open or from the last 30 days: {critical} critical, {warning, plural, one {# warning} other {# warnings}}",
         "unavailable": "Alert counts are unavailable.",
         "title": "SEO audit alerts",
         "description": "The latest finished or overdue run for each audit. Page failure warnings start at {percent}% of attempted pages.",
@@ -14345,10 +14345,16 @@
           "fixed": "{count} fixed",
           "drops": "{count, plural, one {# ranking drop} other {# ranking drops}}",
           "rises": "{count, plural, one {# ranking gain} other {# ranking gains}}",
+          "lostCitations": "{count, plural, one {# lost AI Overview citation} other {# lost AI Overview citations}}",
           "newFailuresTitle": "Now failing",
           "fixedTitle": "Fixed",
           "movesTitle": "Ranking moves",
           "move": "{keyword}: position {from} → {to}",
+          "lost": "{keyword}: was position {from}, now not in the top {checked}",
+          "lostCitationsTitle": "AI Overview citations lost",
+          "lostCitation": "{keyword}: the AI Overview no longer cites your page",
+          "lostCitationGone": "{keyword}: the AI Overview that cited your page no longer shows",
+          "lostCitationsShowing": "Showing {shown} of {total}",
           "band": "A ranking move counts only when it is larger than normal search noise: 2 places in the top 3, 5 in the top 10, 7 in the top 20."
         },
         "plan": {
@@ -15864,7 +15870,11 @@
         "assigned": "You were assigned {taskName}",
         "participantAdded": "You were added to {taskName} as a participant",
         "followUp": "{taskName} is still waiting for you",
-        "seoMonitorWorse": "{taskName}: the newest scheduled SEO result got worse. New failures: {newFailures}. Ranking drops: {drops}."
+        "seoMonitorWorse": "{site}: the newest scheduled SEO result got worse. New failures: {newFailures}. Ranking drops: {drops}. Lost AI Overview citations: {lostCitations}.",
+        "seoMonitorClicksDrop": "{site}: Search Console clicks fell from {clicksFrom} to {clicksTo} against the period before."
+      },
+      "System": {
+        "seoAdminCritical": "An SEO audit has a critical alert. Open the admin SEO alerts to check it."
       },
       "Billing": {
         "lowBalance": "Your credits are running low: {credits} left",

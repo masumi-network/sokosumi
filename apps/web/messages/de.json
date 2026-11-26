@@ -7914,7 +7914,7 @@
         "search_console": "Search Console",
         "ga4": "Google Analytics 4",
         "connectionSummary": "Erneut zu verbindende Konten: {count}",
-        "summary": "Letzte 30 Tage: {critical} kritisch, {warning, plural, one {# Warnung} other {# Warnungen}}",
+        "summary": "Offen oder aus den letzten 30 Tagen: {critical} kritisch, {warning, plural, one {# Warnung} other {# Warnungen}}",
         "unavailable": "Die Anzahl der Meldungen ist nicht verfügbar.",
         "title": "Warnungen für SEO-Audits",
         "description": "Der letzte abgeschlossene oder überfällige Lauf pro Audit. Ab {percent}% fehlgeschlagener Seiten wird eine Warnung angezeigt.",
@@ -14345,10 +14345,16 @@
           "fixed": "{count} behoben",
           "drops": "{count, plural, one {# Ranking-Verlust} other {# Ranking-Verluste}}",
           "rises": "{count, plural, one {# Ranking-Gewinn} other {# Ranking-Gewinne}}",
+          "lostCitations": "{count, plural, one {# verlorene Nennung in der KI-Übersicht} other {# verlorene Nennungen in der KI-Übersicht}}",
           "newFailuresTitle": "Jetzt fehlerhaft",
           "fixedTitle": "Behoben",
           "movesTitle": "Ranking-Bewegungen",
           "move": "{keyword}: Position {from} → {to}",
+          "lost": "{keyword}: war Position {from}, jetzt nicht in den Top {checked}",
+          "lostCitationsTitle": "Nennungen in der KI-Übersicht verloren",
+          "lostCitation": "{keyword}: Die KI-Übersicht nennt deine Seite nicht mehr",
+          "lostCitationGone": "{keyword}: Die KI-Übersicht, die deine Seite nannte, erscheint nicht mehr",
+          "lostCitationsShowing": "{shown} von {total} angezeigt",
           "band": "Eine Ranking-Bewegung zählt nur, wenn sie größer als das normale Suchrauschen ist: 2 Plätze in den Top 3, 5 in den Top 10, 7 in den Top 20."
         },
         "plan": {
@@ -15864,7 +15870,11 @@
         "assigned": "Dir wurde {taskName} zugewiesen",
         "participantAdded": "Du wurdest als Teilnehmer zu {taskName} hinzugefügt",
         "followUp": "{taskName} wartet weiterhin auf dich",
-        "seoMonitorWorse": "{taskName}: Das neueste geplante SEO-Ergebnis ist schlechter. Neue Fehler: {newFailures}. Ranking-Verluste: {drops}."
+        "seoMonitorWorse": "{site}: Das neueste geplante SEO-Ergebnis ist schlechter. Neue Fehler: {newFailures}. Ranking-Verluste: {drops}. Verlorene Nennungen in der KI-Übersicht: {lostCitations}.",
+        "seoMonitorClicksDrop": "{site}: Die Search-Console-Klicks sind gegenüber dem Zeitraum davor von {clicksFrom} auf {clicksTo} gesunken."
+      },
+      "System": {
+        "seoAdminCritical": "Ein SEO-Audit hat eine kritische Warnung. Öffne die SEO-Warnungen im Adminbereich, um sie zu prüfen."
       },
       "Billing": {
         "lowBalance": "Deine Credits werden knapp: noch {credits}",

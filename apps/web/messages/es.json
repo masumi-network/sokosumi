@@ -7914,7 +7914,7 @@
         "search_console": "Search Console",
         "ga4": "Google Analytics 4",
         "connectionSummary": "Conexiones que requieren reconexión: {count}",
-        "summary": "Últimos 30 días: {critical, plural, one {# crítica} other {# críticas}}, {warning, plural, one {# advertencia} other {# advertencias}}",
+        "summary": "Abiertas o de los últimos 30 días: {critical, plural, one {# crítica} other {# críticas}}, {warning, plural, one {# advertencia} other {# advertencias}}",
         "unavailable": "Los recuentos de alertas no están disponibles.",
         "title": "Alertas de auditorías SEO",
         "description": "Última ejecución finalizada o atrasada de cada auditoría. La alerta se activa cuando falla al menos el {percent}% de las páginas que se intentaron analizar.",
@@ -14345,10 +14345,16 @@
           "fixed": "{count, plural, one {# corregido} other {# corregidos}}",
           "drops": "{count, plural, one {# caída de posición} other {# caídas de posición}}",
           "rises": "{count, plural, one {# subida de posición} other {# subidas de posición}}",
+          "lostCitations": "{count, plural, one {# cita perdida en AI Overview} other {# citas perdidas en AI Overview}}",
           "newFailuresTitle": "Ahora fallan",
           "fixedTitle": "Corregidos",
           "movesTitle": "Cambios de posición",
           "move": "{keyword}: posición {from} → {to}",
+          "lost": "{keyword}: estaba en la posición {from}, ahora fuera de los primeros {checked}",
+          "lostCitationsTitle": "Citas perdidas en AI Overview",
+          "lostCitation": "{keyword}: AI Overview ya no cita tu página",
+          "lostCitationGone": "{keyword}: el AI Overview que citaba tu página ya no aparece",
+          "lostCitationsShowing": "Mostrando {shown} de {total}",
           "band": "Un cambio de posición cuenta solo si supera el ruido normal de búsqueda: 2 puestos en el top 3, 5 en el top 10, 7 en el top 20."
         },
         "plan": {
@@ -15864,7 +15870,11 @@
         "assigned": "Se te asignó {taskName}",
         "participantAdded": "Te añadieron a {taskName} como participante",
         "followUp": "{taskName} sigue esperándote",
-        "seoMonitorWorse": "{taskName}: el último resultado SEO programado empeoró. Fallos nuevos: {newFailures}. Caídas de posición: {drops}."
+        "seoMonitorWorse": "{site}: el último resultado SEO programado empeoró. Fallos nuevos: {newFailures}. Caídas de posición: {drops}. Citas perdidas en AI Overview: {lostCitations}.",
+        "seoMonitorClicksDrop": "{site}: los clics de Search Console bajaron de {clicksFrom} a {clicksTo} frente al periodo anterior."
+      },
+      "System": {
+        "seoAdminCritical": "Una auditoría SEO tiene una alerta crítica. Abre las alertas SEO de administración para revisarla."
       },
       "Billing": {
         "lowBalance": "Tus créditos se están agotando: quedan {credits}",

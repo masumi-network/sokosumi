@@ -102,6 +102,22 @@ export function getNotificationMessageTranslationKey(
   return key;
 }
 
+const SEO_MONITOR_WORSE_MESSAGE_KEY = "Notifications.Task.seoMonitorWorse";
+
+/**
+ * The params a stored notification renders with. An SEO monitor alert stored
+ * before it named the site and the lost citations has neither: it reads with
+ * the task name and 0, never with a raw placeholder.
+ */
+export function notificationMessageParams(
+  messageKey: string,
+  messageParams: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return messageKey === SEO_MONITOR_WORSE_MESSAGE_KEY
+    ? { site: messageParams.taskName, lostCitations: 0, ...messageParams }
+    : messageParams;
+}
+
 export function useNotificationMessage() {
   const t = useTranslations();
 
@@ -113,7 +129,7 @@ export function useNotificationMessage() {
             messageKey,
             messageParams,
           ) as never,
-          messageParams as never,
+          notificationMessageParams(messageKey, messageParams) as never,
         );
       } catch {
         return messageKey;
