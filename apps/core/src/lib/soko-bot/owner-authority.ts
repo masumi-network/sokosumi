@@ -1255,7 +1255,7 @@ export function checkScheduleFirstRunCapabilities(
       ok: false,
       droppedWriteCapabilities,
       denialReason: reason,
-      detail: `Custom schedules on a shared bot run without a member identity and cannot run write tools (${sample}). Ask for a read-only check instead, or perform the write directly in chat.`,
+      detail: `Custom schedules on a shared bot run without a member identity and cannot run write tools (${sample}). Pass capabilities with only read-only tools for a read-only check, or perform the write directly in chat.`,
     };
   }
   if (reason === "expired") {
@@ -1263,7 +1263,7 @@ export function checkScheduleFirstRunCapabilities(
       ok: false,
       droppedWriteCapabilities,
       denialReason: reason,
-      detail: `This schedule's owner authorization has expired and cannot run write tools (${sample}). Ask the owner in chat to renew it.`,
+      detail: `This schedule's owner authorization has expired and cannot run write tools (${sample}). Ask the owner in chat to renew it, or pass capabilities with only read-only tools.`,
     };
   }
   if (
@@ -1274,14 +1274,14 @@ export function checkScheduleFirstRunCapabilities(
       ok: false,
       droppedWriteCapabilities,
       denialReason: reason,
-      detail: `Only a direct top-level owner chat or console action can authorize a schedule to run write tools (${sample}). Ask the owner in chat to set up this scheduled write directly, or create a read-only check instead.`,
+      detail: `Only a direct top-level owner chat or console action can authorize a schedule to run write tools (${sample}). Ask the owner in chat to set up this scheduled write directly, or pass capabilities with only read-only tools for a read-only check.`,
     };
   }
   return {
     ok: false,
     droppedWriteCapabilities,
     denialReason: reason,
-    detail: `This schedule cannot execute the requested write tools (${sample}) under its owner authorization. Adjust the schedule's posting permission in direct owner chat or create a read-only check instead.`,
+    detail: `This schedule cannot execute the requested write tools (${sample}) under its owner authorization. Adjust the schedule's posting permission in direct owner chat, or pass capabilities with only the tools it is allowed to run.`,
   };
 }
 

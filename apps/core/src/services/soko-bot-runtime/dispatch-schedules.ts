@@ -27,6 +27,7 @@ import {
   requireOwnScheduleScope,
   requireScheduledRunMayEnd,
   resolveBotScheduleAuthority,
+  resolveRequestedScheduleCapabilities,
   runScheduleTool,
 } from "./schedule-scope";
 export async function dispatchSchedulesTools(
@@ -142,28 +143,52 @@ export async function dispatchSchedulesTools(
             | Awaited<ReturnType<typeof updateSokoBotSchedule>>
             | Awaited<ReturnType<typeof deleteSokoBotSchedule>>;
           if (input.capability === "create_schedule") {
-            const { stopRule, allowScheduledPosts, ...scheduleInput } =
-              createScheduleInputSchema.parse(input.input);
+            const {
+              stopRule,
+              allowScheduledPosts,
+              capabilities,
+              ...scheduleInput
+            } = createScheduleInputSchema.parse(input.input);
+            const capabilityNames = resolveRequestedScheduleCapabilities(
+              capabilities,
+              authorized.grant.capabilities,
+            );
             schedule = await createSokoBotSchedule(
               {
                 ...scope,
                 ...scheduleInput,
-                capabilityNames: authorized.grant.capabilities,
+                capabilityNames,
                 resolveAuthority: resolveBotScheduleAuthority(
                   authorized,
-                  { stopRule, allowScheduledPosts },
+                  {
+                    stopRule,
+                    allowScheduledPosts,
+                    capabilities: capabilityNames,
+                  },
                   { isUpdate: false },
                 ),
               },
               tx,
             );
           } else if (input.capability === "update_schedule") {
-            const { stopRule, allowScheduledPosts, ...scheduleInput } =
-              updateScheduleInputSchema.parse(input.input);
+            const {
+              stopRule,
+              allowScheduledPosts,
+              capabilities,
+              ...scheduleInput
+            } = updateScheduleInputSchema.parse(input.input);
+            const capabilityNames =
+              capabilities !== undefined
+                ? resolveRequestedScheduleCapabilities(
+                    capabilities,
+                    authorized.grant.capabilities,
+                  )
+                : undefined;
             schedule = await updateSokoBotSchedule(
               {
                 ...scope,
                 ...scheduleInput,
+                ...(capabilityNames !== undefined ? { capabilityNames } : {}),
                 // Cuso's rhythms are the work he was hired for: what
                 // the owner asks for becomes a schedule of its own.
                 keepBuiltInRhythms:
@@ -171,7 +196,11 @@ export async function dispatchSchedulesTools(
                   "cmo",
                 resolveAuthority: resolveBotScheduleAuthority(
                   authorized,
-                  { stopRule, allowScheduledPosts },
+                  {
+                    stopRule,
+                    allowScheduledPosts,
+                    capabilities: capabilityNames,
+                  },
                   { isUpdate: true },
                 ),
               },

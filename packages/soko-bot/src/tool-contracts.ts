@@ -46,7 +46,7 @@ import {
   saveCompetitorFeedInputSchema,
 } from "./competitors.js";
 import { ownerAuthorityStopRuleInputSchema } from "./owner-authority.js";
-import type { SokoBotCapability } from "./policy.js";
+import { SOKO_BOT_CAPABILITIES, type SokoBotCapability } from "./policy.js";
 import {
   brandBrainSchema,
   CMO_BRAND_SECTION_KEYS,
@@ -139,6 +139,10 @@ export const sokoBotMemoryUpdateInputSchema = z
 
 const cronExpressionSchema = z.string().trim().min(9).max(120);
 const timezoneSchema = z.string().trim().min(1).max(100);
+const scheduleCapabilitiesSchema = z
+  .array(z.enum(SOKO_BOT_CAPABILITIES))
+  .min(1)
+  .max(SOKO_BOT_CAPABILITIES.length);
 
 export const sokoBotCreateScheduleInputSchema = z
   .object({
@@ -149,6 +153,12 @@ export const sokoBotCreateScheduleInputSchema = z
     runAt: z.string().datetime({ offset: true }).optional(),
     timezone: timezoneSchema,
     prompt: z.string().trim().min(1).max(4_000),
+    /**
+     * Exact capabilities the scheduled job needs, bounded by the authoring
+     * turn's grant. Omit to inherit the authoring turn's capabilities; pass
+     * read-only capabilities when creating a read-only check from a broader turn.
+     */
+    capabilities: scheduleCapabilitiesSchema.optional(),
     /** The Task this schedule watches; Core deletes the schedule once it finishes. */
     taskId: z.string().min(1).optional(),
     /** The Job this schedule watches; Core deletes the schedule once it finishes. */
@@ -190,6 +200,12 @@ export const sokoBotUpdateScheduleInputSchema = z
     cronExpression: cronExpressionSchema.optional(),
     timezone: timezoneSchema.optional(),
     prompt: z.string().trim().min(1).max(4_000).optional(),
+    /**
+     * Updates the capabilities the scheduled job needs, bounded by the editing
+     * turn's grant. Pass this when changing what the job does (for example
+     * from a read-only check to a write, or vice versa).
+     */
+    capabilities: scheduleCapabilitiesSchema.optional(),
     /**
      * Updates or clears (`{ mode: "never" }`) the schedule's persisted stop
      * condition (settable/clearable only on a direct top-level owner chat turn).
@@ -2298,9 +2314,9 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   list_schedules:
     "List schedules with who created each, when, which bot runs it, the last run and its result, and youCanChange. Default: yours. scope workspace: also the workspace's Task Schedules and other bots' schedules the member may see; query narrows by name or prompt. Change only schedules with youCanChange; when askOwnerFirst or createdBySomeoneElse is set, ask the owner and change it on their yes. For the rest, propose the change.",
   create_schedule:
-    "Create a follow-up that wakes you with a prompt: either once at `runAt` (a one-time reminder, e.g. tomorrow 09:00) or recurring with `cronExpression` (5 fields, in `timezone`). `timezone` is the zone the owner names; when they name none, use `actor.timezone` from the context packet without asking, name that zone in your reply, and say they can ask for another (then update_schedule). Ask only when the packet has no zone. Cron covers monthly patterns: `0 10 * * 1#1` is the first Monday of each month, `0 9 1 * *` the 1st of each month, `0 9 L * *` the last day. Setting both day-of-month and weekday means either one, so it's rejected; use `#` for nth weekdays. Use it whenever the owner wants check-ins, nudges, reminders, or monitoring of delegated work. No approval needed. Include task/job ids in the prompt so the future run knows what to check, and pass taskId or jobId when the schedule only watches that work: Core deletes it once the work finishes. When the owner directly asks for a recurring schedule to stop after a date, run count, or settled Task/Job, pass `stopRule` (`ends_on`, `ends_after_runs`, or `when_target_settled`; settable only on a direct owner chat turn). To act when delegated work completes, give create_task, assign_task or hire_agent a followUp instead of a schedule. A run that ends by posting in a chat (post_chat) must not read the web or run bash first: Core refuses posting after that. Have it read its sources through a connected app with read_integration_tool (GitHub for pull requests, for example) and make any graphic as SVG with upload_file. When the job needs something you lack (an app to connect, being added to a room), set it up anyway where you can and tell the owner exactly what to do; never decline the job for it.",
+    "Create a follow-up that wakes you with a prompt: either once at `runAt` (a one-time reminder, e.g. tomorrow 09:00) or recurring with `cronExpression` (5 fields, in `timezone`). `timezone` is the zone the owner names; when they name none, use `actor.timezone` from the context packet without asking, name that zone in your reply, and say they can ask for another (then update_schedule). Ask only when the packet has no zone. Cron covers monthly patterns: `0 10 * * 1#1` is the first Monday of each month, `0 9 1 * *` the 1st of each month, `0 9 L * *` the last day. Setting both day-of-month and weekday means either one, so it's rejected; use `#` for nth weekdays. Use it whenever the owner wants check-ins, nudges, reminders, or monitoring of delegated work. No approval needed. Pass `capabilities` (subset of your current tools) to declare the exact tools the future run needs — especially when setting up a read-only check from a broader turn. Include task/job ids in the prompt so the future run knows what to check, and pass taskId or jobId when the schedule only watches that work: Core deletes it once the work finishes. When the owner directly asks for a recurring schedule to stop after a date, run count, or settled Task/Job, pass `stopRule` (`ends_on`, `ends_after_runs`, or `when_target_settled`; settable only on a direct owner chat turn). To act when delegated work completes, give create_task, assign_task or hire_agent a followUp instead of a schedule. A run that ends by posting in a chat (post_chat) must not read the web or run bash first: Core refuses posting after that. Have it read its sources through a connected app with read_integration_tool (GitHub for pull requests, for example) and make any graphic as SVG with upload_file. When the job needs something you lack (an app to connect, being added to a room), set it up anyway where you can and tell the owner exactly what to do; never decline the job for it.",
   update_schedule:
-    "Change or pause a follow-up schedule (cron, timezone, prompt, enabled, new name, or `stopRule` on a direct owner chat turn). Address it by scheduleId or scheduleName exactly as list_schedules returned it. A built-in rhythm changes only its time, timezone and on/off, never its name or prompt, and is never deleted: for another job, create a schedule of its own and pause the rhythm if it should stop.",
+    "Change or pause a follow-up schedule (cron, timezone, prompt, capabilities, enabled, new name, or `stopRule` on a direct owner chat turn). When changing what the job does (for example from a read-only check to a write, or vice versa), pass `capabilities` with the tools the updated job needs (bounded by your current tools). Address it by scheduleId or scheduleName exactly as list_schedules returned it. A built-in rhythm changes only its time, timezone and on/off, never its name or prompt, and is never deleted: for another job, create a schedule of its own and pause the rhythm if it should stop.",
   save_task_schedule:
     "Create or change a Task Schedule (the Schedules page): each run creates a Task with the brief for its assignee, a Coworker (find_coworkers) or a Soko Bot; people cannot be assignees. Recurring work a Coworker does belongs here, not in your own schedule. Without scheduleId: create (name, brief, cron and timezone needed). With it: change only what you pass; state PAUSED, ACTIVE or ENDED pauses, resumes or ends it. Runs with the owner's rights; changing one someone else made needs the owner's yes in their own chat.",
   delete_task_schedule:

@@ -2286,6 +2286,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
             "read_table",
             "write_table_rows",
             "create_schedule",
+            "update_schedule",
           ],
           deadlineAt: new Date(Date.now() + HOUR),
           leaseExpiresAt: new Date(Date.now() + HOUR),
@@ -2324,10 +2325,18 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       expect(directFirstRun?.userId).toBe(userId);
       expect(directFirstRun?.capabilities).toContain("write_table_rows");
 
-      // 2. Authorized personal background task (`parentTurnId !== null`) trying to
-      //    create the same recurring table write is refused at creation with a clear
-      //    reason and creates no schedule row, while a read-only check still works.
-      const bgWriteTurn = await prisma.sokoBotTurn.create({
+      // 2. Authorized personal background task (`parentTurnId !== null`) holding
+      //    BOTH read_table and write_table_rows:
+      //    - creating a recurring table write (explicit or inherited) is refused;
+      //    - creating a read-only check via capabilities: ["read_table"] from THAT
+      //      SAME broader turn succeeds and fires with read_table;
+      //    - editing that read-only schedule from the background run to request
+      //      write_table_rows is refused (prompt and capabilities stay unchanged);
+      //    - requesting a capability outside the authoring turn's grant is refused;
+      //    - direct top-level owner chat upgrading the same schedule with
+      //      capabilities: ["read_table", "write_table_rows"] succeeds and fires
+      //      with write_table_rows.
+      const bgBroadTurn = await prisma.sokoBotTurn.create({
         data: {
           sokoBotId: botId,
           requestedByUserId: userId,
@@ -2337,11 +2346,13 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
           status: "RUNNING",
           clientTurnId: randomUUID(),
           versionId: "v36",
-          userMessage: "Background run setting up a recurring table write.",
+          userMessage:
+            "Background run with both table read and write tools creating schedules.",
           capabilityNames: [
             "read_table",
             "write_table_rows",
             "create_schedule",
+            "update_schedule",
           ],
           deadlineAt: new Date(Date.now() + HOUR),
           leaseExpiresAt: new Date(Date.now() + HOUR),
@@ -2362,9 +2373,24 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       await expect(
         sokoBotRuntimeService.executeTool({
           sessionId: ownerSessionId,
-          turnId: bgWriteTurn.id,
+          turnId: bgBroadTurn.id,
           capability: "create_schedule",
           toolCallId: `bg-write-${randomUUID()}`,
+          input: {
+            name: "Background table write",
+            cronExpression: "0 10 * * *",
+            timezone: "UTC",
+            prompt: "Update the pipeline table rows.",
+            capabilities: ["read_table", "write_table_rows"],
+          },
+        }),
+      ).rejects.toThrow(/write_table_rows/);
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: bgBroadTurn.id,
+          capability: "create_schedule",
+          toolCallId: `bg-write-default-${randomUUID()}`,
           input: {
             name: "Background table write",
             cronExpression: "0 10 * * *",
@@ -2373,43 +2399,34 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
           },
         }),
       ).rejects.toThrow(/write_table_rows/);
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: bgBroadTurn.id,
+          capability: "create_schedule",
+          toolCallId: `bg-ungranted-${randomUUID()}`,
+          input: {
+            name: "Escalated schedule",
+            cronExpression: "0 10 * * *",
+            timezone: "UTC",
+            prompt: "Read memory.",
+            capabilities: ["read_memory"],
+          },
+        }),
+      ).rejects.toThrow(/read_memory/);
       expect(
         await prisma.sokoBotSchedule.count({
-          where: { sokoBotId: botId, name: "Background table write" },
+          where: {
+            sokoBotId: botId,
+            name: { in: ["Background table write", "Escalated schedule"] },
+          },
         }),
       ).toBe(0);
 
-      const bgReadOnlyTurn = await prisma.sokoBotTurn.create({
-        data: {
-          sokoBotId: botId,
-          requestedByUserId: userId,
-          workspaceId,
-          source: "CHAT",
-          parentTurnId: directChat.id,
-          status: "RUNNING",
-          clientTurnId: randomUUID(),
-          versionId: "v36",
-          userMessage: "Background run setting up a read-only table check.",
-          capabilityNames: ["read_table", "create_schedule"],
-          deadlineAt: new Date(Date.now() + HOUR),
-          leaseExpiresAt: new Date(Date.now() + HOUR),
-          contextSnapshot: {
-            create: {
-              generatedAt: new Date(),
-              schemaVersion: 1,
-              hash: randomUUID(),
-              packet: { trigger: { askedBy: { kind: "OWNER" } } },
-              byteSize: 2,
-              tokenEstimate: 1,
-              counts: {},
-              omissions: {},
-            },
-          },
-        },
-      });
+      // Same broad background turn CAN create a read-only check by declaring capabilities: ["read_table"].
       const bgReadSchedule = (await sokoBotRuntimeService.executeTool({
         sessionId: ownerSessionId,
-        turnId: bgReadOnlyTurn.id,
+        turnId: bgBroadTurn.id,
         capability: "create_schedule",
         toolCallId: `bg-ro-${randomUUID()}`,
         input: {
@@ -2417,6 +2434,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
           cronExpression: "0 11 * * *",
           timezone: "UTC",
           prompt: "Check the pipeline table and report anomalies.",
+          capabilities: ["read_table"],
         },
       })) as { id: string };
       const bgFirstRun = await fireScheduleRun(
@@ -2428,9 +2446,57 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       expect(bgFirstRun?.capabilities).toContain("read_table");
       expect(bgFirstRun?.capabilities).not.toContain("write_table_rows");
 
-      // 3. Teammate on a shared Cuso org bot trying to create a custom recurring
-      //    organization-memory update is refused at creation with a clear reason,
-      //    while a read-only check still succeeds and runs as Cuso (`actingUserId: null`).
+      // Background run cannot edit that read-only schedule to require write_table_rows.
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: bgBroadTurn.id,
+          capability: "update_schedule",
+          toolCallId: `bg-edit-write-${randomUUID()}`,
+          input: {
+            scheduleId: bgReadSchedule.id,
+            prompt: "Update the pipeline table rows.",
+            capabilities: ["read_table", "write_table_rows"],
+          },
+        }),
+      ).rejects.toThrow(/write_table_rows/);
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: bgReadSchedule.id },
+          select: { prompt: true, capabilityNames: true },
+        }),
+      ).toEqual({
+        prompt: "Check the pipeline table and report anomalies.",
+        capabilityNames: ["read_table"],
+      });
+
+      // Direct top-level owner chat CAN upgrade that read-only schedule to write_table_rows,
+      // and its next run actually carries write_table_rows.
+      await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "update_schedule",
+        toolCallId: `direct-upgrade-${randomUUID()}`,
+        input: {
+          scheduleId: bgReadSchedule.id,
+          prompt: "Update the pipeline table rows.",
+          capabilities: ["read_table", "write_table_rows"],
+        },
+      });
+      const upgradedRun = await fireScheduleRun(
+        botId,
+        workspaceId,
+        bgReadSchedule.id,
+        "v36",
+      );
+      expect(upgradedRun?.userId).toBe(userId);
+      expect(upgradedRun?.capabilities).toContain("write_table_rows");
+
+      // 3. Teammate on a shared Cuso org bot holding BOTH read_memory and update_memory:
+      //    - creating a custom recurring memory write is refused;
+      //    - creating a read-only check via capabilities: ["read_memory"] from THAT
+      //      SAME broader turn succeeds and runs as Cuso (`actingUserId: null`);
+      //    - editing that read-only schedule to add update_memory is refused.
       const { withFixtureSchemas } = await import("@/test/split-layout");
       const orgId = randomUUID();
       const teammateId = randomUUID();
@@ -2476,7 +2542,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         });
         cusoBotId = cusoBot.id;
 
-        const cusoWriteTurn = await prisma.sokoBotTurn.create({
+        const cusoBroadTurn = await prisma.sokoBotTurn.create({
           data: {
             sokoBotId: cusoBotId,
             requestedByUserId: teammateId,
@@ -2486,11 +2552,12 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
             status: "RUNNING",
             clientTurnId: randomUUID(),
             versionId: "cmo-v24",
-            userMessage: "Update organization memory every Monday.",
+            userMessage: "Manage recurring brand memory checks for our team.",
             capabilityNames: [
               "read_memory",
               "update_memory",
               "create_schedule",
+              "update_schedule",
             ],
             deadlineAt: new Date(Date.now() + HOUR),
             leaseExpiresAt: new Date(Date.now() + HOUR),
@@ -2511,7 +2578,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         await expect(
           sokoBotRuntimeService.executeTool({
             sessionId: cusoSessionId,
-            turnId: cusoWriteTurn.id,
+            turnId: cusoBroadTurn.id,
             capability: "create_schedule",
             toolCallId: `cuso-write-${randomUUID()}`,
             input: {
@@ -2519,6 +2586,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
               cronExpression: "0 9 * * 1",
               timezone: "UTC",
               prompt: "Update our brand memory each Monday.",
+              capabilities: ["read_memory", "update_memory"],
             },
           }),
         ).rejects.toThrow(/update_memory/);
@@ -2528,37 +2596,10 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
           }),
         ).toBe(0);
 
-        const cusoReadOnlyTurn = await prisma.sokoBotTurn.create({
-          data: {
-            sokoBotId: cusoBotId,
-            requestedByUserId: teammateId,
-            askedByUserId: teammateId,
-            workspaceId: orgWorkspaceId,
-            source: "CHAT",
-            status: "RUNNING",
-            clientTurnId: randomUUID(),
-            versionId: "cmo-v24",
-            userMessage: "Check organization memory every Monday.",
-            capabilityNames: ["read_memory", "create_schedule"],
-            deadlineAt: new Date(Date.now() + HOUR),
-            leaseExpiresAt: new Date(Date.now() + HOUR),
-            contextSnapshot: {
-              create: {
-                generatedAt: new Date(),
-                schemaVersion: 1,
-                hash: randomUUID(),
-                packet: { trigger: { askedBy: { kind: "TEAMMATE" } } },
-                byteSize: 2,
-                tokenEstimate: 1,
-                counts: {},
-                omissions: {},
-              },
-            },
-          },
-        });
+        // Same broad Cuso teammate turn CAN create a read-only check by passing capabilities: ["read_memory"].
         const cusoReadSchedule = (await sokoBotRuntimeService.executeTool({
           sessionId: cusoSessionId,
-          turnId: cusoReadOnlyTurn.id,
+          turnId: cusoBroadTurn.id,
           capability: "create_schedule",
           toolCallId: `cuso-ro-${randomUUID()}`,
           input: {
@@ -2566,6 +2607,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
             cronExpression: "0 10 * * 1",
             timezone: "UTC",
             prompt: "Review our brand memory and flag stale facts.",
+            capabilities: ["read_memory"],
           },
         })) as { id: string };
         const cusoFirstRun = await fireScheduleRun(
@@ -2578,6 +2620,30 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         expect(cusoFirstRun?.userId).toBeNull();
         expect(cusoFirstRun?.capabilities).toContain("read_memory");
         expect(cusoFirstRun?.capabilities).not.toContain("update_memory");
+
+        // Editing that read-only Cuso schedule to require update_memory is refused.
+        await expect(
+          sokoBotRuntimeService.executeTool({
+            sessionId: cusoSessionId,
+            turnId: cusoBroadTurn.id,
+            capability: "update_schedule",
+            toolCallId: `cuso-edit-write-${randomUUID()}`,
+            input: {
+              scheduleId: cusoReadSchedule.id,
+              prompt: "Update our brand memory each Monday.",
+              capabilities: ["read_memory", "update_memory"],
+            },
+          }),
+        ).rejects.toThrow(/update_memory/);
+        expect(
+          await prisma.sokoBotSchedule.findUniqueOrThrow({
+            where: { id: cusoReadSchedule.id },
+            select: { prompt: true, capabilityNames: true },
+          }),
+        ).toEqual({
+          prompt: "Review our brand memory and flag stale facts.",
+          capabilityNames: ["read_memory"],
+        });
       } finally {
         await withFixtureSchemas(async (tx) => {
           if (cusoBotId) {
