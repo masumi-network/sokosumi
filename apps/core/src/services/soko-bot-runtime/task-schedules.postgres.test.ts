@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
+import { withFixtureSchemas } from "@/test/split-layout";
 import type { AuthorizedSokoBotRuntime } from "../soko-bot-runtime.service";
 import type { RuntimeOperations } from "./operations";
 import { removeTaskSchedule, saveTaskSchedule } from "./task-schedules";
@@ -64,10 +65,15 @@ describe.skipIf(!enabled)("a Soko Bot's Task Schedules", () => {
   });
 
   afterEach(async () => {
-    await prisma.taskSchedule.deleteMany({ where: { workspaceId } });
-    await prisma.sokoBot.deleteMany({ where: { id: botId } });
-    await prisma.workspace.deleteMany({ where: { id: workspaceId } });
-    await prisma.user.deleteMany({ where: { id: userId } });
+    // Deleting schedules and the workspace fires triggers that name a table
+    // without its schema (ticket 19); the fixture scope resolves them on the
+    // split layout. The code under test runs without it.
+    await withFixtureSchemas(async (tx) => {
+      await tx.taskSchedule.deleteMany({ where: { workspaceId } });
+      await tx.sokoBot.deleteMany({ where: { id: botId } });
+      await tx.workspace.deleteMany({ where: { id: workspaceId } });
+      await tx.user.deleteMany({ where: { id: userId } });
+    });
   });
 
   it("replays the first schedule when the same call is retried after its receipt was lost", async () => {
