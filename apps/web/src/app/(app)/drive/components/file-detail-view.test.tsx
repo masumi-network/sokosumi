@@ -57,6 +57,7 @@ function makeMeta(): FileSearchMeta {
     truncated: false,
     hasMore: false,
     nextCursor: null,
+    windowCursor: "window-1",
     restarted: false,
     catalogIncomplete: false,
     indexCoverage: { indexed: 1, processing: 0, filenameOnly: 0 },

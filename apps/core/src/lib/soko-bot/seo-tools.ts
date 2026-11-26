@@ -64,10 +64,13 @@ export async function runSeoTool(
     );
   const link = `/seo?projectId=${encodeURIComponent(projectId)}&view=project`;
   if (capability === "get_seo_workspace") {
+    const { impactDays } =
+      SOKO_BOT_SEO_INPUT_SCHEMAS.get_seo_workspace.parse(parsed);
     return {
       ...(await getProjectSeoWorkspace(
         actor,
         seoWorkspaceQuerySchema.parse(fields),
+        { actionImpact: { days: impactDays } },
       )),
       link,
     };

@@ -23,7 +23,7 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function SeoAiAssistants({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo.traffic");
   const format = useFormatter();
-  const assistants = seoAiAssistants(model.data.landingPages);
+  const assistants = seoAiAssistants(model.data.aiAssistantPages);
   if (!assistants) return null;
   if (!assistants.rows.length)
     return (

@@ -9,7 +9,7 @@ import {
   cmoLandingPageLiveSchema,
   cmoSeoSuggestionParamsSchema,
 } from "@/schemas/cmo-seo.schema";
-import { markCmoLandingPageLive } from "@/services/cmo-seo.service";
+import { markCmoLandingPageLive } from "@/services/cmo-seo-landing-page-live.service";
 
 const route = createRoute({
   method: "post",

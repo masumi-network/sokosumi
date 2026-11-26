@@ -522,6 +522,7 @@ model Project {
   seoAnalyses             ProjectSeoAnalysis[]
   seoActionTasks          ProjectSeoActionTask[]
   seoSuggestions          ProjectSeoSuggestion[]
+  seoImpactVerdicts       ProjectSeoImpactVerdict[]
   seoResearch             ProjectSeoResearch[]
   cmoPicturePicks         CmoPicturePick[]
   /// What the website runs on when it is a shop system Cuso can measure

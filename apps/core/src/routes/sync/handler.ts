@@ -76,6 +76,8 @@ export interface SyncRequestOptions {
    * idle monitor. Failed runs stay on the run monitor.
    */
   idleRunsAlert?: number;
+  /** A feature flag: while it is off, an authenticated tick returns before the lock, so it writes nothing. */
+  enabled?: () => boolean;
   /** Never here: a variable or a spread that carries a Network is not these options. */
   network?: never;
 }
@@ -310,11 +312,18 @@ export async function handleSyncRequest(
     errorDetail = "safe-fields",
     idleRunsAlert,
     network,
+    enabled,
   }: SyncRequestOptions | NetworkSyncRequestOptions = {},
 ): Promise<Response> {
   const unauthorized = authenticateCronSecret(c);
   if (unauthorized) {
     return unauthorized;
+  }
+  if (enabled && !enabled()) {
+    return new Response(JSON.stringify({ message: "Sync disabled" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   // Before the lock: a Network that is off throws here and holds nothing.

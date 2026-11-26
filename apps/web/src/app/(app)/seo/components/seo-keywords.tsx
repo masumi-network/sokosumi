@@ -586,10 +586,7 @@ export function SeoKeywords({
                             <SeoDifficultyCell difficulty={group.difficulty} />
                           ) : null}
                           {shown.conversion ? (
-                            <SeoConversionCell
-                              conversion={group.conversion}
-                              feature={group.feature}
-                            />
+                            <SeoConversionCell {...group} />
                           ) : null}
                           {shown.priority ? (
                             <TableCell data-label={t("keywords.priority")}>
