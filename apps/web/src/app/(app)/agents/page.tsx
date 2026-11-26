@@ -22,6 +22,7 @@ import {
 import {
   AgentsSection,
   AgentsSectionLink,
+  AgentsTag,
 } from "@/components/agents/directory/agents-page";
 import { AGENTS_PAGE_CLASS } from "@/components/agents/directory/agents-page-classes";
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
@@ -99,6 +100,7 @@ function BotGroup({
   bots,
   managed,
   t,
+  pausedLabel,
   children,
 }: {
   label: string;
@@ -106,6 +108,8 @@ function BotGroup({
   /** The bots the viewer configures, by id; others get no menu. */
   managed: Map<string, ManagedBot>;
   t: DirectoryT;
+  /** The "Paused" tag's text. */
+  pausedLabel: string;
   children?: ReactNode;
 }) {
   return (
@@ -129,10 +133,15 @@ function BotGroup({
               purpose={botPurpose(bot, t)}
               meta={<BotOwner bot={bot} t={t} />}
               status={
-                <AgentStatus
-                  status={bot.status}
-                  label={botStatusLabel(bot, t)}
-                />
+                <span className="flex items-center gap-1.5">
+                  {managed.get(bot.id)?.paused ? (
+                    <AgentsTag>{pausedLabel}</AgentsTag>
+                  ) : null}
+                  <AgentStatus
+                    status={bot.status}
+                    label={botStatusLabel(bot, t)}
+                  />
+                </span>
               }
               action={
                 <BotActions
@@ -167,6 +176,7 @@ function BotActions({
         botName={name}
         shared={!isPersonal(bot)}
         sharedRoomId={bot.sharedRoomId}
+        iconOnly={Boolean(managed)}
       />
       {managed ? (
         <BotManageMenu
@@ -228,6 +238,7 @@ async function SokoBotsSection() {
             bots={personal}
             managed={managed}
             t={t}
+            pausedLabel={tSoko("paused")}
           >
             {directory.hasOwnBot ? null : (
               <li>
@@ -256,6 +267,7 @@ async function SokoBotsSection() {
               bots={shared}
               managed={managed}
               t={t}
+              pausedLabel={tSoko("paused")}
             />
           ) : null}
           {archived.length > 0 ? (

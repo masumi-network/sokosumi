@@ -24,11 +24,14 @@ export function BotCardAction({
   botName,
   shared,
   sharedRoomId,
+  iconOnly = false,
 }: {
   botId: string;
   botName: string;
   shared: boolean;
   sharedRoomId: string | null;
+  /** Beside the "…" menu: the icon alone, so the owner keeps its room. */
+  iconOnly?: boolean;
 }) {
   const t = useTranslations("App.Agents.Directory");
   const label = t("messageName", { name: botName });
@@ -40,7 +43,7 @@ export function BotCardAction({
           aria-label={label}
         >
           <MessageSquare aria-hidden />
-          {t("message")}
+          {iconOnly ? null : t("message")}
         </Link>
       </Button>
     );
@@ -49,7 +52,7 @@ export function BotCardAction({
   return (
     <ChatWithBotButton
       sokoBotId={botId}
-      label={t("message")}
+      label={iconOnly ? "" : t("message")}
       ariaLabel={label}
       errorLabel={t("messageError")}
       {...CARD_ACTION}
