@@ -4,9 +4,9 @@
 -- NOT VALID: the previous Core release keeps writing during the deploy, and
 -- checking every row here would hold the table's exclusive lock for the scan.
 --
--- Each ALTER TABLE below needs ACCESS EXCLUSIVE. While it waits behind an open
--- transaction, every later read and write of that table waits behind it, so
--- it gives up after 5 seconds. The deploy then fails with 55P03 and the
+-- The three ALTER TABLE statements that add the column take ACCESS EXCLUSIVE.
+-- While one waits behind an open transaction, every later read and write of
+-- that table waits behind it, so it gives up after 5 seconds. The deploy then fails with 55P03 and the
 -- statements before it stay applied. Every statement can run again: run
 -- `prisma migrate resolve --rolled-back 20261126114236_network_column` on the
 -- direct URL (DATABASE_URL_UNPOOLED), then deploy again. A plain redeploy
@@ -25,9 +25,11 @@ ALTER TABLE "taskEvent"
   DROP CONSTRAINT IF EXISTS "taskEvent_network_check",
   ADD CONSTRAINT "taskEvent_network_check" CHECK ("network" IN ('mainnet', 'preprod')) NOT VALID;
 
--- No timeout from here on. The updates wait on row locks: a busy row would
--- fail the deploy. VALIDATE takes SHARE UPDATE EXCLUSIVE, which reads and
--- writes do not conflict with, so nothing queues behind it while it waits.
+-- RESET ends this migration's 5-second override and restores the role's
+-- default. The updates wait on row locks: under the override a busy row would
+-- fail the deploy. VALIDATE takes SHARE UPDATE EXCLUSIVE, which ordinary reads
+-- and writes do not conflict with; it can wait on another schema change or on
+-- maintenance of the table.
 RESET lock_timeout;
 
 -- Every Job is on Mainnet today. No trigger fires on either update: "history"
