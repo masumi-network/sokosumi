@@ -132,6 +132,46 @@ export type SeoFullAuditCostDetail = {
     }>;
 };
 
+export type AdminSeoActionImpact = {
+    total: number;
+    pageSize: number;
+    items: Array<{
+        auditId: string | null;
+        projectId: string | null;
+        workspaceId: string;
+        workspaceOrganizationSlug: string | null;
+        workspaceUserId: string | null;
+        userId: string;
+        actions: Array<{
+            id: string;
+            pageUrl: string;
+            title: string;
+            impact: ProjectSeoActionImpact;
+        }>;
+    }>;
+};
+
+export type ProjectSeoActionImpact = {
+    anchor: string;
+    anchorKind: 'completed' | 'verified';
+    days: number;
+    state: 'measured' | 'too_early' | 'not_measured' | 'low_counts';
+    before: {
+        from: string;
+        to: string;
+        clicks: number;
+        impressions: number;
+        position: number | null;
+    } | null;
+    after: {
+        from: string;
+        to: string;
+        clicks: number;
+        impressions: number;
+        position: number | null;
+    } | null;
+};
+
 export type AdminAgentList = Array<AdminAgentListItem>;
 
 export type AdminAgentListItem = {
@@ -13180,27 +13220,6 @@ export type ProjectSeoAction = {
     evidence: Array<string>;
 };
 
-export type ProjectSeoActionImpact = {
-    anchor: string;
-    anchorKind: 'completed' | 'verified';
-    days: number;
-    state: 'measured' | 'too_early' | 'not_measured' | 'low_counts';
-    before: {
-        from: string;
-        to: string;
-        clicks: number;
-        impressions: number;
-        position: number | null;
-    } | null;
-    after: {
-        from: string;
-        to: string;
-        clicks: number;
-        impressions: number;
-        position: number | null;
-    } | null;
-};
-
 export type ProjectSeoMetric = {
     id: string;
     key: string;
@@ -19251,6 +19270,67 @@ export type ListAdminSeoAlertsResponses = {
 };
 
 export type ListAdminSeoAlertsResponse = ListAdminSeoAlertsResponses[keyof ListAdminSeoAlertsResponses];
+
+export type ListAdminSeoActionImpactData = {
+    body?: never;
+    path?: never;
+    query?: {
+        days?: number;
+        page?: number;
+    };
+    url: '/admin/seo-action-impact';
+};
+
+export type ListAdminSeoActionImpactErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSeoActionImpactError = ListAdminSeoActionImpactErrors[keyof ListAdminSeoActionImpactErrors];
+
+export type ListAdminSeoActionImpactResponses = {
+    /**
+     * Impact of done SEO actions
+     */
+    200: {
+        data: AdminSeoActionImpact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSeoActionImpactResponse = ListAdminSeoActionImpactResponses[keyof ListAdminSeoActionImpactResponses];
 
 export type ListAdminAgentsData = {
     body?: never;

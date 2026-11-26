@@ -65,16 +65,40 @@ export const seoImpactDaysSchema = z.coerce
   .optional();
 
 /** The done actions on the audit's own pages, for the worker of that audit. */
+const measuredActions = z.array(
+  z.strictObject({
+    id: z.string(),
+    pageUrl: seoUrlSchema,
+    title: z.string(),
+    impact: seoActionImpactSchema,
+  }),
+);
 export const seoTaskActionImpactSchema = z
+  .strictObject({ actions: measuredActions })
+  .openapi("SeoTaskActionImpact");
+export type SeoTaskActionImpact = z.infer<typeof seoTaskActionImpactSchema>;
+
+export const ADMIN_SEO_IMPACT_PAGE_SIZE = 10;
+export const adminSeoActionImpactQuery = z.object({
+  days: seoImpactDaysSchema,
+  page: z.coerce.number().int().min(1).max(1_000_000).default(1),
+});
+/** Staff only. One item per audit or Project and the person whose Search Console rows it holds. */
+export const adminSeoActionImpactSchema = z
   .strictObject({
-    actions: z.array(
+    total: z.number().int().nonnegative(),
+    pageSize: z.number().int().positive(),
+    items: z.array(
       z.strictObject({
-        id: z.string(),
-        pageUrl: seoUrlSchema,
-        title: z.string(),
-        impact: seoActionImpactSchema,
+        auditId: z.uuid().nullable(),
+        projectId: z.uuid().nullable(),
+        workspaceId: z.uuid(),
+        workspaceOrganizationSlug: z.string().nullable(),
+        workspaceUserId: z.string().nullable(),
+        userId: z.string(),
+        actions: measuredActions,
       }),
     ),
   })
-  .openapi("SeoTaskActionImpact");
-export type SeoTaskActionImpact = z.infer<typeof seoTaskActionImpactSchema>;
+  .openapi("AdminSeoActionImpact");
+export type AdminSeoActionImpact = z.infer<typeof adminSeoActionImpactSchema>;

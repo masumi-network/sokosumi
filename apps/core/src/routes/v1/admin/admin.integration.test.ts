@@ -64,6 +64,7 @@ vi.mock("@/lib/db/prisma", () => ({
     ]),
     user: { findMany: searchUsersMock },
     organization: { findMany: searchOrganizationsMock },
+    projectSeoObservation: { groupBy: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -115,6 +116,26 @@ describe("admin router (real mount, real auth + admin guard)", () => {
       pricingAttention: 0,
       billing: [],
     });
+  });
+
+  it("serves the impact of done SEO actions only to an authenticated admin", async () => {
+    const url = "http://localhost/seo-action-impact?days=14";
+    getSessionMock.mockResolvedValue(null);
+    expect((await adminRouter.request(url)).status).toBe(401);
+    mockSession("user");
+    expect((await adminRouter.request(url)).status).toBe(403);
+    mockSession("admin");
+    const response = await adminRouter.request(url);
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toEqual({
+      total: 0,
+      pageSize: 10,
+      items: [],
+    });
+    expect(
+      (await adminRouter.request("http://localhost/seo-action-impact?days=3"))
+        .status,
+    ).toBe(422);
   });
 
   it("rejects an authenticated non-admin with 403 on /search/users", async () => {
