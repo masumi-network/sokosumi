@@ -406,12 +406,13 @@ describe("TableCreateDialog from a Files Excel workbook", () => {
   });
 
   it("says before creating when the sheet is larger than a Table takes", async () => {
-    const wide = Array.from({ length: 101 }, (_, i) => `C${i}`);
+    // Cells without an `r` reference: their position is their order.
+    const wide = Array.from({ length: 120 }, (_, i) => `C${i}`);
     openFromFiles(await xlsx({ Wide: [wide, wide] }), "Wide.xlsx");
 
     // Names the limit that applies and the sheet's own count, nothing else.
     expect(
-      await screen.findByText('sheetCutColumns {"count":101,"limit":100}'),
+      await screen.findByText('sheetCutColumns {"count":120,"limit":100}'),
     ).toBeTruthy();
     expect(screen.queryByText(/sheetCutRows/)).toBeNull();
     expect(screen.getAllByLabelText("columnName")).toHaveLength(100);

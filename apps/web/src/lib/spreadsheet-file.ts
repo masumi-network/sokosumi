@@ -301,10 +301,13 @@ function readSheet(
     let hasValue = false;
     // Past the caps a cell is only counted, not formatted.
     const past = filled >= maxRows;
+    // A cell without an `r` reference sits right after the one before it.
+    let next = 0;
     for (const cell of Array.from(row.children)) {
       if (localName(cell) !== "c") continue;
       const at = position(cell.getAttribute("r") ?? "");
-      const column = at ? at[1] : cells.length;
+      const column = at ? at[1] : next;
+      next = column + 1;
       if (hiddenColumns.has(column)) continue;
       if (past || column >= maxColumns) {
         if (cell.textContent) {
