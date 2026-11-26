@@ -26,6 +26,30 @@ const lab = (url: string, device: string) => ({
     },
   ],
 });
+/** A CrUX URL record of a page on mobile, as the worker writes it. */
+const cruxField = (
+  url: string,
+  p75: Record<string, number | null>,
+  more: object = {},
+) => ({
+  level: "url",
+  url,
+  period: null,
+  p75: { lcp: null, inp: null, cls: null, ttfb: null, fcp: null, ...p75 },
+  sourceRefs: [
+    {
+      port: "crux",
+      request: {
+        port: "crux",
+        device: "mobile",
+        url,
+        params: { kind: "record", level: "url" },
+      },
+      outcome: { kind: "ok", status: 200 },
+    },
+  ],
+  ...more,
+});
 const section = (url: string, labUrl = url, labDevice = "mobile") => ({
   mobile: {
     lab: lab(labUrl, labDevice),
@@ -95,11 +119,16 @@ describe("a site Report's speed table", () => {
       );
   });
 
-  it("stores no devices for an audited page and does not trust the worker's page number", () => {
-    const table = read([
-      { ...extra(SEO_TEST_PAGE), n: null, source: "links" },
-      extra(EXTRA, { n: 3, source: "audited" }),
-    ]);
+  it("stores no devices for an audited page that the audit measured and does not trust the worker's page number", () => {
+    // Review pass 24: the audit's own reads of the page, as the worker copies them into its row.
+    const table = readSiteSpeed(
+      site([
+        { ...extra(SEO_TEST_PAGE), n: null, source: "links" },
+        extra(EXTRA, { n: 3, source: "audited" }),
+      ]),
+      [SEO_TEST_PAGE],
+      readPageSpeed(section(SEO_TEST_PAGE), SEO_TEST_PAGE),
+    );
     expect(table?.rows).toMatchObject([
       { url: SEO_TEST_PAGE, audited: true, devices: [] },
       { url: EXTRA, audited: false },
@@ -470,17 +499,22 @@ describe("the speed table in a workspace view", () => {
 
   it("gives a measured field read of the audit the target's device over the report's lab read (review pass 23)", () => {
     // The field read decides the verdict: an audit read with field data shows more than a lab read alone.
-    const [lab] = readPageSpeed(section(EXTRA), EXTRA).filter(
-      (own) => own.device === "mobile",
-    );
-    const field = {
-      pageUrl: SEO_TEST_PAGE,
-      testedUrl: EXTRA,
-      device: "mobile" as const,
-      lab: { status: "quota" as const },
-      field: { ...lab!.lab, status: "measured" },
-    } as unknown as NonNullable<typeof lab>;
-    const pageSpeed = [field];
+    // Review pass 24: a real CrUX field, read as an import reads it.
+    const audit = section(SEO_TEST_PAGE, EXTRA);
+    const pageSpeed = readPageSpeed(
+      {
+        ...audit,
+        mobile: {
+          lab: { none: "quota" },
+          field: cruxField(EXTRA, { lcp: 5200 }),
+        },
+      },
+      SEO_TEST_PAGE,
+      { mobile: EXTRA },
+    ).filter((own) => own.device === "mobile");
+    expect(pageSpeed.map((own) => [own.lab.status, own.field.status])).toEqual([
+      ["quota", "measured"],
+    ]);
     const siteSpeed = readSiteSpeed(
       site([extra(EXTRA)]),
       [SEO_TEST_PAGE],
@@ -511,24 +545,7 @@ describe("the speed table in a workspace view", () => {
       { mobile: EXTRA },
     ).filter((own) => own.device === "mobile");
     const own = section(EXTRA);
-    const field = {
-      level: "url",
-      url: EXTRA,
-      period: null,
-      p75: { lcp: 5200, inp: 60, cls: 0, ttfb: null, fcp: null },
-      sourceRefs: [
-        {
-          port: "crux",
-          request: {
-            port: "crux",
-            device: "mobile",
-            url: EXTRA,
-            params: { kind: "record", level: "url" },
-          },
-          outcome: { kind: "ok", status: 200 },
-        },
-      ],
-    };
+    const field = cruxField(EXTRA, { lcp: 5200, inp: 60, cls: 0 });
     const siteSpeed = readSiteSpeed(
       site([
         extra(EXTRA, { speed: { ...own, mobile: { ...own.mobile, field } } }),
@@ -550,6 +567,121 @@ describe("the speed table in a workspace view", () => {
     ).toEqual([
       [EXTRA, "mobile", "measured"],
       [EXTRA, "desktop", "no_data"],
+    ]);
+  });
+
+  it("ranks a read by the values the verdict reads: a field without a Core Web Vital is no field data (review pass 24)", () => {
+    // A CrUX record with only FCP and TTFB decides no verdict, so it does not outrank a lab test that does.
+    const timings = cruxField(EXTRA, { fcp: 1500, ttfb: 600 });
+    const own = section(EXTRA);
+    const shown = (audit: object, report: object) => {
+      const pageSpeed = readPageSpeed(
+        { ...section(SEO_TEST_PAGE, EXTRA), mobile: audit },
+        SEO_TEST_PAGE,
+        { mobile: EXTRA },
+      ).filter((item) => item.device === "mobile");
+      const siteSpeed = readSiteSpeed(
+        site([extra(EXTRA, { speed: { ...own, mobile: report } })]),
+        [SEO_TEST_PAGE],
+        pageSpeed,
+      );
+      const table = scopedSiteSpeed(
+        { siteSpeed: siteSpeed!, pageSpeed, pageUrls: [SEO_TEST_PAGE] },
+        row,
+        new Set([SEO_TEST_PAGE]),
+      );
+      const mobile = table?.rows[0]?.devices.find(
+        (item) => item.device === "mobile",
+      );
+      return [mobile?.pageUrl, mobile?.lab.status, mobile?.field.status];
+    };
+    const noData = { none: "no CrUX data for the URL, origin: no data" };
+    // The audit's lab test decides; the report's read has a lab gap and the timings only.
+    expect(
+      shown(
+        { lab: lab(EXTRA, "mobile"), field: noData },
+        { lab: { none: "Time budget expired" }, field: timings },
+      ),
+    ).toEqual([SEO_TEST_PAGE, "measured", "no_data"]);
+    // The report's lab test decides; the audit's read has a lab gap and the timings only.
+    expect(
+      shown(
+        { lab: { none: "quota" }, field: timings },
+        { lab: lab(EXTRA, "mobile"), field: noData },
+      ),
+    ).toEqual([EXTRA, "measured", "no_data"]);
+    // A lab test without LCP and CLS decides no verdict either.
+    const blank = lab(EXTRA, "mobile");
+    expect(
+      shown(
+        {
+          lab: { ...blank, median: { ...median, lcp: null, cls: null } },
+          field: noData,
+        },
+        { lab: blank, field: noData },
+      ),
+    ).toEqual([EXTRA, "measured", "no_data"]);
+  });
+
+  it("keeps a report row whose CrUX field URL Core cannot store and marks only that field unavailable, fresh and stored (review pass 24)", () => {
+    const long = `${EXTRA}/${"z".repeat(4100)}`;
+    const field = cruxField(
+      EXTRA,
+      { lcp: 5200 },
+      {
+        url: long,
+        identity: {
+          pageAssessment: "not_determined",
+          populationScope: "normalized_url_aggregate",
+          requestedUrl: EXTRA,
+          returnedUrl: long,
+          returnedDevice: "PHONE",
+          normalization: { originalUrl: EXTRA, normalizedUrl: long },
+        },
+      },
+    );
+    const own = section(EXTRA);
+    const speed = { ...own, mobile: { ...own.mobile, field } };
+    const fresh = read([extra(EXTRA, { speed })]);
+    const stored = publicSeoPayloadSchema.parse({
+      ...parsePublicSeoArtifact(site([])),
+      siteSpeed: {
+        dropped: 0,
+        rows: [
+          { url: EXTRA, audited: false, devices: readPageSpeed(speed, EXTRA) },
+        ],
+      },
+    }).siteSpeed;
+    for (const table of [fresh, stored]) {
+      expect(
+        table?.rows[0]?.devices.map((item) => [
+          item.device,
+          item.lab.status,
+          item.field.status,
+        ]),
+      ).toEqual([
+        ["mobile", "measured", "unavailable"],
+        ["desktop", "deadline", "no_data"],
+      ]);
+    }
+  });
+
+  it("keeps a report row's device for a directly audited page that the audit did not measure, in the import and the view (review pass 24)", () => {
+    const table = readSiteSpeed(
+      site([extra(SEO_TEST_PAGE)]),
+      [SEO_TEST_PAGE],
+      [],
+    );
+    const shown = scopedSiteSpeed(
+      { siteSpeed: table!, pageSpeed: [], pageUrls: [SEO_TEST_PAGE] },
+      row,
+      new Set([SEO_TEST_PAGE]),
+    );
+    expect(
+      shown?.rows[0]?.devices.map((item) => [item.device, item.lab.status]),
+    ).toEqual([
+      ["mobile", "measured"],
+      ["desktop", "deadline"],
     ]);
   });
 

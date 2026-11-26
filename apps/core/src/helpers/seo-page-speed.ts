@@ -345,7 +345,7 @@ export function readPageSpeed(
           new URL(fieldUrl).pathname === "/"
         : fieldUrl === target.href ||
           provenAggregate(read, evidence.field, target, device));
-    rows.push({
+    const row: (typeof rows)[number] = {
       pageUrl,
       testedUrl,
       device,
@@ -382,7 +382,14 @@ export function readPageSpeed(
           : field.success
             ? { status: "unavailable" }
             : gap(evidence.field, true),
-    });
+    };
+    // A field Core cannot store (a URL over the length limit, for example) is no field data: the lab stays, as on
+    // a stored read.
+    rows.push(
+      seoPageSpeedRow.shape.field.safeParse(row.field).success
+        ? row
+        : { ...row, field: { status: "unavailable" } },
+    );
   }
   return rows;
 }

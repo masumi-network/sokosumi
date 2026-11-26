@@ -94,15 +94,22 @@ function readCheck(value: unknown, stored = false) {
     : data;
 }
 
+/** The values the web verdict reads (seoDeviceVerdict): a field with one Core Web Vital, a lab with LCP or CLS. */
+const VERDICT_FIELD = ["lcp", "inp", "cls"] as const;
+const VERDICT_LAB = ["lcp", "cls"] as const;
+
 /**
- * How much a measurement shows: a measured field read (it decides the verdict) and a measured lab read. A gap shows
- * nothing, so a failed read never hides a measured one of the same page and device.
+ * How much a measurement shows: a field read that decides the verdict, then a lab read that decides it. A gap or a
+ * read without those values shows nothing, so it never hides a read of the same page and device that decides it.
  */
-function speedEvidence(row: PageSpeedRows[number]) {
-  return (
-    (row.field.status === "measured" ? 2 : 0) +
-    (row.lab.status === "measured" ? 1 : 0)
-  );
+function speedEvidence({ field, lab }: PageSpeedRows[number]) {
+  const visitors =
+    field.status === "measured" &&
+    VERDICT_FIELD.some((metric) => field.p75[metric] != null);
+  const test =
+    lab.status === "measured" &&
+    VERDICT_LAB.some((metric) => lab.median[metric] != null);
+  return (visitors ? 2 : 0) + (test ? 1 : 0);
 }
 
 /**
@@ -177,8 +184,8 @@ export function readSiteSpeed(
     const check = tier === "reduced" ? readCheck(row.check) : undefined;
     try {
       // The worker fills the other device of a reduced test with a placeholder. Only the row's own devices are read.
-      // An audited page's device comes from the audit. A page that is audited only as a redirect target keeps a
-      // device the audit did not measure for it (a redirect on one device only), or measured with less evidence.
+      // An audited page keeps a device the audit did not measure for it (a redirect on one device only, an audit
+      // without that device), or measured with less evidence, as the stored view picks it.
       const devices = readPageSpeed(
         row.speed,
         url,
@@ -187,15 +194,14 @@ export function readSiteSpeed(
       ).filter(
         (own) =>
           !audited.has(url) ||
-          (!pages.has(url) &&
-            !pageSpeed.some(
-              (measured) =>
-                measured.device === own.device &&
-                speedEvidence(measured) >= speedEvidence(own) &&
-                [measured.pageUrl, measured.testedUrl]
-                  .map(auditedSeoPageKey)
-                  .includes(url),
-            )),
+          !pageSpeed.some(
+            (measured) =>
+              measured.device === own.device &&
+              speedEvidence(measured) >= speedEvidence(own) &&
+              [measured.pageUrl, measured.testedUrl]
+                .map(auditedSeoPageKey)
+                .includes(url),
+          ),
       );
       // One row the stored table cannot hold must not cost the other rows.
       const stored = storedSiteSpeedRow.safeParse({
