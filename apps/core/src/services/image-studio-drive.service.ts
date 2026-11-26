@@ -1,4 +1,5 @@
 import { FileSourceKind, FileSourceScope } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   buildOrganizationDriveFilePathnameWithFolder,
   buildUserDriveFilePathnameWithFolder,
@@ -386,14 +387,14 @@ export async function studioVideoOfMedia(
       (
         job.settings->>'aspectRatio' = '9:16'
         or exists (
-          select 1 from project_image_asset still
+          select 1 from ${sharedTable("project_image_asset")} still
           where still.id = any(job."referenceAssetIds")
             and still.height > still.width
         )
       ) as vertical,
       asset."durationSeconds" as seconds
-    from project_image_job job
-    join project_image_asset asset on asset."jobId" = job.id
+    from ${sharedTable("project_image_job")} job
+    join ${sharedTable("project_image_asset")} asset on asset."jobId" = job.id
     where job."projectId" = ${projectId}::uuid
       and asset."mediaType" = 'VIDEO'
       and right(replace(job.id::text, '-', ''), 8) = any(${suffixes})`;

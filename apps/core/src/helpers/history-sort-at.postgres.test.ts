@@ -12,14 +12,29 @@
  * production. Every fixture is written inside a transaction that always rolls
  * back.
  */
+
 import { createPrismaClient } from "@sokosumi/database/client";
+import {
+  createSqlTables,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
 import { afterAll, describe, expect, it } from "vitest";
+import { testSchemaNames } from "@/test/split-layout";
+
+const { netTable, netType, sharedTable, sharedType } = createSqlTables(
+  sqlTableLayoutFromEnv(process.env),
+);
 
 const url = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
-const db = enabled && url ? createPrismaClient(url) : null;
+const db =
+  enabled && url
+    ? createPrismaClient(url, {
+        schema: testSchemaNames().DATABASE_SCHEMA_SHARED,
+      })
+    : null;
 
 afterAll(async () => {
   await db?.$disconnect();
@@ -40,23 +55,23 @@ type Tx = Parameters<Parameters<NonNullable<typeof db>["$transaction"]>[0]>[0];
 
 async function seed(tx: Tx): Promise<void> {
   await tx.$executeRaw`
-    INSERT INTO "user" ("id", "name", "email", "emailVerified", "createdAt", "updatedAt")
+    INSERT INTO ${sharedTable("user")} ("id", "name", "email", "emailVerified", "createdAt", "updatedAt")
     VALUES (${USER_ID}, 'Sort User', 'hsort@example.test', true, NOW(), NOW())
   `;
   await tx.$executeRaw`
-    INSERT INTO "workspace" ("id", "createdAt", "updatedAt", "userId", "organizationId")
+    INSERT INTO ${sharedTable("workspace")} ("id", "createdAt", "updatedAt", "userId", "organizationId")
     VALUES (${WORKSPACE_ID}::uuid, NOW(), NOW(), ${USER_ID}, NULL)
   `;
   await tx.$executeRaw`
-    INSERT INTO "project" ("id", "createdAt", "updatedAt", "workspaceId", "name")
+    INSERT INTO ${sharedTable("project")} ("id", "createdAt", "updatedAt", "workspaceId", "name")
     VALUES (${PROJECT_ID}::uuid, NOW(), NOW(), ${WORKSPACE_ID}::uuid, 'Sort project')
   `;
   await tx.$executeRaw`
-    INSERT INTO "AgentPricing" ("id", "createdAt", "updatedAt", "pricingType")
-    VALUES ('hsort-pricing', NOW(), NOW(), 'FREE'::"PricingType")
+    INSERT INTO ${netTable("mainnet", "AgentPricing")} ("id", "createdAt", "updatedAt", "pricingType")
+    VALUES ('hsort-pricing', NOW(), NOW(), 'FREE'::${netType("mainnet", "PricingType")})
   `;
   await tx.$executeRaw`
-    INSERT INTO "Agent" (
+    INSERT INTO ${netTable("mainnet", "Agent")} (
       "id", "createdAt", "updatedAt", "blockchainIdentifier", "name", "apiBaseUrl",
       "lastUptimeCheck", "uptimeCount", "uptimeCheckCount", "pricingId", "isShown"
     )
@@ -66,14 +81,14 @@ async function seed(tx: Tx): Promise<void> {
     )
   `;
   await tx.$executeRaw`
-    INSERT INTO "vendor" ("id", "createdAt", "updatedAt", "name", "slug")
+    INSERT INTO ${sharedTable("vendor")} ("id", "createdAt", "updatedAt", "name", "slug")
     VALUES (${VENDOR_ID}::uuid, NOW(), NOW(), 'Sort Vendor', 'hsort-vendor')
   `;
 
   // `createdAt` is written explicitly and `updatedAt` is NOW(), so a row that
   // took its feed date from `updatedAt` is obvious at a glance.
   await tx.$executeRaw`
-    INSERT INTO "task" (
+    INSERT INTO ${sharedTable("task")} (
       "id", "createdAt", "updatedAt", "ownerId", "creatorUserId", "name",
       "description", "status", "workspaceId", "projectId"
     )
@@ -85,13 +100,13 @@ async function seed(tx: Tx): Promise<void> {
   // FREE, so `free_job_no_blockchain` keeps every blockchain column NULL and
   // the row needs no transaction. The feed date does not depend on either.
   await tx.$executeRaw`
-    INSERT INTO "Job" (
+    INSERT INTO ${netTable("mainnet", "Job")} (
       "id", "createdAt", "updatedAt", "ownerId", "agentId", "agentJobId",
       "jobType", "workspaceId", "projectId", "name"
     )
     VALUES (
       ${JOB_ID}, TIMESTAMP '2026-03-04 14:15:00', NOW(), ${USER_ID}, 'hsort-agent',
-      'hsort-remote', 'FREE'::"JobType", ${WORKSPACE_ID}::uuid, ${PROJECT_ID}::uuid,
+      'hsort-remote', 'FREE'::${netType("mainnet", "JobType")}, ${WORKSPACE_ID}::uuid, ${PROJECT_ID}::uuid,
       'Research competitors'
     )
   `;
@@ -103,8 +118,8 @@ async function readSortAt(
   entityId: string,
 ): Promise<string | undefined> {
   const rows = await tx.$queryRaw<Array<{ sortAt: Date }>>`
-    SELECT "sortAt" FROM "history"
-    WHERE "kind" = ${kind}::"HistoryKind" AND "entityId" = ${entityId}
+    SELECT "sortAt" FROM ${sharedTable("history")}
+    WHERE "kind" = ${kind}::${sharedType("HistoryKind")} AND "entityId" = ${entityId}
   `;
   return rows[0]?.sortAt.toISOString();
 }
@@ -150,13 +165,13 @@ describe.skipIf(!enabled)("history.sortAt against PostgreSQL", () => {
       // Exactly what the task tag classification backfill did to every
       // historical task, plus a bare row touch on the job.
       await tx.$executeRaw`
-        UPDATE "task"
+        UPDATE ${sharedTable("task")}
         SET "automaticTags" = ARRAY['research']::TEXT[],
             "tagClassificationState" = 'complete',
             "updatedAt" = NOW()
         WHERE "id" = ${TASK_ID}
       `;
-      await tx.$executeRaw`UPDATE "Job" SET "updatedAt" = NOW() WHERE "id" = ${JOB_ID}`;
+      await tx.$executeRaw`UPDATE ${netTable("mainnet", "Job")} SET "updatedAt" = NOW() WHERE "id" = ${JOB_ID}`;
 
       expect(await readSortAt(tx, "TASK", TASK_ID)).toBe(taskBefore);
       expect(await readSortAt(tx, "JOB", JOB_ID)).toBe(jobBefore);
@@ -170,7 +185,7 @@ describe.skipIf(!enabled)("history.sortAt against PostgreSQL", () => {
       // `history_task_event_sync` re-runs `upsert_history_task`, so this is the
       // path that would reintroduce a moving date if the body regressed.
       await tx.$executeRaw`
-        INSERT INTO "taskEvent" ("id", "createdAt", "updatedAt", "taskId", "comment")
+        INSERT INTO ${sharedTable("taskEvent")} ("id", "createdAt", "updatedAt", "taskId", "comment")
         VALUES ('hsort-event', NOW(), NOW(), ${TASK_ID}, 'Agent run')
       `;
 

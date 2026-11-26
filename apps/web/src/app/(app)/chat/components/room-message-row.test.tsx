@@ -59,8 +59,11 @@ vi.mock("next-intl", () => ({
       if (key === "position" && values) {
         return `${values.current} / ${values.total}`;
       }
-      if (key === "aiAgentSender" && values) {
-        return `${values.name} (AI agent)`;
+      if (key === "coworkerSender" && values) {
+        return `${values.name} (Coworker)`;
+      }
+      if (key === "sokoBotSender" && values) {
+        return `${values.name} (Soko Bot)`;
       }
       if (key === "MentionAll.label") {
         return "Everyone";
@@ -380,12 +383,13 @@ describe("ChatMessageRow", () => {
   });
 
   it.each([
-    ["Jamal", coworkerMessage],
-    ["Joseph", sokoBotMessage],
-  ])("marks %s as an AI agent before the sender name", (name, message) => {
+    ["Jamal", "Coworker", coworkerMessage],
+    ["Joseph", "Soko Bot", sokoBotMessage],
+  ])("names %s as a %s before the sender name", (name, kind, message) => {
     renderRow({ message: message() });
 
-    const sender = screen.getByRole("button", { name: `${name} (AI agent)` });
+    // The glossary: a Soko Bot and a Coworker are neither of them an Agent.
+    const sender = screen.getByRole("button", { name: `${name} (${kind})` });
     const icon = sender.querySelector("svg");
     expect(icon).toBeInTheDocument();
     expect(icon).toHaveAttribute("aria-hidden", "true");
@@ -417,11 +421,11 @@ describe("ChatMessageRow", () => {
     expect(avatar.querySelector(".ring-1")).toBeNull();
   });
 
-  it("keeps a human sender's name free of the AI agent mark", () => {
+  it("keeps a human sender's name free of the AI mark", () => {
     renderRow({ message: userMessage() });
 
     expect(
-      screen.queryByRole("button", { name: /AI agent/ }),
+      screen.queryByRole("button", { name: /\((Coworker|Soko Bot)\)/ }),
     ).not.toBeInTheDocument();
     const sender = screen.getByText("Ada").closest('[role="button"]');
     expect(sender).toHaveAccessibleName("Ada");

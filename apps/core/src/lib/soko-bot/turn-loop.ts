@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import {
+  ACTION_LABELS,
   applyVersionCapabilities,
   CMO_SHORT_FORM_TOOLS,
   type CmoShortFormTool,
@@ -40,7 +41,6 @@ import {
 import type { AuthorizedSokoBotRuntime } from "@/services/soko-bot-runtime.service";
 import { resolveRunnableSokoBotVersion } from "@/services/soko-bot-version.service";
 import {
-  ACTION_LABELS,
   type ActionNarrative,
   buildActionResponse,
   parseActionNarrativeText,

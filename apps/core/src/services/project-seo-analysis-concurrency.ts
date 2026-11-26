@@ -1,5 +1,6 @@
 import { type Prisma, TaskStatus } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { conflict, notFound } from "@/helpers/error";
@@ -21,20 +22,20 @@ export async function requireNoActiveSeoAnalysis(
   // concurrent dispatch, including the scheduler's Read Committed transaction, before inspecting active Tasks.
   if (actor.owner.kind === "audit") {
     const activeAudit = await tx.$executeRaw`
-      UPDATE "seo_audit" SET "updatedAt" = "updatedAt" WHERE id = ${actor.owner.id}::uuid AND "deletedAt" IS NULL AND "archivedAt" IS NULL
+      UPDATE ${sharedTable("seo_audit")} SET "updatedAt" = "updatedAt" WHERE id = ${actor.owner.id}::uuid AND "deletedAt" IS NULL AND "archivedAt" IS NULL
     `;
     if (!activeAudit) throw notFound("SEO audit not found");
   } else
     await tx.$executeRaw`
-      UPDATE "project" SET "updatedAt" = "updatedAt" WHERE id = ${actor.owner.id}::uuid
+      UPDATE ${sharedTable("project")} SET "updatedAt" = "updatedAt" WHERE id = ${actor.owner.id}::uuid
     `;
   const owner =
     actor.owner.kind === "audit"
       ? PrismaRaw.sql`a."auditId" = ${actor.owner.id}::uuid AND a."projectId" IS NULL`
       : PrismaRaw.sql`a."projectId" = ${actor.owner.id}::uuid AND a."auditId" IS NULL`;
   const active = await tx.$queryRaw<Array<{ id: string }>>`
-    SELECT a.id FROM "project_seo_analysis" a
-    JOIN "task" t ON t.id = a."taskId"
+    SELECT a.id FROM ${sharedTable("project_seo_analysis")} a
+    JOIN ${sharedTable("task")} t ON t.id = a."taskId"
     WHERE ${owner} AND t."archivedAt" IS NULL
       AND t.status::text NOT IN (${PrismaRaw.join(SEO_INACTIVE_TASK_STATUSES)})
       AND ${ignoreTaskId ? PrismaRaw.sql`t.id <> ${ignoreTaskId}` : PrismaRaw.sql`TRUE`}

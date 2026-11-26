@@ -1,4 +1,5 @@
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
+import { buildChatMessagePreview } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -255,6 +256,38 @@ describe("withSokoBotChat", () => {
         at: new Date("2026-11-17T11:59:00Z"),
       },
     ]);
+  });
+
+  it("previews the bot's words, not Core's receipt above them", () => {
+    expect(
+      chat([
+        message("q1", "me", "Remind me on Mondays", "2026-11-17T11:50:00Z"),
+        answer(
+          "a1",
+          "q1",
+          "Configured schedule.\n\nYour reminder is set for every Monday.",
+          "2026-11-17T11:51:00Z",
+        ),
+      ])[0],
+    ).toMatchObject({ title: "Your reminder is set for every Monday." });
+  });
+
+  it("keeps the whole reply's preview when the bot's words preview as nothing", () => {
+    expect(
+      chat([
+        message("q1", "me", "Send the report", "2026-11-17T11:50:00Z"),
+        answer(
+          "a1",
+          "q1",
+          "Configured schedule.\n\nhttps://example.com/report",
+          "2026-11-17T11:51:00Z",
+        ),
+      ])[0]?.title,
+    ).toBe(
+      buildChatMessagePreview(
+        "Configured schedule.\n\nhttps://example.com/report",
+      ),
+    );
   });
 
   it("names a finished answer with no text", () => {

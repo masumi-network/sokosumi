@@ -1,9 +1,8 @@
 import { randomUUID } from "node:crypto";
-
 import { createPrismaClient } from "@sokosumi/database/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-
 import { calendarInvalidationOutboxService } from "@/services/calendar-invalidation-outbox.service";
+import { testSchemaNames } from "@/test/split-layout";
 
 vi.mock("@/lib/ably/publish", () => ({
   publishCalendarAccessRevoked: vi.fn(),
@@ -14,7 +13,12 @@ const databaseUrl = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   databaseUrl?.startsWith("postgres");
-const db = enabled && databaseUrl ? createPrismaClient(databaseUrl) : null;
+const db =
+  enabled && databaseUrl
+    ? createPrismaClient(databaseUrl, {
+        schema: testSchemaNames().DATABASE_SCHEMA_SHARED,
+      })
+    : null;
 
 // Run against a disposable database with all migrations applied. Every change
 // commits on its own, so each one is its own invalidation.

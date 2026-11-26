@@ -645,7 +645,12 @@ export interface TalkingVideoEditFiles {
   broll?: string;
   /** An instrumental bed, looped under the whole video. */
   music?: string;
+  /** Designed stills over the cut, each a transparent PNG the frame's size. */
+  cards?: { png: string; start: number; end: number }[];
 }
+
+/** A card fades in and out over this long. */
+const CARD_FADE_SECONDS = 0.25;
 
 /** Music under a voice is a bed; without one, it carries the short. */
 const MUSIC_UNDER_WORDS_VOLUME = 0.9;
@@ -830,8 +835,27 @@ export function talkingVideoEditArgs(
   }
   // As loud as the feeds play their own videos (about -14 LUFS).
   graph.push(`[mix]loudnorm=I=${LOUDNESS_LUFS}:TP=-1.5:LRA=11,${sound}[audio]`);
+  // Each card fades in and out over the cut, under the captions.
+  let picture = "cut";
+  (files.cards ?? []).forEach((card, index) => {
+    // A card shows within the video: never before it starts or after it ends.
+    const start = Math.max(0, card.start);
+    const end = Math.min(card.end, plan.durationSeconds);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return;
+    if (end - start < 2 * CARD_FADE_SECONDS) return;
+    const still = addInput(
+      ...["-loop", "1", "-framerate", "30", "-t", end.toFixed(3)],
+      ...["-i", card.png],
+    );
+    const fade = Math.min(CARD_FADE_SECONDS, (end - start) / 2).toFixed(3);
+    graph.push(
+      `[${still}:v]format=rgba,fade=t=in:st=${start.toFixed(3)}:d=${fade}:alpha=1,fade=t=out:st=${(end - Number(fade)).toFixed(3)}:d=${fade}:alpha=1[k${index}]`,
+      `[${picture}][k${index}]overlay=0:0:enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'[over${index}]`,
+    );
+    picture = `over${index}`;
+  });
   graph.push(
-    `[cut]ass=${filterPath(files.subtitles)}:fontsdir=${filterPath(files.fontsDir)}[video]`,
+    `[${picture}]ass=${filterPath(files.subtitles)}:fontsdir=${filterPath(files.fontsDir)}[video]`,
   );
   return [
     ...inputs,
@@ -858,6 +882,8 @@ interface EditExtras {
   broll?: Uint8Array;
   /** A generated instrumental, laid under the voice. */
   music?: Uint8Array;
+  /** Designed stills over the cut (`renderVideoCards`), in the shape's frame. */
+  cards?: { png: Uint8Array; start: number; end: number }[];
 }
 
 export interface TalkingVideoEditInput extends EditExtras {
@@ -922,6 +948,10 @@ async function renderEdit(
         (name, index) =>
           [name, sources.pictures![index]] as [string, Uint8Array],
       ),
+      ...(sources.cards ?? []).map(
+        (card, index) =>
+          [`card-${index}.png`, card.png] as [string, Uint8Array],
+      ),
     ];
     await Promise.all([
       writeFile(
@@ -950,6 +980,15 @@ async function renderEdit(
             : {}),
           ...(sources.broll ? { broll: "broll.mp4" } : {}),
           ...(sources.music ? { music: "music.wav" } : {}),
+          ...(sources.cards?.length
+            ? {
+                cards: sources.cards.map(({ start, end }, index) => ({
+                  png: `card-${index}.png`,
+                  start,
+                  end,
+                })),
+              }
+            : {}),
         },
         layout,
       ),

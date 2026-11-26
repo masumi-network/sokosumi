@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { canonicalJsonKey } from "@sokosumi/masumi/schemas";
 import { seoTaskRequestPacket } from "@sokosumi/utils";
 import { conflict, forbidden, notFound } from "@/helpers/error";
@@ -62,7 +63,7 @@ export async function requireSeoTaskAuditContext(
   if (!["RUNNING", "COMPLETED"].includes(task.status))
     throw conflict("Indexing checks require a running or completed audit Task");
   await tx.$executeRaw`
-    UPDATE "project_seo_analysis" SET "updatedAt" = "updatedAt" WHERE "taskId" = ${taskId}
+    UPDATE ${sharedTable("project_seo_analysis")} SET "updatedAt" = "updatedAt" WHERE "taskId" = ${taskId}
   `;
   const analysis = await tx.projectSeoAnalysis.findUnique({
     where: { taskId },

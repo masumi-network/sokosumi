@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import { AgentJobStatus } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { createAgentClient } from "@sokosumi/masumi";
 import { sokoBotProvideJobInputSchema as provideJobInputSchema } from "@sokosumi/soko-bot";
 import { createAgentJobForUser } from "@/helpers/job";
@@ -174,7 +175,7 @@ export async function applyDecision(
             // transaction wins determines whether seller dispatch may start.
             await tx.$queryRaw`
                 SELECT "id"
-                FROM "soko_bot"
+                FROM ${sharedTable("soko_bot")}
                 WHERE "id" = ${decision.sokoBotId}::uuid
                 FOR UPDATE
               `;
@@ -340,7 +341,7 @@ export async function applyDecision(
         await serializableTransaction(async (tx) => {
           await tx.$queryRaw`
               SELECT "id"
-              FROM "soko_bot"
+              FROM ${sharedTable("soko_bot")}
               WHERE "id" = ${decision.sokoBotId}::uuid
               FOR UPDATE
             `;

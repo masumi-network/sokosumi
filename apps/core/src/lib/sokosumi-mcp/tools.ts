@@ -2571,6 +2571,13 @@ export const MCP_TOOLS: readonly McpTool[] = [
     destructive: true,
   },
   {
+    name: "contacts_set_user",
+    operation: "PUT /contacts/{id}/user",
+    description:
+      "Say which workspace member a contact is, in `body.userId`; null says it is no member. A member is one contact at most, so another contact linked to them lets go.",
+    destructive: true,
+  },
+  {
     name: "contacts_enrich",
     operation: "POST /contacts/{id}/enrich",
     description:

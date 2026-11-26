@@ -4449,6 +4449,7 @@ export type ContactList = {
         listIds?: Array<string>;
         knownByUserId?: string;
         knownByMe?: boolean;
+        xFollow?: 'FOLLOWS_YOU' | 'YOU_FOLLOW' | 'MUTUAL';
         lastContactAfter?: Date;
         lastContactBefore?: Date;
         lastContactOlderThanDays?: number;
@@ -4564,6 +4565,7 @@ export type Contact = {
     channels: Array<ContactChannel>;
     lists: Array<ContactListRef>;
     knownBy: Array<ContactKnownBy>;
+    user: ContactPerson | null;
 };
 
 export type ContactScore = {
@@ -4664,6 +4666,8 @@ export type ContactListRef = {
 export type ContactKnownBy = ContactPerson & {
     interactionCount: number;
     lastInteractionAt: Date | null;
+    followsOnX: boolean;
+    followedOnX: boolean;
 };
 
 export type ContactPerson = {
@@ -4671,6 +4675,20 @@ export type ContactPerson = {
     name: string;
     image: string | null;
 };
+
+/**
+ * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+ */
+export const ContactXFollowState = {
+    FOLLOWS_YOU: 'FOLLOWS_YOU',
+    YOU_FOLLOW: 'YOU_FOLLOW',
+    MUTUAL: 'MUTUAL'
+} as const;
+
+/**
+ * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+ */
+export type ContactXFollowState = typeof ContactXFollowState[keyof typeof ContactXFollowState];
 
 export type ContactUpsertResult = {
     contact: Contact;
@@ -9593,6 +9611,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;
+            videoOfTalking?: boolean;
             story?: string;
             claim?: string;
             imageFileId?: string;
@@ -9671,6 +9690,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 languageCode?: string;
                 alsoOn?: Array<string>;
                 videoOf?: string;
+                videoOfTalking?: boolean;
                 story?: string;
                 claim?: string;
                 imageFileId?: string;
@@ -9943,6 +9963,7 @@ export type MarketingStrategyRequest = {
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;
+            videoOfTalking?: boolean;
             story?: string;
             claim?: string;
             imageFileId?: string;
@@ -10021,6 +10042,7 @@ export type MarketingStrategyRequest = {
                 languageCode?: string;
                 alsoOn?: Array<string>;
                 videoOf?: string;
+                videoOfTalking?: boolean;
                 story?: string;
                 claim?: string;
                 imageFileId?: string;
@@ -11761,6 +11783,7 @@ export type SocialPost = {
         languageCode?: string;
         alsoOn?: Array<string>;
         videoOf?: string;
+        videoOfTalking?: boolean;
         story?: string;
         claim?: string;
     } | null;
@@ -15489,6 +15512,7 @@ export type CmoPlan = {
         languageCode?: string;
         alsoOn?: Array<string>;
         videoOf?: string;
+        videoOfTalking?: boolean;
         story?: string;
         claim?: string;
         imageFileId?: string;
@@ -15567,6 +15591,7 @@ export type CmoPlan = {
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;
+            videoOfTalking?: boolean;
             story?: string;
             claim?: string;
             imageFileId?: string;
@@ -37383,6 +37408,7 @@ export type PostContactListsData = {
             listIds?: Array<string>;
             knownByUserId?: string;
             knownByMe?: boolean;
+            xFollow?: 'FOLLOWS_YOU' | 'YOU_FOLLOW' | 'MUTUAL';
             lastContactAfter?: Date;
             lastContactBefore?: Date;
             lastContactOlderThanDays?: number;
@@ -37669,6 +37695,7 @@ export type PatchContactListsByIdData = {
             listIds?: Array<string>;
             knownByUserId?: string;
             knownByMe?: boolean;
+            xFollow?: 'FOLLOWS_YOU' | 'YOU_FOLLOW' | 'MUTUAL';
             lastContactAfter?: Date;
             lastContactBefore?: Date;
             lastContactOlderThanDays?: number;
@@ -38682,6 +38709,10 @@ export type GetContactsData = {
         listId?: string;
         knownByUserId?: string;
         knownByMe?: 'true' | 'false';
+        /**
+         * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+         */
+        xFollow?: ContactXFollowState;
         lastContactAfter?: Date;
         lastContactBefore?: Date;
         lastContactOlderThanDays?: number;
@@ -38999,6 +39030,10 @@ export type GetContactsExportCsvData = {
         listId?: string;
         knownByUserId?: string;
         knownByMe?: 'true' | 'false';
+        /**
+         * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+         */
+        xFollow?: ContactXFollowState;
         lastContactAfter?: Date;
         lastContactBefore?: Date;
         lastContactOlderThanDays?: number;
@@ -39156,6 +39191,10 @@ export type GetContactsMapData = {
         listId?: string;
         knownByUserId?: string;
         knownByMe?: 'true' | 'false';
+        /**
+         * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+         */
+        xFollow?: ContactXFollowState;
         lastContactAfter?: Date;
         lastContactBefore?: Date;
         lastContactOlderThanDays?: number;
@@ -41284,6 +41323,10 @@ export type GetContactsBreakdownData = {
         listId?: string;
         knownByUserId?: string;
         knownByMe?: 'true' | 'false';
+        /**
+         * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+         */
+        xFollow?: ContactXFollowState;
         lastContactAfter?: Date;
         lastContactBefore?: Date;
         lastContactOlderThanDays?: number;
@@ -42757,6 +42800,142 @@ export type PutContactsByIdImportanceResponses = {
 };
 
 export type PutContactsByIdImportanceResponse = PutContactsByIdImportanceResponses[keyof PutContactsByIdImportanceResponses];
+
+export type PutContactsByIdUserData = {
+    body?: {
+        userId: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/user';
+};
+
+export type PutContactsByIdUserErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact was merged
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a member of this workspace, or the contact is archived or not a person
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutContactsByIdUserError = PutContactsByIdUserErrors[keyof PutContactsByIdUserErrors];
+
+export type PutContactsByIdUserResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutContactsByIdUserResponse = PutContactsByIdUserResponses[keyof PutContactsByIdUserResponses];
 
 export type PostContactsByIdEnrichData = {
     body?: never;

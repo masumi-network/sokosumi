@@ -109,6 +109,7 @@ const CONTACT = {
   channels: [],
   lists: [],
   knownBy: [],
+  user: null,
   score: null,
 };
 

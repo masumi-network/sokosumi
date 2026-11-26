@@ -25,6 +25,7 @@ import {
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
 import { findHireableAgents } from "./agents";
+import { latestEventAt, repeatedPollRefusal } from "./delegated-poll";
 import { type RuntimeOperations } from "./operations";
 import { setTaskParent } from "./task-parent";
 
@@ -72,6 +73,11 @@ export async function dispatchTasksTools(
 
     case "get_task_status": {
       const { taskId } = taskIdInputSchema.parse(input.input);
+      const polling = await repeatedPollRefusal(authorized.turn.id, {
+        kind: "TASK",
+        taskId,
+      });
+      if (polling) throw new SokoBotRuntimeValidationError(polling);
       return runtime.readTask(authorized, taskId);
     }
 
@@ -194,6 +200,13 @@ export async function dispatchTasksTools(
       });
       if (!row) return null;
       const job = mapJobWithStatus(row);
+      const polling = await repeatedPollRefusal(authorized.turn.id, {
+        kind: "JOB",
+        jobId,
+        status: job.status,
+        changedAt: latestEventAt(row.events),
+      });
+      if (polling) throw new SokoBotRuntimeValidationError(polling);
       return {
         id: job.id,
         name: job.name ?? job.agent.name,

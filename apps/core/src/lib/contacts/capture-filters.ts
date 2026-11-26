@@ -130,6 +130,7 @@ export type CaptureSkipReason =
   | "large_meeting"
   | "not_a_meeting"
   | "bot_user"
+  | "brand_account"
   | "borderline_rejected"
   | "borderline_unjudged"
   | "duplicate"

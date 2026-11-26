@@ -1,18 +1,30 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
+import {
+  createSqlTables,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
 import { afterAll, describe, expect, it } from "vitest";
+import { testSchemaNames } from "@/test/split-layout";
 
 import {
   type SokoBotLiveness,
   sokoBotForTurnMember,
 } from "./soko-bot-turn-authority";
 
+const { sharedTable } = createSqlTables(sqlTableLayoutFromEnv(process.env));
+
 const url = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
-const db = enabled && url ? createPrismaClient(url) : null;
+const db =
+  enabled && url
+    ? createPrismaClient(url, {
+        schema: testSchemaNames().DATABASE_SCHEMA_SHARED,
+      })
+    : null;
 afterAll(async () => {
   await db?.$disconnect();
 });
@@ -40,20 +52,20 @@ async function withFixtures(
     .$transaction(
       async (tx) => {
         await tx.$executeRawUnsafe(
-          `ALTER TABLE soko_bot ALTER COLUMN "userId" DROP NOT NULL`,
+          `ALTER TABLE ${sharedTable("soko_bot").sql} ALTER COLUMN "userId" DROP NOT NULL`,
         );
         for (const id of [OWNER, MEMBER, OUTSIDER]) {
-          await tx.$executeRaw`INSERT INTO "user" (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${id}, ${id}, ${`${id}@fixture.invalid`}, true, now(), now())`;
+          await tx.$executeRaw`INSERT INTO ${sharedTable("user")} (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${id}, ${id}, ${`${id}@fixture.invalid`}, true, now(), now())`;
         }
-        await tx.$executeRaw`INSERT INTO organization (id, name, slug) VALUES (${ORG}, 'Org', ${ORG})`;
+        await tx.$executeRaw`INSERT INTO ${sharedTable("organization")} (id, name, slug) VALUES (${ORG}, 'Org', ${ORG})`;
         for (const userId of [OWNER, MEMBER]) {
-          await tx.$executeRaw`INSERT INTO member (id, "userId", "organizationId", role, "createdAt") VALUES (${randomUUID()}, ${userId}, ${ORG}, 'member', now())`;
+          await tx.$executeRaw`INSERT INTO ${sharedTable("member")} (id, "userId", "organizationId", role, "createdAt") VALUES (${randomUUID()}, ${userId}, ${ORG}, 'member', now())`;
         }
-        await tx.$executeRaw`INSERT INTO workspace (id, "organizationId", "updatedAt") VALUES (${ORG_WS}::uuid, ${ORG}, now())`;
-        await tx.$executeRaw`INSERT INTO workspace (id, "userId", "updatedAt") VALUES (${PERSONAL_WS}::uuid, ${MEMBER}, now())`;
-        await tx.$executeRaw`INSERT INTO soko_bot (id, "userId", "workspaceId", "updatedAt") VALUES (${PERSONAL_BOT}::uuid, ${OWNER}, ${ORG_WS}::uuid, now())`;
-        await tx.$executeRaw`INSERT INTO soko_bot (id, "userId", "workspaceId", "updatedAt") VALUES (${SHARED_BOT}::uuid, NULL, ${ORG_WS}::uuid, now())`;
-        await tx.$executeRaw`INSERT INTO soko_bot (id, "userId", "workspaceId", "updatedAt") VALUES (${ORPHAN_SHARED_BOT}::uuid, NULL, ${PERSONAL_WS}::uuid, now())`;
+        await tx.$executeRaw`INSERT INTO ${sharedTable("workspace")} (id, "organizationId", "updatedAt") VALUES (${ORG_WS}::uuid, ${ORG}, now())`;
+        await tx.$executeRaw`INSERT INTO ${sharedTable("workspace")} (id, "userId", "updatedAt") VALUES (${PERSONAL_WS}::uuid, ${MEMBER}, now())`;
+        await tx.$executeRaw`INSERT INTO ${sharedTable("soko_bot")} (id, "userId", "workspaceId", "updatedAt") VALUES (${PERSONAL_BOT}::uuid, ${OWNER}, ${ORG_WS}::uuid, now())`;
+        await tx.$executeRaw`INSERT INTO ${sharedTable("soko_bot")} (id, "userId", "workspaceId", "updatedAt") VALUES (${SHARED_BOT}::uuid, NULL, ${ORG_WS}::uuid, now())`;
+        await tx.$executeRaw`INSERT INTO ${sharedTable("soko_bot")} (id, "userId", "workspaceId", "updatedAt") VALUES (${ORPHAN_SHARED_BOT}::uuid, NULL, ${PERSONAL_WS}::uuid, now())`;
         await run(tx);
         throw new Rollback();
       },
@@ -98,7 +110,7 @@ describe.skipIf(!enabled)("sokoBotForTurnMember against PostgreSQL", () => {
 
   it("refuses a member who left the Organization", async () => {
     await withFixtures(async (tx) => {
-      await tx.$executeRaw`DELETE FROM member WHERE "userId" = ${MEMBER}`;
+      await tx.$executeRaw`DELETE FROM ${sharedTable("member")} WHERE "userId" = ${MEMBER}`;
       expect(await reaches(tx, SHARED_BOT, MEMBER)).toBe(false);
     });
   });
@@ -119,12 +131,12 @@ describe.skipIf(!enabled)("sokoBotForTurnMember against PostgreSQL", () => {
 
   it("refuses an archived or paused bot", async () => {
     await withFixtures(async (tx) => {
-      await tx.$executeRaw`UPDATE soko_bot SET status = 'PAUSED' WHERE id = ${SHARED_BOT}::uuid`;
+      await tx.$executeRaw`UPDATE ${sharedTable("soko_bot")} SET status = 'PAUSED' WHERE id = ${SHARED_BOT}::uuid`;
       expect(await reaches(tx, SHARED_BOT, MEMBER)).toBe(false);
       expect(await reaches(tx, SHARED_BOT, MEMBER, ORG_WS, "notArchived")).toBe(
         true,
       );
-      await tx.$executeRaw`UPDATE soko_bot SET "archivedAt" = now() WHERE id = ${SHARED_BOT}::uuid`;
+      await tx.$executeRaw`UPDATE ${sharedTable("soko_bot")} SET "archivedAt" = now() WHERE id = ${SHARED_BOT}::uuid`;
       expect(await reaches(tx, SHARED_BOT, MEMBER, ORG_WS, "notArchived")).toBe(
         false,
       );

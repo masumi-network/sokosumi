@@ -847,7 +847,7 @@ export class SokoBotControlPlane {
             SELECT "id", clock_timestamp() AT TIME ZONE 'UTC' AS stamp
             FROM (
               SELECT "id"
-              FROM "soko_bot_turn"
+              FROM ${sharedTable("soko_bot_turn")}
               WHERE "id" = ${turnId}::uuid
                 AND "leaseToken" = ${leaseToken}
                 AND "status"::text IN (${PrismaRaw.join(ACTIVE_TURN_STATUSES)})
@@ -855,7 +855,7 @@ export class SokoBotControlPlane {
               FOR NO KEY UPDATE
             ) AS held_turn
           )
-          UPDATE "soko_bot_turn" AS turn
+          UPDATE ${sharedTable("soko_bot_turn")} AS turn
           SET "reconcilerHeartbeatAt" = renewal.stamp,
               "leaseExpiresAt" = renewal.stamp + ${TURN_LEASE_MS} * interval '1 millisecond',
               "updatedAt" = renewal.stamp
@@ -1258,7 +1258,7 @@ export class SokoBotControlPlane {
       await serializableTransaction(async (tx) => {
         await tx.$queryRaw`
           SELECT "id"
-          FROM "soko_bot"
+          FROM ${sharedTable("soko_bot")}
           WHERE "id" = ${bot.id}::uuid
           FOR UPDATE
         `;
@@ -1389,11 +1389,11 @@ export class SokoBotControlPlane {
     const claimed = await prisma.$transaction(async (tx) => {
       // Pause and archive lock the bot before they touch a turn.
       await tx.$queryRaw`
-        SELECT "id" FROM "soko_bot" WHERE "id" = ${turn.sokoBotId}::uuid FOR UPDATE
+        SELECT "id" FROM ${sharedTable("soko_bot")} WHERE "id" = ${turn.sokoBotId}::uuid FOR UPDATE
       `;
       // Foreground settlement can already hold the turn and need the bot.
       const locked = await tx.$queryRaw<{ id: string }[]>`
-        SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${turn.id}::uuid
+        SELECT "id" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${turn.id}::uuid
         FOR NO KEY UPDATE SKIP LOCKED
       `;
       if (!locked.length) return null;
@@ -1421,7 +1421,7 @@ export class SokoBotControlPlane {
       if (!count) return null;
       // Make a serializable pause/archive with an older snapshot retry its check.
       await tx.$executeRaw`
-        UPDATE "soko_bot" SET "updatedAt" = "updatedAt" WHERE "id" = ${turn.sokoBotId}::uuid
+        UPDATE ${sharedTable("soko_bot")} SET "updatedAt" = "updatedAt" WHERE "id" = ${turn.sokoBotId}::uuid
       `;
       return tx.sokoBot.findUniqueOrThrow({ where: { id: turn.sokoBotId } });
     });
@@ -2054,7 +2054,7 @@ export class SokoBotControlPlane {
     const leaseToken = randomUUID();
     const claimed = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`
-        SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${turnId}::uuid
+        SELECT "id" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${turnId}::uuid
         FOR NO KEY UPDATE
       `;
       const now = await databaseNow(tx);
@@ -2744,7 +2744,7 @@ export class SokoBotControlPlane {
       const reservation = await serializableTransaction(async (tx) => {
         await tx.$queryRaw`
           SELECT "id"
-          FROM "soko_bot"
+          FROM ${sharedTable("soko_bot")}
           WHERE "id" = ${bot.id}::uuid
           FOR UPDATE
         `;
@@ -3217,7 +3217,7 @@ export class SokoBotControlPlane {
       await serializableTransaction(async (tx) => {
         await tx.$queryRaw`
           SELECT "id"
-          FROM "soko_bot"
+          FROM ${sharedTable("soko_bot")}
           WHERE "id" = ${bot.id}::uuid
           FOR UPDATE
         `;
@@ -3467,7 +3467,7 @@ export class SokoBotControlPlane {
     const leaseToken = randomUUID();
     const updated = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`
-        SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${turnId}::uuid
+        SELECT "id" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${turnId}::uuid
         FOR NO KEY UPDATE
       `;
       const now = await databaseNow(tx);
@@ -4725,7 +4725,7 @@ export class SokoBotControlPlane {
         active = await serializableTransaction(async (tx) => {
           await tx.$queryRaw`
             SELECT "id"
-            FROM "soko_bot"
+            FROM ${sharedTable("soko_bot")}
             WHERE "id" = ${bot.id}::uuid
             FOR UPDATE
           `;
@@ -4806,7 +4806,7 @@ export class SokoBotControlPlane {
         await serializableTransaction(async (tx) => {
           await tx.$queryRaw`
             SELECT "id"
-            FROM "soko_bot"
+            FROM ${sharedTable("soko_bot")}
             WHERE "id" = ${bot.id}::uuid
             FOR UPDATE
           `;
@@ -4953,7 +4953,7 @@ export class SokoBotControlPlane {
         resetPreparation = await serializableTransaction(async (tx) => {
           await tx.$queryRaw`
             SELECT "id"
-            FROM "soko_bot"
+            FROM ${sharedTable("soko_bot")}
             WHERE "id" = ${bot.id}::uuid
             FOR UPDATE
           `;
@@ -5086,7 +5086,7 @@ export class SokoBotControlPlane {
         await serializableTransaction(async (tx) => {
           await tx.$queryRaw`
             SELECT "id"
-            FROM "soko_bot"
+            FROM ${sharedTable("soko_bot")}
             WHERE "id" = ${bot.id}::uuid
             FOR UPDATE
           `;
@@ -5361,7 +5361,7 @@ export class SokoBotControlPlane {
       if (bot.archivedAt) return null;
       await tx.$queryRaw`
         SELECT "id"
-        FROM "soko_bot"
+        FROM ${sharedTable("soko_bot")}
         WHERE "id" = ${bot.id}::uuid
         FOR UPDATE
       `;

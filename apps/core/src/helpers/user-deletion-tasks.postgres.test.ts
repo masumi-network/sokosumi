@@ -4,16 +4,30 @@ import {
   TaskScheduleState,
   TaskVisibility,
 } from "@sokosumi/database";
-import { createPrismaClient } from "@sokosumi/database/client";
+import { createPrismaClient, PrismaRaw } from "@sokosumi/database/client";
+import {
+  createSqlTables,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
 import { afterAll, describe, expect, it } from "vitest";
+import { testSchemaNames } from "@/test/split-layout";
 
 import { prepareTasksForUserDeletion } from "./user-deletion-tasks";
+
+const { netTable, netType } = createSqlTables(
+  sqlTableLayoutFromEnv(process.env),
+);
 
 const url = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
-const db = enabled && url ? createPrismaClient(url) : null;
+const db =
+  enabled && url
+    ? createPrismaClient(url, {
+        schema: testSchemaNames().DATABASE_SCHEMA_SHARED,
+      })
+    : null;
 afterAll(async () => {
   await db?.$disconnect();
 });
@@ -75,22 +89,19 @@ async function seedWorkspaceWork(tx: Tx) {
     },
   });
   const agentId = randomUUID();
-  await tx.agentPricing.create({
-    data: { id: agentId, pricingType: "FREE" },
-  });
-  await tx.agent.create({
-    data: {
-      id: agentId,
-      blockchainIdentifier: `chain-${agentId}`,
-      name: "Research Agent",
-      apiBaseUrl: "https://example.test/agent",
-      lastUptimeCheck: new Date(),
-      pricingId: agentId,
-      uptimeCount: 1,
-      uptimeCheckCount: 1,
-      isShown: true,
-    },
-  });
+  await tx.$executeRaw`
+    INSERT INTO ${netTable("mainnet", "AgentPricing")} ("id", "createdAt", "updatedAt", "pricingType")
+    VALUES (${agentId}, NOW(), NOW(), 'FREE'::${netType("mainnet", "PricingType")})
+  `;
+  await tx.$executeRaw`
+    INSERT INTO ${netTable("mainnet", "Agent")} (
+      "id", "createdAt", "updatedAt", "blockchainIdentifier", "name", "apiBaseUrl",
+      "lastUptimeCheck", "pricingId", "uptimeCount", "uptimeCheckCount", "isShown"
+    ) VALUES (
+      ${agentId}, NOW(), NOW(), ${`chain-${agentId}`}, 'Research Agent', 'https://example.test/agent',
+      NOW(), ${agentId}, 1, 1, TRUE
+    )
+  `;
 
   const task = (name: string, data: Partial<Prisma.TaskUncheckedCreateInput>) =>
     tx.task.create({
@@ -149,20 +160,28 @@ async function seedWorkspaceWork(tx: Tx) {
     creatorUserId: bob,
   });
 
-  const job = (name: string, data: Partial<Prisma.JobUncheckedCreateInput>) =>
-    tx.job.create({
-      data: {
-        name,
-        agentId,
-        agentJobId: randomUUID(),
-        jobType: "FREE",
-        workspaceId,
-        organizationId,
-        ownerId: ada,
-        creatorUserId: ada,
-        ...data,
-      },
-    });
+  async function job(
+    name: string,
+    data: {
+      taskId?: string;
+      workspaceId?: string;
+      organizationId?: string | null;
+    },
+  ) {
+    const id = randomUUID();
+    const jobOrganizationId =
+      data.organizationId === undefined ? organizationId : data.organizationId;
+    await tx.$executeRaw`
+      INSERT INTO ${netTable("mainnet", "Job")} (
+        "id", "createdAt", "updatedAt", "name", "agentId", "agentJobId", "jobType",
+        "workspaceId", "organizationId", "ownerId", "creatorUserId", "taskId"
+      ) VALUES (
+        ${id}, NOW(), NOW(), ${name}, ${agentId}, ${randomUUID()}, 'FREE'::${netType("mainnet", "JobType")},
+        ${data.workspaceId ?? workspaceId}::uuid, ${jobOrganizationId}, ${ada}, ${ada}, ${data.taskId ?? null}
+      )
+    `;
+    return { id };
+  }
   const publicJob = await job("Job on the public task", {
     taskId: publicTask.id,
   });
@@ -256,11 +275,13 @@ describe.skipIf(!enabled)("account deletion keeps public work", () => {
         },
       ]);
 
-      const keptJobs = await tx.job.findMany({
-        where: { id: { in: Object.values(jobs).map((job) => job.id) } },
-        select: { id: true, ownerId: true, creatorUserId: true },
-        orderBy: { name: "asc" },
-      });
+      const keptJobs = await tx.$queryRaw<
+        { id: string; ownerId: string | null; creatorUserId: string | null }[]
+      >`
+        SELECT "id", "ownerId", "creatorUserId"
+        FROM ${netTable("mainnet", "Job")} WHERE "id" IN (${PrismaRaw.join(Object.values(jobs).map((job) => job.id))})
+        ORDER BY "name"
+      `;
       expect(keptJobs).toEqual([
         { id: jobs.publicJob.id, ownerId: null, creatorUserId: null },
         { id: jobs.looseJob.id, ownerId: null, creatorUserId: null },

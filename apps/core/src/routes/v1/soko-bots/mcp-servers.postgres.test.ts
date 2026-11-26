@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
@@ -76,15 +77,15 @@ describe.skipIf(!enabled)("Soko Bot MCP servers against PostgreSQL", () => {
 
   beforeAll(async () => {
     for (const id of [OWNER, STRANGER])
-      await prisma.$executeRaw`INSERT INTO "user" (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${id}, ${id}, ${`${id}@fixture.invalid`}, true, now(), now())`;
-    await prisma.$executeRaw`INSERT INTO workspace (id, "userId", "updatedAt") VALUES (${WS}::uuid, ${OWNER}, now())`;
-    await prisma.$executeRaw`INSERT INTO soko_bot (id, "userId", "workspaceId", "updatedAt") VALUES (${BOT}::uuid, ${OWNER}, ${WS}::uuid, now())`;
+      await prisma.$executeRaw`INSERT INTO ${sharedTable("user")} (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${id}, ${id}, ${`${id}@fixture.invalid`}, true, now(), now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("workspace")} (id, "userId", "updatedAt") VALUES (${WS}::uuid, ${OWNER}, now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("soko_bot")} (id, "userId", "workspaceId", "updatedAt") VALUES (${BOT}::uuid, ${OWNER}, ${WS}::uuid, now())`;
   });
 
   afterAll(async () => {
-    await prisma.$executeRaw`DELETE FROM soko_bot WHERE id = ${BOT}::uuid`;
-    await prisma.$executeRaw`DELETE FROM workspace WHERE id = ${WS}::uuid`;
-    await prisma.$executeRaw`DELETE FROM "user" WHERE id IN (${OWNER}, ${STRANGER})`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("soko_bot")} WHERE id = ${BOT}::uuid`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("workspace")} WHERE id = ${WS}::uuid`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("user")} WHERE id IN (${OWNER}, ${STRANGER})`;
   });
 
   it("connects, reads the tools, and keeps the key encrypted and unseen", async () => {
@@ -214,15 +215,15 @@ describe.skipIf(!enabled)("signing in to an MCP server with OAuth", () => {
   }
 
   beforeAll(async () => {
-    await prisma.$executeRaw`INSERT INTO "user" (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${OAUTH_OWNER}, ${OAUTH_OWNER}, ${`${OAUTH_OWNER}@fixture.invalid`}, true, now(), now())`;
-    await prisma.$executeRaw`INSERT INTO workspace (id, "userId", "updatedAt") VALUES (${OAUTH_WS}::uuid, ${OAUTH_OWNER}, now())`;
-    await prisma.$executeRaw`INSERT INTO soko_bot (id, "userId", "workspaceId", "updatedAt") VALUES (${OAUTH_BOT}::uuid, ${OAUTH_OWNER}, ${OAUTH_WS}::uuid, now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("user")} (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${OAUTH_OWNER}, ${OAUTH_OWNER}, ${`${OAUTH_OWNER}@fixture.invalid`}, true, now(), now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("workspace")} (id, "userId", "updatedAt") VALUES (${OAUTH_WS}::uuid, ${OAUTH_OWNER}, now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("soko_bot")} (id, "userId", "workspaceId", "updatedAt") VALUES (${OAUTH_BOT}::uuid, ${OAUTH_OWNER}, ${OAUTH_WS}::uuid, now())`;
   });
 
   afterAll(async () => {
-    await prisma.$executeRaw`DELETE FROM soko_bot WHERE id = ${OAUTH_BOT}::uuid`;
-    await prisma.$executeRaw`DELETE FROM workspace WHERE id = ${OAUTH_WS}::uuid`;
-    await prisma.$executeRaw`DELETE FROM "user" WHERE id = ${OAUTH_OWNER}`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("soko_bot")} WHERE id = ${OAUTH_BOT}::uuid`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("workspace")} WHERE id = ${OAUTH_WS}::uuid`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("user")} WHERE id = ${OAUTH_OWNER}`;
   });
 
   it("sends the owner to the server's sign-in page, then reads the tools with the token", async () => {

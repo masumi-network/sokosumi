@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
@@ -60,26 +61,26 @@ function put(userId: string, path: string, body: unknown) {
 }
 
 async function createUser(id: string) {
-  await prisma.$executeRaw`INSERT INTO "user" (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${id}, ${id}, ${`${id}@fixture.invalid`}, true, now(), now())`;
+  await prisma.$executeRaw`INSERT INTO ${sharedTable("user")} (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${id}, ${id}, ${`${id}@fixture.invalid`}, true, now(), now())`;
 }
 
 describe.skipIf(!enabled)("Soko Bot secrets against PostgreSQL", () => {
   beforeAll(async () => {
     await createUser(OWNER);
     await createUser(STRANGER);
-    await prisma.$executeRaw`INSERT INTO workspace (id, "userId", "updatedAt") VALUES (${WS}::uuid, ${OWNER}, now())`;
-    await prisma.$executeRaw`INSERT INTO soko_bot (id, "userId", "workspaceId", "updatedAt") VALUES (${BOT}::uuid, ${OWNER}, ${WS}::uuid, now())`;
-    await prisma.$executeRaw`INSERT INTO organization (id, name, slug, "createdAt") VALUES (${ORG}, 'Secrets fixture', ${`secrets-${ORG}`}, now())`;
-    await prisma.$executeRaw`INSERT INTO member (id, "userId", "organizationId", role, "createdAt") VALUES (${randomUUID()}, ${OWNER}, ${ORG}, 'owner', now())`;
-    await prisma.$executeRaw`INSERT INTO workspace (id, "organizationId", "updatedAt") VALUES (${ORG_WS}::uuid, ${ORG}, now())`;
-    await prisma.$executeRaw`INSERT INTO soko_bot (id, "userId", "createdByUserId", "workspaceId", "updatedAt") VALUES (${SHARED_BOT}::uuid, NULL, ${OWNER}, ${ORG_WS}::uuid, now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("workspace")} (id, "userId", "updatedAt") VALUES (${WS}::uuid, ${OWNER}, now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("soko_bot")} (id, "userId", "workspaceId", "updatedAt") VALUES (${BOT}::uuid, ${OWNER}, ${WS}::uuid, now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("organization")} (id, name, slug, "createdAt") VALUES (${ORG}, 'Secrets fixture', ${`secrets-${ORG}`}, now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("member")} (id, "userId", "organizationId", role, "createdAt") VALUES (${randomUUID()}, ${OWNER}, ${ORG}, 'owner', now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("workspace")} (id, "organizationId", "updatedAt") VALUES (${ORG_WS}::uuid, ${ORG}, now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("soko_bot")} (id, "userId", "createdByUserId", "workspaceId", "updatedAt") VALUES (${SHARED_BOT}::uuid, NULL, ${OWNER}, ${ORG_WS}::uuid, now())`;
   });
 
   afterAll(async () => {
-    await prisma.$executeRaw`DELETE FROM soko_bot WHERE "workspaceId" IN (${WS}::uuid, ${ORG_WS}::uuid)`;
-    await prisma.$executeRaw`DELETE FROM workspace WHERE id IN (${WS}::uuid, ${ORG_WS}::uuid)`;
-    await prisma.$executeRaw`DELETE FROM organization WHERE id = ${ORG}`;
-    await prisma.$executeRaw`DELETE FROM "user" WHERE id IN (${OWNER}, ${STRANGER})`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("soko_bot")} WHERE "workspaceId" IN (${WS}::uuid, ${ORG_WS}::uuid)`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("workspace")} WHERE id IN (${WS}::uuid, ${ORG_WS}::uuid)`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("organization")} WHERE id = ${ORG}`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("user")} WHERE id IN (${OWNER}, ${STRANGER})`;
   });
 
   it("stores a key encrypted and never returns its value", async () => {
@@ -193,7 +194,7 @@ describe.skipIf(!enabled)("Soko Bot secrets against PostgreSQL", () => {
     expect((await remove()).status).toBe(404);
 
     await put(OWNER, `${BOT}/secrets/GH_TOKEN`, { value: KEY });
-    await prisma.$executeRaw`DELETE FROM soko_bot WHERE id = ${BOT}::uuid`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("soko_bot")} WHERE id = ${BOT}::uuid`;
     expect(
       await prisma.sokoBotSecret.count({ where: { sokoBotId: BOT } }),
     ).toBe(0);

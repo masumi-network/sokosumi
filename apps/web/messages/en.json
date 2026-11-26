@@ -9872,7 +9872,8 @@
       "editChannel": "Edit channel",
       "send": "Send message",
       "noTopic": "No topic set.",
-      "aiAgentSender": "{name} (AI agent)",
+      "coworkerSender": "{name} (Coworker)",
+      "sokoBotSender": "{name} (Soko Bot)",
       "coworkerBadge": "AI coworker",
       "personalAssistantBadge": "Personal assistant",
       "openDirectMessage": "Message",
@@ -12332,7 +12333,8 @@
         "more": "More actions",
         "filter": "Filter",
         "kind": "Type",
-        "source": "Source"
+        "source": "Source",
+        "onX": "On X"
       },
       "bulk": {
         "label": "Selected contacts",
@@ -12635,7 +12637,22 @@
         "restoreName": "Restore {name}",
         "restored": "{name} restored",
         "restoreFailed": "Could not restore {name}. The contact is still archived.",
-        "archivedOn": "Archived on {date}. Archived people stay out of your lists and searches until you restore them."
+        "archivedOn": "Archived on {date}. Archived people stay out of your lists and searches until you restore them.",
+        "isYou": "This is you",
+        "isTeammate": "This is {name}, a teammate",
+        "thisIs": "This is…",
+        "thisIsMe": "Me ({name})",
+        "thisIsNoOne": "No one on the team",
+        "x": {
+          "mutual": "Follow each other on X",
+          "follows": "Follows {name} on X",
+          "followed": "{name} follows them on X"
+        },
+        "xYou": {
+          "mutual": "You follow each other on X",
+          "follows": "Follows you on X · you don't follow back",
+          "followed": "You follow them on X · they don't follow back"
+        }
       },
       "stageGroups": {
         "general": "General",
@@ -12820,6 +12837,11 @@
           "industry": "Industry",
           "lists": "Lists"
         }
+      },
+      "xFollows": {
+        "FOLLOWS_YOU": "Not followed back",
+        "YOU_FOLLOW": "Don't follow you back",
+        "MUTUAL": "Follow each other"
       },
       "linkedInImport": {
         "menu": "Import LinkedIn connections",
