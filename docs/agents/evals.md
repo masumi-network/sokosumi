@@ -6,9 +6,27 @@ Fixed Soko Bot and CMO (Cuso) cases with checks, run against what is deployed. E
 
 - **A PR that changes Soko Bot or Cuso behaviour shows an eval run in its Evidence.** That covers a prompt, a skill, a tool or its description, a version, a model, the classifier, the context packet, or a Core check the bot's answers pass through (claim check, post checks, plan review). Paste `sokosumi evals show RUN_ID --markdown`.
 - **The PR also commits the run as a file.** `sokosumi evals show RUN_ID --summary-md --slug SLUG` writes `docs/evals/runs/YYYY-MM-DD-SLUG.md` from the run. Fill in its "Why the failures happened" and "Verdict" sections, commit it in the PR that needed the run, and link it from the PR's Evidence. Local databases and scratchpads disappear; this file is what stays. Format and template: [`docs/evals/runs/README.md`](../evals/runs/README.md).
+- **Held-out runs report aggregates only.** For the owner benchmark's held-out set, a PR, commit or shared report contains only these per-set numbers:
+  - passed journeys and steps right, baseline vs candidate
+  - lost passes (journeys that passed on the baseline and fail on the candidate)
+  - token coverage
+  - the verdict
+
+  Never paste `sokosumi evals show` output or commit a summary file for a held-out run. Case ids, titles, failed checks, observed values and judge notes stay with ownerbench.
 - **A new tool gets a case.** `apps/core/src/services/evals/eval-cases.test.ts` fails when a capability is in no case's `tools`, `anyTools` or `forbiddenTools`. Its `NOT_YET_COVERED` list only shrinks.
 - **Local and agent-run evals are judged by Claude Code.** Set `SOKO_BOT_JUDGE_RUNNER=claude-code` in `apps/core/.env`: the judge then runs through the local `claude` CLI on Patrick's Claude Code subscription, and the run records it as `claude-code:<model>`. The weekly run and every run on mainnet, preprod or a preview keep the Gateway judge; Core refuses `claude-code` on Vercel. The bots under test always run on their real models.
-- **Spend the bot's model on what the change touches.** The bot under test runs on the AI Gateway even locally, so every case costs real tokens. While working, run only the cases the change touches, one repeat each. A PR's Evidence is the touched cases on its final commit. The full suite (CMO or Soko Bot, about $12 for CMO's 52 cases) runs once per new bot version (cmo-v5, v34 …), on the PR that adds it, and that run goes in its Evidence. Repeat a case three times only when it failed, to tell chance from a regression; never rerun the full suite to settle one case.
+- **Local and agent runs use the ChatGPT plan by default: `pnpm evals:local --plan`.** See [On your own ChatGPT plan](#on-your-own-chatgpt-plan). Run only the cases the change touches, one repeat each. Repeat a case three times only when it failed, to tell chance from a regression; never rerun a suite to settle one case. Run one plan run at a time per machine.
+- **A PR's Evidence may be a plan run.** Run the touched cases on the final commit, and state the run's environment, `local-chatgpt-plan`, beside the table.
+- **The Gateway is for the final cost and cache proof only.** Run on the Gateway (mainnet or without `--plan`) only for a new bot version's final cost and cache proof, or for a case that cannot run on the plan. Each Gateway run costs real tokens from a shared budget, and an empty team budget fails customer turns. So before every Gateway run:
+  - Check the team and evals key budgets with `vercel ai-gateway budgets ls` (amounts only).
+  - Never start one while another Gateway run is going.
+  - Run at most one full suite per bot version (about $12 for CMO's 52 cases), on the PR that adds the version.
+- **Don't overfit to the benchmark.**
+  - Fix general mechanisms (the loop, hand-offs, permissions, verification, asking when a request is ambiguous), never a benchmark journey's wording.
+  - No prompt text, rule or check may name a benchmark case, account, Coworker or phrasing.
+  - Core rules are only for invariants that hold for any request; everything else stays model judgement guided by skills.
+  - The owner benchmark keeps a held-out set that nobody iterates on, described with the benchmark. A version must hold its bar on both sets.
+  - Reviewers flag any change that only makes sense for one journey.
 - **A regression is fixed or explained before merge.** "Flaky" means the case already failed in recent weekly runs; a "regressed" case passed every recent weekly run.
 
 ## Where runs happen
@@ -68,7 +86,7 @@ pnpm chatgpt-plan:logout                    # revoke and forget the session
 - The session is per machine, in `~/.sokosumi/chatgpt-plan.json` (mode 0600), outside every checkout. Tokens are never printed. Each person signs in with their own account. Never share a session file.
 - `SOKO_BOT_LOCAL_CHATGPT_PLAN=1` turns the switch on for any local Core process (`evals:local --plan` sets it). Core refuses the flag on Vercel and in production.
 - When the plan's usage limit is hit, the call fails with "ChatGPT plan usage limit reached". Nothing falls back to the paid Gateway. Wait for the limit to reset (ChatGPT settings, Usage), then run again. On Plus the 5-hour limit is shared with Codex and every other app on your plan.
-- Plan runs do not count as Evidence for a default-deciding run, such as a new version's full suite or a model change. Those stay on the Gateway, because the plan differs from production:
+- A plan run is enough Evidence for ordinary changes. A default-deciding run, such as a new version's final cost and cache proof or a model change, stays on the Gateway (see [The rule](#the-rule)), because the plan differs from production:
   - Cost and cache numbers are zero or missing.
   - The plan ignores the output cap (`max_output_tokens`), `temperature` and prompt-cache retention.
   - Every request is stateless (`store: false`).
@@ -103,6 +121,47 @@ Credits: each lane's organization is topped up to 2,000 free credits before a ru
 - **Agent to agent:** give the scenario an `exchange` (who answers and how: Mira's scripted replies, Hannah's messages, or Juno). The case follows every follow-up the bot's waits start until the chain ends, ends a wait that can only run out, and checks and judges the whole chain; the answer checked is the last turn's.
 - **CMO chat:** add to `CMO_SCENARIOS`; it runs on the lane's Cuso, after the CMO research and strategy cases. A `follow_up` trigger starts the case as the follow-up of the chat turn an earlier case asked (`ask` is that case's prompt), the way the watch sync starts one, so put it right after that case.
 - **CMO research or strategy:** add the brand to `fixtures/cmo-brands.json` and to `RESEARCH_BRANDS` or `STRATEGY_BRANDS` in `eval-cmo-cases.ts`. A strategy case needs the brand's Brand Brain in `fixtures/cmo-brand-brains.json`: run its research case once and copy the saved Brand Brain in.
+
+## Owner benchmark
+
+The north-star cases: real, multi-step owner requests that must work end to end ("create a daily schedule where CodePat writes an architecture note, make 2-3 minimal images, draft it on my Padierfind X, tell me so I can approve"; "I want to launch something new"; "I made a YouTube video, use it"). They live in `apps/core/src/services/evals/ownerbench/` as journeys (`journeys.ts`), area "Owner bench", one case each.
+
+- **Steps.** A journey is a few steps: the owner's messages, a Coworker answering on the Task the bot gave it (`coworker`), or the bot's own schedule firing (`schedule_fires`, started as the cron starts it). A step ends when its turns, follow-ups and waits have settled. Core answers for CodePat and Mira; a chat question to them gets no reply, and that wait ends after 90 seconds of quiet.
+- **Checks.** After each step: the tools and answer (as scenario `expect`), then the world it left (`outcomes`: the schedule's days, time and brief, the Coworker's Task brief, image prompts, drafts on the right Project and network, nothing sent). The judge grades the whole chain against what a strong human assistant or Claude Code would have done.
+- **Progress, not just pass/fail.** Each result's output has `score` (steps passed, steps right in a row from the start, checks passed) and `totals` (turns, tool calls, tool errors, retries after a failed call, time, cost), and each step's own record.
+- **World.** `journey-world.ts` adds CodePat (coding Coworker), the owner's Padierfind Project with an X account, and the PDFs or posts a journey needs, on top of the lane's world.
+- **Running.** They are left out of suite runs and the weekly run (each is many turns). Run them by name or all at once:
+
+```bash
+pnpm evals:local --plan --ownerbench                       # all journeys
+pnpm evals:local --plan --ownerbench --suite cmo --cuso-version cmo-v26
+pnpm evals:local --plan --cases owner-codepat-daily-post
+```
+
+A new Soko Bot or Cuso default must pass the owner benchmark at least as well as the current default, with cost per turn no worse, on **both** the dev journeys and the held-out set below: one baseline run and one candidate run, each with `--holdout`, and `scripts/ownerbench-compare.mts` reporting the bar met on each set.
+
+**A new version against the baseline.** Run the benchmark twice from the same checkout, once on the baseline versions and once on the candidate, then compare. Each journey's `totals` carry its tokens (`inputTokens`, `cachedInputTokens`, `outputTokens`, `inputTokensPerTurn`, background runs included), which is the cost proxy on the plan, where no price is reported.
+
+```bash
+pnpm evals:local --plan --ownerbench --holdout HELD_OUT.json --soko-bot-version v36 --cuso-version cmo-v23 --json-out baseline.json
+pnpm evals:local --plan --ownerbench --holdout HELD_OUT.json --soko-bot-version v39 --cuso-version cmo-v26 --json-out candidate.json
+pnpm --filter @sokosumi/core exec tsx scripts/ownerbench-compare.mts baseline.json candidate.json --holdout HELD_OUT.json
+```
+
+**Held-out journeys.** A second set nobody iterates on, written from real prod requests and kept out of this repository so builders never tune to it. Whoever owns the benchmark keeps the file outside every checkout and hands its path only to whoever runs a version comparison; builders don't read it. Its results are reported as totals and a verdict only (journeys passed, steps right, tokens per turn, how many regressed), never per journey or by id, and don't enter the dev scoreboard. It's a JSON array of journeys in the same shape as `journeys.ts`, with ids starting `owner-holdout-`, using only the benchmark's world, `prepare` kinds and outcome kinds (`ownerbench/holdout.ts` checks every journey and names each problem). Run it with `--holdout FILE` beside `--ownerbench`, in both the baseline and the candidate run. Its per-journey results stay in the database of whoever ran it (area "Owner bench (held out)"); only `ownerbench-compare`'s totals and verdict are shared. Fix mechanisms, never a journey's wording: no prompt text, rule or check may name a benchmark case, account, Coworker or phrasing.
+
+It prints each journey side by side, marks every journey that passed on the baseline and fails on the candidate, and says whether the bar holds, on the dev set and on the held-out set separately: at least as many journeys passed and steps right, no such regression, and input tokens per turn no higher. It must hold on both; a dev gain with a held-out drop is overfitting, and without held-out journeys in both runs the bar is not met.
+
+**Runtime parity.** `evals:local` always runs the in-process runtime: its own loop, no sandbox tools (shell, files, helper agents) and no final report call when time runs out. Deployments run the sandbox runtime. Each journey's output records where it ran (`runtime.adapter`, and `runtime.models`: `chatgpt-plan` or `gateway`). Before a local delta decides anything, run the same journeys once on a deployment and compare:
+
+```bash
+pnpm evals:local --plan --ownerbench --json-out local.json
+sokosumi --preprod evals run --cases owner-codepat-daily-post,owner-cuso-launch --wait   # or a PR preview
+sokosumi --preprod evals show RUN_ID --json > deployed.json
+pnpm --filter @sokosumi/core exec tsx scripts/ownerbench-parity.mts local.json deployed.json
+```
+
+The comparison flags each journey that passes on one runtime only or gets a different number of steps right. Trust a version's delta only on journeys that agree; a flagged journey is measuring the runtime. `evals:local --report RUN_ID --json-out FILE` writes the report of a run already finished.
 
 ## Cuso versions
 

@@ -20,6 +20,7 @@ import { SOCIAL_POST_WRITING_GUIDES } from "@/lib/social-post-writing";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
 import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
+import { delegationEventPostRefusal } from "@/lib/soko-bot/system-routes";
 import {
   BEARER_USER_SELECT,
   isActiveUser,
@@ -332,6 +333,13 @@ async function updateSocialPosts(
   };
 }
 
+/** The tools a delegation event turn may only use to draft. */
+const POSTING_TOOLS = new Set([
+  "create_social_post",
+  "schedule_social_post",
+  "publish_social_post",
+]);
+
 export async function executeSocialTool(
   runtime: RuntimeOperations,
   input: ExecuteSokoBotToolInput,
@@ -339,6 +347,20 @@ export async function executeSocialTool(
 ) {
   const { workspaceId } = authorized.turn;
   const userId = actingMemberOf(authorized);
+  if (POSTING_TOOLS.has(input.capability)) {
+    const stored = await prisma.sokoBotTurn.findUnique({
+      where: { id: authorized.turn.id },
+      select: { clientTurnId: true },
+    });
+    const refusal = delegationEventPostRefusal(
+      {
+        clientTurnId: stored?.clientTurnId ?? null,
+        versionId: authorized.turn.versionId,
+      },
+      input,
+    );
+    if (refusal) throw new SokoBotRuntimeValidationError(refusal);
+  }
   if (
     getSokoBotVersion(authorized.turn.versionId).profile === "cmo" &&
     (input.capability === "publish_social_post" ||

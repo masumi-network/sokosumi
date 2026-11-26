@@ -180,6 +180,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Cambiar espacio de trabajo",
+      "switchOrganization": "Cambiar de organización",
       "personalAccount": "Cuenta personal",
       "organizationsHeading": "Organizaciones",
       "createOrJoinOrganization": "Crear o unirse a una organización",
@@ -4711,7 +4712,27 @@
       "slideshowIncludes": "Incluye música y tu logo al final.",
       "costDetailShort": "solo se cobra cuando el vídeo está listo, en un minuto aproximadamente",
       "previewMetaSlideshow": "Sin voz: música y tus frases en pantalla",
-      "aiLabelHintShort": "Este vídeo tiene una voz o música generada. Se etiqueta como generado con IA al publicarlo."
+      "aiLabelHintShort": "Este vídeo tiene una voz o música generada. Se etiqueta como generado con IA al publicarlo.",
+      "shapes": {
+        "label": "Formatos",
+        "hint": "Pagas el primer formato. Cada formato más se corta gratis del mismo vídeo.",
+        "notForKind": "Un recorrido por la web se lee mal en cuadrado.",
+        "previewIn": "Vista previa en",
+        "onStage": "Formatos de este vídeo",
+        "making": "(se está cortando)",
+        "names": {
+          "9:16": "Vertical",
+          "4:5": "Feed",
+          "1:1": "Cuadrado",
+          "16:9": "Panorámico"
+        },
+        "where": {
+          "9:16": "TikTok, Instagram, YouTube",
+          "4:5": "Feed de Instagram y Facebook",
+          "1:1": "X, LinkedIn, Facebook",
+          "16:9": "YouTube, LinkedIn, X"
+        }
+      }
     },
     "Studio": {
       "back": "Volver al proyecto",

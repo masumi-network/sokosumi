@@ -116,6 +116,7 @@ import {
   TIME_UP_PROMPT,
 } from "@/soko-bot-runner/rounds";
 import { expectCoreLog } from "@/test/core-log";
+import { REPLY_CHECK_NOTES } from "./action-response";
 import * as evaluation from "./evaluation-dispatch";
 import { InProcessSokoBotRuntime } from "./in-process-runtime";
 import { sokoBotRegionMiddleware } from "./model-policy";
@@ -184,7 +185,10 @@ describe("InProcessSokoBotRuntime", () => {
   it("runs the turn and records the events the drain settles on", async () => {
     // The canned reply claims a delegation no receipt backs, so it is held.
     claimsActionMock.mockResolvedValueOnce(true);
-    const withheld = expectCoreLog("warn", "Withheld a Soko Bot reply");
+    const withheld = expectCoreLog(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+    );
     const runtime = new InProcessSokoBotRuntime();
 
     const ref = await runtime.createSession({
@@ -222,9 +226,11 @@ describe("InProcessSokoBotRuntime", () => {
     const completed = recordedEvents().find(
       (event) => event.type === "message.completed",
     );
-    expect(completed?.data.message).toBe("Nothing was changed in this turn.");
+    expect(completed?.data.message).toBe(
+      `Nothing was changed in this turn.\n\n${REPLY_CHECK_NOTES.cut}`,
+    );
     expect(withheld[0]?.event).toMatchObject({
-      replyWithheld: { reason: "claims_unconfirmed_change" },
+      replyChecked: { reason: "claims_unconfirmed_change" },
     });
   });
 
@@ -692,7 +698,10 @@ describe("InProcessSokoBotRuntime", () => {
     async (capability) => {
       // The claim check reads the success prose as a claim no receipt backs.
       claimsActionMock.mockResolvedValueOnce(true);
-      const withheld = expectCoreLog("warn", "Withheld a Soko Bot reply");
+      const withheld = expectCoreLog(
+        "warn",
+        "Cut a Soko Bot reply's claim of an unconfirmed change",
+      );
       authorizeMock.mockResolvedValueOnce({
         turn: { id: TURN_ID, versionId: "v11" },
         grant: { capabilities: [capability] },
@@ -715,9 +724,9 @@ describe("InProcessSokoBotRuntime", () => {
       expect(
         recordedEvents().find((event) => event.type === "message.completed")
           ?.data.message,
-      ).toBe("Nothing was changed in this turn.");
+      ).toBe(`Nothing was changed in this turn.\n\n${REPLY_CHECK_NOTES.cut}`);
       expect(withheld[0]?.event).toMatchObject({
-        replyWithheld: { reason: "claims_unconfirmed_change" },
+        replyChecked: { reason: "claims_unconfirmed_change" },
       });
       expect(executeToolMock).not.toHaveBeenCalled();
     },

@@ -2976,7 +2976,8 @@ export class SokoBotControlPlane {
               where: {
                 id: { in: occurrence.followUpDelegationIds },
                 followUp: { not: null },
-                followUpTurnId: null,
+                // A retry takes the plan over only from the turn that failed.
+                followUpTurnId: occurrence.followUpRetryOfTurnId ?? null,
                 turn: { sokoBotId: bot.id, workspaceId: input.workspaceId },
               },
               data: { followUpTurnId: created.id },

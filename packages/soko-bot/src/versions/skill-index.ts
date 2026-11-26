@@ -1,3 +1,4 @@
+import type { SokoBotCapability } from "../policy.js";
 import type { SokoBotVersion } from "./types.js";
 
 /**
@@ -29,6 +30,12 @@ export interface SkillIndexEntry {
   useWhen: string;
   /** Turns that always need the skill get its full text up front. */
   preloadOn?: readonly SkillOccasion[];
+  /**
+   * Tools the skill cannot be followed without. Every turn that carries the
+   * skill must offer them (`version-integrity.test.ts`), so a version or a
+   * narrowed tool set cannot drop one silently.
+   */
+  requiresTools?: readonly SokoBotCapability[];
 }
 
 /**
@@ -42,26 +49,42 @@ export const SKILL_INDEX: Readonly<Record<string, SkillIndexEntry>> = {
     useWhen:
       "researching the business or saving the Brand Brain: the first look, a refresh, or a fact the owner corrects or adds about the business.",
     preloadOn: ["onboarding", "brand", "strategy"],
+    requiresTools: ["save_brand_brain"],
   },
   "cmo-strategy-v22": {
     useWhen:
       "writing or changing the marketing strategy or its calendar, or answering why the plan is what it is: pillars, channels, funnel, goals, weeks, pieces.",
     preloadOn: ["strategy"],
+    requiresTools: ["save_strategy"],
   },
   "cmo-production-picked": {
     useWhen:
       "making the month's pieces after approval and payment, fixing a piece Core handed back, or writing an ad, article or newsletter issue.",
     preloadOn: ["production"],
+    requiresTools: [
+      "write_month_pieces",
+      "get_social_post",
+      "update_social_post",
+      "save_strategy",
+      "report_update",
+    ],
   },
   "cmo-daily-watch": {
     useWhen:
       "the daily run, or keeping the made month current: comments, news, holidays, competitors' moves, and changes the owner asks for.",
     preloadOn: ["daily"],
+    requiresTools: [
+      "list_social_comments",
+      "handle_social_comment",
+      "save_strategy",
+      "report_update",
+    ],
   },
   "cmo-measurement": {
     useWhen:
       "measuring what was published and how it did, the weekly review, or answering how the marketing is performing.",
     preloadOn: ["weekly"],
+    requiresTools: ["list_social_post_statistics", "report_update"],
   },
   "cmo-seo-reports-plain": {
     useWhen:
@@ -109,6 +132,7 @@ export const SKILL_INDEX: Readonly<Record<string, SkillIndexEntry>> = {
     useWhen:
       "using the business's own site: what a page says, its facts and prices, its screenshots.",
     preloadOn: ["onboarding", "brand"],
+    requiresTools: ["list_files", "read_file"],
   },
   "cmo-industry": {
     useWhen:
@@ -118,6 +142,16 @@ export const SKILL_INDEX: Readonly<Record<string, SkillIndexEntry>> = {
   "cmo-context-on-demand": {
     useWhen: "every turn: how your context is organized and read.",
     preloadOn: ["always"],
+    requiresTools: [
+      "read_calendar",
+      "read_strategy",
+      "read_brand_brain",
+      "read_report",
+      "read_competitor_moves",
+      "get_social_post",
+      "list_social_posts",
+      "read_file",
+    ],
   },
   "cmo-tool-highlights": {
     useWhen: "every turn: the tools for this turn and the short save tools.",

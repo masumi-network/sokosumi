@@ -50,6 +50,20 @@ export const sokoBotListTasksInputSchema = z
  */
 export const sokoBotFollowUpSchema = z.string().trim().min(1).max(2_000);
 
+/**
+ * The owner's own limits for a follow-up, when they gave any ("2-3 images",
+ * "up to 50 credits"): the turn that carries the plan out may make no more
+ * images and spend no more credits on media than this.
+ */
+export const sokoBotFollowUpAllowsSchema = z
+  .object({
+    images: z.int().min(1).max(4).optional(),
+    maxCredits: z.number().positive().max(10_000).optional(),
+  })
+  .strict();
+
+export type SokoBotFollowUpAllows = z.infer<typeof sokoBotFollowUpAllowsSchema>;
+
 export const sokoBotCreateTaskInputSchema = z
   .object({
     triggeringTaskId: z.string().min(1).optional(),
@@ -65,6 +79,7 @@ export const sokoBotCreateTaskInputSchema = z
     /** Drive files (ids from upload_file or list_files) to attach as the Task's inputs. */
     fileIds: z.array(z.string().uuid()).max(10).optional(),
     followUp: sokoBotFollowUpSchema.optional(),
+    followUpAllows: sokoBotFollowUpAllowsSchema.optional(),
     /** Makes it a sub-task: a step in this Task's ordered checklist. */
     parentTaskId: z.string().uuid().optional(),
     /** The sibling sub-task it goes right after; last when left out. */
@@ -109,6 +124,7 @@ export const sokoBotAssignTaskInputSchema = z
     memberId: z.string().min(1).optional(),
     ready: z.boolean().default(true),
     followUp: sokoBotFollowUpSchema.optional(),
+    followUpAllows: sokoBotFollowUpAllowsSchema.optional(),
   })
   .strict()
   .refine(
@@ -165,7 +181,7 @@ export const sokoBotSetTaskParentInputSchema = z
 
 export const SOKO_BOT_TASK_TOOL_DESCRIPTIONS = {
   create_task:
-    "Create a Sokosumi Task. Give it who does it and where it belongs in this same call: coworkerId for a fitting Coworker (find_coworkers), memberId for a teammate (a person from find_coworkers), or assignToOwner: true for what the owner must do themselves (pay an invoice, sign, decide, attend); and projectId of the existing project it fits, from your context. Leave either out only when nothing fits. DRAFT means not started yet, never unowned; READY starts a Coworker on it. On a turn started by Task events, triggeringTaskId is the Task it follows up; it may be left out when the events are about one Task. A Coworker cannot open your Files: pass fileIds for the files the work needs (a page to review, a draft to edit); they are attached and their text is added to the description. followUp: what you will do once this work is COMPLETED (\"give the findings to Alex as a Task for a one-page brief\"); Core hands it back to you with the result, so do not create a schedule or poll to wait for it. parentTaskId makes it a sub-task, a step in that Task's ordered checklist (last, or right after afterTaskId); it takes the parent's project, so leave projectId out. Use it when the owner breaks one Task into steps; a separate piece of work stays its own Task. Create several steps one call after another, in their order.",
+    "Create a Sokosumi Task. Give it who does it and where it belongs in this same call: coworkerId for a fitting Coworker (find_coworkers), memberId for a teammate (a person from find_coworkers), or assignToOwner: true for what the owner must do themselves (pay an invoice, sign, decide, attend); and projectId of the existing project it fits, from your context. Leave either out only when nothing fits. DRAFT means not started yet, never unowned; READY starts a Coworker on it. On a turn started by Task events, triggeringTaskId is the Task it follows up; it may be left out when the events are about one Task. A Coworker cannot open your Files: pass fileIds for the files the work needs (a page to review, a draft to edit); they are attached and their text is added to the description. followUp: what you will do once this work is COMPLETED, in the owner's own words, with the project, account, counts and look they asked for (\"give the findings to Alex as a Task for a one-page brief\"); Core hands it back to you with the result, so do not create a schedule or poll to wait for it. followUpAllows: the owner's own limits for that plan when they gave any (images: how many, maxCredits: the most it may spend on images and videos); the turn that carries it out keeps to them. parentTaskId makes it a sub-task, a step in that Task's ordered checklist (last, or right after afterTaskId); it takes the parent's project, so leave projectId out. Use it when the owner breaks one Task into steps; a separate piece of work stays its own Task. Create several steps one call after another, in their order.",
   update_task:
     "Update existing Task scope or DRAFT/READY status, or clear its assignee with unassign: true. Move with projectId as a separate operation; first read the task and provide its exact updatedAt as expectedUpdatedAt. Never create a replacement task to simulate a move.",
   archive_task:

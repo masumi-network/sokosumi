@@ -100,6 +100,7 @@ src/services/evals/eval-a2a.postgres.test.ts 19  # trigger body
 src/services/evals/eval-infrastructure.postgres.test.ts 19  # trigger body
 src/services/evals/eval-lanes.postgres.test.ts 19  # trigger body
 src/services/evals/eval-seo-fixtures.postgres.test.ts 19  # trigger body
+src/services/evals/ownerbench/journey-checks.postgres.test.ts 19  # trigger body
 src/services/file-backfill.postgres.test.ts 19  # trigger body
 src/services/file-curated-vocabulary.postgres.test.ts 19  # trigger body
 src/services/file-metadata-labels.postgres.test.ts 19  # trigger body
@@ -139,6 +140,7 @@ src/services/seo-console-export.postgres.test.ts 19  # trigger body
 src/services/seo-credit-gate.postgres.test.ts 19  # trigger body
 src/services/seo-shared-context.postgres.test.ts 19  # trigger body
 src/services/seo-task-execution.postgres.test.ts 19  # trigger body
+src/services/social-post-restore.postgres.test.ts 19  # trigger body
 src/services/soko-bot-archive.postgres.test.ts 19  # trigger body
 src/services/soko-bot-conversation.postgres.test.ts 19  # trigger body
 src/services/soko-bot-fleet-days.postgres.test.ts 19  # trigger body
@@ -151,6 +153,7 @@ src/services/soko-bot-runtime/calendar.postgres.test.ts 19  # trigger body
 src/services/soko-bot-runtime/task-schedules.postgres.test.ts 19  # trigger body
 src/services/soko-bot-sandbox-turn-cancellation.postgres.test.ts 19  # trigger body
 src/services/soko-bot-schedule-run-changes.postgres.test.ts 19  # trigger body
+src/services/soko-bot-schedules-sync-scope.postgres.test.ts 17  # unqualified raw SQL
 src/services/soko-bot-shared-background-runs.postgres.test.ts 19  # trigger body
 src/services/soko-bot-shared-create.postgres.test.ts 17  # unqualified raw SQL
 src/services/soko-bot-shared-tables.postgres.test.ts 19  # trigger body

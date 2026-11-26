@@ -1,23 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { countMock, projectFindUniqueMock, requireProjectAccessMock } =
-  vi.hoisted(() => ({
-    countMock: vi.fn(),
-    projectFindUniqueMock: vi.fn(),
-    requireProjectAccessMock: vi.fn(),
-  }));
+const {
+  countMock,
+  projectFindUniqueMock,
+  requireProjectAccessMock,
+  delegationFindManyMock,
+} = vi.hoisted(() => ({
+  countMock: vi.fn(),
+  projectFindUniqueMock: vi.fn(),
+  requireProjectAccessMock: vi.fn(),
+  delegationFindManyMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotToolCall: { count: countMock },
     project: { findUnique: projectFindUniqueMock },
+    sokoBotDelegation: { findMany: delegationFindManyMock },
+    sokoBotEventInbox: { findMany: async () => [] },
   },
 }));
 vi.mock("@/lib/image-studio/access", () => ({
   requireProjectAccess: requireProjectAccessMock,
 }));
 
-import { checkTalkingVideoRequest } from "./media-checks";
+import { checkTalkingVideoRequest, mayMakeMediaForOwner } from "./media-checks";
 import type { RuntimeOperations } from "./operations";
 
 const runtime = {
@@ -120,5 +127,88 @@ describe("checkTalkingVideoRequest", () => {
     vi.mocked(runtime.mayActForOwner).mockResolvedValue(false);
 
     await expect(request()).rejects.toThrow("only when a person asks");
+  });
+});
+
+describe("mayMakeMediaForOwner", () => {
+  const ownerChat = {
+    source: "CHAT",
+    chainDepth: 0,
+    askedByUserId: null,
+    requestedByUserId: "user-1",
+    parentTurnId: null,
+    parentTurn: null,
+  };
+  const eventTurn = {
+    turn: { id: "event-turn", source: "EVENT" },
+  } as unknown as Parameters<typeof mayMakeMediaForOwner>[1];
+
+  beforeEach(() => {
+    vi.mocked(runtime.mayActForOwner).mockResolvedValue(false);
+    delegationFindManyMock.mockReset();
+  });
+
+  it("lets the turn that carries the owner's follow-up make its images", async () => {
+    // "Have CodePat review the code, then make 2-3 images and a post."
+    delegationFindManyMock.mockResolvedValue([{ turn: ownerChat }]);
+    await expect(
+      mayMakeMediaForOwner(runtime, eventTurn),
+    ).resolves.toMatchObject({
+      images: undefined,
+      maxCredits: undefined,
+    });
+    expect(delegationFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { followUpTurnId: "event-turn", followUp: { not: null } },
+      }),
+    );
+  });
+
+  it("counts the owner's daily schedule and the runs their chat started", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      { turn: { ...ownerChat, source: "SCHEDULE" } },
+    ]);
+    await expect(
+      mayMakeMediaForOwner(runtime, eventTurn),
+    ).resolves.toMatchObject({
+      images: undefined,
+      maxCredits: undefined,
+    });
+    delegationFindManyMock.mockResolvedValue([
+      {
+        turn: { ...ownerChat, parentTurnId: "chat", parentTurn: ownerChat },
+      },
+    ]);
+    await expect(
+      mayMakeMediaForOwner(runtime, eventTurn),
+    ).resolves.toMatchObject({
+      images: undefined,
+      maxCredits: undefined,
+    });
+  });
+
+  it("refuses an event turn that carries no plan the owner asked for", async () => {
+    delegationFindManyMock.mockResolvedValue([]);
+    await expect(mayMakeMediaForOwner(runtime, eventTurn)).resolves.toBeNull();
+    delegationFindManyMock.mockResolvedValue([
+      { turn: { ...ownerChat, askedByUserId: "teammate" } },
+      {
+        turn: {
+          ...ownerChat,
+          parentTurnId: "mail-check",
+          parentTurn: { ...ownerChat, source: "INGEST" },
+        },
+      },
+    ]);
+    await expect(mayMakeMediaForOwner(runtime, eventTurn)).resolves.toBeNull();
+  });
+
+  it("never looks further on other turns Core started", async () => {
+    await expect(
+      mayMakeMediaForOwner(runtime, {
+        turn: { id: "t", source: "SCHEDULE" },
+      } as unknown as Parameters<typeof mayMakeMediaForOwner>[1]),
+    ).resolves.toBeNull();
+    expect(delegationFindManyMock).not.toHaveBeenCalled();
   });
 });

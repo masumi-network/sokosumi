@@ -7,6 +7,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { Sidebar, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
+import { SIDEBAR_ROW_LINK_CLASS } from "@/components/ui/sidebar-classes";
 import { SIDEBAR_COMPACT_MEDIA_QUERY } from "@/lib/ui-preferences/sidebar-state";
 import { GlobalRail } from "./global-rail.client";
 import {
@@ -213,20 +214,16 @@ it("starts unknown and Home routes in Chats with Home first", () => {
   ).getAllByRole("link");
   expect(home).toHaveAttribute("href", "/chat");
   expect(home).toHaveAttribute("aria-current", "page");
+  expect(home).toHaveClass(...SIDEBAR_ROW_LINK_CLASS.split(" "));
 });
 
-it("fills the rail's top cell with a Home link while the sidebar is hidden", () => {
+it("rests Home like the rooms below it when another page is open", () => {
   render(<Fixture />);
-  const home = screen.getByRole("link", { name: "goHome" });
-  expect(home).toHaveAttribute("href", "/");
-  expect(home.parentElement).toHaveClass("hidden", "md:sidebar-hidden:flex");
-});
-
-it("leaves the phone rail without the desktop Home cell", () => {
-  mobile = true;
-  render(<Fixture />);
-  fireEvent.click(screen.getByRole("button", { name: "Open drawer" }));
-  expect(screen.queryByRole("link", { name: "goHome" })).toBeNull();
+  const [home] = within(
+    document.getElementById("app-sidebar-panel") as HTMLElement,
+  ).getAllByRole("link");
+  expect(home).not.toHaveAttribute("aria-current");
+  expect(home).toHaveClass(...SIDEBAR_ROW_LINK_CLASS.split(" "));
 });
 
 it("keeps the approved Work briefcase at 16px and matches the other row glyphs", () => {
