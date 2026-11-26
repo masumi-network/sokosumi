@@ -12,6 +12,7 @@ import {
   setEvalCoworkerScript,
 } from "@/lib/evals/fake-coworker";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
+import { EFFECT_PUBLICATION_FAILED } from "@/services/soko-bot-effect-outbox.service";
 import { loadLabScenarioTurn } from "@/services/soko-bot-lab-scenario.service";
 import { syncSokoBotWatches } from "@/services/soko-bot-watches.service";
 import type { EvalLaneRecord } from "./eval-lanes.service";
@@ -30,6 +31,8 @@ const HANNAH_TASK = "EU marketplace pricing research";
 /** A wait still open this long after everything went quiet runs out now. */
 const QUIET_MS = 120_000;
 export const A2A_CHAIN_TIMEOUT_MS = 40 * 60_000;
+/** Failed publications of one chat effect before the case stops as an infrastructure error (~6 minutes of backoff). */
+export const A2A_DELIVERY_ATTEMPTS = 3;
 
 export interface A2aWorld {
   coworkerId: string;
@@ -301,7 +304,9 @@ async function postTeammateMessages(
 
 export type A2aPoll =
   | { kind: "waiting" }
-  | { kind: "done"; turnIds: string[]; timedOut: boolean };
+  | { kind: "done"; turnIds: string[]; timedOut: boolean }
+  /** A committed chat message never got out: the other side cannot answer, so waiting proves nothing. */
+  | { kind: "undelivered"; turnIds: string[]; detail: string };
 
 /**
  * One step of a chain: waits while any turn of it (or Juno's answer, or
@@ -324,6 +329,23 @@ export async function pollA2aChain(input: {
     return { kind: "done", turnIds, timedOut: true };
   if (turnIds.length - 1 > exchange.maxFollowUps)
     return { kind: "done", turnIds, timedOut: false };
+  const undelivered = await prisma.sokoBotEffectOutbox.findFirst({
+    where: {
+      purpose: "CHAT_MESSAGE",
+      status: { in: ["PENDING", "PERSISTED"] },
+      attempts: { gte: A2A_DELIVERY_ATTEMPTS },
+      lastErrorCategory: { startsWith: EFFECT_PUBLICATION_FAILED },
+      createdAt: { gte: startedAt },
+      receipt: { turn: { workspaceId: lane.workspaceId } },
+    },
+    select: { id: true, attempts: true, lastErrorCategory: true },
+  });
+  if (undelivered)
+    return {
+      kind: "undelivered",
+      turnIds,
+      detail: `Chat effect ${undelivered.id} failed ${undelivered.attempts} publications (${undelivered.lastErrorCategory})`,
+    };
 
   const active = await prisma.sokoBotTurn.count({
     where: {

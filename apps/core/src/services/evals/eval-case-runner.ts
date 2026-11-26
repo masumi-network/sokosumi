@@ -88,7 +88,10 @@ import {
   CMO_WEEKLY_REVIEW_CASE_ID,
   weeklyReviewChecks,
 } from "./eval-cmo-weekly-review";
-import { infrastructureCaseOutcome } from "./eval-infrastructure";
+import {
+  type EvalInfrastructureFailure,
+  infrastructureCaseOutcome,
+} from "./eval-infrastructure";
 import {
   type EvalLaneRecord,
   resetEvalLaneForSokoBot,
@@ -526,6 +529,14 @@ async function pollScenario(
   };
 }
 
+function cancelChain(lane: EvalLaneRecord, turnIds: string[]) {
+  return Promise.all(
+    turnIds.map((id) =>
+      sokoBotControlPlane.cancelTurn(lane.userId, id).catch(() => undefined),
+    ),
+  );
+}
+
 /** An agent-to-agent case: the whole chain of turns, checked and judged as one. */
 async function pollA2aScenario(
   scenario: SokoBotScenario,
@@ -540,13 +551,28 @@ async function pollA2aScenario(
     startedAt: context.startedAt,
   });
   if (step.kind === "waiting") return step;
+  if (step.kind === "undelivered") {
+    await cancelChain(lane, step.turnIds);
+    await closeA2aWorld(lane);
+    const infrastructure: EvalInfrastructureFailure = {
+      code: "chat_delivery_failed",
+      stopsRun: false,
+      message: "A chat message of the case was never delivered",
+      detail: step.detail,
+    };
+    return {
+      kind: "done",
+      outcome: {
+        status: "ERROR",
+        checks: [],
+        output: { infrastructure, notExecuted: false },
+        error: `${infrastructure.message}: ${step.detail}`,
+        turnIds: step.turnIds,
+      },
+    };
+  }
   const { turnIds, timedOut } = step;
-  if (timedOut)
-    await Promise.all(
-      turnIds.map((id) =>
-        sokoBotControlPlane.cancelTurn(lane.userId, id).catch(() => undefined),
-      ),
-    );
+  if (timedOut) await cancelChain(lane, turnIds);
   const { turns, merged } = await loadA2aChain(turnIds);
   const output = {
     ...scenarioOutput(merged),

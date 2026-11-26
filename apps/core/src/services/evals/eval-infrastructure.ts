@@ -20,7 +20,11 @@ const failureSchema = z.object({
 });
 
 export interface EvalInfrastructureFailure {
-  code: "provider_budget_exhausted" | "provider_failure" | "runner_exited";
+  code:
+    | "provider_budget_exhausted"
+    | "provider_failure"
+    | "runner_exited"
+    | "chat_delivery_failed";
   stopsRun: boolean;
   message: string;
   detail: string;

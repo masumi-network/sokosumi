@@ -8,6 +8,8 @@ import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { recordCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 
 const chatPayload = z.object({
@@ -19,6 +21,8 @@ const chatPayload = z.object({
   botIds: z.array(z.string()),
 });
 const taskPayload = z.object({ taskId: z.string(), eventId: z.string() });
+
+export const EFFECT_PUBLICATION_FAILED = "EFFECT_PUBLICATION_FAILED";
 
 export async function enqueueSokoBotEffect(
   tx: Prisma.TransactionClient,
@@ -111,6 +115,8 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
     }, "Effect suppression collided with delivery");
     return false;
   }
+  // Stored with the failure, so a stuck effect says which publication broke.
+  let step = "authority";
   try {
     const turn = effect.receipt.turn;
     const actingUserId = sokoBotActingUserId(turn);
@@ -148,6 +154,7 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
         },
       });
       if (!event) return suppress("EVENT_UNAVAILABLE");
+      step = "task_publication";
       const { publishTaskEventData } = await import("@/lib/ably/publish");
       const { notifyTaskStatusEvent } = await import(
         "@/helpers/task-notifications"
@@ -189,6 +196,7 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
       const { emitChatMessageNotifications, persistChatHumanMentions } =
         await import("@/helpers/chat-human-mentions");
       const payload = chatPayload.parse(effect.payload);
+      step = "persist";
       const prepared = await serializableTransaction(async (tx) => {
         const fence = await tx.sokoBotEffectOutbox.updateMany({
           where: {
@@ -298,9 +306,11 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
         "@/helpers/chat-room-message-created-effects"
       );
       if (!(await renewLease())) return false;
+      step = "realtime";
       await publishChatRoomMessageRealtimeById(message.id, "create", {
         throwOnError: true,
       });
+      step = "readers";
       await invalidateChatRoomMessageReaders({
         roomId: room.id,
         memberUserIds: payload.userIds,
@@ -312,11 +322,13 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
         select: { userId: true },
       });
       const mentionedUserIds = humanMentions.map((mention) => mention.userId);
+      step = "notifications";
       await emitChatMessageNotifications({
         messageId: message.id,
         mentionedUserIds,
         throwOnError: true,
       });
+      step = "mentions";
       const mentions = await prisma.chatRoomMention.findMany({
         where: { messageId: message.id, status: "pending" },
         select: { id: true },
@@ -344,7 +356,16 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
       },
     });
     return completed.count === 1;
-  } catch (_error) {
+  } catch (error) {
+    recordCoreError(
+      { operation: "soko_bot_effect_publish", effectId: id, step },
+      {
+        message: "A committed Soko Bot effect was not published",
+        why: `The ${step} step threw`,
+        fix: "The outbox retries it with backoff; the failure fields name the error.",
+      },
+      { purpose: effect.purpose, failure: messageSafeErrorFields(error) },
+    );
     const exhausted = Date.now() - effect.createdAt.getTime() >= 86_400_000;
     if (exhausted && effect.purpose === "CHAT_MESSAGE") {
       await suppress("RETRY_EXHAUSTED");
@@ -360,7 +381,7 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
         ...(exhausted
           ? { status: "DEAD_LETTER", reason: "RETRY_EXHAUSTED" }
           : {}),
-        lastErrorCategory: "EFFECT_PUBLICATION_FAILED",
+        lastErrorCategory: `${EFFECT_PUBLICATION_FAILED}:${step}`,
         nextAttemptAt: new Date(
           Date.now() + delay + Math.floor(Math.random() * delay * 0.1),
         ),
@@ -375,11 +396,16 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
 export async function syncSokoBotEffects(input: {
   shouldContinue: () => boolean;
   abortSignal: AbortSignal;
+  /** Only turns in these workspaces: the local eval runner drains its lanes, not the whole database. */
+  workspaceIds?: string[];
 }): Promise<number> {
   let published = 0;
   while (!input.abortSignal.aborted && input.shouldContinue()) {
     const effects = await prisma.sokoBotEffectOutbox.findMany({
       where: {
+        ...(input.workspaceIds
+          ? { receipt: { turn: { workspaceId: { in: input.workspaceIds } } } }
+          : {}),
         status: { in: ["PENDING", "PERSISTED"] },
         nextAttemptAt: { lte: new Date() },
         OR: [{ leaseUntil: null }, { leaseUntil: { lte: new Date() } }],
