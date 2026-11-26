@@ -20,7 +20,7 @@ People who use Sokosumi from Claude.ai, Claude Desktop and mobile, or ChatGPT se
   - The view never fetches Core and never holds a token. Data arrives as tool results through the host, on the connection the person already signed in with.
   - No CSP domains: the resource declares no `connectDomains` or `resourceDomains`.
   - No `innerHTML` or `dangerouslySetInnerHTML` (a Biome error in the package). Record text such as Task names, comments and post copy renders as plain text.
-  - `ui/message` and `ui/update-model-context` send ids and fixed templates only, never record text, so text written by someone else cannot reach the model as the person's words.
+  - `ui/message`, `ui/update-model-context` and ChatGPT's widget state (`modelContent`, written where the host offers it, SOKD-497) send ids and fixed templates only, never record text, so text written by someone else cannot reach the model as the person's words.
   - No app-only tools. A view calls only tools the agent can also see and call.
 - **The package contract.** `packages/mcp-ui` (`@sokosumi/mcp-ui`) has one directory per view and a generated registry that exports `MCP_UI: Record<UiId, { uri, html }>`, both strings. Views use React 19, Tailwind v4 and Vite's single-file build; strings are English at launch, behind `t()`.
 - **Hashed URIs.** A view's URI is `ui://sokosumi/<id>.<hash8>.html`, where the hash is of its HTML, so a host's cache never shows a stale view after a deploy. Core resolves a URI by its id, so an old hash still reads the current HTML and an old conversation keeps rendering. Core does not set `_meta.ui.domain`, because `?toolsets=` changes the server URL a host would derive the domain from.

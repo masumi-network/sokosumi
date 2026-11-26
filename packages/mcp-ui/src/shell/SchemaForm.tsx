@@ -102,6 +102,21 @@ export function groupsOf(schema: InputSchema) {
     : [{ id: "", title: "", fields: schema.input_data }];
 }
 
+/**
+ * The field's label. An agent that gives no label names a field by its key
+ * (`mediaType`, `target_url`), which reads as code: split it into words
+ * (SOKD-497). A name the agent wrote stays as written.
+ */
+function labelOf(field: Field): string {
+  if (field.name !== field.id) return field.name;
+  const words = field.id
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .trim()
+    .toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 function rule(field: Field, name: string) {
   return field.validations?.find(({ validation }) => validation === name)
     ?.value;
@@ -390,12 +405,12 @@ function FieldRow({
 
   if (field.type === "hidden") return null;
   if (field.type === "none") {
-    return <p className="text-muted-foreground text-sm">{field.name}</p>;
+    return <p className="text-muted-foreground text-sm">{labelOf(field)}</p>;
   }
 
   const label = (
     <span className="flex items-baseline gap-2 text-sm font-medium">
-      {field.name}
+      {labelOf(field)}
       {optional && (
         <span className="text-muted-foreground text-xs font-normal">
           {t("schemaForm.optional")}
@@ -454,9 +469,9 @@ function FieldRow({
             onChange={(event) => onChange(event.target.checked)}
             className={CHECKBOX}
           />
-          {field.data?.label || field.name ? (
+          {field.data?.label || labelOf(field) ? (
             <span className="text-sm font-medium">
-              {field.data?.label || field.name}
+              {field.data?.label || labelOf(field)}
             </span>
           ) : null}
         </label>

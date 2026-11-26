@@ -33,6 +33,7 @@ async function openBoard(
   result: Result | CallToolResult,
   host: McpUiHostContext = {},
   refreshed: () => Promise<CallToolResult> = async () => BOARD.result,
+  input: Record<string, unknown> = BOARD.input,
 ) {
   const [hostSide, viewSide] = InMemoryTransport.createLinkedPair();
   const hostContext: McpUiHostContext = {
@@ -95,7 +96,7 @@ async function openBoard(
     </Shell>,
   );
   await act(() => initialized);
-  await act(() => bridge.sendToolInput({ arguments: BOARD.input }));
+  await act(() => bridge.sendToolInput({ arguments: input }));
   await act(() => bridge.sendToolResult(result));
   return { bridge, sent };
 }
@@ -142,6 +143,32 @@ describe("TasksBoard inline", () => {
       expect.stringMatching(/^Input required2/),
       expect.stringMatching(/^Done3/),
     ]);
+  });
+
+  it("shows only the columns with Tasks when the call filters by status (SOKD-497)", async () => {
+    await openBoard(BOARD.canceled, {}, undefined, BOARD.canceledInput);
+
+    expect(
+      screen.getAllByRole("region").map((region) => region.textContent),
+    ).toEqual([expect.stringMatching(/^Done1/)]);
+    expect(
+      screen.getByText("Book the venue for the team offsite"),
+    ).toBeTruthy();
+  });
+
+  it("reads a status filter given as a comma-separated string", async () => {
+    await openBoard(BOARD.canceled, {}, undefined, {
+      ...BOARD.input,
+      status: "CANCELED,FAILED",
+    });
+
+    expect(screen.getAllByRole("region")).toHaveLength(1);
+  });
+
+  it("keeps every column on an unfiltered board, empty ones too", async () => {
+    await openBoard(BOARD.canceled);
+
+    expect(screen.getAllByRole("region")).toHaveLength(5);
   });
 
   it("shows the top three Tasks per column as Web's cards", async () => {
@@ -279,6 +306,24 @@ describe("TasksBoard actions", () => {
         text: "The person selected Task ACME-39 on the Sokosumi Task board. Call tasks_get with ACME-39 for its details.",
       },
     ]);
+  });
+
+  it("also writes the selection to ChatGPT's widget state when the host offers it (SOKD-497)", async () => {
+    const setWidgetState = vi.fn();
+    Object.assign(window, { openai: { setWidgetState } });
+    try {
+      await openBoard(BOARD.result);
+      await act(async () =>
+        fireEvent.click(taskButton("Research competitor pricing")),
+      );
+    } finally {
+      Reflect.deleteProperty(window, "openai");
+    }
+
+    expect(setWidgetState).toHaveBeenCalledWith({
+      modelContent:
+        "The person selected Task ACME-39 on the Sokosumi Task board. Call tasks_get with ACME-39 for its details.",
+    });
   });
 
   it("sends the Task's id when its identifier is not a plain reference", async () => {
