@@ -2,6 +2,7 @@ import { type Prisma } from "@sokosumi/database";
 import {
   getSokoBotVersion,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
+  type SokoBotCapability,
 } from "@sokosumi/soko-bot";
 import {
   isXLongPostSubscription,
@@ -19,8 +20,14 @@ import { EMBEDDING_MODEL } from "@/lib/embeddings";
 import { SOCIAL_POST_WRITING_GUIDES } from "@/lib/social-post-writing";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
 import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
+import {
+  evaluateSocialWriteAuthority,
+  isSocialWriteCapability,
+  resolveSocialWriteOriginSource,
+  resolveTurnOwnerAuthority,
+  TAINTED_SOCIAL_UPDATE_DETAIL,
+} from "@/lib/soko-bot/owner-authority";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
-import { delegationEventPostRefusal } from "@/lib/soko-bot/system-routes";
 import {
   BEARER_USER_SELECT,
   isActiveUser,
@@ -146,28 +153,66 @@ const TAINTED_EDITABLE_POST_STATUSES: ReadonlySet<string> = new Set([
   "NEEDS_APPROVAL",
 ]);
 
-const TAINTED_SOCIAL_UPDATE_DETAIL =
-  "update_social_post can only edit unapproved drafts (DRAFT or NEEDS_APPROVAL) after this turn read the web or ran a command; scheduled or already-approved posts stay locked. Say what you would change and ask the owner in chat; their reply starts a new turn that can update them.";
+async function enforceSocialWriteAuthority(
+  authorized: AuthorizedSokoBotRuntime,
+  capability: SokoBotCapability,
+  rawInput: unknown,
+  tx?: Prisma.TransactionClient,
+): Promise<{ requireUnapprovedDraft: boolean }> {
+  const { isTainted, SokoBotTaintedActionError } = await import(
+    "@/lib/soko-bot/turn-loop"
+  );
+  const tainted = await isTainted(authorized.turn.id, tx);
+  const resolved = tainted
+    ? await resolveTurnOwnerAuthority(authorized.turn.id, tx)
+    : null;
+  const effectiveSource =
+    authorized.turn.source === "ADMIN_RETRY"
+      ? await resolveSocialWriteOriginSource(authorized.turn, tx)
+      : authorized.turn.source;
+  const decision = evaluateSocialWriteAuthority({
+    turn: {
+      id: authorized.turn.id,
+      sokoBotId: authorized.turn.sokoBotId,
+      workspaceId: authorized.turn.workspaceId,
+      versionId: authorized.turn.versionId,
+      source: effectiveSource,
+      actingUserId: authorized.turn.actingUserId,
+      askedByKind: authorized.askedByKind,
+      sharedBot: Boolean(authorized.reader?.sharedScope),
+    },
+    capability,
+    rawInput,
+    tainted,
+    turnAuthority: resolved?.authority ?? null,
+  });
+  if (!decision.allowed) {
+    if (decision.kind === "tainted") {
+      throw new SokoBotTaintedActionError(capability, decision.detail);
+    }
+    throw new SokoBotRuntimeValidationError(decision.detail);
+  }
+  return { requireUnapprovedDraft: decision.requireUnapprovedDraft };
+}
 
-async function requireTaintedDraftEditable(
+async function requireEditableSocialPostStatus(
   authorized: AuthorizedSokoBotRuntime,
   post: { projectId: string; postId: string },
   tx?: Prisma.TransactionClient,
 ): Promise<void> {
-  const { isOwnerDirected, isTainted, SokoBotTaintedActionError } =
-    await import("@/lib/soko-bot/turn-loop");
-  if (!(await isTainted(authorized.turn.id))) return;
-  if (!(await isOwnerDirected(authorized.turn.id)))
-    throw new SokoBotTaintedActionError("update_social_post");
+  const { SokoBotTaintedActionError } = await import(
+    "@/lib/soko-bot/turn-loop"
+  );
   const existing = await getSocialPost(
     { ...post, workspaceId: authorized.turn.workspaceId },
     tx,
   );
-  if (!TAINTED_EDITABLE_POST_STATUSES.has(existing.status))
+  if (!TAINTED_EDITABLE_POST_STATUSES.has(existing.status)) {
     throw new SokoBotTaintedActionError(
       "update_social_post",
       TAINTED_SOCIAL_UPDATE_DETAIL,
     );
+  }
 }
 
 /** An edit starts only with this long left, and may run at most until the batch's deadline. */
@@ -218,18 +263,6 @@ async function updateSocialPosts(
       "Each post can be in one update_social_posts call once.",
     );
   await beforeDeadline(runtime.requireSocialAccess(authorized), deadline);
-  await beforeDeadline(
-    (async () => {
-      const { isOwnerDirected, isTainted, SokoBotTaintedActionError } =
-        await import("@/lib/soko-bot/turn-loop");
-      if (
-        (await isTainted(authorized.turn.id)) &&
-        !(await isOwnerDirected(authorized.turn.id))
-      )
-        throw new SokoBotTaintedActionError("update_social_posts");
-    })(),
-    deadline,
-  );
   const unsaved = new Set(
     posts.flatMap((post) => (post.text === undefined ? [] : [post.postId])),
   );
@@ -333,13 +366,6 @@ async function updateSocialPosts(
   };
 }
 
-/** The tools a delegation event turn may only use to draft. */
-const POSTING_TOOLS = new Set([
-  "create_social_post",
-  "schedule_social_post",
-  "publish_social_post",
-]);
-
 export async function executeSocialTool(
   runtime: RuntimeOperations,
   input: ExecuteSokoBotToolInput,
@@ -347,20 +373,13 @@ export async function executeSocialTool(
 ) {
   const { workspaceId } = authorized.turn;
   const userId = actingMemberOf(authorized);
-  if (POSTING_TOOLS.has(input.capability)) {
-    const stored = await prisma.sokoBotTurn.findUnique({
-      where: { id: authorized.turn.id },
-      select: { clientTurnId: true },
-    });
-    const refusal = delegationEventPostRefusal(
-      {
-        clientTurnId: stored?.clientTurnId ?? null,
-        versionId: authorized.turn.versionId,
-      },
-      input,
-    );
-    if (refusal) throw new SokoBotRuntimeValidationError(refusal);
-  }
+  const writeAuthority = isSocialWriteCapability(input.capability)
+    ? await enforceSocialWriteAuthority(
+        authorized,
+        input.capability,
+        input.input,
+      )
+    : null;
   if (
     getSokoBotVersion(authorized.turn.versionId).profile === "cmo" &&
     (input.capability === "publish_social_post" ||
@@ -538,11 +557,14 @@ export async function executeSocialTool(
     case "update_social_post":
     case "schedule_social_post":
     case "cancel_social_post": {
-      if (input.capability === "update_social_post") {
+      if (
+        input.capability === "update_social_post" &&
+        writeAuthority?.requireUnapprovedDraft
+      ) {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_post.parse(
           input.input,
         );
-        await requireTaintedDraftEditable(authorized, {
+        await requireEditableSocialPostStatus(authorized, {
           projectId: params.projectId,
           postId: params.postId,
         });
@@ -620,6 +642,12 @@ export async function executeSocialTool(
             false,
             input.capability,
           );
+          const txWriteAuthority = await enforceSocialWriteAuthority(
+            authorized,
+            input.capability,
+            input.input,
+            tx,
+          );
           const workspace = await runtime.requireSocialAccess(authorized, tx);
           const scope = {
             workspaceId,
@@ -652,11 +680,13 @@ export async function executeSocialTool(
                   SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_post.parse(
                     input.input,
                   );
-                await requireTaintedDraftEditable(
-                  authorized,
-                  { projectId: params.projectId, postId: params.postId },
-                  tx,
-                );
+                if (txWriteAuthority.requireUnapprovedDraft) {
+                  await requireEditableSocialPostStatus(
+                    authorized,
+                    { projectId: params.projectId, postId: params.postId },
+                    tx,
+                  );
+                }
                 // Serializable: an edit that committed after this one's check
                 // is seen here, or this transaction fails and is retried.
                 if (
