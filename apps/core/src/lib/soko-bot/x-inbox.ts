@@ -18,6 +18,42 @@ const MAX_ENTRIES = 200;
 const TEXT_LENGTH = 1_000;
 const SNIPPET_LENGTH = 300;
 
+/**
+ * A room the owner's X DMs may be shown in: a direct room whose only person
+ * is the owner, with no Coworker and no bot but their own.
+ */
+export function onlyOwnerAndBot(
+  room: {
+    kind: string;
+    userMembers: readonly { userId: string }[];
+    coworkerMembers: readonly unknown[];
+    sokoBotMembers: readonly { sokoBotId: string }[];
+  },
+  who: { ownerId: string; sokoBotId: string },
+): boolean {
+  return (
+    room.kind === "direct" &&
+    room.userMembers.length === 1 &&
+    room.userMembers[0]?.userId === who.ownerId &&
+    room.coworkerMembers.length === 0 &&
+    room.sokoBotMembers.every((member) => member.sokoBotId === who.sokoBotId)
+  );
+}
+
+/**
+ * What an X tool does with direct messages, by its Composio slug. Any tool
+ * about DMs or messages that does not say it only reads counts as a write,
+ * so a tool Composio adds later is held back, not let through.
+ */
+export function xDmToolKind(tool: string): "read" | "write" | null {
+  const slug = tool.trim().toUpperCase();
+  if (!/^TWITTER_/.test(slug)) return null;
+  if (!/(^|_)(DMS?|DIRECT_MESSAGES?|MESSAGES?)(_|$)/.test(slug)) return null;
+  return /^TWITTER_(GET|RETRIEVE|LIST|LOOKUP|SEARCH|FETCH)_/.test(slug)
+    ? "read"
+    : "write";
+}
+
 export interface XInboxEntry {
   id: string;
   conversationId: string;

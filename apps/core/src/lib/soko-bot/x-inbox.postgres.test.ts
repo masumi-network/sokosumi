@@ -89,6 +89,25 @@ describe.skipIf(!enabled)("X inbox on PostgreSQL", () => {
       })
     ).cursor;
 
+  it("finds a DM by words past the snippet the bot is shown", async () => {
+    const now = new Date();
+    await keepXDms(
+      integrationId,
+      [
+        {
+          ...entry("long", new Date(now.getTime() - HOUR_MS)),
+          text: `${"Hello Robin, ".repeat(30)}the invoice number is INV-4471.`,
+        },
+      ],
+      now,
+    );
+    expect(
+      (await searchXDms(botId, { query: "INV-4471", limit: 10 })).map(
+        (message) => message.id,
+      ),
+    ).toEqual(["long"]);
+  });
+
   it("keeps new DMs and records what the bot was shown", async () => {
     const now = new Date();
     await keepXDms(

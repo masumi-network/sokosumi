@@ -14,7 +14,11 @@ import {
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
-import { X_INBOX_PROVIDER } from "@/lib/soko-bot/x-inbox";
+import {
+  onlyOwnerAndBot,
+  X_INBOX_PROVIDER,
+  xDmToolKind,
+} from "@/lib/soko-bot/x-inbox";
 import { testCopySourceBotId } from "@/services/cmo-test-copy.service";
 import {
   adToolkitRefusal,
@@ -42,36 +46,19 @@ import { listCalendarEvents } from "./calendar";
 import { type RuntimeOperations } from "./operations";
 
 /**
- * The bot's connected account for a generic toolkit. A CMO test copy has no
- * measurement account of its own: it reads its source's (ADR 0073), and only
- * with tools Composio marks read-only.
- */
-/**
- * Whether this turn may see the owner's private X direct messages: a personal bot
- * on its owner's own turn or rhythm, answering in a private chat. Never a
- * teammate, another bot, a shared bot or a shared room.
- */
-/** Composio's X tools that send, start or delete a direct message. */
-const X_DM_WRITE =
-  /^TWITTER_(SEND_A_NEW_MESSAGE_TO_A_(DM_CONVERSATION|USER)|CREATE_A_NEW_DM_CONVERSATION|DELETE_DM)$/;
-
-/** Composio's X tools that read direct messages. */
-const X_DM_READ = /^TWITTER_\w*DM_\w*EVENTS/;
-
-/**
- * X direct messages are the owner's alone: read for them only, and sent only
- * when they ask for that message in their own chat.
+ * X direct messages are the owner's alone: read for them only, and sent,
+ * started or deleted only when they ask for that message in their own chat.
  */
 async function xDmToolRefusal(
   authorized: AuthorizedSokoBotRuntime,
   tool: string,
 ): Promise<string | null> {
-  const slug = tool.trim().toUpperCase();
-  if (X_DM_WRITE.test(slug))
+  const kind = xDmToolKind(tool);
+  if (kind === "write")
     return (await ownerAskedThisTurn(authorized))
       ? null
       : "X direct messages are sent only when the owner asks for that message in their own chat. Offer a draft reply instead.";
-  if (X_DM_READ.test(slug))
+  if (kind === "read")
     return (await ownerPrivateTurn(authorized))
       ? null
       : "X direct messages are private to the owner and read only in their own chat.";
@@ -89,6 +76,12 @@ async function ownerAskedThisTurn(
   );
 }
 
+/**
+ * Whether this turn may see the owner's private X direct messages: a personal
+ * bot on its owner's own turn or rhythm, answering in a chat of only the owner
+ * and this bot. Never a teammate, another bot, a shared bot or a room someone
+ * else is in, a direct room with more people included.
+ */
 async function ownerPrivateTurn(
   authorized: AuthorizedSokoBotRuntime,
 ): Promise<boolean> {
@@ -100,20 +93,30 @@ async function ownerPrivateTurn(
       destinationRoomId: true,
     },
   });
-  if (
-    !turn ||
-    turn.sokoBot.userId === null ||
-    turn.sokoBot.userId !== authorized.turn.actingUserId
-  )
+  const ownerId = turn?.sokoBot.userId;
+  if (!turn || !ownerId || ownerId !== authorized.turn.actingUserId)
     return false;
   if (!turn.destinationRoomId) return true;
   const room = await prisma.chatRoom.findUnique({
     where: { id: turn.destinationRoomId },
-    select: { kind: true },
+    select: {
+      kind: true,
+      userMembers: { select: { userId: true } },
+      coworkerMembers: { select: { coworkerId: true } },
+      sokoBotMembers: { select: { sokoBotId: true } },
+    },
   });
-  return room?.kind === "direct";
+  return (
+    room !== null &&
+    onlyOwnerAndBot(room, { ownerId, sokoBotId: authorized.turn.sokoBotId })
+  );
 }
 
+/**
+ * The bot's connected account for a generic toolkit. A CMO test copy has no
+ * measurement account of its own: it reads its source's (ADR 0073), and only
+ * with tools Composio marks read-only.
+ */
 async function genericIntegration(sokoBotId: string, provider: string) {
   const sourceBotId = isCmoMeasurementSource(provider)
     ? await testCopySourceBotId(sokoBotId)

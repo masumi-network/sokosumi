@@ -97,12 +97,20 @@ export async function searchXDms(
     X_INBOX_PROVIDER,
   );
   return integrations
-    .flatMap((integration) =>
-      xInboxMessages(xInboxEntries(integration.cursor), input.since),
-    )
-    .filter((message) => {
-      const text = `${message.from} ${message.snippet}`.toLowerCase();
-      return words.every((word) => text.includes(word));
+    .flatMap((integration) => {
+      const entries = xInboxEntries(integration.cursor);
+      // The whole kept text, not the shorter snippet the bot is shown.
+      const matching = new Set(
+        entries
+          .filter((entry) => {
+            const text = `${entry.from} ${entry.text}`.toLowerCase();
+            return words.every((word) => text.includes(word));
+          })
+          .map((entry) => entry.id),
+      );
+      return xInboxMessages(entries, input.since).filter((message) =>
+        matching.has(message.id),
+      );
     })
     .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
     .slice(0, input.limit);
