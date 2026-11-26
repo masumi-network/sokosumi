@@ -1,9 +1,11 @@
 "use client";
 
 import { MessageCircle, X } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 import { useChatTabUnreadPresence } from "@/app/chat/components/use-chat-tab-unread-presence";
+import { SokosumiIcon } from "@/components/masumi-logos";
 import { useNavPathname } from "@/components/navigation-progress.client";
 import { Button } from "@/components/ui/button";
 import { SheetClose } from "@/components/ui/sheet";
@@ -19,15 +21,37 @@ export function GlobalRail({ mobile = false }: { mobile?: boolean }) {
   if (mobile && !isMobile) return null;
 
   return (
-    <Suspense
-      fallback={
-        mobile ? null : (
-          <div className="bg-sidebar border-sidebar-border hidden mt-16 h-[calc(100dvh-4rem)] w-(--app-rail-width) shrink-0 border-e md:block" />
-        )
-      }
+    <>
+      {mobile ? null : <RailHomeLink />}
+      <Suspense
+        fallback={
+          mobile ? null : (
+            <div className="bg-sidebar border-sidebar-border hidden mt-16 h-[calc(100dvh-4rem)] w-(--app-rail-width) shrink-0 border-e md:block" />
+          )
+        }
+      >
+        <RailControls mobile={mobile} />
+      </Suspense>
+    </>
+  );
+}
+
+/** Holds the rail's top cell while the sidebar, and its workspace row, is hidden. */
+function RailHomeLink() {
+  const nav = useTranslations("App.Channels.MobileNav");
+  return (
+    <div
+      data-slot="rail-home"
+      className="bg-sidebar border-sidebar-border fixed start-0 top-0 z-[42] hidden h-16 w-(--app-rail-width) items-center justify-center border-e border-b md:sidebar-hidden:flex"
     >
-      <RailControls mobile={mobile} />
-    </Suspense>
+      <Link
+        href="/"
+        aria-label={nav("goHome")}
+        className="press hover:bg-sidebar-accent inline-flex size-10 items-center justify-center rounded-md"
+      >
+        <SokosumiIcon animated={false} className="size-7" />
+      </Link>
+    </div>
   );
 }
 
