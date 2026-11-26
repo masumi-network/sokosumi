@@ -1,6 +1,7 @@
 import { type LanguageModelMiddleware, wrapLanguageModel } from "ai";
 import { z } from "zod";
 import { type AiGatewayPurpose, aiGateway } from "@/lib/ai-gateway-purpose";
+import { localChatGptPlanModel } from "@/lib/local-chatgpt-plan";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
 import { evaluationBinding, evaluationMiddleware } from "./evaluation-dispatch";
 import { holdModelStream } from "./stream-model-call";
@@ -142,7 +143,9 @@ export function sokoBotModelRequest(options: {
     : null;
   return {
     model: wrapLanguageModel({
-      model: aiGateway(options.purpose).languageModel(options.model),
+      model:
+        localChatGptPlanModel(options.model) ??
+        aiGateway(options.purpose).languageModel(options.model),
       middleware: evaluation
         ? [
             sokoBotRegionMiddleware(options),
