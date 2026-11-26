@@ -851,6 +851,92 @@ describe("schedules of a shared bot", () => {
       expect(scheduleCreate).toHaveBeenCalledTimes(3);
       expect(scheduleUpdate).not.toHaveBeenCalled();
     });
+
+    it("resolves update and delete by literal exact name only when unique and refuses wildcard or ambiguous names", async () => {
+      const margin50A = {
+        ...PERSONAL,
+        id: "01960001-0001-7001-8001-0000000000e1",
+        name: "Margin 50%",
+      };
+      const margin50B = {
+        ...PERSONAL,
+        id: "01960001-0001-7001-8001-0000000000e2",
+        name: "Margin 50%",
+      };
+      const margin5 = {
+        ...PERSONAL,
+        id: "01960001-0001-7001-8001-0000000000e3",
+        name: "Margin 5%",
+      };
+
+      // Wildcard name "Margin 5%" does not match "Margin 50%".
+      scheduleFindMany.mockResolvedValueOnce([margin50A]);
+      await expect(
+        updateSokoBotSchedule(
+          {
+            userId: "owner_1",
+            scheduleName: "Margin 5%",
+            cronExpression: "0 11 * * 1",
+          },
+          tx,
+        ),
+      ).rejects.toThrow(SokoBotScheduleNotFoundError);
+      expect(scheduleUpdate).not.toHaveBeenCalled();
+
+      // Unique literal match "margin 5%" updates only Margin 5%, never Margin 50%.
+      scheduleFindMany.mockResolvedValueOnce([margin50A, margin5]);
+      await updateSokoBotSchedule(
+        {
+          userId: "owner_1",
+          scheduleName: "margin 5%",
+          cronExpression: "0 11 * * 1",
+        },
+        tx,
+      );
+      expect(scheduleUpdate).toHaveBeenLastCalledWith(
+        expect.objectContaining({ where: { id: margin5.id } }),
+      );
+
+      // Ambiguous duplicate names refuse both update and delete with matching ids.
+      scheduleUpdate.mockClear();
+      scheduleFindMany.mockResolvedValueOnce([margin50A, margin50B, margin5]);
+      await expect(
+        updateSokoBotSchedule(
+          {
+            userId: "owner_1",
+            scheduleName: "Margin 50%",
+            cronExpression: "0 12 * * 1",
+          },
+          tx,
+        ),
+      ).rejects.toThrow(
+        `Multiple schedules are named "Margin 50%": Margin 50% (${margin50A.id}); Margin 50% (${margin50B.id}). Pass scheduleId to pick which one.`,
+      );
+      scheduleFindMany.mockResolvedValueOnce([margin50A, margin50B, margin5]);
+      await expect(
+        deleteSokoBotSchedule("owner_1", { scheduleName: "Margin 50%" }, tx),
+      ).rejects.toThrow(
+        `Multiple schedules are named "Margin 50%": Margin 50% (${margin50A.id}); Margin 50% (${margin50B.id}). Pass scheduleId to pick which one.`,
+      );
+      expect(scheduleUpdate).not.toHaveBeenCalled();
+      expect(scheduleDelete).not.toHaveBeenCalled();
+
+      // Explicit scheduleId does not fall back to scheduleName when the id is missing.
+      scheduleFindFirst.mockResolvedValueOnce(null);
+      scheduleFindMany.mockResolvedValueOnce([margin5]);
+      await expect(
+        updateSokoBotSchedule(
+          {
+            userId: "owner_1",
+            scheduleId: "01960001-0001-7001-8001-0000000000ff",
+            scheduleName: "Margin 5%",
+            cronExpression: "0 12 * * 1",
+          },
+          tx,
+        ),
+      ).rejects.toThrow(SokoBotScheduleNotFoundError);
+      expect(scheduleUpdate).not.toHaveBeenCalled();
+    });
   });
 
   describe("persisted OwnerAuthority resolution", () => {

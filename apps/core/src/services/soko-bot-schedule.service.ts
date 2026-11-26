@@ -470,7 +470,12 @@ async function sharedBotScheduleScope(
     : null;
 }
 
-/** Resolves by id first, then exact (case-insensitive) name; the error lists what exists so a caller can correct itself. */
+/**
+ * Resolves a supplied id directly; otherwise resolves `scheduleName` only when
+ * exactly one accessible schedule matches the exact (case-insensitive) literal
+ * name. Never uses SQL pattern matching (`ILIKE`), and refuses ambiguous names
+ * with each matching id so the caller can address the intended row by id.
+ */
 async function findScheduleForUser(
   userId: string | null,
   ref: {
@@ -494,38 +499,70 @@ async function findScheduleForUser(
           ...(ref.sokoBotId !== undefined ? { sokoBotId: ref.sokoBotId } : {}),
           sokoBot: { userId },
         };
-  const matching = {
-    OR: [
-      ...(ref.scheduleId ? [{ id: ref.scheduleId }] : []),
-      ...(ref.scheduleName
-        ? [
-            {
-              name: {
-                equals: ref.scheduleName.trim(),
-                mode: "insensitive" as const,
-              },
-            },
-          ]
-        : []),
-    ],
+  if (ref.scheduleId) {
+    const byId = { OR: [{ id: ref.scheduleId }] };
+    const schedule =
+      own &&
+      (await db.sokoBotSchedule.findFirst({ where: { ...own, ...byId } }));
+    if (schedule) return schedule;
+    const shared = await sharedBotScheduleScope(userId, ref, db);
+    const sharedSchedule =
+      shared &&
+      (await db.sokoBotSchedule.findFirst({ where: { ...shared, ...byId } }));
+    if (sharedSchedule) return sharedSchedule;
+    const scope = shared ?? own;
+    const existing = scope
+      ? await db.sokoBotSchedule.findMany({
+          where: scope,
+          select: { id: true, name: true },
+          orderBy: { createdAt: "asc" },
+        })
+      : [];
+    const hint =
+      existing.length === 0
+        ? "There are no schedules."
+        : `Existing schedules: ${existing.map((s) => `${s.name} (${s.id})`).join("; ")}.`;
+    throw new SokoBotScheduleNotFoundError(`Schedule not found. ${hint}`);
+  }
+
+  const trimmedName = ref.scheduleName?.trim();
+  const wantedName = trimmedName?.toLowerCase();
+  const matchLiteralName = <T extends { id: string; name: string }>(
+    rows: T[],
+  ): T | null => {
+    if (!wantedName) return null;
+    const matches = rows.filter(
+      (row) => row.name.trim().toLowerCase() === wantedName,
+    );
+    if (matches.length === 1) return matches[0]!;
+    if (matches.length > 1) {
+      throw new SokoBotScheduleValidationError(
+        `Multiple schedules are named "${trimmedName}": ${matches.map((s) => `${s.name} (${s.id})`).join("; ")}. Pass scheduleId to pick which one.`,
+      );
+    }
+    return null;
   };
-  const schedule =
-    own &&
-    (await db.sokoBotSchedule.findFirst({ where: { ...own, ...matching } }));
-  if (schedule) return schedule;
-  const shared = await sharedBotScheduleScope(userId, ref, db);
-  const sharedSchedule =
-    shared &&
-    (await db.sokoBotSchedule.findFirst({ where: { ...shared, ...matching } }));
-  if (sharedSchedule) return sharedSchedule;
-  const scope = shared ?? own;
-  const existing = scope
+
+  const ownRows = own
     ? await db.sokoBotSchedule.findMany({
-        where: scope,
-        select: { id: true, name: true },
+        where: own,
         orderBy: { createdAt: "asc" },
       })
-    : [];
+    : null;
+  const ownMatch = ownRows ? matchLiteralName(ownRows) : null;
+  if (ownMatch) return ownMatch;
+
+  const shared = await sharedBotScheduleScope(userId, ref, db);
+  const sharedRows = shared
+    ? await db.sokoBotSchedule.findMany({
+        where: shared,
+        orderBy: { createdAt: "asc" },
+      })
+    : null;
+  const sharedMatch = sharedRows ? matchLiteralName(sharedRows) : null;
+  if (sharedMatch) return sharedMatch;
+
+  const existing = sharedRows ?? ownRows ?? [];
   const hint =
     existing.length === 0
       ? "There are no schedules."

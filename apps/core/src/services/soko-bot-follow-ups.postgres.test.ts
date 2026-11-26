@@ -2287,6 +2287,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
             "write_table_rows",
             "create_schedule",
             "update_schedule",
+            "delete_schedule",
           ],
           deadlineAt: new Date(Date.now() + HOUR),
           leaseExpiresAt: new Date(Date.now() + HOUR),
@@ -2353,6 +2354,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
             "write_table_rows",
             "create_schedule",
             "update_schedule",
+            "delete_schedule",
           ],
           deadlineAt: new Date(Date.now() + HOUR),
           leaseExpiresAt: new Date(Date.now() + HOUR),
@@ -2825,6 +2827,89 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         prompt: "Check 5% margin threshold.",
         cronExpression: "0 10 * * 1",
       });
+      // Updating by name uses literal exact matching (never SQL % wildcards)
+      // and refuses ambiguous duplicate names until a scheduleId is supplied.
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: directChat.id,
+          capability: "update_schedule",
+          toolCallId: `margin-wildcard-miss-${randomUUID()}`,
+          input: {
+            scheduleName: "Margin %",
+            cronExpression: "45 9 * * 1",
+          },
+        }),
+      ).rejects.toThrow(/Schedule not found/);
+      await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "update_schedule",
+        toolCallId: `margin-5-by-name-${randomUUID()}`,
+        input: {
+          scheduleName: "margin 5%",
+          cronExpression: "15 10 * * 1",
+        },
+      });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: margin5.id },
+          select: { name: true, prompt: true, cronExpression: true },
+        }),
+      ).toEqual({
+        name: "Margin 5%",
+        prompt: "Check 5% margin threshold.",
+        cronExpression: "15 10 * * 1",
+      });
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: directChat.id,
+          capability: "update_schedule",
+          toolCallId: `margin-50-ambiguous-update-${randomUUID()}`,
+          input: {
+            scheduleName: "Margin 50%",
+            cronExpression: "45 9 * * 1",
+          },
+        }),
+      ).rejects.toThrow(
+        new RegExp(
+          `Multiple schedules are named "Margin 50%".*${margin50.id}.*${margin50Second.id}.*scheduleId`,
+        ),
+      );
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: directChat.id,
+          capability: "delete_schedule",
+          toolCallId: `margin-50-ambiguous-delete-${randomUUID()}`,
+          input: {
+            scheduleName: "Margin 50%",
+          },
+        }),
+      ).rejects.toThrow(
+        new RegExp(
+          `Multiple schedules are named "Margin 50%".*${margin50.id}.*${margin50Second.id}.*scheduleId`,
+        ),
+      );
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: margin50.id },
+          select: { prompt: true, cronExpression: true },
+        }),
+      ).toEqual({
+        prompt: "Check 50% margin threshold.",
+        cronExpression: "0 9 * * 1",
+      });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: margin50Second.id },
+          select: { prompt: true, cronExpression: true },
+        }),
+      ).toEqual({
+        prompt: "Check quarterly 50% margin threshold.",
+        cronExpression: "0 11 * * 1",
+      });
       await sokoBotRuntimeService.executeTool({
         sessionId: ownerSessionId,
         turnId: directChat.id,
@@ -2843,6 +2928,15 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       ).toEqual({
         prompt: "Check 50% margin threshold.",
         cronExpression: "30 9 * * 1",
+      });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: margin50Second.id },
+          select: { prompt: true, cronExpression: true },
+        }),
+      ).toEqual({
+        prompt: "Check quarterly 50% margin threshold.",
+        cronExpression: "0 11 * * 1",
       });
 
       // Direct top-level owner chat CAN upgrade that read-only schedule to write_table_rows,
