@@ -24,6 +24,8 @@ export function useCreateSeoAudit(
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pendingRef = useRef(false);
+  // One key per request: a retry of the same input replays the first create, other input gets a new key.
+  const attemptRef = useRef<{ signature: string; key: string } | null>(null);
   async function submit(form: FormData) {
     if (pendingRef.current) return;
     pendingRef.current = true;
@@ -33,17 +35,25 @@ export function useCreateSeoAudit(
       const typed = String(form.get("url") ?? "").trim();
       // "example.com" means https://example.com/; Core checks the rest.
       const url = normalizeWebsiteUrl(typed) ?? typed;
+      const request = {
+        name: seoAuditName(String(form.get("name") ?? ""), url),
+        firstPage: { url },
+        ...(projectId ? { projectId } : {}),
+      };
+      const signature = JSON.stringify(request);
+      const key =
+        attemptRef.current?.signature === signature
+          ? attemptRef.current.key
+          : crypto.randomUUID();
+      attemptRef.current = { signature, key };
       const result = await createSeoAuditAction({
-        body: {
-          name: seoAuditName(String(form.get("name") ?? ""), url),
-          firstPage: { url },
-          ...(projectId ? { projectId } : {}),
-        },
+        body: { ...request, idempotencyKey: key },
       });
       if (!result.ok || !result.value.auditId) {
         setError(t("audits.createFailed"));
         return;
       }
+      attemptRef.current = null;
       router.push(seoAuditHref(result.value.auditId, projectId));
       // Not `setOpen`: the address now belongs to the new Audit.
       setOpenState(false);
