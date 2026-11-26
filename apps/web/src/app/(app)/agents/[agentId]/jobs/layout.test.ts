@@ -14,7 +14,12 @@ vi.mock("@/lib/agents/core-loaders", () => ({
 }));
 vi.mock("@/lib/auth/auth.server", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/services/agent.service", () => ({ agentService: {} }));
-vi.mock("./_lib/get-cached-my-jobs", () => ({ getCachedMyJobs: vi.fn() }));
+const getLastKnownAgentNameMock = vi.fn();
+vi.mock("./_lib/get-cached-my-jobs", () => ({
+  getCachedMyJobs: vi.fn(),
+  getLastKnownAgentName: (...args: unknown[]) =>
+    getLastKnownAgentNameMock(...args),
+}));
 
 const AGENT_ID = "agent_unavailable_test";
 const params = Promise.resolve({ agentId: AGENT_ID });
@@ -22,6 +27,7 @@ const params = Promise.resolve({ agentId: AGENT_ID });
 describe("jobs layout metadata", () => {
   beforeEach(() => {
     getCoreAgentByIdMock.mockReset();
+    getLastKnownAgentNameMock.mockReset().mockResolvedValue(null);
   });
 
   it("titles the tab with the agent's name", async () => {
@@ -48,5 +54,21 @@ describe("jobs layout metadata", () => {
     });
 
     expect(metadata.title).toBe("Unavailable agent");
+  });
+
+  it("keeps the name the viewer's jobs recorded for a delisted agent", async () => {
+    getCoreAgentByIdMock.mockResolvedValue(null);
+    getLastKnownAgentNameMock.mockResolvedValue("Web Research Agent");
+    const { generateMetadata } = await import("./layout");
+
+    const metadata = await generateMetadata({
+      params,
+      children: null,
+      modal: null,
+      right: null,
+    });
+
+    expect(metadata.title).toBe("Web Research Agent");
+    expect(getLastKnownAgentNameMock).toHaveBeenCalledWith(AGENT_ID);
   });
 });

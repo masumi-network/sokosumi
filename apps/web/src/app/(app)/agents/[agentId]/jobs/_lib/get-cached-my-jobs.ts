@@ -1,6 +1,8 @@
 import type { JobSummary } from "@sokosumi/core-client";
+import { unstable_rethrow } from "next/navigation";
 import { cache } from "react";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import { getAgentName } from "@/lib/helpers/agent";
 
 const PAGE_SIZE = 20;
 
@@ -59,3 +61,22 @@ export async function getOwnedAgentJobsCount(agentId: string): Promise<number> {
     throw error;
   }
 }
+
+/**
+ * A delisted agent's name as the viewer's newest own job recorded it, so its
+ * jobs page can still say whose jobs these are. Reads only the viewer's own
+ * job, which they may open anyway. Null when they have none or Core refuses.
+ */
+export const getLastKnownAgentName = cache(
+  async (agentId: string): Promise<string | null> => {
+    try {
+      const [newest] = (await getCachedMyJobs(agentId)).jobs;
+      if (!newest) return null;
+      const { data } = await coreClient.getJobById(newest.id);
+      return data.agent.id === agentId ? getAgentName(data.agent) : null;
+    } catch (error) {
+      unstable_rethrow(error);
+      return null;
+    }
+  },
+);

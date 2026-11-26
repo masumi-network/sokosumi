@@ -9423,7 +9423,8 @@
           "backToAgent": "Back to {name}",
           "yourJobs": "Your jobs",
           "yourJobsCount": "Your jobs · {count}",
-          "unavailableAgent": "Unavailable agent"
+          "unavailableAgent": "Unavailable agent",
+          "noLongerListed": "No longer listed"
         },
         "Modal": {
           "back": "Back",
@@ -9450,6 +9451,8 @@
         "coworkersNote": "Specialists you can give whole tasks to or chat with.",
         "coworkersEmpty": "No coworkers in this workspace yet.",
         "marketplaceTitle": "Agent Marketplace",
+        "marketplaceShort": "Marketplace",
+        "sectionNavLabel": "Agents sections",
         "marketplaceNote": "Agents built and run by other companies. Each one does one job.",
         "marketplaceEmpty": "No agents to show right now.",
         "external": "External",

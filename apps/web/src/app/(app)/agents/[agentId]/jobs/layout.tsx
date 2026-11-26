@@ -19,7 +19,10 @@ import { cn } from "@/lib/utils";
 
 import AgentFullbleedEffect from "../components/agent-fullbleed-effect";
 
-import { getCachedMyJobs } from "./_lib/get-cached-my-jobs";
+import {
+  getCachedMyJobs,
+  getLastKnownAgentName,
+} from "./_lib/get-cached-my-jobs";
 import { JobsHeaderContext } from "./components/jobs-header-context";
 import { JobsList } from "./components/jobs-list";
 import { JobsListHeader } from "./components/jobs-list-header";
@@ -33,8 +36,10 @@ export async function generateMetadata({
     getTranslations("App.Agents.Jobs.Header"),
   ]);
 
+  const lastKnownName = agent ? null : await getLastKnownAgentName(agentId);
+
   return {
-    title: agent?.name ?? t("unavailableAgent"),
+    title: agent?.name ?? lastKnownName ?? t("unavailableAgent"),
     description: agent?.description ?? undefined,
   };
 }
@@ -101,17 +106,22 @@ async function JobLayoutInner({
     getTranslations("App.Agents.Jobs.Header"),
   ]);
 
-  const agent =
-    coreAgent ?? createUnavailableCoreAgent(agentId, t("unavailableAgent"));
   const disabled = !coreAgent;
 
-  const [agentJobsPage, canRate, existingRating] = await Promise.all([
-    getCachedMyJobs(agentId),
-    coreAgent ? agentService.canUserRateAgent(agentId) : Promise.resolve(false),
-    coreAgent
-      ? agentService.getUserRatingForAgent(agentId)
-      : Promise.resolve(null),
-  ]);
+  const [agentJobsPage, canRate, existingRating, lastKnownName] =
+    await Promise.all([
+      getCachedMyJobs(agentId),
+      coreAgent
+        ? agentService.canUserRateAgent(agentId)
+        : Promise.resolve(false),
+      coreAgent
+        ? agentService.getUserRatingForAgent(agentId)
+        : Promise.resolve(null),
+      coreAgent ? Promise.resolve(null) : getLastKnownAgentName(agentId),
+    ]);
+  const agent =
+    coreAgent ??
+    createUnavailableCoreAgent(agentId, lastKnownName ?? t("unavailableAgent"));
 
   return (
     <JobsHeaderContext
@@ -153,6 +163,7 @@ async function JobLayoutInner({
                     agent={agent}
                     total={agentJobsPage.total}
                     disabled={disabled}
+                    unlisted={lastKnownName !== null}
                   />
                 }
               />
