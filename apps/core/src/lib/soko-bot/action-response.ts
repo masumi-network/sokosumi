@@ -60,8 +60,20 @@ export const actionNarrativeSchema = z
     observationToolCallIds: z
       .array(z.string())
       .transform((ids) => ids.slice(0, MAX_OBSERVATIONS)),
+    /**
+     * Set by Core, never the model: the claim check could not run, or cut
+     * a sentence. The answer then says so beside the message.
+     */
+    replyCheck: z.enum(["unchecked", "cut"]).optional(),
   })
   .strict();
+
+/** Shown under the bot's words when Core left part of them out. */
+export const REPLY_CHECK_NOTES = {
+  unchecked:
+    "(I could not check this reply against my records just now, so I left out anything it said was done that my records do not show.)",
+  cut: "(I left out a line about a change my records do not show.)",
+} as const;
 
 export type ActionNarrative = z.infer<typeof actionNarrativeSchema>;
 
@@ -76,7 +88,11 @@ export function parseActionNarrativeText(text: string) {
   const end = text.lastIndexOf("}");
   if (start < 0 || end <= start) return null;
   try {
-    return parseActionNarrative(JSON.parse(text.slice(start, end + 1)));
+    const parsed = parseActionNarrative(JSON.parse(text.slice(start, end + 1)));
+    if (!parsed) return null;
+    // Only Core says that it checked the reply.
+    const { replyCheck: _fromModel, ...narrative } = parsed;
+    return narrative;
   } catch {
     return null;
   }
@@ -443,7 +459,7 @@ export async function buildActionResponse(
   actionRequested = false,
   narrativeInput?: unknown,
 ) {
-  const narrative =
+  const narrative: ActionNarrative | null =
     parseActionNarrative(narrativeInput) ??
     parseActionNarrativeText(answerText);
   const turnCalls = await tx.sokoBotToolCall.findMany({
@@ -781,8 +797,9 @@ export async function buildActionResponse(
       (await turnInfo())?.source === "SCHEDULE");
   // Cuso's owner reads his words and CMO's cards; "Updated social post
   // (28×)." beside them is bookkeeping. Refusals and unknowns still show.
+  // When Core cut his words, the receipts are what says what he did.
   const receiptsShown =
-    message && (await isCmo())
+    message && !narrative?.replyCheck && (await isCmo())
       ? actionText.filter((line) => !receiptLines.includes(line))
       : actionText;
   const text =
@@ -809,6 +826,12 @@ export async function buildActionResponse(
                 "Nothing to add."
               : "Nothing was changed in this turn."
             : answerText;
+  // Beside the bot's words, never inside them: an 8,000-character reply has
+  // no room left, and the note is Core's, not the bot's.
+  const checked =
+    narrative?.replyCheck && text !== "Nothing to add."
+      ? `${text}\n\n${REPLY_CHECK_NOTES[narrative.replyCheck]}`
+      : text;
   return {
     appliedReceiptIds,
     narrative,
@@ -816,7 +839,7 @@ export async function buildActionResponse(
     unfulfilledActions,
     // Cuso's owner reads this in CMO.xyz, where nothing opens Sokosumi.
     answerText: (await isCmo())
-      ? withoutSokosumiLinks(text, getWebAppBaseUrl())
-      : linkCalendarContacts(text, turnCalls),
+      ? withoutSokosumiLinks(checked, getWebAppBaseUrl())
+      : linkCalendarContacts(checked, turnCalls),
   };
 }

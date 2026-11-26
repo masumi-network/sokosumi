@@ -35,7 +35,19 @@ export async function standupClaimsUnrecordedWork(
   return askClaims(text, record, STANDUP_CLAIMS);
 }
 
+/** One retry: a single slow or failed Jev call left a whole reply unchecked. */
 async function askClaims(
+  text: string,
+  confirmedChanges: readonly string[],
+  question: string,
+): Promise<boolean | null> {
+  return (
+    (await askClaimsOnce(text, confirmedChanges, question)) ??
+    askClaimsOnce(text, confirmedChanges, question)
+  );
+}
+
+async function askClaimsOnce(
   text: string,
   confirmedChanges: readonly string[],
   question: string,
@@ -60,7 +72,7 @@ async function askClaims(
       {
         message: "Could not check a Soko Bot reply for unconfirmed claims",
         why: "Jev, the judging model, failed or timed out",
-        fix: "Nothing: the reply is held back and the owner is told why.",
+        fix: "Nothing: Core asks once more, then shows the reply with a note that it could not be checked.",
       },
       { failure: messageSafeErrorFields(error) },
     );
