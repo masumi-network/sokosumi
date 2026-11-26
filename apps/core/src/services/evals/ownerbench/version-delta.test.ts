@@ -6,6 +6,7 @@ function report(
   rows: Record<string, [status: string, steps: number, tokens: number | null]>,
 ): ParityReport {
   return {
+    run: { environment: "mainnet" },
     cases: Object.entries(rows).map(([caseId, [status, steps, tokens]]) => ({
       caseId,
       results: [
@@ -116,6 +117,7 @@ describe("versionDelta", () => {
 
   it("needs three scored repeats a side on the held-out set, none of them ERROR", () => {
     const runs = (statuses: string[]): ParityReport => ({
+      run: { environment: "mainnet" },
       cases: [
         {
           caseId: "owner-a",
@@ -213,6 +215,65 @@ describe("versionDelta", () => {
     });
   });
 
+  it("on a real-Jev run, counts only repeats labelled real Jev, on either side", () => {
+    const run = (labels: (string | undefined)[]): ParityReport => ({
+      run: { environment: "local-chatgpt-plan-real-jev" },
+      cases: [
+        {
+          caseId: "owner-a",
+          results: [
+            {
+              status: "PASSED",
+              output: {
+                jev: "real",
+                score: { stepsPassed: 1 },
+                totals: {
+                  tokenTurns: 1,
+                  inputTokens: 1,
+                  inputTokensPerTurn: 1,
+                },
+              },
+            },
+          ],
+        },
+        {
+          caseId: "owner-holdout-a",
+          results: labels.map((jev) => ({
+            status: "PASSED",
+            output: {
+              ...(jev ? { jev } : {}),
+              score: { stepsPassed: 1 },
+              totals: { tokenTurns: 1, inputTokens: 1, inputTokensPerTurn: 1 },
+            },
+          })),
+        },
+      ],
+    });
+    const real = run(["real", "real", "real"]);
+    const unlabelled = run(["real", undefined, "real"]);
+    const held = ["owner-holdout-a"];
+    expect(versionDeltaBySet(real, real, ["owner-a"], held).meetsBar).toBe(
+      true,
+    );
+    // Codex's control: an unlabelled repeat passed the gate on either side.
+    for (const [before, after] of [
+      [real, unlabelled],
+      [unlabelled, real],
+    ] as const) {
+      const delta = versionDeltaBySet(before, after, ["owner-a"], held);
+      expect(delta.meetsBar).toBe(false);
+      expect(delta.holdout?.meetsBar).toBe(false);
+    }
+    // A report that doesn't say its environment can't say which Jev it used.
+    const { run: _env, ...noEnvironment } = real;
+    expect(
+      versionDeltaBySet(noEnvironment, noEnvironment, ["owner-a"], held),
+    ).toMatchObject({
+      meetsBar: false,
+      environmentProblem: expect.stringContaining("no run environment"),
+    });
+  });
+
   it("refuses runs from different environments, and stand-in plan runs", () => {
     const run = (environment: string): ParityReport => ({
       run: { environment },
@@ -223,6 +284,7 @@ describe("versionDelta", () => {
             {
               status: "PASSED",
               output: {
+                jev: "real",
                 score: { stepsPassed: 1 },
                 totals: {
                   tokenTurns: 1,
@@ -238,6 +300,7 @@ describe("versionDelta", () => {
           results: [1, 2, 3].map(() => ({
             status: "PASSED",
             output: {
+              jev: "real",
               score: { stepsPassed: 1 },
               totals: { tokenTurns: 1, inputTokens: 1, inputTokensPerTurn: 1 },
             },
@@ -320,6 +383,7 @@ describe("versionDelta", () => {
         "owner-holdout-a": [held, 2, 100],
       });
       return {
+        ...reported,
         cases: reported.cases.map((evalCase) =>
           evalCase.caseId === "owner-holdout-a"
             ? { ...evalCase, results: Array(3).fill(evalCase.results[0]) }
