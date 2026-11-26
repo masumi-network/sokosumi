@@ -197,6 +197,8 @@ const SEO_TREND_MIN_POINTS = 2;
 /** A change under this share of the first value, or under the floor of its vital, is noise between two weeks. */
 const SEO_TREND_STEADY_SHARE = 0.1;
 const SEO_TREND_STEADY_FLOOR = { lcp: 200, inp: 25, cls: 0.02 } as const;
+/** A change this much over the steady limit is float error, not a change. */
+const SEO_TREND_FLOAT_SLACK = 1e-9;
 /** Room over the highest value, so the line and the limit do not lie on the edge of the chart. */
 const SEO_TREND_HEADROOM = 1.1;
 
@@ -253,7 +255,12 @@ export function seoVitalTrend(
   return {
     chart: true,
     direction:
-      Math.abs(change) <= noise ? "steady" : change < 0 ? "better" : "worse",
+      // Float subtraction puts a change equal to the floor a little over it (0.14 - 0.12).
+      Math.abs(change) - noise <= SEO_TREND_FLOAT_SLACK
+        ? "steady"
+        : change < 0
+          ? "better"
+          : "worse",
     first,
     last,
     points: values.map((value, index) => ({

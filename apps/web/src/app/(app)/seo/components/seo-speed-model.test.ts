@@ -125,6 +125,17 @@ it("reads a falling LCP as getting faster and breaks the line at a week without 
   expect(trend.limit).toBeLessThan(1);
 });
 
+it("reads a CLS change equal to the floor as steady, whatever the values", () => {
+  // 0.14 - 0.12 is a little over 0.02 in binary floats; 0.12 - 0.10 a little under.
+  for (const cls of [
+    [0.12, 0.12, 0.12, 0.14],
+    [0.1, 0.1, 0.1, 0.12],
+  ])
+    expect(
+      seoVitalTrend("cls", { status: "comparable", weeks, cls }),
+    ).toMatchObject({ direction: "steady" });
+});
+
 it("keeps the limit line inside the chart when every week is far under it", () => {
   const trend = seoVitalTrend("cls", {
     status: "comparable",
