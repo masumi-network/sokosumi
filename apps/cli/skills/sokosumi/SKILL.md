@@ -45,6 +45,19 @@ Use headless commands with `--json` for automation. Do not open the Ink TUI duri
 
 [VERIFIED: `apps/cli/src/auth/auth-manager.ts`, `apps/cli/src/auth/oauth.ts`] The CLI supports OS-vault credentials and explicit environment or stdin input. `SOKOSUMI_API_KEY` takes precedence over `SOKOSUMI_AUTH_TOKEN`; both override saved OAuth credentials. Before switching browser accounts, clear those variables from the shell. Switch the browser's actual account, run `auth login`, then verify `auth whoami`. CLI logout clears local credentials; it does not switch the browser account.
 
+### Run without macOS keychain dialogs
+
+[VERIFIED: `apps/cli/src/auth/auth-manager.ts`, `apps/cli/src/auth/bootstrap.ts`, `security dump-keychain -a` on an operator Mac, 2026-11-26] On macOS, the CLI keeps OAuth credentials and user API keys in the login keychain. Each keychain item trusts specific `node` binaries. If another `node` binary reads the item, macOS shows a permission dialog. An agent cannot answer that dialog, so the command waits.
+
+Follow these rules on macOS:
+
+1. Prefer an environment token. When `SOKOSUMI_API_KEY` or `SOKOSUMI_AUTH_TOKEN` is set, commands that use it read no keychain item. `auth login` and `auth logout` still use the keychain. `runtime` commands use a separate Coworker key: pass it with `--api-key-stdin` from an operator-controlled secret reader. `runtime key-import` stores that key in the keychain. Ask the operator to set `SOKOSUMI_API_KEY` in the agent's environment. Never ask for the key in chat.
+2. Without an environment token, use one exact `node` binary and one CLI entry point for every authenticated command. For an installed CLI, that is the `sokosumi` executable. For a source build, start it with an absolute `node` path, for example `/path/to/node apps/cli/dist/bin/sokosumi.js`. Do not switch between `sokosumi`, `npx @masumi_network/sokosumi`, `pnpm --filter @masumi_network/sokosumi sokosumi`, and a bare `node` command. Each of these can start a different `node` binary, and the keychain treats it as a new program.
+3. Know which `node` runs the CLI. For a source build, it is the absolute path you start it with. For an installed CLI, check `head -1 "$(command -v sokosumi)"`. An absolute path names that binary. A line `#!/usr/bin/env node` means the first `node` on `PATH` runs it, and that `node` can differ between shells.
+4. If a command hangs or a keychain dialog appears, stop. Tell the operator the command and the `node` path from step 3. For `#!/usr/bin/env node`, report `command -v node` from your shell. Do not retry in a loop.
+
+The operator approves the agent's `node` binary once. They run the agent's exact command with that same `node` and click "Always Allow". Each keychain item needs its own approval, so the command must read the same item: same target, and the same `runtime` Coworker for a Coworker key. With `#!/usr/bin/env node`, their terminal can find a different `node`, so they start the command as `<node path> "$(command -v sokosumi)" <arguments>` with the `node` path that the agent reported. See the CLI README section "Agent runs and macOS keychain prompts".
+
 Never request keys, OAuth tokens, cookies, passwords, or client secrets in chat. If authentication is missing, use supported `auth login` when the browser can return to the CLI machine. Otherwise ask the operator to configure supported authentication. Do not invent remote approval links.
 
 [VERIFIED: `apps/cli/src/cli/index.ts`, `apps/cli/src/cli/commands/admin.ts`] Current provisioning, registration, connection, and admin onboarding work on Preprod only. Authentication remains required there. Use `--preprod` for those steps. Other user commands keep the selected target. Runtime commands use a separate Coworker key and fixed Preprod target.

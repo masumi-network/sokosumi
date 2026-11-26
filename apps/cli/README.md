@@ -142,6 +142,25 @@ SOKOSUMI_API_KEY=soko_preprod_... pnpm --filter @masumi_network/sokosumi sokosum
 pnpm --filter @masumi_network/sokosumi sokosumi -- auth logout
 ```
 
+### Agent runs and macOS keychain prompts
+
+Stored credentials live in the macOS keychain. macOS asks for permission when a program that the keychain item does not trust reads the item. That program is the `node` binary that runs the CLI. The first line of the `sokosumi` launcher selects it: `#!/usr/bin/env node` uses the first `node` on `PATH`, and an absolute path uses that binary. Check it with `head -1 "$(command -v sokosumi)"`.
+
+- Homebrew `node` has an ad-hoc signature. "Always Allow" trusts only that exact binary, so the prompt comes back after each `brew upgrade node`.
+- The official Node.js build (from nodejs.org, nvm, or fnm) has a Developer ID signature. macOS can match that signature, so "Always Allow" should stay valid after upgrades.
+- Two different `node` binaries on two `PATH`s (for example, your terminal and an agent host) count as two programs. Each one gets its own prompt.
+
+For agents, give the agent process its own credential and skip the keychain:
+
+```bash
+export SOKOSUMI_API_KEY=soko_mainnet_...   # set in the agent's environment, not in chat
+sokosumi auth status --json                # reads no keychain item
+```
+
+When `SOKOSUMI_API_KEY` or `SOKOSUMI_AUTH_TOKEN` is set, commands that use it read no keychain item. `auth login` and `auth logout` still use the keychain, because they save or clear stored credentials. `runtime` commands use a separate Coworker key. With `--api-key-stdin`, `runtime` commands other than `key-import` skip the keychain; `key-import` stores the key in it.
+
+For interactive use, run the CLI on a signed `node`. Put the nvm or fnm `bin` directory before `/opt/homebrew/bin` on `PATH`, then click "Always Allow" once. Approve the same binary that the launcher runs, not only the one that `command -v node` shows.
+
 Connect the selected existing or newly provisioned Coworker with the required Vendor and organization memberships:
 
 ```bash
