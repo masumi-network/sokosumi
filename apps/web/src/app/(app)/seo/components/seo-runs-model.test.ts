@@ -120,6 +120,20 @@ describe("SEO runs of a site", () => {
     expect(inRange({ from: null, to: "2026-11-12" })).toEqual([]);
   });
 
+  it("gives a range its newest page check, also on a day the row does not show", () => {
+    const runs = [
+      ...[5, 6, 7, 8, 9].map((day) => run(`2026-11-0${day}T09:00:00Z`, 1)),
+      run("2026-11-02T10:00:00Z", 1, "rankings"),
+      run("2026-11-02T09:00:00Z", 1),
+      run("2026-11-01T09:00:00Z", 1),
+    ];
+    const rangeCheck = (from: string | null, to: string | null) =>
+      seoRunDays({ runs }, { from, to }).rangeCheck;
+    expect(rangeCheck("2026-11-01", "2026-11-02")).toBe("2026-11-02T09:00:00Z");
+    expect(rangeCheck(null, "2026-11-01")).toBe("2026-11-01T09:00:00Z");
+    expect(rangeCheck("2026-11-03", "2026-11-04")).toBeNull();
+  });
+
   it("keeps the five newest days, and an older day only while it is in view", () => {
     const runs = [3, 4, 5, 6, 7, 8, 9].map((day) =>
       run(`2026-11-0${day}T09:00:00Z`, day),

@@ -60,7 +60,10 @@ export function SeoRuns({
   const report = useSeoResultTranslations("App.Seo");
   const reportFormat = useSeoResultFormatter();
   const now = useNow({ updateInterval: MINUTE_MS });
-  const { days, picked, checkDays } = seoRunDays(model.data, model.filters);
+  const { days, picked, checkDays, rangeCheck } = seoRunDays(
+    model.data,
+    model.filters,
+  );
   // The stop whose details are open: what happened there, in a dialog over the page.
   // The day stays when the dialog closes, so its content does not empty while it fades.
   const [detailsDay, setDetailsDay] = useState<string | null>(null);
@@ -455,14 +458,9 @@ export function SeoRuns({
         }
         nodes={details?.nodes ?? []}
         checkId={
-          // A range compares its newest check: the timeline can lack a check that was stored after the range.
-          days.find((entry) =>
-            detailsDay === WHOLE
-              ? entry.check &&
-                (!from || entry.day >= from) &&
-                (!to || entry.day <= to)
-              : entry.day === detailsDay,
-          )?.check
+          detailsDay === WHOLE
+            ? rangeCheck
+            : days.find((entry) => entry.day === detailsDay)?.check
         }
         onClose={() => setDetailsOpen(false)}
         onCloseAutoFocus={(event) => {
