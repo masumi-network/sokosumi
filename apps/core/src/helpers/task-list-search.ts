@@ -2,7 +2,7 @@ import { type Prisma, TaskStatus } from "@sokosumi/database";
 import { parseTaskRef } from "@sokosumi/utils";
 import { plainExcerpt } from "@/helpers/job-digest";
 import { escapeLikeText } from "@/helpers/query-params";
-import { findSeoAuditOnlyHitIds } from "@/helpers/seo-audit-search-hits";
+import { taskDescriptionMatches } from "@/helpers/seo-audit-search-hits";
 import prisma from "@/lib/db/prisma";
 import { resolveTaskRefToId } from "./task-ref";
 
@@ -53,7 +53,7 @@ export async function searchTaskList<Row extends { id: string }>({
 }: {
   search: string;
   workspaceId?: string;
-  /** The Coworker that reads raw descriptions of its own Tasks (see `findSeoAuditOnlyHitIds`). */
+  /** The Coworker that reads raw descriptions of its own Tasks (see `taskDescriptionMatches`). */
   rawReaderCoworkerId?: string | null;
   where: Prisma.TaskWhereInput;
   take: number;
@@ -84,17 +84,14 @@ export async function searchTaskList<Row extends { id: string }>({
 
   const primary = { OR: primaryMatches };
   // A hit inside a full audit's hidden `seo_audit` line is no hit for this reader.
-  const hiddenOnlyHits = await findSeoAuditOnlyHitIds(text.contains, {
-    rawReaderCoworkerId,
-  });
+  const [descriptionMatch] = await taskDescriptionMatches(
+    [text.contains],
+    where,
+    { rawReaderCoworkerId },
+  );
   const secondary: Prisma.TaskWhereInput = {
     OR: [
-      // `not: null` keeps a later rank's NOT true for a Task without a
-      // brief: in SQL, NOT of a match on NULL is NULL and drops the row.
-      {
-        description: { ...text, not: null },
-        ...(hiddenOnlyHits.length > 0 ? { id: { notIn: hiddenOnlyHits } } : {}),
-      },
+      descriptionMatch,
       { workspaceTags: { some: { label: { displayName: text } } } },
       { visibleTopics: { some: { topicId: text } } },
     ],

@@ -456,10 +456,22 @@ describe("GET /history", () => {
                   },
                 },
                 {
-                  description: {
-                    contains: "onboarding",
-                    mode: "insensitive",
-                  },
+                  // A hit only in a full audit's hidden `seo_audit` line is no hit.
+                  OR: [
+                    {
+                      description: {
+                        contains: "onboarding",
+                        mode: "insensitive",
+                        not: null,
+                      },
+                      NOT: {
+                        description: {
+                          contains: "seo\\_audit",
+                          mode: "insensitive",
+                        },
+                      },
+                    },
+                  ],
                 },
               ],
             },

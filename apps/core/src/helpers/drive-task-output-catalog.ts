@@ -1,6 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 
-import { findSeoAuditOnlyHitIds } from "@/helpers/seo-audit-search-hits";
+import { taskDescriptionMatches } from "@/helpers/seo-audit-search-hits";
 import prisma from "@/lib/db/prisma";
 
 export const DRIVE_TASK_FILE_WHERE = {
@@ -21,13 +21,19 @@ export interface DriveTaskOutputRecentsRow {
   projectName: string | null;
 }
 
-function buildDriveTaskOutputRecentsWhere(input: {
+/**
+ * The READY task-output files a Drive view lists, matched by file name, Task
+ * name or the Task description a reader sees.
+ *
+ * `rawReaderCoworkerId`: the authenticated Coworker; it finds its own Tasks by
+ * their raw description (see `taskDescriptionMatches`).
+ */
+export async function buildDriveTaskFileWhere(input: {
   baseTaskWhere: Prisma.TaskWhereInput;
   searchQuery?: string;
-  /** Tasks whose description matches only inside the hidden `seo_audit` line. */
-  seoAuditOnlyHits?: string[];
-}): Prisma.TaskFileWhereInput {
-  const { baseTaskWhere, searchQuery, seoAuditOnlyHits = [] } = input;
+  rawReaderCoworkerId?: string | null;
+}): Promise<Prisma.TaskFileWhereInput> {
+  const { baseTaskWhere, searchQuery, rawReaderCoworkerId } = input;
   const trimmedSearch = searchQuery?.trim();
   if (!trimmedSearch) {
     return {
@@ -36,6 +42,12 @@ function buildDriveTaskOutputRecentsWhere(input: {
     };
   }
 
+  // A hit inside a full audit's hidden `seo_audit` line is no hit.
+  const [descriptionMatch] = await taskDescriptionMatches(
+    [trimmedSearch],
+    baseTaskWhere,
+    { rawReaderCoworkerId },
+  );
   return {
     ...DRIVE_TASK_FILE_WHERE,
     OR: [
@@ -50,15 +62,7 @@ function buildDriveTaskOutputRecentsWhere(input: {
             {
               OR: [
                 { name: { contains: trimmedSearch, mode: "insensitive" } },
-                {
-                  description: {
-                    contains: trimmedSearch,
-                    mode: "insensitive",
-                  },
-                  ...(seoAuditOnlyHits.length > 0
-                    ? { id: { notIn: seoAuditOnlyHits } }
-                    : {}),
-                },
+                descriptionMatch,
               ],
             },
           ],
@@ -73,22 +77,16 @@ export async function fetchDriveTaskOutputRecentsBatch(input: {
   cursor?: string;
   take: number;
   searchQuery?: string;
+  rawReaderCoworkerId?: string | null;
 }): Promise<{
   rows: DriveTaskOutputRecentsRow[];
   hasMore: boolean;
   nextCursor: string | null;
 }> {
-  const { baseTaskWhere, cursor, take, searchQuery } = input;
+  const { cursor, take } = input;
   const takePlusOne = take + 1;
 
-  const trimmedSearch = searchQuery?.trim();
-  const taskFileWhere = buildDriveTaskOutputRecentsWhere({
-    baseTaskWhere,
-    ...(searchQuery !== undefined ? { searchQuery } : {}),
-    seoAuditOnlyHits: trimmedSearch
-      ? await findSeoAuditOnlyHitIds(trimmedSearch)
-      : [],
-  });
+  const taskFileWhere = await buildDriveTaskFileWhere(input);
 
   let effectiveCursor = cursor;
   if (cursor) {

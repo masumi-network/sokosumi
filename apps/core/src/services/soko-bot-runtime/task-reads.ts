@@ -2,7 +2,7 @@ import { type Prisma } from "@sokosumi/database";
 import { sokoBotListTasksInputSchema as listTasksInputSchema } from "@sokosumi/soko-bot";
 import { formatTaskIdentifier, hideSeoAuditRequest } from "@sokosumi/utils";
 import { DAY_MS } from "@/config/constants";
-import { findSeoAuditOnlyHitIds } from "@/helpers/seo-audit-search-hits";
+import { taskDescriptionMatches } from "@/helpers/seo-audit-search-hits";
 import {
   SOKO_BOT_OWNER_NAME_SELECT,
   sokoBotAuthorLabel,
@@ -41,14 +41,17 @@ export async function listTasks(
   const words = (input.query ?? "")
     .split(/\s+/)
     .filter((word) => word.length >= 2);
+  const scope: Prisma.TaskWhereInput[] = [
+    { workspaceId: authorized.turn.workspaceId, archivedAt: null },
+    buildSokoBotReaderTaskWhere(authorized.reader),
+  ];
   // A hit inside a full audit's hidden `seo_audit` line is no hit, per word.
-  const seoAuditOnlyHits = await Promise.all(
-    words.map((word) => findSeoAuditOnlyHitIds(word)),
-  );
+  const descriptionMatches = await taskDescriptionMatches(words, {
+    AND: scope,
+  });
   const where: Prisma.TaskWhereInput = {
     AND: [
-      { workspaceId: authorized.turn.workspaceId, archivedAt: null },
-      buildSokoBotReaderTaskWhere(authorized.reader),
+      ...scope,
       // An exact status is the question itself; `state` would only
       // contradict it (FAILED is finished, yet "open" is the default).
       input.status
@@ -69,15 +72,7 @@ export async function listTasks(
         : {},
       // Every word, in the name or description: one phrase rarely matches.
       ...words.map((word, at) => ({
-        OR: [
-          { name: contains(word) },
-          {
-            description: contains(word),
-            ...(seoAuditOnlyHits[at].length > 0
-              ? { id: { notIn: seoAuditOnlyHits[at] } }
-              : {}),
-          },
-        ],
+        OR: [{ name: contains(word) }, descriptionMatches[at]],
       })),
       assignee?.toLowerCase() === "unassigned"
         ? { assigneeId: null, assigneeUserId: null, assigneeSokoBotId: null }
