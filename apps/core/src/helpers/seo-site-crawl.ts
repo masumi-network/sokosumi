@@ -119,7 +119,11 @@ const urls = (list: { pages: { url: string }[]; total: number }) => ({
 
 /** A bot text cut to what Sokosumi stores: one long gap must not drop the whole crawl. */
 const cut = (text: string) =>
-  text.length > MAX_TEXT ? `${text.slice(0, MAX_TEXT - 1)}…` : text;
+  text.length > MAX_TEXT
+    ? `${text.slice(0, MAX_TEXT - 1).toWellFormed()}…`
+    : text;
+/** The gap item of the duplicate check, which Sokosumi words from the bot's count. */
+const DUPLICATES_GAP = "Duplicate titles";
 
 /** noHead: pages whose canonical the bot never read. */
 function badCanonicals(c: BotCanonicals["canonicals"], noHead: number) {
@@ -203,9 +207,7 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
               urls: group.pages.map((p) => p.url),
             })),
             total: pageChecks.duplicateTitles.groupsTotal,
-            notDetermined:
-              (pageChecks.duplicatesNotDetermined ?? 0) +
-              (pageChecks.duplicatesNotCompared ?? 0),
+            notDetermined: pageChecks.duplicatesNotDetermined ?? 0,
           },
           noindexInSitemap: pageChecks.sitemap
             ? {
@@ -220,8 +222,18 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
           ),
         }
       : null,
-    gaps: couldNotSee
-      .flatMap((gap) =>
+    gaps: [
+      // The bot counts a page here when its title or its description is not compared, so the count is no
+      // count of titles: it goes in words, not into the check's not-determined count.
+      ...(pageChecks?.duplicatesNotCompared
+        ? [
+            {
+              item: DUPLICATES_GAP,
+              reason: `the check does not compare the title or the meta description of ${pageChecks.duplicatesNotCompared} page${pageChecks.duplicatesNotCompared === 1 ? "" : "s"}: the text holds too many combining marks in a row`,
+            },
+          ]
+        : []),
+      ...couldNotSee.flatMap((gap) =>
         gap.item.startsWith(CRAWL_PREFIX)
           ? [
               {
@@ -230,12 +242,16 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
               },
             ]
           : [],
-      )
-      .slice(0, MAX_GAPS),
+      ),
+    ].slice(0, MAX_GAPS),
   });
 }
 
 function parse(value: unknown) {
-  const result = seoSiteCrawlSchema.safeParse(value);
+  // PostgreSQL jsonb refuses NUL and a lone surrogate: one such character would reject the whole import.
+  const storable = JSON.parse(JSON.stringify(value), (_key, v) =>
+    typeof v === "string" ? v.replaceAll("\u0000", "").toWellFormed() : v,
+  );
+  const result = seoSiteCrawlSchema.safeParse(storable);
   return result.success ? result.data : undefined;
 }

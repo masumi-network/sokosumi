@@ -178,8 +178,7 @@ describe("imported site crawl", () => {
         },
       ],
       total: 3,
-      // An unresolved canonical, and a text the bot does not compare.
-      notDetermined: 2,
+      notDetermined: 1,
     });
     expect(crawl.pageChecks?.noindexInSitemap).toEqual({
       urls: [`${SITE}/draft`],
@@ -206,7 +205,13 @@ describe("imported site crawl", () => {
       total: 3,
       notDetermined: 3,
     });
+    // The bot's not-compared count mixes titles and descriptions: it is words, never a count of titles.
     expect(crawl.gaps).toEqual([
+      {
+        item: "Duplicate titles",
+        reason:
+          "the check does not compare the title or the meta description of 1 page: the text holds too many combining marks in a row",
+      },
       { item: "Orphan pages", reason: "the crawl stopped at the page limit" },
     ]);
   });
@@ -230,8 +235,26 @@ describe("imported site crawl", () => {
     );
     expect(crawl?.state).toBe("crawled");
     if (crawl?.state !== "crawled") return;
-    expect(crawl.gaps[0]?.reason).toHaveLength(2000);
-    expect(crawl.gaps[0]?.reason.endsWith("…")).toBe(true);
+    expect(crawl.gaps[1]?.reason).toHaveLength(2000);
+    expect(crawl.gaps[1]?.reason.endsWith("…")).toBe(true);
+  });
+
+  it("keeps only text PostgreSQL can store", () => {
+    // A cut inside a surrogate pair, and a NUL: jsonb refuses both, and the whole import with them.
+    const crawl = stored(
+      siteReport({
+        crawl: botCrawl(),
+        couldNotSee: [
+          { item: "Site crawl: Long", reason: `${"a".repeat(1998)}😀!` },
+          { item: "Site crawl: Nul", reason: "a\u0000b" },
+        ],
+      }),
+    );
+    if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+    for (const gap of crawl.gaps) {
+      expect(gap.reason.isWellFormed()).toBe(true);
+      expect(gap.reason).not.toContain("\u0000");
+    }
   });
 
   it("keeps why a site audit has no crawl", () => {
