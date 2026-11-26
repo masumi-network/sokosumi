@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { selectEvalCases } from "../eval-cases";
+import { minimumEvalRepeats, selectEvalCases } from "../eval-cases";
 import {
   attachedMadeMedia,
   createdTableIds,
@@ -8,6 +8,8 @@ import {
   launchDay,
   madeImages,
   nextWeekdayKey,
+  pictureProblems,
+  savedFileTexts,
   urlsIn,
 } from "./journey-checks";
 import {
@@ -51,6 +53,20 @@ describe("owner journeys", () => {
       "owner-cuso-launch",
       "owner-cuso-youtube",
     ]);
+  });
+
+  it("runs a held-out journey at least three times, the rest as asked", () => {
+    const journey = (id: string) => ({
+      id,
+      suite: "soko-bot" as const,
+      area: "Owner bench",
+      title: "t",
+      intent: "i",
+      kind: "journey" as const,
+      journey: { ...OWNER_JOURNEYS[0]!, id },
+    });
+    expect(minimumEvalRepeats(journey("owner-holdout-x"))).toBe(3);
+    expect(minimumEvalRepeats(journey("owner-codepat-daily-post"))).toBe(1);
   });
 
   it("runs only when named, never in a suite run", () => {
@@ -154,6 +170,94 @@ describe("made images and what a draft carries", () => {
       ),
     ).toEqual({ total: 2, made: 1 });
     expect(attachedMadeMedia(null, [mine])).toEqual({ total: 0, made: 0 });
+  });
+});
+
+describe("a replaced picture and a saved file", () => {
+  const seeded = {
+    postId: "post",
+    text: "The post text.",
+    pathname: "drive/old.svg",
+    others: [{ postId: "other", pathnames: ["drive/other.svg"] }],
+  };
+  // As jsonb hands it back: keys in another order than they were written.
+  const others = [
+    {
+      id: "other",
+      media: [
+        { kind: "image", name: "other.svg", pathname: "drive/other.svg" },
+      ],
+    },
+  ];
+  const made = [{ sourceId: "drive/new.png" }];
+
+  it("passes a new made picture on the same post, the rest as they were", () => {
+    expect(
+      pictureProblems(
+        seeded,
+        {
+          text: seeded.text,
+          status: "SCHEDULED",
+          media: [{ pathname: "drive/new.png" }],
+        },
+        others,
+        made,
+      ),
+    ).toEqual([]);
+  });
+
+  it("fails the old picture kept, a changed text, a cancelled post and another picture touched", () => {
+    expect(
+      pictureProblems(
+        seeded,
+        {
+          text: "New text.",
+          status: "CANCELED",
+          media: [{ pathname: "drive/old.svg" }],
+        },
+        [{ id: "other", media: [] }],
+        made,
+      ),
+    ).toEqual([
+      "the post was cancelled",
+      "its text changed",
+      "the old picture is still on it",
+      "no picture made in this journey on it",
+      "1 other picture(s) changed",
+    ]);
+    expect(pictureProblems(seeded, null, others, made)).toEqual([
+      "the post is gone",
+    ]);
+  });
+
+  it("reads a saved file's text from the last successful upload its receipt names, else what Files indexed", () => {
+    const upload = (status: string, id: string, content?: string) => ({
+      capability: "upload_file",
+      status,
+      input: { filename: "report.md", ...(content ? { content } : {}) },
+      result: { id, filename: "report.md", size: 1 },
+    });
+    expect(
+      savedFileTexts(
+        [
+          { id: "f1", displayName: "Reports/report.md" },
+          { id: "f2", displayName: "report (2).md" },
+          { id: "f3", displayName: "notes.md" },
+        ],
+        [
+          upload("SUCCEEDED", "f1", "first"),
+          upload("SUCCEEDED", "f1", "second"),
+          upload("FAILED", "f1", "third"),
+          // A sandbox upload: a workspace path, no content.
+          upload("SUCCEEDED", "f2"),
+        ],
+        { f2: "indexed text" },
+      ),
+    ).toEqual([
+      { name: "Reports/report.md", text: "second" },
+      { name: "report (2).md", text: "indexed text" },
+      { name: "notes.md", text: null },
+    ]);
   });
 });
 

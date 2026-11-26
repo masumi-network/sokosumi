@@ -91,6 +91,7 @@ function botOf(journey: OwnerJourney, lane: EvalLaneRecord): string {
 
 function stepLabel(step: JourneyStep): string {
   if (step.kind === "owner") return `Owner: ${step.message}`;
+  if (step.kind === "teammate") return `${step.member}: ${step.message}`;
   if (step.kind === "coworker")
     return `${step.coworker} sets its Task ${step.status}: ${step.comment}`;
   return "The schedule fires";
@@ -139,7 +140,16 @@ async function startStep(
         clientTurnId,
       );
     if (!world.cusoRoomId) return { error: "The journey has no Cuso room" };
-    return askInRoom(world.cusoRoomId, lane, botId, step.message);
+    return askInRoom(world.cusoRoomId, lane.userId, botId, step.message);
+  }
+  if (step.kind === "teammate") {
+    if (!world.teammateRoomId)
+      return { error: "The journey has no teammate room" };
+    const member =
+      step.member === "Hannah"
+        ? lane.world.hannahUserId
+        : lane.world.alexUserId;
+    return askInRoom(world.teammateRoomId, member, botId, step.message);
   }
   if (step.kind === "coworker") {
     const [task] = await coworkerTasks(
@@ -156,19 +166,20 @@ async function startStep(
 }
 
 /**
- * The owner writes to Cuso as the CMO chat does: a message in his home room
- * that mentions him, answered through the chat route's own dispatch.
+ * A member writes to the bot as the chat does: a message in a room that
+ * mentions it, answered through the chat route's own dispatch (the owner in
+ * Cuso's home room, a teammate in the room they share with the owner's bot).
  */
 async function askInRoom(
   roomId: string,
-  lane: EvalLaneRecord,
+  senderUserId: string,
   botId: string,
   content: string,
 ): Promise<string | { error: string }> {
   const message = await prisma.chatRoomMessage.create({
     data: {
       roomId,
-      senderUserId: lane.userId,
+      senderUserId,
       content,
       mentionsAsSource: { create: { sokoBotId: botId, coworkerId: null } },
     },
@@ -685,7 +696,12 @@ export async function startJourney(
     data: { proactiveDailyLimit: 1_000 },
   });
   const world = {
-    ...(await prepareJourneyWorld(lane, journey.prepare ?? [])),
+    ...(await prepareJourneyWorld(
+      lane,
+      journey.prepare ?? [],
+      journey.fixtures,
+      botId,
+    )),
     cusoRoomId,
   };
   await setEvalCoworkerScript(world.coworkers.Mira, []);
@@ -981,9 +997,11 @@ async function journeyOutcome(
         from:
           step.kind === "owner"
             ? "Owner"
-            : step.kind === "coworker"
-              ? "Task event"
-              : "Schedule",
+            : step.kind === "teammate"
+              ? "Teammate (not the owner)"
+              : step.kind === "coworker"
+                ? "Task event"
+                : "Schedule",
         content: step.label,
       })),
       context.judgeModel,
