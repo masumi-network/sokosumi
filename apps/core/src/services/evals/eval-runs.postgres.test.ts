@@ -98,6 +98,7 @@ vi.mock("./eval-case-runner", async (importOriginal) => {
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { expectCoreLogWhys } from "@/test/core-log";
+import { withFixtureSchemas } from "@/test/split-layout";
 import { CMO_EVAL_CASES } from "./eval-cmo-cases";
 import {
   cancelEvalRun,
@@ -866,32 +867,36 @@ describe.skipIf(!enabled)("eval runs", () => {
       "It was still running 24 hours after it started",
     ]);
     const userId = randomUUID();
-    await prisma.user.create({
-      data: {
-        id: userId,
-        name: "Late cost fixture",
-        email: `late-cost-${userId}@sokosumi.test`,
-        emailVerified: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
-    const workspace = await prisma.workspace.create({ data: { userId } });
-    const bot = await prisma.sokoBot.create({
-      data: { userId, workspaceId: workspace.id },
-    });
-    const recipient = await prisma.sokoBotTurn.create({
-      data: {
-        sokoBotId: bot.id,
-        requestedByUserId: userId,
-        workspaceId: workspace.id,
-        source: "CHAT",
-        status: "CANCEL_REQUESTED",
-        clientTurnId: randomUUID(),
-        userMessage: "Fixture",
-        capabilityNames: [],
-        deadlineAt: new Date(Date.now() + 60_000),
-      },
+    // Fixture rows span shared and Network tables: on the split layout they
+    // are written under this run's schemas.
+    const recipient = await withFixtureSchemas(async (tx) => {
+      await tx.user.create({
+        data: {
+          id: userId,
+          name: "Late cost fixture",
+          email: `late-cost-${userId}@sokosumi.test`,
+          emailVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+      const workspace = await tx.workspace.create({ data: { userId } });
+      const bot = await tx.sokoBot.create({
+        data: { userId, workspaceId: workspace.id },
+      });
+      return tx.sokoBotTurn.create({
+        data: {
+          sokoBotId: bot.id,
+          requestedByUserId: userId,
+          workspaceId: workspace.id,
+          source: "CHAT",
+          status: "CANCEL_REQUESTED",
+          clientTurnId: randomUUID(),
+          userMessage: "Fixture",
+          capabilityNames: [],
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+      });
     });
     try {
       const stuck = await createEvalRun({
@@ -932,17 +937,21 @@ describe.skipIf(!enabled)("eval runs", () => {
           .status,
       ).toBe("QUEUED");
 
-      await prisma.sokoBotTurn.update({
-        where: { id: recipient.id },
-        data: { status: "CANCELLED", costUsdMicros: BigInt(250) },
-      });
+      await withFixtureSchemas((tx) =>
+        tx.sokoBotTurn.update({
+          where: { id: recipient.id },
+          data: { status: "CANCELLED", costUsdMicros: BigInt(250) },
+        }),
+      );
       expect((await tickEvalRuns()).runId).toBe(next.id);
       expect(
         (await prisma.evalRun.findUniqueOrThrow({ where: { id: stuck.id } }))
           .status,
       ).toBe("COMPLETED");
     } finally {
-      await prisma.user.delete({ where: { id: userId } });
+      await withFixtureSchemas((tx) =>
+        tx.user.delete({ where: { id: userId } }),
+      );
     }
   });
 
