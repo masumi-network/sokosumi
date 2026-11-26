@@ -561,6 +561,31 @@ describe("withSeoRunDiffs edge cases", () => {
     });
   });
 
+  it("pairs past a page check that stored only a note", () => {
+    const diff = diffOf([
+      source(8, result([failed({ rowId: "A" })])),
+      source(5, result([{ finding: failed({ rowId: "A" }, "note").finding }])),
+      source(1, result([failed({ rowId: "A" })])),
+    ]);
+    expect(diff).toMatchObject({
+      from: "2026-11-01T09:00:00.000Z",
+      newCount: 0,
+      stillOpenCount: 1,
+    });
+  });
+
+  it("reads a check of another kind by the pages it names, whatever its rows cover", () => {
+    const links = (day: number) =>
+      source(day, result([check("pass", { rowId: "L" })], { kind: "links" }), {
+        kind: "links",
+        pageIds: ["page-1", "page-2"],
+      });
+    expect(diffOf([links(8), links(1)], ["page-1", "page-2"])).toMatchObject({
+      comparable: true,
+      from: "2026-11-01T09:00:00.000Z",
+    });
+  });
+
   it("gives no issue totals to checks that measured no page rule", () => {
     const diff = diffOf([
       source(8, lite(8), { kind: "audit_lite" }),

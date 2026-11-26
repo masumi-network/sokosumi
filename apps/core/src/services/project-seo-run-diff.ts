@@ -228,19 +228,16 @@ const PAGE_RULE_KINDS = new Set(["page_check", "audit_lite", "audit_full"]);
 
 /**
  * A check of page rules read a page where one of its rules passed, fired or left a finding there. A page it names but
- * only blocked was not read, nor a page of a check that stored no rows. A check without checklist rows that read
- * rankings, or of another kind, such as a ranking check, is read by the pages it names.
+ * only blocked was not read, nor a page of a check that stored no checklist rows: a note alone is no read. Such a
+ * check that read rankings, or a check of another kind, such as a ranking check, is read by the pages it names.
  */
 function readsEveryUrl(
   payload: PublicSeoPayload,
   selectedUrls: ReadonlySet<string>,
 ) {
-  if (
-    !payload.checks.length &&
-    (payload.keywords.some((row) => row.positionStatus !== "unavailable") ||
-      !PAGE_RULE_KINDS.has(payload.kind))
-  )
-    return true;
+  if (!PAGE_RULE_KINDS.has(payload.kind)) return true;
+  if (!payload.checks.length)
+    return payload.keywords.some((row) => row.positionStatus !== "unavailable");
   const read = new Set(
     [
       ...payload.checks.filter(
