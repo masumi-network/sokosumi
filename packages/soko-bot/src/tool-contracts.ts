@@ -1410,6 +1410,57 @@ const sokoBotUpdatePlanInputSchema = z
   })
   .strict();
 
+export const SOKO_BOT_PLAN_STEP_STATUSES = [
+  "pending",
+  "in_progress",
+  "done",
+  "blocked",
+  "skipped",
+] as const;
+export type SokoBotPlanStepStatus =
+  (typeof SOKO_BOT_PLAN_STEP_STATUSES)[number];
+
+/**
+ * update_plan on a planLoop version. Bounded so the stored plan stays well
+ * inside a tool call's persisted size.
+ */
+export const sokoBotPlanLoopUpdatePlanInputSchema = z
+  .object({
+    steps: z
+      .array(
+        z
+          .object({
+            id: z.string().trim().min(1).max(64).optional(),
+            step: z.string().trim().min(1).max(200),
+            status: z.enum(SOKO_BOT_PLAN_STEP_STATUSES),
+            blockedOn: z
+              .enum(["owner", "coworker", "agent", "external"])
+              .optional(),
+            reason: z.string().trim().min(1).max(200).optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(20),
+  })
+  .strict();
+export type SokoBotPlanLoopUpdatePlanInput = z.infer<
+  typeof sokoBotPlanLoopUpdatePlanInputSchema
+>;
+
+export const SOKO_BOT_PLAN_LOOP_UPDATE_PLAN_DESCRIPTION =
+  "Write down or update your step-by-step plan for the owner's request, for work with several steps. The plan is kept for the whole request: background runs and follow-ups you get later on it start with it. Your first plan is what you agreed to do: later updates may change a step's status, reword it (keep its id), or add steps, but not drop one. A step that cannot be done now is blocked, with blockedOn (owner, coworker, agent or external) and a reason; a step no longer needed is skipped, with a reason. Keep exactly one step in_progress, and mark a step done only once a tool result shows it worked.";
+
+/** A tool's input schema as the turn's version offers it. */
+export function sokoBotToolInputSchema(
+  capability: SokoBotCapability,
+  options: { planLoop?: boolean },
+): z.ZodType {
+  return capability === "update_plan" && options.planLoop
+    ? sokoBotPlanLoopUpdatePlanInputSchema
+    : SOKO_BOT_TOOL_INPUT_SCHEMAS[capability];
+}
+
 const sokoBotRunSubagentInputSchema = z
   .object({ task: z.string().trim().min(1).max(4_000) })
   .strict();

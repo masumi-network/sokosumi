@@ -14,6 +14,7 @@ import {
   type RuntimeEvent,
   type RuntimeJsonValue,
   SOKO_BOT_CAPABILITIES,
+  SOKO_BOT_PLAN_LOOP_UPDATE_PLAN_DESCRIPTION,
   type SokoBotCapability,
   type SokoBotVersion,
   sokoBotIdentity,
@@ -332,6 +333,11 @@ export interface PreparedTurn {
    * skills on demand). Empty for every other version.
    */
   preamble: string;
+  /**
+   * Core runs update_plan and keeps the plan for the whole request (the
+   * version's planLoop), so the runner offers it with Core's schema.
+   */
+  planLoop: boolean;
   /** The provider's prompt cache key for this system and tool set, or null. */
   cacheKey: string | null;
   /**
@@ -430,7 +436,9 @@ export function offeredCapabilities(
       : offerable.filter(
           (capability) =>
             !isSokoBotSandboxCapability(capability) ||
-            (options.web === true && IN_PROCESS_WEB_TOOLS.has(capability)),
+            (options.web === true && IN_PROCESS_WEB_TOOLS.has(capability)) ||
+            // Core runs a planLoop version's plan, sandbox or not.
+            (version.planLoop === true && capability === "update_plan"),
         )
   ).filter(
     (capability) =>
@@ -557,15 +565,19 @@ export async function prepareTurn(
         cacheKey,
       }),
     );
-  const toolDescriptions: Partial<Record<SokoBotCapability, string>> =
-    version.texts
+  const toolDescriptions: Partial<Record<SokoBotCapability, string>> = {
+    ...(version.texts
       ? Object.fromEntries(
           capabilities.map((capability) => [
             capability,
             sokoBotToolDescription(capability, version),
           ]),
         )
-      : {};
+      : {}),
+    ...(version.planLoop && capabilities.includes("update_plan")
+      ? { update_plan: SOKO_BOT_PLAN_LOOP_UPDATE_PLAN_DESCRIPTION }
+      : {}),
+  };
   return {
     turnId,
     sessionId,
@@ -580,6 +592,7 @@ export async function prepareTurn(
     toolDescriptions,
     requiresActionProof,
     meetingPrep,
+    planLoop: version.planLoop === true,
     parts,
     reasoningEffort: turnReasoningEffortOptions({
       version,
