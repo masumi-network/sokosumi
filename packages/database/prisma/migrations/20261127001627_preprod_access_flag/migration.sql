@@ -3,7 +3,7 @@
 -- stored in the catalog: no rewrite and no scan. The 5s timeout caps how long
 -- each exclusive lock request can queue later reads and writes.
 -- Every statement can run again. After a failed deploy, run prisma migrate
--- resolve --rolled-back 20261126220513_preprod_access_flag on the direct URL,
+-- resolve --rolled-back 20261127001627_preprod_access_flag on the direct URL,
 -- then deploy again.
 SET lock_timeout = '5s';
 ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "preprodEnabled" BOOLEAN NOT NULL DEFAULT false;
