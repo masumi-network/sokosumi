@@ -96,14 +96,17 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       const showSidebar = page.getByRole("button", { name: "Show sidebar" });
       const newTaskButton = page.getByRole("button", { name: "New task" });
       await fab.or(showSidebar).or(newTaskButton).first().waitFor();
+      // The tablet sidebar overlays the board, so close it again after.
+      let openedSidebar = false;
       if (await fab.isVisible()) await fab.click();
       else {
-        if (await showSidebar.isVisible()) await showSidebar.click();
+        if (await showSidebar.isVisible()) {
+          await showSidebar.click();
+          openedSidebar = true;
+        }
         await newTaskButton.click();
       }
       const dialog = page.getByRole("dialog", { name: "New task" });
-      await dialog.getByRole("button", { name: /E2E Tester/ }).click();
-      await dialog.getByRole("button", { name: /Start from scratch/ }).click();
       await dialog.getByRole("textbox", { name: "Task name" }).fill(TASK);
       await dialog.getByRole("textbox", { name: "Details" }).fill(BRIEF);
 
@@ -130,6 +133,9 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await dialog.getByRole("button", { name: "Create task" }).click();
       await dialog.getByRole("heading", { name: "Task created" }).waitFor();
       await dialog.getByRole("button", { name: "Close" }).click();
+      if (openedSidebar) {
+        await page.getByRole("button", { name: "Hide sidebar" }).click();
+      }
 
       // The board card names it Unassigned, with an outline, not "?".
       const backlog = page.getByRole("region", { name: "Backlog" });
