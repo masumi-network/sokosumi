@@ -131,6 +131,9 @@ function matchesStrategy(row: MarketingStrategy, where: StrategyWhere = {}) {
     if (value && typeof value === "object" && "not" in value) {
       return actual !== (value as { not: unknown }).not;
     }
+    if (value && typeof value === "object" && "in" in value) {
+      return (value as { in: unknown[] }).in.includes(actual);
+    }
     return actual === value;
   });
 }
