@@ -68,7 +68,7 @@ describe("TaskMetaDetails", () => {
     expect(screen.queryByText("Owner")).not.toBeInTheDocument();
 
     const projectNode = screen.getByTestId("project-avatar");
-    const assigneeNode = screen.getByText("S");
+    const assigneeNode = screen.getByText("SO");
     expect(projectNode.compareDocumentPosition(assigneeNode)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );

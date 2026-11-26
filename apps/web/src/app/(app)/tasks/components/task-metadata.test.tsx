@@ -61,6 +61,13 @@ const baseStatusLabels = {
 const baseStatusFieldLabels = {
   status: "Status",
   statusLabels: baseStatusLabels,
+  columnLabels: {
+    backlog: "Backlog",
+    todo: "Todo",
+    "in-progress": "In progress",
+    "input-required": "Input required",
+    done: "Done",
+  },
   changeStatus: "Change status…",
   noStatusMatches: "No status matches",
   reopenToReadyTitle: "Reopen task",

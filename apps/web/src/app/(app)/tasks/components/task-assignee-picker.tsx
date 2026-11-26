@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/popover";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
+import { getInitials } from "@/lib/utils/text";
 
 import { COMPOSER_PILL_CLASS } from "./task-composer-pill";
 
@@ -113,7 +114,7 @@ export function AssigneeAvatar({
           size === "trigger" ? "text-xs" : "text-2xs",
         )}
       >
-        {option.name.slice(0, 2).toUpperCase()}
+        {getInitials(option.name)}
       </AvatarFallback>
     </Avatar>
   );

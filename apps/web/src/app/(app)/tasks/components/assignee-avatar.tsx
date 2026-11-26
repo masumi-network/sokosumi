@@ -5,6 +5,7 @@ import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { botFaceSeed } from "@/components/soko-bot/bot-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getInitials } from "@/lib/utils/text";
 
 export function AssigneeAvatar({
   assignee,
@@ -58,7 +59,7 @@ export function AssigneeAvatar({
         />
       ) : null}
       <AvatarFallback className="bg-muted text-2xs font-medium">
-        {assignee.name?.slice(0, 1).toUpperCase()}
+        {getInitials(assignee.name ?? "")}
       </AvatarFallback>
     </Avatar>
   );
