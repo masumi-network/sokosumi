@@ -360,6 +360,45 @@ describe("the speed table in a workspace view", () => {
     ]);
   });
 
+  it("keeps a row's own device that the audit did not measure for a page another page redirects to (review pass 17)", () => {
+    // The audited page redirects to /pricing on mobile only: the audit measured /pricing on mobile, not on desktop.
+    const pageSpeed = [
+      {
+        pageUrl: SEO_TEST_PAGE,
+        testedUrl: EXTRA,
+        device: "mobile" as const,
+        lab: { status: "unavailable" as const },
+        field: { status: "no_data" as const },
+      },
+    ];
+    const siteSpeed = readSiteSpeed(
+      site([extra(EXTRA)]),
+      [SEO_TEST_PAGE],
+      pageSpeed,
+    );
+    expect(
+      siteSpeed?.rows.map((item) => [
+        item.audited,
+        item.devices.map((own) => own.device),
+      ]),
+    ).toEqual([[true, ["desktop"]]]);
+    const table = scopedSiteSpeed(
+      { siteSpeed: siteSpeed!, pageSpeed, pageUrls: [SEO_TEST_PAGE] },
+      row,
+      new Set([SEO_TEST_PAGE]),
+    );
+    expect(
+      table?.rows[0]?.devices.map((item) => [
+        item.pageUrl,
+        item.device,
+        item.lab.status,
+      ]),
+    ).toEqual([
+      [SEO_TEST_PAGE, "mobile", "unavailable"],
+      [EXTRA, "desktop", "deadline"],
+    ]);
+  });
+
   it("gives no table to a view that lacks an audited page", () => {
     expect(scopedSiteSpeed(stored, row, new Set([EXTRA]))).toBeNull();
   });

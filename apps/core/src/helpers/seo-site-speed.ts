@@ -139,12 +139,13 @@ export function readSiteSpeed(
   if (!speed || !Array.isArray(speed.pages) || !URL.canParse(pageUrls[0] ?? ""))
     return undefined;
   const start = new URL(pageUrls[0]!);
-  const audited = new Set(
-    [
-      ...pageUrls,
-      ...pageSpeed.flatMap((row) => [row.pageUrl, row.testedUrl]),
-    ].map(auditedSeoPageKey),
-  );
+  const pages = new Set(pageUrls.map(auditedSeoPageKey));
+  const audited = new Set([
+    ...pages,
+    ...pageSpeed
+      .flatMap((row) => [row.pageUrl, row.testedUrl])
+      .map(auditedSeoPageKey),
+  ]);
   const seen = new Set<string>();
   const rows: StoredSiteSpeed["rows"] = [];
   for (const item of speed.pages.slice(0, SITE_SPEED_ROWS)) {
@@ -165,14 +166,25 @@ export function readSiteSpeed(
     const check = tier === "reduced" ? readCheck(row.check) : undefined;
     try {
       // The worker fills the other device of a reduced test with a placeholder. Only the row's own devices are read.
-      const devices = audited.has(url)
-        ? []
-        : readPageSpeed(
-            row.speed,
-            url,
-            undefined,
-            speedRowDevices(tier, check),
-          );
+      // An audited page's device comes from the audit. A page that is audited only as a redirect target keeps a
+      // device the audit did not measure for it (a redirect on one device only).
+      const devices = readPageSpeed(
+        row.speed,
+        url,
+        undefined,
+        speedRowDevices(tier, check),
+      ).filter(
+        (own) =>
+          !audited.has(url) ||
+          (!pages.has(url) &&
+            !pageSpeed.some(
+              (measured) =>
+                measured.device === own.device &&
+                [measured.pageUrl, measured.testedUrl]
+                  .map(auditedSeoPageKey)
+                  .includes(url),
+            )),
+      );
       // One row the stored table cannot hold must not cost the other rows.
       const stored = storedSiteSpeedRow.safeParse({
         url,
@@ -338,7 +350,10 @@ export function scopedSiteSpeed(
                 auditedSeoPageKey(row[key]) === item.url,
             );
           return allowed.includes(device)
-            ? (on("pageUrl") ?? on("testedUrl") ?? [])
+            ? (on("pageUrl") ??
+                on("testedUrl") ??
+                item.devices.find((row) => row.device === device) ??
+                [])
             : [];
         }),
       };
