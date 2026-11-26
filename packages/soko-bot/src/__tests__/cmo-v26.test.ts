@@ -48,6 +48,9 @@ describe("cmo-v26", () => {
     expect(composeSystemPrompt(v26)).toContain(
       getSokoBotSkill(CMO_STRATEGY_STEP_SKILL).content.trim(),
     );
+    expect(getSokoBotSkill(CMO_STRATEGY_STEP_SKILL).content).toMatch(
+      /only once the owner has said what to change[^\n]*ask one question/,
+    );
     expect(v26.skillsOnDemand).toBe(true);
     expect(cmoCompactProduction(v26.skills)).toBe(true);
     expect(cmoCompactProduction(v24.skills)).toBe(false);

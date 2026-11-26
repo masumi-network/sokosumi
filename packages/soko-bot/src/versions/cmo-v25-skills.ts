@@ -23,6 +23,7 @@ Core writes your strategy in one step with write_strategy. It follows your strat
 - When your turn's message says to call write_strategy, call it before anything else, as the message says. With no input its answer ends the turn with your sentence for the owner.
 - A Brand Brain fix turn patches the strategy with save_strategy, as its message says; it does not call write_strategy.
 - When the owner asks to change the strategy (a network, how often it posts, a pillar, the offer, the ads, an example post), call write_strategy with change: the owner's request in their own words, plus anything from the chat it needs. Core changes only what the request touches. Its answer says what changed (toOwner); then do the rest of what the owner asked in the same turn.
+- Call write_strategy only once the owner has said what to change. A request that leaves the change for you to guess (asks for more, better or different without saying what or how much, or asks whether something is possible) is a question: answer it, then ask one question that offers your best guess, and change nothing until they reply.
 - When it answers that Core is still writing, call it again with the same input to wait. Do nothing else meanwhile.
 - Only when it answers that Core could not write the strategy, save it yourself with save_strategy as your strategy skill says.`,
 };
