@@ -18,10 +18,8 @@ import {
 } from "@sokosumi/soko-bot";
 import {
   isCmoChannelFormat,
-  isCmoShapedVideoFormat,
   isCmoShortVideoFormat,
   isCmoTalkingFormat,
-  normalizeCmoChannelFormat,
 } from "@sokosumi/utils";
 import { unprocessableEntity } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
@@ -91,6 +89,7 @@ import {
   newestMarketingStrategy,
   parseMarketingPlan,
   parseSocialPostPlanning,
+  planEntryFormat,
   planMarketingStrategyPosts,
   STRATEGY_TURN_PREFIX,
   sameTitle,
@@ -1940,18 +1939,10 @@ export function withPlanFormats(save: CmoStrategySave): CmoStrategySave {
   if (!save.calendar) return save;
   return {
     ...save,
-    calendar: save.calendar.map((entry) => {
-      if (!isCmoShapedVideoFormat(entry.channel, entry.format)) return entry;
-      const { format } = normalizeCmoChannelFormat(entry.channel, entry.format);
-      if (
-        entry.status !== "skipped" &&
-        !isCmoChannelFormat(entry.channel, format)
-      )
-        throw unprocessableEntity(
-          `${entry.id}: "${entry.channel}" / "${entry.format}" is a video's other shape, which Core posts from the video's alsoOn. Plan the video on its own network and list the shape in its alsoOn.`,
-        );
-      return { ...entry, format };
-    }),
+    calendar: save.calendar.map((entry) => ({
+      ...entry,
+      format: planEntryFormat(entry),
+    })),
   };
 }
 

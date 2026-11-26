@@ -21,6 +21,7 @@ import {
   CMO_SHORT_VIDEO_FORMATS,
   cmoShapedVideoTarget,
   cmoShortVideoFormat,
+  isCmoChannelFormat,
   isCmoShapedVideoFormat,
   isCmoShortVideoFormat,
   isCmoTalkingFormat,
@@ -35,6 +36,7 @@ import {
   forbidden,
   internalServerError,
   notFound,
+  unprocessableEntity,
 } from "@/helpers/error";
 import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import { jsonInput } from "@/helpers/prisma-json";
@@ -622,6 +624,24 @@ function videoCopyId(entryId: string, network: string): string {
   return `${entryId.slice(0, 63 - network.length)}@${network}`;
 }
 
+/**
+ * The format a piece of its own takes for what the entry names. A video's
+ * other shape (an X video, a feed video) is a post Core makes from the
+ * video's alsoOn: named on anything else it maps to the plan's format ("a
+ * YouTube video" is a Short), or is refused when none fits.
+ */
+export function planEntryFormat(
+  entry: Pick<CmoCalendarEntry, "id" | "channel" | "format" | "status">,
+): string {
+  if (!isCmoShapedVideoFormat(entry.channel, entry.format)) return entry.format;
+  const { format } = normalizeCmoChannelFormat(entry.channel, entry.format);
+  if (entry.status !== "skipped" && !isCmoChannelFormat(entry.channel, format))
+    throw unprocessableEntity(
+      `${entry.id}: "${entry.channel}" / "${entry.format}" is a video's other shape, which Core posts from the video's alsoOn. Plan the video on its own network and list the shape in its alsoOn.`,
+    );
+  return format;
+}
+
 function withoutUndefined<T extends object>(value: T): Partial<T> {
   return Object.fromEntries(
     Object.entries(value).filter(([, item]) => item !== undefined),
@@ -691,13 +711,12 @@ export async function planMarketingStrategyPosts(
     const post = byEntry.get(entry.id);
     const stored = parseSocialPostPlanning(post?.planning);
     // A video's other shape stands only on the post Core made for it, found
-    // by its post id or plan id; anywhere else it names the plan's format.
+    // by its post id or plan id; anywhere else it is held to the plan's
+    // formats, as a plan save is.
     const sentFormat =
-      isCmoShapedVideoFormat(provider, entry.format) &&
-      !copies.has(entry) &&
-      !(stored?.videoOf && stored.format === entry.format)
-        ? normalizeCmoChannelFormat(provider, entry.format).format
-        : entry.format;
+      copies.has(entry) || (stored?.videoOf && stored.format === entry.format)
+        ? entry.format
+        : planEntryFormat({ ...entry, channel: provider });
     const planning = {
       ...withoutUndefined({
         ...stored,

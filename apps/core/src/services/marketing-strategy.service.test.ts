@@ -409,6 +409,26 @@ describe("a video in other shapes", () => {
     expect(updated[0]).toMatchObject({ id: "v2", format: "short" });
   });
 
+  it("refuses a new X video with no video behind it, as a plan save does", async () => {
+    const lone = {
+      id: "x-new",
+      date: "2026-11-30",
+      channel: "x",
+      format: "video",
+      title: "Roasted",
+      status: "draft",
+      draft: "Beans, roasted at six.",
+    };
+    await expect(plan("flagged", [], [lone])).rejects.toThrow(/alsoOn/);
+    // Nothing was made for it.
+    const { created } = await plan(
+      "flagged",
+      [],
+      [{ ...lone, format: "post" }],
+    );
+    expect(created.map((post) => post.format)).toEqual(["post"]);
+  });
+
   it("keeps a shape's format when the month writes its post", async () => {
     const copy = {
       id: "post-feed",
