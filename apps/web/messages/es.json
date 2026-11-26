@@ -2276,7 +2276,7 @@
         },
         "files": "Archivos",
         "assignee": "Responsable",
-        "noAssignee": "Sin responsable",
+        "noAssignee": "Sin asignar",
         "memberFallback": "Miembro",
         "schedule": "Programación",
         "privateSchedule": "Programación privada",

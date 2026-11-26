@@ -4288,6 +4288,33 @@ describe("TaskForm draft tags", () => {
     }
   });
 
+  it("wraps the property row and says under it which tags Jev added", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", suggestTaskTags);
+    try {
+      suggestTaskTags.mockReset().mockResolvedValue(
+        Response.json({
+          tags: ["design"],
+          receipt: "receipt",
+          workspaceSuggestions: [],
+        }),
+      );
+      renderComposer();
+      const row = screen.getByTestId("task-compose-meta-row");
+      expect(row).toHaveClass("flex-wrap");
+      expect(row).not.toHaveClass("overflow-x-auto");
+      expect(screen.queryByText("appliedByJev")).not.toBeInTheDocument();
+      await act(async () => vi.advanceTimersByTimeAsync(1200));
+      expect(within(row).getByText("vocabulary.design")).toBeVisible();
+      expect(row.nextElementSibling).toHaveTextContent("appliedByJev");
+      fireEvent.click(within(row).getByRole("button", { name: "remove" }));
+      expect(screen.queryByText("appliedByJev")).not.toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps Jev workspace matches removable after a punctuation or case edit without sending the old receipt", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("fetch", suggestTaskTags);

@@ -1,5 +1,6 @@
 "use client";
 
+import { UserRound } from "lucide-react";
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { AssistantOrb } from "@/components/aurora-orb";
@@ -39,8 +40,8 @@ export function AssigneeAvatar({
   if (assignee == null) {
     return (
       <Avatar className={`${sizeClass} shrink-0`}>
-        <AvatarFallback className="bg-muted text-2xs font-medium">
-          ?
+        <AvatarFallback>
+          <UserRound className="text-muted-foreground size-3.5" aria-hidden />
         </AvatarFallback>
       </Avatar>
     );

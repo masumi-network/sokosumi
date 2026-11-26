@@ -2276,7 +2276,7 @@
         },
         "files": "Files",
         "assignee": "Assignee",
-        "noAssignee": "No assignee",
+        "noAssignee": "Unassigned",
         "memberFallback": "Member",
         "schedule": "Schedule",
         "privateSchedule": "Private schedule",
