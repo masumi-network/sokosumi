@@ -951,6 +951,31 @@ describe("the guards of speed data on each path", () => {
     expect(table?.dropped).toBe(3);
   });
 
+  it("gives an audited row no measurement of a page outside the audit that redirects to it", () => {
+    const shop = "https://www.example.test/shop";
+    const table = scopedSiteSpeed(
+      {
+        siteSpeed: {
+          rows: [{ url: shop, audited: true, devices: [] }],
+          dropped: 0,
+        },
+        pageSpeed: [
+          {
+            pageUrl: "https://www.example.test/old",
+            testedUrl: shop,
+            device: "mobile" as const,
+            lab: { status: "unavailable" as const },
+            field: { status: "no_data" as const },
+          },
+        ],
+        pageUrls: [shop],
+      },
+      view,
+      new Set([shop]),
+    );
+    expect(table?.rows).toMatchObject([{ url: shop, devices: [] }]);
+  });
+
   it("drops only the stored row Core cannot read and counts it", () => {
     const table = storedRows([
       { url: EXTRA, audited: false, devices: [] },
