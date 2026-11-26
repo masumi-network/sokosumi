@@ -13,12 +13,18 @@ import {
   cmoStrategyStepTurnId,
 } from "@/services/marketing-strategy.service";
 import {
+  type CmoStepAnswer,
   cmoFitStrategy,
+  cmoRepairLoop,
+  cmoSaveAnswer,
   cmoStepDecision,
   cmoStrategyChangeBrief,
   cmoStrategyRepairPrompt,
   cmoStrategyStepAnswer,
   cmoStrategyStepSystem,
+  refusalProblems,
+  type SaveOutcome,
+  type StrategyAnswer,
   withStrategyFix,
 } from "./cmo-strategy-step";
 
@@ -61,6 +67,21 @@ describe("Core's strategy step", () => {
       ["b", "Second, sharper"],
       ["d", "Fourth"],
     ]);
+  });
+
+  it("keeps a skipped entry in a patch, where it drops a saved one", () => {
+    const merged = withStrategyFix(
+      {},
+      { calendar: [{ ...entry("c", "Third"), status: "skipped" }] },
+      true,
+    );
+    expect(merged.calendar?.map((item) => item.status)).toEqual(["skipped"]);
+  });
+
+  it("tells a second repair what is left or came with the fix", () => {
+    expect(cmoStrategyRepairPrompt(["one"], 2)).toContain(
+      "left or came with the fix",
+    );
   });
 
   it("names every problem in one repair message", () => {
@@ -137,6 +158,197 @@ describe("steps in one turn", () => {
         now,
       ),
     ).toEqual({ kind: "start", step: 2 });
+  });
+});
+
+describe("the repair loop keeps what was tried apart from what was saved", () => {
+  type Save = {
+    strategy: StrategyAnswer;
+    outcome: SaveOutcome;
+  };
+  /** Runs the real loop with scripted saves and repairs. */
+  const run = async (input: {
+    part: "all" | "patch";
+    first: CmoStepAnswer;
+    outcomes: SaveOutcome[];
+    repairs: CmoStepAnswer[];
+  }) => {
+    const saves: Save[] = [];
+    const end = await cmoRepairLoop({
+      part: input.part,
+      first: input.first,
+      save: async (_round, strategy, issues) => {
+        const outcome =
+          issues.length > 0
+            ? { versionId: null, problems: [...issues] }
+            : (input.outcomes.shift() ?? { versionId: null, problems: ["?"] });
+        saves.push({ strategy, outcome });
+        return outcome;
+      },
+      repair: async () => {
+        const next = input.repairs.shift();
+        if (!next) throw new Error("no repair scripted");
+        return next;
+      },
+      mayRepair: () => true,
+    });
+    return { end, saves };
+  };
+  const answer = (
+    strategy: StrategyAnswer,
+    toOwner: string,
+  ): CmoStepAnswer => ({ strategy, toOwner, issues: [] });
+
+  it("never reports a refused last save as a success", async () => {
+    const { end } = await run({
+      part: "all",
+      first: answer(
+        { summary: "Starts on LinkedIn" },
+        "It starts on LinkedIn.",
+      ),
+      outcomes: [
+        { versionId: "v1", problems: ["example a is not whole"] },
+        {
+          versionId: null,
+          problems: refusalProblems(
+            "save_strategy saved nothing: an example names a pillar the strategy does not have.",
+          ),
+        },
+        {
+          versionId: null,
+          problems: ["still refused"],
+        },
+      ],
+      repairs: [
+        answer({ summary: "Starts on X" }, "It starts on X."),
+        answer({ summary: "Starts on X now" }, "It starts on X."),
+      ],
+    });
+    expect(end).toEqual({
+      state: "saved",
+      versionId: "v1",
+      // The owner hears the saved version's line, not a refused try's.
+      toOwner: "It starts on LinkedIn.",
+      fixed: 0,
+      left: ["example a is not whole"],
+    });
+  });
+
+  it("takes the owner's line from the answer whose save landed", async () => {
+    const { end } = await run({
+      part: "all",
+      first: answer(
+        { summary: "Starts on LinkedIn" },
+        "It starts on LinkedIn.",
+      ),
+      outcomes: [
+        { versionId: "v1", problems: ["LinkedIn is not one of its networks"] },
+        { versionId: "v1", problems: [] },
+      ],
+      repairs: [answer({ summary: "Starts on X" }, "It starts on X.")],
+    });
+    expect(end).toMatchObject({
+      toOwner: "It starts on X.",
+      fixed: 1,
+      left: [],
+    });
+  });
+
+  it("carries a refused patch's corrections into the next try", async () => {
+    const { saves, end } = await run({
+      part: "patch",
+      first: answer({ summary: "Weekly LinkedIn" }, "LinkedIn is weekly."),
+      outcomes: [
+        { versionId: null, problems: ["first refused"] },
+        { versionId: null, problems: ["second refused"] },
+        { versionId: "v2", problems: [] },
+      ],
+      repairs: [
+        answer({ goals: ["More Studio trials"] }, "LinkedIn is weekly."),
+        answer(
+          { audience: "Founders launching tokens" },
+          "LinkedIn is weekly.",
+        ),
+      ],
+    });
+    expect(saves.map((save) => save.outcome.problems)).toEqual([
+      ["first refused"],
+      ["second refused"],
+      [],
+    ]);
+    expect(saves.at(-1)?.strategy).toMatchObject({
+      summary: "Weekly LinkedIn",
+      goals: ["More Studio trials"],
+      audience: "Founders launching tokens",
+    });
+    expect(end).toMatchObject({ state: "saved", versionId: "v2" });
+  });
+
+  it("sends a change's next try only what is not saved yet", async () => {
+    const { saves } = await run({
+      part: "patch",
+      first: answer({ summary: "Weekly LinkedIn" }, "LinkedIn is weekly."),
+      outcomes: [
+        { versionId: "v2", problems: ["the goal names no product"] },
+        { versionId: "v2", problems: [] },
+      ],
+      repairs: [
+        answer({ goals: ["More Studio trials"] }, "LinkedIn is weekly."),
+      ],
+    });
+    expect(saves[1]?.strategy).toEqual({
+      goals: ["More Studio trials"],
+      calendar: [],
+    });
+  });
+
+  it("fails when nothing was ever saved", async () => {
+    const { end } = await run({
+      part: "all",
+      first: answer({}, "It starts on X."),
+      outcomes: [
+        { versionId: null, problems: ["a"] },
+        { versionId: null, problems: ["b"] },
+        { versionId: null, problems: ["c"] },
+      ],
+      repairs: [answer({}, ""), answer({}, "")],
+    });
+    expect(end).toMatchObject({ state: "failed" });
+  });
+
+  it("reads a one-line refusal as its own problem", () => {
+    expect(
+      refusalProblems(
+        "save_strategy saved nothing: the summary has 24 words; keep it to 20.",
+      ),
+    ).toEqual([
+      "save_strategy saved nothing: the summary has 24 words; keep it to 20.",
+    ]);
+    expect(
+      refusalProblems(
+        "save_strategy saved nothing: the strategy breaks a hard rule.\n- Rule one\n- Rule two",
+      ),
+    ).toEqual(["Rule one", "Rule two"]);
+  });
+
+  it("checks the saved version's calendar on a save that sent none", async () => {
+    const outcome = await cmoSaveAnswer(
+      {
+        runtime: {
+          executeTool: async () => ({ versionId: "v3", problems: [] }),
+        } as never,
+        input: { toolCallId: "call" } as never,
+      },
+      2,
+      "patch",
+      { goals: ["More Studio trials"] },
+      [],
+      async () => ["example b's title is not in German"],
+    );
+    expect(outcome).toEqual({
+      versionId: "v3",
+      problems: ["example b's title is not in German"],
+    });
   });
 });
 
