@@ -7,9 +7,11 @@ import { socialProviderUnavailableMessage } from "@sokosumi/utils";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { badRequest } from "@/helpers/error";
+import * as exaAgent from "@/lib/exa-agent";
 import { actionInputHash } from "@/lib/soko-bot/action-receipts";
 import { websiteOnlyBrain } from "@/services/evals/eval-cmo-cases";
 import cmoBrandBrains from "@/services/evals/fixtures/cmo-brand-brains.json";
+import * as portfolio from "@/services/fundraising-paths.service";
 
 const {
   botFindFirstMock,
@@ -820,7 +822,7 @@ import {
 import * as scheduleService from "@/services/soko-bot-schedule.service";
 import { expectCoreLog } from "@/test/core-log";
 import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
-import { FUNDRAISING_CAPABILITIES } from "./fundraising";
+import * as fundraising from "./fundraising";
 
 const SCOPE = {
   userId: "user_1",
@@ -1016,6 +1018,7 @@ describe("SokoBotRuntimeService authorization", () => {
         .fn()
         .mockResolvedValue(undefined);
       service.authorize = vi.fn().mockResolvedValue({
+        askedByKind: "OWNER",
         turn: { ...SCOPE, id: SCOPE.turnId, actingUserId: SCOPE.userId },
         reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
         toolCallLimit: 10,
@@ -1023,7 +1026,7 @@ describe("SokoBotRuntimeService authorization", () => {
       return service;
     }
 
-    it.each(FUNDRAISING_CAPABILITIES)(
+    it.each(fundraising.FUNDRAISING_CAPABILITIES)(
       "returns and records the %s handler result",
       async (capability) => {
         const service = serviceForDispatch();
@@ -1085,6 +1088,97 @@ describe("SokoBotRuntimeService authorization", () => {
         }
       },
     );
+
+    it.each([false, true])(
+      "retains the paid operation if a refusal follows dispatch (dispatched=%s)",
+      async (dispatched) => {
+        const service = serviceForDispatch();
+        workspaceFindUniqueMock.mockResolvedValueOnce({
+          organizationId: "org_1",
+        });
+        getEnvMock.mockReturnValue({
+          ...getEnvMock(),
+          FUNDRAISING_ORGANIZATION_IDS: ["org_1"],
+        });
+        const provider = vi.spyOn(exaAgent, "runExaAgent").mockResolvedValue({
+          runId: "research",
+          costUsd: 0.01,
+          structured: {},
+          text: null,
+          citations: [],
+        });
+        const research = vi
+          .spyOn(portfolio, "researchPortfolio")
+          .mockImplementation(async (_actor, _contact, deps) => {
+            if (dispatched)
+              await deps?.run({
+                query: "portfolio",
+                effort: "medium",
+                outputSchema: {},
+              });
+            throw badRequest("Contact left the investor list");
+          });
+        try {
+          await expect(
+            service.executeTool({
+              ...SCOPE,
+              capability: "investor_warm_paths",
+              input: { contactId: SCOPE.sokoBotId, research: true },
+              toolCallId: "warm",
+            }),
+          ).rejects.toThrow("Contact left the investor list");
+          expect(provider).toHaveBeenCalledTimes(dispatched ? 1 : 0);
+          const data = toolCallUpdateManyMock.mock.lastCall?.[0].data;
+          expect(data.disposition).toBe(dispatched ? "UNKNOWN" : "REJECTED");
+          if (dispatched) expect(data).not.toHaveProperty("operationKey");
+          else expect(data.operationKey).toBeNull();
+        } finally {
+          research.mockRestore();
+          provider.mockRestore();
+        }
+      },
+    );
+
+    it("checks current fundraising access before returning a completed search receipt", async () => {
+      const service = serviceForDispatch();
+      const call = {
+        ...SCOPE,
+        capability: "find_investors",
+        toolCallId: "search",
+        input: {},
+      } as const;
+      const result = { found: 10 };
+      const handler = vi.fn().mockResolvedValue(result);
+      service["executeFundraisingTool"] = handler;
+      await expect(service.executeTool(call)).resolves.toEqual(result);
+      toolCallFindUniqueMock.mockResolvedValue({
+        ...call,
+        id: "receipt",
+        status: "COMPLETED",
+        disposition: "APPLIED",
+        inputHash: actionInputHash(call.input),
+        result,
+      });
+      const policy = vi
+        .spyOn(fundraising, "fundraisingActor")
+        .mockResolvedValueOnce({
+          workspaceId: SCOPE.workspaceId,
+          userId: SCOPE.userId,
+          sokoBotId: SCOPE.sokoBotId,
+          organizationId: "org",
+        })
+        .mockRejectedValueOnce(new Error("Fundraising disabled"));
+      try {
+        await expect(service.executeTool(call)).resolves.toEqual(result);
+        await expect(service.executeTool(call)).rejects.toThrow(
+          "Fundraising disabled",
+        );
+        expect(policy).toHaveBeenCalledTimes(2);
+        expect(handler).toHaveBeenCalledOnce();
+      } finally {
+        policy.mockRestore();
+      }
+    });
 
     it("fails a tool without a Core handler instead of recording an empty success", async () => {
       const service = serviceForDispatch();

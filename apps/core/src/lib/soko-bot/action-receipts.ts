@@ -113,6 +113,12 @@ export const ACTION_CAPABILITIES = new Set([
   "remove_skill",
 ]);
 
+/** Warm paths have an action receipt only when the owner requests research. */
+export const ACTION_RECEIPT_CAPABILITIES = [
+  ...ACTION_CAPABILITIES,
+  "investor_warm_paths",
+];
+
 /** Object key order is not part of an operation's identity. */
 export function canonicalActionJson(value: unknown): string {
   if (value === null || typeof value !== "object") {

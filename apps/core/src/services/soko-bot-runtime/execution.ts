@@ -47,6 +47,7 @@ import {
   READ_CALLS_PER_WRITE_CALL,
   TOOL_CALL_STALE_MS,
 } from "./execution-limits";
+import { fundraisingActor, isFundraisingCapability } from "./fundraising";
 import { type RuntimeOperations } from "./operations";
 import { persistedErrorDetail } from "./seller-recovery";
 
@@ -169,6 +170,8 @@ export async function executeTool(
       );
     }
     if (existing.status === "COMPLETED") {
+      if (isFundraisingCapability(input.capability))
+        await fundraisingActor(authorized);
       if (isSokoBotSeoCapability(input.capability)) {
         return runtime.executeSeoTool(input, authorized, true);
       }

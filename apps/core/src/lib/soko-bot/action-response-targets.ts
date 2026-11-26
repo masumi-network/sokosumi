@@ -53,6 +53,8 @@ export const ACTION_LABELS: Record<string, string> = {
   update_company: "Updated company",
   export_contacts_to_table: "Exported contacts to a table",
   find_people: "Found people",
+  find_investors: "Ran an investor search",
+  investor_warm_paths: "Researched the investor's portfolio",
   enrich_contact: "Enriched contact",
   create_project: "Created project",
   update_project: "Updated project",
