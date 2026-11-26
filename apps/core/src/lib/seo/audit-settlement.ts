@@ -67,6 +67,12 @@ interface AuditPayment {
   fullAuditCostDetail?: unknown;
 }
 
+function asPacket(request: Prisma.JsonValue | undefined) {
+  return request && typeof request === "object" && !Array.isArray(request)
+    ? request
+    : null;
+}
+
 /** A focused check frozen with zero provider calls is free: Core approved no spend for it. */
 function hasNoProviderBudget(packet: object | null): boolean {
   const budget = packet && "budget" in packet ? packet.budget : null;
@@ -109,10 +115,7 @@ export async function prepareAuditSettlement(
       ?.searchConsoleAccess
   )
     onApprovedCompletion?.();
-  const packet =
-    request && typeof request === "object" && !Array.isArray(request)
-      ? request
-      : null;
+  const packet = asPacket(request);
   const price = packet?.price;
   if (
     analysis &&
@@ -205,21 +208,33 @@ export async function prepareAuditSettlement(
   };
 }
 
-/** A full audit already accounts for all attributable vendor costs at completion. */
+/**
+ * A full audit already accounts for all attributable vendor costs at completion,
+ * and a focused check frozen with no provider budget may not spend at all.
+ */
 export async function requireSeparateAuditPurchaseAllowed(
   tx: Prisma.TransactionClient,
   taskId: string,
 ) {
-  const audit = await tx.projectSeoAnalysis.findFirst({
-    where: {
-      taskId,
-      kind: "audit_full",
-      request: { path: ["price", "kind"], equals: "cost_plus" },
-    },
-    select: { id: true },
+  const analysis = await tx.projectSeoAnalysis.findUnique({
+    where: { taskId },
+    select: { kind: true, request: true },
   });
-  if (audit)
+  if (!analysis) return;
+  const packet = asPacket(analysis.request);
+  const price = packet?.price;
+  if (
+    analysis.kind === "audit_full" &&
+    price &&
+    typeof price === "object" &&
+    !Array.isArray(price) &&
+    price.kind === "cost_plus"
+  )
     throw unprocessableEntity(
       "A full audit charges once at completion and cannot make a separate Task purchase",
+    );
+  if (analysis.kind !== "audit_full" && hasNoProviderBudget(packet))
+    throw unprocessableEntity(
+      "A check with no provider budget cannot make a Task purchase",
     );
 }
