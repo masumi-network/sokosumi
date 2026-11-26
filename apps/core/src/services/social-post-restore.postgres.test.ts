@@ -128,6 +128,20 @@ describe.runIf(enabled)("taking back a cancel", () => {
       text: "More on this",
       quotedPostId: scheduled.id,
     });
+    // A scheduled quote: the cancel fails it with a reason.
+    const queuedDraft = await createSocialPost({
+      ...scope,
+      socialConnectionId,
+      text: "And the replay",
+      quotedPostId: scheduled.id,
+    });
+    const queued = await scheduleSocialPost({
+      ...scope,
+      postId: queuedDraft.id,
+      revision: queuedDraft.revision,
+      scheduledAt: new Date(at.getTime() + 3_600_000),
+      timezone: "UTC",
+    });
     const canceled = await cancelSocialPost({
       ...scope,
       postId: scheduled.id,
@@ -137,14 +151,19 @@ describe.runIf(enabled)("taking back a cancel", () => {
       where: { id: quote.id },
     });
     expect(flagged.needsAttentionReason).not.toBeNull();
+    const failed = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: queued.id },
+    });
+    expect(failed.status).toBe("FAILED");
+    expect(failed.needsAttentionReason).not.toBeNull();
 
     const restored = await restoreCanceledSocialPost({
       ...scope,
       postId: canceled.id,
       revision: canceled.revision,
+      status: "SCHEDULED",
       scheduledAt: at,
       timezone: "UTC",
-      schedule: true,
     });
     expect(restored.status).toBe("SCHEDULED");
     const row = await prisma.socialPost.findUniqueOrThrow({
@@ -156,6 +175,91 @@ describe.runIf(enabled)("taking back a cancel", () => {
       where: { id: quote.id },
     });
     expect(quoting.needsAttentionReason).toBeNull();
+    // The failed quote keeps its reason: never a FAILED row without one.
+    const stillFailed = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: queued.id },
+    });
+    expect(stillFailed.status).toBe("FAILED");
+    expect(stillFailed.needsAttentionReason).toBe(failed.needsAttentionReason);
+    expect(stillFailed.lastError).toBe(failed.lastError);
+  });
+
+  it("leaves the post cancelled, retry intact, when its schedule is refused", async () => {
+    const { scope, socialConnectionId } = await seed();
+    const at = new Date(Date.now() + 3 * 86_400_000);
+    const draft = await createSocialPost({
+      ...scope,
+      socialConnectionId,
+      text: "Launch day",
+    });
+    const canceled = await cancelSocialPost({
+      ...scope,
+      postId: draft.id,
+      revision: draft.revision,
+    });
+    const past = new Date(Date.now() - 86_400_000);
+    await expect(
+      restoreCanceledSocialPost({
+        ...scope,
+        postId: canceled.id,
+        revision: canceled.revision,
+        status: "SCHEDULED",
+        scheduledAt: past,
+        timezone: "UTC",
+      }),
+    ).rejects.toThrow();
+    const row = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: canceled.id },
+    });
+    expect(row.status).toBe("CANCELED");
+    expect(row.revision).toBe(canceled.revision);
+    const retried = await restoreCanceledSocialPost({
+      ...scope,
+      postId: canceled.id,
+      revision: canceled.revision,
+      status: "SCHEDULED",
+      scheduledAt: at,
+      timezone: "UTC",
+    });
+    expect(retried.status).toBe("SCHEDULED");
+  });
+
+  it("brings back the status it had and refuses a schedule without a time", async () => {
+    const { scope, socialConnectionId } = await seed();
+    const draft = await createSocialPost({
+      ...scope,
+      socialConnectionId,
+      text: "Waiting for approval",
+    });
+    await prisma.socialPost.update({
+      where: { id: draft.id },
+      data: { status: "NEEDS_APPROVAL" },
+    });
+    const pending = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: draft.id },
+    });
+    const canceled = await cancelSocialPost({
+      ...scope,
+      postId: pending.id,
+      revision: pending.revision,
+    });
+    await expect(
+      restoreCanceledSocialPost({
+        ...scope,
+        postId: canceled.id,
+        revision: canceled.revision,
+        status: "SCHEDULED",
+        scheduledAt: null,
+      }),
+    ).rejects.toThrow("A scheduled post is restored at its time");
+    const back = await restoreCanceledSocialPost({
+      ...scope,
+      postId: canceled.id,
+      revision: canceled.revision,
+      status: "NEEDS_APPROVAL",
+      scheduledAt: null,
+    });
+    expect(back.status).toBe("NEEDS_APPROVAL");
   });
 
   it("refuses a stale revision and a post that is not cancelled", async () => {
@@ -170,8 +274,8 @@ describe.runIf(enabled)("taking back a cancel", () => {
         ...scope,
         postId: draft.id,
         revision: draft.revision,
+        status: "DRAFT",
         scheduledAt: null,
-        schedule: false,
       }),
     ).rejects.toThrow("Only a canceled post can be restored");
     const canceled = await cancelSocialPost({
@@ -184,16 +288,16 @@ describe.runIf(enabled)("taking back a cancel", () => {
         ...scope,
         postId: canceled.id,
         revision: canceled.revision - 1,
+        status: "DRAFT",
         scheduledAt: null,
-        schedule: false,
       }),
     ).rejects.toThrow();
     const back = await restoreCanceledSocialPost({
       ...scope,
       postId: canceled.id,
       revision: canceled.revision,
+      status: "DRAFT",
       scheduledAt: null,
-      schedule: false,
     });
     expect(back.status).toBe("DRAFT");
   });
