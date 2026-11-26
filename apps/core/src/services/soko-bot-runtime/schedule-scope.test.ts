@@ -32,6 +32,7 @@ describe("briefAsksToEnd", () => {
     "Remind me about the invoice; remove the reminder when it is paid.",
     "Stop the check-ins when the launch ships.",
     "Prüfe täglich den Stand und lösche den Zeitplan, sobald es fertig ist.",
+    "Delete this weekly schedule after the launch.",
     // The verb split around the noun (Codex round 15).
     "Turn this schedule off once the invoice is paid.",
     "Schalte den Zeitplan ab, wenn alles erledigt ist.",
@@ -51,6 +52,9 @@ describe("briefAsksToEnd", () => {
     "Don't remove the reminder until I say so.",
     "Lösche diesen Zeitplan nicht.",
     "Never turn this schedule off.",
+    // "End" here is about Tasks, and the reminders are only listed.
+    "Report the Tasks that end today and list upcoming reminders.",
+    "Stop by the board, then check the follow-ups.",
     "Diesen Zeitplan niemals beenden; entferne keine Erinnerung.",
   ])("reads no ask to end: %s", (brief) => {
     expect(briefAsksToEnd(brief)).toBe(false);

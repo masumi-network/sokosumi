@@ -10,11 +10,18 @@
 const SCHEDULE_NOUN =
   "(schedule|check-?ins?|checks?|reminders?|follow-?ups?|watch|zeitplan|erinnerung\\w*)";
 const DETERMINER = "(this|the|that|it|diese[nrs]?|den|die|das)?";
+/**
+ * At most two words between the verb and the noun ("delete this weekly
+ * schedule"), none of them joining a new clause: "report Tasks that end today
+ * and list reminders" is not an ask to end anything (Codex round 15).
+ */
+const UP_TO_TWO_WORDS =
+  "(?:(?!(?:and|or|then|und|oder|dann)\\b)[\\w'-]+\\s+){0,2}?";
 
 const ASKS_TO_END = new RegExp(
   [
     // "delete this schedule", "stop the check-ins", "lösche den Zeitplan"
-    `\\b(delete|remove|stop|cancel|end|turn off|switch off|disable|pause|lösch\\w*|entfern\\w*|beend\\w*|stopp\\w*)\\b[^.!?\\n]{0,60}\\b${DETERMINER}\\s*${SCHEDULE_NOUN}\\b`,
+    `\\b(delete|remove|stop|cancel|end|turn off|switch off|disable|pause|lösch\\w*|entfern\\w*|beend\\w*|stopp\\w*)\\s+${DETERMINER}\\s*${UP_TO_TWO_WORDS}${SCHEDULE_NOUN}\\b`,
     // "turn this schedule off", "schalte den Zeitplan ab"
     `\\b(turn|switch|shut|schalte?)\\b\\s+${DETERMINER}\\s*${SCHEDULE_NOUN}\\s+(off|down|ab|aus)\\b`,
   ].join("|"),
