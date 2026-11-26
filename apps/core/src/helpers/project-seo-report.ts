@@ -19,6 +19,7 @@ import {
   storedSeoChecklist,
 } from "@/schemas/seo-audit-coverage.schema";
 import { seoPageSpeed } from "@/schemas/seo-page-speed.schema";
+import { seoSiteCrawlSchema } from "@/schemas/seo-site-crawl.schema";
 import { storedSiteSpeed } from "@/schemas/seo-site-speed.schema";
 import * as seoDecisions from "./project-seo-decisions";
 import { legacySeoReportSchema } from "./project-seo-legacy-report";
@@ -39,7 +40,6 @@ import {
   competitor,
   finding,
   keyword,
-  nullableNumber,
   observedAt,
   text,
 } from "./project-seo-report-rows";
@@ -74,6 +74,7 @@ import {
   pageResearchCoverage,
   siteResearchCoverage,
 } from "./seo-research-coverage";
+import { readSiteCrawl } from "./seo-site-crawl";
 import { readableStoredSiteSpeed, readSiteSpeed } from "./seo-site-speed";
 
 const publicSeoPayload = z.object({
@@ -94,6 +95,8 @@ const publicSeoPayload = z.object({
     readableStoredSiteSpeed,
     storedSiteSpeed.optional().catch(undefined),
   ),
+  /** A site audit's crawl of the rest of the site. Older rows and focused checks have none. */
+  siteCrawl: seoSiteCrawlSchema.optional().catch(undefined),
   checks: storedSeoChecklist,
   keywords: z.array(keyword).max(5000),
   competitors: z.array(competitor).max(1000),
@@ -334,6 +337,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       pageUrls,
       pageSpeed,
       siteSpeed: readSiteSpeed(raw, pageUrls, pageSpeed),
+      siteCrawl: readSiteCrawl(raw),
       strategyDecisions: decisions,
       decisionSources: decisions?.some((d) => d.kind === OPEN_STRATEGY)
         ? sources

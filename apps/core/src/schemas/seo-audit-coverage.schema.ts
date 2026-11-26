@@ -7,11 +7,11 @@ import {
   seoReportPlanCandidate,
   seoReportPlanSignal,
 } from "./seo-report-plan.schema";
-
 import {
   seoFirstScreen,
   seoKeywordTrends,
 } from "./seo-research-details.schema";
+import { seoSiteCrawlSchema } from "./seo-site-crawl.schema";
 
 export const seoDeviceSchema = z.enum(["mobile", "desktop"]);
 
@@ -112,6 +112,7 @@ export const seoObservationSchema = z
     checklistBreakdown: seoChecklistBreakdown.optional(),
     pageSpeed: seoPageSpeed.optional(),
     pageSpeedRecoveryFileId: seoIdSchema.optional(),
+    siteCrawl: seoSiteCrawlSchema.optional(),
     pageMarketEvidence: seoPageMarketEvidence.optional(),
     coverage: z.object({
       checked: z.number().int(),
