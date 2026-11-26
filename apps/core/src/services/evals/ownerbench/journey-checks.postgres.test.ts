@@ -16,6 +16,7 @@ import {
   claimedRunState,
   foregroundTurnId,
   freshConversationCheck,
+  routingFailures,
   withDescendants,
 } from "./journey-runner";
 import type { JourneyWorld } from "./journey-world";
@@ -423,6 +424,51 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     expect(
       (await withDescendants([root.id])).map((entry) => entry.id).sort(),
     ).toEqual([root.id, child.id, grandchild.id].sort());
+    await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
+    await prisma.sokoBot.deleteMany({ where: { id: botId } });
+  });
+
+  it("finds the journey's failed route picks, background runs included", async () => {
+    const botId = (
+      await prisma.sokoBot.create({
+        data: { userId, workspaceId },
+        select: { id: true },
+      })
+    ).id;
+    const turn = (parentTurnId?: string) =>
+      prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          source: "CHAT",
+          status: "COMPLETED",
+          clientTurnId: `lab:fixture:${randomUUID()}`,
+          userMessage: "hello",
+          capabilityNames: [],
+          deadlineAt: new Date(Date.now() + 60_000),
+          ...(parentTurnId ? { parentTurnId } : {}),
+        },
+        select: { id: true },
+      });
+    const root = await turn();
+    const child = await turn(root.id);
+    const call = (turnId: string, failed: boolean) =>
+      prisma.sokoBotModelCall.create({
+        data: {
+          turnId,
+          role: "classifier",
+          requestedModel: "typesafe-ai/jev",
+          failed,
+        },
+      });
+    await call(root.id, false);
+    expect(await routingFailures([root.id])).toEqual({ calls: 1, failed: 0 });
+    await call(child.id, true);
+    expect(await routingFailures([root.id])).toEqual({ calls: 2, failed: 1 });
+    await prisma.sokoBotModelCall.deleteMany({
+      where: { turnId: { in: [root.id, child.id] } },
+    });
     await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
     await prisma.sokoBot.deleteMany({ where: { id: botId } });
   });

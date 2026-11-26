@@ -883,6 +883,26 @@ export async function journeyTokens(turnIds: readonly string[]) {
   };
 }
 
+/**
+ * Classifier calls of the journey's turns, and how many failed. A failed
+ * route pick sends the turn down a fallback (read-only clarification), so a
+ * journey with any is an infrastructure error, not a verdict on the bot.
+ */
+export async function routingFailures(
+  turnIds: readonly string[],
+): Promise<{ calls: number; failed: number }> {
+  const turns = await withDescendants(turnIds);
+  const where = {
+    role: "classifier",
+    turnId: { in: turns.map((turn) => turn.id) },
+  };
+  const [calls, failed] = await Promise.all([
+    prisma.sokoBotModelCall.count({ where }),
+    prisma.sokoBotModelCall.count({ where: { ...where, failed: true } }),
+  ]);
+  return { calls, failed };
+}
+
 /** The turns and every turn they started, at any depth (a background run's own runs too). */
 export async function withDescendants(
   turnIds: readonly string[],
@@ -925,6 +945,15 @@ async function journeyOutcome(
   context: CaseContext,
 ): Promise<CaseOutcome> {
   const turnIds = state.steps.flatMap((step) => step.turnIds);
+  const routing = await routingFailures(turnIds);
+  if (routing.failed > 0)
+    return {
+      status: "ERROR",
+      checks: [],
+      output: { journey: journey.id, routing, steps: state.steps },
+      error: `Routing was unavailable: ${routing.failed} of ${routing.calls} classifier call(s) failed, so turns ran on the fallback route and the journey measures that, not the bot`,
+      turnIds,
+    };
   const unreached = journey.steps
     .slice(state.steps.length)
     .map((step, offset) => ({
