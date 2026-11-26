@@ -133,11 +133,34 @@ const savedPostSchema = z.object({
 /** Inside the tool's 115 seconds (`sokoBotToolCallTimeoutMs`), with room to answer. */
 const BATCH_BUDGET_MS = 100_000;
 
+/** An edit starts only with this long left, and may run at most until the batch's deadline. */
+const EDIT_MIN_MS = 15_000;
+
+/** A batch edit matched a post of the same batch whose words may still change. */
+class WaitsForBatchPostError extends Error {}
+
+class EditTimedOutError extends Error {}
+
+function beforeDeadline<T>(work: Promise<T>, deadline: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    work,
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new EditTimedOutError()),
+        Math.max(0, deadline - Date.now()),
+      );
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
 /**
  * update_social_posts: each post goes through update_social_post as a call
  * of its own (its checks, revision, approval and receipt), one after
- * another, so each is compared with the posts saved before it. One answer
- * names every refused post and all its problems.
+ * another. Each edit commits alone, so every check compares with the words
+ * posts hold in the database. A match on a batch post that may still get new
+ * words waits for the next round; one that has none left is refused. One
+ * answer names every refused post and all its problems.
  */
 async function updateSocialPosts(
   runtime: RuntimeOperations,
@@ -158,43 +181,82 @@ async function updateSocialPosts(
   const saved: { postId: string; revision: number; status: string }[] = [];
   const refused: { postId: string; problem: string }[] = [];
   const notTried: string[] = [];
+  const timedOut: { postId?: string } = {};
+  let call = 0;
   await withSocialPostBatch(unsaved, async () => {
-    for (const [index, post] of posts.entries()) {
-      unsaved.delete(post.postId);
-      if (Date.now() > deadline) {
-        notTried.push(post.postId);
-        continue;
+    let round = posts;
+    while (round.length > 0) {
+      const waiting: { post: (typeof posts)[number]; problem: string }[] = [];
+      for (const post of round) {
+        if (timedOut.postId || deadline - Date.now() < EDIT_MIN_MS) {
+          notTried.push(post.postId);
+          continue;
+        }
+        try {
+          const result = savedPostSchema.parse(
+            await beforeDeadline(
+              runtime.executeTool({
+                ...input,
+                capability: "update_social_post",
+                toolCallId: `${input.toolCallId}:${(call += 1)}`,
+                input: { projectId, ...post },
+              }),
+              deadline,
+            ),
+          );
+          saved.push({
+            postId: result.id,
+            revision: result.revision,
+            status: result.status,
+          });
+          unsaved.delete(post.postId);
+        } catch (error) {
+          if (error instanceof SokoBotRuntimeAuthorizationError) throw error;
+          if (error instanceof WaitsForBatchPostError) {
+            waiting.push({ post, problem: error.message });
+            continue;
+          }
+          // The edit may still commit: nothing after it is checked against
+          // words that could change underneath.
+          if (error instanceof EditTimedOutError) {
+            timedOut.postId = post.postId;
+            continue;
+          }
+          refused.push({
+            postId: post.postId,
+            problem: error instanceof Error ? error.message : "Not saved",
+          });
+          unsaved.delete(post.postId);
+        }
       }
-      try {
-        const result = savedPostSchema.parse(
-          await runtime.executeTool({
-            ...input,
-            capability: "update_social_post",
-            toolCallId: `${input.toolCallId}:${index + 1}`,
-            input: { projectId, ...post },
-          }),
-        );
-        saved.push({
-          postId: result.id,
-          revision: result.revision,
-          status: result.status,
-        });
-      } catch (error) {
-        if (error instanceof SokoBotRuntimeAuthorizationError) throw error;
-        refused.push({
-          postId: post.postId,
-          problem: error instanceof Error ? error.message : "Not saved",
-        });
+      if (timedOut.postId) {
+        notTried.push(...waiting.map(({ post }) => post.postId));
+        break;
       }
+      // No edit settled this round: the waiting posts wait on each other.
+      if (waiting.length === round.length) {
+        for (const { post, problem } of waiting)
+          refused.push({
+            postId: post.postId,
+            problem: `${problem} Neither could be saved first: give this post words of its own.`,
+          });
+        break;
+      }
+      round = waiting.map(({ post }) => post);
     }
   });
+  const next = [
+    timedOut.postId &&
+      "The stillSaving post's edit ran out of time and may still be saved: read it with get_social_post before changing it again.",
+    notTried.length > 0 &&
+      "Out of time for this call: send the notTried posts again.",
+  ].filter(Boolean);
   return {
     saved,
     refused,
-    ...(notTried.length > 0 && {
-      notTried,
-      next: "Out of time for this call: send the notTried posts again.",
-    }),
+    ...(timedOut.postId && { stillSaving: timedOut.postId }),
+    ...(notTried.length > 0 && { notTried }),
+    ...(next.length > 0 && { next: next.join(" ") }),
   };
 }
 
@@ -414,8 +476,13 @@ export async function executeSocialTool(
           await chargeCheck(input, EMBEDDING_MODEL, own.costUsd);
           if (opening)
             await chargeCheck(input, SOKO_BOT_JEV_MODEL, opening.costUsd);
-          const problems = [own.problem, opening?.problem].filter(Boolean);
+          const checks = [own, ...(opening ? [opening] : [])];
+          const problems = checks.flatMap((check) =>
+            check.problem && !check.waitsForBatch ? [check.problem] : [],
+          );
           if (problems.length > 0) throw badRequest(problems.join("\n"));
+          const wait = checks.find((check) => check.waitsForBatch);
+          if (wait?.problem) throw new WaitsForBatchPostError(wait.problem);
         }
       }
       if (

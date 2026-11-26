@@ -8151,6 +8151,136 @@ describe("Soko Bot project social tools", () => {
     expect(social.update).toHaveBeenCalledTimes(1);
   });
 
+  describe("a batch where one post takes another's words", () => {
+    const otherId = "0190e0c9-0000-7000-8000-0000000000b2";
+    const wait = {
+      problem:
+        'Wait for another post of this batch: this text says nearly what the post "Fees" says now.',
+      costUsd: 0,
+      waitsForBatch: true as const,
+    };
+    const batch = () =>
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_posts",
+        toolCallId: "swap",
+        input: {
+          projectId,
+          posts: [
+            { postId, revision: 2, text: "Fees" },
+            { postId: otherId, revision: 1, text: "Staking" },
+          ],
+        },
+      });
+
+    // Codex round 4 (#8243): A saved B's words, then B's edit failed and kept
+    // them. A now waits for B and is refused once B keeps its words.
+    it("saves neither when the other post's edit fails", async () => {
+      social.ownMessage
+        .mockResolvedValueOnce(wait)
+        .mockResolvedValueOnce({ problem: null, costUsd: 0 })
+        .mockResolvedValueOnce({
+          problem:
+            'Rewrite the post: it says nearly what the post "Fees" says.',
+          costUsd: 0,
+        });
+      social.update.mockRejectedValueOnce(
+        new Error("Social post was modified, reload and retry"),
+      );
+
+      const result = await batch();
+
+      expect(result).toEqual({
+        saved: [],
+        refused: [
+          {
+            postId: otherId,
+            problem: "Social post was modified, reload and retry",
+          },
+          {
+            postId,
+            problem:
+              'Rewrite the post: it says nearly what the post "Fees" says.',
+          },
+        ],
+      });
+      expect(social.update).toHaveBeenCalledTimes(1);
+    });
+
+    it("saves the waiting post after the other one got new words", async () => {
+      social.ownMessage
+        .mockResolvedValueOnce(wait)
+        .mockResolvedValueOnce({ problem: null, costUsd: 0 })
+        .mockResolvedValueOnce({ problem: null, costUsd: 0 });
+      social.update
+        .mockResolvedValueOnce({ ...post, id: otherId })
+        .mockResolvedValueOnce(post);
+
+      const result = await batch();
+
+      expect(result).toEqual({
+        saved: [
+          { postId: otherId, revision: 2, status: "DRAFT" },
+          { postId, revision: 2, status: "DRAFT" },
+        ],
+        refused: [],
+      });
+    });
+
+    it("refuses two posts that wait on each other", async () => {
+      social.ownMessage.mockResolvedValueOnce(wait).mockResolvedValueOnce(wait);
+
+      const result = await batch();
+
+      expect(result).toMatchObject({
+        saved: [],
+        refused: [
+          {
+            postId,
+            problem: expect.stringContaining("Neither could be saved"),
+          },
+          {
+            postId: otherId,
+            problem: expect.stringContaining("Neither could be saved"),
+          },
+        ],
+      });
+      expect(social.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // Codex round 4 (#8243): the deadline was checked only before each edit.
+  it("ends a batch at its deadline although an edit is still running", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    try {
+      const otherId = "0190e0c9-0000-7000-8000-0000000000b3";
+      social.update.mockReturnValueOnce(new Promise(() => {}));
+      const running = new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_posts",
+        toolCallId: "slow",
+        input: {
+          projectId,
+          posts: [
+            { postId, revision: 2, text: "Slow" },
+            { postId: otherId, revision: 1, text: "Next" },
+          ],
+        },
+      });
+      await vi.advanceTimersByTimeAsync(100_000);
+
+      await expect(running).resolves.toEqual({
+        saved: [],
+        refused: [],
+        stillSaving: postId,
+        notTried: [otherId],
+        next: expect.stringContaining("may still be saved"),
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("refuses a batch that names one post twice", async () => {
     await expect(
       new SokoBotRuntimeService().executeTool({
