@@ -254,6 +254,111 @@ describe.runIf(ON_POSTGRES)("shared trigger bodies", () => {
       ]);
     });
 
+    // A refresh that is not needed is not harmless: it computes the amount
+    // beside a Mainnet charge that may be changing it, and can store the older
+    // one. Whether a write refreshed a row is read off the row here: its
+    // amount is first set to a value no refresh computes. One transaction on
+    // one connection, so nothing depends on timing or on committed rows.
+    it("refreshes a Task's History row only from Mainnet's Transactions of Mainnet's events", async () => {
+      // `ours` is charged on Mainnet by an event without a Network; Preprod
+      // holds a Transaction of the same id. `theirs` is charged on Preprod;
+      // Mainnet holds a Transaction of the same id.
+      const [ours, theirs, charge, preprodCharge] = [
+        randomUUID(),
+        randomUUID(),
+        randomUUID(),
+        randomUUID(),
+      ];
+      const MARKED = 777;
+      const amounts = `SELECT "entityId", amount::int FROM shared.history
+        WHERE kind = 'TASK' AND "entityId" = ANY ($1)`;
+      const insert = (schema: string) =>
+        `INSERT INTO ${schema}."Transaction" (id, "updatedAt", amount)
+         VALUES ($1, now(), -100)`;
+
+      const seen = await firing(
+        {
+          "shared.task": ["history_task_sync"],
+          'shared."taskEvent"': ["history_task_event_sync"],
+          'mainnet."Transaction"': ["history_transaction_sync"],
+          'preprod."Transaction"': ["history_transaction_sync"],
+        },
+        async (db) => {
+          for (const schema of ["mainnet", "preprod"]) {
+            for (const id of [charge, preprodCharge]) {
+              await db.query(insert(schema), [id]);
+            }
+          }
+        },
+        async (db) => {
+          for (const [task, transaction, network] of [
+            [ours, charge, null],
+            [theirs, preprodCharge, "preprod"],
+          ]) {
+            await db.query(
+              `INSERT INTO shared.task (id, "updatedAt", name, "workspaceId")
+               VALUES ($1, now(), 'A Task', gen_random_uuid())`,
+              [task],
+            );
+            await db.query(
+              `INSERT INTO shared."taskEvent" (id, "updatedAt", "taskId", "transactionId", network)
+               VALUES (gen_random_uuid()::text, now(), $1, $2, $3)`,
+              [task, transaction, network],
+            );
+          }
+          const rows: unknown[] = [];
+          const after = async (sql: string, id: string) => {
+            await db.query(
+              `UPDATE shared.history SET amount = ${MARKED}
+               WHERE kind = 'TASK' AND "entityId" = ANY ($1)`,
+              [[ours, theirs]],
+            );
+            await db.query(sql, [id]);
+            const { rows: found } = await db.query(amounts, [[ours, theirs]]);
+            rows.push(
+              Object.fromEntries(
+                found.map((row) => [row.entityId, row.amount]),
+              ),
+            );
+          };
+          // Each write of a Transaction, on the Network that must not refresh
+          // the Task: update runs both loops of the function, delete the first
+          // and insert the second.
+          for (const [schema, id] of [
+            ["preprod", charge],
+            ["mainnet", preprodCharge],
+          ]) {
+            await after(
+              `UPDATE ${schema}."Transaction" SET amount = -150 WHERE id = $1`,
+              id,
+            );
+            await after(
+              `DELETE FROM ${schema}."Transaction" WHERE id = $1`,
+              id,
+            );
+            await after(insert(schema), id);
+          }
+          // Mainnet's Transaction of a Mainnet event does refresh its Task.
+          await after(
+            `UPDATE mainnet."Transaction" SET amount = -150 WHERE id = $1`,
+            charge,
+          );
+          return rows;
+        },
+      );
+
+      const untouched = { [ours]: MARKED, [theirs]: MARKED };
+      expect(seen).toEqual([
+        untouched,
+        untouched,
+        untouched,
+        untouched,
+        untouched,
+        untouched,
+        { [ours]: 150, [theirs]: MARKED },
+      ]);
+    });
+
     // No code writes a JOB Notification any more; old rows exist, and a
     // Network can write them again. One Job id is on both Networks, in
     // another Workspace on each.

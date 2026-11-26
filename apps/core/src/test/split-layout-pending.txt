@@ -16,21 +16,22 @@
 # 33): then change its ticket instead of deleting the line.
 #   19  a trigger or function body names `public.` or an unqualified table.
 #       Done (part 2, 2026-11-26): every body names its schemas, and no file
-#       waits for it. The 18 files that still failed got the ticket of their
-#       next error, each run alone and read from the server log.
+#       waits for it. The 18 files that still failed got the ticket that owns
+#       their next error, each run alone and read from the server log.
 #   25  the shared client reads a Network table of Jobs or Agents
 #   30, 29  the shared client reads a Network table (Soko Bot, Coworker usage)
 #   27  the shared client reaches tables for Network credit balances
+#   26  a delete or erasure reaches a Network table through the shared client
 #   18  the test replays a migration written for one schema
 #   17  unqualified raw SQL, or the test's own client or SQL on `public`
 #
 # <file from apps/core> <ticket>  # reason
-src/helpers/__tests__/task-parent-links-to-subtasks.postgres.test.ts 17  # the test's own SQL names bare task_link
+src/helpers/__tests__/task-parent-links-to-subtasks.postgres.test.ts 18  # replayed migration: SQL outside a trigger names bare task_link
 src/helpers/__tests__/task-subtask-reparent-migration.postgres.test.ts 18  # replayed migration: SQL outside a trigger names bare task (from the server log; the test reports AssertionError: expected PrismaClientKnownRequestError{ …(7))
-src/helpers/calendar-erasure.postgres.test.ts 27  # the shared client reaches the Network table task_x402_payment
+src/helpers/calendar-erasure.postgres.test.ts 26  # erasure: the shared client reaches the Network table task_x402_payment
 src/helpers/soko-bot-owner-scope-backfill.postgres.test.ts 18  # replayed migration: SQL outside a trigger names bare soko_bot
 src/helpers/task-visibility.postgres.test.ts 17  # SQL outside a trigger names bare task
-src/helpers/user-deletion-tasks.postgres.test.ts 27  # the shared client reaches the Network table task_x402_payment
+src/helpers/user-deletion-tasks.postgres.test.ts 26  # user deletion: the shared client reaches the Network table task_x402_payment
 src/lib/files/evidence-scope.postgres.test.ts 17  # SQL outside a trigger names bare task
 src/routes/v1/chats/rooms/retire-org-directs.postgres.test.ts 18  # replayed migration: SQL outside a trigger names bare chat_room
 src/routes/v1/coworkers/me/usage/post.postgres.test.ts 29  # the shared client reaches the Network table Transaction

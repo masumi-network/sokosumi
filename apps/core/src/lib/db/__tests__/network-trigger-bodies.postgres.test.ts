@@ -2,15 +2,17 @@
  * `packages/database/prisma/network-layout/network-trigger-bodies.sql`: the
  * bodies of the functions on Network tables, one copy per Network from one
  * template. On the split layout each copy must reach its own Network's tables
- * and the shared ones, and never the other Network's: every test here renames
- * the other Network's schema away before it fires the triggers, so PostgreSQL
- * refuses a body that names it. The other Network also holds rows with the
- * same ids and other values, so a copy that read them would show.
+ * and the shared ones, and never the other Network's. Two kinds of test:
+ * - one copy alone: the other Network's schema is renamed away before the
+ *   triggers fire, so PostgreSQL refuses a body that names it. The other
+ *   Network also holds rows with the same ids and other values, so a copy
+ *   that read them would show;
+ * - both copies: both schemas stay, one Job id is on both Networks, and each
+ *   Network's History row must survive what the other one writes.
  *
  * The rows under test are written with `session_replication_role = replica`,
  * which skips foreign keys, and with the triggers under test set to fire
- * anyway. So no test needs a Task: creating one fires a trigger on a shared
- * table that still waits for the row's Network (ticket 19 part 2).
+ * anyway. So no test needs user, Workspace or Agent rows.
  */
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";

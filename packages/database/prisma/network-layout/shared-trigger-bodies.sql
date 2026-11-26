@@ -1,14 +1,18 @@
 -- Trigger and function bodies for the three-schema layout (`shared`, `mainnet`,
--- `preprod`): the functions behind the triggers on shared tables that reach
--- shared objects only, and the helpers they call. Each body is the one the
--- migrations created, with every table, type, sequence and function named with
--- its schema; a trigger runs on its caller's search path, so a bare name would
--- resolve there or not at all.
+-- `preprod`): the functions behind the triggers on shared tables, and the
+-- helpers they call. Each body is the one the migrations created, with every
+-- table, type, sequence and function named with its schema; a trigger runs on
+-- its caller's search path, so a bare name would resolve there or not at all.
+--
+-- Some bodies differ from their migration's in more than schema names. The
+-- three paragraphs below list every such difference. Keep them when you copy
+-- a migration's new body over one of these.
 --
 -- A function here that reads a Network table names the Network's schema in
 -- its body. Image Studio is Mainnet only and its tables have no `network`
 -- column, so the image History functions (`history_image_amount` and its
 -- callers) name `mainnet`.
+--
 -- The Task and image rows of `shared."history"` have no Network, so their
 -- upserts conflict on (kind, entityId) WHERE network IS NULL, the key
 -- `history_untagged_kind_entityId_key`. The old key on (kind, entityId) must
@@ -34,10 +38,10 @@
 --
 -- The guard refuses unless each function below is in `shared` with the body
 -- the migrations create, by digest, and unless every function of `shared` is
--- one of them. So a second run refuses too. That only
--- schema names differ from those bodies is not checked by any code: it was
--- compared once for this text, and every later change to a body is reviewed
--- against its migration before its digest is updated.
+-- one of them. So a second run refuses too. No code checks how a body here
+-- differs from its migration's: it was compared once for this text, and every
+-- later change to a body is reviewed against its migration before its digest
+-- is updated.
 --
 -- Not here: the functions on Network tables, which each Network schema holds
 -- a copy of (`network-trigger-bodies.sql`).
@@ -160,7 +164,7 @@ BEGIN
       problem, file;
   END IF;
   IF changed IS NOT NULL THEN
-    RAISE EXCEPTION 'a migration changed this function: %. Update its body in %, check by eye that only schema names differ from the migration''s body, then update its digest there',
+    RAISE EXCEPTION 'a migration changed this function: %. Update its body in %: copy the migration''s new body, put the schema names in again and keep every difference the file''s header lists (the Network a body reads, filters by or writes, and the History conflict targets). Check by eye that nothing else differs from the migration''s body, then update its digest there',
       changed, file;
   END IF;
   PERFORM set_config('search_path', settings[1], true), set_config('quote_all_identifiers', settings[2], true);

@@ -13,10 +13,8 @@ export function testSchemaNames() {
 
 /**
  * Runs a test fixture's writes in one transaction whose search path holds this
- * run's schemas (shared, then Mainnet). Written when some trigger bodies
- * still named a table or a function without its schema. Since ticket 19 part 2
- * every trigger body on the split layout names its schemas, so no body needs
- * this path any more. Test fixtures only; production SQL names its schemas.
+ * run's schemas (shared, then Mainnet). Test fixtures only; production SQL
+ * names its schemas.
  */
 export async function withFixtureSchemas<T>(
   run: (tx: Prisma.TransactionClient) => Promise<T>,

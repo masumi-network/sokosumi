@@ -122,13 +122,21 @@ describe.skipIf(!enabled)("Network-aware unique indexes", () => {
   describe.each(["history", "notification"] as const)("%s", (table) => {
     // The split layout is the window's end state: its script dropped the
     // old key with the bodies that needed it.
-    it.runIf(onSplitLayout)("has no old key on the split layout", async () => {
-      await rolledBack(async (tx) => {
-        const [{ old }] = await tx.$queryRaw<{ old: string | null }[]>`
-          SELECT to_regclass(${`"${sharedSchema}"."${INDEXES[table].old}"`})::text AS old`;
-        expect(old).toBeNull();
-      });
-    });
+    it.runIf(onSplitLayout)(
+      "has both new indexes valid and no old key on the split layout",
+      async () => {
+        await rolledBack(async (tx) => {
+          const { old, network, untagged } = INDEXES[table];
+          const valid = await tx.$queryRaw<{ name: string }[]>`
+          SELECT c.relname::text AS name
+          FROM pg_catalog.pg_index i JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid
+          WHERE i.indrelid = ${sharedTable(table).sql}::regclass
+            AND i.indisvalid AND c.relname::text IN (${old}, ${network}, ${untagged})
+          ORDER BY c.relname`;
+          expect(valid.map(({ name }) => name)).toEqual([network, untagged]);
+        });
+      },
+    );
 
     it.runIf(!onSplitLayout)(
       "keeps the old key in use and has both new indexes valid",
