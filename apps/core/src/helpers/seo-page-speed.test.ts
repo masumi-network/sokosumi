@@ -394,6 +394,28 @@ describe("imported full-audit PageSpeed evidence", () => {
     ).toMatchObject({ pageSpeed: { insights: [valid] } });
   });
 
+  it("reads the first 20 stored insights and keeps the device of a longer list", () => {
+    const stored = JSON.parse(
+      JSON.stringify(
+        parsePublicSeoArtifact({
+          ...legacyReport(),
+          speed: readings(SEO_TEST_PAGE),
+        }),
+      ),
+    );
+    const row = stored.pageSpeed.find(
+      (item: { lab: { pageSpeed?: { insights: unknown[] } } }) =>
+        item.lab.pageSpeed?.insights.length,
+    );
+    const [valid] = row.lab.pageSpeed.insights;
+    row.lab.pageSpeed.insights = Array.from({ length: 21 }, () => valid);
+    const read = publicSeoPayloadSchema.parse(stored);
+    expect(read.pageSpeed).toHaveLength(stored.pageSpeed.length);
+    expect(
+      read.pageSpeed?.find((item) => item.device === row.device)?.lab,
+    ).toMatchObject({ pageSpeed: { insights: { length: 20 } } });
+  });
+
   it("reads a stored collection that is no array as absent and keeps the first 20 measurements", () => {
     const stored = JSON.parse(
       JSON.stringify(
@@ -660,6 +682,17 @@ describe("CrUX History on a measured field", () => {
     expect(
       publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.field,
     ).toMatchObject({ history: { status: "comparable" } });
+    // Weeks that are not oldest first would turn the trend around: the history goes.
+    for (const weeks of [[...three].reverse(), [three[0], three[0]]]) {
+      stored.pageSpeed[0].field.history = { status: "comparable", weeks };
+      const field = publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.field;
+      expect(field).toMatchObject({ status: "measured", p75: { lcp: 1300 } });
+      expect(field).not.toHaveProperty("history");
+    }
+    stored.pageSpeed[0].field.history = { status: "comparable", weeks: three };
+    expect(
+      publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.field,
+    ).toMatchObject({ history: { weeks: three } });
   });
 
   it("drops a stored history it cannot read and keeps the measurement and the audit", () => {

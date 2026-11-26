@@ -101,6 +101,8 @@ function successfulSource(raw: unknown) {
   );
 }
 
+/** The insights of one lab result that Core reads. The stored list holds no more. */
+const SPEED_INSIGHTS = 20;
 function details(raw: unknown) {
   const lab = reportObject(raw);
   const row = reportObject(lab?.pageSpeed);
@@ -118,7 +120,7 @@ function details(raw: unknown) {
   const scores = lighthouseScores.safeParse(row.scores);
   const measuredAt = z.string().datetime().safeParse(row.measuredAt);
   const insights = (
-    Array.isArray(row.insights) ? row.insights.slice(0, 20) : []
+    Array.isArray(row.insights) ? row.insights.slice(0, SPEED_INSIGHTS) : []
   ).flatMap((value) => {
     const parsed = speedInsight.safeParse(value);
     // The guard reads the worker's insight: the parsed one has no group.
@@ -360,6 +362,17 @@ export function readPageSpeed(
   return rows;
 }
 
+/** A history the schema reads, with its weeks oldest first as a fresh import stores them. */
+function orderedHistory(history: unknown) {
+  const read = speedHistory.safeParse(history);
+  return (
+    read.success &&
+    (read.data.weeks ?? []).every(
+      (day, i, weeks) => i === 0 || day > weeks[i - 1]!,
+    )
+  );
+}
+
 /**
  * One stored measurement before the schema reads it, with the guards of a fresh import. None: a URL is not
  * public. The field URL gets the form a fresh import stores. A history Core cannot read and a lab insight
@@ -384,7 +397,7 @@ export function readableStoredMeasurement(value: unknown): unknown[] {
     // A comparable history with a series that is no object reads as a fresh import reads it: unavailable.
     const series = reportObject(history)?.series;
     read.field =
-      history === undefined || !speedHistory.safeParse(history).success
+      history === undefined || !orderedHistory(history)
         ? measured
         : reportObject(history)?.status === "comparable" &&
             series != null &&
@@ -406,11 +419,14 @@ export function readableStoredMeasurement(value: unknown): unknown[] {
           pageSpeed: {
             ...details,
             // An insight the schema refuses goes, as on a fresh import: not its device.
-            insights: details.insights.filter(
-              (item) =>
-                speedInsight.safeParse(item).success &&
-                publicSpeedInsight(item),
-            ),
+            // The first 20 are read, as on a fresh import: a longer list does not cost the device.
+            insights: details.insights
+              .slice(0, SPEED_INSIGHTS)
+              .filter(
+                (item) =>
+                  speedInsight.safeParse(item).success &&
+                  publicSpeedInsight(item),
+              ),
           },
         }),
     };
