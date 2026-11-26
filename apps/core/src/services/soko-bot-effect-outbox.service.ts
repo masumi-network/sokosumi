@@ -396,15 +396,15 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
 export async function syncSokoBotEffects(input: {
   shouldContinue: () => boolean;
   abortSignal: AbortSignal;
-  /** Only turns in these workspaces: the local eval runner drains its lanes, not the whole database. */
-  workspaceIds?: string[];
+  /** Only these turns' effects: an eval case retries its own messages, wherever it runs. */
+  turnIds?: string[];
 }): Promise<number> {
   let published = 0;
   while (!input.abortSignal.aborted && input.shouldContinue()) {
     const effects = await prisma.sokoBotEffectOutbox.findMany({
       where: {
-        ...(input.workspaceIds
-          ? { receipt: { turn: { workspaceId: { in: input.workspaceIds } } } }
+        ...(input.turnIds
+          ? { receipt: { turnId: { in: input.turnIds } } }
           : {}),
         status: { in: ["PENDING", "PERSISTED"] },
         nextAttemptAt: { lte: new Date() },

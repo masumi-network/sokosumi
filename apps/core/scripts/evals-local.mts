@@ -116,24 +116,7 @@ const run = await createEvalRun({
 });
 console.log(`Run ${run.id} (${plan ? "ChatGPT plan" : "Gateway"})`);
 
-// Deployed Core publishes committed chat and task effects from its sync cron;
-// this runner is the only process here, so it drains its lanes' share.
-const { syncSokoBotEffects } = await import(
-  "@/services/soko-bot-effect-outbox.service"
-);
-const drainLaneEffects = async () => {
-  const lanes = await prisma.evalLane.findMany({
-    select: { workspaceId: true },
-  });
-  await syncSokoBotEffects({
-    shouldContinue: () => true,
-    abortSignal: new AbortController().signal,
-    workspaceIds: lanes.map((lane) => lane.workspaceId),
-  });
-};
-
 for (;;) {
-  await drainLaneEffects();
   const tick = await tickEvalRuns();
   const { status } = await prisma.evalRun.findUniqueOrThrow({
     where: { id: run.id },
