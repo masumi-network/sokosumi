@@ -3282,7 +3282,13 @@ describe("SokoBotControlPlane lifecycle", () => {
           requestedByUserId: "user_1",
           workspaceId: "workspace_1",
         },
-        OR: [{ turnId: null }, { turnId: "turn_scheduled" }],
+        OR: [
+          { turnId: "turn_scheduled" },
+          {
+            turnId: null,
+            schedule: { OR: [{ enabled: true }, { runOnce: true }] },
+          },
+        ],
       },
       data: { turnId: "turn_scheduled" },
     });

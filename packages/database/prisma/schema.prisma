@@ -3373,9 +3373,15 @@ model SokoBotSchedule {
   /// their chat tools. Empty for built-ins and console schedules written
   /// before 2026-11-16, which Jev classifies on every run.
   capabilityNames     String[]  @default([])
+  /// Core-owned OwnerAuthority envelope bound to this schedule (ADR:
+  /// neon-arch-owner-authority). Null for legacy schedules created before
+  /// OwnerAuthority persistence.
+  authority           Json?
   nextRunAt           DateTime
   lastRunAt           DateTime?
   consecutiveFailures Int       @default(0)
+  /// Durable count of distinct completed runs; survives the 7-day run retention purge.
+  completedRuns       Int       @default(0)
 
   /// The Task or Job this schedule follows. Core removes the schedule once
   /// that work finishes; the result itself wakes the bot through the events sync.

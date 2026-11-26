@@ -67145,6 +67145,9 @@ export const CreateSokoBotScheduleRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 20000
+        },
+        stopRule: {
+            $ref: '#/components/schemas/SokoBotScheduleStopRuleInput'
         }
     },
     required: [
@@ -67154,6 +67157,138 @@ export const CreateSokoBotScheduleRequestSchema = {
         'prompt'
     ],
     additionalProperties: false
+} as const;
+
+export const SokoBotScheduleStopRuleInputSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'never'
+                    ]
+                }
+            },
+            required: [
+                'mode'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'ends_on'
+                    ]
+                },
+                scheduleId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                },
+                endsOn: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-12-31T23:59:59+01:00'
+                }
+            },
+            required: [
+                'mode',
+                'endsOn'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'ends_after_runs'
+                    ]
+                },
+                scheduleId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                },
+                maxRuns: {
+                    type: 'integer',
+                    minimum: 1,
+                    maximum: 10000
+                }
+            },
+            required: [
+                'mode',
+                'maxRuns'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'when_target_settled'
+                    ]
+                },
+                scheduleId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                },
+                targetKind: {
+                    type: 'string',
+                    enum: [
+                        'task',
+                        'job'
+                    ]
+                },
+                targetId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                }
+            },
+            required: [
+                'mode',
+                'targetKind',
+                'targetId'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'owner_authorized_stop'
+                    ]
+                },
+                scheduleId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                },
+                condition: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 300
+                }
+            },
+            required: [
+                'mode',
+                'condition'
+            ],
+            additionalProperties: false
+        }
+    ]
 } as const;
 
 export const UpdateSokoBotScheduleRequestSchema = {
@@ -67181,6 +67316,9 @@ export const UpdateSokoBotScheduleRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 20000
+        },
+        stopRule: {
+            $ref: '#/components/schemas/SokoBotScheduleStopRuleInput'
         },
         run: {
             type: 'object',
