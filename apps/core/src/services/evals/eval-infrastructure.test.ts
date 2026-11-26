@@ -24,8 +24,10 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+import type { CaseOutcome } from "./eval-case-runner";
 import {
   evalInfrastructureFailure,
+  guardOrganizer,
   organizerCaseOutcome,
   organizerFailure,
 } from "./eval-infrastructure";
@@ -69,6 +71,35 @@ describe("a context organizer that lost its read", () => {
         infrastructure: { code: "context_organizer_failed" },
       },
     });
+  });
+
+  it("checks every turn of a stored case, dependent turns included", async () => {
+    // A strategy case: the plan turn, then two finish turns Core started
+    // afterwards (no parent link). Only the second finish lost its read.
+    turns.push(
+      { id: "plan", parentTurnId: null, packet: organized({ ms: 900 }) },
+      { id: "finish-1", parentTurnId: null, packet: organized({ ms: 800 }) },
+      { id: "finish-2", parentTurnId: null, packet: TIMED_OUT },
+    );
+    const scored: CaseOutcome = {
+      status: "PASSED",
+      checks: [{ label: "Month full", pass: true, actual: "24 of 24" }],
+      output: { answer: "Done" },
+      turnIds: ["plan", "finish-1", "finish-2"],
+    };
+    expect(await guardOrganizer(scored, PLAN)).toMatchObject({
+      status: "ERROR",
+      checks: [],
+      turnIds: ["plan", "finish-1", "finish-2"],
+      output: { infrastructure: { detail: expect.stringContaining("1 of 3") } },
+    });
+    expect(
+      await guardOrganizer({ ...scored, status: "FAILED" }, PLAN),
+    ).toMatchObject({ status: "ERROR" });
+    // Scored on the gateway; ERROR and SKIPPED keep their own reason.
+    expect(await guardOrganizer(scored, {})).toBe(scored);
+    const skipped: CaseOutcome = { ...scored, status: "SKIPPED" };
+    expect(await guardOrganizer(skipped, PLAN)).toBe(skipped);
   });
 
   it("leaves a clean plan case and every gateway case scored", async () => {

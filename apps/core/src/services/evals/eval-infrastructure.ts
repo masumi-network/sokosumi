@@ -146,6 +146,22 @@ export async function organizerCaseOutcome(
     : null;
 }
 
+/**
+ * Every scored case passes here before it is stored, so all of its turns are
+ * checked: follow-ups, finish turns, chain and month turns alike.
+ */
+export async function guardOrganizer(
+  outcome: CaseOutcome,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<CaseOutcome> {
+  if (outcome.status !== "PASSED" && outcome.status !== "FAILED")
+    return outcome;
+  return (
+    (await organizerCaseOutcome(outcome.turnIds, outcome.output, env)) ??
+    outcome
+  );
+}
+
 /** A hard cap stops each lane before its next start. Other lanes may be starting. */
 export async function stopPendingAfterBudgetError(
   runId: string,

@@ -82,7 +82,6 @@ import { prepareCmoWeeklyReview } from "./eval-cmo-weekly-review";
 import {
   evalInfrastructureFailure,
   infrastructureCaseOutcome,
-  organizerCaseOutcome,
 } from "./eval-infrastructure";
 import type { EvalLaneRecord } from "./eval-lanes.service";
 import brandBrains from "./fixtures/cmo-brand-brains.json";
@@ -1427,14 +1426,11 @@ export async function pollCmoCase(
       FINISH_START_GRACE_MS
   )
     return { kind: "waiting" };
-  const turnOutput = {
+  const infrastructure = infrastructureCaseOutcome(result.turnId, turn, {
     answer: turn.finalAnswer,
     turnStatus: turn.status,
     errorKind: turn.errorKind,
-  };
-  const infrastructure =
-    infrastructureCaseOutcome(result.turnId, turn, turnOutput) ??
-    (await organizerCaseOutcome([result.turnId], turnOutput));
+  });
   if (infrastructure) return { kind: "done", outcome: infrastructure };
   const completed = {
     label: "Turn completed",
