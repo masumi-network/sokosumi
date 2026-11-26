@@ -711,6 +711,17 @@ describe("RoomsClient room header chrome", () => {
     expect(screen.getByTestId("room-open-title").tagName).not.toBe("BUTTON");
   });
 
+  it("shows a 1:1 Direct's face beside its name on a phone, not in the heading's name", () => {
+    renderRoom(humanDirectRoom());
+
+    const heading = screen.getByRole("heading", { level: 1 });
+    const face = screen.getByTestId("room-title-face");
+    expect(heading).toContainElement(face);
+    expect(face).toHaveClass("md:hidden");
+    expect(face).toHaveAttribute("aria-hidden", "true");
+    expect(heading).toHaveAccessibleName("Bob");
+  });
+
   it("names a self Direct on the second line", () => {
     renderRoom({
       ...humanDirectRoom(),

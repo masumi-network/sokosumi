@@ -53,7 +53,7 @@ import { UnreadThreadsPanel } from "./unread-threads-panel";
  * so every room's title text starts at one x.
  */
 const ROOM_TITLE_STATIC_CLASS =
-  "text-foreground flex min-w-0 max-w-full items-center gap-1.5 px-1.5 py-0.5 text-sm md:gap-2";
+  "text-foreground flex min-w-0 max-w-full items-center gap-1.5 px-1.5 py-0.5 text-sm max-md:font-medium md:gap-2";
 
 /**
  * The room title as the way into its settings: a Channel's (its members panel
@@ -447,7 +447,22 @@ export function RoomHeaderChrome({
                   />
                 </span>
               ) : (
-                DIRECT_ICON
+                <>
+                  {/* On a phone the header is the room's only identity, so
+                      it shows who the Direct is with, as the sidebar row
+                      does; from md the sidebar sits beside it. */}
+                  <span
+                    aria-hidden
+                    data-testid="room-title-face"
+                    className={cn(CHAT_TITLE_MARK_CLASS, "md:hidden")}
+                  >
+                    <DirectRoomAvatarStack
+                      room={room}
+                      currentUserId={currentUserId}
+                    />
+                  </span>
+                  <span className="hidden md:contents">{DIRECT_ICON}</span>
+                </>
               )}
               <span className="min-w-0 truncate" data-testid="room-open-title">
                 {displayName}
