@@ -388,8 +388,11 @@ Mainnet and Preprod get one schema each beside `shared`; a Network model is one 
 - Raw SQL names the schema of every table and enum type it uses: `sharedTable("task")`, `netTable(network, "Job")`, `sharedType("TaskStatus")` and `netType(network, "AgentStatus")` from `@sokosumi/database/sql-tables` ([database package rules](../../packages/database/AGENTS.md)). The clients share one pool and the tables leave `public`, so a bare name leans on the search path. New raw SQL uses the helpers.
 - `src/lib/db/prisma.ts` configures the helpers from `DATABASE_SCHEMA_*` and `NETWORK_PREPROD_ENABLED` when it loads, so they name the schemas the clients name.
 - The helpers' name arguments are typed from `packages/database/prisma/network-tables.json`, so a misspelled name, a name of the other side, or a table where an enum goes fails the caller's typecheck. A name held in a variable needs that type too (`SharedTableName`, `NetworkTableName`, `SharedEnumName`, `NetworkEnumName`).
-- `src/lib/db/__tests__/unqualified-raw-sql.test.ts` reports bare table names. It is advisory: it fails nothing.
-- `Test Core PostgreSQL split layout` fails on a bare table or type name in a complete statement under the paths in `SOURCE_PATHS` ([`scripts/prepare-raw-sql.ts`](scripts/prepare-raw-sql.ts)). The check skips statements built from fragments. Add a path there when its raw SQL is qualified.
+- `Test Core PostgreSQL split layout` fails on a bare table or type name in production raw SQL under the paths in `SOURCE_PATHS` ([`scripts/prepare-raw-sql.ts`](scripts/prepare-raw-sql.ts)), in two ways:
+  - **A complete statement** is resolved by PostgreSQL (`PREPARE`), so every name and type in it is checked.
+  - **What cannot be prepared** (a statement built from pieces, a `Prisma.sql` fragment, the string pieces a `*RawUnsafe` statement names, a command such as `TRUNCATE`) is read as text by [`src/test/raw-sql-bare-names.ts`](src/test/raw-sql-bare-names.ts): a table keyword in any case followed by one of our table names without a schema, or a cast to a quoted type without one. Its header lists what it cannot see (a table after a comma, `CAST(x AS "Type")`, a name in a variable).
+  - The failure names file and line. Fix it with the helpers. For a false finding (a common table expression named like a table), add an entry with its reason to `EXCEPTIONS` in the script; an entry that matches nothing fails.
+- Test files are not checked by that step. `src/lib/db/__tests__/unqualified-raw-sql.test.ts` reports bare table names everywhere, tests included. It is advisory: it fails nothing.
 
 ### File/Blob Resources
 

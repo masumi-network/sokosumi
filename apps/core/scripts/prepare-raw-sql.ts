@@ -2,7 +2,7 @@
 // database. PREPARE analyzes statements without executing them.
 import { createHash } from "node:crypto";
 import { globSync } from "node:fs";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 
 import {
   createSqlTables,
@@ -15,6 +15,12 @@ import {
 import ts from "@typescript/typescript6";
 import { Client } from "pg";
 
+import {
+  bareNames,
+  type SqlText,
+  sqlTexts,
+} from "../src/test/raw-sql-bare-names";
+
 const ROOT = resolve(import.meta.dirname, "../../..");
 const SOURCE_PATHS = [
   "packages/database/src",
@@ -23,6 +29,7 @@ const SOURCE_PATHS = [
   "apps/core/src/services",
   "apps/core/src/lib",
   "apps/core/src/types",
+  "apps/core/scripts",
 ];
 const RAW = new Set(["$queryRaw", "$executeRaw"]);
 const UNSAFE = new Set(["$queryRawUnsafe", "$executeRawUnsafe"]);
@@ -32,6 +39,8 @@ const PREPARABLE = new Set(
 
 // Keyed by repository path and SHA-256 of the TypeScript template. Moving
 // lines does not affect a waiver. Changing or removing the template does.
+// A false finding of the bare name check (`src/test/raw-sql-bare-names.ts`)
+// has the code "bare name" and the finding's text as its message.
 const EXCEPTIONS = new Map([
   [
     "apps/core/src/helpers/history.ts:65c9474cb59f536d76fb2170cf6482c5c31e61b6045f236c0c284873eb11ef06",
@@ -174,7 +183,11 @@ function findStatements(source: ts.SourceFile, checker: ts.TypeChecker) {
     statements.push({ node, template: expression, unsafe });
   }
   visit(source);
-  return { statements, fragments: fragments.difference(usedTemplates).size };
+  return {
+    statements,
+    templates: fragments,
+    fragments: fragments.difference(usedTemplates).size,
+  };
 }
 
 function canPrepare(sql: string) {
@@ -308,6 +321,9 @@ const client = new Client({
 await client.connect();
 try {
   let sequence = 0;
+  // What PREPARE never sees: every `Prisma.sql` template, every statement it
+  // skips, and the string pieces a skipped `*RawUnsafe` statement names.
+  const unprepared = new Set<SqlText>();
   for (const { path, files } of groups) {
     if (!files.length) throw new Error(`No production TypeScript in ${path}`);
     const counts = {
@@ -321,8 +337,12 @@ try {
     for (const file of files) {
       const source = program.getSourceFile(resolve(ROOT, file));
       if (!source) throw new Error(`Could not parse ${file}`);
-      const { statements, fragments } = findStatements(source, checker);
+      const { statements, templates, fragments } = findStatements(
+        source,
+        checker,
+      );
       fragmentCount += fragments;
+      for (const template of templates) unprepared.add(template);
       for (const candidate of statements) {
         const { line } = source.getLineAndCharacterOfPosition(
           candidate.node.getStart(source),
@@ -337,6 +357,11 @@ try {
           if (typeof variants === "string") {
             counts[variants]++;
             console.log(`${location} not preparable (${variants})`);
+            for (const text of sqlTexts(
+              candidate.template ?? candidate.node,
+              candidate.unsafe ? checker : undefined,
+            ))
+              unprepared.add(text);
             continue;
           }
           const exception = EXCEPTIONS.get(key);
@@ -381,11 +406,36 @@ try {
       `${path}: ${files.length} files, ${statementCount} statements (${prepared} prepared, ${excepted} excepted, ${command} commands, ${assembled} assembled, ${failed} failed), ${fragmentCount} fragments`,
     );
   }
+  let bare = 0;
+  for (const text of unprepared) {
+    const found = bareNames(text);
+    if (!found.length) continue;
+    const file = relative(ROOT, text.getSourceFile().fileName);
+    const hash = createHash("sha256").update(text.getText()).digest("hex");
+    const key = `${file}:${hash}`;
+    const message = found.map(({ name }) => name).join(", ");
+    const exception = EXCEPTIONS.get(key);
+    if (exception?.code === "bare name" && exception.message === message) {
+      EXCEPTIONS.delete(key);
+      console.log(`${file}:${found[0]?.line} excepted: ${exception.reason}`);
+      continue;
+    }
+    bare += found.length;
+    for (const { line, name } of found)
+      reportFailure(
+        `${file}:${line}`,
+        key,
+        Object.assign(new Error(name), { code: "bare name" }),
+      );
+  }
+  console.log(
+    `Not prepared: ${unprepared.size} fragments, skipped statements and their string pieces, ${bare} bare names`,
+  );
   for (const [key, { line, reason }] of EXCEPTIONS) {
     reportFailure(
       `${key.split(":")[0]}:${line}`,
       key,
-      `Stale exception: no preparable statement matches (${reason}). Remove this entry.`,
+      `Stale exception: no preparable statement or bare name matches (${reason}). Remove this entry.`,
     );
   }
 } finally {
