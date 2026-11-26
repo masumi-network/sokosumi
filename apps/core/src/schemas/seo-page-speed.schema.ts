@@ -58,10 +58,12 @@ export const SPEED_HISTORY_STATUSES = [
  * A calendar day: 2026-02-31 is none. A plain string with a check: the generated client types a date format
  * as Date and does not convert it here.
  */
+// Built once: a history holds up to 40 weeks per metric, and a workspace read parses many histories.
+const calendarDay = z.string().date();
 export const speedDay = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .refine((day) => z.string().date().safeParse(day).success);
+  .refine((day) => calendarDay.safeParse(day).success);
 const weekly = z.array(speedValue).max(SPEED_HISTORY_WEEKS);
 /** CrUX History of a measured field. The series is present only for a comparable population. */
 export const speedHistory = z.object({

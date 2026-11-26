@@ -388,8 +388,8 @@ export function readPageSpeed(
 }
 
 /**
- * A stored history as a fresh import stores it. None: it has no status Core knows, or its weeks are no
- * days, oldest first. A status that is not comparable stays alone, whatever else the history holds. Each
+ * A stored history as a fresh import stores it. None: it has no status Core knows. Unavailable: its weeks are
+ * no days, oldest first, as on a fresh import. A status that is not comparable stays alone, whatever else the history holds. Each
  * metric is read alone, and stays only with one value per week.
  */
 function storedHistory(history: unknown): SpeedHistory | undefined {
@@ -421,8 +421,8 @@ function storedHistory(history: unknown): SpeedHistory | undefined {
 
 /**
  * One stored measurement before the schema reads it, with the guards of a fresh import. None: the page URL
- * or the tested URL is not public. The field URL gets the form a fresh import stores. A history Core cannot read and a lab insight
- * with text that is not public go, a Lighthouse version that is not plain is null; the measurement stays.
+ * or the tested URL is not public. The field URL gets the form a fresh import stores. A history without a status Core knows and a lab
+ * insight with text that is not public go, a history with weeks Core cannot read is unavailable, a Lighthouse version that is not plain is null; the measurement stays.
  */
 export function readableStoredMeasurement(value: unknown): unknown[] {
   const row = reportObject(value);
