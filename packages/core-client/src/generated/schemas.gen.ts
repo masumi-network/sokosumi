@@ -45043,6 +45043,12 @@ export const SocialPostSchema = {
                     type: 'string',
                     minLength: 1,
                     maxLength: 400
+                },
+                applyOpId: {
+                    type: 'string'
+                },
+                applyCreateOpId: {
+                    type: 'string'
                 }
             },
             required: [
@@ -51622,6 +51628,9 @@ export const ProjectSeoActionSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        impact: {
+            $ref: '#/components/schemas/ProjectSeoActionImpact'
+        },
         kind: {
             type: 'string',
             enum: [
@@ -51650,6 +51659,122 @@ export const ProjectSeoActionSchema = {
         'status',
         'kind',
         'evidence'
+    ]
+} as const;
+
+export const ProjectSeoActionImpactSchema = {
+    type: 'object',
+    properties: {
+        anchor: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        anchorKind: {
+            type: 'string',
+            enum: [
+                'completed',
+                'verified'
+            ]
+        },
+        days: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'measured',
+                'too_early',
+                'not_measured',
+                'low_counts'
+            ]
+        },
+        before: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        from: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                        },
+                        to: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                        },
+                        clicks: {
+                            type: 'number'
+                        },
+                        impressions: {
+                            type: 'number'
+                        },
+                        position: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'from',
+                        'to',
+                        'clicks',
+                        'impressions',
+                        'position'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        after: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        from: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                        },
+                        to: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                        },
+                        clicks: {
+                            type: 'number'
+                        },
+                        impressions: {
+                            type: 'number'
+                        },
+                        position: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'from',
+                        'to',
+                        'clicks',
+                        'impressions',
+                        'position'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'anchor',
+        'anchorKind',
+        'days',
+        'state',
+        'before',
+        'after'
     ]
 } as const;
 

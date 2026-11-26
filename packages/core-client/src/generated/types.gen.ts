@@ -11876,6 +11876,8 @@ export type SocialPost = {
         videoOfTalking?: boolean;
         story?: string;
         claim?: string;
+        applyOpId?: string;
+        applyCreateOpId?: string;
     } | null;
     createdAt: Date;
     updatedAt: Date;
@@ -13173,8 +13175,30 @@ export type ProjectSeoAction = {
     status: 'recommended' | 'needs_review' | 'task_created' | 'unavailable' | 'implemented' | 'verified' | 'canceled' | 'failed';
     completedAt?: Date;
     verifiedAt?: Date;
+    impact?: ProjectSeoActionImpact;
     kind: 'fix' | 'opportunity';
     evidence: Array<string>;
+};
+
+export type ProjectSeoActionImpact = {
+    anchor: string;
+    anchorKind: 'completed' | 'verified';
+    days: number;
+    state: 'measured' | 'too_early' | 'not_measured' | 'low_counts';
+    before: {
+        from: string;
+        to: string;
+        clicks: number;
+        impressions: number;
+        position: number | null;
+    } | null;
+    after: {
+        from: string;
+        to: string;
+        clicks: number;
+        impressions: number;
+        position: number | null;
+    } | null;
 };
 
 export type ProjectSeoMetric = {

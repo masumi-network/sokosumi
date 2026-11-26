@@ -32,6 +32,7 @@ import {
   privateLandingSourceSchema,
 } from "@/schemas/seo-landing-outcomes.schema";
 import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.schema";
+import { withSeoActionImpact } from "./project-seo-action-impact";
 import { listProjectSeoMonitors } from "./project-seo-monitor.service";
 import { seoMonitorOfTasks } from "./project-seo-monitor-runs";
 import { projectSeoProjection } from "./project-seo-projection";
@@ -672,11 +673,15 @@ export async function getProjectSeoWorkspace(
     canSchedule: executor?.canSchedule === true,
     monitors,
   });
-  const actions = await pendingSeoActionReviews(
+  const reviewedActions = await pendingSeoActionReviews(
     actor,
     workspace,
     privateReviews,
   );
+  const actions =
+    options.includeAuditPerformance && privateMetricsAllowed && !actor.sokoBotId
+      ? await withSeoActionImpact(actor, reviewedActions)
+      : reviewedActions;
   const sourceTask = new Map(
     observations.map((row) => [row.id, row.sourceTaskId]),
   );
