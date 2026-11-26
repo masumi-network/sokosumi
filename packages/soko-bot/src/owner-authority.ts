@@ -87,7 +87,7 @@ export const ownerAuthorityLimitsSchema = z
     period: z.enum(OWNER_AUTHORITY_ALLOWANCE_PERIODS),
     images: z.number().int().min(0).max(20).optional(),
     videos: z.number().int().min(0).max(5).optional(),
-    maxMediaCredits: z.number().int().min(0).optional(),
+    maxMediaCredits: z.number().finite().min(0).optional(),
   })
   .strict();
 export type OwnerAuthorityLimits = z.infer<typeof ownerAuthorityLimitsSchema>;

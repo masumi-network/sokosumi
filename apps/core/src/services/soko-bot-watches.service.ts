@@ -1,5 +1,4 @@
 import {
-  isSokoBotCapability,
   isSokoBotSandboxCapability,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotCapability,
@@ -7,6 +6,7 @@ import {
 import { waitUntil } from "@vercel/functions";
 import { createError } from "evlog";
 import type { z } from "zod";
+import { jsonInput } from "@/helpers/prisma-json";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
@@ -16,6 +16,13 @@ import {
 } from "@/lib/evlog";
 import { failOpen } from "@/lib/fail-open";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
+import {
+  capabilitiesForWatchFollowUp,
+  deriveWatchAuthority,
+  type OwnerAuthorityAskedByKind,
+  resolveWatchWakeAuthority,
+} from "@/lib/soko-bot/owner-authority";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
   type AuthorizedSokoBotRuntime,
@@ -57,16 +64,6 @@ const ACTIVE_TURN = new Set([
   "STARTING",
   "RUNNING",
   "CANCEL_REQUESTED",
-]);
-/** A follow-up does the next step itself; it does not start runs. */
-/** The app it waited for is new to the turn that asked, so its tools come too. */
-const INTEGRATION_TOOLS: SokoBotCapability[] = [
-  "list_integration_tools",
-  "run_integration_tool",
-];
-const RUN_MANAGEMENT_TOOLS = new Set<SokoBotCapability>([
-  "start_background_run",
-  "stop_background_run",
 ]);
 
 /** A Coworker's reply carries `streaming` in its metadata while it is written. */
@@ -268,30 +265,12 @@ export async function chatReplyOutcome(
   ].join("\n");
 }
 
-/**
- * A follow-up answers with its reply, which Core posts where it was asked.
- * With chat tools at hand, an SEO check's follow-up went looking for a room
- * to post its answer in and never wrote it; it gets none of them.
- */
-const SEO_CHECK_WITHHELD = new Set<SokoBotCapability>([
-  "post_chat",
-  "list_chats",
-  "read_chat",
-  "ask_coworker",
-  "check_search_rankings",
-]);
-
-/** The asking turn's tools a follow-up keeps: it starts no runs of its own. */
+/** The asking turn's tools a follow-up keeps, unified through OwnerAuthority. */
 export function followUpCapabilities(
   kind: string,
   names: string[],
 ): SokoBotCapability[] {
-  return names.filter(
-    (name): name is SokoBotCapability =>
-      isSokoBotCapability(name) &&
-      !RUN_MANAGEMENT_TOOLS.has(name) &&
-      !(kind === "seo_check" && SEO_CHECK_WITHHELD.has(name)),
-  );
+  return capabilitiesForWatchFollowUp(kind, names);
 }
 
 /**
@@ -366,6 +345,24 @@ export async function registerSeoCheckWatch(
     select: { id: true },
   });
   if (waiting) return;
+  const watchAuthority = await deriveWatchAuthority(
+    {
+      id: authorized.turn.id,
+      sokoBotId: authorized.turn.sokoBotId,
+      workspaceId: authorized.turn.workspaceId,
+      versionId: authorized.turn.versionId,
+      source: authorized.turn.source,
+      parentTurnId: authorized.turn.parentTurnId ?? null,
+      askedByUserId: authorized.turn.askedByUserId ?? null,
+      requestedByUserId: authorized.turn.requestedByUserId,
+      actingUserId: authorized.turn.actingUserId,
+      chainDepth: authorized.turn.chainDepth,
+      askedByKind: authorized.askedByKind,
+      botProjectId: authorized.turn.botProjectId ?? null,
+    },
+    { kind: "seo_check", projectId: input.projectId },
+    prisma,
+  );
   await prisma.sokoBotWatch.create({
     data: {
       sokoBotId,
@@ -375,6 +372,7 @@ export async function registerSeoCheckWatch(
       projectId: input.projectId,
       then: input.then,
       expiresAt: new Date(Date.now() + SEO_CHECK_TIMEOUT_MINUTES * 60_000),
+      authority: jsonInput(watchAuthority),
     },
   });
 }
@@ -453,12 +451,31 @@ export async function registerWatch(
     (input.kind === "app_connected"
       ? APP_CONNECTED_TIMEOUT_MINUTES
       : DEFAULT_TIMEOUT_MINUTES);
+  const watchAuthority = await deriveWatchAuthority(
+    {
+      id: authorized.turn.id,
+      sokoBotId: authorized.turn.sokoBotId,
+      workspaceId: authorized.turn.workspaceId,
+      versionId: authorized.turn.versionId,
+      source: authorized.turn.source,
+      parentTurnId: authorized.turn.parentTurnId ?? null,
+      askedByUserId: authorized.turn.askedByUserId ?? null,
+      requestedByUserId: authorized.turn.requestedByUserId,
+      actingUserId: authorized.turn.actingUserId,
+      chainDepth: authorized.turn.chainDepth,
+      askedByKind: authorized.askedByKind,
+      botProjectId: authorized.turn.botProjectId ?? null,
+    },
+    { kind: input.kind, projectId: input.projectId ?? null },
+    prisma,
+  );
   const watch = await prisma.sokoBotWatch.create({
     data: {
       ...draft,
       turnId: originTurnId,
       then: input.then,
       expiresAt: new Date(now.getTime() + timeoutMinutes * 60_000),
+      authority: jsonInput(watchAuthority),
     },
     select: { id: true, expiresAt: true },
   });
@@ -493,7 +510,20 @@ export async function followUpConnectedApp(
     },
     orderBy: { createdAt: "desc" },
     take: 5,
-    select: { id: true, userMessage: true, finalAnswer: true },
+    select: {
+      id: true,
+      userMessage: true,
+      finalAnswer: true,
+      sokoBotId: true,
+      workspaceId: true,
+      versionId: true,
+      source: true,
+      parentTurnId: true,
+      askedByUserId: true,
+      requestedByUserId: true,
+      chainDepth: true,
+      sokoBot: { select: { userId: true, projectId: true } },
+    },
   });
   const turn = turns.find((row) => linked.test(row.finalAnswer ?? ""));
   if (turn) {
@@ -501,7 +531,33 @@ export async function followUpConnectedApp(
       where: { turnId: turn.id, kind: "app_connected", targetId: provider },
       select: { id: true },
     });
-    if (!set)
+    if (!set) {
+      const watchAuthority =
+        turn.workspaceId && turn.sokoBotId
+          ? await deriveWatchAuthority(
+              {
+                id: turn.id,
+                sokoBotId: turn.sokoBotId,
+                workspaceId: turn.workspaceId,
+                versionId: turn.versionId ?? null,
+                source: turn.source ?? "CHAT",
+                parentTurnId: turn.parentTurnId ?? null,
+                askedByUserId: turn.askedByUserId ?? null,
+                requestedByUserId: turn.requestedByUserId ?? null,
+                actingUserId: sokoBotActingUserId({
+                  requestedByUserId: turn.requestedByUserId ?? null,
+                  sokoBot: {
+                    userId:
+                      turn.sokoBot?.userId ?? turn.requestedByUserId ?? null,
+                  },
+                }),
+                chainDepth: turn.chainDepth ?? 0,
+                botProjectId: turn.sokoBot?.projectId ?? null,
+              },
+              { kind: "app_connected" },
+              prisma,
+            )
+          : undefined;
       await prisma.sokoBotWatch.create({
         data: {
           sokoBotId,
@@ -510,8 +566,10 @@ export async function followUpConnectedApp(
           targetId: provider,
           then: `Finish what was asked, which needed ${provider}: "${clip(turn.userMessage, 1_000)}"`,
           expiresAt: new Date(Date.now() + 5 * 60_000),
+          ...(watchAuthority ? { authority: jsonInput(watchAuthority) } : {}),
         },
       });
+    }
   }
   await syncSokoBotWatches({ shouldContinue: () => true, sokoBotId });
 }
@@ -560,6 +618,7 @@ export async function syncSokoBotWatches(input: {
       createdAt: true,
       expiresAt: true,
       then: true,
+      authority: true,
       turn: {
         select: {
           id: true,
@@ -571,6 +630,7 @@ export async function syncSokoBotWatches(input: {
           versionId: true,
           capabilityNames: true,
           destinationRoomId: true,
+          sokoBot: { select: { userId: true, projectId: true } },
         },
       },
     },
@@ -633,12 +693,51 @@ export async function syncSokoBotWatches(input: {
       },
     });
     if (claimed.count === 0) continue;
-    const capabilities = [
-      ...new Set([
-        ...followUpCapabilities(watch.kind, watch.turn.capabilityNames),
-        ...(watch.kind === "app_connected" ? INTEGRATION_TOOLS : []),
-      ]),
-    ];
+    const watchAuthority = resolveWatchWakeAuthority(watch);
+    const sharedBot = watch.turn.sokoBot?.userId === null;
+    const actingUserId = sokoBotActingUserId({
+      requestedByUserId: watch.turn.requestedByUserId,
+      sokoBot: {
+        userId: watch.turn.sokoBot?.userId ?? watch.turn.requestedByUserId,
+      },
+    });
+    const askedByKind: OwnerAuthorityAskedByKind =
+      watch.turn.chainDepth > 0
+        ? "ASSISTANT"
+        : watch.turn.askedByUserId !== null &&
+            watch.turn.askedByUserId !== watch.turn.requestedByUserId
+          ? "TEAMMATE"
+          : sharedBot
+            ? "TEAMMATE"
+            : "OWNER";
+    const liveProjectId =
+      watch.projectId ?? watch.turn.sokoBot?.projectId ?? null;
+    const capabilities = capabilitiesForWatchFollowUp(
+      watch.kind,
+      watch.turn.capabilityNames,
+      {
+        authority: watchAuthority,
+        live: {
+          sokoBotId: watch.sokoBotId,
+          workspaceId: watch.turn.workspaceId,
+          versionId: watch.turn.versionId,
+          actingUserId,
+          askedByKind,
+          sharedBot,
+          source: watch.turn.source === "CHAT" ? "CHAT" : "SCHEDULE",
+          ...(liveProjectId
+            ? {
+                targetScope: {
+                  kind: "project" as const,
+                  projectId: liveProjectId,
+                },
+              }
+            : {}),
+          hasWorkspaceAccess: true,
+          botAlive: true,
+        },
+      },
+    );
     try {
       const started = await sokoBotControlPlane.startTurn({
         userId: watch.turn.requestedByUserId,

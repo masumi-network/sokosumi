@@ -6,6 +6,7 @@ import {
   type DirectOwnerScheduleEdit,
   getSokoBotVersion,
   isOwnerAuthorityExpired,
+  isSokoBotCapability,
   isSokoBotSandboxCapability,
   minOwnerAuthorityScope,
   minOwnerAuthoritySocialMode,
@@ -19,6 +20,7 @@ import {
   type OwnerAuthorityStopRuleInput,
   type OwnerAuthorityTargetScope,
   ownerAuthoritySchema,
+  parseOwnerAuthority,
   SOKO_BOT_CMO_READ_CAPABILITIES,
   SOKO_BOT_DIRECT_READ_CAPABILITIES,
   SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES,
@@ -26,7 +28,9 @@ import {
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
   type SokoBotCapability,
+  type SokoBotFollowUpAllows,
   sameOwnerAuthorityTargetScope,
+  sokoBotFollowUpAllowsSchema,
 } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
@@ -34,8 +38,14 @@ import {
   ACTION_CAPABILITIES,
   isExternalEffectToolCall,
 } from "./action-receipts";
-import { type OwnerRequestTurn, ownerAskedIn } from "./owner-request";
-import { DELEGATION_EVENT_TURN_PREFIX } from "./system-routes";
+import {
+  isOwnerRequest,
+  type OwnerRequestTurn,
+  ownerAskedIn,
+} from "./owner-request";
+
+/** Turns Core starts when delegated work changes (`sokoBotEventClientTurnId`). */
+export const DELEGATION_EVENT_TURN_PREFIX = "event:";
 
 /**
  * Core-owned minting, child attenuation ceilings, and live execution-time
@@ -921,6 +931,7 @@ export function deriveTurnOwnerAuthority(
     turn: root,
     actingUserId: rootActor.actingUserId,
     askedByKind: rootActor.askedByKind,
+    grantId: root.id,
   });
   if (current.origin === "system") {
     return systemTurnAuthority(leaf);
@@ -1276,4 +1287,624 @@ export async function resolveSocialWriteOriginSource(
     current = next;
   }
   return current?.source ?? "EVENT";
+}
+
+export interface WorkItemParentTurnInput {
+  id: string;
+  sokoBotId: string;
+  workspaceId: string;
+  versionId: string | null;
+  source: string | null;
+  parentTurnId: string | null;
+  askedByUserId: string | null;
+  requestedByUserId: string | null;
+  actingUserId: string | null;
+  chainDepth: number;
+  askedByKind?: OwnerAuthorityAskedByKind;
+  botProjectId?: string | null;
+}
+
+function scheduleOccurrenceAuthority(
+  schedule: {
+    id: string;
+    sokoBotId: string;
+    workspaceId: string;
+    requestedByUserId: string | null;
+    systemKey: string | null;
+    authority: unknown;
+  },
+  turn: TurnAuthorityNode,
+): OwnerAuthority {
+  const isCmo = getSokoBotVersion(turn.versionId).profile === "cmo";
+  const persisted = parseOwnerAuthority(schedule.authority);
+  if (persisted) {
+    if (
+      persisted.sokoBotId !== turn.sokoBotId ||
+      persisted.workspaceId !== turn.workspaceId ||
+      (persisted.scheduleId !== undefined &&
+        persisted.scheduleId !== schedule.id)
+    ) {
+      return systemTurnAuthority(turn);
+    }
+    if (persisted.origin === "system") {
+      return systemTurnAuthority(turn);
+    }
+    // Lifetime schedule allowances share one grantId across all occurrences;
+    // per-occurrence or unbounded schedules scope spend to this firing's turn
+    // so parallel children of one firing share a balance while later runs get
+    // their own.
+    const perOccurrenceGrantId = `${persisted.grantId}:turn:${turn.id}`;
+    const keepLifetime = persisted.limits?.period === "lifetime";
+    return ownerAuthoritySchema.parse({
+      ...persisted,
+      grantId: keepLifetime ? persisted.grantId : perOccurrenceGrantId,
+      scheduleId: undefined,
+      stopRule: { mode: "never" },
+      ...(persisted.limits
+        ? {
+            limits: {
+              ...persisted.limits,
+              grantId: keepLifetime
+                ? persisted.limits.grantId
+                : perOccurrenceGrantId,
+            },
+          }
+        : {}),
+    });
+  }
+
+  // Legacy schedule created before OwnerAuthority persistence (#8321).
+  if (
+    schedule.systemKey === null &&
+    schedule.requestedByUserId !== null &&
+    isOwnerRequest(turn, { schedules: true })
+  ) {
+    return ownerAuthoritySchema.parse({
+      version: 1,
+      grantId: `schedule:${schedule.id}:turn:${turn.id}`,
+      origin: "owner_schedule",
+      sokoBotId: turn.sokoBotId,
+      workspaceId: turn.workspaceId,
+      ownerUserId: schedule.requestedByUserId,
+      rootTurnId: turn.id,
+      targetScope: { kind: "workspace" },
+      scope: "owner_writes",
+      socialMode: isCmo ? "full" : "draft_only",
+      stopRule: { mode: "never" },
+    });
+  }
+
+  return systemTurnAuthority(turn);
+}
+
+/**
+ * Resolves the parent `OwnerAuthority` for a turn creating durable child work
+ * (`SokoBotDelegation` or `SokoBotWatch`):
+ * - Top-level `CHAT`: minted directly with `grantId = turn.id` (zero extra DB query).
+ * - Child `CHAT` (background run): walks the parent chain via `resolveTurnOwnerAuthority`
+ *   so all parallel children share the root turn's `grantId`.
+ * - `SCHEDULE`: reads `SokoBotSchedule.authority` via `scheduleRun`, honoring
+ *   explicit `lifetime` vs `per_occurrence` allowance periods (with safe
+ *   fallback for legacy owner schedules).
+ * - All other sources (`INGEST`, `EVENT`, personal-bot teammates) fail closed
+ *   to `system` (`read_only`, `none`).
+ */
+export async function resolveWorkItemParentAuthority(
+  turn: WorkItemParentTurnInput,
+  client: Partial<OwnerAuthorityTurnClient> = prisma,
+): Promise<OwnerAuthority> {
+  const leafNode: TurnAuthorityNode = {
+    id: turn.id,
+    sokoBotId: turn.sokoBotId,
+    workspaceId: turn.workspaceId,
+    versionId: turn.versionId,
+    source: turn.source,
+    parentTurnId: turn.parentTurnId,
+    askedByUserId: turn.askedByUserId,
+    requestedByUserId: turn.requestedByUserId,
+    chainDepth: turn.chainDepth,
+    sokoBot: null,
+  };
+  const targetScope: OwnerAuthorityTargetScope = turn.botProjectId
+    ? { kind: "project", projectId: turn.botProjectId }
+    : { kind: "workspace" };
+
+  if (turn.source === "CHAT" && turn.parentTurnId === null) {
+    const askedByKind =
+      turn.askedByKind ??
+      (turn.chainDepth > 0
+        ? "ASSISTANT"
+        : ownerAskedIn(leafNode)
+          ? "OWNER"
+          : "TEAMMATE");
+    return mintTurnOwnerAuthority({
+      turn: leafNode,
+      actingUserId: turn.actingUserId,
+      askedByKind,
+      grantId: turn.id,
+      targetScope,
+    });
+  }
+
+  if (turn.source === "CHAT" && turn.parentTurnId !== null) {
+    if (typeof client.sokoBotTurn?.findUnique === "function") {
+      const resolved = await resolveTurnOwnerAuthority(
+        turn.id,
+        client as OwnerAuthorityTurnClient,
+      );
+      if (resolved) {
+        return turn.botProjectId &&
+          resolved.authority.targetScope.kind === "workspace"
+          ? narrowOwnerAuthority(resolved.authority, { targetScope })
+          : resolved.authority;
+      }
+    }
+    return systemTurnAuthority(leafNode);
+  }
+
+  if (turn.source === "SCHEDULE") {
+    if (typeof client.sokoBotTurn?.findUnique === "function") {
+      const scheduled = await client.sokoBotTurn.findUnique({
+        where: { id: turn.id },
+        select: {
+          ...OWNER_AUTHORITY_TURN_SELECT,
+          scheduleRun: {
+            select: {
+              schedule: {
+                select: {
+                  id: true,
+                  sokoBotId: true,
+                  workspaceId: true,
+                  requestedByUserId: true,
+                  systemKey: true,
+                  authority: true,
+                },
+              },
+            },
+          },
+        },
+      });
+      if (scheduled?.scheduleRun?.schedule) {
+        const resolved = scheduleOccurrenceAuthority(
+          scheduled.scheduleRun.schedule,
+          scheduled,
+        );
+        return turn.botProjectId && resolved.targetScope.kind === "workspace"
+          ? narrowOwnerAuthority(resolved, { targetScope })
+          : resolved;
+      }
+    }
+    // Narrow unit-test fallback when scheduleRun relation is absent on a
+    // Schedule turn owned by the requester.
+    if (
+      isOwnerRequest(leafNode, { schedules: true }) &&
+      turn.requestedByUserId !== null
+    ) {
+      const isCmo = getSokoBotVersion(turn.versionId).profile === "cmo";
+      return ownerAuthoritySchema.parse({
+        version: 1,
+        grantId: `schedule-turn:${turn.id}`,
+        origin: "owner_schedule",
+        sokoBotId: turn.sokoBotId,
+        workspaceId: turn.workspaceId,
+        ownerUserId: turn.requestedByUserId,
+        rootTurnId: turn.id,
+        targetScope,
+        scope: "owner_writes",
+        socialMode: isCmo ? "full" : "draft_only",
+        stopRule: { mode: "never" },
+      });
+    }
+  }
+
+  return systemTurnAuthority(leafNode);
+}
+
+/**
+ * Derives the attenuated `OwnerAuthority` persisted on a `SokoBotDelegation`
+ * row (`create_task`, `assign_task`, `hire_agent`). Parallel delegations from
+ * the same owner turn share one `grantId` so media limits are conserved across
+ * concurrent or sequential child wakes.
+ */
+export async function deriveDelegationAuthority(
+  turn: WorkItemParentTurnInput,
+  options: {
+    followUpAllows?: SokoBotFollowUpAllows | null;
+    projectId?: string | null;
+  },
+  client: Partial<OwnerAuthorityTurnClient> = prisma,
+): Promise<OwnerAuthority> {
+  const parent = await resolveWorkItemParentAuthority(turn, client);
+  const parsedAllows = options.followUpAllows
+    ? sokoBotFollowUpAllowsSchema.safeParse(options.followUpAllows).data
+    : undefined;
+  const targetScope: OwnerAuthorityTargetScope | undefined = options.projectId
+    ? { kind: "project", projectId: options.projectId }
+    : undefined;
+
+  // Never attach owner spend limits onto a system-originated delegation.
+  const limits =
+    parent.origin !== "system" &&
+    parsedAllows &&
+    (parsedAllows.images !== undefined || parsedAllows.maxCredits !== undefined)
+      ? {
+          period:
+            parent.limits?.period ??
+            (parent.origin === "owner_schedule"
+              ? "per_occurrence"
+              : "lifetime"),
+          ...(parsedAllows.images !== undefined
+            ? { images: parsedAllows.images }
+            : {}),
+          ...(parsedAllows.maxCredits !== undefined
+            ? { maxMediaCredits: parsedAllows.maxCredits }
+            : {}),
+        }
+      : undefined;
+
+  return attenuateForChildWork(parent, "delegation_wake", {
+    versionId: turn.versionId,
+    targetScope,
+    limits,
+  });
+}
+
+export interface DelegationAuthorityRecord {
+  id: string;
+  authority?: unknown;
+  followUpAllows?: unknown;
+  turn: OwnerRequestTurn & {
+    id?: string;
+    sokoBotId?: string;
+    workspaceId?: string;
+    versionId?: string | null;
+    parentTurnId: string | null;
+    parentTurn: OwnerRequestTurn | null;
+    sokoBot?: { userId?: string | null } | null;
+  };
+}
+
+/**
+ * Reads a delegation's persisted `OwnerAuthority` (verifying binding), or
+ * deterministically derives the equivalent authority for pre-migration legacy
+ * rows (`authority == null`) so existing delegations resume cleanly after
+ * deployment.
+ */
+export function resolveDelegationWakeAuthority(
+  delegation: DelegationAuthorityRecord,
+  fallbackContext: {
+    sokoBotId: string;
+    workspaceId: string;
+    versionId: string | null;
+  },
+): OwnerAuthority {
+  const sokoBotId = delegation.turn.sokoBotId ?? fallbackContext.sokoBotId;
+  const workspaceId =
+    delegation.turn.workspaceId ?? fallbackContext.workspaceId;
+  const versionId = delegation.turn.versionId ?? fallbackContext.versionId;
+  const persisted = parseOwnerAuthority(delegation.authority);
+  if (persisted) {
+    if (
+      persisted.sokoBotId !== sokoBotId ||
+      persisted.workspaceId !== workspaceId
+    ) {
+      return ownerAuthoritySchema.parse({
+        version: 1,
+        grantId: `invalid-delegation:${delegation.id}`,
+        origin: "system",
+        sokoBotId,
+        workspaceId,
+        ownerUserId: null,
+        rootTurnId: delegation.turn.id ?? null,
+        targetScope: { kind: "workspace" },
+        scope: "read_only",
+        socialMode: "none",
+        stopRule: { mode: "never" },
+      });
+    }
+    return persisted;
+  }
+
+  // Legacy row created before PR 4 persistence (`authority === null`).
+  // Each legacy row gets its own `legacy-delegation:<id>` grantId so historical
+  // separate delegations never collide while retries of the same delegation
+  // share one balance across `planTurnIds`.
+  const legacyGrantId = `legacy-delegation:${delegation.id}`;
+  const isOwner = isOwnerRequest(delegation.turn, { schedules: true });
+  const ownerUserId = delegation.turn.requestedByUserId;
+  if (!isOwner || !ownerUserId) {
+    return ownerAuthoritySchema.parse({
+      version: 1,
+      grantId: legacyGrantId,
+      origin: "system",
+      sokoBotId,
+      workspaceId,
+      ownerUserId: null,
+      rootTurnId: delegation.turn.id ?? null,
+      targetScope: { kind: "workspace" },
+      scope: "read_only",
+      socialMode: "none",
+      stopRule: { mode: "never" },
+    });
+  }
+
+  const origin =
+    delegation.turn.source === "SCHEDULE" ? "owner_schedule" : "owner_chat";
+  const isCmo = getSokoBotVersion(versionId).profile === "cmo";
+  const parsedAllows = sokoBotFollowUpAllowsSchema.safeParse(
+    delegation.followUpAllows,
+  ).data;
+  const limits =
+    parsedAllows &&
+    (parsedAllows.images !== undefined || parsedAllows.maxCredits !== undefined)
+      ? {
+          grantId: legacyGrantId,
+          period:
+            origin === "owner_schedule"
+              ? ("per_occurrence" as const)
+              : ("lifetime" as const),
+          ...(parsedAllows.images !== undefined
+            ? { images: parsedAllows.images }
+            : {}),
+          ...(parsedAllows.maxCredits !== undefined
+            ? { maxMediaCredits: parsedAllows.maxCredits }
+            : {}),
+        }
+      : undefined;
+
+  return ownerAuthoritySchema.parse({
+    version: 1,
+    grantId: legacyGrantId,
+    origin,
+    sokoBotId,
+    workspaceId,
+    ownerUserId,
+    rootTurnId: delegation.turn.id ?? null,
+    targetScope: { kind: "workspace" },
+    scope: "draft_and_workspace",
+    socialMode: isCmo ? "full" : "draft_only",
+    ...(limits ? { limits } : {}),
+    stopRule: { mode: "never" },
+  });
+}
+
+/**
+ * Derives the attenuated `OwnerAuthority` persisted on a `SokoBotWatch` row.
+ * Inherits parent's `expiresAt` (never clamped to `watch.expiresAt` so a watch
+ * that times out can still fire and report).
+ */
+export async function deriveWatchAuthority(
+  turn: WorkItemParentTurnInput,
+  options: {
+    kind: string;
+    projectId?: string | null;
+  },
+  client: Partial<OwnerAuthorityTurnClient> = prisma,
+): Promise<OwnerAuthority> {
+  const parent = await resolveWorkItemParentAuthority(turn, client);
+  const isCmo = getSokoBotVersion(turn.versionId).profile === "cmo";
+  const targetScope: OwnerAuthorityTargetScope | undefined = options.projectId
+    ? { kind: "project", projectId: options.projectId }
+    : undefined;
+  // A `chat_reply` watch carries untrusted room messages from other people or
+  // Coworkers into its wake, so social writes stay capped at `draft_only` for
+  // personal bots; `studio_job`, `background_run`, `seo_check`, and
+  // `app_connected` continue the owner's own turn as a background run.
+  return attenuateForChildWork(parent, "background_run", {
+    versionId: turn.versionId,
+    targetScope,
+    ...(options.kind === "chat_reply" && !isCmo
+      ? { socialMode: "draft_only" as const }
+      : {}),
+  });
+}
+
+export interface WatchAuthorityRecord {
+  id: string;
+  kind: string;
+  projectId: string | null;
+  sokoBotId: string;
+  authority?: unknown;
+  turn: {
+    id: string;
+    requestedByUserId: string | null;
+    askedByUserId: string | null;
+    chainDepth: number;
+    workspaceId: string;
+    source: string | null;
+    versionId: string | null;
+    sokoBot?: { userId?: string | null; projectId?: string | null } | null;
+  };
+}
+
+/**
+ * Reads a watch's persisted `OwnerAuthority` (verifying binding), or derives
+ * the equivalent authority for pre-migration legacy watches (`authority == null`)
+ * so watches created before deployment still resume cleanly.
+ */
+export function resolveWatchWakeAuthority(
+  watch: WatchAuthorityRecord,
+): OwnerAuthority {
+  const persisted = parseOwnerAuthority(watch.authority);
+  if (persisted) {
+    if (
+      persisted.sokoBotId !== watch.sokoBotId ||
+      persisted.workspaceId !== watch.turn.workspaceId
+    ) {
+      return ownerAuthoritySchema.parse({
+        version: 1,
+        grantId: `invalid-watch:${watch.id}`,
+        origin: "system",
+        sokoBotId: watch.sokoBotId,
+        workspaceId: watch.turn.workspaceId,
+        ownerUserId: null,
+        rootTurnId: watch.turn.id,
+        targetScope: { kind: "workspace" },
+        scope: "read_only",
+        socialMode: "none",
+        stopRule: { mode: "never" },
+      });
+    }
+    return persisted;
+  }
+
+  const node: TurnAuthorityNode = {
+    id: watch.turn.id,
+    sokoBotId: watch.sokoBotId,
+    workspaceId: watch.turn.workspaceId,
+    versionId: watch.turn.versionId,
+    source: watch.turn.source,
+    parentTurnId: null,
+    askedByUserId: watch.turn.askedByUserId,
+    requestedByUserId: watch.turn.requestedByUserId,
+    chainDepth: watch.turn.chainDepth,
+    sokoBot: watch.turn.sokoBot ?? null,
+  };
+  const isCmo = getSokoBotVersion(watch.turn.versionId).profile === "cmo";
+  const legacyProjectId =
+    watch.projectId ?? watch.turn.sokoBot?.projectId ?? null;
+  const legacyTargetScope: OwnerAuthorityTargetScope | undefined =
+    legacyProjectId
+      ? { kind: "project", projectId: legacyProjectId }
+      : undefined;
+  if (watch.turn.source === "CHAT") {
+    const derived = deriveTurnOwnerAuthority([node]);
+    if (derived && derived.origin !== "system") {
+      return attenuateForChildWork(derived, "background_run", {
+        versionId: watch.turn.versionId,
+        targetScope: legacyTargetScope,
+        ...(watch.kind === "chat_reply" && !isCmo
+          ? { socialMode: "draft_only" as const }
+          : {}),
+      });
+    }
+  }
+  if (
+    watch.turn.source === "SCHEDULE" &&
+    isOwnerRequest(node, { schedules: true }) &&
+    watch.turn.requestedByUserId !== null
+  ) {
+    return ownerAuthoritySchema.parse({
+      version: 1,
+      grantId: `legacy-watch:${watch.id}`,
+      origin: "owner_schedule",
+      sokoBotId: watch.sokoBotId,
+      workspaceId: watch.turn.workspaceId,
+      ownerUserId: watch.turn.requestedByUserId,
+      rootTurnId: watch.turn.id,
+      targetScope: legacyTargetScope ?? { kind: "workspace" },
+      scope: "owner_writes",
+      socialMode: isCmo ? "full" : "draft_only",
+      stopRule: { mode: "never" },
+    });
+  }
+
+  return systemTurnAuthority(node);
+}
+
+/**
+ * Unified follow-up capability filter for delegation `EVENT` wakes, replacing
+ * the duplicate `NOT_INHERITED_BY_FOLLOW_UPS` exclusion table in `system-routes.ts`.
+ * Intersects `ownerGranted` through `OwnerAuthority` (`scope: "draft_and_workspace"`,
+ * non-CMO `socialMode: "draft_only"`), excluding outward/hire/send/runs/deletes/sandbox.
+ */
+export function capabilitiesForDelegationFollowUp(
+  ownerGranted: readonly string[],
+  options?: {
+    authority?: OwnerAuthority;
+    live?: Omit<LiveExecutionContext, "offeredCapabilities">;
+  },
+): SokoBotCapability[] {
+  const offered = ownerGranted.filter(isSokoBotCapability);
+  if (!offered.length) return [];
+
+  if (options?.authority && options.live) {
+    const effective = intersectOwnerAuthority(options.authority, {
+      ...options.live,
+      source: "EVENT",
+      offeredCapabilities: offered,
+    });
+    if (!effective.effective) return [];
+    return [...effective.allowedCapabilities];
+  }
+
+  // Pure static filter matching `draft_and_workspace` + `draft_only` ceiling
+  // used by `inheritedFollowUpRoute(ownerGranted)` when no live turn context is
+  // passed.
+  const ceiling = ownerAuthoritySchema.parse({
+    version: 1,
+    grantId: "delegation-follow-up-ceiling",
+    origin: "owner_chat",
+    sokoBotId: "delegation-ceiling-bot",
+    workspaceId: "delegation-ceiling-ws",
+    ownerUserId: "delegation-ceiling-owner",
+    rootTurnId: null,
+    targetScope: { kind: "workspace" },
+    scope: "draft_and_workspace",
+    socialMode: "draft_only",
+    stopRule: { mode: "never" },
+  });
+  return offered.filter((capability) =>
+    capabilityAllowed(capability, ceiling, false),
+  );
+}
+
+const WATCH_RUN_MANAGEMENT_TOOLS: ReadonlySet<SokoBotCapability> = new Set([
+  "start_background_run",
+  "stop_background_run",
+]);
+
+const WATCH_SEO_CHECK_WITHHELD: ReadonlySet<SokoBotCapability> = new Set([
+  "post_chat",
+  "list_chats",
+  "read_chat",
+  "ask_coworker",
+  "check_search_rankings",
+]);
+
+const WATCH_APP_CONNECTED_TOOLS: readonly SokoBotCapability[] = [
+  "list_integration_tools",
+  "run_integration_tool",
+];
+
+/**
+ * Unified follow-up capability filter for `SokoBotWatch` wakes:
+ * - Always removes run-management tools and (for `seo_check`) chat/re-check tools.
+ * - When `authority` + `live` context are provided, intersects through
+ *   `intersectOwnerAuthority` (degrading expired/revoked watches to read-only,
+ *   attenuating `chat_reply` wakes with `carriedUntrustedContent: true`, and
+ *   adding `INTEGRATION_TOOLS` on `app_connected` only when authority is live).
+ */
+export function capabilitiesForWatchFollowUp(
+  kind: string,
+  ownerGranted: readonly string[],
+  options?: {
+    authority?: OwnerAuthority;
+    live?: Omit<LiveExecutionContext, "offeredCapabilities">;
+  },
+): SokoBotCapability[] {
+  const base = ownerGranted.filter(
+    (name): name is SokoBotCapability =>
+      isSokoBotCapability(name) &&
+      !WATCH_RUN_MANAGEMENT_TOOLS.has(name) &&
+      !(kind === "seo_check" && WATCH_SEO_CHECK_WITHHELD.has(name)),
+  );
+  if (!options?.authority || !options.live) {
+    return base;
+  }
+
+  const effectiveBase = intersectOwnerAuthority(options.authority, {
+    ...options.live,
+    carriedUntrustedContent: kind === "chat_reply",
+    offeredCapabilities: base,
+  });
+  if (kind !== "app_connected" || !effectiveBase.effective) {
+    return [...effectiveBase.allowedCapabilities];
+  }
+  const effectiveWithApp = intersectOwnerAuthority(options.authority, {
+    ...options.live,
+    carriedUntrustedContent: false,
+    offeredCapabilities: [...new Set([...base, ...WATCH_APP_CONNECTED_TOOLS])],
+  });
+  return [...effectiveWithApp.allowedCapabilities];
 }

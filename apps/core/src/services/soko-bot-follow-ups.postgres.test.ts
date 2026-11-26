@@ -1493,5 +1493,140 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         "EVENT",
       );
     });
+
+    it("persists and enforces SokoBotWatch OwnerAuthority across legacy null rows and expired grants on PostgreSQL", async () => {
+      const { syncSokoBotWatches } = await import(
+        "@/services/soko-bot-watches.service"
+      );
+      const originChat = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "CHAT",
+          status: "COMPLETED",
+          clientTurnId: `chat:watch:${randomUUID()}`,
+          versionId: "v36",
+          userMessage: "Wait for the background run and post in chat.",
+          capabilityNames: [
+            "get_image",
+            "post_chat",
+            "create_social_post",
+            "publish_social_post",
+            "start_background_run",
+          ],
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+      });
+      const finishedRun = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          parentTurnId: originChat.id,
+          source: "CHAT",
+          status: "COMPLETED",
+          clientTurnId: `bg:watch:${randomUUID()}`,
+          versionId: "v36",
+          userMessage: "Do background research",
+          capabilityNames: [],
+          finalAnswer: "Done.",
+          backgroundTitle: "Research",
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+      });
+      const legacyWatch = await prisma.sokoBotWatch.create({
+        data: {
+          sokoBotId: botId,
+          turnId: originChat.id,
+          kind: "background_run",
+          targetId: finishedRun.id,
+          then: "Share the summary",
+          expiresAt: new Date(Date.now() + 60_000),
+        },
+      });
+      const expiredWatch = await prisma.sokoBotWatch.create({
+        data: {
+          sokoBotId: botId,
+          turnId: originChat.id,
+          kind: "background_run",
+          targetId: finishedRun.id,
+          then: "Expired follow-up",
+          expiresAt: new Date(Date.now() + 60_000),
+          authority: {
+            version: 1,
+            grantId: originChat.id,
+            origin: "owner_chat",
+            sokoBotId: botId,
+            workspaceId,
+            ownerUserId: userId,
+            rootTurnId: originChat.id,
+            targetScope: { kind: "workspace" },
+            scope: "owner_writes",
+            socialMode: "full",
+            stopRule: { mode: "never" },
+            expiresAt: "2020-01-01T00:00:00.000Z",
+          },
+        },
+      });
+
+      const startedCaps = new Map<string, readonly string[]>();
+      const watchSpy = vi
+        .spyOn(sokoBotControlPlane, "startTurn")
+        .mockImplementation(async (input) => {
+          startedCaps.set(
+            input.clientTurnId,
+            input.presetRoute?.capabilities ?? [],
+          );
+          const turn = await prisma.sokoBotTurn.create({
+            data: {
+              sokoBotId: botId,
+              requestedByUserId: userId,
+              workspaceId,
+              source: "EVENT",
+              status: "COMPLETED",
+              clientTurnId: input.clientTurnId,
+              userMessage: input.message,
+              capabilityNames: [],
+              deadlineAt: new Date(Date.now() + HOUR),
+            },
+            select: { id: true },
+          });
+          return {
+            turnId: turn.id,
+            sokoBotId: botId,
+            sessionId: "fixture",
+            status: "COMPLETED",
+            route: "DELEGATE_TASK",
+            capabilities: [...(input.presetRoute?.capabilities ?? [])],
+            duplicate: false,
+          };
+        });
+      try {
+        const synced = await syncSokoBotWatches({
+          shouldContinue: () => true,
+          sokoBotId: botId,
+        });
+        expect(synced.fired).toBe(2);
+      } finally {
+        watchSpy.mockRestore();
+      }
+
+      // Pre-migration authority=null watch resumes with owner tools (minus run management).
+      expect(startedCaps.get(`watch:${legacyWatch.id}`)).toEqual(
+        expect.arrayContaining([
+          "get_image",
+          "post_chat",
+          "create_social_post",
+        ]),
+      );
+      expect(startedCaps.get(`watch:${legacyWatch.id}`)).not.toContain(
+        "start_background_run",
+      );
+      // Expired persisted watch authority clamps to read-only.
+      expect(startedCaps.get(`watch:${expiredWatch.id}`)).toEqual([
+        "get_image",
+      ]);
+    });
   });
 });
