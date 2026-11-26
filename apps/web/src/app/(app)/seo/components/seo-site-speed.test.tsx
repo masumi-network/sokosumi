@@ -134,7 +134,7 @@ it("says the trend in words, why a short check used one device and how many page
   fireEvent.click(pricing.getByRole("button"));
   expect(
     screen.getByText(
-      /Short check on mobile: 72% of the site’s visitors use it\. Visitors: 72% phone · 25% desktop · 3% tablet/,
+      /Short check on mobile: 72% of the page loads Google measured for the site were on it\. Page loads: 72% phone · 25% desktop · 3% tablet/,
     ),
   ).toBeVisible();
   fireEvent.click(screen.getByText(/^Mobile · Real visitors ·/));

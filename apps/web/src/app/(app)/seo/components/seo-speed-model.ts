@@ -318,7 +318,7 @@ export function seoSpeedOutsideTable(
   return rows?.filter((row) => !shown.has(key(row)));
 }
 
-/** A page's trend in one word: one vital that gets slower on one device outweighs the ones that get faster. Null: no vital has a trend. */
+/** A page's trend in one word: one vital that gets worse on one device outweighs the ones that get better. Null: no vital has a trend. */
 export function seoPageTrend(
   devices: SeoSpeedDevice[],
 ): SeoTrendDirection | null {
