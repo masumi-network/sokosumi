@@ -86,6 +86,7 @@ vi.mock("@/services/social-posts.service", () => ({
 
 import {
   cmoChunkProof,
+  cmoHandedBackIds,
   cmoMonthWriterBudgetMs,
   cmoShortOf,
   cmoWriterChunks,
@@ -510,6 +511,35 @@ describe("writeCmoMonthPieces", () => {
     expect(result.written).toBe(10);
     expect(result.left).toBe(0);
     expect(result.next).toContain("Fix each refused piece yourself");
+  });
+
+  it("keeps a 30-piece receipt's handed-back ids when its row is cut to 16 KB", async () => {
+    const { persistedToolResult } = await import(
+      "@/lib/soko-bot/persisted-value"
+    );
+    const ids = Array.from(
+      { length: 30 },
+      (_, n) => `0193f0c2-7d1e-7a00-8000-${String(n).padStart(12, "0")}`,
+    );
+    const receipt = {
+      written: 0,
+      handedBack: ids,
+      refused: ids.map((id, n) => ({
+        id,
+        title: `Ein Beitrag über Ökosysteme 日本語のタイトル ${n}`,
+        reason:
+          "Rewrite the post: Dieser Beitrag sagt fast dasselbe wie ein anderer, 同じ書き出しです。 ".repeat(
+            4,
+          ),
+      })),
+      left: 0,
+      next: "Fix each refused piece yourself.",
+    };
+    const stored = persistedToolResult(receipt, "write_month_pieces");
+
+    expect(Buffer.byteLength(JSON.stringify(receipt))).toBeGreaterThan(16_384);
+    expect((stored as { truncated?: boolean }).truncated).toBe(true);
+    expect(cmoHandedBackIds(stored)).toEqual(ids);
   });
 
   it("says what is Cuso's when only handed-back pieces are left", async () => {

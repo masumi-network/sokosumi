@@ -555,6 +555,7 @@ export async function writeCmoMonthPieces(
   authorized: AuthorizedSokoBotRuntime,
 ): Promise<{
   written: number;
+  handedBack?: string[];
   refused: CmoRefusedPiece[];
   left: number;
   next: string;
@@ -1052,6 +1053,8 @@ export async function writeCmoMonthPieces(
   }
   return {
     written,
+    // Ids first: a stored receipt over 16 KB keeps only this list whole.
+    handedBack: [...refused.keys()],
     refused: [...refused].map(([id, why]) => ({
       id,
       title: byId.get(id)?.title ?? id,
@@ -1075,16 +1078,21 @@ async function handedBackThisTurn(turnId: string): Promise<Set<string>> {
     where: { turnId, capability: "write_month_pieces", status: "COMPLETED" },
     select: { result: true },
   });
-  return new Set(
-    calls.flatMap((call) => {
-      const refused = (call.result as { refused?: unknown } | null)?.refused;
-      return Array.isArray(refused)
-        ? refused.flatMap((piece: { id?: unknown }) =>
-            typeof piece?.id === "string" ? [piece.id] : [],
-          )
-        : [];
-    }),
-  );
+  return new Set(calls.flatMap((call) => cmoHandedBackIds(call.result)));
+}
+
+/** The piece ids a stored write_month_pieces receipt handed back. */
+export function cmoHandedBackIds(result: unknown): string[] {
+  const receipt = (result ?? {}) as { handedBack?: unknown; refused?: unknown };
+  if (Array.isArray(receipt.handedBack))
+    return receipt.handedBack.filter(
+      (id): id is string => typeof id === "string",
+    );
+  return Array.isArray(receipt.refused)
+    ? receipt.refused.flatMap((piece: { id?: unknown }) =>
+        typeof piece?.id === "string" ? [piece.id] : [],
+      )
+    : [];
 }
 
 /** The fields a pieces save names a piece by, as the brief gives them. */

@@ -48,6 +48,8 @@ export const CMO_PRODUCTION_TOOLS = [
   "read_file",
   // The owner's preferences, beyond the packet's copy.
   "read_memory",
+  // cmo-context-on-demand's map points to competitors' moves on every turn.
+  "read_competitor_moves",
   "wait_for",
   "report_update",
 ] as const satisfies readonly SokoBotCapability[];

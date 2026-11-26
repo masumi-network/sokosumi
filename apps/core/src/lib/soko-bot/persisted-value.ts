@@ -127,6 +127,24 @@ export interface PersistedToolResultOptions {
 }
 
 /**
+ * The month writer's handed-back piece ids, kept whole when its receipt is
+ * cut: its next call reads them to move past those pieces.
+ */
+function handedBackIds(value: unknown): { handedBack?: string[] } {
+  const ids =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as { handedBack?: unknown }).handedBack
+      : undefined;
+  return Array.isArray(ids)
+    ? {
+        handedBack: ids
+          .filter((id): id is string => typeof id === "string")
+          .map((id) => id.slice(0, 64)),
+      }
+    : {};
+}
+
+/**
  * A tool input or result as stored on its row: sanitized, and at most 16 KB,
  * plus the addresses of one that had to be cut.
  */
@@ -162,6 +180,7 @@ export function persistedToolResult(
     ...(options?.canonicalInputHash
       ? { canonicalInputHash: options.canonicalInputHash }
       : {}),
+    ...handedBackIds(sanitized),
   };
   const emptyWrapper = JSON.stringify({
     truncated: true,
