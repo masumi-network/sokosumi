@@ -195,7 +195,8 @@ export function buildEventMessage(
 
 /**
  * Whether the background run that delegated this work read its latest change
- * itself before it ended: then the change is handled and nobody is woken.
+ * itself before it ended. A read counts when it finished after the change:
+ * one that started a moment before still returned it.
  */
 async function backgroundRunReadChange(
   runTurnId: string,
@@ -209,7 +210,7 @@ async function backgroundRunReadChange(
       capability: delegation.task ? "get_task_status" : "get_job_status",
       status: "COMPLETED",
       input: { path: [field], equals: current.id },
-      ...(current.eventAt ? { createdAt: { gte: current.eventAt } } : {}),
+      ...(current.eventAt ? { updatedAt: { gte: current.eventAt } } : {}),
     },
     select: { id: true },
   });
@@ -412,8 +413,17 @@ export class SokoBotEventsSyncService {
       if (delegation.turn.parentTurnId) {
         if (BACKGROUND_RUN_ACTIVE_STATUSES.has(delegation.turn.status))
           continue;
+        // The owner stopped the run: its plan stops with it. A run that
+        // finished and read the change handled it. A failed run did neither,
+        // even if it read the result, so the follow-up wakes the bot.
         if (
-          await backgroundRunReadChange(delegation.turnId, current, delegation)
+          delegation.turn.status === "CANCELLED" ||
+          (delegation.turn.status === "COMPLETED" &&
+            (await backgroundRunReadChange(
+              delegation.turnId,
+              current,
+              delegation,
+            )))
         ) {
           work.baselines.push({
             delegationId: delegation.id,

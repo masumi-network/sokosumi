@@ -449,7 +449,7 @@ describe("SokoBotEventsSyncService", () => {
       ).toEqual(["d1"]);
     });
 
-    it("wakes nobody when the run read the result itself before it ended", async () => {
+    it("wakes nobody when the finished run read the result itself", async () => {
       runTurn.status = "COMPLETED";
       toolCallFindFirstMock.mockResolvedValue({ id: "read" });
       delegationFindManyMock.mockResolvedValue([runDelegation()]);
@@ -460,9 +460,31 @@ describe("SokoBotEventsSyncService", () => {
             turnId: "run_turn",
             capability: "get_task_status",
             input: { path: ["taskId"], equals: "task_shared" },
+            // A read that started just before the change still returned it.
+            updatedAt: { gte: new Date("2026-10-23T10:00:00Z") },
           }),
         }),
       );
+      expect(delegationUpdateMock).toHaveBeenCalledOnce();
+    });
+
+    it("hands the follow-up on when the run read the result and then failed", async () => {
+      runTurn.status = "FAILED";
+      toolCallFindFirstMock.mockResolvedValue({ id: "read" });
+      delegationFindManyMock.mockResolvedValue([runDelegation()]);
+      expect((await sync()).woken).toBe(1);
+      expect(
+        startTurnMock.mock.calls[0]![0].eventBatch[0].followUpDelegationIds,
+      ).toEqual(["d1"]);
+    });
+
+    it("never restarts a plan the owner stopped with the run", async () => {
+      runTurn.status = "CANCEL_REQUESTED";
+      delegationFindManyMock.mockResolvedValue([runDelegation()]);
+      expect((await sync()).woken).toBe(0);
+      runTurn.status = "CANCELLED";
+      expect((await sync()).woken).toBe(0);
+      expect(startTurnMock).not.toHaveBeenCalled();
       expect(delegationUpdateMock).toHaveBeenCalledOnce();
     });
 
