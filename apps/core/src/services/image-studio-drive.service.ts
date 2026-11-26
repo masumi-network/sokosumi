@@ -8,6 +8,7 @@ import prisma from "@/lib/db/prisma";
 import { drivePut } from "@/lib/drive-blob";
 import { recordCoreWarning } from "@/lib/evlog";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
+import { downloadableAssetWhere } from "@/lib/image-studio/list-query";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   activateDriveUploadResource,
@@ -162,7 +163,11 @@ export async function ensureStudioAssetDriveFile(input: {
   jobId?: string;
 }): Promise<StudioAssetDriveFile | null> {
   const asset = await prisma.projectImageAsset.findFirst({
-    where: { id: input.assetId, projectId: input.projectId },
+    where: {
+      id: input.assetId,
+      projectId: input.projectId,
+      ...downloadableAssetWhere,
+    },
     select: {
       blobPathname: true,
       contentType: true,

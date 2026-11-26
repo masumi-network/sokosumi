@@ -1,3 +1,14 @@
+import { RECRAFT_VECTOR_ENDPOINT } from "./catalog-overrides";
+
+/** A hidden vector awaiting its paid render has no user-facing download. */
+export const downloadableAssetWhere = {
+  NOT: {
+    hiddenAt: { not: null },
+    model: RECRAFT_VECTOR_ENDPOINT,
+    job: { letteringQuoteCents: { not: null } },
+  },
+} as const;
+
 export const assetSelect = {
   id: true,
   projectId: true,

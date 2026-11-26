@@ -15,6 +15,7 @@ import {
   SHORT_VIDEO_MAX_PICTURES,
   SHORT_VIDEO_TEXT_FORMATS,
   type ShortVideoFormat,
+  sniffImageMimeFromBytes,
   talkingVideoQuotedSeconds,
   VIDEO_SHAPE_FRAMES,
   type VideoShape,
@@ -155,7 +156,10 @@ import {
 import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
 import { enqueueAdEval } from "@/services/ad-eval.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
-import { publishStudioAssetToFiles } from "@/services/image-studio-drive.service";
+import {
+  ensureStudioAssetDriveFile,
+  publishStudioAssetToFiles,
+} from "@/services/image-studio-drive.service";
 import { recordStudioAdEvent } from "@/services/image-studio-events.service";
 import { readReferenceImage } from "@/services/reference-library.service";
 import {
@@ -316,6 +320,8 @@ interface ReserveImageJobInput
   letteringQuoteCents?: bigint;
   letteringSettings?: ImageJobSettings;
   letteringModel?: string;
+  renderSettings?: ImageJobSettings;
+  renderModel?: string;
   presenterConsentAt?: Date;
 }
 
@@ -645,6 +651,10 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
           ...input.settings,
           ...(input.route && { route: input.route }),
           ...(input.experimentArm && { experimentArm: input.experimentArm }),
+          ...(input.renderSettings && {
+            renderSettings: input.renderSettings,
+            renderModel: input.renderModel,
+          }),
           ...(input.letteringSettings
             ? {
                 letteringSettings: { ...input.letteringSettings },
@@ -1054,7 +1064,18 @@ function webhookUrl(): string | null {
 /**
  * Create (or replay) a job and, when this caller owns the lease, send it.
  */
-export async function createImageJob(input: CreateImageJobInput) {
+export async function createImageJob(requested: CreateImageJobInput) {
+  const makeRealistic = requested.route === "make_realistic";
+  const input = makeRealistic
+    ? {
+        ...requested,
+        referenceAssetIds: [],
+        referenceFileIds: [],
+        referenceLibraryIds: [],
+        useProductCutout: false,
+        styleLayoutOnly: false,
+      }
+    : requested;
   const access = await requireProjectAccess({
     projectId: input.projectId,
     workspaceId: input.workspaceId,
@@ -1078,8 +1099,9 @@ export async function createImageJob(input: CreateImageJobInput) {
       "Choose one transparent PNG product photo to create a new ad with the original product.",
     );
   }
-  const lettering =
-    input.lettering ?? (input.exportHeadline ? "ideogram" : "overlay");
+  const lettering = makeRealistic
+    ? "overlay"
+    : (input.lettering ?? (input.exportHeadline ? "ideogram" : "overlay"));
   if (lettering === "ideogram" && !input.exportHeadline) {
     throw unprocessableEntity(
       "Choose an approved headline for Ideogram lettering.",
@@ -1087,7 +1109,11 @@ export async function createImageJob(input: CreateImageJobInput) {
   }
   const startsLettering =
     lettering === "ideogram" && input.modelId !== "ideogram-v3";
-  const requestedModelId = startsLettering ? "gemini-pro" : input.modelId;
+  const requestedModelId = makeRealistic
+    ? "recraft-v4-1-text-to-vector"
+    : startsLettering
+      ? "gemini-pro"
+      : input.modelId;
   // A library style is a reference too: without it the job takes the model's
   // generate endpoint, which refuses the reference it is then sent.
   const references =
@@ -1098,7 +1124,17 @@ export async function createImageJob(input: CreateImageJobInput) {
   try {
     settings = resolveImageSettings(
       requestedModelId,
-      input.settings,
+      makeRealistic
+        ? {
+            ...input.settings,
+            outputFormat: "png",
+            seed: null,
+            resolution:
+              input.settings.resolution === "0.5K"
+                ? "1K"
+                : input.settings.resolution,
+          }
+        : input.settings,
       references,
     );
   } catch (error) {
@@ -1113,11 +1149,19 @@ export async function createImageJob(input: CreateImageJobInput) {
   let maxReferences: number;
   let letteringSettings: ImageJobSettings | undefined;
   let letteringModel: string | undefined;
+  let renderSettings: ImageJobSettings | undefined;
+  let renderModel: string | undefined;
   let letteringQuoteCents: bigint | undefined;
   try {
     const model = imageModel(requestedModelId);
     chargedCredits = creditsPerImage(model, settings);
-    if (startsLettering) {
+    if (makeRealistic) {
+      renderSettings = resolveImageSettings("gemini-pro", settings, 1);
+      letteringQuoteCents = convertCreditsToCents(
+        creditsPerImage(imageModel("gemini-pro"), renderSettings),
+      );
+      renderModel = falModelForKind(ProjectImageJobKind.EDIT, "gemini-pro");
+    } else if (startsLettering) {
       letteringSettings = resolveImageSettings("ideogram-v3", settings, 1);
       letteringQuoteCents = convertCreditsToCents(
         creditsPerImage(imageModel("ideogram-v3"), letteringSettings),
@@ -1172,6 +1216,8 @@ export async function createImageJob(input: CreateImageJobInput) {
     kind,
     model: falModelForKind(kind, requestedModelId),
     lettering,
+    renderSettings,
+    renderModel,
     letteringSettings,
     letteringModel,
     letteringQuoteCents,
@@ -2092,11 +2138,12 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
         reason = step;
       });
     } catch (error) {
-      return await failBeforeSend(job.id, reason, error);
+      return await failBeforeSend(job, reason, error);
     }
     return await submitPreparedJob(job, request);
   }
 
+  const makeRealistic = readImageStudioRoute(job.settings) === "make_realistic";
   const letteringEdit =
     job.lettering === "ideogram" && job.letteringQuoteCents == null;
   let input: Record<string, unknown>;
@@ -2144,17 +2191,19 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
             job.exportHeadline,
             await readStudioBrandKit(job.projectId),
           )
-        : styled
-          ? job.prompt
-          : applyStudioBrandPrompt(
-              job.useProductCutout
-                ? backdropInstruction +
-                    " Leave a surface in the lower center for a product cutout. Keep the central area clear. Leave products, people, promotional text, and logos out of the artwork. Use the brief for the setting, palette, and lighting only.\n\n" +
-                    job.prompt
-                : job.prompt,
-              promptBrand,
-              job.model === RECRAFT_VECTOR_ENDPOINT,
-            );
+        : isRealisticRender(job)
+          ? `Regenerate the supplied image as a finished illustration or photograph according to the original brief. Preserve the composition, layout, placement, proportions and shapes exactly. Keep every word, spelling and text position exactly as shown. Do not add, remove or rewrite text.\n\nOriginal brief:\n${job.prompt}`
+          : styled
+            ? job.prompt
+            : applyStudioBrandPrompt(
+                job.useProductCutout
+                  ? backdropInstruction +
+                      " Leave a surface in the lower center for a product cutout. Keep the central area clear. Leave products, people, promotional text, and logos out of the artwork. Use the brief for the setting, palette, and lighting only.\n\n" +
+                      job.prompt
+                  : job.prompt,
+                promptBrand,
+                job.model === RECRAFT_VECTOR_ENDPOINT,
+              );
     let finalPrompt = prompt;
     if (isVideoKind(job.kind)) {
       const model = findVideoModelForEndpoint(job.model);
@@ -2172,9 +2221,12 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
         ? `\n\nUse the ${photoCount === 1 ? "last reference image" : `last ${photoCount} reference images`} for the advertised product's appearance. Keep its shape, colors, materials, packaging, and any legible label text unless the brief explicitly asks to change them.`
         : "";
       const headlineGuidance =
-        job.exportHeadline && !letteringEdit
-          ? "\n\nStudio adds the approved headline after generation. Keep the upper area clear for the headline and leave marketing text out of the artwork. Preserve text printed on the product and its packaging."
-          : "";
+        job.exportHeadline && makeRealistic
+          ? "\n\nInclude this headline exactly as written: " +
+            JSON.stringify(job.exportHeadline)
+          : job.exportHeadline && !letteringEdit
+            ? "\n\nStudio adds the approved headline after generation. Keep the upper area clear for the headline and leave marketing text out of the artwork. Preserve text printed on the product and its packaging."
+            : "";
       let maskUrl: string | undefined;
       if (letteringEdit) {
         preflightReason = "reference_not_sendable";
@@ -2227,7 +2279,7 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       variationIndex: job.variationIndex ?? null,
     };
   } catch (error) {
-    return await failBeforeSend(job.id, preflightReason, error);
+    return await failBeforeSend(job, preflightReason, error);
   }
 
   // Track the write through response completion without holding up the paid call.
@@ -2258,12 +2310,113 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
   return await submitPreparedJob(job, input);
 }
 
+interface RenderJobIdentity {
+  id: string;
+  idempotencyKey: string;
+  kind: ProjectImageJobKind;
+  parentAssetId: string | null;
+  settings: Prisma.JsonValue;
+}
+
+function isRealisticRender(job: RenderJobIdentity): boolean {
+  return (
+    job.kind === ProjectImageJobKind.EDIT &&
+    readImageStudioRoute(job.settings) === "make_realistic" &&
+    job.idempotencyKey.startsWith("studio-realistic:")
+  );
+}
+
+/** Restore the paid layout only if this render actually transitioned to a terminal state. */
+async function withRenderFallback<T extends { id: string } | { count: number }>(
+  job: RenderJobIdentity | null,
+  write: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  const parentId = job?.parentAssetId;
+  if (!parentId || !isRealisticRender(job)) return write(prisma);
+  const { result, restored } = await serializableTransaction(async (tx) => {
+    const result = await write(tx);
+    if ("count" in result && result.count === 0)
+      return { result, restored: null };
+    const [restored] = await tx.projectImageAsset.updateManyAndReturn({
+      where: { id: parentId, hiddenAt: { not: null } },
+      data: { hiddenAt: null },
+      select: {
+        id: true,
+        projectId: true,
+        job: { select: { requestedByUserId: true } },
+      },
+    });
+    return { result, restored };
+  }, "The image changed while finishing the render. Try again.");
+  if (restored) {
+    try {
+      const access = await requireProjectAccessForUser({
+        projectId: restored.projectId,
+        userId: restored.job.requestedByUserId,
+      });
+      const file = await ensureStudioAssetDriveFile({
+        ...access,
+        assetId: restored.id,
+      });
+      if (!file) throw new Error("Restored layout file was not activated");
+    } catch (error) {
+      recordCoreWarning(
+        {
+          operation: "image_job_settle",
+          imageJobs: [{ id: job.id, failure: messageSafeErrorFields(error) }],
+        },
+        {
+          message: "Could not add the restored layout to Files",
+          why: "Copying the layout into the Content Studio folder failed",
+          fix: "The layout is available in Studio. Attaching it retries the copy.",
+        },
+      );
+    }
+  }
+  return result;
+}
+
+function finishWithoutAsset(
+  job: RenderJobIdentity | null,
+  where: Prisma.ProjectImageJobWhereInput,
+  status: "FAILED" | "CANCELED" | "ORPHANED",
+  reason: ImageJobFailureReason,
+) {
+  return withRenderFallback(job, (tx) =>
+    tx.projectImageJob.updateMany({
+      where,
+      data: {
+        status,
+        error: imageJobFailureMessage(reason),
+        failureReason: reason,
+        settledAt: new Date(),
+      },
+    }),
+  );
+}
+
+function failSubmission(job: RenderJobIdentity, reason: ImageJobFailureReason) {
+  return withRenderFallback(job, (tx) =>
+    tx.projectImageJob.update({
+      where: { id: job.id },
+      data: {
+        status: ProjectImageJobStatus.FAILED,
+        error: imageJobFailureMessage(reason),
+        failureReason: reason,
+        settledAt: new Date(),
+        submitLeaseAt: null,
+      },
+    }),
+  );
+}
+
 /** Settle a job whose request could not be prepared. Nothing was sent. */
 async function failBeforeSend(
-  jobId: string,
+  job: RenderJobIdentity,
   reason: ImageJobFailureReason,
   error: unknown,
 ) {
+  const jobId = job.id;
   // The error can quote the prompt it was building, so no cause.
   recordCoreWarning(
     {
@@ -2283,21 +2436,12 @@ async function failBeforeSend(
     },
   );
   // Nothing to give back: the charge happens on delivery, and there was none.
-  return await prisma.projectImageJob.update({
-    where: { id: jobId },
-    data: {
-      status: ProjectImageJobStatus.FAILED,
-      error: imageJobFailureMessage(reason),
-      failureReason: reason,
-      settledAt: new Date(),
-      submitLeaseAt: null,
-    },
-  });
+  return await failSubmission(job, reason);
 }
 
 /** The paid call: send a prepared request and record what the provider said. */
 async function submitPreparedJob(
-  job: { id: string; model: string },
+  job: RenderJobIdentity & { model: string },
   input: Record<string, unknown>,
 ) {
   const outcome = await submitToQueue({
@@ -2333,16 +2477,7 @@ async function submitPreparedJob(
           fix: "Nothing was queued or charged and the job is marked failed. Look up the status under provider.",
         },
       );
-      return await prisma.projectImageJob.update({
-        where: { id: job.id },
-        data: {
-          status: ProjectImageJobStatus.FAILED,
-          error: imageJobFailureMessage("provider_rejected"),
-          failureReason: "provider_rejected",
-          settledAt: new Date(),
-          submitLeaseAt: null,
-        },
-      });
+      return await failSubmission(job, "provider_rejected");
     }
     case "uncertain":
       recordCoreWarning(
@@ -2470,19 +2605,16 @@ export async function reconcileJob(jobId: string): Promise<void> {
       if (job.cancelRequestedAt) {
         // A cancelled caption step leaves the presenter's video, which fal
         // has already made and billed: keep it, as a finished image is kept.
-        if (await deliverUncaptionedTalkingVideo(job.id)) return;
-        await prisma.projectImageJob.updateMany({
-          where: {
+        if (await deliverUncaptionedTalkingVideo(job)) return;
+        await finishWithoutAsset(
+          job,
+          {
             id: job.id,
             status: { in: [...LIVE_STATUSES] },
           },
-          data: {
-            status: ProjectImageJobStatus.CANCELED,
-            settledAt: new Date(),
-            error: imageJobFailureMessage("cancelled"),
-            failureReason: "cancelled",
-          },
-        });
+          ProjectImageJobStatus.CANCELED,
+          "cancelled",
+        );
         return;
       }
       await failImageJob(job.id, "provider_lost_request");
@@ -2704,7 +2836,18 @@ export async function failImageJob(
   /** The provider's own words. Logged, never shown. */
   providerDetail?: string,
 ): Promise<void> {
-  if (await deliverUncaptionedTalkingVideo(jobId)) return;
+  const job = await prisma.projectImageJob.findUnique({
+    where: { id: jobId },
+    select: {
+      id: true,
+      kind: true,
+      parentAssetId: true,
+      idempotencyKey: true,
+      settings: true,
+      pendingMediaUrl: true,
+    },
+  });
+  if (await deliverUncaptionedTalkingVideo(job)) return;
   if (providerDetail) {
     // Where a raw transport string belongs. "Unexpected status code: 422" is
     // useful to whoever is debugging the job and useless to whoever was waiting
@@ -2722,18 +2865,15 @@ export async function failImageJob(
       },
     );
   }
-  await prisma.projectImageJob.updateMany({
-    where: {
+  await finishWithoutAsset(
+    job,
+    {
       id: jobId,
       status: { in: [...LIVE_STATUSES] },
     },
-    data: {
-      status: ProjectImageJobStatus.FAILED,
-      error: imageJobFailureMessage(reason),
-      failureReason: reason,
-      settledAt: new Date(),
-    },
-  });
+    ProjectImageJobStatus.FAILED,
+    reason,
+  );
   nudgeCmoMonth(jobId);
 }
 
@@ -2864,23 +3004,25 @@ async function startTalkingVideoSecondStep(
  * A talking video whose caption step failed is still a video the studio paid
  * for: deliver it as its presenter model made it. True when it was handled.
  */
-async function deliverUncaptionedTalkingVideo(jobId: string): Promise<boolean> {
-  const job = await prisma.projectImageJob.findUnique({
-    where: { id: jobId },
-    select: { kind: true, pendingMediaUrl: true },
-  });
+async function deliverUncaptionedTalkingVideo(
+  job: {
+    id: string;
+    kind: ProjectImageJobKind;
+    pendingMediaUrl: string | null;
+  } | null,
+): Promise<boolean> {
   if (job?.kind !== ProjectImageJobKind.TALKING_VIDEO || !job.pendingMediaUrl)
     return false;
   recordCoreWarning(
-    { operation: "image_job_settle", imageJobs: [{ id: jobId }] },
+    { operation: "image_job_settle", imageJobs: [{ id: job.id }] },
     {
       message: "Delivered a talking video without captions",
       why: "fal reported the caption step as failed",
       fix: "The video was kept as its presenter model made it. If this repeats, check the caption endpoint and its input.",
     },
   );
-  await storeMedia(jobId, job.pendingMediaUrl);
-  nudgeCmoMonth(jobId);
+  await storeMedia(job.id, job.pendingMediaUrl);
+  nudgeCmoMonth(job.id);
   return true;
 }
 
@@ -3080,15 +3222,12 @@ async function storeMedia(
     // A real refusal: the project is gone, or the requester no longer has
     // access to it. Nothing is downloaded and nothing is stored.
     await releaseSettlementLease(job.id, lease);
-    await prisma.projectImageJob.updateMany({
-      where: { id: job.id },
-      data: {
-        status: ProjectImageJobStatus.ORPHANED,
-        error: imageJobFailureMessage("access_revoked"),
-        failureReason: "access_revoked",
-        settledAt: new Date(),
-      },
-    });
+    await finishWithoutAsset(
+      job,
+      { id: job.id, status: { in: [...LIVE_STATUSES] } },
+      ProjectImageJobStatus.ORPHANED,
+      "access_revoked",
+    );
     // The person keeps nothing and pays nothing: the charge only happens when an
     // asset is written, and none was.
     return;
@@ -3166,9 +3305,25 @@ async function storeMedia(
     return;
   }
 
+  const isRender = isRealisticRender(job);
+  if (isRender) {
+    try {
+      if (sniffImageMimeFromBytes(downloaded.bytes) !== "image/png")
+        throw new Error("Expected a PNG");
+      await sharp(downloaded.bytes, { limitInputPixels: 16_000_000 })
+        .timeout({ seconds: 10 })
+        .stats();
+    } catch {
+      await failImageJob(job.id, "provider_error");
+      return;
+    }
+    downloaded.contentType = "image/png";
+  }
+
   let vectorSource: Uint8Array | undefined;
   if (
     !video &&
+    !isRender &&
     (job.model === RECRAFT_VECTOR_ENDPOINT ||
       [mediaInfo?.contentType, downloaded.contentType].some(
         (type) => type?.split(";")[0]?.trim().toLowerCase() === "image/svg+xml",
@@ -3468,13 +3623,19 @@ async function storeMedia(
     return;
   }
 
+  const startsRender =
+    job.model === RECRAFT_VECTOR_ENDPOINT &&
+    readImageStudioRoute(job.settings) === "make_realistic" &&
+    job.letteringQuoteCents != null;
   let delivered: {
     assetId: string;
     version: number | null;
-    letteringJobId: string | null;
-  };
+    followUpJobId: string | null;
+  } | null;
   try {
     delivered = await insertAsset({
+      isRender,
+      startsRender,
       job: {
         id: job.id,
         projectId: project.id,
@@ -3523,14 +3684,16 @@ async function storeMedia(
     await releaseSettlementLease(job.id, lease);
     throw error;
   }
+  if (!delivered) return;
   // The next paid request is already durable. A crash here leaves a normal
   // PENDING row for recoverUnclaimedReservations, with the original quote.
   if (
-    delivered.letteringJobId &&
-    (await claimForSubmission(delivered.letteringJobId))
+    delivered.followUpJobId &&
+    (await claimForSubmission(delivered.followUpJobId))
   ) {
-    await sendClaimedJob(delivered.letteringJobId, project.organizationId);
+    await sendClaimedJob(delivered.followUpJobId, project.organizationId);
   }
+  if (startsRender) return;
   if (job.batchSlotId && delivered.version !== null) {
     const replaced = await prisma.projectImageAsset
       .findFirst({
@@ -3697,6 +3860,8 @@ async function settleVideoShapeJob(job: {
  * job, the person is charged once.
  */
 async function insertAsset(input: {
+  isRender: boolean;
+  startsRender: boolean;
   job: {
     id: string;
     projectId: string;
@@ -3732,16 +3897,26 @@ async function insertAsset(input: {
 }): Promise<{
   assetId: string;
   version: number | null;
-  letteringJobId: string | null;
-}> {
+  followUpJobId: string | null;
+} | null> {
+  const { startsRender } = input;
   return await serializableTransaction(async (tx) => {
     const existing = await tx.projectImageAsset.findUnique({
       where: { jobId: input.job.id },
       select: { id: true },
     });
     if (existing)
-      return { assetId: existing.id, version: null, letteringJobId: null };
+      return { assetId: existing.id, version: null, followUpJobId: null };
 
+    if (input.isRender) {
+      // A terminal failure can restore the layout while the render is downloading.
+      const current = await tx.projectImageJob.findUniqueOrThrow({
+        where: { id: input.job.id },
+        select: { status: true },
+      });
+      if (!(LIVE_STATUSES as readonly string[]).includes(current.status))
+        return null;
+    }
     let rootId: string | null = null;
     if (input.job.parentAssetId) {
       const parent = await tx.projectImageAsset.findFirst({
@@ -3822,6 +3997,7 @@ async function insertAsset(input: {
     await tx.projectImageAsset.create({
       data: {
         id,
+        ...(startsRender && { hiddenAt: new Date() }),
         projectId: input.job.projectId,
         workspaceId: input.job.workspaceId,
         jobId: input.job.id,
@@ -3854,50 +4030,53 @@ async function insertAsset(input: {
       },
     });
 
-    let letteringJobId: string | null = null;
+    let followUpJobId: string | null = null;
     if (
-      input.job.lettering === "ideogram" &&
       input.job.letteringQuoteCents != null &&
-      input.job.exportHeadline
+      (startsRender ||
+        (input.job.lettering === "ideogram" && input.job.exportHeadline))
     ) {
-      const rawSettings = input.job.settings;
-      const secondSettings =
-        rawSettings &&
-        typeof rawSettings === "object" &&
-        !Array.isArray(rawSettings)
-          ? rawSettings.letteringSettings
-          : null;
-      const secondModel =
-        rawSettings &&
-        typeof rawSettings === "object" &&
-        !Array.isArray(rawSettings) &&
-        typeof rawSettings.letteringModel === "string"
-          ? rawSettings.letteringModel
-          : "";
-      const letteringJob = await tx.projectImageJob.create({
+      const raw = input.job.settings;
+      const metadata =
+        raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+      const secondSettings = startsRender
+        ? metadata.renderSettings
+        : metadata.letteringSettings;
+      const secondModel = startsRender
+        ? metadata.renderModel
+        : metadata.letteringModel;
+      const child = await tx.projectImageJob.create({
         data: {
           projectId: input.job.projectId,
           workspaceId: input.job.workspaceId,
           sessionId: input.job.sessionId,
           requestedByUserId: input.job.requestedByUserId,
           kind: ProjectImageJobKind.EDIT,
-          model: secondModel,
-          prompt: `Add the approved headline: ${input.job.exportHeadline}`,
-          exportHeadline: input.job.exportHeadline,
-          lettering: "ideogram",
-          settings: jsonInput(readSettings(secondSettings ?? {})),
+          model: typeof secondModel === "string" ? secondModel : "",
+          prompt: startsRender
+            ? input.job.prompt
+            : `Add the approved headline: ${input.job.exportHeadline}`,
+          exportHeadline: startsRender ? null : input.job.exportHeadline,
+          lettering: startsRender ? "overlay" : "ideogram",
+          settings: jsonInput({
+            ...readSettings(secondSettings ?? {}),
+            ...(startsRender && {
+              route: "make_realistic",
+              experimentArm: readStudioRouterArm(metadata) ?? undefined,
+            }),
+          }),
           productId: input.job.productId,
           productName: input.job.productName,
           batchSlotId: input.job.batchSlotId ?? input.job.id,
           parentAssetId: id,
           referenceAssetIds: [id],
           referenceFileIds: [],
-          idempotencyKey: `studio-lettering:${input.job.id}`,
+          idempotencyKey: `studio-${startsRender ? "realistic" : "lettering"}:${input.job.id}`,
           status: ProjectImageJobStatus.PENDING,
           chargedCents: input.job.letteringQuoteCents,
         },
       });
-      letteringJobId = letteringJob.id;
+      followUpJobId = child.id;
     }
 
     await tx.projectImageJob.updateMany({
@@ -3919,7 +4098,7 @@ async function insertAsset(input: {
         unreachableSource: null,
       },
     });
-    return { assetId: id, version, letteringJobId };
+    return { assetId: id, version, followUpJobId };
   }, "Another image finished in this lineage at the same moment. Try again.");
 }
 
@@ -4145,6 +4324,9 @@ async function finaliseCancellations(limit: number): Promise<number> {
       pendingMediaUrl: true,
       settings: true,
       falRequestId: true,
+      parentAssetId: true,
+      idempotencyKey: true,
+      kind: true,
     },
   });
 
@@ -4158,21 +4340,18 @@ async function finaliseCancellations(limit: number): Promise<number> {
     // Unreachable says nothing; leave it for the next pass.
     if (status.kind === "unreachable") continue;
     if (status.kind === "not_found") {
-      if (await deliverUncaptionedTalkingVideo(job.id)) continue;
-      const settled = await prisma.projectImageJob.updateMany({
-        where: {
+      if (await deliverUncaptionedTalkingVideo(job)) continue;
+      const settled = await finishWithoutAsset(
+        job,
+        {
           id: job.id,
           status: {
             in: [ProjectImageJobStatus.QUEUED, ProjectImageJobStatus.RUNNING],
           },
         },
-        data: {
-          status: ProjectImageJobStatus.CANCELED,
-          settledAt: new Date(),
-          error: imageJobFailureMessage("cancelled"),
-          failureReason: "cancelled",
-        },
-      });
+        ProjectImageJobStatus.CANCELED,
+        "cancelled",
+      );
       finalised += settled.count;
       continue;
     }
@@ -4211,6 +4390,10 @@ export async function recoverUnclaimedReservations(
     select: {
       id: true,
       createdAt: true,
+      kind: true,
+      parentAssetId: true,
+      idempotencyKey: true,
+      settings: true,
       projectId: true,
       requestedByUserId: true,
     },
@@ -4223,19 +4406,16 @@ export async function recoverUnclaimedReservations(
     // Past this age the person who asked has long gone; releasing the slot is
     // kinder than buying an image nobody is waiting for.
     if (job.createdAt.getTime() < now.getTime() - PENDING_ABANDON_AFTER_MS) {
-      const released = await prisma.projectImageJob.updateMany({
-        where: {
+      const released = await finishWithoutAsset(
+        job,
+        {
           id: job.id,
           status: ProjectImageJobStatus.PENDING,
           submitAttempts: 0,
         },
-        data: {
-          status: ProjectImageJobStatus.FAILED,
-          error: imageJobFailureMessage("abandoned_before_send"),
-          failureReason: "abandoned_before_send",
-          settledAt: new Date(),
-        },
-      });
+        ProjectImageJobStatus.FAILED,
+        "abandoned_before_send",
+      );
       abandoned += released.count;
       continue;
     }
@@ -4274,19 +4454,16 @@ export async function recoverUnclaimedReservations(
     }
 
     if (!access) {
-      const released = await prisma.projectImageJob.updateMany({
-        where: {
+      const released = await finishWithoutAsset(
+        job,
+        {
           id: job.id,
           status: ProjectImageJobStatus.PENDING,
           submitAttempts: 0,
         },
-        data: {
-          status: ProjectImageJobStatus.ORPHANED,
-          error: imageJobFailureMessage("access_revoked"),
-          failureReason: "access_revoked",
-          settledAt: new Date(),
-        },
-      });
+        ProjectImageJobStatus.ORPHANED,
+        "access_revoked",
+      );
       denied += released.count;
       continue;
     }

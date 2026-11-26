@@ -165,6 +165,17 @@ describe("image generation tools", () => {
     });
   });
 
+  it("starts make_realistic with one Core request", async () => {
+    await generate.execute({ ...base, route: "make_realistic" }, ctx);
+    expect(startGeneration).toHaveBeenCalledExactlyOnceWith(
+      { userId: "user-1", projectId: "project-1" },
+      expect.objectContaining({
+        route: "make_realistic",
+        experimentArm: "router:sonnet-5",
+      }),
+    );
+  });
+
   it("deduplicates replay but separates model comparisons and explicitly requested variants", async () => {
     await generate.execute(base, ctx);
     await generate.execute(base, ctx);
@@ -331,6 +342,8 @@ describe("non-billed agent behavior contract", () => {
       "Text-heavy images (posters, typography, quotes, infographics with words, signage): use `generate_image` with `ideogram-v3`",
       "Logos, icons and flat diagrams: use `generate_image` with",
       "recraft-v4-1-text-to-vector",
+      "use `generate_image` with route `make_realistic`",
+      "Do not call `refine_image` or a second `generate_image` for the Gemini step",
       "Edits to an existing image: use `refine_image`",
       "preserve them unless the person asks for a change",
       "State the chosen route in one short line before or with generation",

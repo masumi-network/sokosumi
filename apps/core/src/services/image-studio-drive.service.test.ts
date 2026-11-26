@@ -89,6 +89,17 @@ describe("ensureStudioAssetDriveFile", () => {
       mimeType: "image/png",
       size: 3,
     });
+    expect(mocks.assetFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          NOT: {
+            hiddenAt: { not: null },
+            model: "fal-ai/recraft/v4.1/text-to-vector",
+            job: { letteringQuoteCents: { not: null } },
+          },
+        }),
+      }),
+    );
     expect(mocks.put).toHaveBeenCalledWith(
       "drive/organizations/org-1/Content Studio/a-purple-robot-logo-00000001.png",
       expect.any(Buffer),

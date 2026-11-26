@@ -1802,6 +1802,7 @@ export function ImageStudio({
           </div>
           <StudioChat
             assets={state.assets}
+            jobs={state.jobs}
             key={activeProjectId}
             labels={labels}
             onActivity={(updates) => {

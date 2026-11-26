@@ -9,6 +9,7 @@ import {
   IMAGE_PROMPT_MAX_LENGTH,
 } from "@/lib/image-studio/request-validation";
 
+import { readImageStudioRoute } from "@/schemas/image-studio-route.schema";
 import { createAgentImageJobSchema } from "@/schemas/project-image-studio.schema";
 import { isCmoProject } from "@/services/cmo-cuso.service";
 import {
@@ -28,7 +29,10 @@ import {
   readStudioProductCatalog,
 } from "@/services/studio-product-catalog.service";
 
-import { authorizeAgentGrant as authorize } from "./authorize";
+import {
+  type AgentGrantContext,
+  authorizeAgentGrant as authorize,
+} from "./authorize";
 
 /**
  * The surface the image-studio agent calls.
@@ -118,6 +122,28 @@ app.get("/versions", async (c) => {
   });
 });
 
+async function automaticRender(
+  context: AgentGrantContext,
+  job: { id: string; kind: string; status: string; settings: unknown },
+) {
+  if (
+    job.kind !== "GENERATE" ||
+    job.status !== "SUCCEEDED" ||
+    readImageStudioRoute(job.settings) !== "make_realistic"
+  )
+    return null;
+  const child = await prisma.projectImageJob.findUnique({
+    where: {
+      projectId_idempotencyKey: {
+        projectId: context.projectId,
+        idempotencyKey: `studio-realistic:${job.id}`,
+      },
+    },
+    select: { id: true },
+  });
+  return child ? getJob({ ...context, jobId: child.id }) : null;
+}
+
 app.post("/generations", async (c) => {
   const context = await authorize(c.req.raw);
   if (context instanceof Response) return context;
@@ -184,7 +210,7 @@ app.post("/generations", async (c) => {
       return c.json({ ok: false, error: "product_brief_too_long" }, 422);
     }
     photoId = selected.photo?.id;
-    if (!photoId && selected.imageUrl) {
+    if (input.route !== "make_realistic" && !photoId && selected.imageUrl) {
       try {
         const photo = await copyRemoteStudioProductPhoto({
           name: selected.name,
@@ -230,18 +256,21 @@ app.post("/generations", async (c) => {
       idempotencyKey: input.idempotencyKey,
     }));
 
+  const current = (await automaticRender(context, job)) ?? job;
   return c.json({
     ok: true,
     job: {
       id: job.id,
-      status: job.status,
-      model: job.model,
-      settings: job.settings,
+      status: current.status,
+      model: current.model,
+      settings: current.settings,
       // Said plainly so the model has no excuse to promise otherwise.
       note:
-        job.status === "SUBMISSION_UNCERTAIN"
+        current.status === "SUBMISSION_UNCERTAIN"
           ? "The provider did not confirm this request. Do not resubmit it; tell the person and let them decide."
-          : "Queued. Generation takes time; it is not instant.",
+          : current !== job
+            ? "Check the generation for its render status and available image."
+            : "Queued. Generation takes time; it is not instant.",
     },
   });
 });
@@ -254,12 +283,18 @@ app.get("/generations/:jobId", async (c) => {
   await reconcileProjectJobs(context.projectId);
   // By id, not by scanning a page: a busy project pushed older jobs out of the
   // window, and the agent then told the person their generation was gone.
-  const job = await getJob({ ...context, jobId });
+  let job = await getJob({ ...context, jobId });
   if (!job) return c.json({ ok: false, error: "not_found" }, 404);
 
-  const asset = job.assetId
-    ? await getAsset({ ...context, assetId: job.assetId })
-    : null;
+  job = (await automaticRender(context, job)) ?? job;
+  const failedRender =
+    job.kind === "EDIT" &&
+    readImageStudioRoute(job.settings) === "make_realistic" &&
+    (job.status === "FAILED" ||
+      job.status === "CANCELED" ||
+      job.status === "ORPHANED");
+  const assetId = failedRender ? job.parentAssetId : job.assetId;
+  const asset = assetId ? await getAsset({ ...context, assetId }) : null;
 
   return c.json({
     ok: true,
