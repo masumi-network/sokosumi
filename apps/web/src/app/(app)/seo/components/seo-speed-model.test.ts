@@ -297,6 +297,10 @@ it("gives a reason and no chart for one week or for weeks that cannot be compare
   expect(
     seoHistoryGap({ status: "comparable", weeks, lcp: [1, 2, 3, 4] }),
   ).toBeNull();
+  // Review pass 37: a history that kept the weeks but not this metric's series has no series for it.
+  expect(
+    seoVitalTrend("inp", { status: "comparable", weeks, lcp: [1, 2, 3, 4] }),
+  ).toEqual({ chart: false, reason: "no_series" });
   expect(seoVitalTrend("lcp", { status: "incompatible_population" })).toEqual({
     chart: false,
     reason: "incompatible_population",

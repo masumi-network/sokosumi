@@ -265,9 +265,13 @@ export function seoVitalTrend(
 ): SeoVitalTrend {
   if (history.status !== "comparable")
     return { chart: false, reason: history.status };
-  if (!history.weeks?.length) return { chart: false, reason: "no_series" };
-  const weeks = history.weeks ?? [];
-  const values = weeks.map((_, index) => history[metric]?.[index] ?? null);
+  // Core leaves out a metric's series when its dates do not match the weeks: that metric has no series, not too few
+  // weeks (review pass 37).
+  const series = history[metric];
+  if (!history.weeks?.length || !series)
+    return { chart: false, reason: "no_series" };
+  const weeks = history.weeks;
+  const values = weeks.map((_, index) => series[index] ?? null);
   const measured = weeks.flatMap((week, index) => {
     const value = values[index];
     return value == null ? [] : [{ week, value }];
