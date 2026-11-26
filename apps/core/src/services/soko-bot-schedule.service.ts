@@ -754,31 +754,6 @@ export async function deleteSokoBotSchedule(
   return { id: schedule.id, name: schedule.name };
 }
 
-/** Bot-facing view: what runs, when, and what it will be asked. */
-export function listSokoBotSchedules(sokoBotId: string) {
-  return prisma.sokoBotSchedule.findMany({
-    // A one-time schedule that already ran is history, not a follow-up.
-    where: {
-      sokoBotId,
-      NOT: { runOnce: true, enabled: false, lastRunAt: { not: null } },
-    },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      name: true,
-      enabled: true,
-      timezone: true,
-      cronExpression: true,
-      runOnce: true,
-      prompt: true,
-      nextRunAt: true,
-      lastRunAt: true,
-      taskId: true,
-      jobId: true,
-    },
-  });
-}
-
 /** How long a disabled schedule and a settled run stay visible. */
 export const SOKO_BOT_SCHEDULE_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;
 const PURGE_BATCH = 200;

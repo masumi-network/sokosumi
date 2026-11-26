@@ -774,6 +774,14 @@ export const sokoBotReadChatInputSchema = z.object({
   before: z.string().datetime().optional(),
 });
 
+export const sokoBotListSchedulesInputSchema = z
+  .object({
+    /** `workspace` adds Task Schedules and other bots' schedules. */
+    scope: z.enum(["mine", "workspace"]).optional(),
+    query: z.string().trim().min(1).max(200).optional(),
+  })
+  .strict();
+
 export const sokoBotSearchInboxInputSchema = z.object({
   /** Free-text search (sender, subject, words). Provider search syntax works (e.g. Gmail `from:x newer_than:2d`). */
   query: z.string().max(500).optional(),
@@ -1848,7 +1856,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   provide_job_input: sokoBotProvideJobInputSchema,
   read_memory: emptyInputSchema,
   update_memory: sokoBotMemoryUpdateInputSchema,
-  list_schedules: emptyInputSchema,
+  list_schedules: sokoBotListSchedulesInputSchema,
   create_schedule: sokoBotCreateScheduleInputSchema,
   update_schedule: sokoBotUpdateScheduleInputSchema,
   manage_reminder: sokoBotManageReminderInputSchema,
@@ -2177,7 +2185,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   update_memory:
     "Replace bounded canonical memory file with durable working context.",
   list_schedules:
-    "List your follow-up schedules: recurring (cron) ones and one-time ones (`runOnce`), with when each runs next.",
+    "List schedules with who created each, when, which bot runs it, the last run and its result, and youCanChange. Default: yours. scope workspace: also the workspace's Task Schedules and other bots' schedules the member may see; query narrows by name or prompt. Change only schedules with youCanChange, and ask before changing one someone other than the owner created; for the rest, propose the change.",
   create_schedule:
     "Create a follow-up that wakes you with a prompt: either once at `runAt` (a one-time reminder, e.g. tomorrow 09:00) or recurring with `cronExpression` (5 fields, in `timezone`). `timezone` is the zone the owner names; when they name none, use `actor.timezone` from the context packet without asking, name that zone in your reply, and say they can ask for another (then update_schedule). Ask only when the packet has no zone. Cron covers monthly patterns: `0 10 * * 1#1` is the first Monday of each month, `0 9 1 * *` the 1st of each month, `0 9 L * *` the last day. Setting both day-of-month and weekday means either one, so it's rejected; use `#` for nth weekdays. Use it whenever the owner wants check-ins, nudges, reminders, or monitoring of delegated work. No approval needed. Include task/job ids in the prompt so the future run knows what to check, and pass taskId or jobId when the schedule only watches that work: Core deletes it once the work finishes. To act when delegated work completes, give create_task, assign_task or hire_agent a followUp instead of a schedule. A run that ends by posting in a chat (post_chat) must not read the web or run bash first: Core refuses posting after that. Have it read its sources through a connected app with read_integration_tool (GitHub for pull requests, for example) and make any graphic as SVG with upload_file. When the job needs something you lack (an app to connect, being added to a room), set it up anyway where you can and tell the owner exactly what to do; never decline the job for it.",
   update_schedule:

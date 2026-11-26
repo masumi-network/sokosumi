@@ -222,6 +222,7 @@ export {
   sokoBotListIntegrationToolsInputSchema,
   sokoBotListMcpToolsInputSchema,
   sokoBotListRecipientsInputSchema,
+  sokoBotListSchedulesInputSchema,
   sokoBotListSkillsInputSchema,
   sokoBotManageReminderInputSchema,
   sokoBotMemoryUpdateInputSchema,

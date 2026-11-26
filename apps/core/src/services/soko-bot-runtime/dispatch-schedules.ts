@@ -14,7 +14,6 @@ import { manageSokoBotReminder } from "@/services/soko-bot-proactive.service";
 import {
   createSokoBotSchedule,
   deleteSokoBotSchedule,
-  listSokoBotSchedules,
   updateSokoBotSchedule,
 } from "@/services/soko-bot-schedule.service";
 import {
@@ -23,6 +22,7 @@ import {
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
 import { type RuntimeOperations } from "./operations";
+import { listSchedules } from "./schedule-reads";
 import { requireOwnScheduleScope, runScheduleTool } from "./schedule-scope";
 
 export async function dispatchSchedulesTools(
@@ -88,7 +88,7 @@ export async function dispatchSchedulesTools(
     }
 
     case "list_schedules":
-      return listSokoBotSchedules(authorized.turn.sokoBotId);
+      return listSchedules(authorized, input.input);
 
     case "create_schedule":
 
