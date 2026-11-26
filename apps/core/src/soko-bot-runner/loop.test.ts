@@ -981,6 +981,60 @@ describe("the done check (planLoop)", () => {
     expect(result.text).toBe("The note is saved in Files.");
   });
 
+  it("writes the answer anew when the extra round saved and then failed", async () => {
+    let calls = 0;
+    let saved = 0;
+    const model = new MockLanguageModelV3({
+      doStream: async (options) => {
+        calls += 1;
+        if (options.toolChoice?.type === "none")
+          return streamOf({
+            content: [{ type: "text", text: "The note is saved in Files." }],
+            finishReason: { unified: "stop", raw: "stop" },
+            warnings: [],
+            usage,
+          });
+        if (calls === 1)
+          return streamOf({
+            content: [{ type: "text", text: "The note still needs saving." }],
+            finishReason: { unified: "stop", raw: "stop" },
+            warnings: [],
+            usage,
+          });
+        if (calls === 2)
+          return streamOf({
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "save_1",
+                toolName: "work",
+                input: "{}",
+              },
+            ],
+            finishReason: { unified: "tool-calls", raw: "tool_calls" },
+            warnings: [],
+            usage,
+          });
+        throw new Error("provider down");
+      },
+    });
+    const result = await runTurnLoop(
+      loopInput(model, goBack, {
+        tools: {
+          work: tool({
+            inputSchema: z.object({}),
+            execute: async () => {
+              saved += 1;
+              return "saved";
+            },
+          }),
+        },
+      }),
+    );
+    expect(saved).toBe(1);
+    expect(result.text).toBe("The note is saved in Files.");
+  });
+
   it("keeps the finished answer when the extra round fails", async () => {
     const { model } = scriptedModel([
       "Here is your summary.",

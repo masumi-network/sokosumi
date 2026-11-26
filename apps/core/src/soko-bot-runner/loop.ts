@@ -195,6 +195,27 @@ export async function runTurnLoop(
   let finishReason = "";
   let idleRounds = 0;
   let short = shortFormsIn(input.tools, input.shortForms ?? []);
+  // A tool that ran in the done check's extra round counts as work even when
+  // the model call around it then fails.
+  const tools: ToolSet = input.plan
+    ? Object.fromEntries(
+        Object.entries(input.tools).map(([name, each]) => {
+          const execute = each.execute;
+          if (!execute) return [name, each];
+          return [
+            name,
+            {
+              ...each,
+              execute: async (...args: Parameters<typeof execute>) => {
+                const output = await execute(...args);
+                if (draft) workedAfterCheck = true;
+                return output;
+              },
+            },
+          ];
+        }),
+      )
+    : input.tools;
   const historyOptions = { keepLatestPlan: input.plan !== undefined };
   const compact = (history: readonly ModelMessage[]) =>
     compactHistory(history, undefined, historyOptions);
@@ -222,7 +243,7 @@ export async function runTurnLoop(
       model: input.model,
       system: input.system,
       messages: compact(messages) ?? messages,
-      tools: short.length ? withShortForms(input.tools, short) : input.tools,
+      tools: short.length ? withShortForms(tools, short) : tools,
       // The budget is checked last, so it reserves room only for a step
       // that will run.
       stopWhen: [
@@ -259,7 +280,15 @@ export async function runTurnLoop(
         if (draft) return null;
         throw error;
       });
-    if (!result) return draft as TurnLoopResult;
+    if (!result) {
+      // Failed before doing anything: the reply the check sent back stands.
+      // After a tool ran, it no longer tells the whole story: the wrap-up
+      // below writes the answer from what Core recorded.
+      if (!workedAfterCheck) return draft as TurnLoopResult;
+      text = "";
+      finishReason = "error";
+      break;
+    }
     bookUnreported(result.steps);
     if (draft && result.steps.some((step) => step.toolCalls.length > 0))
       workedAfterCheck = true;
@@ -392,7 +421,12 @@ export async function runTurnLoop(
       providerOptions: withPromptCache({}, fullKey, modelIdOf(input.model)),
       abortSignal: signal(),
       maxRetries: 1,
+    }).catch((error: unknown) => {
+      // Past the done check, the reply it sent back is still an answer.
+      if (draft) return null;
+      throw error;
     });
+    if (!result) return draft as TurnLoopResult;
     // The one wrap-up call: never refused, always booked.
     for (const step of result.steps) admission.settle(step.usage.inputTokens);
     text = result.text || text;

@@ -686,6 +686,64 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
       expect(prompt).toContain("- write_month_pieces: did not happen");
     });
 
+    const savedFile = (filename: string) => {
+      const id = randomUUID();
+      return {
+        capability: "upload_file",
+        extra: {
+          disposition: "APPLIED",
+          verification: "PROVIDER_ACK",
+          targetId: id,
+          committedAt: new Date(),
+          result: { id, filename, size: 64 },
+        },
+      };
+    };
+
+    it("never calls a step still to do once Core has the saved file", async () => {
+      const chat = await turn("CHAT");
+      await updatePlan(chat, [
+        { step: "Save the meeting notes as notes.md", status: "pending" },
+        { step: "Send Maria the summary", status: "pending" },
+      ]);
+      await childReceipts(chat, [savedFile("notes.md")]);
+      const note = await openStepsNote(chat);
+      expect(note).toContain("- s2 [pending] Send Maria the summary");
+      expect(note).not.toContain("[pending] Save the meeting notes");
+      expect(note).toContain(
+        "Done by Core's receipts, though the plan still lists them",
+      );
+      const prompt = await check(chat);
+      expect(prompt).toMatch(
+        /^Your plan still lists open steps:\n- s2 \[pending\] Send Maria the summary\n/,
+      );
+      expect(prompt).toContain("- s1 Save the meeting notes as notes.md");
+    });
+
+    it("asks only for the plan to catch up when every open step is saved", async () => {
+      const chat = await turn("CHAT");
+      await updatePlan(chat, [
+        { step: "Write the agenda", status: "done" },
+        { step: "Save minutes.md", status: "pending" },
+      ]);
+      await childReceipts(chat, [savedFile("Minutes.md")]);
+      const prompt = await check(chat);
+      expect(prompt).toMatch(/^Done by Core's receipts/);
+      expect(prompt).toContain("reply without calling any of them still to do");
+      expect(prompt).not.toContain("Your plan still lists open steps");
+    });
+
+    it("tells the bot to wait on a strategy Core is still writing", async () => {
+      const chat = await turn("CHAT");
+      await updatePlan(chat, twoSteps);
+      await childReceipts(chat, [
+        { capability: "write_strategy", extra: { result: { writing: true } } },
+      ]);
+      const prompt = await check(chat);
+      expect(prompt).toContain("- write_strategy: started, not finished yet");
+      expect(prompt).toContain("do not start it again");
+    });
+
     it("never calls a Studio request Core rejected done", async () => {
       const chat = await turn("CHAT");
       await updatePlan(chat, twoSteps);
