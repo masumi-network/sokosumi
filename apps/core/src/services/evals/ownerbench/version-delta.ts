@@ -41,8 +41,10 @@ export interface VersionDelta {
 interface Totals {
   /** Journeys whose every repeat scored and passed (pass^k). */
   passed: number;
-  /** Journeys short of scored repeats (an ERROR, or too few): neither passed nor failed. */
+  /** Journeys short of scored repeats (an ERROR, a stand-in Jev, or too few): neither passed nor failed. */
   incomplete: number;
+  /** Repeats whose Jev fell back to the stand-in: not real-Jev evidence, rerun them. */
+  standIn: number;
   /** Passed repeats over scored repeats (pass^1). */
   passRate: number | null;
   stepsPassed: number;
@@ -58,8 +60,13 @@ export function scoredSide(
   results: ParityReport["cases"][number]["results"],
   minimumRepeats = 1,
 ) {
+  // A repeat whose Jev fell back to the plan's stand-in routed unlike
+  // production: it is no real-Jev evidence, so it counts as unscored.
+  const standIn = results.filter(usedJevStandIn).length;
   const scored = results.filter(
-    (row) => row.status === "PASSED" || row.status === "FAILED",
+    (row) =>
+      (row.status === "PASSED" || row.status === "FAILED") &&
+      !usedJevStandIn(row),
   );
   if (!results.length) return null;
   const outputs = scored.map(
@@ -97,6 +104,7 @@ export function scoredSide(
     runs: scored.length,
     passes,
     unscored,
+    standIn,
     stepsPassed:
       outputs.reduce(
         (sum, output) => sum + (output.score?.stepsPassed ?? 0),
@@ -107,6 +115,11 @@ export function scoredSide(
     inputTokens,
     tokenTurns,
   };
+}
+
+/** A result a plan run labelled as answered by the stand-in, not real Jev. */
+function usedJevStandIn(row: { output?: unknown }): boolean {
+  return (row.output as { jev?: unknown } | null)?.jev === "stand-in";
 }
 
 function totals(
@@ -122,6 +135,7 @@ function totals(
   return {
     passed: scored.filter((side) => side.status === "PASSED").length,
     incomplete: scored.filter((side) => side.status === "INCOMPLETE").length,
+    standIn: scored.reduce((sum, side) => sum + side.standIn, 0),
     passRate: runs
       ? scored.reduce((sum, side) => sum + side.passes, 0) / runs
       : null,
@@ -146,7 +160,13 @@ export function versionDeltaBySet(
    * what the set should hold, and a run of one of them could pass.
    */
   holdoutJourneyIds: readonly string[] = [],
-): { dev: VersionDelta; holdout: VersionDelta | null; meetsBar: boolean } {
+): {
+  dev: VersionDelta;
+  holdout: VersionDelta | null;
+  environmentProblem: string | null;
+  meetsBar: boolean;
+} {
+  const environmentProblem = environmentMismatch(baseline, candidate);
   const only = (report: ParityReport, holdout: boolean): ParityReport => ({
     cases: report.cases.filter(
       (evalCase) => evalCase.caseId.startsWith(HOLDOUT_PREFIX) === holdout,
@@ -174,8 +194,29 @@ export function versionDeltaBySet(
   return {
     dev,
     holdout,
-    meetsBar: dev.meetsBar && Boolean(holdout?.meetsBar),
+    environmentProblem,
+    meetsBar:
+      environmentProblem === null && dev.meetsBar && Boolean(holdout?.meetsBar),
   };
+}
+
+/**
+ * Why two runs can't be compared, or null. Both must come from the same
+ * environment, and a plan run's must use real Jev: the stand-in routes
+ * unlike production, so it is never fleet evidence.
+ */
+export function environmentMismatch(
+  baseline: ParityReport,
+  candidate: ParityReport,
+): string | null {
+  const [before, after] = [baseline, candidate].map(
+    (report) => report.run?.environment ?? null,
+  );
+  if (before !== after)
+    return `the runs come from different environments (${before ?? "unknown"} vs ${after ?? "unknown"})`;
+  if (before === "local-chatgpt-plan")
+    return "both runs used the plan's Jev stand-in, which routes unlike production; rerun with real Jev (SOKO_BOT_PLAN_REAL_JEV=1)";
+  return null;
 }
 
 /** How many journeys measured their tokens on both sides, of how many. */

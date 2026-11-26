@@ -34,6 +34,7 @@ describe("versionDelta", () => {
     expect(delta.baseline).toEqual({
       passed: 1,
       incomplete: 0,
+      standIn: 0,
       passRate: 0.5,
       stepsPassed: 3,
       inputTokensPerTurn: 100,
@@ -41,6 +42,7 @@ describe("versionDelta", () => {
     expect(delta.candidate).toEqual({
       passed: 2,
       incomplete: 0,
+      standIn: 0,
       passRate: 1,
       stepsPassed: 4,
       inputTokensPerTurn: 95,
@@ -155,6 +157,114 @@ describe("versionDelta", () => {
     expect(bar(["PASSED"]).meetsBar).toBe(false);
     // ERROR repeats on both sides still leave the bar unproven.
     expect(bar(["PASSED", "PASSED", "PASSED", "ERROR"]).meetsBar).toBe(false);
+  });
+
+  it("excludes a repeat whose Jev fell back to the stand-in: no real-Jev evidence", () => {
+    const run = (jev: string[]): ParityReport => ({
+      run: { environment: "local-chatgpt-plan-real-jev" },
+      cases: [
+        {
+          caseId: "owner-a",
+          results: [
+            {
+              status: "PASSED",
+              output: {
+                jev: "real",
+                score: { stepsPassed: 1 },
+                totals: {
+                  tokenTurns: 1,
+                  inputTokens: 1,
+                  inputTokensPerTurn: 1,
+                },
+              },
+            },
+          ],
+        },
+        {
+          caseId: "owner-holdout-a",
+          results: jev.map((label) => ({
+            status: "PASSED",
+            output: {
+              jev: label,
+              score: { stepsPassed: 1 },
+              totals: { tokenTurns: 1, inputTokens: 1, inputTokensPerTurn: 1 },
+            },
+          })),
+        },
+      ],
+    });
+    const real = run(["real", "real", "real"]);
+    expect(
+      versionDeltaBySet(real, real, ["owner-a"], ["owner-holdout-a"]).meetsBar,
+    ).toBe(true);
+    // Codex's control: one of three candidate repeats on the stand-in.
+    const fellBack = versionDeltaBySet(
+      real,
+      run(["real", "stand-in", "real"]),
+      ["owner-a"],
+      ["owner-holdout-a"],
+    );
+    expect(fellBack.meetsBar).toBe(false);
+    expect(fellBack.holdout?.meetsBar).toBe(false);
+    expect(fellBack.holdout?.candidate).toMatchObject({
+      passed: 0,
+      incomplete: 1,
+      standIn: 1,
+    });
+  });
+
+  it("refuses runs from different environments, and stand-in plan runs", () => {
+    const run = (environment: string): ParityReport => ({
+      run: { environment },
+      cases: [
+        {
+          caseId: "owner-a",
+          results: [
+            {
+              status: "PASSED",
+              output: {
+                score: { stepsPassed: 1 },
+                totals: {
+                  tokenTurns: 1,
+                  inputTokens: 1,
+                  inputTokensPerTurn: 1,
+                },
+              },
+            },
+          ],
+        },
+        {
+          caseId: "owner-holdout-a",
+          results: [1, 2, 3].map(() => ({
+            status: "PASSED",
+            output: {
+              score: { stepsPassed: 1 },
+              totals: { tokenTurns: 1, inputTokens: 1, inputTokensPerTurn: 1 },
+            },
+          })),
+        },
+      ],
+    });
+    const bar = (before: string, after: string) =>
+      versionDeltaBySet(
+        run(before),
+        run(after),
+        ["owner-a"],
+        ["owner-holdout-a"],
+      );
+    expect(
+      bar("local-chatgpt-plan-real-jev", "local-chatgpt-plan-real-jev"),
+    ).toMatchObject({ meetsBar: true, environmentProblem: null });
+    expect(
+      bar("local-chatgpt-plan", "local-chatgpt-plan-real-jev"),
+    ).toMatchObject({
+      meetsBar: false,
+      environmentProblem: expect.stringContaining("different environments"),
+    });
+    expect(bar("local-chatgpt-plan", "local-chatgpt-plan")).toMatchObject({
+      meetsBar: false,
+      environmentProblem: expect.stringContaining("stand-in"),
+    });
   });
 
   it("calls an unscored candidate incomplete, not a regression", () => {
