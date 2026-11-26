@@ -5005,6 +5005,9 @@ const projectSeoWorkspaceSchemaResponseTransformer = (data: any) => {
     if (data.landingPages) {
         data.landingPages = projectSeoLandingPagesSchemaResponseTransformer(data.landingPages);
     }
+    if (data.aiAssistantPages) {
+        data.aiAssistantPages = projectSeoLandingPagesSchemaResponseTransformer(data.aiAssistantPages);
+    }
     if (data.indexStatus) {
         data.indexStatus = projectSeoIndexStatusSchemaResponseTransformer(data.indexStatus);
     }

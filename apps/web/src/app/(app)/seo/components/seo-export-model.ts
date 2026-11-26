@@ -62,14 +62,11 @@ export function seoTopPagesExport(
   t: Label,
   keyEvents: ReturnType<typeof seoKeyEvents> = null,
 ): SeoExport {
-  const keyEventsCell = (pageUrl: string): SeoCsvCell[] =>
-    keyEvents
-      ? [
-          keyEvents.skipped.has(pageUrl)
-            ? t("traffic.keyEventsNotRead")
-            : (keyEvents.byPage.get(pageUrl) ?? null),
-        ]
-      : [];
+  const keyEventsCell = (pageUrl: string): SeoCsvCell[] => {
+    if (!keyEvents) return [];
+    const value = keyEvents.cell(pageUrl);
+    return [typeof value === "number" ? value : t(value)];
+  };
   return {
     header: [
       t("page"),
@@ -80,7 +77,7 @@ export function seoTopPagesExport(
       t("pages.queryCount"),
       ...(keyEvents
         ? [
-            `${t(keyEvents.label)} ${keyEvents.period.from}/${keyEvents.period.to}`,
+            `${t("traffic.keyEvents")} ${keyEvents.period.from}/${keyEvents.period.to}`,
           ]
         : []),
       t("pages.topQuery"),

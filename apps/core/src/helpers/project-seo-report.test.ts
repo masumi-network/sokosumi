@@ -344,7 +344,12 @@ describe("public SEO report trust boundary", () => {
 
   it("keeps a keyword's conversion estimate and feature, and imports the report without a value it cannot read", () => {
     const fixture = legacyReport();
-    const estimate = { conversion: "medium", feature: "Low battery alerts" };
+    const estimate = {
+      conversion: "medium",
+      feature: "Low battery alerts",
+      intentClass: "problem",
+      fit: "direct",
+    };
     const report = parsePublicSeoArtifact({
       ...fixture,
       header: {
@@ -369,6 +374,9 @@ describe("public SEO report trust boundary", () => {
             intent: null,
             conversion: "low",
             feature: "   ",
+            // A class the bot takes out of the ranking is no reason Core shows.
+            intentClass: "other brand",
+            fit: "partial",
           },
         ],
       },
@@ -387,6 +395,8 @@ describe("public SEO report trust boundary", () => {
     // A feature of spaces only is no feature: the level stays.
     expect(rows("blank feature")[0].conversion).toBe("low");
     expect(rows("blank feature")[0].feature).toBeUndefined();
+    expect(rows("blank feature")[0]).not.toHaveProperty("intentClass");
+    expect(rows("blank feature")[0].fit).toBe("partial");
     // A report from before the estimate has none.
     const before = parsePublicSeoArtifact(fixture);
     expect(before.keywords.every((row) => row.conversion === undefined)).toBe(
@@ -469,6 +479,8 @@ describe("public SEO report trust boundary", () => {
           observedAt: fixture.observedAt,
           conversion: "certain",
           feature: 7,
+          intentClass: 7,
+          fit: "direct",
         },
       ],
     });
@@ -477,6 +489,8 @@ describe("public SEO report trust boundary", () => {
     ]);
     expect(report.keywords[0]).not.toHaveProperty("conversion");
     expect(report.keywords[0]).not.toHaveProperty("feature");
+    expect(report.keywords[0]).not.toHaveProperty("intentClass");
+    expect(report.keywords[0]).not.toHaveProperty("fit");
   });
 
   it("refuses private Google evidence before projecting public fields, including nested site pages", () => {

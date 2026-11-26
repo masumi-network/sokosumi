@@ -13548,7 +13548,19 @@
             "medium": "Probabilidad de conversión media",
             "high": "Probabilidad de conversión alta"
           },
-          "note": "El ajuste al objetivo se estima según lo que la gente busca y lo que ofrece la página.",
+          "note": "La probabilidad de conversión es una valoración propia de la comprobación SEO, basada en lo que la gente busca y lo que ofrece tu página. No es una tasa de conversión medida.",
+          "checkedOn": "De la comprobación del <date></date>",
+          "reason": "{intent}, {fit}",
+          "intent": {
+            "product": "Busca un producto",
+            "comparison": "Compara opciones",
+            "problem": "Quiere resolver un problema",
+            "learn": "Quiere aprender"
+          },
+          "fit": {
+            "direct": "coincide con tu oferta",
+            "partial": "coincide en parte con tu oferta"
+          },
           "high": "Alta",
           "medium": "Media",
           "low": "Baja"
@@ -13716,15 +13728,15 @@
         "shortlist": {
           "label": "Recomendada",
           "chartKey": "Recomendada · clics adicionales estimados en la posición 10",
-          "summary": "{count, plural, one {# idea recomendada} other {# ideas recomendadas}} por su relevancia, baja competencia y posibles clics adicionales.",
-          "none": "Ninguna idea cumple los tres criterios: relevancia, baja competencia y posibles clics adicionales.",
+          "summary": "{count, plural, one {# idea recomendada} other {# ideas recomendadas}} por su alta probabilidad de conversión, baja competencia y posibles clics adicionales.",
+          "none": "Ninguna idea cumple los tres criterios: alta probabilidad de conversión, baja competencia y posibles clics adicionales.",
           "gain": "Aumento estimado en puesto 10",
           "clicks": "{count, plural, =0 {0 clics/mes} one {+# clic/mes} other {+# clics/mes}}",
           "lift": "Un {percent} más de clics al mes que la estimación actual.",
-          "priority": "Buen ajuste al objetivo y baja dificultad. La mediana de las ideas de este mercado es de {median, number} clics adicionales al mes.",
-          "fitUnknown": "Falta valorar el ajuste al objetivo.",
-          "medium": "El ajuste estimado al objetivo de la página es medio.",
-          "low": "El ajuste estimado al objetivo de la página es bajo.",
+          "priority": "Alta probabilidad de conversión y baja dificultad. La mediana de las ideas de este mercado es de {median, number} clics adicionales al mes.",
+          "fitUnknown": "Falta valorar la probabilidad de conversión.",
+          "medium": "La probabilidad de conversión es media.",
+          "low": "La probabilidad de conversión es baja.",
           "difficultyUnknown": "Falta medir la dificultad.",
           "competition": "La competencia es demasiado alta para recomendar esta idea.",
           "gainUnknown": "No hay una estimación de clics para el puesto 10.",
@@ -15075,8 +15087,7 @@
           "googleNews": "Google Noticias"
         },
         "keyEvents": "Eventos clave (orgánico)",
-        "noKeyEvents": "Google Analytics no registró eventos clave para estas páginas. Configura eventos clave allí para ver las conversiones aquí.",
-        "keyEventsAiAssistant": "Eventos clave (asistentes de IA)",
+        "noKeyEvents": "Google Analytics no registró eventos clave para estas páginas. Configura eventos clave allí para verlos aquí.",
         "aiAssistants": "Asistentes de IA",
         "aiAssistantsHelp": "Visitas del canal «AI Assistant» de Google Analytics (ChatGPT, Perplexity, Gemini, Copilot y otros) según la página de entrada",
         "aiAssistantsTruncated": "Solo se guardaron las primeras filas, así que los totales pueden ser mayores",
@@ -15102,7 +15113,8 @@
         "cancelBrandTerms": "Cancelar",
         "brandSaved": "Términos de marca guardados",
         "noQueryData": "Este tipo de búsqueda no tiene datos de consultas",
-        "keyEventsNotRead": "No leído: comparte una ruta de página de destino con otra página seleccionada"
+        "keyEventsNotRead": "No leído: comparte una ruta de página de destino con otra página seleccionada",
+        "keyEventsNotSelected": "No está en esta lectura"
       },
       "export": {
         "menu": "Exportar: {table}",

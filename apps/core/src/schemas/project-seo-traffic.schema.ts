@@ -84,6 +84,9 @@ export type SeoLandingPages = z.infer<typeof seoLandingPagesSchema>;
 /** The newest Google Analytics landing page read for the selected pages, with where it came from. */
 export const seoWorkspaceLandingPagesSchema = seoLandingPagesSchema
   .extend({
+    /** The pages the read asked for. One without a row had no session of the channel in the period. */
+    // The stored read's own URL rule: a URL the read holds must not fail the workspace.
+    pageUrls: z.array(seoUrlSchema),
     observationId: z.string().uuid(),
     propertyId: z.string(),
     from: z.string(),
@@ -91,6 +94,15 @@ export const seoWorkspaceLandingPagesSchema = seoLandingPagesSchema
     observedAt: dateTimeSchema,
   })
   .openapi("ProjectSeoLandingPages");
+/** The landing reads of a workspace: one per channel, so a newer read of one channel does not hide the other. */
+export const workspaceLandingFields = {
+  /** Organic key events per landing page from the newest organic Google Analytics sync in view. */
+  landingPages: z.union([seoWorkspaceLandingPagesSchema, z.null()]).optional(),
+  /** Visits from AI assistants per landing page from the newest AI Assistant sync in view. */
+  aiAssistantPages: z
+    .union([seoWorkspaceLandingPagesSchema, z.null()])
+    .optional(),
+};
 
 /** Owner-chosen words that name the brand. Search Console queries that contain one count as branded. */
 export const SEO_BRAND_TERM_LIMIT = 50;

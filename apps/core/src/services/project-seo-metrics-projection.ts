@@ -19,8 +19,8 @@ export interface SeoMetricsProjection {
   searchSources: SearchEvidenceSource[];
   landingSources: LandingSource[];
   indexSources: Array<{ at: Date; pages: SeoIndexedPage[] }>;
-  /** Organic key events per landing page from the newest Google Analytics sync in view. */
-  landingPages: ProjectSeoWorkspace["landingPages"];
+  /** The newest Google Analytics landing read in view of each channel: organic, and AI assistants. */
+  landing: Pick<ProjectSeoWorkspace, "landingPages" | "aiAssistantPages">;
   /** The newest sync of each property, period and view wins; older ones only add timeline rows. */
   seenGroups: Set<string>;
 }
@@ -128,10 +128,19 @@ export function projectSeoMetricsRow(
     data.channel,
     searchType,
   ]);
-  // Rows come newest first, so the first landing read is the newest one.
-  if (data.landingPages && !out.landingPages)
-    out.landingPages = {
+  // Rows come newest first, so the first landing read of a channel is its newest one. A cached read that is used
+  // again comes first with its old collection time: it is the read in view, as for the metrics and the engagement
+  // change below, which take the first row too. A newer read of the other channel does not replace it: organic key
+  // events and AI assistant visits are separate counts.
+  const landingKey =
+    data.landingPages?.channel === "ai_assistant"
+      ? "aiAssistantPages"
+      : "landingPages";
+  if (data.landingPages && !out.landing[landingKey])
+    out.landing[landingKey] = {
       ...data.landingPages,
+      // The pages the read asked for: one of them without a row had no session, which is a measured zero.
+      pageUrls: data.pageUrls,
       observationId: row.id,
       propertyId: data.propertyId,
       from: data.from,
