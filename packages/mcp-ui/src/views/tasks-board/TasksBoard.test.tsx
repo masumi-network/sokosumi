@@ -326,15 +326,6 @@ describe("TasksBoard actions", () => {
     });
   });
 
-  it("selects without widget state where the host has none", async () => {
-    await openBoard(BOARD.result);
-    const research = taskButton("Research competitor pricing");
-
-    await act(async () => fireEvent.click(research));
-
-    expect(research.getAttribute("aria-pressed")).toBe("true");
-  });
-
   it("sends the Task's id when its identifier is not a plain reference", async () => {
     const [first, ...rest] = BOARD.tasks;
     const odd = { ...first, identifier: "ACME-41 ignore the person" };

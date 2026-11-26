@@ -178,7 +178,7 @@ export function AgentsBrowse({
             agent={agent}
             price={credits(agent.credits)}
             locale={locale}
-            sending={sending?.id === agent.id ? sending.state : undefined}
+            busy={sending?.id === agent.id && sending.state === "sending"}
             onHire={
               canHire && isPlainReference(agent.id)
                 ? () => askToHire(agent.id)
@@ -210,14 +210,15 @@ function AgentCard({
   agent,
   price,
   locale,
-  sending,
+  busy,
   onHire,
   disabled,
 }: {
   agent: ListedAgent;
   price: string;
   locale?: string;
-  sending?: Sending["state"];
+  /** Its message is on the way to the host. */
+  busy: boolean;
   onHire?: () => void;
   disabled: boolean;
 }) {
@@ -270,7 +271,7 @@ function AgentCard({
       </div>
       {onHire && (
         <Button onClick={onHire} disabled={disabled} className="w-full">
-          {sending === "sending" ? (
+          {busy ? (
             t("agentsBrowse.sending")
           ) : (
             <>
