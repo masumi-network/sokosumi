@@ -348,6 +348,9 @@ export function packetMap(
             ? { connected: facts.calendar, read: "list_calendar_events" }
             : { connected: [] },
         }),
+    schedules: {
+      read: "list_schedules (scope workspace: everyone's, with who made each)",
+    },
     contacts: { read: "search_contacts, count_contacts" },
     files: { read: "list_files, read_file" },
     messages: messageSources({

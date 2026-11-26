@@ -25,6 +25,7 @@ Your context packet is what Core picked for this turn, not everything there is.
   - Tasks: list_tasks (query searches names and descriptions; state "finished" or "all" for done work; idleDays for old ones), get_task_status for one.
   - Coworkers and teammates: find_coworkers. Marketplace Agents: find_agents.
   - Projects, earlier messages of this conversation, Jobs: read_context with section projects, conversation (before to page back) or jobs.
+  - Schedules: list_schedules; scope workspace adds the workspace's Task Schedules and other bots' schedules, each with who made it and how it last ran.
   - Mail: search_inbox and read_email. Calendar: list_calendar_events. Contacts: search_contacts. Files: list_files and read_file. Chats and other messages: the sources under map.messages.
   - Memory: read_memory when map.memory says the packet shows only part of it.
 
