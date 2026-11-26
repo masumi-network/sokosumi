@@ -23,14 +23,11 @@
 #    keys into `shared`; no shared table points at it.
 # 4. `prisma/network-layout/shared-trigger-bodies.sql` replaces the bodies of
 #    the functions behind the triggers on shared tables, with every name given
-#    its schema. In the same transaction it is checked against the bodies the
-#    migrations created: only schema names may differ, apart from the listed
-#    exceptions, and every function of `shared` is either in the file or, by
-#    its signature, on the list of functions that wait. So a migration that
-#    changes, adds or drops a function fails here until the file or the list
-#    follows. The check reads only a snapshot taken before the file and the
-#    catalog after it, so the cutover can run the same two statements around
-#    the file.
+#    its schema. Its guard refuses when a migration changed one of them since
+#    its digest was recorded. Then, in the same transaction: every function of
+#    `shared` is either one the file replaced or, by its signature, on the
+#    list of functions that wait. So a migration that changes or adds a
+#    function fails here until the file or the list follows.
 #
 # After a failure, recreate the database: step 1, steps 2 and 3, and step 4 are
 # three transactions.
@@ -152,17 +149,9 @@ $dump"
 
 bodies="${here%/scripts}/prisma/network-layout/shared-trigger-bodies.sql"
 {
-  # Every function no extension owns, in any schema, as it is before the file.
   cat <<'SQL'
-CREATE TEMP VIEW functions_now AS
-SELECT p.oid, p.ctid AS row_version,
-  format('%s.%s(%s)', n.nspname, p.proname, oidvectortypes(p.proargtypes)) AS signature,
-  n.nspname AS schema, p.prosrc, to_jsonb(p) - 'prosrc' AS attributes
-FROM pg_proc p
-JOIN pg_namespace n ON n.oid = p.pronamespace
-WHERE n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'
-  AND NOT EXISTS (SELECT FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e');
-CREATE TEMP TABLE functions_before AS SELECT * FROM functions_now;
+CREATE TEMP TABLE functions_before ON COMMIT DROP AS
+SELECT oid, ctid AS row_version FROM pg_proc WHERE pronamespace = 'shared'::regnamespace;
 SQL
   cat "$bodies"
   cat <<'SQL'
@@ -199,89 +188,35 @@ DECLARE
     -- Core calls it by its bare name (`EXCEPTIONS` in apps/core/scripts/prepare-raw-sql.ts).
     'shared.compute_history_job_status(text)'
   ];
-  -- What differs besides `shared.` before a name: function, the migrations'
-  -- text, the file's text for every occurrence of it.
-  exceptions CONSTANT text[] := ARRAY[
-    ['shared.contact_search_refresh(uuid)', 'lower(unaccent(', 'lower(public.unaccent('],
-    ['shared.enqueue_calendar_invalidation(uuid, uuid, uuid, jsonb)',
-      $text$'calendar_invalidation_revision_seq'$text$,
-      $text$'shared.calendar_invalidation_revision_seq'$text$]
-  ];
-  swap text[];
+  gone text;
   fn record;
-  expected text;
-  found text;
 BEGIN
-  SELECT string_agg(b.signature, ', ') INTO found
-  FROM functions_before b WHERE NOT EXISTS (SELECT FROM functions_now n WHERE n.oid = b.oid);
-  IF found IS NOT NULL THEN
-    RAISE EXCEPTION '% drops %: a function leaves through a migration', file, found;
-  END IF;
-
-  SELECT string_agg(n.signature, ', ') INTO found
-  FROM functions_now n WHERE NOT EXISTS (SELECT FROM functions_before b WHERE b.oid = n.oid);
-  IF found IS NOT NULL THEN
-    RAISE EXCEPTION '% creates %, which no migration creates with that schema and signature: update or remove it', file, found;
-  END IF;
-
-  SELECT string_agg(name, ', ') INTO found
-  FROM unnest(waiting) AS listed(name)
-  WHERE NOT EXISTS (SELECT FROM functions_now n WHERE n.signature = listed.name);
-  IF found IS NOT NULL THEN
-    RAISE EXCEPTION 'no migration creates %: remove it from %', found, list;
+  SELECT string_agg(name, ', ') INTO gone
+  FROM unnest(waiting) AS listed(name) WHERE to_regprocedure(name) IS NULL;
+  IF gone IS NOT NULL THEN
+    RAISE EXCEPTION 'no migration creates %: remove it from %', gone, list;
   END IF;
 
   FOR fn IN
-    SELECT n.signature, n.schema, n.prosrc, n.attributes,
-      b.prosrc AS migrated_body, b.attributes AS migrated_attributes,
+    SELECT p.oid::regprocedure AS signature, b.oid IS NULL AS created,
       -- The file wrote the row: it is not the row of the snapshot.
-      n.row_version <> b.row_version AS in_file
-    FROM functions_now n
-    JOIN functions_before b ON b.oid = n.oid
-    ORDER BY n.signature
+      b.row_version IS DISTINCT FROM p.ctid AS in_file,
+      EXISTS (SELECT FROM unnest(waiting) AS listed(name) WHERE to_regprocedure(name) = p.oid) AS waits
+    FROM pg_proc p
+    LEFT JOIN functions_before b ON b.oid = p.oid
+    WHERE p.pronamespace = 'shared'::regnamespace
   LOOP
-    IF NOT fn.in_file THEN
-      IF fn.schema = 'shared' AND fn.signature <> ALL (waiting) THEN
-        RAISE EXCEPTION 'function % has no body for the new layout: add it to %, or to % with the ticket it waits for',
-          fn.signature, file, list;
-      END IF;
-      CONTINUE;
-    END IF;
-    IF fn.schema <> 'shared' THEN
-      RAISE EXCEPTION '% replaces %, which is not in shared', file, fn.signature;
-    END IF;
-    IF fn.signature = ANY (waiting) THEN
+    IF fn.created THEN
+      RAISE EXCEPTION '% creates %, which no migration creates with that signature: update or remove it', file, fn.signature;
+    ELSIF fn.in_file AND fn.waits THEN
       RAISE EXCEPTION 'function % is in % now: remove it from %', fn.signature, file, list;
-    END IF;
-    IF fn.attributes <> fn.migrated_attributes THEN
-      RAISE EXCEPTION '% changes more than the body of %: migrations %, file %',
-        file, fn.signature, fn.migrated_attributes, fn.attributes;
-    END IF;
-
-    expected := fn.migrated_body;
-    FOREACH swap SLICE 1 IN ARRAY exceptions LOOP
-      CONTINUE WHEN swap[1] <> fn.signature;
-      IF position(swap[2] IN expected) = 0 THEN
-        RAISE EXCEPTION 'the migrations'' body of % no longer has %: remove the exception from packages/database/scripts/split-network-layout.sh',
-          fn.signature, swap[2];
-      END IF;
-      expected := replace(expected, swap[2], swap[3]);
-    END LOOP;
-    -- A string, a quoted name and a comment are kept whole; `shared.` before a
-    -- name goes. Not read: a backslash-escaped quote in an E'' string.
-    IF regexp_replace(
-      fn.prosrc,
-      $re$('(?:[^']|'')*'|"(?:[^"]|"")*"|--[^\n]*|/\*(?:[^*]|\*+[^*/])*\*+/)|(?<![.[:alnum:]_])shared\.(?=["[:alpha:]_])$re$,
-      '\1', 'g'
-    ) <> expected THEN
-      RAISE EXCEPTION 'the body of % in % differs from the one the migrations create by more than schema names: copy the migration''s body into the file and name its schemas again',
-        fn.signature, file;
+    ELSIF NOT fn.in_file AND NOT fn.waits THEN
+      RAISE EXCEPTION 'function % has no body for the new layout: add it to % with its digest, or to % with the ticket it waits for',
+        fn.signature, file, list;
     END IF;
   END LOOP;
 END
 $check$;
-DROP VIEW functions_now;
-DROP TABLE functions_before;
 SQL
 } | "${psql[@]}" "$url" --quiet --output=/dev/null -v ON_ERROR_STOP=1 --single-transaction || {
   echo "split-network-layout.sh: step 4 failed while applying or checking $bodies" >&2

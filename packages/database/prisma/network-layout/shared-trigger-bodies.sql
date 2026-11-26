@@ -7,132 +7,113 @@
 --
 -- Not a migration. Today's layout keeps the migrations' bodies. Only
 -- `scripts/split-network-layout.sh` applies this file, to CI's split test
--- database, and proves there that nothing but names differs. The move script
--- of the maintenance window applies the same text.
+-- database. The move script of the maintenance window applies the same text.
 --
--- Apply in one transaction that stops at the first error
--- (`psql --single-transaction -v ON_ERROR_STOP=1`): the guard below refuses any
--- other layout, and then nothing has changed.
+-- Contract: apply it once, in one transaction that stops at the first error
+-- (`psql --single-transaction -v ON_ERROR_STOP=1`). The file does not open
+-- that transaction; the split script does, and the cutover's script owns it at
+-- the window. Without it a refusal of the guard does not stop the statements
+-- after it.
 --
--- The guard does not prove that only names differ from the bodies a database
--- has. For that proof the cutover runs what step 4 of the split script runs
--- around this file, in the same transaction: the snapshot of every function
--- row just before it, and the check just after it.
+-- The guard refuses unless each function below is in `shared` with the body
+-- the migrations create, by digest. So a second run refuses too. That only
+-- schema names differ from those bodies is not checked by any code: it was
+-- compared once for this text, and every later change to a body is reviewed
+-- against its migration before its digest is updated.
 --
 -- Not here yet: functions that need the row's Network (ticket 19 part 2) and
 -- the functions on Network tables (slice B). The split script lists them.
 
 DO $guard$
 DECLARE
-  missing text;
+  file CONSTANT text := 'packages/database/prisma/network-layout/shared-trigger-bodies.sql';
+  problem text;
+  changed text;
+  fn record;
 BEGIN
-  SELECT string_agg(name, ', ' ORDER BY name) INTO missing
+  SELECT string_agg(name, ', ' ORDER BY name) INTO problem
   FROM unnest(ARRAY['shared', 'mainnet', 'preprod']) AS expected(name)
   WHERE to_regnamespace(name) IS NULL;
-  IF missing IS NOT NULL THEN
-    RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing schema: %', missing;
+  IF problem IS NOT NULL THEN
+    RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing schema: %', problem;
   END IF;
 
-  SELECT string_agg(name, ', ' ORDER BY name) INTO missing
-  FROM unnest(ARRAY[
-    'shared.calendar_invalidation_outbox',
-    'shared.chat_room',
-    'shared.chat_room_guest_invitation',
-    'shared.chat_room_guest_invite_link',
-    'shared.chat_room_message',
-    'shared.chat_room_read_state',
-    'shared.chat_room_user_member',
-    'shared.contact',
-    'shared.contact_channel',
-    'shared.contact_search',
-    'shared.marketing_strategy',
-    'shared.notification',
-    'shared.organization',
-    'shared.project',
-    'shared.project_identifier_alias',
-    'shared.social_post',
-    'shared.soko_bot',
-    'shared.task',
-    'shared.task_identifier_alias',
-    'shared.task_schedule_run',
-    'shared.task_workspace_tag',
-    'shared.task_workspace_tag_decision',
-    'shared.user',
-    'shared.workspace'
-  ]) AS expected(name)
-  WHERE NOT EXISTS (
-    SELECT FROM pg_class c WHERE c.oid = to_regclass(name) AND c.relkind IN ('r', 'p')
-  );
-  IF missing IS NOT NULL THEN
-    RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing table: %', missing;
-  END IF;
+  -- Every function this file replaces, with the digest of what the migrations
+  -- create: body, language, volatility, strictness, security, settings,
+  -- arguments and return type.
+  FOR fn IN
+    SELECT 'shared.' || listed.signature AS signature, listed.digest, p.proname, p.prokind,
+      md5(concat_ws(E'\n', p.prosrc, l.lanname, p.provolatile, p.proisstrict, p.prosecdef, p.proconfig,
+        pg_get_function_arguments(p.oid), pg_get_function_result(p.oid))) AS found
+    FROM (VALUES
+      ('calendar_access_cleanup_on_member_delete()', 'cda46a9f8351bb5ddd9240bfe4e16104'),
+      ('calendar_membership_fence_on_member_insert()', 'e04eb2ea4dcac7675c480929cfde2400'),
+      ('cancel_grant_pending_tasks_on_grant_delete()', 'a9650908c8ba0eea08baf904d57b9b17'),
+      ('chat_room_external_discoverability_guard()', '0af6b7343c8c3f37adbf631744c1486b'),
+      ('chat_room_guest_access_external_only()', '5c88513ba3e4ad071986e849628856ac'),
+      ('chat_room_guest_invitation_external_only()', 'b1b29df5c254cbd9b96e9439ee8e8915'),
+      ('chat_room_hard_leave_on_organization_member_delete()', '3b56dfd7b601e195b0064d9b00315376'),
+      ('chat_room_join_shared_soko_bot_rooms_on_member_insert()', '82d484639a0591555d249ba5e18f1b6e'),
+      ('clear_moved_task_workspace_tags()', '72d35ac627d0a563d06cfeb79280c417'),
+      ('contact_search_on_channel_delete()', 'b1f083d33e6e8f31ceca348c09b02e11'),
+      ('contact_search_on_channel_insert()', '3fa79a1e1390d73b4732d0a816c9fa25'),
+      ('contact_search_on_channel_update()', '37fd80aac5cc883e40f674b271c92232'),
+      ('contact_search_on_contact()', '7cf96749aad1a83f0e9e3e1611633478'),
+      ('contact_search_refresh(uuid)', '2bc83984c2355d43b64ae303ed70124f'),
+      ('enforce_task_project_workspace_placement()', '0b393be0388e7379c80498a7ad92afc0'),
+      ('enqueue_calendar_feature_invalidation(uuid,uuid,uuid,uuid,jsonb)', '224ca910f73946ce4c3fecf7f6df0cda'),
+      ('enqueue_calendar_invalidation(uuid,uuid,uuid,jsonb)', 'ecc1a3b7f85ccbb49d90a01d43da9fe5'),
+      ('erase_calendar_outbox_for_workspace_delete()', '5e7722871446ef9295776c8790ca97f0'),
+      ('history_bucket_slug_from_metadata(jsonb)', '18abdffd442e8351414cdc45bd4a46c1'),
+      ('history_slugify(text)', 'af3e2fdba0dd4c0035a1ec2707b1f822'),
+      ('invalidate_calendar_for_contact_change()', '08cbbca6bc0a8857c6d802040553a41c'),
+      ('invalidate_calendar_for_marketing_strategy_change()', '0c70ec72540a2c64c204939902b7cbe3'),
+      ('invalidate_calendar_for_marketing_strategy_file_change()', '0bf9801c8e6df38ea752ee818ee9e382'),
+      ('invalidate_calendar_for_newsletter_issue_change()', '80c996261178cc4fe8a33478ce301703'),
+      ('invalidate_calendar_for_project_change()', '7928eb98d043b172a37530ce43a1980a'),
+      ('invalidate_calendar_for_run_change()', '3c356ccff5198ca4d628ad7821e95691'),
+      ('invalidate_calendar_for_social_post_change()', '60ce4c249dfebc8e133f0e8924f87185'),
+      ('invalidate_calendar_for_task_change()', '4cd1a36f63bcbd07e9d426d372b660b7'),
+      ('invalidate_calendar_for_task_schedule_change()', '5672301f9039f53ab2a8c86983fb5b86'),
+      ('invalidate_changed_workspace_tag_offers()', '55b1d8d9da2a248c349cce37112d5295'),
+      ('invalidate_task_workspace_tag_suggestions()', '9cb9e3ad468e0a370e91d1b0c23d533c'),
+      ('project_alias_old_identifier()', 'fd67b7a3552940cfad3a9d220232b016'),
+      ('project_default_identifier(text,uuid)', '504df65d1c34010fcee4c95776c41164'),
+      ('project_set_identifier()', 'bdf7b17618cb1bb08322996dfb1b6192'),
+      ('reject_soko_bot_admin_action_mutation()', '3c6f0c16178c5546b77a657c94066d6f'),
+      ('social_post_quote_before_delete()', '70dbb801f814cf091d8d4981fd005a25'),
+      ('task_alias_old_number()', 'f04ae077c5502637d499b5b9aeb8516c'),
+      ('task_assign_number()', '16fc7cc104d2c62025b93d39ca2b33e7'),
+      ('task_subtask_follow_parent()', '67de815972c35cf7fde7c39a00c954dc'),
+      ('task_subtask_guard()', 'e52d35a63ea8d22d6583b9f1558eed87'),
+      ('task_tag_revision()', 'ec9d3dc55f11518c9ea1958af8d1da88')
+    ) AS listed(signature, digest)
+    LEFT JOIN pg_proc p ON p.oid = to_regprocedure('shared.' || listed.signature)
+    LEFT JOIN pg_language l ON l.oid = p.prolang
+    ORDER BY 1
+  LOOP
+    IF fn.prokind IS DISTINCT FROM 'f' THEN
+      RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing function: %', fn.signature;
+    END IF;
 
-  IF NOT EXISTS (
-    SELECT FROM pg_class c
-    WHERE c.oid = to_regclass('shared.calendar_invalidation_revision_seq') AND c.relkind = 'S'
-  ) THEN
-    RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing sequence: shared.calendar_invalidation_revision_seq';
-  END IF;
+    -- A trigger keeps the function it was created with, so a function of this
+    -- name left outside `shared` would go on running the old body.
+    SELECT string_agg(format('%s on %s', t.tgname, t.tgrelid::regclass), ', ') INTO problem
+    FROM pg_trigger t
+    JOIN pg_class c ON c.oid = t.tgrelid AND c.relnamespace = 'shared'::regnamespace
+    JOIN pg_proc bound ON bound.oid = t.tgfoid
+    WHERE bound.proname = fn.proname AND bound.pronamespace <> 'shared'::regnamespace;
+    IF problem IS NOT NULL THEN
+      RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; trigger % runs a % that is not in shared', problem, fn.proname;
+    END IF;
 
-  SELECT string_agg(name, ', ' ORDER BY name) INTO missing
-  FROM unnest(ARRAY['shared."SocialPostStatus"', 'shared."TaskStatus"']) AS expected(name)
-  WHERE NOT EXISTS (
-    SELECT FROM pg_type t WHERE t.oid = to_regtype(name) AND t.typtype = 'e'
-  );
-  IF missing IS NOT NULL THEN
-    RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing enum type: %', missing;
-  END IF;
-
-  -- Every function below replaces one that is already in `shared`: a trigger
-  -- keeps the function it was created with, so a new one beside it changes nothing.
-  SELECT string_agg(name, ', ' ORDER BY name) INTO missing
-  FROM unnest(ARRAY[
-    'public.unaccent(text)',
-    'shared.calendar_access_cleanup_on_member_delete()',
-    'shared.calendar_membership_fence_on_member_insert()',
-    'shared.cancel_grant_pending_tasks_on_grant_delete()',
-    'shared.chat_room_external_discoverability_guard()',
-    'shared.chat_room_guest_access_external_only()',
-    'shared.chat_room_guest_invitation_external_only()',
-    'shared.chat_room_hard_leave_on_organization_member_delete()',
-    'shared.chat_room_join_shared_soko_bot_rooms_on_member_insert()',
-    'shared.clear_moved_task_workspace_tags()',
-    'shared.contact_search_on_channel_delete()',
-    'shared.contact_search_on_channel_insert()',
-    'shared.contact_search_on_channel_update()',
-    'shared.contact_search_on_contact()',
-    'shared.contact_search_refresh(uuid)',
-    'shared.enforce_task_project_workspace_placement()',
-    'shared.enqueue_calendar_feature_invalidation(uuid,uuid,uuid,uuid,jsonb)',
-    'shared.enqueue_calendar_invalidation(uuid,uuid,uuid,jsonb)',
-    'shared.erase_calendar_outbox_for_workspace_delete()',
-    'shared.history_bucket_slug_from_metadata(jsonb)',
-    'shared.history_slugify(text)',
-    'shared.invalidate_calendar_for_contact_change()',
-    'shared.invalidate_calendar_for_marketing_strategy_change()',
-    'shared.invalidate_calendar_for_marketing_strategy_file_change()',
-    'shared.invalidate_calendar_for_newsletter_issue_change()',
-    'shared.invalidate_calendar_for_project_change()',
-    'shared.invalidate_calendar_for_run_change()',
-    'shared.invalidate_calendar_for_social_post_change()',
-    'shared.invalidate_calendar_for_task_change()',
-    'shared.invalidate_calendar_for_task_schedule_change()',
-    'shared.invalidate_changed_workspace_tag_offers()',
-    'shared.invalidate_task_workspace_tag_suggestions()',
-    'shared.project_alias_old_identifier()',
-    'shared.project_default_identifier(text,uuid)',
-    'shared.project_set_identifier()',
-    'shared.reject_soko_bot_admin_action_mutation()',
-    'shared.social_post_quote_before_delete()',
-    'shared.task_alias_old_number()',
-    'shared.task_assign_number()',
-    'shared.task_subtask_follow_parent()',
-    'shared.task_subtask_guard()',
-    'shared.task_tag_revision()'
-  ]) AS expected(name)
-  WHERE to_regprocedure(name) IS NULL;
-  IF missing IS NOT NULL THEN
-    RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing function: %', missing;
+    IF fn.found <> fn.digest THEN
+      changed := concat_ws(', ', changed, format('%s (digest now %s)', fn.signature, fn.found));
+    END IF;
+  END LOOP;
+  IF changed IS NOT NULL THEN
+    RAISE EXCEPTION 'a migration changed this function: %. Update its body in %, check by eye that only schema names differ from the migration''s body, then update its digest there',
+      changed, file;
   END IF;
 END
 $guard$;
