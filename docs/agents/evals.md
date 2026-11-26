@@ -125,9 +125,9 @@ A new Soko Bot or Cuso default must pass the owner benchmark at least as well as
 **A new version against the baseline.** Run the benchmark twice from the same checkout, once on the baseline versions and once on the candidate, then compare. Each journey's `totals` carry its tokens (`inputTokens`, `cachedInputTokens`, `outputTokens`, `inputTokensPerTurn`, background runs included), which is the cost proxy on the plan, where no price is reported.
 
 ```bash
-pnpm evals:local --plan --ownerbench --soko-bot-version v36 --cuso-version cmo-v23 --json-out baseline.json
-pnpm evals:local --plan --ownerbench --soko-bot-version v39 --cuso-version cmo-v26 --json-out candidate.json
-pnpm --filter @sokosumi/core exec tsx scripts/ownerbench-compare.mts baseline.json candidate.json
+pnpm evals:local --plan --ownerbench --holdout HELD_OUT.json --soko-bot-version v36 --cuso-version cmo-v23 --json-out baseline.json
+pnpm evals:local --plan --ownerbench --holdout HELD_OUT.json --soko-bot-version v39 --cuso-version cmo-v26 --json-out candidate.json
+pnpm --filter @sokosumi/core exec tsx scripts/ownerbench-compare.mts baseline.json candidate.json --holdout HELD_OUT.json
 ```
 
 **Held-out journeys.** A second set nobody iterates on, written from real prod requests and kept out of this repository so builders never tune to it. Whoever owns the benchmark keeps the file outside every checkout and hands its path only to whoever runs a version comparison; builders don't read it. Its results are reported as totals and a verdict only (journeys passed, steps right, tokens per turn, how many regressed), never per journey or by id, and don't enter the dev scoreboard. It's a JSON array of journeys in the same shape as `journeys.ts`, with ids starting `owner-holdout-`, using only the benchmark's world, `prepare` kinds and outcome kinds (`ownerbench/holdout.ts` checks every journey and names each problem). Run it with `--holdout FILE` beside `--ownerbench`, in both the baseline and the candidate run. Its per-journey results stay in the database of whoever ran it (area "Owner bench (held out)"); only `ownerbench-compare`'s totals and verdict are shared. Fix mechanisms, never a journey's wording: no prompt text, rule or check may name a benchmark case, account, Coworker or phrasing.

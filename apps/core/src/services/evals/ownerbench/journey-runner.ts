@@ -862,15 +862,7 @@ export function journeyRuntime(): { adapter: string; models: string } {
  * a journey turn are its children and count too.
  */
 export async function journeyTokens(turnIds: readonly string[]) {
-  const turns = await prisma.sokoBotTurn.findMany({
-    where: {
-      OR: [
-        { id: { in: [...turnIds] } },
-        { parentTurnId: { in: [...turnIds] } },
-      ],
-    },
-    select: { id: true },
-  });
+  const turns = await withDescendants(turnIds);
   const sum = await prisma.sokoBotModelCall.aggregate({
     where: { turnId: { in: turns.map((turn) => turn.id) } },
     _sum: { inputTokens: true, cacheReadTokens: true, outputTokens: true },
@@ -889,6 +881,23 @@ export async function journeyTokens(turnIds: readonly string[]) {
       ? Math.round(inputTokens / turns.length)
       : null,
   };
+}
+
+/** The turns and every turn they started, at any depth (a background run's own runs too). */
+export async function withDescendants(
+  turnIds: readonly string[],
+): Promise<{ id: string }[]> {
+  const seen = new Set(turnIds);
+  let frontier = [...turnIds];
+  while (frontier.length) {
+    const children = await prisma.sokoBotTurn.findMany({
+      where: { parentTurnId: { in: frontier }, id: { notIn: [...seen] } },
+      select: { id: true },
+    });
+    frontier = children.map((child) => child.id);
+    for (const id of frontier) seen.add(id);
+  }
+  return [...seen].map((id) => ({ id }));
 }
 
 /** Progress: the share of checks passed and how many steps in a row were right. */

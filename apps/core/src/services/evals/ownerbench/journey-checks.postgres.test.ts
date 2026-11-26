@@ -16,6 +16,7 @@ import {
   claimedRunState,
   foregroundTurnId,
   freshConversationCheck,
+  withDescendants,
 } from "./journey-runner";
 import type { JourneyWorld } from "./journey-world";
 import { OWNER_JOURNEYS } from "./journeys";
@@ -388,6 +389,40 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     ).toBeNull();
     expect((await claimedRunCheck({})).actual).toBe("no run claimed");
     await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
+    await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
+    await prisma.sokoBot.deleteMany({ where: { id: botId } });
+  });
+
+  it("finds a journey turn's background runs at any depth", async () => {
+    const botId = (
+      await prisma.sokoBot.create({
+        data: { userId, workspaceId },
+        select: { id: true },
+      })
+    ).id;
+    const turn = (parentTurnId?: string) =>
+      prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          source: "CHAT",
+          status: "COMPLETED",
+          clientTurnId: `lab:fixture:${randomUUID()}`,
+          userMessage: "hello",
+          capabilityNames: [],
+          deadlineAt: new Date(Date.now() + 60_000),
+          ...(parentTurnId ? { parentTurnId } : {}),
+        },
+        select: { id: true },
+      });
+    const root = await turn();
+    const child = await turn(root.id);
+    const grandchild = await turn(child.id);
+    await turn();
+    expect(
+      (await withDescendants([root.id])).map((entry) => entry.id).sort(),
+    ).toEqual([root.id, child.id, grandchild.id].sort());
     await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
     await prisma.sokoBot.deleteMany({ where: { id: botId } });
   });

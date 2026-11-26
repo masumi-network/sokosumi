@@ -85,6 +85,11 @@ export function versionDeltaBySet(
   candidate: ParityReport,
   /** Every dev journey; the dev bar needs all of them scored in both runs. */
   devJourneyIds: readonly string[],
+  /**
+   * Every held-out journey, from the held-out file. Without it nothing says
+   * what the set should hold, and a run of one of them could pass.
+   */
+  holdoutJourneyIds: readonly string[] = [],
 ): { dev: VersionDelta; holdout: VersionDelta | null; meetsBar: boolean } {
   const only = (report: ParityReport, holdout: boolean): ParityReport => ({
     cases: report.cases.filter(
@@ -96,21 +101,38 @@ export function versionDeltaBySet(
     only(candidate, false),
     devJourneyIds,
   );
-  const baselineHoldout = only(baseline, true).cases.map(
-    (evalCase) => evalCase.caseId,
-  );
-  const hasHoldout = [baseline, candidate].every(
-    (report) => only(report, true).cases.length > 0,
-  );
-  // The held-out file isn't in the repository: its journeys are whatever the
-  // baseline ran, and the candidate must have run every one of them.
+  const hasHoldout =
+    holdoutJourneyIds.length > 0 &&
+    [baseline, candidate].every(
+      (report) => only(report, true).cases.length > 0,
+    );
+  // Both runs must have scored every journey the held-out file holds.
   const holdout = hasHoldout
-    ? versionDelta(only(baseline, true), only(candidate, true), baselineHoldout)
+    ? versionDelta(
+        only(baseline, true),
+        only(candidate, true),
+        holdoutJourneyIds,
+      )
     : null;
   return {
     dev,
     holdout,
     meetsBar: dev.meetsBar && Boolean(holdout?.meetsBar),
+  };
+}
+
+/** How many journeys measured their tokens on both sides, of how many. */
+export function tokenCoverage(delta: VersionDelta): {
+  measured: number;
+  total: number;
+} {
+  return {
+    measured: delta.rows.filter(
+      (row) =>
+        row.baseline?.inputTokensPerTurn != null &&
+        row.candidate?.inputTokensPerTurn != null,
+    ).length,
+    total: delta.rows.length,
   };
 }
 

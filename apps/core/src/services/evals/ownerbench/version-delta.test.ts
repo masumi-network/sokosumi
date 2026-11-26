@@ -61,24 +61,44 @@ describe("versionDelta", () => {
         "owner-a": [dev, 2, 100],
         "owner-holdout-a": [held, 2, 100],
       });
+    const held = ["owner-holdout-a"];
     const overfit = versionDeltaBySet(
       both("FAILED", "PASSED"),
       both("PASSED", "FAILED"),
       ["owner-a"],
+      held,
     );
     expect(overfit.dev.meetsBar).toBe(true);
     expect(overfit.holdout?.meetsBar).toBe(false);
     expect(overfit.meetsBar).toBe(false);
-    expect(
-      versionDeltaBySet(both("PASSED", "PASSED"), both("PASSED", "PASSED"), [
-        "owner-a",
-      ]).meetsBar,
-    ).toBe(true);
-    const devOnly = report({ "owner-a": ["PASSED", 2, 100] });
-    expect(versionDeltaBySet(devOnly, devOnly, ["owner-a"])).toMatchObject({
+    const fine = both("PASSED", "PASSED");
+    expect(versionDeltaBySet(fine, fine, ["owner-a"], held).meetsBar).toBe(
+      true,
+    );
+    // No held-out file to say what the set holds: not checkable.
+    expect(versionDeltaBySet(fine, fine, ["owner-a"])).toMatchObject({
       holdout: null,
       meetsBar: false,
     });
+    const devOnly = report({ "owner-a": ["PASSED", 2, 100] });
+    expect(
+      versionDeltaBySet(devOnly, devOnly, ["owner-a"], held),
+    ).toMatchObject({ holdout: null, meetsBar: false });
+  });
+
+  it("fails the held-out bar when both runs scored only part of the file", () => {
+    const one = report({
+      "owner-a": ["PASSED", 2, 100],
+      "owner-holdout-a": ["PASSED", 2, 100],
+    });
+    expect(
+      versionDeltaBySet(
+        one,
+        one,
+        ["owner-a"],
+        ["owner-holdout-a", "owner-holdout-b"],
+      ).meetsBar,
+    ).toBe(false);
   });
 
   it("averages all input tokens over all their turns, background runs included", () => {
