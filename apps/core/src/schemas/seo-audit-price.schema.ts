@@ -39,3 +39,55 @@ export const seoFullAuditCostSchema = z.strictObject({
   dataForSeoMicroUsd: microUsd,
   otherApiMicroUsd: microUsd,
 });
+
+const SEO_COST_DETAIL_MAX_ROWS = 200;
+const SEO_COST_DETAIL_MAX_TEXT = 200;
+/** USD 1M per row keeps 200-row sums exact in a JS number. */
+const SEO_COST_DETAIL_MAX_MICRO_USD = 1_000_000_000_000;
+/** PostgreSQL jsonb cannot store NUL or an unpaired surrogate; such text would fail the settlement write. */
+const UNSTORABLE_TEXT = /[\0\p{Cs}]/u;
+const count = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+const detailMicroUsd = microUsd.max(SEO_COST_DETAIL_MAX_MICRO_USD);
+const detailText = z
+  .string()
+  .min(1)
+  .max(SEO_COST_DETAIL_MAX_TEXT)
+  .refine((text) => !UNSTORABLE_TEXT.test(text))
+  // A refine is not published, so the description states the rule for clients.
+  .openapi({
+    description:
+      "1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.",
+  });
+const detailRows = <T extends z.ZodType>(row: T) =>
+  z.array(row).max(SEO_COST_DETAIL_MAX_ROWS);
+
+/** Display-only breakdown of a full-audit receipt. It never changes the charge. */
+export const seoFullAuditCostDetailSchema = z
+  .strictObject({
+    version: z.literal(1),
+    models: detailRows(
+      z.strictObject({
+        model: detailText,
+        provider: detailText.nullable(),
+        calls: count,
+        // null: a call with no known price (a direct, non-Gateway call).
+        microUsd: detailMicroUsd.nullable(),
+      }),
+    ),
+    dataForSeo: detailRows(
+      z.strictObject({
+        endpoint: detailText,
+        reads: count,
+        microUsd: detailMicroUsd,
+      }),
+    ),
+    steps: detailRows(
+      z.strictObject({
+        step: detailText,
+        modelMicroUsd: detailMicroUsd,
+        dataForSeoMicroUsd: detailMicroUsd,
+        otherApiMicroUsd: detailMicroUsd,
+      }),
+    ),
+  })
+  .openapi("SeoFullAuditCostDetail");

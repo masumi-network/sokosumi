@@ -436,7 +436,7 @@ export function sameTitle(left: string, right: string): boolean {
 }
 
 /** A version's posts a newer approval cancels: planned, not gone out yet. */
-const UNPUBLISHED_POST_STATUSES = [
+export const UNPUBLISHED_POST_STATUSES = [
   "DRAFT",
   "NEEDS_APPROVAL",
   "SCHEDULED",

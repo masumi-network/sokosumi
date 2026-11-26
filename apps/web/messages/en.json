@@ -7882,6 +7882,24 @@
         "directModelMicroUsd": "Direct model calls",
         "dataForSeoMicroUsd": "DataForSEO",
         "otherApiMicroUsd": "Other APIs",
+        "costDetail": "Cost breakdown",
+        "costByModel": "By model",
+        "costByDataForSeo": "By DataForSEO endpoint",
+        "costByStep": "By audit step",
+        "detailModel": "Model",
+        "detailProvider": "Provider",
+        "detailCalls": "Calls",
+        "detailEndpoint": "Endpoint",
+        "detailReads": "Reads",
+        "detailStep": "Step",
+        "detailCost": "Cost",
+        "detailModelCost": "Models",
+        "detailDataForSeoCost": "DataForSEO",
+        "detailOtherApiCost": "Other APIs",
+        "detailStepTotal": "Step total",
+        "unattributed": "Unattributed",
+        "unpriced": "Unpriced",
+        "providerUnknown": "Unknown",
         "runId": "Run ID",
         "taskId": "Task ID",
         "receiptsPending": "Waiting for cost receipts",
@@ -14949,7 +14967,17 @@
         "loading": "Loading Search Console traffic.",
         "failed": "Could not read traffic for this selection.",
         "unavailable": "Live traffic requires a matching Search Console property for this website.",
-        "saved": "Traffic for selected pages"
+        "saved": "Traffic for selected pages",
+        "brandBuckets": {
+          "branded": "Branded",
+          "nonBranded": "Non-branded",
+          "unlisted": "No query listed"
+        },
+        "brandUnlistedNote": "Google lists no query for rare searches. That traffic is in the total and shows as No query listed.",
+        "brandLimited": "There are more query rows than the split can read. The branded and non-branded numbers are a lower limit.",
+        "brandListedOnly": "These numbers count the listed queries only. The day totals could not be compared, so there are no shares.",
+        "brandUnavailable": "Could not read the queries for this period, so there is no brand split.",
+        "brandEmpty": "Add your brand terms to see how much traffic comes from searches for your name."
       },
       "traffic": {
         "periodInsight": {
@@ -14999,7 +15027,8 @@
           "branded": "Branded",
           "non_branded": "Non-branded"
         },
-        "brandTotals": "Listed queries: {branded} clicks branded, {nonBranded} clicks non-branded",
+        "brandTotals": "Listed queries: {branded} clicks branded ({brandedShare}), {nonBranded} clicks non-branded ({nonBrandedShare})",
+        "brandSuggested": "Suggested from your website name. Check the terms before you save.",
         "editBrandTerms": "Edit brand terms",
         "addBrandTerms": "Add brand terms",
         "brandTerms": "Brand terms",

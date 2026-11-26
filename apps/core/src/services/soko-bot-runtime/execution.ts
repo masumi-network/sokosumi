@@ -1,3 +1,4 @@
+import { type Prisma } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   isSokoBotAnnouncementCapability,
@@ -24,6 +25,11 @@ import {
   isExternalEffectToolCall,
   verifyTaskArchiveReceipt,
 } from "@/lib/soko-bot/action-receipts";
+import {
+  type MediaSpendRequest,
+  reserveAuthoritySpend,
+  settleAuthoritySpend,
+} from "@/lib/soko-bot/authority-spend";
 import {
   assertEvaluationActor,
   assertEvaluationTool,
@@ -61,6 +67,54 @@ import {
   createTaskCanonicalInputHashFromAudit,
   createTaskInputIdentity,
 } from "./task-policy";
+
+const TERMINAL_COMMIT_MAX_ATTEMPTS = 3;
+
+async function persistTerminalToolOutcome(options: {
+  where: Prisma.SokoBotToolCallWhereInput;
+  data: Prisma.SokoBotToolCallUpdateManyMutationInput;
+  spend: {
+    turnId: string;
+    toolCallId: string;
+    outcome: "SETTLED" | "UNKNOWN" | "RELEASED";
+  } | null;
+}): Promise<void> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= TERMINAL_COMMIT_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      if (options.spend) {
+        const spend = options.spend;
+        const commit = async (tx: typeof prisma) => {
+          await tx.sokoBotToolCall.updateMany({
+            where: options.where,
+            data: options.data,
+          });
+          await settleAuthoritySpend(
+            tx,
+            { turnId: spend.turnId, toolCallId: spend.toolCallId },
+            spend.outcome,
+          );
+        };
+        if (typeof prisma.$transaction === "function") {
+          await prisma.$transaction((tx) =>
+            commit(tx as unknown as typeof prisma),
+          );
+        } else {
+          await commit(prisma);
+        }
+      } else {
+        await prisma.sokoBotToolCall.updateMany({
+          where: options.where,
+          data: options.data,
+        });
+      }
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
 
 /** A refusal Core meant is stored as such, so a report can tell it from a failure. */
 export function toolErrorKind(error: unknown): string {
@@ -367,6 +421,18 @@ export async function executeTool(
       );
     }
     if (existing.status === "COMPLETED") {
+      if (
+        externalEffect &&
+        existing.disposition === "REJECTED" &&
+        existing.turnId &&
+        existing.toolCallId
+      ) {
+        await settleAuthoritySpend(
+          prisma,
+          { turnId: existing.turnId, toolCallId: existing.toolCallId },
+          "RELEASED",
+        );
+      }
       if (isFundraisingCapability(input.capability))
         await fundraisingActor(authorized);
       if (isSokoBotSeoCapability(input.capability)) {
@@ -582,6 +648,18 @@ export async function executeTool(
       return replayResult;
     }
     if (existing.status === "FAILED") {
+      if (
+        externalEffect &&
+        existing.disposition === "REJECTED" &&
+        existing.turnId &&
+        existing.toolCallId
+      ) {
+        await settleAuthoritySpend(
+          prisma,
+          { turnId: existing.turnId, toolCallId: existing.toolCallId },
+          "RELEASED",
+        );
+      }
       throw new SokoBotRuntimeConflictError("Tool call previously failed");
     }
     if (externalEffect) {
@@ -629,30 +707,36 @@ export async function executeTool(
       input = { ...input, toolCallId: existing.toolCallId };
   }
 
+  let mediaSpendRequest: MediaSpendRequest | null = null;
   if (
     input.capability === "generate_image" ||
     input.capability === "generate_video" ||
     input.capability === "generate_talking_video"
   ) {
     try {
-      if (input.capability === "generate_image")
-        await runtime.checkImageRequest(
+      if (input.capability === "generate_image") {
+        const checked = await runtime.checkImageRequest(
           authorized,
           input.input,
           input.toolCallId,
+          operationKey,
         );
-      else if (input.capability === "generate_video")
-        await runtime.checkVideoRequest(
+        mediaSpendRequest = checked.authoritySpend;
+      } else if (input.capability === "generate_video") {
+        const checked = await runtime.checkVideoRequest(
           authorized,
           input.input,
           input.toolCallId,
+          operationKey,
         );
-      else
+        mediaSpendRequest = checked.authoritySpend;
+      } else {
         await runtime.checkTalkingVideoRequest(
           authorized,
           input.input,
           input.toolCallId,
         );
+      }
     } catch (error) {
       // Refused before anything was sent: rejected, and the same request
       // may be made again once whatever refused it has changed.
@@ -673,82 +757,146 @@ export async function executeTool(
       throw error;
     }
   }
+  let spendReserved = false;
   if (externalEffect) {
-    // Fence cancellation and capability revocation at the durable dispatch
-    // boundary. A crash after this commit remains UNKNOWN, never retryable.
-    await serializableTransaction(async (tx) => {
-      await runtime.requireMutationAuthority(
-        tx,
-        authorized,
-        false,
+    // Fence cancellation, capability revocation, and shared OwnerAuthority
+    // grant spend atomically at the durable dispatch boundary. A crash after
+    // this commit remains UNKNOWN (holding spend), never retryable.
+    try {
+      await serializableTransaction(async (tx) => {
+        await runtime.requireMutationAuthority(
+          tx,
+          authorized,
+          false,
+          input.capability,
+        );
+        if (mediaSpendRequest) {
+          await reserveAuthoritySpend(tx, {
+            ...mediaSpendRequest,
+            operationKey,
+          });
+        }
+        const reserved = await tx.sokoBotToolCall.updateMany({
+          where: {
+            turnId: input.turnId,
+            toolCallId: input.toolCallId,
+            status: "PENDING",
+          },
+          data: { disposition: "UNKNOWN", verification: "NONE" },
+        });
+        if (reserved.count !== 1)
+          throw new SokoBotRuntimeConflictError(
+            "External action reservation is unavailable",
+          );
+      }, "External action reservation changed concurrently");
+      spendReserved = mediaSpendRequest !== null;
+    } catch (error) {
+      if (error instanceof SokoBotRefusedUnsentError) {
+        await prisma.sokoBotToolCall.updateMany({
+          where: {
+            turnId: input.turnId,
+            toolCallId: input.toolCallId,
+            status: "PENDING",
+          },
+          data: {
+            status: "FAILED",
+            disposition: "REJECTED",
+            operationKey: null,
+            errorKind: toolErrorKind(error),
+            errorDetail: persistedErrorDetail(error),
+          },
+        });
+      }
+      throw error;
+    }
+  }
+  // Separate provider execution from terminal receipt/ledger persistence so a
+  // transient DB rollback on commit retries only the database transaction with
+  // the exact observed provider outcome rather than overwriting a confirmed
+  // refund or queued job with UNKNOWN.
+  let providerOutcome:
+    | { ok: true; result: unknown }
+    | { ok: false; error: unknown };
+  try {
+    providerOutcome = {
+      ok: true,
+      result: await runtime.executeAuthorizedTool(input),
+    };
+  } catch (error) {
+    providerOutcome = { ok: false, error };
+  }
+
+  const terminalWhere: Prisma.SokoBotToolCallWhereInput = {
+    turnId: input.turnId,
+    toolCallId: input.toolCallId,
+    ...(externalEffect
+      ? {
+          status: { in: ["PENDING", "COMPLETED"] },
+          disposition: "UNKNOWN",
+          verification: "NONE",
+        }
+      : { status: "PENDING" }),
+  };
+
+  if (providerOutcome.ok) {
+    const receipt = externalEffect
+      ? externalActionReceipt(input.capability, providerOutcome.result)
+      : null;
+    const completionData: Prisma.SokoBotToolCallUpdateManyMutationInput = {
+      ...(receipt ?? {}),
+      ...(receipt?.disposition === "REJECTED" ? { operationKey: null } : {}),
+      status: "COMPLETED",
+      result: persistedToolResult(
+        providerOutcome.result ?? null,
         input.capability,
-      );
-      const reserved = await tx.sokoBotToolCall.updateMany({
-        where: {
+      ),
+    };
+    const spendOutcome =
+      receipt?.disposition === "REJECTED"
+        ? "RELEASED"
+        : receipt?.disposition === "UNKNOWN"
+          ? "UNKNOWN"
+          : "SETTLED";
+    await persistTerminalToolOutcome({
+      where: terminalWhere,
+      data: completionData,
+      spend: spendReserved
+        ? {
+            turnId: input.turnId,
+            toolCallId: input.toolCallId,
+            outcome: spendOutcome,
+          }
+        : null,
+    });
+    return providerOutcome.result;
+  }
+
+  const refusedUnsent =
+    providerOutcome.error instanceof SokoBotRefusedUnsentError;
+  const failureData: Prisma.SokoBotToolCallUpdateManyMutationInput = {
+    status: "FAILED",
+    // A rolled-back local attempt is not an enduring semantic
+    // reservation, and neither is an effect refused before it was sent.
+    ...(!externalEffect || refusedUnsent ? { operationKey: null } : {}),
+    ...(action
+      ? {
+          disposition:
+            externalEffect && !refusedUnsent ? "UNKNOWN" : "REJECTED",
+        }
+      : {}),
+    errorKind: toolErrorKind(providerOutcome.error),
+    errorDetail: persistedErrorDetail(providerOutcome.error),
+  };
+  await persistTerminalToolOutcome({
+    where: terminalWhere,
+    data: failureData,
+    spend: spendReserved
+      ? {
           turnId: input.turnId,
           toolCallId: input.toolCallId,
-          status: "PENDING",
-        },
-        data: { disposition: "UNKNOWN", verification: "NONE" },
-      });
-      if (reserved.count !== 1)
-        throw new SokoBotRuntimeConflictError(
-          "External action reservation is unavailable",
-        );
-    }, "External action reservation changed concurrently");
-  }
-  try {
-    const result = await runtime.executeAuthorizedTool(input);
-    await prisma.sokoBotToolCall.updateMany({
-      where: {
-        turnId: input.turnId,
-        toolCallId: input.toolCallId,
-        ...(externalEffect
-          ? {
-              status: { in: ["PENDING", "COMPLETED"] },
-              disposition: "UNKNOWN",
-              verification: "NONE",
-            }
-          : { status: "PENDING" }),
-      },
-      data: {
-        ...(externalEffect
-          ? externalActionReceipt(input.capability, result)
-          : {}),
-        status: "COMPLETED",
-        result: persistedToolResult(result ?? null, input.capability),
-      },
-    });
-    return result;
-  } catch (error) {
-    const refusedUnsent = error instanceof SokoBotRefusedUnsentError;
-    await prisma.sokoBotToolCall.updateMany({
-      where: {
-        turnId: input.turnId,
-        toolCallId: input.toolCallId,
-        ...(externalEffect
-          ? {
-              status: { in: ["PENDING", "COMPLETED"] },
-              disposition: "UNKNOWN",
-              verification: "NONE",
-            }
-          : { status: "PENDING" }),
-      },
-      data: {
-        status: "FAILED",
-        // A rolled-back local attempt is not an enduring semantic
-        // reservation, and neither is an effect refused before it was sent.
-        ...(!externalEffect || refusedUnsent ? { operationKey: null } : {}),
-        ...(action
-          ? {
-              disposition:
-                externalEffect && !refusedUnsent ? "UNKNOWN" : "REJECTED",
-            }
-          : {}),
-        errorKind: toolErrorKind(error),
-        errorDetail: persistedErrorDetail(error),
-      },
-    });
-    throw error;
-  }
+          outcome: refusedUnsent ? "RELEASED" : "UNKNOWN",
+        }
+      : null,
+  });
+  throw providerOutcome.error;
 }

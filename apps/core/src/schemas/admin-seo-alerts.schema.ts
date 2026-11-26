@@ -1,5 +1,8 @@
 import { z } from "@hono/zod-openapi";
-import { seoFullAuditCostSchema } from "./seo-audit-price.schema";
+import {
+  seoFullAuditCostDetailSchema,
+  seoFullAuditCostSchema,
+} from "./seo-audit-price.schema";
 
 export const SEO_ALERTS_PAGE_SIZE = 25;
 export const SEO_PAGE_FAILURE_PERCENT = 25;
@@ -68,6 +71,7 @@ export const adminSeoBillingRow = z.object({
   dataBudgetUsd: z.number().nonnegative().nullable(),
   chargedCredits: z.number().nonnegative().nullable(),
   cost: seoFullAuditCostSchema.nullable(),
+  costDetail: z.union([seoFullAuditCostDetailSchema, z.null()]).optional(),
 });
 
 export const adminSeoAlerts = z

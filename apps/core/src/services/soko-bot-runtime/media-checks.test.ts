@@ -211,4 +211,227 @@ describe("mayMakeMediaForOwner", () => {
     ).resolves.toBeNull();
     expect(delegationFindManyMock).not.toHaveBeenCalled();
   });
+
+  it("allows matching project-scoped persisted OwnerAuthority (personal and Cuso) and refuses a different Project", async () => {
+    const projectGrant = {
+      version: 1,
+      grantId: "grant-project-a",
+      origin: "owner_chat",
+      sokoBotId: "bot-1",
+      workspaceId: "ws-1",
+      ownerUserId: "user-1",
+      rootTurnId: "root-1",
+      targetScope: { kind: "project", projectId: "project-a" },
+      scope: "draft_and_workspace",
+      socialMode: "draft_only",
+      limits: {
+        grantId: "grant-project-a",
+        period: "lifetime",
+        images: 2,
+        maxMediaCredits: 20,
+      },
+      stopRule: { mode: "never" },
+    };
+    delegationFindManyMock.mockResolvedValue([
+      {
+        id: "del-proj",
+        authority: projectGrant,
+        turn: {
+          ...ownerChat,
+          id: "root-1",
+          sokoBotId: "bot-1",
+          workspaceId: "ws-1",
+          versionId: "v36",
+          sokoBot: { userId: "user-1", projectId: null },
+        },
+      },
+    ]);
+    const personalWake = {
+      askedByKind: "OWNER",
+      turn: {
+        id: "event-turn",
+        sokoBotId: "bot-1",
+        workspaceId: "ws-1",
+        versionId: "v36",
+        actingUserId: "user-1",
+        source: "EVENT",
+      },
+    } as unknown as Parameters<typeof mayMakeMediaForOwner>[1];
+
+    await expect(
+      mayMakeMediaForOwner(runtime, personalWake, { projectId: "project-a" }),
+    ).resolves.toMatchObject({ images: 2, maxCredits: 20 });
+
+    await expect(
+      mayMakeMediaForOwner(runtime, personalWake, { projectId: "project-b" }),
+    ).rejects.toThrow("scoped to a different Project");
+
+    // Project Cuso shared bot (`userId: null`, `projectId: "project-cmo"`).
+    delegationFindManyMock.mockResolvedValue([
+      {
+        id: "del-cmo",
+        authority: {
+          ...projectGrant,
+          grantId: "grant-cmo",
+          sokoBotId: "cmo-bot",
+          targetScope: { kind: "project", projectId: "project-cmo" },
+          socialMode: "full",
+          limits: {
+            grantId: "grant-cmo",
+            period: "lifetime",
+            images: 3,
+            maxMediaCredits: 30,
+          },
+        },
+        turn: {
+          ...ownerChat,
+          id: "cmo-root",
+          sokoBotId: "cmo-bot",
+          workspaceId: "ws-1",
+          versionId: "cmo-v24",
+          sokoBot: { userId: null, projectId: "project-cmo" },
+        },
+      },
+    ]);
+    const cmoWake = {
+      askedByKind: "TEAMMATE",
+      turn: {
+        id: "event-turn",
+        sokoBotId: "cmo-bot",
+        workspaceId: "ws-1",
+        versionId: "cmo-v24",
+        actingUserId: "user-1",
+        botProjectId: "project-cmo",
+        source: "EVENT",
+      },
+    } as unknown as Parameters<typeof mayMakeMediaForOwner>[1];
+
+    await expect(
+      mayMakeMediaForOwner(runtime, cmoWake, { projectId: "project-cmo" }),
+    ).resolves.toMatchObject({ images: 3, maxCredits: 30 });
+    await expect(
+      mayMakeMediaForOwner(runtime, cmoWake, { projectId: "project-other" }),
+    ).rejects.toThrow("scoped to a different Project");
+
+    // Mixed Project A + Project B wake preserves both grants for historical
+    // attribution while summarizing Project B's own allowance.
+    delegationFindManyMock.mockResolvedValue([
+      {
+        id: "del-a",
+        authority: {
+          ...projectGrant,
+          grantId: "grant-project-a",
+          targetScope: { kind: "project", projectId: "project-a" },
+          limits: {
+            grantId: "grant-project-a",
+            period: "lifetime",
+            images: 1,
+            maxMediaCredits: 5,
+          },
+        },
+        turn: {
+          ...ownerChat,
+          id: "root-a",
+          sokoBotId: "bot-1",
+          workspaceId: "ws-1",
+          versionId: "v36",
+          sokoBot: { userId: "user-1", projectId: null },
+        },
+      },
+      {
+        id: "del-b",
+        authority: {
+          ...projectGrant,
+          grantId: "grant-project-b",
+          targetScope: { kind: "project", projectId: "project-b" },
+          limits: {
+            grantId: "grant-project-b",
+            period: "lifetime",
+            images: 1,
+            maxMediaCredits: 5.5,
+          },
+        },
+        turn: {
+          ...ownerChat,
+          id: "root-b",
+          sokoBotId: "bot-1",
+          workspaceId: "ws-1",
+          versionId: "v36",
+          sokoBot: { userId: "user-1", projectId: null },
+        },
+      },
+    ]);
+    const mixedAllowance = await mayMakeMediaForOwner(runtime, personalWake, {
+      projectId: "project-b",
+    });
+    expect(mixedAllowance).toMatchObject({ images: 1, maxCredits: 5.5 });
+    expect(mixedAllowance?.grants?.map((g) => g.grantId).sort()).toEqual([
+      "grant-project-a",
+      "grant-project-b",
+    ]);
+
+    // Two Projects authorized under ONE shared grantId keep both Projects in
+    // allowedProjectIds regardless of delegation order.
+    const sharedRows = [
+      {
+        id: "del-shared-a",
+        authority: {
+          ...projectGrant,
+          grantId: "shared-root-grant",
+          targetScope: { kind: "project", projectId: "project-a" },
+          limits: {
+            grantId: "shared-root-grant",
+            period: "lifetime",
+            images: 2,
+            maxMediaCredits: 10,
+          },
+        },
+        turn: {
+          ...ownerChat,
+          id: "root-shared",
+          sokoBotId: "bot-1",
+          workspaceId: "ws-1",
+          versionId: "v36",
+          sokoBot: { userId: "user-1", projectId: null },
+        },
+      },
+      {
+        id: "del-shared-b",
+        authority: {
+          ...projectGrant,
+          grantId: "shared-root-grant",
+          targetScope: { kind: "project", projectId: "project-b" },
+          limits: {
+            grantId: "shared-root-grant",
+            period: "lifetime",
+            images: 2,
+            maxMediaCredits: 10,
+          },
+        },
+        turn: {
+          ...ownerChat,
+          id: "root-shared",
+          sokoBotId: "bot-1",
+          workspaceId: "ws-1",
+          versionId: "v36",
+          sokoBot: { userId: "user-1", projectId: null },
+        },
+      },
+    ];
+    for (const ordered of [sharedRows, [...sharedRows].reverse()]) {
+      delegationFindManyMock.mockResolvedValue(ordered);
+      const allowanceB = await mayMakeMediaForOwner(runtime, personalWake, {
+        projectId: "project-b",
+      });
+      expect(allowanceB).toMatchObject({ images: 2, maxCredits: 10 });
+      expect(allowanceB?.grants).toHaveLength(1);
+      expect(allowanceB?.grants?.[0]?.allowedProjectIds).toEqual([
+        "project-a",
+        "project-b",
+      ]);
+      await expect(
+        mayMakeMediaForOwner(runtime, personalWake, { projectId: "project-c" }),
+      ).rejects.toThrow("scoped to a different Project");
+    }
+  });
 });

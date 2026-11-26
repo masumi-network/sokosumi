@@ -37,6 +37,13 @@ export interface SokoBotVersion {
    */
   skillsOnDemand?: true;
   /**
+   * Core runs update_plan on every runtime and keeps the plan for the whole
+   * owner request (background runs, follow-up and watch wakes): the first
+   * plan is the contract, and later turns of the request are shown it.
+   * Omitted: update_plan is the sandbox's own turn-local list, as before.
+   */
+  planLoop?: true;
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.

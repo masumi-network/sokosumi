@@ -94,6 +94,7 @@ function handler(_req, res) {
 - **Mocking**: Colocate `vi.mock` (and Prisma factories in Core / `@sokosumi/database`) next to the test. Web has no `__mocks__/` directory.
 - **Execution**: Run `pnpm test` from the repo root, or the relevant workspace command such as `pnpm --filter web test`, before pushing
 - **Targeted reruns**: Use `pnpm --filter <workspace> test path/to/file.test.ts`. Do not insert an extra `--` before the file path for Vitest reruns.
+- **Checks on SQL**: Let PostgreSQL or the type checker enforce rules on SQL and PL/pgSQL. Prepare or run the statement against the target schema, compare a digest of a function definition to detect changes, or type-check table and enum names. A pattern over SQL text always has one more corner (comments, string literals, quoted aliases, dollar quotes). When neither PostgreSQL nor the type checker can decide a rule, name it as a review step in the PR instead of building a text detector. This still allows checks on migration filenames, a narrow literal tripwire, or a phrase check on a migration file with a written opt-out.
 
 ### Code References
 

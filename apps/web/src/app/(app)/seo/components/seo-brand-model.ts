@@ -1,145 +1,9 @@
+import type { SeoSiteTrafficReport } from "@sokosumi/core-client";
+import { seoBrandMatcher } from "@sokosumi/utils";
+
 /** Which queries the Search Console table lists. */
 export const SEO_BRAND_VIEWS = ["all", "branded", "non_branded"] as const;
 export type SeoBrandView = (typeof SEO_BRAND_VIEWS)[number];
-
-/**
- * Scripts written without spaces between words, plus Hangul, where a particle joins
- * the word: "ソニーテレビ" holds "ソニー". Word bounds are not readable there, so a
- * term in these scripts matches as a substring, with spaces ignored.
- */
-const SUBSTRING_SCRIPT_CLASS =
-  "\\p{scx=Han}\\p{scx=Hiragana}\\p{scx=Katakana}\\p{scx=Hangul}\\p{scx=Thai}\\p{scx=Lao}\\p{scx=Khmer}\\p{scx=Myanmar}";
-const SUBSTRING_SCRIPTS = new RegExp(`[${SUBSTRING_SCRIPT_CLASS}]`, "u");
-/**
- * A term matches as a substring only when it holds a letter of such a script.
- * Punctuation such as "·" or "・" also has these scripts in its Script_Extensions,
- * but "paral·lel" and "Sony・Music" are words in Latin script.
- */
-const SUBSTRING_SCRIPT_LETTER = new RegExp(
-  `(?=\\p{L})[${SUBSTRING_SCRIPT_CLASS}]`,
-  "u",
-);
-/**
- * A change between such a script and any other text is a word bound: "iPhoneケース"
- * holds the word "iphone", and "华为P50价格" the word "p50".
- */
-const INTO_SUBSTRING_SCRIPT = new RegExp(
-  `([^\\s${SUBSTRING_SCRIPT_CLASS}])(?=[${SUBSTRING_SCRIPT_CLASS}])`,
-  "gu",
-);
-const OUT_OF_SUBSTRING_SCRIPT = new RegExp(
-  `([${SUBSTRING_SCRIPT_CLASS}])(?=[^\\s${SUBSTRING_SCRIPT_CLASS}])`,
-  "gu",
-);
-const LETTER_OR_DIGIT = /[\p{L}\p{N}]/u;
-/** Compatibility forms would turn "acme™" into "acmetm"; the signs are not part of a name. */
-const TRADEMARK_SIGNS = /[\u2120\u2122]/gu;
-/**
- * Accents are dropped on Latin and Greek letters, so "café" is "cafe", and vowel marks
- * on Arabic and Hebrew letters, which most queries leave out.
- */
-const DROPPED_MARKS =
-  /([\p{Script=Latin}\p{Script=Greek}\p{Script=Arabic}\p{Script=Hebrew}])\p{Mn}+/gu;
-/** Cyrillic keeps "й" apart from "и"; only "ё" reads as "е". */
-const CYRILLIC_DIAERESIS = /(\p{Script=Cyrillic})\u0308/gu;
-/**
- * A word keeps its marks (Indic vowel signs tell "हिंदी" from "हिंदू") and the signs
- * that make a name distinct: "c++", "c#" and "at&t" are not "c" or "at".
- */
-const WORD = /[\p{L}\p{M}\p{N}+#&]+/gu;
-const LEADING_JOINERS = /^[+#&]+/;
-const JOINER = /[+#&]/u;
-const JOINERS = /[+#&]+/u;
-
-/** Case, compatibility forms and Latin or Greek accents do not matter: "CAFÉ" and "cafe" are one word. */
-function brandText(text: string): string {
-  return text
-    .replace(TRADEMARK_SIGNS, " ")
-    .normalize("NFKD")
-    .replace(DROPPED_MARKS, "$1")
-    .replace(CYRILLIC_DIAERESIS, "$1")
-    .normalize("NFC")
-    .toLocaleLowerCase();
-}
-
-/** Most queries hold no such script; they skip the two scans. */
-function splitScripts(text: string): string {
-  return SUBSTRING_SCRIPTS.test(text)
-    ? text
-        .replace(INTO_SUBSTRING_SCRIPT, "$1 ")
-        .replace(OUT_OF_SUBSTRING_SCRIPT, "$1 ")
-    : text;
-}
-
-function brandWords(text: string): string[] {
-  return (splitScripts(brandText(text)).match(WORD) ?? [])
-    .map((word) => word.replace(LEADING_JOINERS, ""))
-    .filter((word) => LETTER_OR_DIGIT.test(word));
-}
-
-function compact(text: string): string {
-  return brandText(text).replace(/\s+/gu, "");
-}
-
-/** The words with their signs taken out: "procter&gamble" is "procter" and "gamble", "acme+" is "acme". */
-function plainWords(words: string[]): string[] {
-  return words.flatMap((word) =>
-    word.split(JOINERS).filter((part) => LETTER_OR_DIGIT.test(part)),
-  );
-}
-
-type BrandNeedle = { substring: string } | { words: string[]; signed: boolean };
-
-/**
- * A term in its matching form, or null for a term that matches nothing. A term that
- * holds a sign ("C++", "AT&T") matches only the whole signed word; any other term
- * also matches the parts of a signed query word.
- */
-function brandNeedle(term: string): BrandNeedle | null {
-  if (!LETTER_OR_DIGIT.test(term)) return null;
-  if (SUBSTRING_SCRIPT_LETTER.test(term)) return { substring: compact(term) };
-  const words = brandWords(term);
-  const signed = words.some((word) => JOINER.test(word));
-  return words.length
-    ? { words: signed ? words : plainWords(words), signed }
-    : null;
-}
-
-function holdsSequence(words: string[], needle: string[]): boolean {
-  for (let start = 0; start + needle.length <= words.length; start++)
-    if (needle.every((word, index) => words[start + index] === word))
-      return true;
-  return false;
-}
-
-/**
- * A query is branded when one brand term stands in it as whole words, in order.
- * Part of a word does not count: "art" does not make "party" branded. A
- * spelling such as "acmeshop" is its own term for the owner to add. A term in a
- * script without spaces matches as a substring. A term with no letter or digit
- * matches nothing. Each term is prepared once per list, not once per query.
- */
-export function seoBrandMatcher(terms: string[]): (query: string) => boolean {
-  const needles = terms.flatMap((term) => brandNeedle(term) ?? []);
-  return (query) => {
-    if (!needles.length) return false;
-    const words = brandWords(query);
-    let compacted: string | undefined;
-    let plain: string[] | undefined;
-    return needles.some((needle) =>
-      "substring" in needle
-        ? (compacted ??= compact(query)).includes(needle.substring)
-        : holdsSequence(
-            needle.signed ? words : (plain ??= plainWords(words)),
-            needle.words,
-          ),
-    );
-  };
-}
-
-export function seoIsBrandedQuery(query: string, terms: string[]): boolean {
-  return seoBrandMatcher(terms)(query);
-}
 
 /** One brand term per line or between commas; blanks are dropped. */
 export function seoParseBrandTerms(text: string): string[] {
@@ -179,4 +43,75 @@ export function seoBrandTotals(rows: BrandRow[], terms: string[]) {
     side.impressions += row.impressions;
   }
   return totals;
+}
+
+/** The parts of the site split. `unlisted` is traffic Google counts in the total but lists under no query. */
+export const SEO_BRAND_BUCKETS = ["branded", "nonBranded", "unlisted"] as const;
+export type SeoBrandBucket = (typeof SEO_BRAND_BUCKETS)[number];
+
+/**
+ * One metric of the site split, in total and per day. Null without a split in the report.
+ * `unlisted` is the day total minus both listed sides. It is null when it cannot be proved:
+ * the query rows were cut at the read limit, the report has no day totals, the rows hold a
+ * day the totals do not have, or the rows exceed a day total. `all` is the traffic total
+ * the shares are of; null when the day totals are absent or disagree with the rows.
+ */
+export function seoSiteBrandSplit(
+  report: Pick<SeoSiteTrafficReport, "daily" | "brand">,
+  metric: "clicks" | "impressions",
+) {
+  const { brand } = report;
+  if (!brand) return null;
+  const rows = new Map(brand.daily.map((day) => [day.date, day]));
+  const totals = new Map(report.daily?.map((day) => [day.date, day[metric]]));
+  // Every day of either read is a point, so a trend shows all the traffic its total counts.
+  const dates = [...new Set([...totals.keys(), ...rows.keys()])].sort();
+  // After a cut read, a day without rows is not known to be zero.
+  const none = brand.limited ? null : 0;
+  const side = (key: "branded" | "nonBranded") =>
+    dates.map((date) => ({
+      date,
+      value: rows.get(date)?.[key][metric] ?? none,
+    }));
+  const branded = side("branded");
+  const nonBranded = side("nonBranded");
+  const rest = dates.map((date, i) => ({
+    date,
+    value:
+      (totals.get(date) ?? Number.NaN) -
+      (branded[i]?.value ?? 0) -
+      (nonBranded[i]?.value ?? 0),
+  }));
+  // A day without a total gives NaN, which fails the comparison too.
+  const consistent = totals.size > 0 && rest.every((point) => point.value >= 0);
+  const unlisted = consistent && !brand.limited ? rest : null;
+  const sum = (values: number[]) =>
+    values.reduce((total, value) => total + value, 0);
+  const values = (points: { value: number | null }[]) =>
+    sum(points.map((point) => point.value ?? 0));
+  return {
+    all: consistent ? sum([...totals.values()]) : null,
+    limited: brand.limited,
+    totals: {
+      branded: values(branded),
+      nonBranded: values(nonBranded),
+      unlisted: unlisted && values(unlisted),
+    },
+    points: { branded, nonBranded, unlisted },
+  };
+}
+
+/**
+ * Start values for an empty term list, from the site name: "battery-sensei.app" gives
+ * "battery sensei" and "batterysensei". Only a host of a name and one ending gives a
+ * suggestion: in "support.example.com" or "example.co.uk" the name is not sure. The owner
+ * checks the terms before a save.
+ */
+export function seoBrandSuggestion(host: string): string[] {
+  const labels = host.replace(/^www\./, "").split(".");
+  const name = labels.length === 2 ? (labels[0] ?? "") : "";
+  // A punycode label is not the name as people type it.
+  if (name.startsWith("xn--")) return [];
+  const words = name.replace(/[-_]+/g, " ").trim();
+  return [...new Set([words, words.replaceAll(" ", "")])].filter(Boolean);
 }

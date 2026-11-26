@@ -69,6 +69,7 @@ export type AdminSeoAlerts = {
             dataForSeoMicroUsd: number;
             otherApiMicroUsd: number;
         } | null;
+        costDetail?: SeoFullAuditCostDetail | null;
     }>;
     connectionTotal: number;
     reconnect: number;
@@ -95,6 +96,39 @@ export type AdminSeoAlerts = {
         reasons: Array<'priceUnverified' | 'priceUnpaid' | 'dataBudgetExceeded' | 'priceReceiptPending' | 'priceNeedsCredits' | 'priceRetry' | 'workerOverdue' | 'workerFailed' | 'auditFailed' | 'reportRejected' | 'pageException' | 'pageFailureRate' | 'seasonalFailed' | 'explorationFailed' | 'investigationFailed' | 'speedPagesFailed' | 'editorialGemini' | 'editorialCodex' | 'editorialValidation' | 'webRiskNotRun' | 'webRiskFailed' | 'lighthouseFailed' | 'reportMissing' | 'gscDisconnected' | 'gscProperty' | 'gscUnavailable' | 'gscSkipped'>;
         failedPages: number;
         attemptedPages: number;
+    }>;
+};
+
+export type SeoFullAuditCostDetail = {
+    version: 1;
+    models: Array<{
+        /**
+         * 1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.
+         */
+        model: string;
+        /**
+         * 1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.
+         */
+        provider: string | null;
+        calls: number;
+        microUsd: number | null;
+    }>;
+    dataForSeo: Array<{
+        /**
+         * 1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.
+         */
+        endpoint: string;
+        reads: number;
+        microUsd: number;
+    }>;
+    steps: Array<{
+        /**
+         * 1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.
+         */
+        step: string;
+        modelMicroUsd: number;
+        dataForSeoMicroUsd: number;
+        otherApiMicroUsd: number;
     }>;
 };
 
@@ -13705,6 +13739,21 @@ export type SeoSiteTrafficReport = {
         date: string;
     }>;
     limited: boolean;
+    brand?: {
+        daily: Array<{
+            date: string;
+            branded: {
+                clicks: number;
+                impressions: number;
+            };
+            nonBranded: {
+                clicks: number;
+                impressions: number;
+            };
+        }>;
+        limited: boolean;
+        terms: Array<string>;
+    };
     pages: Array<{
         clicks: number;
         impressions: number;
@@ -112204,6 +112253,10 @@ export type PostTasksByIdEventsSeoSettlementV1Data = {
             dataForSeoMicroUsd: number;
             otherApiMicroUsd: number;
         };
+        /**
+         * Optional display-only cost breakdown (SeoFullAuditCostDetail). An invalid detail is not stored and does not change the charge.
+         */
+        fullAuditCostDetail?: unknown;
     };
     path: {
         id: string;

@@ -14,6 +14,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { Network } from "@/lib/network";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
   expectBackgroundProbe,
@@ -25,6 +26,7 @@ import {
   expectCoreLog,
   expectCoreLogWhys,
 } from "@/test/core-log";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import mountPostTaskEvents from "./post";
 
@@ -357,8 +359,9 @@ function createTaskEvent(
 
 function createApp(
   authContext: AuthenticationContext,
-  options: { evlog?: boolean } = {},
+  options: { evlog?: boolean; network?: Network } = {},
 ) {
+  const { network } = options;
   const app = new OpenAPIHonoWithAuth();
   if (options.evlog) app.use("*", coreEvlogMiddleware());
 
@@ -366,6 +369,12 @@ function createApp(
     c.set("requestId", "req_task_events_test");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
+    // A scope the middleware keeps: Preprod itself is off on this layout.
+    if (network)
+      c.set(
+        "networkScope",
+        Object.create(testNetworkScope(), { network: { value: network } }),
+      );
     return await next();
   });
 
@@ -1083,6 +1092,46 @@ describe("POST /{id}/events", () => {
     expect(response.status).toBe(422);
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
     expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("tags a charged event with the Network of the request's scope", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: null,
+            cents: convertCreditsToCents(2),
+            transactionId: "txn_first",
+          }),
+        ),
+      },
+      task: { updateMany: vi.fn() },
+    };
+    mockTransaction(tx);
+    createTaskEventTransactionMock.mockResolvedValue("txn_first");
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.RUNNING, organizationId: "org-1" }),
+    );
+    const app = createApp(
+      { actor: "coworker", coworkerId: COWORKER_ID, vendorId: TEST_VENDOR_ID },
+      { network: "preprod" },
+    );
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credits: 2 }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          transactionId: "txn_first",
+          network: "preprod",
+        }),
+      }),
+    );
   });
 
   it("allows multiple sequential credit charges on the same task", async () => {

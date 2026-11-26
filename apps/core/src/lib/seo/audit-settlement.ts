@@ -3,6 +3,7 @@ import { z } from "zod";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import {
   seoCostPlusPriceSchema,
+  seoFullAuditCostDetailSchema,
   seoFullAuditCostSchema,
 } from "@/schemas/seo-audit-price.schema";
 import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.schema";
@@ -62,6 +63,7 @@ interface AuditPayment {
   credits?: number | null;
   masumiPayment?: unknown;
   fullAuditCost?: Receipt;
+  fullAuditCostDetail?: unknown;
 }
 
 /** Validate the worker's event against the original approval before any ledger mutation. */
@@ -162,10 +164,19 @@ export async function prepareAuditSettlement(
     const { pendingFullAuditCost: _pending, ...original } = packet;
     const field =
       status === "COMPLETED" ? "fullAuditCost" : "pendingFullAuditCost";
+    // Display only: the first valid detail wins, and an invalid one is dropped.
+    const detail =
+      original.fullAuditCostDetail === undefined
+        ? seoFullAuditCostDetailSchema.safeParse(body.fullAuditCostDetail).data
+        : undefined;
     return tx.projectSeoAnalysis.update({
       where: { id: analysis.id },
       data: {
-        request: { ...original, [field]: receipt } as Prisma.InputJsonObject,
+        request: {
+          ...original,
+          [field]: receipt,
+          ...(detail && { fullAuditCostDetail: detail }),
+        } as Prisma.InputJsonObject,
       },
     });
   };

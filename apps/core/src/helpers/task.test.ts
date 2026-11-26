@@ -209,6 +209,7 @@ function buildTaskEventFixture(
     coworkerId: null,
     sokoBotId: null,
     transactionId: null,
+    network: null,
     cents: null,
     user: null,
     coworker: null,

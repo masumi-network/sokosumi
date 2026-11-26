@@ -81,6 +81,46 @@ describe("ownerAuthoritySchema", () => {
     });
     expect(parseOwnerAuthority(valid)).toEqual(valid);
 
+    const fractional = ownerAuthority({
+      limits: {
+        grantId: GRANT_ID,
+        period: "lifetime",
+        images: 2,
+        maxMediaCredits: 5.5,
+      },
+    });
+    expect(parseOwnerAuthority(fractional)?.limits?.maxMediaCredits).toBe(5.5);
+    expect(
+      narrowOwnerAuthority(fractional, {
+        limits: { maxMediaCredits: 2.75 },
+      }).limits?.maxMediaCredits,
+    ).toBe(2.75);
+    expect(
+      narrowOwnerAuthority(fractional, {
+        limits: { maxMediaCredits: 10.5 },
+      }).limits?.maxMediaCredits,
+    ).toBe(5.5);
+    expect(
+      parseOwnerAuthority({
+        ...fractional,
+        limits: {
+          grantId: GRANT_ID,
+          period: "lifetime",
+          maxMediaCredits: -0.5,
+        },
+      }),
+    ).toBeNull();
+    expect(
+      parseOwnerAuthority({
+        ...fractional,
+        limits: {
+          grantId: GRANT_ID,
+          period: "lifetime",
+          maxMediaCredits: Number.POSITIVE_INFINITY,
+        },
+      }),
+    ).toBeNull();
+
     expect(
       parseOwnerAuthority({
         ...valid,

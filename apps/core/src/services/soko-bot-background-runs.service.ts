@@ -212,7 +212,8 @@ export async function listBackgroundRuns(authorized: AuthorizedSokoBotRuntime) {
       errorKind: true,
       _count: { select: { toolCalls: true } },
       toolCalls: {
-        where: { capability: "update_plan" },
+        // A refused update never replaces the plan shown.
+        where: { capability: "update_plan", status: "COMPLETED" },
         orderBy: { createdAt: "desc" },
         take: 1,
         select: { input: true },

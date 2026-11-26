@@ -4,6 +4,7 @@ import { sharedTable } from "@sokosumi/database/sql-tables";
 import { createAgentClient } from "@sokosumi/masumi";
 import { sokoBotProvideJobInputSchema as provideJobInputSchema } from "@sokosumi/soko-bot";
 import { createAgentJobForUser } from "@/helpers/job";
+import { jsonInput } from "@/helpers/prisma-json";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import prisma from "@/lib/db/prisma";
@@ -12,6 +13,7 @@ import {
   decisionProposalTargets,
   parseHireAgentInput,
 } from "@/lib/soko-bot/decision-proposal";
+import { deriveDelegationAuthority } from "@/lib/soko-bot/owner-authority";
 import { criteriaForConfirmedSokoBotAction } from "@/services/soko-bot-outcome.service";
 import {
   type SokoBotActionContext,
@@ -190,6 +192,29 @@ export async function applyDecision(
               );
             }
             await reserveExternalReceipt(tx);
+            const delegationAuthority =
+              followUp !== undefined || followUpAllows
+                ? await deriveDelegationAuthority(
+                    {
+                      id: actionContext.turn.id,
+                      sokoBotId: actionContext.turn.sokoBotId,
+                      workspaceId: actionContext.turn.workspaceId,
+                      versionId: actionContext.turn.versionId,
+                      source: actionContext.turn.source,
+                      parentTurnId: actionContext.turn.parentTurnId ?? null,
+                      askedByUserId: actionContext.turn.askedByUserId ?? null,
+                      requestedByUserId: actionContext.turn.requestedByUserId,
+                      actingUserId: actionContext.turn.actingUserId,
+                      chainDepth: actionContext.turn.chainDepth,
+                      botProjectId:
+                        activeBot.projectId ??
+                        actionContext.turn.botProjectId ??
+                        null,
+                    },
+                    { followUpAllows },
+                    tx,
+                  )
+                : undefined;
             if (existingDelegation?.outcome === "failed") {
               const reserved = await tx.sokoBotDelegation.updateMany({
                 where: {
@@ -198,7 +223,13 @@ export async function applyDecision(
                   outcome: "failed",
                   error: existingDelegation.error ?? null,
                 },
-                data: { outcome: "processing", error: marker },
+                data: {
+                  outcome: "processing",
+                  error: marker,
+                  ...(delegationAuthority
+                    ? { authority: jsonInput(delegationAuthority) }
+                    : {}),
+                },
               });
               if (reserved.count !== 1) {
                 failureDisposition = "retain";
@@ -217,6 +248,9 @@ export async function applyDecision(
                   error: marker,
                   ...(followUp !== undefined ? { followUp } : {}),
                   ...(followUpAllows ? { followUpAllows } : {}),
+                  ...(delegationAuthority
+                    ? { authority: jsonInput(delegationAuthority) }
+                    : {}),
                 },
               });
             }
