@@ -142,12 +142,14 @@ export function compareSeoRuns(
   if (!reason) {
     for (const [key, issue] of after.open) {
       if (before.open.has(key)) stillOpen.push(issue);
-      // New only where the earlier check read the rule on a device that fails now and found no issue there.
+      // New only where the earlier check read the rule on a device that fails now and found no issue there:
+      // a pass beside a row that fired on the same device is no clear result.
       else if (
         [...(after.failed.get(key) ?? [])].some(
           (device) =>
-            before.passed.get(key)?.has(device) ||
-            before.noted.get(key)?.has(device),
+            !before.failed.get(key)?.has(device) &&
+            (before.passed.get(key)?.has(device) ||
+              before.noted.get(key)?.has(device)),
         )
       )
         added.push(issue);
@@ -225,8 +227,7 @@ function readsEveryUrl(
 function seoRunDiffOf(
   run: SeoRunDiffSource,
   sources: SeoRunDiffSource[],
-  selectedIds: ReadonlySet<string>,
-  selectedUrls: ReadonlySet<string>,
+  readsAll: (source: SeoRunDiffSource) => boolean,
   selected: Selected,
 ) {
   const earlier = sources
@@ -236,9 +237,6 @@ function seoRunDiffOf(
     )
     .sort((a, b) => b.observedAt.getTime() - a.observedAt.getTime());
   if (!earlier.length) return null;
-  const readsAll = (source: SeoRunDiffSource) =>
-    [...selectedIds].every((id) => source.pageIds.includes(id)) &&
-    readsEveryUrl(source.payload, selectedUrls);
   const full = earlier.filter(readsAll);
   if (!readsAll(run) || !full.length)
     return {
@@ -264,21 +262,31 @@ function seoRunDiffOf(
 export function withSeoRunDiffs<T extends { observationId: string }>(
   runs: T[],
   {
-    sources,
+    sources: shown,
+    diffBaselines = [],
     selectedIds,
     selectedUrls,
-  }: {
+  }: SeoRunDiffInput & {
     sources: SeoRunDiffSource[];
     selectedIds: ReadonlySet<string>;
     selectedUrls: ReadonlySet<string>;
   },
 ): Array<T & { runDiff?: SeoRunDiff }> {
   const selected: Selected = (url) => selectedUrls.has(normalizeSeoUrl(url));
+  // Behind the checks the read shows, which come newest first: the stable sort pairs a check of the same time with a shown check first.
+  const sources = [...shown, ...diffBaselines];
+  // Read once per check: every later check asks it again.
+  const reads = new Map(
+    sources.map((source) => [
+      source.id,
+      [...selectedIds].every((id) => source.pageIds.includes(id)) &&
+        readsEveryUrl(source.payload, selectedUrls),
+    ]),
+  );
+  const readsAll = (source: SeoRunDiffSource) => reads.get(source.id) ?? false;
   return runs.map((run) => {
     const source = sources.find((item) => item.id === run.observationId);
-    const pair =
-      source &&
-      seoRunDiffOf(source, sources, selectedIds, selectedUrls, selected);
+    const pair = source && seoRunDiffOf(source, sources, readsAll, selected);
     if (!pair) return run;
     const { moves, issues, ...lists } = pair.diff;
     return {

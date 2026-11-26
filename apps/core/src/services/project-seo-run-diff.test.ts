@@ -469,3 +469,34 @@ describe("withSeoRunDiffs", () => {
     expect(diff?.new[0].rowId).toBe("R7");
   });
 });
+
+describe("withSeoRunDiffs edge cases", () => {
+  it("counts no new issue where the earlier check passed a rule on a device it also fired on", () => {
+    const diff = diffOf([
+      source(8, result([failed({ rowId: "B" })])),
+      source(
+        1,
+        result([check("pass", { rowId: "B" }), check("fired", { rowId: "B" })]),
+      ),
+    ]);
+    expect(diff).toMatchObject({ newCount: 0, notCheckedBefore: 1 });
+  });
+
+  it("pairs with a shown check before a hidden check of the same time", () => {
+    const latest = source(8, result([failed({ rowId: "B" })]));
+    const shown = source(1, result([check("pass", { rowId: "B" })]));
+    const hidden = source(1, result([failed({ rowId: "B" })]), {
+      id: "hidden",
+    });
+    const [run] = withSeoRunDiffs(
+      [{ observationId: latest.id }, { observationId: shown.id }],
+      {
+        sources: [latest, shown],
+        diffBaselines: [hidden],
+        selectedIds: new Set(["page-1"]),
+        selectedUrls: new Set([PAGE]),
+      },
+    );
+    expect(run.runDiff).toMatchObject({ newCount: 1, stillOpenCount: 0 });
+  });
+});

@@ -28,6 +28,8 @@ export async function loadSeoRunDiffBaselines(
           ...where,
           ownerId: null,
           kind,
+          // A row the list holds would take a place a hidden check needs.
+          id: { notIn: [...loaded] },
           // The same time as the oldest row: a row of that time can fall just outside the list.
           observedAt: { lte: oldest.observedAt },
         },
@@ -41,7 +43,6 @@ export async function loadSeoRunDiffBaselines(
     ),
   );
   return rows.flat().flatMap((row) => {
-    if (loaded.has(row.id)) return [];
     // A base is optional: an unreadable older check leaves the comparison without it.
     const payload = publicSeoPayloadSchema.safeParse(row.payload);
     return payload.success ? [{ ...row, payload: payload.data }] : [];

@@ -161,7 +161,7 @@ export function projectSeoProjection(
     taskStatuses.has(link.taskId),
   );
   const scopedPublicSources = new Map<string, ProjectSeoObservation>();
-  const diffSources = [...(input.diffBaselines ?? [])];
+  const diffSources = [] as NonNullable<ProjectionInput["diffBaselines"]>;
   let strategy: ProjectSeoWorkspace["strategy"] = null;
   const decisions = new SeoAuditDecisions(
     selectedUrls,
@@ -721,7 +721,7 @@ export function projectSeoProjection(
           ? { ...run, issues: null }
           : run,
       ),
-      { sources: diffSources, selectedIds, selectedUrls },
+      { sources: diffSources, ...input, selectedIds, selectedUrls },
     ),
     analyses,
     monitors: (input.monitors ?? []).filter((monitor) =>
