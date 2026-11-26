@@ -8,7 +8,11 @@ import {
   redactSokoBotSensitiveText,
   sanitizeSokoBotMemoryMarkdown,
 } from "@sokosumi/soko-bot";
-import { convertCentsToCredits, hideSeoAuditRequest } from "@sokosumi/utils";
+import {
+  convertCentsToCredits,
+  hideSeoAuditRequest,
+  SokosumiJobStatus,
+} from "@sokosumi/utils";
 import { DAY_MS } from "@/config/constants";
 import { taskOwnerLabel } from "@/helpers/soko-bot-owner";
 import { buildCreditsPayload } from "@/helpers/subscription";
@@ -148,6 +152,24 @@ const ENDED_ON_CHAIN_JOB_STATUSES = [
   "FUNDS_OR_DATUM_INVALID",
 ] as const;
 
+const OPEN_JOB_POOL_FACTOR = 8;
+const OPEN_JOB_POOL_MAX = 60;
+
+/** Nothing more happens on these Jobs (computeJobStatus's end states). */
+const FINISHED_JOB_STATUSES: readonly string[] = [
+  SokosumiJobStatus.COMPLETED,
+  SokosumiJobStatus.FAILED,
+  SokosumiJobStatus.PAYMENT_FAILED,
+  SokosumiJobStatus.REFUND_RESOLVED,
+  SokosumiJobStatus.DISPUTE_RESOLVED,
+];
+
+/** 0 waits on the owner, 1 is still live, null is finished. */
+function openJobRank(status: string): 0 | 1 | null {
+  if (status === SokosumiJobStatus.INPUT_REQUIRED) return 0;
+  return FINISHED_JOB_STATUSES.includes(status) ? null : 1;
+}
+
 const PACKET_JOB_SELECT = {
   ...SOKO_BOT_JOB_STATUS_SELECT,
   id: true,
@@ -164,7 +186,10 @@ const PACKET_JOB_SELECT = {
  */
 async function openJobsFirst(where: Prisma.JobWhereInput, take: number) {
   const order = [{ updatedAt: "desc" as const }, { id: "desc" as const }];
-  const open = await prisma.job.findMany({
+  // The database cannot tell a lapsed payment from a live one, so the newest
+  // unfinished Jobs are ranked by Core's status: waiting on the owner first,
+  // then the rest still live; settled ones only fill what is left.
+  const pool = await prisma.job.findMany({
     where: {
       ...where,
       events: { none: { status: { in: ["COMPLETED", "FAILED"] } } },
@@ -177,9 +202,15 @@ async function openJobsFirst(where: Prisma.JobWhereInput, take: number) {
       },
     },
     orderBy: order,
-    take,
+    take: Math.min(take * OPEN_JOB_POOL_FACTOR, OPEN_JOB_POOL_MAX),
     select: PACKET_JOB_SELECT,
   });
+  const open = pool
+    .map((job) => ({ job, rank: openJobRank(sokoBotJobStatus(job).status) }))
+    .filter((entry) => entry.rank !== null)
+    .sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
+    .slice(0, take)
+    .map((entry) => entry.job);
   if (open.length >= take) return open;
   const rest = await prisma.job.findMany({
     where: { ...where, id: { notIn: open.map((job) => job.id) } },

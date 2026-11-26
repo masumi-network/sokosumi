@@ -657,6 +657,30 @@ describe("ContextPacketBuilder", () => {
     );
   });
 
+  it("keeps an older Job that waits on the owner ahead of newer lapsed payments", async () => {
+    const lapsed = Array.from({ length: 6 }, (_, index) => ({
+      ...job(`job-lapsed-${index}`),
+      purchase: null,
+      payByTime: new Date(Date.now() - 86_400_000),
+    }));
+    const waiting = job("job-waiting");
+    jobFindManyMock.mockImplementation(
+      async (args: { where?: { id?: { notIn?: string[] } }; take: number }) =>
+        args.where?.id?.notIn
+          ? lapsed.filter((row) => !args.where?.id?.notIn?.includes(row.id))
+          : [...lapsed, waiting].slice(0, args.take),
+    );
+    const result = await new ContextPacketBuilder().build(buildInput());
+    const jobs = result.packet.jobs as { id: string; status: string }[];
+    expect(jobs[0]).toMatchObject({
+      id: "job-waiting",
+      status: "input_required",
+    });
+    expect(
+      jobs.slice(1).every((shown) => shown.status === "payment_failed"),
+    ).toBe(true);
+  });
+
   it("shows a refunded Job as refunded, never as waiting for input", async () => {
     // Not open, so only the fill-up read returns them.
     jobFindManyMock.mockImplementation(
