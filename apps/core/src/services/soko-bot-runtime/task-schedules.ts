@@ -197,7 +197,12 @@ export async function saveTaskSchedule(
           request.error.issues.map((issue) => issue.message).join("; "),
         );
       const created = await createTaskSchedule(actor, request.data);
-      return parsed.state === "PAUSED" && created.state !== "PAUSED"
+      // The call's initial state goes only on a schedule nobody changed since
+      // it was made (revision 0): a retry must not undo the owner's resume,
+      // and a first attempt that stopped before pausing still pauses.
+      return parsed.state === "PAUSED" &&
+        created.state === "ACTIVE" &&
+        created.revision === 0
         ? changeTaskScheduleState(actor, created.id, "pause")
         : created;
     }

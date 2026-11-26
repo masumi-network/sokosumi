@@ -54,6 +54,10 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "create_schedule",
   "update_schedule",
   "manage_reminder",
+  // A Task Schedule hands a Coworker paid work on every run; a page must not
+  // write, change or remove one.
+  "save_task_schedule",
+  "delete_task_schedule",
   "create_social_post",
   "update_social_post",
   "update_social_posts",

@@ -92,6 +92,40 @@ describe.skipIf(!enabled)("a Soko Bot's Task Schedules", () => {
     expect(await prisma.taskSchedule.count({ where: { workspaceId } })).toBe(1);
   });
 
+  it("keeps the owner's resume when the paused create is retried later", async () => {
+    const turn = authorized();
+    const create = call("save_task_schedule", {
+      name: "Daily competitor research",
+      assigneeSokoBotId: botId,
+      cron: "0 9 * * 1-5",
+      timezone: "Europe/Berlin",
+      state: "PAUSED",
+    });
+    const first = (await saveTaskSchedule(runtime, create, turn)) as {
+      taskSchedule: { id: string };
+    };
+    await saveTaskSchedule(
+      runtime,
+      call("save_task_schedule", {
+        scheduleId: first.taskSchedule.id,
+        state: "ACTIVE",
+      }),
+      turn,
+    );
+    const retry = (await saveTaskSchedule(runtime, create, turn)) as {
+      taskSchedule: { id: string; state: string };
+    };
+    expect(retry.taskSchedule).toEqual(
+      expect.objectContaining({ id: first.taskSchedule.id, state: "ACTIVE" }),
+    );
+    expect(
+      await prisma.taskSchedule.findUniqueOrThrow({
+        where: { id: first.taskSchedule.id },
+        select: { state: true },
+      }),
+    ).toEqual({ state: "ACTIVE" });
+  });
+
   it("creates, pauses and deletes one as the owner, with the bot as Creator", async () => {
     const created = (await saveTaskSchedule(
       runtime,

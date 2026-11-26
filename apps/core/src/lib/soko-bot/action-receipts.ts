@@ -99,6 +99,8 @@ export const ACTION_CAPABILITIES = new Set([
   "create_schedule",
   "update_schedule",
   "delete_schedule",
+  "save_task_schedule",
+  "delete_task_schedule",
   "update_memory",
   "manage_reminder",
   "create_social_post",
