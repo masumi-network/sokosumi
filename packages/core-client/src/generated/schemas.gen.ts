@@ -54655,6 +54655,77 @@ export const SeoSiteTrafficReportSchema = {
         limited: {
             type: 'boolean'
         },
+        brand: {
+            type: 'object',
+            properties: {
+                daily: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            date: {
+                                type: 'string',
+                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                            },
+                            branded: {
+                                type: 'object',
+                                properties: {
+                                    clicks: {
+                                        type: 'integer',
+                                        minimum: 0
+                                    },
+                                    impressions: {
+                                        type: 'integer',
+                                        minimum: 0
+                                    }
+                                },
+                                required: [
+                                    'clicks',
+                                    'impressions'
+                                ]
+                            },
+                            nonBranded: {
+                                type: 'object',
+                                properties: {
+                                    clicks: {
+                                        type: 'integer',
+                                        minimum: 0
+                                    },
+                                    impressions: {
+                                        type: 'integer',
+                                        minimum: 0
+                                    }
+                                },
+                                required: [
+                                    'clicks',
+                                    'impressions'
+                                ]
+                            }
+                        },
+                        required: [
+                            'date',
+                            'branded',
+                            'nonBranded'
+                        ]
+                    },
+                    maxItems: 366
+                },
+                limited: {
+                    type: 'boolean'
+                },
+                terms: {
+                    type: 'array',
+                    items: {
+                        type: 'string'
+                    }
+                }
+            },
+            required: [
+                'daily',
+                'limited',
+                'terms'
+            ]
+        },
         pages: {
             type: 'array',
             items: {

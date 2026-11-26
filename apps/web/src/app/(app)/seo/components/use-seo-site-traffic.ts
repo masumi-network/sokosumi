@@ -79,6 +79,7 @@ export function useSeoSiteTraffic(
       !tooMany &&
       !model.invalidDates,
   );
+  const terms = model.data.brandTerms ?? [];
   const query = useQuery<SeoSiteTrafficReport>({
     queryKey: [
       "seo-site-traffic",
@@ -87,6 +88,8 @@ export function useSeoSiteTraffic(
       owner,
       connection.data?.connectionVersion,
       body,
+      // The split in the report follows the brand terms: a saved list reads this report again.
+      terms,
     ],
     enabled: enabled && available,
     staleTime: TRAFFIC_FRESH_MS,
@@ -114,6 +117,12 @@ export function useSeoSiteTraffic(
         report.to !== body.to
       )
         throw Error("Search Console returned a different reporting scope");
+      // Core split by a newer term list (a save in another tab). That split does not belong
+      // under this list: read the list again, and the new list reads the report again.
+      if (report.brand && report.brand.terms.join("\n") !== terms.join("\n")) {
+        void model.refresh();
+        return { ...report, brand: undefined };
+      }
       return report;
     },
   });
