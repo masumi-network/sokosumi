@@ -8,17 +8,23 @@
  */
 import { randomUUID } from "node:crypto";
 import { convertCreditsToCents } from "@sokosumi/utils";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
-import type { EvalLaneRecord } from "../eval-lanes.service";
+import { createTaskSchedule } from "@/services/task-schedule.service";
+import {
+  clearBotTaskSchedules,
+  type EvalLaneRecord,
+} from "../eval-lanes.service";
 import {
   type CheckContext,
+  durableSchedules,
   indexedTexts,
   outcomeCheck,
 } from "./journey-checks";
 import {
   claimedRunCheck,
   claimedRunState,
+  fireTaskSchedule,
   foregroundTurnId,
   freshConversationCheck,
   journeyTokens,
@@ -32,6 +38,12 @@ import {
   seedTeammateRoom,
 } from "./journey-world";
 import { type JourneyOutcome, OWNER_JOURNEYS } from "./journeys";
+
+// A released Task is announced over Ably, which has no key here.
+vi.mock("@/lib/ably/publish", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/ably/publish")>()),
+  publishTaskEventData: vi.fn(async () => undefined),
+}));
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -938,6 +950,198 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     await prisma.fileVersion.deleteMany({ where: { resourceId: resource.id } });
     await prisma.fileEvidenceScope.deleteMany({ where: { id: scope.id } });
     await prisma.fileResource.deleteMany({ where: { id: resource.id } });
+  });
+
+  describe("a schedule of either kind", () => {
+    let botId: string;
+    let coworkerId: string;
+    const actor = () => ({
+      kind: "user" as const,
+      userId,
+      sokoBotId: botId,
+      workspace: { workspaceId, userId, organizationId: null },
+    });
+
+    beforeAll(async () => {
+      botId = (
+        await prisma.sokoBot.create({
+          data: { userId, workspaceId },
+          select: { id: true },
+        })
+      ).id;
+      const vendor = await prisma.vendor.upsert({
+        where: { slug: "journey-checks-fixture" },
+        create: { slug: "journey-checks-fixture", name: "Fixture" },
+        update: {},
+        select: { id: true },
+      });
+      coworkerId = (
+        await prisma.coworker.create({
+          data: {
+            slug: `fixture-${randomUUID()}`,
+            name: "CodePat",
+            baseURL: "https://coworker.evals.invalid",
+            capabilities: ["tasks"],
+            vendorId: vendor.id,
+          },
+          select: { id: true },
+        })
+      ).id;
+      await prisma.coworkerWorkspaceAccess.create({
+        data: { coworkerId, workspaceId, status: "GRANTED" },
+      });
+    });
+
+    afterAll(async () => {
+      await prisma.task.deleteMany({
+        where: { workspaceId, assigneeId: coworkerId },
+      });
+      await prisma.taskSchedule.deleteMany({ where: { workspaceId } });
+      await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
+      await prisma.coworkerWorkspaceAccess.deleteMany({
+        where: { coworkerId },
+      });
+      await prisma.coworker.deleteMany({ where: { id: coworkerId } });
+      await prisma.sokoBot.deleteMany({ where: { id: botId } });
+    });
+
+    const graded = (memo: Record<string, string[]>): CheckContext => ({
+      ...context,
+      botId,
+      world: {
+        ...context.world,
+        coworkers: { ...context.world.coworkers, CodePat: coworkerId },
+      },
+      memo,
+    });
+    const daily = {
+      kind: "schedule",
+      label: "daily",
+      days: [0, 1, 2, 3, 4, 5, 6],
+      hour: 9,
+      minute: 0,
+      timezone: "Europe/Berlin",
+      promptMatches: ["fixture"],
+      count: 1,
+    } as const;
+
+    it("finds the bot's Task Schedule, fires it through the release and hands its Task to the assignee", async () => {
+      const schedule = await createTaskSchedule(actor(), {
+        name: "Daily fixture review",
+        description: "Review the fixture code and write a short note.",
+        assigneeId: coworkerId,
+        rule: {
+          expr: "0 9 * * *",
+          timezone: "Europe/Berlin",
+          endsMode: "NEVER",
+        },
+      });
+      const memo: Record<string, string[]> = {};
+      const remembered = await outcomeCheck(
+        {
+          ...daily,
+          days: [...daily.days],
+          promptMatches: [...daily.promptMatches],
+          identity: "remember",
+        },
+        graded(memo),
+      );
+      expect(remembered).toMatchObject({ pass: true });
+      expect(remembered.actual).toContain("Task Schedule");
+      expect(await fireTaskSchedule(schedule.id, memo)).toBeNull();
+      expect(await claimedRunState(memo, botId)).toBe("started");
+      expect(await claimedRunCheck(memo)).toMatchObject({
+        label: "The Task Schedule released its Task",
+        pass: true,
+      });
+      // The later checks read the released Task like any Task the bot gave.
+      expect(
+        await outcomeCheck(
+          {
+            kind: "task",
+            label: "brief",
+            coworker: "CodePat",
+            briefMatches: ["fixture"],
+          },
+          graded(memo),
+        ),
+      ).toMatchObject({ pass: true });
+      expect(
+        await outcomeCheck(
+          { kind: "schedule", label: "kept", count: 1, identity: "unchanged" },
+          graded(memo),
+        ),
+      ).toMatchObject({ pass: true });
+      // Only that schedule fired: another bot schedule kind stays untouched.
+      expect(await fireTaskSchedule(randomUUID(), {})).toEqual({
+        error: "The Task Schedule has no planned run to release",
+      });
+    });
+
+    it("still finds and grades the bot's own schedule", async () => {
+      await prisma.taskSchedule.deleteMany({ where: { workspaceId } });
+      await prisma.sokoBotSchedule.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          name: "Fixture reminder",
+          timezone: "Europe/Berlin",
+          cronExpression: "0 9 * * *",
+          prompt: "Remind me to read the fixture note.",
+          nextRunAt: new Date(Date.now() + 86_400_000),
+        },
+      });
+      const [found] = await durableSchedules(botId, workspaceId);
+      expect(found).toMatchObject({ kind: "bot", enabled: true });
+      const check = await outcomeCheck(
+        {
+          ...daily,
+          days: [...daily.days],
+          promptMatches: [...daily.promptMatches],
+          identity: "remember",
+        },
+        graded({}),
+      );
+      expect(check).toMatchObject({ pass: true });
+      expect(check.actual).toContain("bot schedule");
+      await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
+    });
+
+    it("clears a bot's Task Schedules from an earlier journey and keeps a member's", async () => {
+      const made = await createTaskSchedule(actor(), {
+        name: "Earlier journey's schedule",
+        assigneeId: coworkerId,
+        rule: {
+          expr: "0 9 * * *",
+          timezone: "Europe/Berlin",
+          endsMode: "NEVER",
+        },
+      });
+      const members = await createTaskSchedule(
+        { ...actor(), sokoBotId: undefined },
+        {
+          name: "A member's schedule",
+          assigneeId: coworkerId,
+          rule: {
+            expr: "0 10 * * *",
+            timezone: "Europe/Berlin",
+            endsMode: "NEVER",
+          },
+        },
+      );
+      await clearBotTaskSchedules({ workspaceId });
+      expect(
+        await prisma.taskSchedule.findMany({
+          where: { id: { in: [made.id, members.id] } },
+          select: { id: true },
+        }),
+      ).toEqual([{ id: members.id }]);
+      expect(
+        await prisma.taskScheduleRun.count({ where: { scheduleId: made.id } }),
+      ).toBe(0);
+      expect(await durableSchedules(botId, workspaceId)).toEqual([]);
+    });
   });
 
   it("counts a file read only when it returned the file's text", async () => {

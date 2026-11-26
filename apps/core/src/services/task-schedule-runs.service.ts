@@ -361,6 +361,8 @@ export interface TaskScheduleReleaseOptions {
   abortSignal: AbortSignal;
   deadlineMs: number;
   shouldContinue: () => boolean;
+  /** Release only this schedule's due Runs (the cron passes none). */
+  scheduleId?: string;
 }
 
 export interface TaskScheduleReleaseResult {
@@ -664,9 +666,12 @@ export const taskScheduleReleaseService = {
       const batch = await prisma.taskSchedule.findMany({
         where: {
           ...releasableWhere(new Date()),
-          // Failures and lost claims stay due. Leaving them in the page would
-          // fill every later read and starve schedules behind them.
-          ...(attempted.size > 0 ? { id: { notIn: [...attempted] } } : {}),
+          id: {
+            ...(options.scheduleId ? { equals: options.scheduleId } : {}),
+            // Failures and lost claims stay due. Leaving them in the page
+            // would fill every later read and starve schedules behind them.
+            ...(attempted.size > 0 ? { notIn: [...attempted] } : {}),
+          },
         },
         orderBy: [{ nextRunAt: "asc" }, { id: "asc" }],
         take: TASK_SCHEDULE_RELEASE_BATCH_SIZE,

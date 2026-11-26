@@ -90,22 +90,79 @@ export interface CheckContext {
   memo: Record<string, string[]>;
 }
 
+/**
+ * A durable schedule the bot made for its owner, of either kind: its own
+ * (create_schedule, a SokoBotSchedule run as a bot turn) or a Task Schedule
+ * (save_task_schedule, which releases a Task to its assignee each run).
+ */
+export interface DurableSchedule {
+  kind: "bot" | "task";
+  id: string;
+  cronExpression: string;
+  /** The brief: a bot schedule's prompt, a Task Schedule's name and description. */
+  prompt: string;
+  timezone: string;
+  enabled: boolean;
+  runOnce: boolean;
+  updatedAt: Date;
+}
+
+/** The bot's durable schedules, newest change first. An ended Task Schedule is gone, as a deleted bot schedule is. */
+export async function durableSchedules(
+  botId: string,
+  workspaceId: string,
+): Promise<DurableSchedule[]> {
+  const [own, tasks] = await Promise.all([
+    prisma.sokoBotSchedule.findMany({
+      where: { sokoBotId: botId, systemKey: null },
+      select: {
+        id: true,
+        cronExpression: true,
+        prompt: true,
+        timezone: true,
+        enabled: true,
+        runOnce: true,
+        updatedAt: true,
+      },
+    }),
+    prisma.taskSchedule.findMany({
+      where: { workspaceId, creatorSokoBotId: botId, state: { not: "ENDED" } },
+      select: {
+        id: true,
+        expr: true,
+        name: true,
+        description: true,
+        timezone: true,
+        state: true,
+        endsMode: true,
+        targetRunCount: true,
+        updatedAt: true,
+      },
+    }),
+  ]);
+  return [
+    ...own.map((schedule) => ({ kind: "bot" as const, ...schedule })),
+    ...tasks.map((schedule) => ({
+      kind: "task" as const,
+      id: schedule.id,
+      cronExpression: schedule.expr,
+      prompt: `${schedule.name}\n${schedule.description ?? ""}`,
+      timezone: schedule.timezone,
+      enabled: schedule.state === "ACTIVE",
+      runOnce: schedule.endsMode === "AFTER" && schedule.targetRunCount === 1,
+      updatedAt: schedule.updatedAt,
+    })),
+  ].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+}
+
 async function scheduleCheck(
   outcome: Extract<JourneyOutcome, { kind: "schedule" }>,
   context: CheckContext,
 ): Promise<ScenarioCheck> {
-  const schedules = await prisma.sokoBotSchedule.findMany({
-    where: { sokoBotId: context.botId, systemKey: null },
-    orderBy: { updatedAt: "desc" },
-    select: {
-      id: true,
-      cronExpression: true,
-      prompt: true,
-      timezone: true,
-      enabled: true,
-      runOnce: true,
-    },
-  });
+  const schedules = await durableSchedules(
+    context.botId,
+    context.lane.workspaceId,
+  );
   const [rememberedId, rememberedCron, rememberedPrompt, rememberedZone] =
     context.memo.schedule ?? [];
   const compared =
@@ -172,9 +229,11 @@ async function scheduleCheck(
   return {
     label: outcome.label,
     pass: problems.length === 0,
-    actual: problems.length
-      ? `${problems.join("; ")} (cron "${latest.cronExpression}")`
-      : `cron "${latest.cronExpression}" ${latest.timezone}`,
+    actual: `${latest.kind === "task" ? "Task Schedule" : "bot schedule"}: ${
+      problems.length
+        ? `${problems.join("; ")} (cron "${latest.cronExpression}")`
+        : `cron "${latest.cronExpression}" ${latest.timezone}`
+    }`,
   };
 }
 

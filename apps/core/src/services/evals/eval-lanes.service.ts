@@ -478,6 +478,20 @@ export async function seedEvalXDms(
   });
 }
 
+/**
+ * Every Task Schedule a bot made in the lane, with its Runs: the workspace's
+ * schedule reader lists them, so one left from an earlier case is history the
+ * next case would see. Schedules a member made (an SEO monitor) stay; their
+ * released Tasks keep only a cleared link.
+ */
+export async function clearBotTaskSchedules(
+  lane: Pick<EvalLaneRecord, "workspaceId">,
+): Promise<void> {
+  await prisma.taskSchedule.deleteMany({
+    where: { workspaceId: lane.workspaceId, creatorSokoBotId: { not: null } },
+  });
+}
+
 export async function resetEvalLaneForSokoBot(
   lane: EvalLaneRecord,
 ): Promise<void> {
@@ -489,6 +503,7 @@ export async function resetEvalLaneForSokoBot(
   await prisma.sokoBotSchedule.deleteMany({
     where: { sokoBotId, systemKey: null },
   });
+  await clearBotTaskSchedules(lane);
   await prisma.chatRoomMessage.updateMany({
     where: {
       room: { organizationId: lane.organizationId },

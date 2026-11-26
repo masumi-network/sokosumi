@@ -31,10 +31,15 @@ import type {
 } from "../eval-case-runner";
 import { prepareCmoChatCase } from "../eval-cmo-runner";
 import {
+  clearBotTaskSchedules,
   type EvalLaneRecord,
   resetEvalLaneForSokoBot,
 } from "../eval-lanes.service";
-import { coworkerTasks, outcomeCheck } from "./journey-checks";
+import {
+  coworkerTasks,
+  durableSchedules,
+  outcomeCheck,
+} from "./journey-checks";
 import {
   freshCusoRoom,
   type JourneyWorld,
@@ -160,9 +165,62 @@ async function startStep(
     await deliverCoworkerAnswer(task.id, world.coworkers[step.coworker], step);
     return null;
   }
-  const schedule = await ownerSchedule(botId);
+  // The owner's newest enabled schedule, of whichever kind the bot made.
+  const schedule = (await durableSchedules(botId, lane.workspaceId)).find(
+    (candidate) => candidate.enabled,
+  );
   if (!schedule) return { error: "No schedule to fire" };
-  return fireSchedule(schedule.id, botId, memo);
+  return schedule.kind === "task"
+    ? fireTaskSchedule(schedule.id, memo)
+    : fireSchedule(schedule.id, botId, memo);
+}
+
+/**
+ * Releases the Task Schedule's next Run through the cron's own release,
+ * scoped to this schedule: its next planned Run is made due now, as the clock
+ * would. The released Task goes to its assignee; no bot turn starts here, so
+ * the step follows the Run (`claimedRunState`), and a Coworker's answer on
+ * that Task wakes the bot in the next step, as in production.
+ */
+export async function fireTaskSchedule(
+  scheduleId: string,
+  memo: JourneyState["memo"],
+): Promise<null | { error: string }> {
+  const next = await prisma.taskScheduleRun.findFirst({
+    where: { scheduleId, state: "PLANNED" },
+    orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
+    select: { id: true },
+  });
+  if (!next)
+    return { error: "The Task Schedule has no planned run to release" };
+  const due = new Date(Date.now() - 1_000);
+  await prisma.$transaction([
+    prisma.taskScheduleRun.update({
+      where: { id: next.id },
+      data: { effectiveScheduledAt: due },
+    }),
+    prisma.taskSchedule.update({
+      where: { id: scheduleId },
+      data: { nextRunAt: due },
+    }),
+  ]);
+  memo.scheduleKind = ["task"];
+  memo.scheduleRun = [scheduleId, next.id];
+  // Loaded here, as the chat dispatch is: the release announces its Tasks.
+  const { taskScheduleReleaseService } = await import(
+    "@/services/task-schedule-runs.service"
+  );
+  const released = await taskScheduleReleaseService.releaseDueSchedules({
+    scheduleId,
+    abortSignal: new AbortController().signal,
+    deadlineMs: Date.now() + 60_000,
+    shouldContinue: () => true,
+  });
+  if (!(await releasedTaskOf(next.id)))
+    return {
+      error: `The Task Schedule released no Task (${released.failed} failed)`,
+    };
+  return null;
 }
 
 /**
@@ -240,6 +298,7 @@ async function fireSchedule(
   const run = await claimScheduleRun(scheduleId, botId);
   if (!run) return { error: "The schedule sync claimed nothing" };
   // The step follows this run, not any scheduled turn of the bot.
+  memo.scheduleKind = ["bot"];
   memo.scheduleRun = [scheduleId, run.id];
   if (FAILED_RUN.includes(run.status))
     return { error: `The scheduled run ended ${run.status}` };
@@ -290,6 +349,9 @@ export async function claimedRunState(
 ): Promise<"started" | "failed" | "waiting"> {
   const [scheduleId, runId] = memo.scheduleRun ?? [];
   if (!scheduleId || !runId) return "failed";
+  // A Task Schedule's release is done when it returns: a Task, or nothing.
+  if (memo.scheduleKind?.[0] === "task")
+    return (await releasedTaskOf(runId)) ? "started" : "failed";
   const run = await prisma.sokoBotScheduleRun.findUnique({
     where: { id: runId },
     select: { turnId: true, status: true },
@@ -305,6 +367,14 @@ export async function claimedRunCheck(
   memo: JourneyState["memo"],
 ): Promise<ScenarioCheck> {
   const [, runId] = memo.scheduleRun ?? [];
+  if (memo.scheduleKind?.[0] === "task") {
+    const taskId = runId ? await releasedTaskOf(runId) : null;
+    return {
+      label: "The Task Schedule released its Task",
+      pass: Boolean(taskId),
+      actual: taskId ? `Task ${taskId}` : "no Task released",
+    };
+  }
   const run = runId
     ? await prisma.sokoBotScheduleRun.findUnique({
         where: { id: runId },
@@ -320,12 +390,13 @@ export async function claimedRunCheck(
   };
 }
 
-/** The schedule the owner had the bot make, newest first. */
-function ownerSchedule(botId: string) {
-  return prisma.sokoBotSchedule.findFirst({
-    where: { sokoBotId: botId, systemKey: null, enabled: true },
-    orderBy: { updatedAt: "desc" },
+/** The Task a released Task Schedule Run made, if it released one. */
+async function releasedTaskOf(runId: string): Promise<string | null> {
+  const run = await prisma.taskScheduleRun.findUnique({
+    where: { id: runId },
+    select: { state: true, releasedTaskId: true },
   });
+  return run?.state === "RELEASED" ? run.releasedTaskId : null;
 }
 
 /**
@@ -547,7 +618,11 @@ async function finishStep(
     checks.push(
       ...result.checks.filter((check) => !check.label.startsWith("Route ")),
     );
-  } else checks.push({ label: "Completed", pass: false, actual: "no turn" });
+  } else if (
+    // A released Task is the run's work; its claimed-run check scores it.
+    !(step.kind === "schedule_fires" && state.memo.scheduleKind?.[0] === "task")
+  )
+    checks.push({ label: "Completed", pass: false, actual: "no turn" });
   if (record.index === 0 && turnIds[0])
     checks.push(
       await freshConversationCheck(
@@ -690,6 +765,9 @@ export async function startJourney(
   )
     return { kind: "busy" };
   if (journey.bot === "soko-bot") await resetEvalLaneForSokoBot(lane);
+  // A Cuso journey has no full reset; a bot's Task Schedule from an earlier
+  // journey would still be in its workspace reads.
+  else await clearBotTaskSchedules(lane);
   const cusoRoomId =
     journey.bot === "cuso" ? await freshCusoRoom(lane, journey.id) : undefined;
   if (journey.cusoSetup) await prepareCmoChatCase(lane, journey.cusoSetup);
@@ -749,6 +827,8 @@ export async function foregroundTurnId(
 ): Promise<string | null> {
   if (current.turnIds[0]) return current.turnIds[0];
   if (journey.steps[current.index]?.kind !== "schedule_fires") return null;
+  // A Task Schedule's run releases a Task, not a bot turn.
+  if (state.memo.scheduleKind?.[0] === "task") return null;
   const [, runId] = state.memo.scheduleRun ?? [];
   const run = runId
     ? await prisma.sokoBotScheduleRun.findUnique({

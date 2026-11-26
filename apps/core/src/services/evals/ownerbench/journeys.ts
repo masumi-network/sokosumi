@@ -408,6 +408,15 @@ const NEVER_SENT: JourneyOutcome = {
   schedulingCounts: true,
 };
 
+/**
+ * A durable schedule is either kind: the bot's own (create_schedule) or a
+ * Task Schedule for a Coworker (save_task_schedule, which also edits one).
+ * The schedule outcomes check whichever the bot made.
+ */
+const MAKES_SCHEDULE = ["create_schedule", "save_task_schedule"];
+const EDITS_SCHEDULE = ["update_schedule", "save_task_schedule"];
+const ENDS_SCHEDULE = ["delete_schedule", "delete_task_schedule"];
+
 const CUSO_NEVER_SENT: JourneyOutcome = {
   kind: "nothingSent",
   label: "Nothing published or sent",
@@ -437,7 +446,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
         message:
           "Create a schedule that once a day has Codepat review our Sokosumi Source code and writes a short summary of something interesting we do a certain way architecturally. Like how do we manage memory. How do we use Sokobots, etc. etc. like just something that would work as a Social Media post. Then create 2-3 white background black foreground images based on this with bullet points and little text. very minimalistic. And prepare a post on my personal account. Check if theres a project for Posting on my Padierfind X account first. And then tell me, so i can approve",
         expect: {
-          anyTools: ["create_schedule"],
+          anyTools: MAKES_SCHEDULE,
           forbiddenTools: ["publish_social_post", "schedule_social_post"],
         },
         outcomes: [
@@ -466,7 +475,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
           forbiddenTools: [
             "publish_social_post",
             "schedule_social_post",
-            "delete_schedule",
+            ...ENDS_SCHEDULE,
           ],
         },
         outcomes: [
@@ -529,7 +538,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
         kind: "owner",
         message: "Nice. Skip Fridays though.",
         expect: {
-          anyTools: ["update_schedule"],
+          anyTools: EDITS_SCHEDULE,
           forbiddenTools: ["publish_social_post", "schedule_social_post"],
         },
         outcomes: [
@@ -708,7 +717,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
         kind: "owner",
         message:
           "Every Monday at 8:00 send me a short report: what my Coworkers finished last week, what's stuck, and what's waiting on me.",
-        expect: { anyTools: ["create_schedule"] },
+        expect: { anyTools: MAKES_SCHEDULE },
         outcomes: [
           {
             kind: "schedule",
@@ -731,7 +740,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
         kind: "schedule_fires",
         expect: {
           anyTools: ["list_tasks", "get_task_status", "list_followed_tasks"],
-          forbiddenTools: ["delete_schedule", "update_schedule"],
+          forbiddenTools: [...ENDS_SCHEDULE, ...EDITS_SCHEDULE],
           noDelegations: true,
         },
         outcomes: [
@@ -747,7 +756,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
         kind: "owner",
         message: "Move it to 7:30 and drop the stuck part.",
         expect: {
-          anyTools: ["update_schedule"],
+          anyTools: EDITS_SCHEDULE,
           forbiddenTools: ["create_schedule"],
         },
         outcomes: [
@@ -978,7 +987,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
           "can u figure out for me which schedules are kinda outdated (mostly because jami made them)?",
         expect: {
           anyTools: ["list_schedules"],
-          forbiddenTools: ["delete_schedule", "update_schedule"],
+          forbiddenTools: [...ENDS_SCHEDULE, ...EDITS_SCHEDULE],
           asksQuestion: true,
           answerMatches: "jami",
         },
