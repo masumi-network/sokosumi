@@ -198,7 +198,11 @@ export async function recordCmoApplyOp(
   });
 }
 
-export type CmoApplyCommit = "applied" | "base_changed" | "not_applying";
+export type CmoApplyCommit =
+  | "applied"
+  | "base_changed"
+  | "not_applying"
+  | "ops_open";
 
 /**
  * Makes the candidate the approved version once its post changes are in:
@@ -218,6 +222,9 @@ export async function commitCmoChangeApply(input: {
     const candidate = await lockCandidate(tx, input.candidateId);
     const log = candidate?.plan.applyLog;
     if (!candidate || log?.state !== "applying") return "not_applying";
+    // Recovery passes over an applied version, so an op still an intent
+    // would never be settled: every op is done or refused first.
+    if (log.ops.some((item) => item.state === "intent")) return "ops_open";
     const fresh = await baseStillApproved(tx, candidate.projectId, {
       id: log.baseVersionId,
       updatedAt: log.baseUpdatedAt,
@@ -263,7 +270,8 @@ export async function commitCmoChangeApply(input: {
 
 /**
  * The moves an apply's state may make: applying → undoing (rolled back),
- * applied → undoing (Go back), undoing → undone.
+ * applied → undoing (Go back), undoing → undone. Undoing opens a change
+ * on the Project, so it waits while another one is open there.
  */
 const NEXT_STATES: Partial<
   Record<CmoApplyLog["state"], readonly CmoApplyLog["state"][]>
@@ -283,6 +291,11 @@ export async function setCmoApplyState(
     const candidate = await lockCandidate(tx, candidateId);
     const log = candidate?.plan.applyLog;
     if (!candidate || !log || !NEXT_STATES[log.state]?.includes(state))
+      return false;
+    if (
+      state === "undoing" &&
+      (await otherOpenApply(tx, candidate.projectId, candidate.id))
+    )
       return false;
     await writeLog(
       tx,

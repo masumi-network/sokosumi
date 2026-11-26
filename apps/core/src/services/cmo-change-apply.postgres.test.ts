@@ -146,7 +146,7 @@ afterEach(async () => {
   }
 });
 
-const op = (opId: string, state: "intent" | "done" = "intent") => ({
+const op = (opId: string, state: "intent" | "done" | "refused" = "intent") => ({
   opId,
   entryId: "e1",
   kind: "move" as const,
@@ -170,6 +170,22 @@ describe.runIf(enabled)(
       await recordCmoApplyOp(world.candidateId, op("op-1"));
       await recordCmoApplyOp(world.candidateId, op("op-2"));
       await recordCmoApplyOp(world.candidateId, op("op-1", "done"));
+      // op-2 is still an intent: recovery passes over an applied version,
+      // so approving now would leave it unsettled for good (Codex).
+      expect(
+        await commitCmoChangeApply({
+          candidateId: world.candidateId,
+          approverUserId: world.userId,
+        }),
+      ).toBe("ops_open");
+      expect(
+        (
+          await prisma.marketingStrategy.findUniqueOrThrow({
+            where: { id: world.candidateId },
+          })
+        ).approvedAt,
+      ).toBeNull();
+      await recordCmoApplyOp(world.candidateId, op("op-2", "refused"));
       expect(
         await commitCmoChangeApply({
           candidateId: world.candidateId,
@@ -190,7 +206,7 @@ describe.runIf(enabled)(
       expect(log?.state).toBe("applied");
       expect(log?.ops.map((item) => [item.opId, item.state])).toEqual([
         ["op-1", "done"],
-        ["op-2", "intent"],
+        ["op-2", "refused"],
       ]);
       const posts = await prisma.socialPost.findMany({
         where: { projectId: world.projectId },
@@ -321,6 +337,43 @@ describe.runIf(enabled)(
         started: false,
         reason: "the candidate is already approved",
       });
+    });
+
+    it("starts no Go back while another change is open on the Project (Codex)", async () => {
+      const world = await seed();
+      await begin(world);
+      expect(
+        await commitCmoChangeApply({
+          candidateId: world.candidateId,
+          approverUserId: world.userId,
+        }),
+      ).toBe("applied");
+      const applied = await prisma.marketingStrategy.findUniqueOrThrow({
+        where: { id: world.candidateId },
+      });
+      const next = await prisma.marketingStrategy.create({
+        data: { projectId: world.projectId, plan: jsonInput(plan("Next")) },
+      });
+      expect(
+        await beginCmoChangeApply({
+          candidateId: next.id,
+          baseVersionId: applied.id,
+          baseUpdatedAt: applied.updatedAt.toISOString(),
+        }),
+      ).toEqual({ started: true });
+      expect(await setCmoApplyState(world.candidateId, "undoing")).toBe(false);
+      expect(
+        cmoApplyLogOf(
+          (
+            await prisma.marketingStrategy.findUniqueOrThrow({
+              where: { id: world.candidateId },
+            })
+          ).plan,
+        )?.state,
+      ).toBe("applied");
+      expect(await setCmoApplyState(next.id, "undoing")).toBe(true);
+      expect(await setCmoApplyState(next.id, "undone")).toBe(true);
+      expect(await setCmoApplyState(world.candidateId, "undoing")).toBe(true);
     });
 
     it("never approves a candidate whose apply is being undone (Neon r15)", async () => {
