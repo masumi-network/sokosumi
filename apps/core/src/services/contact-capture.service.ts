@@ -174,6 +174,11 @@ export interface CaptureLimits {
   /** Followers change slowly: read from the newest once a day. */
   xFollowsIntervalMs: number;
   /** DM events the first, cheap read asks for. */
+  /**
+   * DM calls per run, of `xCallsPerRun`: a busy account's walk goes on next
+   * run, and the rest stays for the follower walk.
+   */
+  xDmCallsPerRun: number;
   xDmProbeSize: number;
   /** DM events per page once the newest one is new. */
   xDmPageSize: number;
@@ -215,6 +220,7 @@ export const DEFAULT_CAPTURE_LIMITS: CaptureLimits = {
   xCallsPerRun: 12,
   xIntervalMs: 60 * 60 * 1_000,
   xFollowsIntervalMs: DAY_MS,
+  xDmCallsPerRun: 7,
   xDmProbeSize: 10,
   xDmPageSize: 20,
   xFollowPages: 4,
@@ -223,6 +229,55 @@ export const DEFAULT_CAPTURE_LIMITS: CaptureLimits = {
   callSpacingMs: 250,
   unsupportedPauseMs: DAY_MS,
 };
+
+/**
+ * What a DM walk learned so far, small enough for the cursor: who wrote on
+ * which day in each conversation (no message text), and the people in it.
+ */
+interface XDmWalk {
+  /** The next page; null before the first. */
+  token: string | null;
+  /** It read back to `from`; only the contacts are left to write. */
+  reached: boolean;
+  /** The newest event it read, kept as `newestDmId` once it finishes. */
+  newestId: string | null;
+  /** Everything after this was read once the walk finishes. */
+  startedAt: string;
+  talk: Record<string, { members: string[]; days: Record<string, string[]> }>;
+  users: Record<string, { name: string | null; username: string }>;
+}
+
+function addXDmTalk(walk: XDmWalk, events: readonly XDmEvent[]): void {
+  for (const event of events) {
+    const conversation = (walk.talk[event.conversationId] ??= {
+      members: [],
+      days: {},
+    });
+    conversation.members = [
+      ...new Set([...conversation.members, ...event.participantIds]),
+    ];
+    const day = event.createdAt.slice(0, 10);
+    conversation.days[day] = [
+      ...new Set([...(conversation.days[day] ?? []), event.senderId]),
+    ];
+  }
+}
+
+/** One event per person and day, as `extractXDms` reads them. */
+function xDmTalkEvents(walk: XDmWalk): XDmEvent[] {
+  return Object.entries(walk.talk).flatMap(([conversationId, conversation]) =>
+    Object.entries(conversation.days).flatMap(([day, senders]) =>
+      senders.map((senderId) => ({
+        id: "",
+        conversationId,
+        senderId,
+        participantIds: conversation.members,
+        createdAt: `${day}T12:00:00.000Z`,
+        text: "",
+      })),
+    ),
+  );
+}
 
 interface SourceCursor {
   /** Everything after this was read forward. */
@@ -235,6 +290,8 @@ interface SourceCursor {
   forwardToken?: string | null;
   /** The newest X DM event read; a run whose newest is still it reads no more. */
   newestDmId?: string;
+  /** An X DM walk that took more than one run, where it stands. */
+  dmWalk?: XDmWalk;
   /** When X followers were last read from the newest. */
   followsAt?: string;
   /** The followers page still to read; set until all were read. */
@@ -1540,16 +1597,21 @@ export class ContactCaptureService {
         cursor.backfillUntil !== null
           ? floor
           : new Date(since.getTime() - this.limits.overlapMs);
-      const read = await this.readXDms(context, budget, me, from, cursor).catch(
-        async (error: unknown) => {
-          if (isXDmRefusal(error))
-            await recordXDmAccess(context.integration.id, false);
-          throw error;
-        },
-      );
+      const readUpTo = await this.readXDms(
+        context,
+        budget,
+        me,
+        from,
+        cursor,
+        save,
+      ).catch(async (error: unknown) => {
+        if (isXDmRefusal(error))
+          await recordXDmAccess(context.integration.id, false);
+        throw error;
+      });
       await recordXDmAccess(context.integration.id, true);
-      if (read) {
-        cursor.since = now.toISOString();
+      if (readUpTo) {
+        cursor.since = readUpTo;
         cursor.backfillUntil = null;
         cursor.pageToken = null;
       }
@@ -1560,16 +1622,25 @@ export class ContactCaptureService {
     }
   }
 
-  /** Reads DM events newest first back to `from`; true when it got there. */
+  /**
+   * Reads DM events newest first back to `from`. A busy account takes more
+   * pages than one run may call, so the walk saves its place and what it
+   * learned after every page (`cursor.dmWalk`) and the next run goes on from
+   * there; contacts are written once it reaches `from`. Returns the moment
+   * everything after which has been read, or null while a walk is open.
+   */
   private async readXDms(
     context: RunContext,
     budget: { calls: number },
     me: XUser,
     from: Date,
     cursor: SourceCursor,
-  ): Promise<boolean> {
-    const dmEvents = (args: Record<string, unknown>) =>
-      this.call(context, budget, SOKO_BOT_X_CAPTURE_TOOLS.dmEvents, {
+    save: () => Promise<unknown>,
+  ): Promise<string | null> {
+    let dmCalls = this.limits.xDmCallsPerRun;
+    const dmEvents = (args: Record<string, unknown>) => {
+      dmCalls -= 1;
+      return this.call(context, budget, SOKO_BOT_X_CAPTURE_TOOLS.dmEvents, {
         event_types: ["MessageCreate"],
         dm_event_fields: [
           "created_at",
@@ -1579,35 +1650,48 @@ export class ContactCaptureService {
         ],
         ...args,
       });
-    // The newest message alone: when it is not new, nothing is. X filters a
-    // page by event type after picking it, so a small page can hold no
-    // message at all while older ones exist; then only a full read can tell.
-    // X bills the messages a page returns, not the size asked for.
-    const probe = parseXPage(
-      await dmEvents({ max_results: this.limits.xDmProbeSize }),
-    );
-    const newest = probe.items
-      .map(parseXDmEvent)
-      .find((event) => event !== null);
-    if (newest) {
-      if (
-        (newest.id && newest.id === cursor.newestDmId) ||
-        new Date(newest.createdAt) < from
-      ) {
-        if (newest.id) cursor.newestDmId = newest.id;
-        return true;
-      }
-    } else if (!probe.nextToken) return true;
+    };
+    let walk = cursor.dmWalk;
+    if (!walk) {
+      // The newest message alone: when it is not new, nothing is. X filters
+      // a page by event type after picking it, so a small page can hold no
+      // message at all while older ones exist; then only a full read can
+      // tell. X bills the messages a page returns, not the size asked for.
+      const probe = parseXPage(
+        await dmEvents({ max_results: this.limits.xDmProbeSize }),
+      );
+      const newest = probe.items
+        .map(parseXDmEvent)
+        .find((event) => event !== null);
+      if (newest) {
+        if (
+          (newest.id && newest.id === cursor.newestDmId) ||
+          new Date(newest.createdAt) < from
+        ) {
+          if (newest.id) cursor.newestDmId = newest.id;
+          return context.now.toISOString();
+        }
+      } else if (!probe.nextToken) return context.now.toISOString();
+      walk = {
+        token: null,
+        reached: false,
+        newestId: null,
+        startedAt: context.now.toISOString(),
+        talk: {},
+        users: {},
+      };
+    }
     // A personal bot's owner reads their new DMs through it (x-inbox), on a
     // version that reads them.
     const keepsDms =
       context.row.sokoBot.userId === context.teammateUserId &&
       sokoBotReadsXDms(getSokoBotVersion(context.row.sokoBot.versionId).skills);
-    const events: XDmEvent[] = [];
-    const users = new Map<string, XUser>();
-    let token: string | null = null;
-    let reached = false;
-    while (budget.calls > 0 && this.canRead(context)) {
+    while (
+      !walk.reached &&
+      dmCalls > 0 &&
+      budget.calls > 0 &&
+      this.canRead(context)
+    ) {
       const page = parseXPage(
         await dmEvents({
           ...(keepsDms
@@ -1624,51 +1708,65 @@ export class ContactCaptureService {
           expansions: ["sender_id", "participant_ids"],
           user_fields: ["name", "username"],
           max_results: this.limits.xDmPageSize,
-          ...(token ? { pagination_token: token } : {}),
+          ...(walk.token ? { pagination_token: walk.token } : {}),
         }),
       );
-      for (const user of page.users) users.set(user.id, user);
+      const events: XDmEvent[] = [];
       for (const raw of page.items) {
         const event = parseXDmEvent(raw);
         if (!event) continue;
-        if (new Date(event.createdAt) < from) reached = true;
+        if (new Date(event.createdAt) < from) walk.reached = true;
         else events.push(event);
       }
-      token = page.nextToken;
-      if (reached || !token) {
-        reached = true;
-        break;
-      }
+      for (const user of page.users)
+        walk.users[user.id] = { name: user.name, username: user.username };
+      addXDmTalk(walk, events);
+      walk.newestId ??= events[0]?.id || null;
+      walk.token = page.nextToken;
+      if (!page.nextToken) walk.reached = true;
+      if (keepsDms)
+        await keepXDms(
+          context.integration.id,
+          events.map((event) => ({
+            id: event.id,
+            conversationId: event.conversationId,
+            from: xSender(walk.users[event.senderId], event.senderId),
+            createdAt: event.createdAt,
+            text: event.text,
+            fromOwner: event.senderId === me.id,
+          })),
+          context.now,
+        );
+      cursor.dmWalk = walk;
+      await save();
     }
+    cursor.dmWalk = walk;
+    if (!walk.reached) return null;
     const candidates: CaptureCandidate[] = [];
     const skipped: CaptureSkipReason[] = [];
-    for (const talk of extractXDms({ events, ownerId: me.id })) {
-      const user = users.get(talk.userId);
-      if (!user) {
+    for (const talk of extractXDms({
+      events: xDmTalkEvents(walk),
+      ownerId: me.id,
+    })) {
+      const known = walk.users[talk.userId];
+      if (!known) {
         skipped.push("invalid_address");
         continue;
       }
       candidates.push(
-        xCandidate({ ...talk, user, teammateUserId: context.teammateUserId }),
+        xCandidate({
+          ...talk,
+          user: { id: talk.userId, ...known },
+          teammateUserId: context.teammateUserId,
+        }),
       );
     }
-    const outcome = await this.write(context, { candidates, skipped });
-    if (keepsDms)
-      await keepXDms(
-        context.integration.id,
-        events.map((event) => ({
-          id: event.id,
-          conversationId: event.conversationId,
-          from: xSender(users.get(event.senderId), event.senderId),
-          createdAt: event.createdAt,
-          text: event.text,
-          fromOwner: event.senderId === me.id,
-        })),
-        context.now,
-      );
-    if (!reached || !outcome.complete) return false;
-    if (events[0]?.id) cursor.newestDmId = events[0].id;
-    return true;
+    // A write the budget cut short is tried again next run, without reading.
+    if (!(await this.write(context, { candidates, skipped })).complete)
+      return null;
+    delete cursor.dmWalk;
+    if (walk.newestId) cursor.newestDmId = walk.newestId;
+    return walk.startedAt;
   }
 
   /**
@@ -1915,7 +2013,10 @@ async function recordXDmAccess(
   });
 }
 
-function xSender(user: XUser | undefined, id: string): string {
+function xSender(
+  user: Pick<XUser, "name" | "username"> | undefined,
+  id: string,
+): string {
   if (!user) return `X user ${id}`;
   return user.name ? `${user.name} (@${user.username})` : `@${user.username}`;
 }

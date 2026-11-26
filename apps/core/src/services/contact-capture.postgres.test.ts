@@ -1417,6 +1417,119 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       expect(dmCalls.map((call) => call.max_results)).toEqual([10, 20]);
     });
 
+    it("walks a busy account's DMs across runs from where it stopped, and still reads followers", async () => {
+      const busyOrganizationId = randomUUID();
+      const busyWorkspaceId = randomUUID();
+      await prisma.organization.create({
+        data: {
+          id: busyOrganizationId,
+          name: "Capture X busy",
+          slug: `capture-x-busy-${busyOrganizationId}`,
+          members: { create: { userId: alice, role: "member" } },
+        },
+      });
+      await prisma.workspace.create({
+        data: { id: busyWorkspaceId, organizationId: busyOrganizationId },
+      });
+      await addBot(busyWorkspaceId, ["twitter"]);
+      const start = Date.now();
+      const minutes = (n: number) => new Date(start + n * 60_000).toISOString();
+      // 24 messages, newest first: Ruth and the owner taking turns.
+      let events = Array.from({ length: 24 }, (_, index) =>
+        dm("100-200", index % 2 ? "100" : "200", minutes(-10 - index * 30)),
+      );
+      const dmCalls: (string | null)[] = [];
+      let followerCalls = 0;
+      mocks.runIntegrationTool.mockImplementation(
+        async (...args: unknown[]) => {
+          const tool = args[1] as string;
+          const input = args[2] as Record<string, unknown>;
+          if (tool === "TWITTER_USER_LOOKUP_ME")
+            return { data: user("100", "Alice Owner", "alice") };
+          if (tool === "TWITTER_FOLLOWERS_BY_USER_ID") {
+            followerCalls += 1;
+            return { data: [] };
+          }
+          if (tool !== "TWITTER_GET_RECENT_DM_EVENTS")
+            throw new Error(`unexpected tool ${tool}`);
+          const token = (input.pagination_token as string | undefined) ?? null;
+          dmCalls.push(token);
+          // Like X's tokens, a page token points at an event, not an offset.
+          const from = token ? events.findIndex((e) => e.id === token) : 0;
+          const page = events.slice(from, from + (input.max_results as number));
+          const next = events[from + page.length];
+          return {
+            data: page,
+            includes: { users: [ruth] },
+            meta: next ? { next_token: next.id } : {},
+          };
+        },
+      );
+      let clock = new Date(start);
+      const capture = () =>
+        new ContactCaptureService({
+          now: () => clock,
+          sleep: async () => undefined,
+          limits: {
+            backfillDays: 30,
+            pagesPerIntegration: 20,
+            enrichmentWorkspaces: 0,
+            embeddingsPerWorkspace: 0,
+            companiesPerWorkspace: 0,
+            xDmCallsPerRun: 3,
+            xDmPageSize: 5,
+          },
+        }).captureWorkspace(busyWorkspaceId, () => true);
+      const xCursor = async () =>
+        (
+          (
+            await prisma.contactCaptureState.findFirstOrThrow({
+              where: {
+                integration: { sokoBot: { workspaceId: busyWorkspaceId } },
+              },
+              select: { cursor: true },
+            })
+          ).cursor as {
+            x: {
+              since: string;
+              newestDmId?: string;
+              dmWalk?: { token: string };
+            };
+          }
+        ).x;
+      const ruthInteractions = async () =>
+        (await contactsOf(busyWorkspaceId)).find((c) => c.name === "Ruth Weber")
+          ?.interactions.length ?? 0;
+
+      // Run 1: the probe and two pages; the walk saves its place.
+      await capture();
+      expect(dmCalls).toEqual([null, null, events[5]?.id]);
+      expect((await xCursor()).dmWalk?.token).toBe(events[10]?.id);
+      expect(await ruthInteractions()).toBe(0);
+      expect(followerCalls).toBe(1);
+
+      // A message arrives between ticks: the open walk goes on from its
+      // place without a probe, reaches the end, and only then writes contacts
+      // and commits the newest id it started from and the time it began.
+      events = [dm("100-200", "200", minutes(20)), ...events];
+      dmCalls.length = 0;
+      clock = new Date(start + 30 * 60_000);
+      await capture();
+      expect(dmCalls).toEqual([events[11]?.id, events[16]?.id, events[21]?.id]);
+      const done = await xCursor();
+      expect(done.dmWalk).toBeUndefined();
+      expect(done.newestDmId).toBe(events[1]?.id);
+      expect(done.since).toBe(new Date(start).toISOString());
+      expect(await ruthInteractions()).toBeGreaterThan(0);
+
+      // The next walk starts from the newest again and finds the new message.
+      dmCalls.length = 0;
+      clock = new Date(start + 61 * 60_000);
+      await capture();
+      expect(dmCalls).toEqual([null, null]);
+      expect((await xCursor()).newestDmId).toBe(events[0]?.id);
+    });
+
     it("shows a refused DM read on the connection, and clears it once a read works", async () => {
       const deniedOrganizationId = randomUUID();
       const deniedWorkspaceId = randomUUID();
