@@ -14710,7 +14710,7 @@
           "rulebook": "Die Tests haben sich zwischen den zwei Prüfungen geändert. Ihre Probleme werden nicht verglichen.",
           "pages": "Eine der zwei Prüfungen hat nicht jede ausgewählte Seite gelesen. Ihre Probleme werden nicht verglichen."
         },
-        "all": "Alle Änderungen",
+        "all": "Details zum Vergleich",
         "count": {
           "new": "Neu",
           "fixed": "Behoben",

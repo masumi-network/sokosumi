@@ -14710,7 +14710,7 @@
           "rulebook": "The tests changed between the two checks, so their issues are not compared.",
           "pages": "One of the two checks did not read every selected page, so their issues are not compared."
         },
-        "all": "All changes",
+        "all": "Comparison details",
         "count": {
           "new": "New",
           "fixed": "Fixed",

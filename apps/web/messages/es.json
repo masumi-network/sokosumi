@@ -14710,7 +14710,7 @@
           "rulebook": "Las pruebas cambiaron entre las dos comprobaciones, así que sus problemas no se comparan.",
           "pages": "Una de las dos comprobaciones no leyó todas las páginas seleccionadas, así que sus problemas no se comparan."
         },
-        "all": "Todos los cambios",
+        "all": "Detalles de la comparación",
         "count": {
           "new": "Nuevos",
           "fixed": "Corregidos",
