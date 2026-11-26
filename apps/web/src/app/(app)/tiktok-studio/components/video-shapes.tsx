@@ -27,6 +27,29 @@ export function shapeOf(job: ProjectImageJob): VideoShape {
   return job.talkingVideo?.shape ?? "9:16";
 }
 
+/** The first shape's job id: every shape of one video shares it. */
+export function videoIdOf(job: ProjectImageJob): string {
+  return job.talkingVideo?.sourceJobId ?? job.id;
+}
+
+/**
+ * One job per video, in list order: its first shape, or, when that is on an
+ * older page than its other shapes, the first of those.
+ */
+export function oneJobPerVideo(
+  jobs: readonly ProjectImageJob[],
+): ProjectImageJob[] {
+  const listed = new Set(jobs.map((job) => job.id));
+  const seen = new Set<string>();
+  return jobs.filter((job) => {
+    const videoId = videoIdOf(job);
+    if (seen.has(videoId)) return false;
+    if (job.id !== videoId && listed.has(videoId)) return false;
+    seen.add(videoId);
+    return true;
+  });
+}
+
 /**
  * A video and the other shapes cut from it, in shape order. Shapes are their
  * own jobs, each pointing back at the first through `sourceJobId`.
@@ -35,12 +58,9 @@ export function shapeFamily(
   jobs: readonly ProjectImageJob[],
   job: ProjectImageJob,
 ): ProjectImageJob[] {
-  const sourceId = job.talkingVideo?.sourceJobId ?? job.id;
+  const videoId = videoIdOf(job);
   return jobs
-    .filter(
-      (each) =>
-        each.id === sourceId || each.talkingVideo?.sourceJobId === sourceId,
-    )
+    .filter((each) => videoIdOf(each) === videoId)
     .sort(
       (a, b) =>
         VIDEO_SHAPES.indexOf(shapeOf(a)) - VIDEO_SHAPES.indexOf(shapeOf(b)),

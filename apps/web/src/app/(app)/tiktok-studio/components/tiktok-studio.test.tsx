@@ -387,20 +387,28 @@ describe("TikTokStudio", () => {
     expect(screen.getByRole("button", { name: /names\.9:16/ })).toBeDisabled();
   });
 
-  it("lists a video once and shows its other shapes on the stage", () => {
-    const job = (id: string, shape: string, sourceJobId: string | null) =>
-      ({
-        id,
-        prompt: SCRIPT,
-        status: "SUCCEEDED",
-        talkingVideo: { presenterId: "maya", shape, sourceJobId },
-      }) as ProjectTalkingVideos["jobs"][number];
-    const asset = (id: string, jobId: string) =>
-      ({
-        id,
-        jobId,
-        contentPath: `/${id}.mp4`,
-      }) as ProjectTalkingVideos["assets"][number];
+  const shapeJob = (
+    id: string,
+    shape: string,
+    sourceJobId: string | null,
+    status = "SUCCEEDED",
+  ) =>
+    ({
+      id,
+      prompt: SCRIPT,
+      status,
+      createdAt: new Date(),
+      talkingVideo: { presenterId: "maya", shape, sourceJobId },
+    }) as ProjectTalkingVideos["jobs"][number];
+  const shapeAsset = (id: string, jobId: string) =>
+    ({
+      id,
+      jobId,
+      contentPath: `/${id}.mp4`,
+    }) as ProjectTalkingVideos["assets"][number];
+  const renderVideos = (
+    videos: Parameters<typeof TikTokStudio>[0]["initialVideos"],
+  ) =>
     render(
       <TestQueryProvider>
         <TikTokStudio
@@ -409,21 +417,24 @@ describe("TikTokStudio", () => {
           readOnly={false}
           hasWebsite={false}
           pictures={[]}
-          initialVideos={{
-            jobs: [
-              job("wide", "16:9", "first"),
-              job("square", "1:1", "first"),
-              job("first", "9:16", null),
-            ],
-            assets: [
-              asset("asset-wide", "wide"),
-              asset("asset-square", "square"),
-              asset("asset-first", "first"),
-            ],
-          }}
+          initialVideos={videos}
         />
       </TestQueryProvider>,
     );
+
+  it("lists a video once and shows its other shapes on the stage", () => {
+    renderVideos({
+      jobs: [
+        shapeJob("wide", "16:9", "first"),
+        shapeJob("square", "1:1", "first"),
+        shapeJob("first", "9:16", null),
+      ],
+      assets: [
+        shapeAsset("asset-wide", "wide"),
+        shapeAsset("asset-square", "square"),
+        shapeAsset("asset-first", "first"),
+      ],
+    });
 
     const tiles = screen.getAllByRole("button", { name: /videoReady/ });
     expect(tiles).toHaveLength(1);
@@ -442,6 +453,50 @@ describe("TikTokStudio", () => {
     expect(stage.querySelector("video")?.getAttribute("src")).toContain(
       "asset-wide",
     );
+  });
+
+  it("lists a video whose first shape is on an older page by one of its other shapes", () => {
+    renderVideos({
+      jobs: [
+        shapeJob("wide", "16:9", "older"),
+        shapeJob("square", "1:1", "older"),
+      ],
+      assets: [
+        shapeAsset("asset-wide", "wide"),
+        shapeAsset("asset-square", "square"),
+      ],
+      hasMore: true,
+    });
+
+    const tiles = screen.getAllByRole("button", { name: /videoReady/ });
+    expect(tiles).toHaveLength(1);
+    fireEvent.click(tiles[0]!);
+    const stage = screen.getByRole("region", { name: "stageVideo" });
+    expect(stage.querySelector("video")?.getAttribute("src")).toContain(
+      "asset-wide",
+    );
+    expect(
+      within(stage)
+        .getAllByRole("tab")
+        .map((tab) => tab.textContent),
+    ).toEqual(["1:1", "16:9"]);
+  });
+
+  it("opens on the shape still being cut, not on the finished first shape", () => {
+    renderVideos({
+      jobs: [
+        shapeJob("wide", "16:9", "first", "RUNNING"),
+        shapeJob("first", "9:16", null),
+      ],
+      assets: [shapeAsset("asset-first", "first")],
+    });
+
+    const stage = screen.getByRole("region", { name: "stageVideo" });
+    expect(stage.querySelector("video")).toBeNull();
+    expect(stage).toHaveTextContent("making");
+    expect(
+      within(stage).getByRole("tab", { selected: true }),
+    ).toHaveTextContent("16:9");
   });
 
   it("pulses a presenter's tile until their photo has loaded", () => {

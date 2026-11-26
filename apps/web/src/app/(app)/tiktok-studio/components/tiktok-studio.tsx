@@ -78,7 +78,14 @@ import {
   type TalkingVideoAsset,
 } from "./tiktok-studio-stage";
 import { useTalkingVideoHistory } from "./use-talking-video-history";
-import { ShapePicker, ShapeTabs, shapeFamily, shapeOf } from "./video-shapes";
+import {
+  oneJobPerVideo,
+  ShapePicker,
+  ShapeTabs,
+  shapeFamily,
+  shapeOf,
+  videoIdOf,
+} from "./video-shapes";
 
 const TikTokComposer = dynamic(() =>
   import(
@@ -223,12 +230,16 @@ export function TikTokStudio({
   const shownPreviewShape = shapes.includes(previewShape)
     ? previewShape
     : shapes[0]!;
+  /** The job put on the stage; its other shapes are a tab away. */
   const stageSource = videos.jobs.find((job) => job.id === stageJobId) ?? null;
   const stageFamily = stageSource ? shapeFamily(videos.jobs, stageSource) : [];
   const stageJob =
-    stageFamily.find((job) => shapeOf(job) === stageShape) ??
-    stageFamily[0] ??
-    stageSource;
+    stageFamily.find((job) => shapeOf(job) === stageShape) ?? stageSource;
+  const libraryJobs = oneJobPerVideo(videos.libraryJobs);
+  const libraryPick = stageSource
+    ? (libraryJobs.find((job) => videoIdOf(job) === videoIdOf(stageSource))
+        ?.id ?? null)
+    : null;
   const stageAsset = stageJob ? assetFor(stageJob) : null;
   const playbackFor = (asset: TalkingVideoAsset) => playback[asset.id];
   const markPlayback = (asset: TalkingVideoAsset, next: Playback) =>
@@ -456,14 +467,12 @@ export function TikTokStudio({
         <TikTokStudioLibrary
           assetFor={assetFor}
           // Each video once: its other shapes are on the stage.
-          jobs={videos.libraryJobs.filter(
-            (job) => !job.talkingVideo?.sourceJobId,
-          )}
+          jobs={libraryJobs}
           retryHistory={videos.retry}
           onNew={readOnly ? undefined : startNew}
           onSelect={(job) => showOnStage(job.id)}
           playbackFor={playbackFor}
-          selectedId={stageSource?.id ?? null}
+          selectedId={libraryPick}
         />
       ) : null}
       <section
