@@ -4,6 +4,7 @@ import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import { databaseNow } from "@/lib/db/database-now";
 import {
   type ClassifierContextSummary,
+  classifierAttemptTimeoutMs,
   JevTurnClassifier,
   type RouteEvaluator,
   routeQuestions,
@@ -16,6 +17,15 @@ import { jevRoute } from "@/test/jev-routes";
 vi.mock("@/lib/db/database-now", () => ({
   databaseNow: vi.fn(async () => new Date()),
 }));
+
+describe("classifierAttemptTimeoutMs", () => {
+  it("waits for the plan's stand-in longer than for Jev", () => {
+    expect(classifierAttemptTimeoutMs({})).toBe(3_500);
+    expect(
+      classifierAttemptTimeoutMs({ SOKO_BOT_LOCAL_CHATGPT_PLAN: "1" }),
+    ).toBeGreaterThanOrEqual(30_000);
+  });
+});
 
 describe("unwrapTitleTags", () => {
   it("unwraps bracket tags Jev reads as placeholders, not links", () => {

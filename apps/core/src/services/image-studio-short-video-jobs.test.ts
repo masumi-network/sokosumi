@@ -37,6 +37,9 @@ const {
   assetFindManyMock,
   editShortVideoMock,
   loadStudioBrandMock,
+  jobCreateManyMock,
+  assetCreateMock,
+  transaction,
 } = vi.hoisted(() => ({
   jobCreateMock: vi.fn(),
   jobFindUniqueMock: vi.fn(),
@@ -65,6 +68,16 @@ const {
   assetFindManyMock: vi.fn(),
   editShortVideoMock: vi.fn(),
   loadStudioBrandMock: vi.fn(),
+  jobCreateManyMock: vi.fn(),
+  assetCreateMock: vi.fn(),
+  transaction: { open: false },
+}));
+
+vi.mock("@/helpers/task-credits", async () => ({
+  ...(await vi.importActual<typeof import("@/helpers/task-credits")>(
+    "@/helpers/task-credits",
+  )),
+  createTaskEventTransaction: vi.fn(async () => "transaction-1"),
 }));
 
 vi.mock("@vercel/blob", () => ({ put: putMock }));
@@ -88,13 +101,15 @@ vi.mock("@/lib/db/prisma", () => {
       findUniqueOrThrow: jobFindUniqueOrThrowMock,
       update: jobUpdateMock,
       updateMany: jobUpdateManyMock,
+      createMany: jobCreateManyMock,
     },
     project: { findUnique: projectFindUniqueMock },
     projectImageAsset: {
       count: assetCountMock,
       findMany: assetFindManyMock,
       findUnique: vi.fn().mockResolvedValue(null),
-      create: vi.fn(async ({ data }) => ({ id: "asset-1", ...data })),
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: assetCreateMock,
     },
   };
   return { default: client };
@@ -103,8 +118,14 @@ vi.mock("@/lib/db/transaction", async () => ({
   ...(await vi.importActual<typeof import("@/lib/db/transaction")>(
     "@/lib/db/transaction",
   )),
-  serializableTransaction: async (run: (tx: unknown) => Promise<unknown>) =>
-    await run((await import("@/lib/db/prisma")).default),
+  serializableTransaction: async (run: (tx: unknown) => Promise<unknown>) => {
+    transaction.open = true;
+    try {
+      return await run((await import("@/lib/db/prisma")).default);
+    } finally {
+      transaction.open = false;
+    }
+  },
 }));
 vi.mock("@/lib/image-studio/access", () => ({
   requireProjectAccess: requireProjectAccessMock,
@@ -202,6 +223,11 @@ let stored: Record<string, unknown> = {};
 
 beforeEach(() => {
   vi.clearAllMocks();
+  assetCreateMock.mockImplementation(async ({ data }) => ({
+    id: "asset-1",
+    ...data,
+  }));
+  jobCreateManyMock.mockImplementation(async () => ({ count: 1 }));
   getEnvMock.mockReturnValue({
     FAL_KEY: "k",
     IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: "studio-private-store-token",
@@ -440,6 +466,72 @@ describe("a short's music arriving", () => {
       }),
     );
     expect(logged).toHaveLength(1);
+  });
+});
+
+describe("delivering a short with other shapes", () => {
+  beforeEach(async () => {
+    await createShortVideoJob({ ...BASE_INPUT, shapes: ["4:5", "16:9"] });
+    stored = { ...stored, status: "RUNNING", falRequestId: "fal-1" };
+    jobFindUniqueMock.mockImplementation(async () => ({
+      ...stored,
+      asset: null,
+    }));
+    downloadMediaMock.mockResolvedValue({
+      bytes: new Uint8Array([4]),
+      contentType: "audio/wav",
+    });
+    editShortVideoMock.mockResolvedValue({
+      bytes: new Uint8Array([8]),
+      durationSeconds: 9.2,
+    });
+    putMock.mockImplementation(async (pathname: string) => ({ pathname }));
+  });
+
+  it("reserves the other shapes in the transaction that stores and charges the first", async () => {
+    let reservedInTransaction = false;
+    jobCreateManyMock.mockImplementation(async () => {
+      reservedInTransaction = transaction.open;
+      return { count: 1 };
+    });
+
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/music.wav", {
+      // What a provider reports is the clip's size, not the edit's.
+      width: 1080,
+      height: 1920,
+    });
+
+    expect(assetCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ width: 1080, height: 1350 }),
+      }),
+    );
+    expect(jobCreateManyMock).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          idempotencyKey: "video-shape:job-1:16:9",
+          chargedCents: 0n,
+          settings: expect.objectContaining({
+            shape: "16:9",
+            sourceJobId: "job-1",
+          }),
+        }),
+      ],
+      skipDuplicates: true,
+    });
+    expect(reservedInTransaction).toBe(true);
+  });
+
+  it("stores nothing when the other shapes cannot be reserved, so the retry makes them", async () => {
+    jobCreateManyMock.mockRejectedValue(new Error("connection reset"));
+
+    await expect(
+      settleWithMedia("job-1", "https://v3b.fal.media/files/music.wav"),
+    ).rejects.toThrow("connection reset");
+    // The asset and its charge were in the same transaction, which rolled back:
+    // the job has no asset, so the next reconcile settles it again.
+    expect(jobCreateManyMock).toHaveBeenCalledTimes(1);
+    expect(assetCreateMock).toHaveBeenCalledTimes(1);
   });
 });
 

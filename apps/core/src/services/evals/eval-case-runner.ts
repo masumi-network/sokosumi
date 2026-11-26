@@ -98,6 +98,7 @@ import { isSchedulesCase, prepareSchedulesCase } from "./eval-schedules";
 import { seoEvalChecks } from "./eval-seo-checks";
 import { isSeoEvalCase, prepareSeoEvalCase } from "./eval-seo-fixtures";
 import { pollStandupCase, startStandupCase } from "./eval-standup";
+import { pollJourney, startJourney } from "./ownerbench/journey-runner";
 
 /** What a finished case reports; the runner stores it on its result. */
 export interface CaseOutcome {
@@ -630,6 +631,8 @@ export async function startEvalCase(
     );
   if (evalCase.kind === "standup")
     return startStandupCase(evalCase.setup, lane);
+  if (evalCase.kind === "journey")
+    return startJourney(evalCase.journey, lane, context);
   return startCmoCase(evalCase, lane, context);
 }
 
@@ -652,5 +655,7 @@ export async function pollEvalCase(
   }
   if (evalCase.kind === "standup")
     return pollStandupCase(evalCase.setup, lane, result.state);
+  if (evalCase.kind === "journey")
+    return pollJourney(evalCase.journey, lane, result.state, context);
   return pollCmoCase(evalCase, lane, result, context);
 }

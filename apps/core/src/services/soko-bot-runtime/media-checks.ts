@@ -5,6 +5,7 @@ import {
   sokoBotGenerateTalkingVideoInputSchema as generateTalkingVideoInputSchema,
   sokoBotGenerateVideoInputSchema as generateVideoInputSchema,
   getSokoBotVersion,
+  sokoBotFollowUpAllowsSchema,
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -35,6 +36,8 @@ import {
   type VideoSettings,
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
+import { FOLLOW_UP_RETRY_SUFFIX } from "@/lib/soko-bot/follow-up-retry";
+import { isOwnerRequest } from "@/lib/soko-bot/owner-request";
 import { sokoBotProjectRefusal } from "@/lib/soko-bot/write-scope";
 import {
   MAX_STYLE_BRAND_PICTURES,
@@ -102,6 +105,135 @@ export async function socialCommentScopeOf(
   };
 }
 
+/**
+ * A person asked in chat, or this turn carries out a follow-up the owner
+ * asked for: "have a Coworker research this, then make images and a post"
+ * reaches the images on the turn Core starts when the research is back.
+ */
+export async function mayMakeMediaForOwner(
+  runtime: Pick<RuntimeOperations, "mayActForOwner">,
+  authorized: AuthorizedSokoBotRuntime,
+): Promise<MediaAllowance | null> {
+  if (await runtime.mayActForOwner(authorized)) return {};
+  if (authorized.turn.source !== "EVENT") return null;
+  const owner = {
+    source: true,
+    chainDepth: true,
+    askedByUserId: true,
+    requestedByUserId: true,
+  } as const;
+  const carried = await prisma.sokoBotDelegation.findMany({
+    where: { followUpTurnId: authorized.turn.id, followUp: { not: null } },
+    select: {
+      followUpAllows: true,
+      turn: {
+        select: {
+          ...owner,
+          parentTurnId: true,
+          parentTurn: { select: owner },
+        },
+      },
+    },
+  });
+  const asked = carried.filter((delegation) =>
+    isOwnerRequest(delegation.turn, { schedules: true }),
+  );
+  if (!asked.length) return null;
+  // A limit holds only when every plan this turn carries out gave one.
+  const allows = asked.map(
+    (delegation) =>
+      sokoBotFollowUpAllowsSchema.safeParse(delegation.followUpAllows).data,
+  );
+  // The limits the owner gave hold, summed; a plan without media limits
+  // ("give the findings to Alex") in the same wake does not lift them.
+  const total = (key: "images" | "maxCredits") => {
+    const given = allows.flatMap((allow) =>
+      allow?.[key] !== undefined ? [allow[key]] : [],
+    );
+    return given.length
+      ? given.reduce((sum, value) => sum + value, 0)
+      : undefined;
+  };
+  return {
+    images: total("images"),
+    maxCredits: total("maxCredits"),
+    planTurnIds: await planTurnIds(authorized),
+  };
+}
+
+/**
+ * This turn and the turns the same plans were handed to before it: a
+ * follow-up's retry continues the failed turn's images, it does not start
+ * the owner's allowance again.
+ */
+async function planTurnIds(
+  authorized: AuthorizedSokoBotRuntime,
+): Promise<string[]> {
+  const retried = (
+    await prisma.sokoBotEventInbox.findMany({
+      where: { turnId: authorized.turn.id },
+      select: { eventId: true, entityId: true },
+    })
+  ).filter((entry) => entry.eventId.endsWith(FOLLOW_UP_RETRY_SUFFIX));
+  if (!retried.length) return [authorized.turn.id];
+  // The failed wakes on the same Task or Job: the retry's occurrence can be
+  // a later event than the failed turn's, when that turn wrote one itself.
+  const earlier = await prisma.sokoBotEventInbox.findMany({
+    where: {
+      botId: authorized.turn.sokoBotId,
+      entityId: { in: [...new Set(retried.map((entry) => entry.entityId))] },
+      turn: { status: "FAILED" },
+    },
+    select: { turnId: true },
+  });
+  return [
+    ...new Set([authorized.turn.id, ...earlier.map((entry) => entry.turnId)]),
+  ];
+}
+
+/** What the owner allowed media on this turn; empty means the turn's own caps. */
+export interface MediaAllowance {
+  images?: number;
+  maxCredits?: number;
+  /** The turns the allowance is spent across; this turn alone when unset. */
+  planTurnIds?: string[];
+}
+
+/**
+ * Refuses media past the credits the owner allowed for the plan this turn
+ * carries out: what earlier images and videos of the turn may cost, plus
+ * this one.
+ */
+async function refuseOverAllowance(
+  allowance: MediaAllowance,
+  authorized: AuthorizedSokoBotRuntime,
+  toolCallId: string,
+  maxCredits: number,
+): Promise<void> {
+  if (allowance.maxCredits === undefined) return;
+  const earlier = await prisma.sokoBotToolCall.findMany({
+    where: {
+      turnId: { in: allowance.planTurnIds ?? [authorized.turn.id] },
+      capability: { in: ["generate_image", "generate_video"] },
+      OR: [{ disposition: null }, { disposition: { not: "REJECTED" } }],
+      // Only this call: another turn's call can carry the same id.
+      NOT: { turnId: authorized.turn.id, toolCallId },
+    },
+    select: { input: true },
+  });
+  const spent = earlier.reduce(
+    (sum, call) =>
+      sum +
+      (z.object({ maxCredits: z.number() }).safeParse(call.input).data
+        ?.maxCredits ?? 0),
+    0,
+  );
+  if (spent + maxCredits > allowance.maxCredits)
+    throw new SokoBotRuntimeValidationError(
+      `The owner allowed ${allowance.maxCredits} credits on media for this plan, and ${spent} are set aside already. Make it fit with a lower maxCredits, or tell the owner what more would cost.`,
+    );
+}
+
 export async function checkImageRequest(
   runtime: RuntimeOperations,
   authorized: AuthorizedSokoBotRuntime,
@@ -109,24 +241,41 @@ export async function checkImageRequest(
   toolCallId: string,
 ) {
   const input = generateImageInputSchema.parse(raw);
-  if (!(await runtime.mayActForOwner(authorized)))
+  const allowance = await mayMakeMediaForOwner(runtime, authorized);
+  if (!allowance)
     throw new SokoBotRuntimeAuthorizationError(
       "Images are generated only when a person asks in chat. Describe the image you would make instead.",
     );
   runtime.refuseCmoRunMedia(authorized);
-  const started = await prisma.sokoBotToolCall.count({
-    where: {
-      turnId: authorized.turn.id,
-      capability: "generate_image",
-      OR: [{ disposition: null }, { disposition: { not: "REJECTED" } }],
-      NOT: { toolCallId },
-    },
-  });
-  const { images } = await runtime.mediaPerTurn(authorized);
-  if (started >= images)
+  const startedOn = (turnIds: string[]) =>
+    prisma.sokoBotToolCall.count({
+      where: {
+        turnId: { in: turnIds },
+        capability: "generate_image",
+        OR: [{ disposition: null }, { disposition: { not: "REJECTED" } }],
+        NOT: { turnId: authorized.turn.id, toolCallId },
+      },
+    });
+  const perTurn = (await runtime.mediaPerTurn(authorized)).images;
+  if ((await startedOn([authorized.turn.id])) >= perTurn)
     throw new SokoBotRuntimeValidationError(
-      `One turn may start at most ${images} images. Show your owner these first.`,
+      `One turn may start at most ${perTurn} images. Show your owner these first.`,
     );
+  // The owner's count holds across the plan's turns, a retry included.
+  if (
+    allowance.images !== undefined &&
+    (await startedOn(allowance.planTurnIds ?? [authorized.turn.id])) >=
+      allowance.images
+  )
+    throw new SokoBotRuntimeValidationError(
+      `The owner asked for ${allowance.images} image${allowance.images > 1 ? "s" : ""} in this plan. Use those in the draft.`,
+    );
+  await refuseOverAllowance(
+    allowance,
+    authorized,
+    toolCallId,
+    input.maxCredits,
+  );
   const aspectRatio = z
     .enum(IMAGE_ASPECT_RATIOS)
     .optional()
@@ -265,11 +414,18 @@ export async function checkVideoRequest(
   toolCallId: string,
 ) {
   const input = generateVideoInputSchema.parse(raw);
-  if (!(await runtime.mayActForOwner(authorized)))
+  const allowance = await mayMakeMediaForOwner(runtime, authorized);
+  if (!allowance)
     throw new SokoBotRuntimeAuthorizationError(
       "Videos are generated only when a person asks in chat. Describe the video you would make instead.",
     );
   runtime.refuseCmoRunMedia(authorized);
+  await refuseOverAllowance(
+    allowance,
+    authorized,
+    toolCallId,
+    input.maxCredits,
+  );
   const started = await prisma.sokoBotToolCall.count({
     where: {
       turnId: authorized.turn.id,

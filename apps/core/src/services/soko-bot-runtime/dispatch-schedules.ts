@@ -23,7 +23,11 @@ import {
 } from "../soko-bot-runtime.service";
 import { type RuntimeOperations } from "./operations";
 import { listSchedules } from "./schedule-reads";
-import { requireOwnScheduleScope, runScheduleTool } from "./schedule-scope";
+import {
+  requireOwnScheduleScope,
+  requireScheduledRunMayEnd,
+  runScheduleTool,
+} from "./schedule-scope";
 export async function dispatchSchedulesTools(
   runtime: RuntimeOperations,
   input: ExecuteSokoBotToolInput,
@@ -111,13 +115,20 @@ export async function dispatchSchedulesTools(
             false,
             input.capability,
           );
-          if (authorized.turn.source === "SCHEDULE")
+          if (authorized.turn.source === "SCHEDULE") {
+            await requireScheduledRunMayEnd(
+              tx,
+              authorized.turn.id,
+              input.capability,
+              input.input,
+            );
             await requireOwnScheduleScope(
               tx,
               authorized.turn.id,
               input.capability,
               input.input,
             );
+          }
           const {
             actingUserId: userId,
             workspaceId,

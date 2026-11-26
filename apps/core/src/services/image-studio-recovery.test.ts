@@ -62,6 +62,8 @@ vi.mock("@/lib/db/prisma", () => {
       findUnique: jobFindUniqueMock,
       findUniqueOrThrow: jobFindUniqueOrThrowMock,
       findMany: jobFindManyMock,
+      // No shape of a delivered video waits to be cut.
+      findFirst: vi.fn().mockResolvedValue(null),
       update: jobUpdateMock,
       updateMany: jobUpdateManyMock,
       count: jobCountMock,
@@ -563,12 +565,46 @@ describe("several failing jobs in one request", () => {
     };
   }
 
+  it("cuts one waiting video shape beside a full set of provider jobs", async () => {
+    const prisma = (await import("@/lib/db/prisma")).default;
+    prisma.projectImageJob.findFirst = vi
+      .fn()
+      .mockResolvedValueOnce({ id: "shape-1" })
+      .mockResolvedValue(null);
+    jobFindManyMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { id: "job-a" },
+        { id: "job-b" },
+        { id: "job-c" },
+      ]);
+    jobFindUniqueMock.mockResolvedValue(null);
+
+    await inRequest(() => reconcileProjectJobs("project-1"));
+
+    expect(prisma.projectImageJob.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          projectId: "project-1",
+          falRequestId: null,
+          idempotencyKey: { startsWith: "video-shape:" },
+        }),
+      }),
+    );
+    expect(jobFindUniqueMock.mock.calls.map(([args]) => args.where.id)).toEqual(
+      ["job-a", "job-b", "job-c", "shape-1"],
+    );
+  });
+
   it("keeps each job's id and failure when a poll fails to reconcile two", async () => {
     const warnings = expectCoreLog(
       "warn",
       "Could not reconcile an image job",
       2,
     );
+    // No shape of a delivered video waits (a test above swaps findFirst).
+    const prisma = (await import("@/lib/db/prisma")).default;
+    prisma.projectImageJob.findFirst = vi.fn().mockResolvedValue(null);
     jobFindManyMock.mockResolvedValueOnce([]).mockResolvedValueOnce([
       { id: "job-a", idempotencyKey: "key-a" },
       { id: "job-b", idempotencyKey: "key-b" },

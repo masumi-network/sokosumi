@@ -2076,6 +2076,90 @@ export async function cancelSocialPost(
   return mapSocialPost(canceled);
 }
 
+export interface RestoreCanceledSocialPostInput extends CancelSocialPostInput {
+  organizationId?: string | null;
+  /** The status it had before the cancel. */
+  status: "DRAFT" | "NEEDS_APPROVAL" | "SCHEDULED";
+  /** The time it was planned at before the cancel. */
+  scheduledAt: Date | null;
+  timezone?: string;
+}
+
+/**
+ * Takes back a cancel (an owner's change undone, cmo-v25), in one
+ * transaction: the post comes back with the status it had at its planned
+ * time, under the revision the cancel left; a scheduled one is scheduled
+ * again through `scheduleSocialPost` on the same transaction, so a refused
+ * schedule leaves it cancelled and the retry intact. A draft quoting it
+ * loses the flag the cancel set; a quote the cancel failed keeps its
+ * reason, never a FAILED row without one.
+ */
+export async function restoreCanceledSocialPost(
+  input: RestoreCanceledSocialPostInput,
+): Promise<SocialPostSummary> {
+  if (input.status === "SCHEDULED" && !input.scheduledAt)
+    throw conflict("A scheduled post is restored at its time");
+  const post = await serializableTransaction(async (tx) => {
+    if (input.status === "SCHEDULED")
+      await requireLockedOpenProject(tx, input, {
+        closedMessage: PROJECT_CLOSED_MESSAGE,
+      });
+    else await requireScopedProject(input, { client: tx });
+    const post = await requireScopedPost(input, tx);
+    if (post.status !== "CANCELED")
+      throw conflict("Only a canceled post can be restored");
+    requireRevision(post, input.revision);
+    const restored = await writeWithRevision(
+      input,
+      input.revision,
+      {
+        status: input.status === "SCHEDULED" ? "DRAFT" : input.status,
+        canceledAt: null,
+        scheduledAt: input.scheduledAt,
+        ...(input.timezone ? { timezone: input.timezone } : {}),
+      },
+      tx,
+    );
+    await tx.socialPost.updateMany({
+      where: {
+        quotedPostId: post.id,
+        needsAttentionReason: QUOTED_POST_CANCELLED,
+        status: { in: ["DRAFT", "NEEDS_APPROVAL"] },
+      },
+      data: {
+        needsAttentionReason: null,
+        lastError: null,
+        revision: { increment: 1 },
+      },
+    });
+    if (input.status !== "SCHEDULED" || !input.scheduledAt)
+      return mapSocialPost(restored);
+    return scheduleSocialPost(
+      {
+        projectId: input.projectId,
+        workspaceId: input.workspaceId,
+        userId: input.userId,
+        organizationId: input.organizationId,
+        ...(input.coworkerId ? { coworkerId: input.coworkerId } : {}),
+        postId: restored.id,
+        revision: restored.revision,
+        scheduledAt: input.scheduledAt,
+        ...(input.timezone ? { timezone: input.timezone } : {}),
+      },
+      tx,
+    );
+  }, "Post changed while restoring a Social post");
+  if (post.status === "SCHEDULED")
+    await recordSocialStudioAdEvents({
+      ...input,
+      postId: post.id,
+      type: "scheduled",
+      media: post.media,
+      threadParts: post.threadParts,
+    });
+  return post;
+}
+
 export async function approveSocialPost(
   input: ApproveSocialPostInput,
   tx: Prisma.TransactionClient = prisma,

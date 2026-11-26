@@ -67,6 +67,7 @@ import {
   sokoBotArchiveTaskInputSchema,
   sokoBotAssignTaskInputSchema,
   sokoBotCreateTaskInputSchema,
+  sokoBotFollowUpAllowsSchema,
   sokoBotFollowUpSchema,
   sokoBotLinkTasksInputSchema,
   sokoBotListTasksInputSchema,
@@ -108,6 +109,7 @@ export const sokoBotHireAgentInputSchema = z
     projectId: z.string().uuid().nullable().optional(),
     name: z.string().trim().min(1).max(160).optional(),
     followUp: sokoBotFollowUpSchema.optional(),
+    followUpAllows: sokoBotFollowUpAllowsSchema.optional(),
   })
   .strict();
 
@@ -2230,7 +2232,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   delete_task_schedule:
     "Delete a Task Schedule by scheduleId from list_schedules (scope workspace). Tasks it already made stay. One someone else made needs the owner's yes in their own chat.",
   delete_schedule:
-    "Remove a follow-up schedule once its work is done or the owner no longer wants it; a run of a schedule may always remove its own. Address it by scheduleId or scheduleName exactly as list_schedules returned it. One-time schedules remove themselves after they ran.",
+    "Remove a follow-up schedule once its work is done or the owner no longer wants it. A scheduled run removes or switches off only its own schedule, and only when its brief says to; otherwise it reports and the owner decides. Address it by scheduleId or scheduleName exactly as list_schedules returned it. One-time schedules remove themselves after they ran.",
   list_announcements:
     "List Sokosumi's announcements, newest first, each with announcementId, live (true while users see it; false for a draft or an ended one), title, summary, body, coverUrl, action and how many people closed it. To change a draft, pass every field again with save_announcement; leave coverFileId out to keep its cover. Read-only.",
   save_announcement:

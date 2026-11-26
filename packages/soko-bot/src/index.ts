@@ -184,9 +184,11 @@ export {
 } from "./seo.js";
 export {
   SOKO_BOT_TASK_STATUSES,
+  type SokoBotFollowUpAllows,
   sokoBotArchiveTaskInputSchema,
   sokoBotAssignTaskInputSchema,
   sokoBotCreateTaskInputSchema,
+  sokoBotFollowUpAllowsSchema,
   sokoBotLinkTasksInputSchema,
   sokoBotListTasksInputSchema,
   sokoBotReplyToTaskInputSchema,
@@ -330,6 +332,11 @@ export {
   sokoBotToolDescription,
   versionShowsResultCards,
 } from "./versions/index.js";
+export {
+  TURN_TOOL_PROFILES,
+  type TurnToolProfile,
+  versionIntegrityProblems,
+} from "./versions/integrity.js";
 export {
   SKILL_INDEX,
   type SkillOccasion,

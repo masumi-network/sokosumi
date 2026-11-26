@@ -237,10 +237,12 @@ describe("finishTurn", () => {
     });
   });
 
-  it("drops a message that claims an action no receipt proves", async () => {
-    const warnings = expectCoreLogWhys("warn", "Withheld a Soko Bot reply", [
-      "The reply claims a change that no action receipt confirms",
-    ]);
+  it("drops a message that is nothing but a claim no receipt proves", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
     claimsActionMock.mockResolvedValue(true);
     await finish("I created the task and assigned it to Hannah.", true);
     expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
@@ -248,9 +250,146 @@ describe("finishTurn", () => {
     });
     // Counted, never quoted.
     expect(warnings[0]?.event).toMatchObject({
-      replyWithheld: { reason: "claims_unconfirmed_change" },
+      replyChecked: { reason: "claims_unconfirmed_change" },
     });
     expect(JSON.stringify(warnings[0]?.event)).not.toContain("Hannah");
+  });
+
+  it("keeps the rest of a reply when only one sentence claims a change", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    await finish(
+      "Your Padierfind project has an X account. I created the schedule. Approve the draft when you are ready?",
+      true,
+    );
+    const narrative = buildActionResponseMock.mock.calls[0][4];
+    expect(narrative.message).toBe(
+      "Your Padierfind project has an X account. Approve the draft when you are ready?",
+    );
+    // The note is Core's, rendered beside the message, not inside it.
+    expect(narrative.replyCheck).toBe("cut");
+    expect(claimsActionMock).toHaveBeenLastCalledWith(
+      "Your Padierfind project has an X account. Approve the draft when you are ready?",
+      [],
+    );
+  });
+
+  it("keeps a blocker that negates a list of changes", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    await finish(
+      "I created the schedule. The post has not been drafted, scheduled, or published because the X account needs your approval. Nothing was posted — I drafted it.",
+      true,
+    );
+    expect(buildActionResponseMock.mock.calls[0][4].message).toBe(
+      "The post has not been drafted, scheduled, or published because the X account needs your approval.",
+    );
+  });
+
+  it("cuts only the bot's own claims and keeps what others did", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    await finish(
+      [
+        "Hannah sent the recording on Monday.",
+        "The reviewer added two comments to the Task.",
+        "I created the weekly schedule.",
+        "The draft was saved to your Project.",
+        "Drafted three options for you.",
+      ].join(" "),
+      true,
+    );
+    expect(buildActionResponseMock.mock.calls[0][4].message).toBe(
+      "Hannah sent the recording on Monday. The reviewer added two comments to the Task.",
+    );
+  });
+
+  it("does not read a comma between two verbs as one negated list", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    await finish(
+      "The review is in. Nothing was posted, drafted 3 options for you. No posts were published, saved the draft instead. It was not drafted or posted yet.",
+      true,
+    );
+    expect(buildActionResponseMock.mock.calls[0][4].message).toBe(
+      "The review is in. It was not drafted or posted yet.",
+    );
+  });
+
+  it("does not keep a claim because an earlier clause is negative", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    await finish(
+      "The research is in. No one objected, so I created the schedule. Nothing was posted, I drafted it for you.",
+      true,
+    );
+    expect(buildActionResponseMock.mock.calls[0][4].message).toBe(
+      "The research is in.",
+    );
+  });
+
+  it("shows the cut reply as unchecked when the second check cannot run", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(null);
+    await finish(
+      "Your Padierfind project has an X account. I created the schedule.",
+      true,
+    );
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: "Your Padierfind project has an X account.",
+      replyCheck: "unchecked",
+    });
+  });
+
+  it("keeps a true blocker when it cuts an unconfirmed claim", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    await finish(
+      "I sent the brief to Hannah. No posts have been drafted because the account still needs approval. I created the schedule. I scheduled the post, which needs your approval.",
+      true,
+    );
+    expect(buildActionResponseMock.mock.calls[0][4].message).toBe(
+      "No posts have been drafted because the account still needs approval.",
+    );
+  });
+
+  it("drops what is left when it still claims a change", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValue(true);
+    await finish("Hannah is on it now. I created the schedule.", true);
+    expect(buildActionResponseMock.mock.calls[0][4].message).toBeNull();
   });
 
   it("lets the message report the changes its receipts confirm", async () => {
@@ -319,15 +458,52 @@ describe("finishTurn", () => {
     );
   });
 
-  it("says so when the message could not be checked", async () => {
-    expectCoreLogWhys("warn", "Withheld a Soko Bot reply", [
-      "The check for claims of unconfirmed changes could not run",
-    ]);
-    claimsActionMock.mockResolvedValue(null);
-    await finish("Here is what I found.", true);
-    expect(buildActionResponseMock.mock.calls[0][4].message).toContain(
-      "could not be checked",
-    );
+  describe("when the check cannot run", () => {
+    beforeEach(() => {
+      expectCoreLogWhys(
+        "warn",
+        "Showed a Soko Bot reply its claim check could not check",
+        ["The check for claims of unconfirmed changes could not run"],
+      );
+      claimsActionMock.mockResolvedValue(null);
+    });
+
+    it("shows the reply, never withholds it", async () => {
+      await finish("Here is what I found: two X accounts.", true);
+      const narrative = buildActionResponseMock.mock.calls[0][4];
+      expect(narrative.message).toBe("Here is what I found: two X accounts.");
+      expect(narrative.replyCheck).toBe("unchecked");
+    });
+
+    it("never lets an unconfirmed claim through", async () => {
+      // Joseph's prod turn: only a message was sent.
+      await finish(
+        "I created the weekly schedule and drafted three posts.",
+        true,
+      );
+      expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+        message: null,
+        replyCheck: "unchecked",
+      });
+    });
+
+    it("cuts the claim from a reply at the length limit, keeping the rest", async () => {
+      const body = [
+        "I created the weekly schedule.",
+        ...Array.from(
+          { length: 160 },
+          (_, i) =>
+            `Week ${i + 1}: the team is reviewing the available time slots.`,
+        ),
+      ]
+        .join("\n")
+        .slice(0, 7_960);
+      await finish(body, true);
+      const message = buildActionResponseMock.mock.calls[0][4].message;
+      expect(message).not.toContain("I created the weekly schedule.");
+      expect(message).toContain("Week 1: the team is reviewing");
+      expect(message.length).toBeLessThanOrEqual(8_000);
+    });
   });
 
   it("checks the stored message too, which settlement shows again", async () => {

@@ -166,7 +166,7 @@ describe("saveTaskSchedule", () => {
     await expect(
       saveTaskSchedule(
         runtime,
-        call({ scheduleId: SCHEDULE.id, state: "PAUSED" }),
+        call({ scheduleId: SCHEDULE.id, name: "Renamed" }),
         authorized({ source: "SCHEDULE" }),
       ),
     ).rejects.toThrow(/made by someone else/);
@@ -229,6 +229,47 @@ describe("saveTaskSchedule retries and states", () => {
       authorized(),
     );
     expect(mocks.changeState).not.toHaveBeenCalled();
+  });
+});
+
+describe("a scheduled run", () => {
+  it("never deletes, pauses or ends a Task Schedule", async () => {
+    const run = authorized({ source: "SCHEDULE" });
+    for (const change of [
+      { state: "PAUSED" },
+      { state: "ENDED" },
+      { endsOn: "2026-12-31" },
+      { endsAfterRuns: 1 },
+    ])
+      await expect(
+        saveTaskSchedule(
+          runtime,
+          call({ scheduleId: SCHEDULE.id, ...change }),
+          run,
+        ),
+      ).rejects.toThrow(/scheduled run doesn't delete, pause or end/);
+    expect(mocks.update).not.toHaveBeenCalled();
+    // Nor does it make a new one already paused (Codex round 15).
+    await expect(
+      saveTaskSchedule(
+        runtime,
+        call({ name: "x", cron: "0 9 * * *", state: "PAUSED" }),
+        run,
+      ),
+    ).rejects.toThrow(/scheduled run doesn't delete, pause or end/);
+    expect(mocks.create).not.toHaveBeenCalled();
+    await expect(
+      removeTaskSchedule(
+        runtime,
+        {
+          ...call({ scheduleId: SCHEDULE.id }),
+          capability: "delete_task_schedule",
+        },
+        run,
+      ),
+    ).rejects.toThrow(/scheduled run doesn't delete, pause or end/);
+    expect(mocks.changeState).not.toHaveBeenCalled();
+    expect(mocks.remove).not.toHaveBeenCalled();
   });
 });
 

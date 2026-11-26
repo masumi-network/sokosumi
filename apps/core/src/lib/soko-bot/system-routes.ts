@@ -1,8 +1,10 @@
 import {
   capabilitiesForClassification,
+  getSokoBotVersion,
   isSokoBotCapability,
   isSokoBotSandboxCapability,
   SOKO_BOT_CAPABILITIES,
+  SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
 import {
@@ -26,6 +28,84 @@ function withMailFiling(preset: PresetRoute): PresetRoute {
         presetClassificationResult("", preset).classification,
       ),
       "save_email_attachment",
+    ],
+  };
+}
+
+/** Turns Core starts when delegated work changes (`sokoBotEventClientTurnId`). */
+export const DELEGATION_EVENT_TURN_PREFIX = "event:";
+
+/**
+ * A turn Core starts when delegated work comes back acts on a Coworker's or
+ * Agent's result, which nobody has read yet: a post it makes stays a draft
+ * for the owner to approve. Cuso's own approved posting is not such a turn.
+ */
+export function delegationEventPostRefusal(
+  turn: { clientTurnId: string | null; versionId: string | null },
+  input: { capability: string; input: unknown },
+): string | null {
+  if (
+    !turn.clientTurnId?.startsWith(DELEGATION_EVENT_TURN_PREFIX) ||
+    getSokoBotVersion(turn.versionId).profile === "cmo"
+  )
+    return null;
+  const schedules =
+    input.capability === "publish_social_post" ||
+    input.capability === "schedule_social_post" ||
+    (input.capability === "create_social_post" &&
+      typeof input.input === "object" &&
+      input.input !== null &&
+      "scheduledAt" in input.input &&
+      Boolean(input.input.scheduledAt));
+  return schedules
+    ? "This turn acts on delegated work that came back, so a post stays a draft for the owner's approval: create it without scheduledAt, and tell the owner it is ready to approve. Publishing and scheduling wait for their OK in chat."
+    : null;
+}
+
+/**
+ * What a follow-up never inherits from the owner's request: anything that
+ * reaches other people or the owner's connected accounts, hiring, sending,
+ * runs and deletions. It acts on a result nobody has read yet; those wait for
+ * the owner's next message. A post it makes stays a draft (`social.ts`).
+ */
+const NOT_INHERITED_BY_FOLLOW_UPS = new Set<string>([
+  ...SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
+  "hire_agent",
+  "provide_job_input",
+  "send_email_draft",
+  "start_background_run",
+  "stop_background_run",
+]);
+
+/**
+ * The delegation event route plus the writes of the owner's request that
+ * attached the follow-up, as schedules and watches inherit their writer's
+ * tools. "Research this, then prepare a post for me to approve" came back
+ * with the research to a turn that could not draft the post (owner
+ * benchmark, 2026-11-26).
+ */
+export function inheritedFollowUpRoute(
+  ownerGranted: readonly string[],
+): PresetRoute {
+  const preset = SYSTEM_TURN_ROUTES.events;
+  const inherited = ownerGranted.filter(
+    (name): name is SokoBotCapability =>
+      isSokoBotCapability(name) &&
+      !isSokoBotSandboxCapability(name) &&
+      !NOT_INHERITED_BY_FOLLOW_UPS.has(name) &&
+      !/^(delete|remove)_/.test(name),
+  );
+  if (!inherited.length) return preset;
+  return {
+    ...preset,
+    reason: "Delegation event: carry out the owner's follow-up plan.",
+    capabilities: [
+      ...new Set([
+        ...capabilitiesForClassification(
+          presetClassificationResult("", preset).classification,
+        ),
+        ...inherited,
+      ]),
     ],
   };
 }
