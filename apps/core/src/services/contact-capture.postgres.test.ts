@@ -1177,6 +1177,16 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
 
       const run = await service().captureWorkspace(xWorkspaceId, () => true);
       expect(run.capture).toMatchObject({ errors: [], unsupported: [] });
+      // A version without the X messages skill keeps no DMs.
+      expect(
+        await prisma.sokoBotIntegration.findFirstOrThrow({
+          where: {
+            sokoBot: { workspaceId: xWorkspaceId },
+            provider: "twitter",
+          },
+          select: { cursor: true },
+        }),
+      ).toEqual({ cursor: null });
 
       const contacts = await contactsOf(xWorkspaceId);
       expect(contacts.map((contact) => contact.name).sort()).toEqual([
@@ -1304,6 +1314,11 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         data: { id: quietWorkspaceId, organizationId: quietOrganizationId },
       });
       const quietBot = await addBot(quietWorkspaceId, ["twitter"]);
+      // Only a version with the X messages skill keeps DMs.
+      await prisma.sokoBot.update({
+        where: { id: quietBot.id },
+        data: { versionId: "v37" },
+      });
       const start = Date.now();
       let clock = new Date(start);
       let events = [

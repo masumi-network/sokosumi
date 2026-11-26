@@ -1,5 +1,6 @@
 import type { SokoBotVersion } from "./types.js";
 import { v36 } from "./v36.js";
+import { X_DMS_SKILL_ID } from "./x-dms-skills.js";
 
 export const v37: SokoBotVersion = {
   ...v36,
@@ -11,6 +12,6 @@ export const v37: SokoBotVersion = {
   releaseNote:
     "I now check your X direct messages like your mail: they're in your morning briefing, I tell you right away when one is urgent, and you can ask me \"any new X DMs?\". They stay between us, and I never reply on X on my own: I'll draft an answer for you instead.",
   skills: v36.skills.map((skill) =>
-    skill === "inbox-and-calendar" ? "inbox-calendar-x" : skill,
+    skill === "inbox-and-calendar" ? X_DMS_SKILL_ID : skill,
   ),
 };

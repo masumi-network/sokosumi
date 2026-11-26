@@ -15,10 +15,20 @@ const inbox = COMPACT_SOKO_BOT_SKILLS.find(
 );
 if (!inbox) throw new Error("x-dms-skills: inbox-and-calendar skill missing");
 
+/**
+ * The skill a version carries to read the owner's X direct messages. Core
+ * keeps, triages and shows X DMs only for a bot whose version has it.
+ */
+export const X_DMS_SKILL_ID = "inbox-calendar-x";
+
+export function sokoBotReadsXDms(skills: readonly string[]): boolean {
+  return skills.includes(X_DMS_SKILL_ID);
+}
+
 /** v37: the inbox skill with the owner's X direct messages. */
 export const X_DMS_SOKO_BOT_SKILLS: readonly SokoBotSkill[] = [
   {
-    id: "inbox-calendar-x",
+    id: X_DMS_SKILL_ID,
     name: "Inbox, calendar & X messages",
     description:
       "Reads connected mail, calendars and the owner's X direct messages, writes the morning briefing, flags what needs the owner, and sends only on the owner's explicit word.",

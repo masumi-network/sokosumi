@@ -1,6 +1,8 @@
-import type {
-  SokoBotInboxMessage,
-  SokoBotInboxMessageDetail,
+import {
+  getSokoBotVersion,
+  type SokoBotInboxMessage,
+  type SokoBotInboxMessageDetail,
+  sokoBotReadsXDms,
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { type TriagedMail, triageMail } from "@/lib/soko-bot/mail-triage";
@@ -32,7 +34,13 @@ export async function ownerXDms(
   messages: SokoBotInboxMessage[];
   markSeen: (now: Date) => Promise<void>;
 }> {
-  if (!bot.userId) return { messages: [], markSeen: async () => undefined };
+  const none = { messages: [], markSeen: async () => undefined };
+  if (!bot.userId) return none;
+  const { versionId } = await prisma.sokoBot.findUniqueOrThrow({
+    where: { id: bot.id },
+    select: { versionId: true },
+  });
+  if (!sokoBotReadsXDms(getSokoBotVersion(versionId).skills)) return none;
   const integrations = await activeIntegrationsForBot(
     bot.id,
     "generic",

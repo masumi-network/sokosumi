@@ -1,9 +1,11 @@
 import {
+  getSokoBotVersion,
   isCmoMeasurementSource,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   sokoBotDraftEmailInputSchema,
   sokoBotListIntegrationToolsInputSchema,
   sokoBotReadEmailInputSchema,
+  sokoBotReadsXDms,
   sokoBotRunIntegrationToolInputSchema,
   sokoBotSaveEmailAttachmentInputSchema,
   sokoBotSearchInboxInputSchema,
@@ -45,7 +47,7 @@ import { type RuntimeOperations } from "./operations";
  * with tools Composio marks read-only.
  */
 /**
- * Whether this turn may read the owner's X direct messages: a personal bot
+ * Whether this turn may see the owner's private X direct messages: a personal bot
  * on its owner's own turn or rhythm, answering in a private chat. Never a
  * teammate, another bot, a shared bot or a shared room.
  */
@@ -70,7 +72,7 @@ async function xDmToolRefusal(
       ? null
       : "X direct messages are sent only when the owner asks for that message in their own chat. Offer a draft reply instead.";
   if (X_DM_READ.test(slug))
-    return (await readsOwnerXDms(authorized))
+    return (await ownerPrivateTurn(authorized))
       ? null
       : "X direct messages are private to the owner and read only in their own chat.";
   return null;
@@ -83,11 +85,11 @@ async function ownerAskedThisTurn(
   return (
     authorized.askedByKind === "OWNER" &&
     authorized.turn.source === "CHAT" &&
-    (await readsOwnerXDms(authorized))
+    (await ownerPrivateTurn(authorized))
   );
 }
 
-async function readsOwnerXDms(
+async function ownerPrivateTurn(
   authorized: AuthorizedSokoBotRuntime,
 ): Promise<boolean> {
   if (!ownerDirectReader(authorized)) return false;
@@ -176,7 +178,8 @@ export async function dispatchIntegrationsTools(
       const readsX =
         (!parsed.provider || parsed.provider === X_INBOX_PROVIDER) &&
         !parsed.pageToken &&
-        (await readsOwnerXDms(authorized));
+        sokoBotReadsXDms(getSokoBotVersion(authorized.turn.versionId).skills) &&
+        (await ownerPrivateTurn(authorized));
       const result = await readSokoBotSource({
         source: "MAIL",
         filters: {
@@ -226,9 +229,12 @@ export async function dispatchIntegrationsTools(
     case "read_email": {
       const parsed = sokoBotReadEmailInputSchema.parse(input.input);
       if (parsed.provider === X_INBOX_PROVIDER) {
-        const message = (await readsOwnerXDms(authorized))
-          ? await readXDm(authorized.turn.sokoBotId, parsed.messageId)
-          : null;
+        const message =
+          sokoBotReadsXDms(
+            getSokoBotVersion(authorized.turn.versionId).skills,
+          ) && (await ownerPrivateTurn(authorized))
+            ? await readXDm(authorized.turn.sokoBotId, parsed.messageId)
+            : null;
         if (!message)
           throw new SokoBotRuntimeValidationError(
             "No X direct message with that id from the last day for the owner",

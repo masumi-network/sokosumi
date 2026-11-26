@@ -11,8 +11,10 @@
  */
 import type { Prisma } from "@sokosumi/database";
 import {
+  getSokoBotVersion,
   SOKO_BOT_SLACK_CAPTURE_TOOLS,
   SOKO_BOT_X_CAPTURE_TOOLS,
+  sokoBotReadsXDms,
 } from "@sokosumi/soko-bot";
 import {
   CONTACT_LIST_COLORS,
@@ -338,7 +340,12 @@ interface CaptureRow {
   composioAccountId: string;
   connectorUserId: string | null;
   cursor: Prisma.JsonValue | null;
-  sokoBot: { id: string; userId: string | null; workspaceId: string };
+  sokoBot: {
+    id: string;
+    userId: string | null;
+    workspaceId: string;
+    versionId: string | null;
+  };
   contactCaptureState: {
     id: string;
     backfillFloor: Date;
@@ -391,7 +398,9 @@ async function loadCaptureRows(workspaceId?: string): Promise<CaptureRow[]> {
       composioAccountId: true,
       connectorUserId: true,
       cursor: true,
-      sokoBot: { select: { id: true, userId: true, workspaceId: true } },
+      sokoBot: {
+        select: { id: true, userId: true, workspaceId: true, versionId: true },
+      },
       contactCaptureState: {
         select: {
           id: true,
@@ -1589,8 +1598,11 @@ export class ContactCaptureService {
         return true;
       }
     } else if (!probe.nextToken) return true;
-    // A personal bot's owner reads their new DMs through it (x-inbox).
-    const keepsDms = context.row.sokoBot.userId === context.teammateUserId;
+    // A personal bot's owner reads their new DMs through it (x-inbox), on a
+    // version that reads them.
+    const keepsDms =
+      context.row.sokoBot.userId === context.teammateUserId &&
+      sokoBotReadsXDms(getSokoBotVersion(context.row.sokoBot.versionId).skills);
     const events: XDmEvent[] = [];
     const users = new Map<string, XUser>();
     let token: string | null = null;
