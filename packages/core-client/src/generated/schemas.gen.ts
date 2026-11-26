@@ -243,6 +243,16 @@ export const AdminSeoAlertsSchema = {
                             'otherApiMicroUsd'
                         ],
                         additionalProperties: false
+                    },
+                    costDetail: {
+                        anyOf: [
+                            {
+                                $ref: '#/components/schemas/SeoFullAuditCostDetail'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
                     }
                 },
                 required: [
@@ -257,7 +267,8 @@ export const AdminSeoAlertsSchema = {
                     'attemptedCredits',
                     'dataBudgetUsd',
                     'chargedCredits',
-                    'cost'
+                    'cost',
+                    'costDetail'
                 ]
             }
         },
@@ -469,6 +480,126 @@ export const AdminSeoAlertsSchema = {
         'connections',
         'items'
     ]
+} as const;
+
+export const SeoFullAuditCostDetailSchema = {
+    type: 'object',
+    properties: {
+        version: {
+            type: 'number',
+            enum: [
+                1
+            ]
+        },
+        models: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    model: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 200
+                    },
+                    provider: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 1,
+                        maxLength: 200
+                    },
+                    calls: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    microUsd: {
+                        type: [
+                            'integer',
+                            'null'
+                        ],
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'model',
+                    'provider',
+                    'calls',
+                    'microUsd'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 200
+        },
+        dataForSeo: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    endpoint: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 200
+                    },
+                    reads: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    microUsd: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'endpoint',
+                    'reads',
+                    'microUsd'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 200
+        },
+        steps: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    step: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 200
+                    },
+                    modelMicroUsd: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    dataForSeoMicroUsd: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    otherApiMicroUsd: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'step',
+                    'modelMicroUsd',
+                    'dataForSeoMicroUsd',
+                    'otherApiMicroUsd'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 200
+        }
+    },
+    required: [
+        'version',
+        'models',
+        'dataForSeo',
+        'steps'
+    ],
+    additionalProperties: false
 } as const;
 
 export const AdminAgentListSchema = {

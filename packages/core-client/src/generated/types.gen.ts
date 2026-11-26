@@ -69,6 +69,7 @@ export type AdminSeoAlerts = {
             dataForSeoMicroUsd: number;
             otherApiMicroUsd: number;
         } | null;
+        costDetail: SeoFullAuditCostDetail | null;
     }>;
     connectionTotal: number;
     reconnect: number;
@@ -95,6 +96,27 @@ export type AdminSeoAlerts = {
         reasons: Array<'priceUnverified' | 'priceUnpaid' | 'dataBudgetExceeded' | 'priceReceiptPending' | 'priceNeedsCredits' | 'priceRetry' | 'workerOverdue' | 'workerFailed' | 'auditFailed' | 'reportRejected' | 'pageException' | 'pageFailureRate' | 'seasonalFailed' | 'explorationFailed' | 'investigationFailed' | 'speedPagesFailed' | 'editorialGemini' | 'editorialCodex' | 'editorialValidation' | 'webRiskNotRun' | 'webRiskFailed' | 'lighthouseFailed' | 'reportMissing' | 'gscDisconnected' | 'gscProperty' | 'gscUnavailable' | 'gscSkipped'>;
         failedPages: number;
         attemptedPages: number;
+    }>;
+};
+
+export type SeoFullAuditCostDetail = {
+    version: 1;
+    models: Array<{
+        model: string;
+        provider: string | null;
+        calls: number;
+        microUsd: number | null;
+    }>;
+    dataForSeo: Array<{
+        endpoint: string;
+        reads: number;
+        microUsd: number;
+    }>;
+    steps: Array<{
+        step: string;
+        modelMicroUsd: number;
+        dataForSeoMicroUsd: number;
+        otherApiMicroUsd: number;
     }>;
 };
 
@@ -112204,6 +112226,10 @@ export type PostTasksByIdEventsSeoSettlementV1Data = {
             dataForSeoMicroUsd: number;
             otherApiMicroUsd: number;
         };
+        /**
+         * Optional display-only cost breakdown (SeoFullAuditCostDetail). An invalid detail is not stored and does not change the charge.
+         */
+        fullAuditCostDetail?: unknown;
     };
     path: {
         id: string;
