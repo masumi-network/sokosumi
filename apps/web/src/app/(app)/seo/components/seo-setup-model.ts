@@ -123,7 +123,8 @@ function seoRunReady(workspace: ProjectSeoWorkspace) {
 
 /**
  * The run of the checks card: the widest check this workspace can run on its pages.
- * A full audit needs paid search data and pages on one host. Null where the reader can run no check at all.
+ * A full audit needs paid search data and pages on one host. After a failed free first check, the free page check again.
+ * Null where the reader can run no check at all.
  */
 export function seoRunAction(workspace: ProjectSeoWorkspace) {
   const { canEdit, canUsePaidSearchData, canRequestAnalysis } =
@@ -137,7 +138,15 @@ export function seoRunAction(workspace: ProjectSeoWorkspace) {
       .filter((page) => pageIds.has(page.id))
       .map((page) => new URL(page.url).host),
   );
-  const full = canUsePaidSearchData === true && hosts.size === 1;
+  // The first check is free: after it failed, the reader gets it again, not the paid check.
+  const newest = newestAnalysis(workspace.analyses);
+  const retriesFreeFirstCheck =
+    !workspace.observations.length &&
+    !workspace.runs?.length &&
+    newest?.status === "failed" &&
+    newest.kind === "page_check";
+  const full =
+    canUsePaidSearchData === true && hosts.size === 1 && !retriesFreeFirstCheck;
   return {
     kind: full ? "audit_full" : "page_check",
     label: running
