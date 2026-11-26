@@ -143,6 +143,7 @@ vi.mock("@/services/x-subscription-tier.service", async (importOriginal) => ({
 import prisma from "@/lib/db/prisma";
 import { sokoBotRuntimeService } from "@/services/soko-bot-runtime.service";
 import { pngBytes } from "@/test/image-bytes";
+import { withFixtureSchemas } from "@/test/split-layout";
 
 describe.skipIf(!enabled)("a follow-up's images and draft, end to end", () => {
   const ownerId = randomUUID();
@@ -262,11 +263,14 @@ describe.skipIf(!enabled)("a follow-up's images and draft, end to end", () => {
         workspace: { create: { id: workspaceId } },
       },
     });
-    projectId = (
-      await prisma.project.create({
-        data: { workspaceId, name: "Follow-up media fixture" },
-      })
-    ).id;
+    projectId = await withFixtureSchemas(
+      async (tx) =>
+        (
+          await tx.project.create({
+            data: { workspaceId, name: "Follow-up media fixture" },
+          })
+        ).id,
+    );
     await prisma.sokoBot.create({
       data: { id: sokoBotId, userId: ownerId, workspaceId },
     });
@@ -291,16 +295,19 @@ describe.skipIf(!enabled)("a follow-up's images and draft, end to end", () => {
     requestedAccount = await connection("requested");
   });
 
+  // Keyed by the ids fixed up front, so a setup that stopped part way is
+  // still cleaned up; each delete matches nothing when its rows never came.
   afterAll(async () => {
-    if (!projectId) return;
-    await prisma.socialPost.deleteMany({ where: { projectId } });
-    await prisma.projectImageAsset.deleteMany({ where: { projectId } });
-    await prisma.projectImageJob.deleteMany({ where: { projectId } });
-    await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId } });
-    await prisma.sokoBot.deleteMany({ where: { id: sokoBotId } });
-    await prisma.fileResource.deleteMany({ where: { workspaceId } });
-    await prisma.project.deleteMany({ where: { id: projectId } });
-    await prisma.user.deleteMany({ where: { id: ownerId } });
+    await withFixtureSchemas(async (tx) => {
+      await tx.socialPost.deleteMany({ where: { workspaceId } });
+      await tx.projectImageAsset.deleteMany({ where: { workspaceId } });
+      await tx.projectImageJob.deleteMany({ where: { workspaceId } });
+      await tx.sokoBotTurn.deleteMany({ where: { sokoBotId } });
+      await tx.sokoBot.deleteMany({ where: { id: sokoBotId } });
+      await tx.fileResource.deleteMany({ where: { workspaceId } });
+      await tx.project.deleteMany({ where: { workspaceId } });
+      await tx.user.deleteMany({ where: { id: ownerId } });
+    });
   });
 
   beforeEach(() => {
