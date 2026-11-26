@@ -362,15 +362,20 @@ export function readPageSpeed(
   return rows;
 }
 
-/** A history the schema reads, with its weeks oldest first as a fresh import stores them. */
-function orderedHistory(history: unknown) {
+/**
+ * A stored history as a fresh import stores it. None: the schema refuses it, or its weeks are not oldest
+ * first. Only a comparable history holds a series, and a metric stays only with one value per week.
+ */
+function storedHistory(history: unknown): SpeedHistory | undefined {
   const read = speedHistory.safeParse(history);
-  return (
-    read.success &&
-    (read.data.weeks ?? []).every(
-      (day, i, weeks) => i === 0 || day > weeks[i - 1]!,
-    )
-  );
+  if (!read.success) return undefined;
+  const { status, weeks } = read.data;
+  if (status !== "comparable" || !weeks) return { status };
+  if (weeks.some((day, i) => i > 0 && day <= weeks[i - 1]!)) return undefined;
+  const kept: SpeedHistory = { status, weeks };
+  for (const key of ["lcp", "inp", "cls"] as const)
+    if (read.data[key]?.length === weeks.length) kept[key] = read.data[key];
+  return kept;
 }
 
 /**
@@ -380,56 +385,71 @@ function orderedHistory(history: unknown) {
  */
 export function readableStoredMeasurement(value: unknown): unknown[] {
   const row = reportObject(value);
+  const [pageUrl, testedUrl] = [row?.pageUrl, row?.testedUrl].map(speedPageUrl);
+  // The tested page is the page or a redirect on its host, as on a fresh import.
   if (
     !row ||
-    ![row.pageUrl, row.testedUrl].map(speedPageUrl).every(publicSpeedUrl)
+    !publicSpeedUrl(pageUrl) ||
+    !publicSpeedUrl(testedUrl) ||
+    !publicLanding(new URL(pageUrl), testedUrl)
   )
     return [];
   const read = { ...row };
   const field = reportObject(row.field);
   if (field) {
     const { history, ...measured } = field;
+    let foreign = false;
     if (field.url != null) {
       const url = speedFieldUrl(field.url);
       if (!url) return [];
       measured.url = url;
+      // Field data is of the tested page's origin; origin data names the origin.
+      foreign =
+        new URL(url).origin !== new URL(testedUrl).origin ||
+        (field.level === "origin" && new URL(url).pathname !== "/");
     }
     // A comparable history with a series that is no object reads as a fresh import reads it: unavailable.
     const series = reportObject(history)?.series;
-    read.field =
-      history === undefined || !orderedHistory(history)
+    const kept = storedHistory(history);
+    read.field = foreign
+      ? { status: "unavailable" }
+      : !kept
         ? measured
-        : reportObject(history)?.status === "comparable" &&
+        : kept.status === "comparable" &&
             series != null &&
             !reportObject(series)
           ? { ...measured, history: { status: "unavailable" } }
-          : { ...measured, history };
+          : { ...measured, history: kept };
   }
   const lab = reportObject(row.lab);
-  const details = reportObject(lab?.pageSpeed);
-  if (lab)
+  if (lab) {
+    const { pageSpeed, ...measured } = lab;
+    const details = reportObject(pageSpeed);
+    const scores = lighthouseScores.safeParse(details?.scores);
+    const measuredAt = z.string().datetime().safeParse(details?.measuredAt);
     read.lab = {
-      ...lab,
+      ...measured,
       // A measured lab without the version reads as a fresh import reads it: null.
       ...(("lighthouse" in lab || "median" in lab) && {
         lighthouse: speedLighthouseVersion(lab.lighthouse),
       }),
-      ...(details &&
-        Array.isArray(details.insights) && {
-          pageSpeed: {
-            ...details,
-            // An insight the schema refuses goes, as on a fresh import: not its device.
-            // The first 20 are read, as on a fresh import: a longer list does not cost the device.
-            insights: details.insights
-              .slice(0, SPEED_INSIGHTS)
-              .filter(
-                (item) =>
-                  speedInsight.safeParse(item).success &&
-                  publicSpeedInsight(item),
-              ),
-          },
-        }),
+      // The details read as a fresh import reads them: a part Core cannot read does not cost the device.
+      ...(details && {
+        pageSpeed: {
+          scores: scores.success ? scores.data : {},
+          // The first 20 are read: a longer list does not cost the device.
+          insights: (Array.isArray(details.insights) ? details.insights : [])
+            .slice(0, SPEED_INSIGHTS)
+            .filter(
+              (item) =>
+                speedInsight.safeParse(item).success &&
+                publicSpeedInsight(item),
+            ),
+          ...(measuredAt.success && { measuredAt: measuredAt.data }),
+        },
+      }),
     };
+  }
   return [read];
 }
 

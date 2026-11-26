@@ -414,6 +414,24 @@ describe("imported full-audit PageSpeed evidence", () => {
     expect(
       read.pageSpeed?.find((item) => item.device === row.device)?.lab,
     ).toMatchObject({ pageSpeed: { insights: { length: 20 } } });
+    // A part of the details Core cannot read goes, as on a fresh import: the device stays.
+    const labOf = (details: unknown) => {
+      row.lab.pageSpeed = details;
+      const kept = publicSeoPayloadSchema
+        .parse(stored)
+        .pageSpeed?.find((item) => item.device === row.device)?.lab;
+      return kept?.status === "measured" ? (kept.pageSpeed ?? "none") : kept;
+    };
+    const { scores } = row.lab.pageSpeed;
+    expect(labOf(null)).toBe("none");
+    expect(labOf({ scores, insights: null })).toEqual({ scores, insights: [] });
+    expect(labOf({ scores: { performance: 150 }, insights: [valid] })).toEqual({
+      scores: {},
+      insights: [valid],
+    });
+    expect(
+      labOf({ scores, insights: [valid], measuredAt: "not-a-date" }),
+    ).toEqual({ scores, insights: [valid] });
   });
 
   it("reads a stored collection that is no array as absent and keeps the first 20 measurements", () => {
@@ -693,6 +711,43 @@ describe("CrUX History on a measured field", () => {
     expect(
       publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.field,
     ).toMatchObject({ history: { weeks: three } });
+    // Only a comparable history holds a series, and a metric has one value per week.
+    const historyOfStored = (history: object) => {
+      stored.pageSpeed[0].field.history = history;
+      const field = publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.field;
+      return field && "history" in field ? field.history : "none";
+    };
+    expect(
+      historyOfStored({
+        status: "incompatible_population",
+        weeks: three,
+        lcp: [1, 2, 3],
+      }),
+    ).toEqual({ status: "incompatible_population" });
+    expect(
+      historyOfStored({
+        status: "comparable",
+        weeks: three,
+        lcp: [1, 2, 3],
+        inp: [1, 2],
+      }),
+    ).toEqual({ status: "comparable", weeks: three, lcp: [1, 2, 3] });
+    expect(historyOfStored({ status: "comparable", lcp: [1, 2, 3] })).toEqual({
+      status: "comparable",
+    });
+    // Field data of another host is no data of the tested page; a tested page of another host is no measurement.
+    delete stored.pageSpeed[0].field.history;
+    stored.pageSpeed[0].field.url = "https://other.test/books";
+    expect(publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.field).toEqual({
+      status: "unavailable",
+    });
+    stored.pageSpeed[0].field.url = SEO_TEST_PAGE;
+    stored.pageSpeed[0].testedUrl = "https://other.test/books";
+    expect(
+      publicSeoPayloadSchema
+        .parse(stored)
+        .pageSpeed?.some((row) => row.testedUrl.includes("other.test")),
+    ).toBe(false);
   });
 
   it("drops a stored history it cannot read and keeps the measurement and the audit", () => {
