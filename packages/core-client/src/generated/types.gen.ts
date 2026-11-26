@@ -13567,6 +13567,10 @@ export type ProjectSeoRunDiff = {
     to: Date;
     comparable: boolean;
     reason?: 'market' | 'rulebook' | 'pages';
+    rulebookChange?: {
+        compared: number;
+        other: number;
+    };
     new: Array<{
         rowId: string;
         title: string;

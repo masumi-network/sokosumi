@@ -53786,6 +53786,23 @@ export const ProjectSeoRunDiffSchema = {
                 'pages'
             ]
         },
+        rulebookChange: {
+            type: 'object',
+            properties: {
+                compared: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                other: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'compared',
+                'other'
+            ]
+        },
         new: {
             type: 'array',
             items: {

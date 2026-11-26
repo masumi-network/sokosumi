@@ -28,6 +28,8 @@ export const seoRunDiffSchema = z
     comparable: z.boolean(),
     /** Another Market, another rulebook, or a check that read only some of the selected pages. */
     reason: z.enum(["market", "rulebook", "pages"]).optional(),
+    /** Set where the rulebook changed: only the rules both checks tested are compared, `other` rules only one tested. */
+    rulebookChange: z.object({ compared: count, other: count }).optional(),
     new: issues,
     newCount: count,
     fixed: issues,

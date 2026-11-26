@@ -146,17 +146,18 @@ describe("withSeoRunDiffs", () => {
   });
 
   it.each([
-    ["rulebook", { rulebookVersion: "r2" }],
-    ["market", { countryCode: "DE", languageCode: "de" }],
+    // Across a rulebook change only shared rules are compared: here the two checks share none.
+    ["rulebook", { rulebookVersion: "r2" }, "Z"],
+    ["market", { countryCode: "DE", languageCode: "de" }, "A"],
   ] as const)(
     "does not compare across another %s: no issue reads as new",
-    (reason, patch) => {
+    (reason, patch, earlierRule) => {
       const diff = diffOf([
         source(
           8,
           result([failed({ rowId: "A" }), failed({ rowId: "B" })], patch),
         ),
-        source(1, result([check("pass", { rowId: "A" })])),
+        source(1, result([check("pass", { rowId: earlierRule })])),
       ]);
       expect(diff).toMatchObject({
         comparable: false,
@@ -206,11 +207,50 @@ describe("withSeoRunDiffs", () => {
         result([check("pass", { rowId: "A" })], { rulebookVersion: "r2" }),
       ),
     ]);
+    // The rulebook changed, and the two checks share rule A: it is compared.
     expect(diff).toMatchObject({
       from: "2026-11-03T09:00:00.000Z",
-      comparable: false,
-      reason: "rulebook",
+      comparable: true,
+      newCount: 1,
+      rulebookChange: { compared: 1, other: 0 },
     });
+  });
+
+  it("compares only the rules both checks tested across a rulebook change", () => {
+    const diff = diffOf([
+      source(
+        8,
+        result(
+          [
+            failed({ rowId: "A" }),
+            check("pass", { rowId: "B" }),
+            failed({ rowId: "D" }),
+          ],
+          { rulebookVersion: "r2" },
+        ),
+      ),
+      source(
+        1,
+        result([
+          check("pass", { rowId: "A" }),
+          failed({ rowId: "B" }),
+          failed({ rowId: "C" }),
+        ]),
+      ),
+    ]);
+    expect(diff).toMatchObject({
+      comparable: true,
+      newCount: 1,
+      fixedCount: 1,
+      stillOpenCount: 0,
+      notCheckedAgain: 0,
+      notCheckedBefore: 0,
+      rulebookChange: { compared: 2, other: 2 },
+      numbers: { issues: { from: 1, to: 1 } },
+    });
+    expect(rows(diff?.new ?? [])).toEqual(["A"]);
+    expect(rows(diff?.fixed ?? [])).toEqual(["B"]);
+    expect(diff).not.toHaveProperty("reason");
   });
 
   it("compares with the earlier check of the same rulebook when another rulebook ran in between", () => {

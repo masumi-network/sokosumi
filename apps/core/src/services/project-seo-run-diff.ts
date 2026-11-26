@@ -132,6 +132,31 @@ function readIssueStates(payload: PublicSeoPayload, selected: Selected) {
 const measuredRules = (payload: PublicSeoPayload) =>
   payload.checks.length > 0 || payload.findings.length > 0;
 
+/** The rules a check tested: every rule it stored a row or a finding for. */
+const testedRules = (payload: PublicSeoPayload) =>
+  new Set([...payload.checks, ...payload.findings].map((row) => row.rowId));
+
+/** The rules both checks tested, and how many only one of them tested. */
+function sharedRules(before: PublicSeoPayload, after: PublicSeoPayload) {
+  const earlier = testedRules(before),
+    later = testedRules(after);
+  const ids = new Set([...later].filter((id) => earlier.has(id)));
+  return {
+    ids,
+    compared: ids.size,
+    other: earlier.size + later.size - 2 * ids.size,
+  };
+}
+
+/** The check with the findings of these rules only: an issue comes from a finding, so the rows of other rules name none. */
+const onlyRules = (
+  payload: PublicSeoPayload,
+  ids: ReadonlySet<string>,
+): PublicSeoPayload => ({
+  ...payload,
+  findings: payload.findings.filter((row) => ids.has(row.rowId)),
+});
+
 const bySeverity = (a: Issue, b: Issue) =>
   SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity);
 
@@ -148,9 +173,19 @@ export function compareSeoRuns(
   issues: SeoRunDiff["numbers"]["issues"];
   moves: SeoRunDiff["numbers"]["moves"];
 } {
-  const reason = seoRunMismatch(previous.payload, latest.payload);
-  const before = issueStates(previous.payload, selected),
-    after = issueStates(latest.payload, selected);
+  const mismatch = seoRunMismatch(previous.payload, latest.payload);
+  // Across a rulebook change only the rules both checks tested are compared. Without such a rule nothing is.
+  const shared =
+    mismatch === "rulebook"
+      ? sharedRules(previous.payload, latest.payload)
+      : null;
+  const reason = shared?.compared ? null : mismatch;
+  const earlier = shared
+      ? onlyRules(previous.payload, shared.ids)
+      : previous.payload,
+    later = shared ? onlyRules(latest.payload, shared.ids) : latest.payload;
+  const before = issueStates(earlier, selected),
+    after = issueStates(later, selected);
   const added: Issue[] = [],
     fixed: Issue[] = [],
     stillOpen: Issue[] = [];
@@ -200,9 +235,7 @@ export function compareSeoRuns(
   }
   const moves = reason
     ? []
-    : seoRankMoves(previous.payload, latest.payload).filter((move) =>
-        selected(move.pageUrl),
-      );
+    : seoRankMoves(earlier, later).filter((move) => selected(move.pageUrl));
   const list = (issues: Issue[]) =>
     issues.sort(bySeverity).slice(0, SEO_RUN_DIFF_ITEMS);
   return {
@@ -210,6 +243,10 @@ export function compareSeoRuns(
     to: latest.observedAt.toISOString(),
     comparable: !reason,
     ...(reason && { reason }),
+    ...(!reason &&
+      shared && {
+        rulebookChange: { compared: shared.compared, other: shared.other },
+      }),
     new: list(added),
     newCount: added.length,
     fixed: list(fixed),
@@ -223,8 +260,8 @@ export function compareSeoRuns(
     issues: reason
       ? { from: null, to: null }
       : {
-          from: measuredRules(previous.payload) ? before.open.size : null,
-          to: measuredRules(latest.payload) ? after.open.size : null,
+          from: measuredRules(earlier) ? before.open.size : null,
+          to: measuredRules(later) ? after.open.size : null,
         },
     moves,
   };
@@ -290,6 +327,7 @@ function seoRunDiffOf(
         reason: "pages" as const,
         issues: { from: null, to: null },
         moves: [],
+        rulebookChange: undefined,
       },
     };
   const mismatch = (source: SeoRunDiffSource) =>
