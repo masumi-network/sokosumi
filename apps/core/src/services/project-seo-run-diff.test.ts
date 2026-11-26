@@ -485,20 +485,22 @@ describe("withSeoRunDiffs", () => {
   });
 });
 
+const ranked = (position: number | null) => ({
+  keyword: "x402",
+  pageUrl: PAGE,
+  device: "mobile" as const,
+  position,
+  positionStatus:
+    position === null ? ("unavailable" as const) : ("ranked" as const),
+  checkedResults: 20,
+  sourceRef: "ref",
+  observedAt: "2026-11-01T09:00:00.000Z",
+});
+const lite = (position: number | null) =>
+  payload({ kind: "audit_lite", keywords: [ranked(position)] });
+
 describe("withSeoRunDiffs edge cases", () => {
   it("compares the ranks of two checks of page rules that read rankings only", () => {
-    const ranked = (position: number) => ({
-      keyword: "x402",
-      pageUrl: PAGE,
-      device: "mobile" as const,
-      position,
-      positionStatus: "ranked" as const,
-      checkedResults: 20,
-      sourceRef: "ref",
-      observedAt: "2026-11-01T09:00:00.000Z",
-    });
-    const lite = (position: number) =>
-      payload({ kind: "audit_lite", keywords: [ranked(position)] });
     const diff = diffOf([
       source(8, lite(8), { kind: "audit_lite" }),
       source(1, lite(2), { kind: "audit_lite" }),
@@ -545,5 +547,53 @@ describe("withSeoRunDiffs edge cases", () => {
       },
     );
     expect(run.runDiff).toMatchObject({ newCount: 1, stillOpenCount: 0 });
+  });
+
+  it("pairs past a check of ranks that read none", () => {
+    const diff = diffOf([
+      source(8, lite(11), { kind: "audit_lite" }),
+      source(5, lite(null), { kind: "audit_lite" }),
+      source(1, lite(2), { kind: "audit_lite" }),
+    ]);
+    expect(diff).toMatchObject({
+      from: "2026-11-01T09:00:00.000Z",
+      numbers: { moveCount: 1 },
+    });
+  });
+
+  it("gives no issue totals to checks that measured no page rule", () => {
+    const diff = diffOf([
+      source(8, lite(8), { kind: "audit_lite" }),
+      source(1, lite(2), { kind: "audit_lite" }),
+    ]);
+    expect(diff?.numbers.issues).toEqual({ from: null, to: null });
+  });
+
+  it("counts no new issue on a device the earlier check did not read, beside a bare row on one it did", () => {
+    const diff = diffOf([
+      source(
+        8,
+        result([
+          failed({ rowId: "B", device: "mobile" }),
+          check("fired", { rowId: "B" }),
+        ]),
+      ),
+      source(1, result([check("pass", { rowId: "B" })])),
+    ]);
+    expect(diff).toMatchObject({ newCount: 0, notCheckedBefore: 1 });
+  });
+
+  it("counts no fix where one note answers only one of two rows that fired", () => {
+    const diff = diffOf([
+      source(
+        8,
+        result([
+          failed({ rowId: "B" }, "note"),
+          check("fired", { rowId: "B" }),
+        ]),
+      ),
+      source(1, result([failed({ rowId: "B" })])),
+    ]);
+    expect(diff).toMatchObject({ fixedCount: 0, notCheckedAgain: 1 });
   });
 });

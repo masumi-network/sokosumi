@@ -62,17 +62,26 @@ function readIssueStates(payload: PublicSeoPayload, selected: Selected) {
   const open = new Map<string, Issue>();
   // Devices a rule failed on, read from findings too: a finding can come without its checklist row.
   const failed: Devices = new Map(),
+    // Devices an issue finding names: the devices a page issue is open on.
+    issued: Devices = new Map(),
     // Devices where the rule fired with a note only: the check read the rule, and the issue is no longer open.
     noted: Devices = new Map();
+  // Notes per rule and device: each note accounts for one row that fired, not for every row there.
+  const notes = new Map<string, number>();
   for (const finding of payload.findings) {
     if (!selected(finding.pageUrl)) continue;
     const key = issueKey(payload, finding);
     if (!SEO_ISSUE_SEVERITIES.has(finding.severity)) {
       // A note alone says the rule was read. Other kinds of finding say nothing about the issue.
-      if (finding.severity === "note") addDevice(noted, key, finding.device);
+      if (finding.severity === "note") {
+        addDevice(noted, key, finding.device);
+        const at = `${key}\n${finding.device}`;
+        notes.set(at, (notes.get(at) ?? 0) + 1);
+      }
       continue;
     }
     addDevice(failed, key, finding.device);
+    addDevice(issued, key, finding.device);
     const severity = finding.severity as Issue["severity"];
     const known = open.get(key);
     open.set(
@@ -96,24 +105,29 @@ function readIssueStates(payload: PublicSeoPayload, selected: Selected) {
           },
     );
   }
-  const passed: Devices = new Map(),
-    fired: Devices = new Map();
+  const passed: Devices = new Map();
   // Every row counts, also two rows of one rule on one device: one that fired still blocks a fix.
   for (const check of payload.checks) {
     if (check.result !== "pass" && check.result !== "fired") continue;
     if (!selected(check.pageUrl)) continue;
     const key = issueKey(payload, check);
-    addDevice(check.result === "pass" ? passed : fired, key, check.device);
-    // A rule that fired with a note only did not fail there.
-    if (check.result === "fired" && !noted.get(key)?.has(check.device))
-      addDevice(failed, key, check.device);
+    if (check.result === "pass") addDevice(passed, key, check.device);
+    // A row that fired with a note of its own did not fail there. A row with no note left failed.
+    if (check.result !== "fired") continue;
+    const at = `${key}\n${check.device}`;
+    const left = notes.get(at) ?? 0;
+    if (left) notes.set(at, left - 1);
+    else addDevice(failed, key, check.device);
   }
   // A rule that also fired on a device without a finding failed on more than the device its finding names.
   for (const [key, issue] of open)
     if ((failed.get(key)?.size ?? 0) > 1)
       open.set(key, { ...issue, device: null });
-  return { open, passed, fired, failed, noted };
+  return { open, passed, failed, issued, noted };
 }
+
+const measuredRules = (payload: PublicSeoPayload) =>
+  payload.checks.length > 0 || payload.findings.length > 0;
 
 const bySeverity = (a: Issue, b: Issue) =>
   SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity);
@@ -145,7 +159,12 @@ export function compareSeoRuns(
       // New only where the earlier check read the rule on a device that fails now and found no issue there:
       // a pass beside a row that fired on the same device is no clear result.
       else if (
-        [...(after.failed.get(key) ?? [])].some(
+        // The devices its findings name, or every device it failed on where a finding names none.
+        [
+          ...((after.issued.get(key)?.has(null)
+            ? after.failed.get(key)
+            : after.issued.get(key)) ?? []),
+        ].some(
           (device) =>
             !before.failed.get(key)?.has(device) &&
             (before.passed.get(key)?.has(device) ||
@@ -157,16 +176,16 @@ export function compareSeoRuns(
     }
     for (const [key, issue] of before.open) {
       if (after.open.has(key)) continue;
-      const noted = after.noted.get(key);
       const read = new Set([
         ...(after.passed.get(key) ?? []),
-        ...(noted ?? []),
+        ...(after.noted.get(key) ?? []),
       ]);
+      // Every row that fired now has a note of its own, so no device failed.
       if (
         [...(before.failed.get(key) ?? [])].every((device) =>
           read.has(device),
         ) &&
-        [...(after.fired.get(key) ?? [])].every((device) => noted?.has(device))
+        !after.failed.has(key)
       )
         fixed.push(issue);
       else notCheckedAgain += 1;
@@ -193,9 +212,13 @@ export function compareSeoRuns(
     notCheckedAgain,
     notCheckedBefore,
     // The issues this comparison reads, so the two totals always add up to its lists.
+    // A check that stored no rule row and no finding measured no page rule: it has no issue count.
     issues: reason
       ? { from: null, to: null }
-      : { from: before.open.size, to: after.open.size },
+      : {
+          from: measuredRules(previous.payload) ? before.open.size : null,
+          to: measuredRules(latest.payload) ? after.open.size : null,
+        },
     moves,
   };
 }
@@ -214,7 +237,8 @@ function readsEveryUrl(
 ) {
   if (
     !payload.checks.length &&
-    (payload.keywords.length > 0 || !PAGE_RULE_KINDS.has(payload.kind))
+    (payload.keywords.some((row) => row.positionStatus !== "unavailable") ||
+      !PAGE_RULE_KINDS.has(payload.kind))
   )
     return true;
   const read = new Set(
