@@ -1,4 +1,5 @@
 import type { ScenarioCheck } from "@sokosumi/soko-bot";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { EvalLaneRecord } from "../eval-lanes.service";
 import type { JourneyWorld } from "./journey-world";
@@ -1166,7 +1167,7 @@ async function noHiresCheck(
   const hires = context.toolCalls.filter(
     (call) => call.capability === "hire_agent" && call.status !== "FAILED",
   ).length;
-  const jobs = await prisma.job.count({
+  const jobs = await createNetworkScope("mainnet").networkDb.job.count({
     where: {
       workspaceId: context.lane.workspaceId,
       createdAt: { gte: context.journeyStartedAt },

@@ -6,6 +6,7 @@ import {
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { channelSlugWithId } from "@/helpers/channel-slug";
 import { databaseNow } from "@/lib/db/database-now";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { evalEnvironment } from "@/lib/evals/eval-environment";
 import {
@@ -783,7 +784,7 @@ export async function seedAgent(
     isShown: true,
     status: "ONLINE" as const,
   };
-  await prisma.$transaction(async (tx) => {
+  await createNetworkScope("mainnet").netTransaction(async (tx) => {
     // One writer at a time: the repeats seed at once, and the unit is shared.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${FIXTURE_AGENT_UNIT}))`;
     await tx.creditCost.upsert({
@@ -835,7 +836,7 @@ export async function seedAgent(
           : { fixedPricing: { create: { amounts: { create: amount } } } }),
       },
     });
-  });
+  }, "Could not seed the fixture Agent");
 }
 
 /** The journey's world, made fresh before its first step. */
