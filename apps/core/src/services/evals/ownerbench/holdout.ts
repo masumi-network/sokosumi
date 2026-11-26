@@ -24,6 +24,7 @@ const STEP_KINDS = new Set<JourneyStep["kind"]>([
   "teammate",
 ]);
 const OUTCOME_KINDS = new Set<JourneyOutcome["kind"]>([
+  "delivered",
   "schedule",
   "task",
   "images",

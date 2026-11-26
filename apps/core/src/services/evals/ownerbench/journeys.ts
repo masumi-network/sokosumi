@@ -67,6 +67,8 @@ export type JourneyOutcome =
       briefMatches?: string[];
       /** At least this many such Tasks since the journey started. */
       min?: number;
+      /** The Task sits in this Project. */
+      project?: JourneyProject;
     }
   | {
       kind: "images";
@@ -177,6 +179,20 @@ export type JourneyOutcome =
       /** The schedules the journey seeded on other members' bots are as they were. */
       kind: "seededSchedulesUntouched";
       label: string;
+    }
+  | {
+      /**
+       * The work the step asked for exists, made in this step: what the
+       * bot's turns told the owner, a result the Coworker delivered on the
+       * Task this journey's schedule released, or a file saved. Reads, a
+       * release or a status change alone are no delivery.
+       */
+      kind: "delivered";
+      label: string;
+      /** Every pattern must match the delivered text. */
+      textMatches?: string[];
+      /** At least this many characters (default 40). */
+      minLength?: number;
     }
   | {
       /** A contact made or updated in this journey whose name matches. */
@@ -750,6 +766,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
             count: 1,
             identity: "unchanged",
           },
+          { kind: "delivered", label: "The run delivers the report" },
         ],
       },
       {

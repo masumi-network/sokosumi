@@ -22,13 +22,17 @@ import {
   outcomeCheck,
 } from "./journey-checks";
 import {
+  answeredTaskId,
   claimedRunCheck,
   claimedRunState,
+  deliverCoworkerAnswer,
   fireTaskSchedule,
   foregroundTurnId,
   freshConversationCheck,
   journeyTokens,
   routingFailures,
+  scheduleToFire,
+  wakeCheck,
   withDescendants,
 } from "./journey-runner";
 import {
@@ -1048,13 +1052,34 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       );
       expect(remembered).toMatchObject({ pass: true });
       expect(remembered.actual).toContain("Task Schedule");
+      // A second, newer schedule: the remembered one still fires.
+      const other = await createTaskSchedule(actor(), {
+        name: "Another daily note",
+        assigneeId: coworkerId,
+        rule: {
+          expr: "0 8 * * *",
+          timezone: "Europe/Berlin",
+          endsMode: "NEVER",
+        },
+      });
+      const chosen = scheduleToFire(
+        await durableSchedules(botId, workspaceId),
+        memo,
+      );
+      expect(chosen).toMatchObject({ id: schedule.id, kind: "task" });
       expect(await fireTaskSchedule(schedule.id, memo)).toBeNull();
       expect(await claimedRunState(memo, botId)).toBe("started");
       expect(await claimedRunCheck(memo)).toMatchObject({
         label: "The Task Schedule released its Task",
         pass: true,
       });
-      // The later checks read the released Task like any Task the bot gave.
+      const [releasedId] = memo.releasedTask ?? [];
+      const released = await prisma.task.findUniqueOrThrow({
+        where: { id: releasedId },
+        select: { scheduleId: true },
+      });
+      expect(released.scheduleId).toBe(schedule.id);
+      // The later checks read that released Task, and only it.
       expect(
         await outcomeCheck(
           {
@@ -1065,17 +1090,160 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
           },
           graded(memo),
         ),
-      ).toMatchObject({ pass: true });
+      ).toMatchObject({
+        pass: true,
+        actual: expect.stringContaining("Daily fixture review"),
+      });
       expect(
         await outcomeCheck(
-          { kind: "schedule", label: "kept", count: 1, identity: "unchanged" },
+          { kind: "schedule", label: "kept", identity: "unchanged" },
           graded(memo),
         ),
       ).toMatchObject({ pass: true });
-      // Only that schedule fired: another bot schedule kind stays untouched.
+      // The Coworker's answer lands on the released Task.
+      const answerOn = await answeredTaskId(
+        memo,
+        coworkerId,
+        "CodePat",
+        async () => {
+          throw new Error("no lookup when a Task was released");
+        },
+      );
+      expect(answerOn).toBe(releasedId);
+      await deliverCoworkerAnswer(releasedId!, coworkerId, {
+        kind: "coworker",
+        coworker: "CodePat",
+        status: "COMPLETED",
+        comment: "Here is the note.",
+      });
+      expect(
+        await prisma.taskEvent.count({
+          where: {
+            taskId: releasedId,
+            coworkerId,
+            comment: "Here is the note.",
+          },
+        }),
+      ).toBe(1);
+      // A wake counts only when that Task's answer brought it.
+      const since = new Date(Date.now() - 1_000);
+      const wake = async (entityId: string) => {
+        const turn = await prisma.sokoBotTurn.create({
+          data: {
+            sokoBotId: botId,
+            workspaceId,
+            requestedByUserId: userId,
+            source: "EVENT",
+            status: "COMPLETED",
+            clientTurnId: `lab:fixture:${randomUUID()}`,
+            userMessage: "A Task changed",
+            capabilityNames: [],
+            deadlineAt: new Date(Date.now() + 60_000),
+          },
+          select: { id: true },
+        });
+        await prisma.sokoBotEventInbox.create({
+          data: {
+            botId,
+            turnId: turn.id,
+            eventId: randomUUID(),
+            entityId,
+            purpose: "fixture",
+          },
+        });
+      };
+      await wake(randomUUID());
+      expect(
+        await wakeCheck(botId, since, "CodePat", releasedId),
+      ).toMatchObject({
+        pass: false,
+        actual: "0 wake(s)",
+      });
+      await wake(releasedId!);
+      expect(
+        await wakeCheck(botId, since, "CodePat", releasedId),
+      ).toMatchObject({
+        label: "Woken once by CodePat's answer on the released Task",
+        pass: true,
+      });
+      // A released Task that is not the Coworker's is the product's failure.
+      expect(
+        await answeredTaskId(memo, randomUUID(), "Mira", async () => undefined),
+      ).toEqual({
+        error: "The released Task is not Mira's (assigned elsewhere)",
+      });
       expect(await fireTaskSchedule(randomUUID(), {})).toEqual({
         error: "The Task Schedule has no planned run to release",
       });
+      await prisma.sokoBotEventInbox.deleteMany({ where: { botId } });
+      await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
+      await prisma.taskSchedule.deleteMany({ where: { id: other.id } });
+    });
+
+    it("counts a report as delivered only when it was made in the step, not reads, a release or an earlier one", async () => {
+      const schedule = await createTaskSchedule(actor(), {
+        name: "Weekly fixture report",
+        assigneeId: coworkerId,
+        rule: {
+          expr: "0 8 * * 1",
+          timezone: "Europe/Berlin",
+          endsMode: "NEVER",
+        },
+      });
+      const memo: Record<string, string[]> = {};
+      expect(await fireTaskSchedule(schedule.id, memo)).toBeNull();
+      const [releasedId] = memo.releasedTask ?? [];
+      const report =
+        "Last week: two Tasks finished, one is stuck on a review, none waits on you.";
+      // An earlier case's report on the same Task, and a bare status change.
+      await prisma.taskEvent.create({
+        data: {
+          taskId: releasedId!,
+          coworkerId,
+          comment: report,
+          createdAt: new Date(Date.now() - 60_000),
+        },
+      });
+      const stepStartedAt = new Date();
+      await prisma.taskEvent.create({
+        data: { taskId: releasedId!, coworkerId, status: "RUNNING" },
+      });
+      const delivered = { kind: "delivered", label: "report" } as const;
+      const step = (answer: string | null) => ({
+        ...graded(memo),
+        stepStartedAt,
+        answer,
+        // The run read the board.
+        toolCalls: [
+          {
+            capability: "list_tasks",
+            status: "COMPLETED",
+            input: {},
+            result: [],
+          },
+        ],
+      });
+      expect(await outcomeCheck(delivered, step(null))).toMatchObject({
+        pass: false,
+        actual: "nothing delivered in this step",
+      });
+      await prisma.taskEvent.create({
+        data: {
+          taskId: releasedId!,
+          coworkerId,
+          status: "COMPLETED",
+          comment: report,
+        },
+      });
+      expect(await outcomeCheck(delivered, step(null))).toMatchObject({
+        pass: true,
+        actual: "delivered as the Coworker's result on the released Task",
+      });
+      // The bot's own run delivering it to the owner counts too.
+      expect(
+        await outcomeCheck(delivered, { ...step(report), memo: {} }),
+      ).toMatchObject({ pass: true, actual: "delivered as the bot's answer" });
+      await prisma.taskSchedule.deleteMany({ where: { id: schedule.id } });
     });
 
     it("still finds and grades the bot's own schedule", async () => {
@@ -1108,7 +1276,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
     });
 
-    it("clears a bot's Task Schedules from an earlier journey and keeps a member's", async () => {
+    it("clears an earlier case's bot Task Schedule with its released Task, and keeps a member's with theirs", async () => {
       const made = await createTaskSchedule(actor(), {
         name: "Earlier journey's schedule",
         assigneeId: coworkerId,
@@ -1130,6 +1298,12 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
           },
         },
       );
+      // The earlier case ran both: each released a Task in the workspace.
+      const earlier: Record<string, string[]> = {};
+      const member: Record<string, string[]> = {};
+      expect(await fireTaskSchedule(made.id, earlier)).toBeNull();
+      expect(await fireTaskSchedule(members.id, member)).toBeNull();
+      // The next case starts: the reset every Cuso and Soko Bot journey runs.
       await clearBotTaskSchedules({ workspaceId });
       expect(
         await prisma.taskSchedule.findMany({
@@ -1140,6 +1314,18 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       expect(
         await prisma.taskScheduleRun.count({ where: { scheduleId: made.id } }),
       ).toBe(0);
+      expect(
+        await prisma.task.findMany({
+          where: {
+            id: {
+              in: [earlier.releasedTask?.[0], member.releasedTask?.[0]].filter(
+                Boolean,
+              ) as string[],
+            },
+          },
+          select: { id: true },
+        }),
+      ).toEqual([{ id: member.releasedTask?.[0] }]);
       expect(await durableSchedules(botId, workspaceId)).toEqual([]);
     });
   });

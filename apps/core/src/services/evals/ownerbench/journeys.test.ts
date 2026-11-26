@@ -18,6 +18,8 @@ import {
   journeyStatus,
   packetTurnIds,
   type StepRecord,
+  scheduleToFire,
+  stepExpectationChecks,
 } from "./journey-runner";
 import { investorNotes } from "./journey-world";
 import {
@@ -80,6 +82,91 @@ describe("owner journeys", () => {
     expect(named.map((evalCase) => evalCase.id)).toEqual([
       "owner-codepat-daily-post",
     ]);
+  });
+});
+
+describe("a fired Task Schedule", () => {
+  const journey = OWNER_JOURNEYS.find(
+    (candidate) => candidate.id === "owner-weekly-report-schedule",
+  )!;
+  const fires = journey.steps.find((step) => step.kind === "schedule_fires")!;
+  const turn = (capabilities: string[]) => ({
+    status: "COMPLETED",
+    route: "ANSWER",
+    finalAnswer: "Monday report: two Tasks moved, one is stuck.",
+    toolCalls: capabilities.map((capability) => ({
+      capability,
+      status: "COMPLETED",
+      result: null,
+    })),
+    events: [],
+    delegations: [],
+    decisions: [],
+  });
+
+  it("never stands in for the report the step asks the bot for", () => {
+    const released = stepExpectationChecks(journey, fires, null, true);
+    expect(released).toEqual([
+      expect.objectContaining({
+        pass: false,
+        actual: expect.stringContaining("no bot turn after the release"),
+      }),
+    ]);
+    // The report delivered: the board read and the answer meet the step.
+    const delivered = stepExpectationChecks(
+      journey,
+      fires,
+      turn(["list_tasks"]),
+      true,
+    );
+    expect(delivered.length).toBeGreaterThan(0);
+    expect(delivered.every((check) => check.pass)).toBe(true);
+    // A step that only forbids things holds without a turn.
+    expect(
+      stepExpectationChecks(
+        journey,
+        {
+          kind: "schedule_fires",
+          expect: { forbiddenTools: ["delete_schedule"] },
+        },
+        null,
+        true,
+      ),
+    ).toEqual([]);
+    // Without a release, no turn is still no turn.
+    expect(stepExpectationChecks(journey, fires, null, false)).toEqual([
+      { label: "Completed", pass: false, actual: "no turn" },
+    ]);
+  });
+
+  it("fires the schedule the journey remembered, not the newest", () => {
+    const schedule = (id: string, enabled = true) => ({
+      kind: "task" as const,
+      id,
+      cronExpression: "0 9 * * *",
+      prompt: "",
+      timezone: "Europe/Berlin",
+      enabled,
+      runOnce: false,
+      updatedAt: new Date(),
+    });
+    const newestFirst = [schedule("newer"), schedule("remembered")];
+    expect(
+      scheduleToFire(newestFirst, { schedule: ["remembered"] }),
+    ).toMatchObject({
+      id: "remembered",
+    });
+    expect(scheduleToFire(newestFirst, {})).toMatchObject({ id: "newer" });
+    expect(
+      scheduleToFire([schedule("newer"), schedule("remembered", false)], {
+        schedule: ["remembered"],
+      }),
+    ).toEqual({ error: "The owner's schedule is off" });
+    expect(
+      scheduleToFire([schedule("newer")], { schedule: ["remembered"] }),
+    ).toEqual({
+      error: "The owner's schedule is gone",
+    });
   });
 });
 

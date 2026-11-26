@@ -37,6 +37,7 @@ import {
 } from "../eval-lanes.service";
 import {
   coworkerTasks,
+  type DurableSchedule,
   durableSchedules,
   outcomeCheck,
 } from "./journey-checks";
@@ -157,22 +158,80 @@ async function startStep(
     return askInRoom(world.teammateRoomId, member, botId, step.message);
   }
   if (step.kind === "coworker") {
-    const [task] = await coworkerTasks(
-      { lane, world, journeyStartedAt, botId },
-      world.coworkers[step.coworker],
+    const coworkerId = world.coworkers[step.coworker];
+    const taskId = await answeredTaskId(
+      memo,
+      coworkerId,
+      step.coworker,
+      async () =>
+        (
+          await coworkerTasks(
+            { lane, world, journeyStartedAt, botId },
+            coworkerId,
+          )
+        )[0]?.id,
     );
-    if (!task) return { error: `No Task for ${step.coworker} to answer on` };
-    await deliverCoworkerAnswer(task.id, world.coworkers[step.coworker], step);
+    if (typeof taskId !== "string") return taskId;
+    await deliverCoworkerAnswer(taskId, coworkerId, step);
     return null;
   }
-  // The owner's newest enabled schedule, of whichever kind the bot made.
-  const schedule = (await durableSchedules(botId, lane.workspaceId)).find(
-    (candidate) => candidate.enabled,
+  const schedule = await scheduleToFire(
+    await durableSchedules(botId, lane.workspaceId),
+    memo,
   );
   if (!schedule) return { error: "No schedule to fire" };
+  if ("error" in schedule) return schedule;
   return schedule.kind === "task"
     ? fireTaskSchedule(schedule.id, memo)
     : fireSchedule(schedule.id, botId, memo);
+}
+
+/**
+ * The schedule this journey's outcome identified (`identity: "remember"`),
+ * or, when none was, the newest enabled one. A remembered schedule that is
+ * gone or off is the product's failure to keep it, never a cue to fire another.
+ */
+export function scheduleToFire(
+  schedules: readonly DurableSchedule[],
+  memo: JourneyState["memo"],
+): DurableSchedule | { error: string } | null {
+  const [rememberedId] = memo.schedule ?? [];
+  if (!rememberedId)
+    return schedules.find((schedule) => schedule.enabled) ?? null;
+  const remembered = schedules.find((schedule) => schedule.id === rememberedId);
+  if (!remembered) return { error: "The owner's schedule is gone" };
+  if (!remembered.enabled) return { error: "The owner's schedule is off" };
+  return remembered;
+}
+
+/**
+ * The Task a Coworker's scripted answer goes on: the Task the fired Task
+ * Schedule released, when one did, and only if it is that Coworker's;
+ * otherwise the Task the bot gave the Coworker in this journey.
+ */
+export async function answeredTaskId(
+  memo: JourneyState["memo"],
+  coworkerId: string,
+  coworkerName: string,
+  delegatedTaskId: () => Promise<string | undefined>,
+): Promise<string | { error: string }> {
+  const [released] = memo.releasedTask ?? [];
+  if (released) {
+    const task = await prisma.task.findUnique({
+      where: { id: released },
+      select: { assigneeId: true },
+    });
+    return task?.assigneeId === coworkerId
+      ? released
+      : {
+          error: `The released Task is not ${coworkerName}'s (${task ? "assigned elsewhere" : "gone"})`,
+        };
+  }
+  return (
+    (await delegatedTaskId()) ?? {
+      error: `No Task for ${coworkerName} to answer on`,
+    }
+  );
 }
 
 /**
@@ -216,7 +275,11 @@ export async function fireTaskSchedule(
     deadlineMs: Date.now() + 60_000,
     shouldContinue: () => true,
   });
-  if (!(await releasedTaskOf(next.id)))
+  const releasedTaskId = await releasedTaskOf(next.id);
+  // Every later step follows this Task: its checks, the Coworker's answer
+  // and the wake that answer brings.
+  if (releasedTaskId) memo.releasedTask = [releasedTaskId];
+  if (!releasedTaskId)
     return {
       error: `The Task Schedule released no Task (${released.failed} failed)`,
     };
@@ -405,7 +468,7 @@ async function releasedTaskOf(runId: string): Promise<string | null> {
  * events sync wakes the bot (`wakeOnDelegatedWork`), so a missing wake is the
  * product's, not the benchmark's.
  */
-async function deliverCoworkerAnswer(
+export async function deliverCoworkerAnswer(
   taskId: string,
   coworkerId: string,
   step: Extract<JourneyStep, { kind: "coworker" }>,
@@ -592,6 +655,86 @@ export function packetTurnIds(packet: unknown): string[] {
 }
 
 /** Scores a settled step: its tools and answer, then the world it left. */
+/**
+ * A step that started no bot turn. Normally that is the failure. A fired
+ * Task Schedule's work is its released Task, which its claimed-run check
+ * scores, but the release never stands in for what the step asks of the bot:
+ * tools to call, a question, an answer. Those still fail without a turn; a
+ * step that only forbids things holds.
+ */
+export function turnlessChecks(
+  step: JourneyStep,
+  releasedTask: boolean,
+): ScenarioCheck[] {
+  if (!releasedTask)
+    return [{ label: "Completed", pass: false, actual: "no turn" }];
+  const expect = step.expect ?? {};
+  const asked = [
+    ...(expect.tools?.length ? [`tools ${expect.tools.join(", ")}`] : []),
+    ...(expect.anyTools?.length
+      ? [`one of ${expect.anyTools.join(", ")}`]
+      : []),
+    ...(expect.asksQuestion ? ["a question"] : []),
+    ...(expect.answerMatches ? [`an answer /${expect.answerMatches}/`] : []),
+  ];
+  return asked.length
+    ? [
+        {
+          label: "Does what the step asks of the bot",
+          pass: false,
+          actual: `no bot turn after the release: no ${asked.join("; ")}`,
+        },
+      ]
+    : [];
+}
+
+/** What the step asks of the bot, against its turns: the same with or without a released Task. */
+export function stepExpectationChecks(
+  journey: OwnerJourney,
+  step: JourneyStep,
+  merged: Parameters<typeof evaluateScenario>[1] | null,
+  releasedTask: boolean,
+): ScenarioCheck[] {
+  if (!merged) return turnlessChecks(step, releasedTask);
+  return evaluateScenario(
+    {
+      ...journeyJudgeScenario(journey),
+      expect: { routes: [], ...step.expect },
+    },
+    merged,
+  ).checks.filter((check) => !check.label.startsWith("Route "));
+}
+
+/**
+ * The Coworker's answer was delivered once and the scan ran twice: one wake
+ * is right, none is a missing wake, more is a duplicate. With a released
+ * Task, only a wake by that Task's answer counts.
+ */
+export async function wakeCheck(
+  botId: string,
+  since: Date,
+  coworker: string,
+  releasedTaskId: string | undefined,
+): Promise<ScenarioCheck> {
+  const wakes = await prisma.sokoBotTurn.count({
+    where: {
+      sokoBotId: botId,
+      source: "EVENT",
+      createdAt: { gte: since },
+      ...(releasedTaskId
+        ? { eventInbox: { some: { entityId: releasedTaskId } } }
+        : {}),
+    },
+  });
+  return {
+    label: releasedTaskId
+      ? `Woken once by ${coworker}'s answer on the released Task`
+      : `Woken once by ${coworker}'s answer`,
+    pass: wakes === 1,
+    actual: `${wakes} wake(s)`,
+  };
+}
+
 async function finishStep(
   journey: OwnerJourney,
   record: StepRecord,
@@ -606,23 +749,15 @@ async function finishStep(
   );
   const checks: ScenarioCheck[] = [];
   let merged: Awaited<ReturnType<typeof loadA2aChain>>["merged"] | null = null;
-  if (turnIds.length) {
-    merged = (await loadA2aChain(turnIds)).merged;
-    const result = evaluateScenario(
-      {
-        ...journeyJudgeScenario(journey),
-        expect: { routes: [], ...step.expect },
-      },
+  if (turnIds.length) merged = (await loadA2aChain(turnIds)).merged;
+  checks.push(
+    ...stepExpectationChecks(
+      journey,
+      step,
       merged,
-    );
-    checks.push(
-      ...result.checks.filter((check) => !check.label.startsWith("Route ")),
-    );
-  } else if (
-    // A released Task is the run's work; its claimed-run check scores it.
-    !(step.kind === "schedule_fires" && state.memo.scheduleKind?.[0] === "task")
-  )
-    checks.push({ label: "Completed", pass: false, actual: "no turn" });
+      step.kind === "schedule_fires" && state.memo.scheduleKind?.[0] === "task",
+    ),
+  );
   if (record.index === 0 && turnIds[0])
     checks.push(
       await freshConversationCheck(
@@ -632,22 +767,15 @@ async function finishStep(
     );
   if (step.kind === "schedule_fires")
     checks.push(await claimedRunCheck(state.memo));
-  if (step.kind === "coworker") {
-    // The answer was delivered once and the scan ran twice: one wake is
-    // right, none is a missing wake, more is a duplicate.
-    const wakes = await prisma.sokoBotTurn.count({
-      where: {
-        sokoBotId: botOf(journey, lane),
-        source: "EVENT",
-        createdAt: { gte: new Date(record.startedAt) },
-      },
-    });
-    checks.push({
-      label: `Woken once by ${step.coworker}'s answer`,
-      pass: wakes === 1,
-      actual: `${wakes} wake(s)`,
-    });
-  }
+  if (step.kind === "coworker")
+    checks.push(
+      await wakeCheck(
+        botOf(journey, lane),
+        new Date(record.startedAt),
+        step.coworker,
+        state.memo.releasedTask?.[0],
+      ),
+    );
   const toolCalls = await journeyToolCalls(state, turnIds);
   for (const outcome of step.outcomes ?? [])
     checks.push(

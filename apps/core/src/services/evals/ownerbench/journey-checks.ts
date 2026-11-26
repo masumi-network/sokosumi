@@ -273,14 +273,66 @@ export async function coworkerTasks(
       ],
     },
     orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, description: true, status: true },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      status: true,
+      projectId: true,
+    },
   });
+}
+
+/**
+ * The Task a fired Task Schedule released, checked on its own: its
+ * assignee, brief and Project. No other Task can stand in for it.
+ */
+async function releasedTaskCheck(
+  outcome: Extract<JourneyOutcome, { kind: "task" }>,
+  context: CheckContext,
+  taskId: string,
+): Promise<ScenarioCheck> {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: {
+      name: true,
+      description: true,
+      assigneeId: true,
+      projectId: true,
+    },
+  });
+  if (!task)
+    return {
+      label: outcome.label,
+      pass: false,
+      actual: "the released Task is gone",
+    };
+  const problems: string[] = [];
+  if (task.assigneeId !== context.world.coworkers[outcome.coworker])
+    problems.push(`not assigned to ${outcome.coworker}`);
+  if (
+    outcome.project &&
+    task.projectId !== context.world.projects[outcome.project]
+  )
+    problems.push(`not in ${outcome.project}`);
+  const brief = matchesAll(
+    `${task.name}\n${task.description ?? ""}`,
+    outcome.briefMatches,
+  );
+  if (!brief.pass) problems.push(`brief lacks /${brief.missing.join("/, /")}/`);
+  return {
+    label: outcome.label,
+    pass: problems.length === 0,
+    actual: `released Task "${task.name}"${problems.length ? `: ${problems.join("; ")}` : ""}`,
+  };
 }
 
 async function taskCheck(
   outcome: Extract<JourneyOutcome, { kind: "task" }>,
   context: CheckContext,
 ): Promise<ScenarioCheck> {
+  const [released] = context.memo.releasedTask ?? [];
+  if (released) return releasedTaskCheck(outcome, context, released);
   const tasks = await coworkerTasks(
     context,
     context.world.coworkers[outcome.coworker],
@@ -291,7 +343,9 @@ async function taskCheck(
       matchesAll(
         `${task.name}\n${task.description ?? ""}`,
         outcome.briefMatches,
-      ).pass,
+      ).pass &&
+      (!outcome.project ||
+        task.projectId === context.world.projects[outcome.project]),
   );
   const first = tasks[0];
   return {
@@ -1239,6 +1293,85 @@ async function noHiresCheck(
   };
 }
 
+/**
+ * What the step delivered, newest last, each made after the step started:
+ * the bot's answer to the owner, the Coworker's delivered result on the Task
+ * this journey's schedule released (a comment, not a bare status change),
+ * and text files saved. Nothing seeded or left by an earlier case counts.
+ */
+export async function deliveredTexts(
+  context: CheckContext,
+): Promise<{ source: string; text: string }[]> {
+  const since = context.stepStartedAt;
+  const [released] = context.memo.releasedTask ?? [];
+  const [results, files] = await Promise.all([
+    released
+      ? prisma.taskEvent.findMany({
+          where: {
+            taskId: released,
+            coworkerId: { not: null },
+            comment: { not: null },
+            createdAt: { gte: since },
+          },
+          orderBy: { createdAt: "asc" },
+          select: { comment: true },
+        })
+      : [],
+    prisma.fileResource.findMany({
+      where: {
+        workspaceId: context.lane.workspaceId,
+        sourceKind: "DRIVE_UPLOAD",
+        lifecycle: "ACTIVE",
+        tombstonedAt: null,
+        createdAt: { gte: since },
+        NOT: { mimeType: { startsWith: "image/" } },
+      },
+      select: { id: true, displayName: true },
+    }),
+  ]);
+  return [
+    ...(context.answer
+      ? [{ source: "the bot's answer", text: context.answer }]
+      : []),
+    ...results.map((event) => ({
+      source: "the Coworker's result on the released Task",
+      text: event.comment ?? "",
+    })),
+    ...savedFileTexts(
+      files,
+      context.toolCalls,
+      await indexedTexts(files.map((file) => file.id)),
+    )
+      .filter((file) => file.text !== null)
+      .map((file) => ({
+        source: `file "${file.name}"`,
+        text: file.text ?? "",
+      })),
+  ];
+}
+
+async function deliveredCheck(
+  outcome: Extract<JourneyOutcome, { kind: "delivered" }>,
+  context: CheckContext,
+): Promise<ScenarioCheck> {
+  const minLength = outcome.minLength ?? 40;
+  const delivered = await deliveredTexts(context);
+  const good = delivered.find(
+    (entry) =>
+      entry.text.trim().length >= minLength &&
+      matchesAll(entry.text, outcome.textMatches).pass,
+  );
+  return {
+    label: outcome.label,
+    pass: Boolean(good),
+    actual: good
+      ? `delivered as ${good.source}`
+      : delivered.length
+        ? `${delivered.length} delivery(ies), none long enough or matching`
+        : "nothing delivered in this step",
+  };
+}
+
 export async function outcomeCheck(
   outcome: JourneyOutcome,
   context: CheckContext,
@@ -1272,6 +1405,8 @@ export async function outcomeCheck(
       return seededSchedulesCheck(outcome, context);
     case "networkShift":
       return networkShiftCheck(outcome, context);
+    case "delivered":
+      return deliveredCheck(outcome, context);
     case "contact":
       return contactCheck(outcome, context);
     case "file":
