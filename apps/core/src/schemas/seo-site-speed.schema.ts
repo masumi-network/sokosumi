@@ -53,7 +53,10 @@ export const storedSiteSpeedRow = z.object({
   tier: z.enum(SITE_SPEED_TIERS).optional(),
   /** Only on a page with the reduced test. */
   check: siteSpeedCheck.optional(),
-  /** Stored empty for an audited page: the workspace fills it from the same audit's pageSpeed. */
+  /**
+   * For an audited page, only the devices whose report read shows more than the same audit's pageSpeed read; the
+   * workspace fills the other devices from pageSpeed.
+   */
   devices: z.array(seoPageSpeedRow).max(2),
 });
 export const storedSiteSpeed = z.object({

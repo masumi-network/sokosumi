@@ -103,8 +103,9 @@ const VERDICT_GOOD = { lcp: 2500, inp: 200, cls: 0.1 } as const;
 /**
  * How much of a verdict a measurement gives, as the web verdict reads it: the field decides when it holds a Core Web
  * Vital, else the lab. A read whose values give a verdict (one over its good limit, or LCP and CLS) ranks first, then
- * a field read before a lab read. A gap or a read without those values shows nothing, so it never hides a read of
- * the same page and device that shows more (review pass 25). A measured read without those values ranks above a gap.
+ * a field read before a lab read. A gap shows nothing, so it never hides a read of the same page and device that
+ * shows more (review pass 25). A read with other values only (FCP, TTFB or a weekly series) ranks above a gap and a
+ * read without any value (review pass 38, 39).
  */
 function speedEvidence({ field, lab }: PageSpeedRows[number]) {
   const visitors =
@@ -120,10 +121,14 @@ function speedEvidence({ field, lab }: PageSpeedRows[number]) {
       : null;
   const values: Partial<Record<keyof typeof VERDICT_GOOD, number | null>> =
     visitors ?? test ?? {};
-  // A measured read without those values (FCP or TTFB only, a weekly series) still shows more than a gap
-  // (review pass 38).
   if (!visitors && !test)
-    return field.status === "measured" || lab.status === "measured" ? 1 : 0;
+    return (field.status === "measured" &&
+      (Object.values(field.p75).some((value) => value != null) ||
+        !!field.history?.weeks?.length)) ||
+      (lab.status === "measured" &&
+        Object.values(lab.median).some((value) => value != null))
+      ? 1
+      : 0;
   const decided =
     (visitors ? VERDICT_FIELD : VERDICT_LAB).some(
       (metric) => (values[metric] ?? 0) > VERDICT_GOOD[metric],

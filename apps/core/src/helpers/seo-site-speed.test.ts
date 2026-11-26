@@ -498,43 +498,49 @@ describe("the speed table in a workspace view", () => {
   });
 
   it("keeps the report's measured values over an audit gap when neither has a Core Web Vital (review pass 38)", () => {
-    // The audit tested the redirect target and recorded a gap; the report holds FCP and TTFB only.
-    const pageSpeed = readPageSpeed(
-      {
-        ...section(SEO_TEST_PAGE, EXTRA),
-        mobile: { lab: { none: "quota" }, field: { none: "quota" } },
-      },
-      SEO_TEST_PAGE,
-      { mobile: EXTRA },
-    ).filter((own) => own.device === "mobile");
-    const speed = {
-      ...section(EXTRA),
-      mobile: {
-        lab: { none: "Time budget expired" },
-        field: cruxField(EXTRA, { fcp: 1100, ttfb: 210 }),
-      },
-    };
-    const siteSpeed = readSiteSpeed(
-      site([extra(EXTRA, { speed })]),
-      [SEO_TEST_PAGE],
-      pageSpeed,
-    );
-    expect(
-      siteSpeed?.rows[0]?.devices.map((item) => [
-        item.device,
-        item.field.status,
-      ]),
-    ).toContainEqual(["mobile", "measured"]);
-    const table = scopedSiteSpeed(
-      { siteSpeed: siteSpeed!, pageSpeed, pageUrls: [SEO_TEST_PAGE] },
-      row,
-      new Set([SEO_TEST_PAGE]),
-    );
-    expect(
-      table?.rows[0]?.devices
-        .filter((item) => item.device === "mobile")
-        .map((item) => [item.pageUrl, item.field.status]),
-    ).toEqual([[EXTRA, "measured"]]);
+    // The audit tested the redirect target and recorded a gap, or (review pass 39) a measured field without any
+    // value; the report holds FCP and TTFB only.
+    for (const field of [{ none: "quota" }, cruxField(EXTRA, {})]) {
+      const pageSpeed = readPageSpeed(
+        {
+          ...section(SEO_TEST_PAGE, EXTRA),
+          mobile: { lab: { none: "quota" }, field },
+        },
+        SEO_TEST_PAGE,
+        { mobile: EXTRA },
+      ).filter((own) => own.device === "mobile");
+      expect(pageSpeed[0]?.field.status).toBe(
+        "none" in field ? "quota" : "measured",
+      );
+      const speed = {
+        ...section(EXTRA),
+        mobile: {
+          lab: { none: "Time budget expired" },
+          field: cruxField(EXTRA, { fcp: 1100, ttfb: 210 }),
+        },
+      };
+      const siteSpeed = readSiteSpeed(
+        site([extra(EXTRA, { speed })]),
+        [SEO_TEST_PAGE],
+        pageSpeed,
+      );
+      expect(
+        siteSpeed?.rows[0]?.devices.map((item) => [
+          item.device,
+          item.field.status,
+        ]),
+      ).toContainEqual(["mobile", "measured"]);
+      const table = scopedSiteSpeed(
+        { siteSpeed: siteSpeed!, pageSpeed, pageUrls: [SEO_TEST_PAGE] },
+        row,
+        new Set([SEO_TEST_PAGE]),
+      );
+      expect(
+        table?.rows[0]?.devices
+          .filter((item) => item.device === "mobile")
+          .map((item) => [item.pageUrl, item.field.status]),
+      ).toEqual([[EXTRA, "measured"]]);
+    }
   });
 
   it("gives a measured field read of the audit the target's device over the report's lab read (review pass 23)", () => {
