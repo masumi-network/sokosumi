@@ -33,6 +33,16 @@ const TASK_WAKE_STATUSES = new Set([
 const JOB_WAKE_STATUSES = new Set(["COMPLETED", "FAILED", "AWAITING_INPUT"]);
 const FINISHED = new Set(["COMPLETED", "FAILED", "CANCELED"]);
 
+/**
+ * A Job's change is its Agent's event status; get_job_status reports the
+ * Job's own status (`digestJob`), in other words.
+ */
+const JOB_READ_STATUS: Record<string, string> = {
+  COMPLETED: "completed",
+  FAILED: "failed",
+  AWAITING_INPUT: "input_required",
+};
+
 export interface SokoBotEventsSyncInput {
   abortSignal: AbortSignal;
   shouldContinue: () => boolean;
@@ -212,7 +222,12 @@ async function backgroundRunReadChange(
       input: { path: [field], equals: current.id },
       // What the read returned decides, not when it ran: one that started
       // before the change and was saved after it still said RUNNING.
-      result: { path: ["status"], equals: current.status },
+      result: {
+        path: ["status"],
+        equals: delegation.task
+          ? current.status
+          : (JOB_READ_STATUS[current.status] ?? current.status.toLowerCase()),
+      },
       ...(current.eventAt ? { updatedAt: { gte: current.eventAt } } : {}),
     },
     select: { id: true },

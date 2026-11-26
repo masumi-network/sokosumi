@@ -64,6 +64,7 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
   },
 }));
 
+import { computeJobStatus } from "@sokosumi/database/helpers";
 import { SokoBotBusyError } from "@/services/soko-bot-control-plane.service";
 
 import {
@@ -467,6 +468,54 @@ describe("SokoBotEventsSyncService", () => {
         }),
       );
       expect(delegationUpdateMock).toHaveBeenCalledOnce();
+    });
+
+    it("counts a finished run's read of a hired Agent's Job in the Job's own words", async () => {
+      runTurn.status = "COMPLETED";
+      const doneAt = new Date("2026-10-23T10:00:00Z");
+      // What get_job_status reports for the Job once its Agent completed it.
+      const reported = computeJobStatus({
+        jobType: "FREE",
+        events: [{ status: "COMPLETED", input: null, createdAt: doneAt }],
+      } as never);
+      expect(reported).toBe("completed");
+      toolCallFindFirstMock.mockImplementation(
+        async ({ where }: { where: { result: { equals: string } } }) =>
+          where.result.equals === reported ? { id: "read" } : null,
+      );
+      delegationFindManyMock.mockResolvedValue([
+        {
+          id: "d1",
+          turnId: "run_turn",
+          kind: "JOB",
+          lastSeenStatus: "INITIATED",
+          lastSeenEventId: null,
+          lastSeenEventAt: null,
+          task: null,
+          job: {
+            id: "job_1",
+            name: "Market scan",
+            ownerId: "user_1",
+            workspaceId: "ws_1",
+            task: null,
+            events: [
+              { id: "job_done", status: "COMPLETED", createdAt: doneAt },
+            ],
+          },
+          turn: runTurn,
+          followUp: "Draft the post from the scan.",
+          followUpTurnId: null,
+        },
+      ]);
+      expect((await sync()).woken).toBe(0);
+      expect(toolCallFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            capability: "get_job_status",
+            input: { path: ["jobId"], equals: "job_1" },
+          }),
+        }),
+      );
     });
 
     it("does not count a read saved after the change that still returned RUNNING", async () => {
