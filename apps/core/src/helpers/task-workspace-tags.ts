@@ -5,7 +5,6 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import type { TaskWorkspaceTagSuggestion } from "@/helpers/task-tag-catalog";
-import { TASK_WORKSPACE_JEV_ENABLED } from "@/helpers/task-tag-rollout";
 
 /** The Task and its workspace are locked until the PATCH commits. */
 export async function requireExpectedTaskWorkspaceTags(
@@ -35,11 +34,7 @@ export async function setTaskWorkspaceTags(
   workspaceId: string,
   requestedIds?: string[],
   dismissedIds: string[] = [],
-  jevEnabled: boolean = TASK_WORKSPACE_JEV_ENABLED,
 ) {
-  if (!jevEnabled && dismissedIds.length) {
-    throw unprocessableEntity("Workspace tag suggestions are unavailable");
-  }
   const selected = new Set(requestedIds?.map((id) => id.toLowerCase()));
   const dismissed = new Set(dismissedIds.map((id) => id.toLowerCase()));
   // An explicit selection takes precedence over a dismissal in the same request.
@@ -75,13 +70,11 @@ export async function setTaskWorkspaceTags(
           ? { in: [...dismissed] }
           : { notIn: [...selected] },
     };
-    if (jevEnabled) {
-      const removed = await tx.taskWorkspaceTag.findMany({
-        where,
-        select: { labelId: true },
-      });
-      for (const { labelId } of removed) dismissed.add(labelId);
-    }
+    const removed = await tx.taskWorkspaceTag.findMany({
+      where,
+      select: { labelId: true },
+    });
+    for (const { labelId } of removed) dismissed.add(labelId);
     await tx.taskWorkspaceTag.deleteMany({ where });
   }
 
