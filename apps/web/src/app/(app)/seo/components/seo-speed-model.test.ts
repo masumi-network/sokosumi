@@ -105,6 +105,9 @@ it("names the devices of a pass when another device has no verdict (review pass 
   expect(seoPageVerdict([{ ...good, device: "desktop" }]).passOn).toEqual([
     "desktop",
   ]);
+  // Review pass 22: a device measured twice is named once.
+  const desktop = { ...good, device: "desktop" as const };
+  expect(seoPageVerdict([desktop, desktop]).passOn).toEqual(["desktop"]);
 });
 
 const weeks = ["2026-10-04", "2026-10-11", "2026-10-18", "2026-10-25"];

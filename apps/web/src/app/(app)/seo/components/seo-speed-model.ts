@@ -138,7 +138,7 @@ export interface SeoPageVerdict {
   worst: SeoVitalStatus;
   /** The source of the devices that decided the verdict. Null: no device decided one. */
   source: SeoSpeedSource | "mixed" | null;
-  /** A pass that is not one of mobile and desktop both: the devices that passed. Null for a pass of both. */
+  /** A pass that does not hold for both mobile and desktop: each device that passed, once. Null for a pass of both. */
   passOn: SeoDeviceVerdict["device"][] | null;
   devices: SeoDeviceVerdict[];
 }
@@ -178,7 +178,7 @@ export function seoPageVerdict(rows: SeoSpeedDevice[]): SeoPageVerdict {
       !PASS_DEVICES.every((name) =>
         deciding.some((device) => device.device === name),
       )
-        ? deciding.map((device) => device.device)
+        ? [...new Set(deciding.map((device) => device.device))]
         : null,
     devices,
   };
