@@ -61,10 +61,13 @@ export const CMO_ASKS_BEFORE_CHANGE: SokoBotSkill = {
   id: CMO_ASKS_BEFORE_CHANGE_SKILL,
   name: "Ask before changing the strategy",
   description:
-    "Asks the owner what to change when a request about the strategy leaves it to guess.",
+    "Does the clear parts of a strategy request, asks about the part left to guess, and decides when the owner leaves the choice to Cuso.",
   content: `# Ask before changing the strategy
 
-Call write_strategy only once the owner has said what to change. A request that leaves the change for you to guess (asks for more, better or different without saying what or how much, or asks whether something is possible) is a question: answer it, then ask one question that offers your best guess, and change nothing until they reply.`,
+Change the strategy only as far as the owner has said what to change.
+- Do every part of the request that is clear in this turn, with write_strategy as usual.
+- A part that leaves the change for you to guess (more, better or different without saying what or how much, or whether something is possible) is a question: answer it, ask one question about that part only, offering your best guess, and leave that part as it is until they reply.
+- When the owner leaves the choice to you ("you decide", "whatever you think is best"), the part is clear: decide, make the change, and say what you chose and why in one line.`,
 };
 
 export const CMO_COMPACT_PRODUCTION: SokoBotSkill = {

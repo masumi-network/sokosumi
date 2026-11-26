@@ -263,6 +263,8 @@ export const EVAL_CASES: readonly EvalCase[] = [
                       scenario.id === "cmo-chat-strategy-skill" ||
                       scenario.id === "cmo-change-then-drafts" ||
                       scenario.id === "cmo-video-shapes-alsoon" ||
+                      scenario.id === "cmo-mixed-clear-and-open" ||
+                      scenario.id === "cmo-owner-delegates-choice" ||
                       scenario.id === "cmo-reads-week-four" ||
                       scenario.id === "cmo-change-reply-plain" ||
                       scenario.id === CMO_CORRECTION_CASE_ID ||

@@ -168,7 +168,7 @@ export const SKILL_INDEX: Readonly<Record<string, SkillIndexEntry>> = {
   },
   "cmo-asks-before-strategy-change": {
     useWhen:
-      "an owner's chat message about the strategy that leaves the change to guess: ask first.",
+      "an owner's chat message about the strategy: do the clear parts, ask about a part left to guess, decide when they leave it to you.",
     preloadOn: ["chat"],
   },
   "cmo-compact-production": {
