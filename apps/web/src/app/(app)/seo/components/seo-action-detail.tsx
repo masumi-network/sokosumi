@@ -202,6 +202,17 @@ export function SeoActionDetail({
         {action.edit ? (
           <DetailPart title={report("actions.change")}>
             <div className="space-y-3">
+              {action.edit.target.trim() ? (
+                <ChangeBox label={report("actions.copyTarget")}>
+                  <p
+                    dir="auto"
+                    lang=""
+                    className="text-sm whitespace-pre-wrap break-words"
+                  >
+                    {action.edit.target}
+                  </p>
+                </ChangeBox>
+              ) : null}
               <ChangeBox label={report("actions.before")}>
                 <pre
                   dir="auto"
