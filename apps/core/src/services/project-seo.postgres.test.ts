@@ -3613,7 +3613,12 @@ describe.skipIf(!enabled)(
           retry: [],
           propertyClicks: [],
         });
-        expect((await read(userId)).snapshots).toEqual([audits.PRIVATE]);
+        // The retry candidates leave out the archived audit too.
+        expect(await read(userId)).toEqual({
+          snapshots: [audits.PRIVATE],
+          retry: [audits.PRIVATE],
+          propertyClicks: [900],
+        });
       } finally {
         await prisma.task.deleteMany({
           where: { workspaceId: sharedWorkspaceId },
