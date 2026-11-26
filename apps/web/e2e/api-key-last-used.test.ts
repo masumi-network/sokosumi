@@ -116,7 +116,7 @@ for (const { name: size, ...viewport } of PROJECTS) {
 
       await page.reload();
       const used = page
-        .getByText(size === "phone" ? "Used just now" : "just now", {
+        .getByText(size === "desktop" ? "just now" : "Used just now", {
           exact: true,
         })
         .filter({ visible: true });

@@ -73,8 +73,9 @@ export function ApiKeysList({
 
   return (
     <>
-      {/* Phones: one stacked row per key, so status and actions stay on screen. */}
-      <ul className="divide-border divide-y rounded-lg border md:hidden">
+      {/* Phones and tablets: one stacked row per key, so status, last use and
+          actions stay on screen; the six-column table fits from lg up. */}
+      <ul className="divide-border divide-y rounded-lg border lg:hidden">
         {visible.map((apiKey) => (
           <li key={apiKey.id} className="flex items-center gap-3 p-3">
             <div className="min-w-0 flex-1 space-y-1">
@@ -120,7 +121,7 @@ export function ApiKeysList({
                 },
               ]
         }
-        containerClassName="hidden rounded-lg md:flex"
+        containerClassName="hidden rounded-lg lg:flex"
       />
     </>
   );
