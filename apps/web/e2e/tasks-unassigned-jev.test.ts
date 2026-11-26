@@ -140,9 +140,13 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
           '[data-slot="sidebar"][data-state="collapsed"]',
         );
         await closed.waitFor({ state: "attached" });
+        // Transitions only: the presence dot's endless pulse never finishes.
         await closed.evaluate((el) =>
           Promise.all(
-            el.getAnimations({ subtree: true }).map((a) => a.finished),
+            el
+              .getAnimations({ subtree: true })
+              .filter((a) => a instanceof CSSTransition)
+              .map((a) => a.finished),
           ),
         );
       }
