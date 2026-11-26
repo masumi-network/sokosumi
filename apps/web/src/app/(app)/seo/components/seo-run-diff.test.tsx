@@ -155,17 +155,23 @@ it("shows the counts and the first new issues open on the Agent tab, and says wh
   ).toBeInTheDocument();
   expect(within(card).getByText("Fixed").nextSibling).toHaveTextContent("2");
   expect(
-    within(within(card).getByRole("list", { name: "New (4)" }))
+    within(within(card).getByRole("list", { name: "First new issues" }))
       .getAllByRole("listitem")
       .map((item) => item.firstChild?.textContent),
   ).toEqual(["Title of A", "Title of B", "Title of C"]);
-  expect(card).toHaveTextContent(
-    "The tests changed between the two checks. 40 tests both checks ran are compared, 3 left out.",
-  );
+  // Beside the counts, and again in the full comparison in the fold.
+  expect(
+    within(card).getAllByText(
+      "The tests changed between the two checks. 40 tests both checks ran are compared, 3 left out.",
+    ),
+  ).toHaveLength(2);
 });
 
-it("keeps a comparison without issue counts in its fold on the Agent tab", () => {
-  const value = diff({ comparable: false, reason: "market" });
+it.each([
+  ["not comparable", diff({ comparable: false, reason: "market" })],
+  // Two ranking checks with no move: no issue total, so no three zeros.
+  ["without issue totals", diff({})],
+])("keeps a comparison %s in its fold on the Agent tab", (_, value) => {
   show(value, <SeoRunDiffCard diff={value} />);
   expect(screen.queryByTestId("seo-agent-run-diff-card")).toBeNull();
   expect(

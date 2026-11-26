@@ -14716,7 +14716,8 @@
           "fixed": "Fixed",
           "stillOpen": "Still open"
         },
-        "rulebookChange": "The tests changed between the two checks. {compared, plural, one {# test both checks ran is} other {# tests both checks ran are}} compared, {other, number} left out."
+        "rulebookChange": "The tests changed between the two checks. {compared, plural, one {# test both checks ran is} other {# tests both checks ran are}} compared, {other, number} left out.",
+        "firstNew": "First new issues"
       },
       "filterDates": "Filter by date",
       "syncNow": "Sync now",

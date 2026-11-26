@@ -29,8 +29,8 @@ export function SeoRunDiffCard({ diff }: { diff: ProjectSeoRunDiff }) {
       </div>
     </details>
   );
-  // Not comparable, or ranking moves only: there are no counts to show.
-  if (view.kind === "notComparable" || !view.lists.length)
+  // Not comparable, or a check with no issue total, such as a ranking check: three counts would claim a scope it lacks.
+  if (view.kind === "notComparable" || !view.issues)
     return fold(t("runDiff.open"));
   const added = view.lists.find((list) => list.id === "new");
   return (
@@ -61,11 +61,17 @@ export function SeoRunDiffCard({ diff }: { diff: ProjectSeoRunDiff }) {
           </div>
         ))}
       </dl>
+      {/* The counts cover only the rules both checks ran: say so beside them, not only in the fold. */}
+      {view.rulebookChange ? (
+        <p className="text-muted-foreground">
+          {t("runDiff.rulebookChange", view.rulebookChange)}
+        </p>
+      ) : null}
       {added?.items.length ? (
         // Safari drops the list role of a list without markers.
         <ul
           role="list"
-          aria-label={t("runDiff.new", { count: added.total })}
+          aria-label={t("runDiff.firstNew")}
           className="space-y-1"
         >
           {added.items.slice(0, SEO_RUN_DIFF_CARD_ISSUES).map((item) => (
