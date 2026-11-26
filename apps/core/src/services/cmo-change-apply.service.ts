@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   type CmoApplyLog,
   type CmoApplyOp,
@@ -53,8 +54,8 @@ async function lockCandidate(
     select: { projectId: true },
   });
   if (!owner) return null;
-  await tx.$executeRaw`SELECT 1 FROM project WHERE id = ${owner.projectId}::uuid FOR UPDATE`;
-  await tx.$executeRaw`SELECT 1 FROM marketing_strategy WHERE id = ${candidateId}::uuid FOR UPDATE`;
+  await tx.$executeRaw`SELECT 1 FROM ${sharedTable("project")} WHERE id = ${owner.projectId}::uuid FOR UPDATE`;
+  await tx.$executeRaw`SELECT 1 FROM ${sharedTable("marketing_strategy")} WHERE id = ${candidateId}::uuid FOR UPDATE`;
   const row = await tx.marketingStrategy.findUnique({
     where: { id: candidateId },
     select: { id: true, projectId: true, approvedAt: true, plan: true },
