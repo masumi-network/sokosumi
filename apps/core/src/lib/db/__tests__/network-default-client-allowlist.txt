@@ -83,7 +83,6 @@ apps/core/src/services/source-import-sync.service.ts
 apps/core/src/services/stripe-invoice-credit.service.ts
 apps/core/src/services/task-payment-claim.service.ts
 apps/core/src/services/task-x402-payment.finalize.ts
-apps/core/src/services/task-x402-payment.purge.ts
 apps/core/src/services/task-x402-payment.refund.ts
 apps/core/src/services/task-x402-payment.replay-demand.ts
 apps/core/src/services/task-x402-payment.replay.ts

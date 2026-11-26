@@ -67,6 +67,7 @@ import {
   sokoBotArchiveTaskInputSchema,
   sokoBotAssignTaskInputSchema,
   sokoBotCreateTaskInputSchema,
+  sokoBotFollowUpAllowsSchema,
   sokoBotFollowUpSchema,
   sokoBotLinkTasksInputSchema,
   sokoBotListTasksInputSchema,
@@ -108,6 +109,7 @@ export const sokoBotHireAgentInputSchema = z
     projectId: z.string().uuid().nullable().optional(),
     name: z.string().trim().min(1).max(160).optional(),
     followUp: sokoBotFollowUpSchema.optional(),
+    followUpAllows: sokoBotFollowUpAllowsSchema.optional(),
   })
   .strict();
 

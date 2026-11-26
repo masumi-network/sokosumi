@@ -10,6 +10,7 @@ const NEEDED: Readonly<
   "cmo-daily-run-watch": { skill: "cmo-daily-watch", how: "preloaded" },
   "cmo-weekly-review-last-week": { skill: "cmo-measurement", how: "preloaded" },
   "cmo-chat-strategy-skill": { skill: "cmo-strategy-v22", how: "read" },
+  "cmo-video-shapes-alsoon": { skill: "cmo-video-shapes", how: "read" },
 };
 
 export const CMO_SKILL_CASE_IDS: readonly string[] = Object.keys(NEEDED);

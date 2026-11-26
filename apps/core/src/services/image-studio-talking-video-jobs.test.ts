@@ -33,7 +33,11 @@ const {
   fetchQueueResultMock,
   readAssetBytesMock,
   putMock,
+  jobCreateManyMock,
+  assetCreateMock,
+  startCmoProductionMock,
 } = vi.hoisted(() => ({
+  startCmoProductionMock: vi.fn(),
   jobCreateMock: vi.fn(),
   jobFindUniqueMock: vi.fn(),
   jobFindUniqueOrThrowMock: vi.fn(),
@@ -57,9 +61,20 @@ const {
   readAssetBytesMock: vi.fn(),
   editTalkingVideoMock: vi.fn(),
   putMock: vi.fn(),
+  jobCreateManyMock: vi.fn(),
+  assetCreateMock: vi.fn(),
 }));
 
 vi.mock("@vercel/blob", () => ({ put: putMock }));
+vi.mock("@/services/cmo-cuso.service", () => ({
+  startCmoProductionForProject: startCmoProductionMock,
+}));
+vi.mock("@/helpers/task-credits", async () => ({
+  ...(await vi.importActual<typeof import("@/helpers/task-credits")>(
+    "@/helpers/task-credits",
+  )),
+  createTaskEventTransaction: vi.fn(async () => "transaction-1"),
+}));
 vi.mock("@/services/image-studio-drive.service", () => ({
   publishStudioAssetToFiles: vi.fn(),
 }));
@@ -80,8 +95,14 @@ vi.mock("@/lib/db/prisma", () => {
       findUniqueOrThrow: jobFindUniqueOrThrowMock,
       update: jobUpdateMock,
       updateMany: jobUpdateManyMock,
+      createMany: jobCreateManyMock,
     },
     project: { findUnique: projectFindUniqueMock },
+    projectImageAsset: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: assetCreateMock,
+    },
   };
   return { default: client };
 });
@@ -140,6 +161,7 @@ import {
   createTalkingVideoJob,
   failImageJob,
   reconcileJob,
+  requestVideoShape,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
 
@@ -166,6 +188,11 @@ let stored: Record<string, unknown> = {};
 
 beforeEach(() => {
   vi.clearAllMocks();
+  assetCreateMock.mockImplementation(async ({ data }) => ({
+    id: "asset-1",
+    ...data,
+  }));
+  jobCreateManyMock.mockResolvedValue({ count: 1 });
   getEnvMock.mockReturnValue({
     FAL_KEY: "k",
     IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: "studio-private-store-token",
@@ -853,6 +880,9 @@ describe("the presenter model's video arriving with word timings", () => {
       falRequestId: null,
       idempotencyKey: "video-shape:job-1:16:9",
       chargedCents: 0n,
+      // The presenter clip of a source that was cut out: failing must not
+      // deliver it as the uncaptioned video and run the edit again.
+      pendingMediaUrl: AVATAR_URL,
       settings: {
         ...row.settings,
         shape: "16:9",
@@ -878,13 +908,11 @@ describe("the presenter model's video arriving with word timings", () => {
           : { kind: "error", message: "gone" },
     );
     editTalkingVideoMock.mockRejectedValue(new Error("ffmpeg exited with 1"));
-    const logged = expectCoreLog(
-      "warn",
-      "Could not cut a video in another shape",
-    );
+    const logged = expectCoreLog("warn", "Could not cut a video in its shape");
 
     await reconcileJob("job-2");
 
+    expect(editTalkingVideoMock).toHaveBeenCalledTimes(1);
     expect(editTalkingVideoMock).toHaveBeenCalledWith(
       expect.objectContaining({ shape: "16:9" }),
     );
@@ -902,6 +930,170 @@ describe("the presenter model's video arriving with word timings", () => {
       }),
     );
     expect(logged).toHaveLength(1);
+  });
+
+  it("fails a 4:5 video whose edit fails, uncharged, instead of storing the vertical clip", async () => {
+    jobFindUniqueMock.mockResolvedValue({
+      ...row,
+      chargedCents: 5_200_000_000_000n,
+      settings: { ...row.settings, shape: "4:5", shapes: ["16:9"] },
+    });
+    editTalkingVideoMock.mockRejectedValue(new Error("ffmpeg exited with 1"));
+    const logged = expectCoreLog("warn", "Could not cut a video in its shape");
+
+    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+
+    expect(putMock).not.toHaveBeenCalled();
+    expect(jobUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "job-1" }),
+        data: expect.objectContaining({ status: "FAILED" }),
+      }),
+    );
+    expect(logged).toHaveLength(1);
+  });
+
+  it("keeps the other shapes of a vertical video delivered as its clip after its edit failed", async () => {
+    jobFindUniqueMock.mockResolvedValue({
+      ...row,
+      settings: { ...row.settings, shapes: ["16:9"] },
+    });
+    editTalkingVideoMock.mockRejectedValue(new Error("ffmpeg exited with 1"));
+    putMock.mockImplementation(async (pathname: string) => ({ pathname }));
+    expectCoreLog("warn", "Delivered a talking video without its edit");
+
+    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+
+    expect(putMock).toHaveBeenCalledWith(
+      expect.any(String),
+      new Uint8Array([9]),
+      expect.anything(),
+    );
+    expect(jobCreateManyMock).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({ idempotencyKey: "video-shape:job-1:16:9" }),
+      ],
+      skipDuplicates: true,
+    });
+  });
+
+  it("cuts a shape from the presenter clip when its source's optional cut-out failed", async () => {
+    const shapeRow = {
+      ...row,
+      id: "job-2",
+      falRequestId: null,
+      idempotencyKey: "video-shape:job-1:16:9",
+      chargedCents: 0n,
+      pendingMediaUrl: AVATAR_URL,
+      settings: {
+        ...row.settings,
+        shape: "16:9",
+        sourceJobId: "job-1",
+        sitePagePathname: SITE,
+      },
+    };
+    jobFindUniqueMock.mockImplementation(
+      async ({ where }: { where: { id: string } }) =>
+        where.id === "job-1"
+          ? {
+              ...row,
+              status: "SUCCEEDED",
+              falRequestId: "cutout-1",
+              idempotencyKey: "cmo-media:month-1:v1",
+              pendingMediaUrl: AVATAR_URL,
+              model: "heygen/avatar-6/turbo/image-to-video",
+              settings: { ...row.settings, sitePagePathname: SITE },
+            }
+          : shapeRow,
+    );
+    fetchQueueResultMock.mockResolvedValue({
+      kind: "error",
+      message: "cut-out failed",
+    });
+    startCmoProductionMock.mockClear();
+    editTalkingVideoMock.mockResolvedValue({
+      bytes: new Uint8Array([7]),
+      durationSeconds: 7,
+    });
+    putMock.mockImplementation(async (pathname: string) => ({ pathname }));
+
+    await reconcileJob("job-2");
+
+    expect(downloadMediaMock).toHaveBeenCalledWith(
+      AVATAR_URL,
+      expect.any(Number),
+      "video/mp4",
+    );
+    expect(editTalkingVideoMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({ site: expect.anything() }),
+    );
+    expect(editTalkingVideoMock).toHaveBeenCalledWith(
+      expect.objectContaining({ shape: "16:9" }),
+    );
+    expect(jobUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "FAILED" }),
+      }),
+    );
+    // The month waiting on this cut moves on.
+    await vi.waitFor(() =>
+      expect(startCmoProductionMock).toHaveBeenCalledWith("project-1"),
+    );
+  });
+
+  it("edits a 4:5 video from its clip when its optional cut-out failed", async () => {
+    jobFindUniqueMock.mockResolvedValue({
+      ...row,
+      falRequestId: "cutout-1",
+      pendingMediaUrl: AVATAR_URL,
+      settings: {
+        ...row.settings,
+        shape: "4:5",
+        shapes: ["16:9"],
+        sitePagePathname: SITE,
+      },
+    });
+    editTalkingVideoMock.mockResolvedValue({
+      bytes: new Uint8Array([7]),
+      durationSeconds: 7,
+    });
+    putMock.mockImplementation(async (pathname: string) => ({ pathname }));
+    expectCoreLog("warn", "Delivered a talking video without captions");
+
+    await failImageJob("job-1", "provider_error");
+
+    expect(editTalkingVideoMock).toHaveBeenCalledWith(
+      expect.objectContaining({ shape: "4:5" }),
+    );
+    expect(putMock).toHaveBeenCalledWith(
+      expect.any(String),
+      new Uint8Array([7]),
+      expect.anything(),
+    );
+    expect(jobCreateManyMock).toHaveBeenCalled();
+  });
+
+  it("fails a 4:5 video whose words were never timed: only Core's edit is that shape", async () => {
+    jobFindUniqueMock.mockResolvedValue({
+      ...row,
+      pendingMediaUrl: AVATAR_URL,
+      settings: { ...row.settings, words: [], shape: "4:5" },
+    });
+
+    await settleWithMedia(
+      "job-1",
+      "https://v3b.fal.media/files/captioned.mp4",
+      undefined,
+      "fal-1",
+    );
+
+    expect(editTalkingVideoMock).not.toHaveBeenCalled();
+    expect(putMock).not.toHaveBeenCalled();
+    expect(jobUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "FAILED" }),
+      }),
+    );
   });
 });
 
@@ -991,5 +1183,50 @@ describe("the caption step being cancelled", () => {
       }),
     );
     expect(logged).toHaveLength(1);
+  });
+});
+
+describe("asking for another shape of a delivered video", () => {
+  const delivered = (settings: Record<string, unknown>) => ({
+    id: "job-1",
+    projectId: "project-1",
+    workspaceId: "workspace-1",
+    requestedByUserId: "user-1",
+    kind: "TALKING_VIDEO",
+    model: "heygen/avatar-6/turbo/image-to-video",
+    prompt: SCRIPT,
+    status: "SUCCEEDED",
+    settings: { durationSeconds: 9, words: WORDS, ...settings },
+    voiceBlobPathname: null,
+    pendingMediaUrl: null,
+    presenterConsentAt: null,
+    sessionId: "session-1",
+    productId: null,
+    productName: null,
+  });
+
+  it("starts one free cut, keeping the video's session", async () => {
+    jobFindUniqueMock.mockResolvedValue(delivered({ shape: "9:16" }));
+
+    await expect(requestVideoShape("job-1", "4:5")).resolves.toBe(true);
+
+    expect(jobCreateManyMock).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          idempotencyKey: "video-shape:job-1:4:5",
+          chargedCents: 0n,
+          sessionId: "session-1",
+        }),
+      ],
+      skipDuplicates: true,
+    });
+  });
+
+  it("starts nothing for a video already in that shape, so it is posted itself", async () => {
+    jobFindUniqueMock.mockResolvedValue(delivered({ shape: "4:5" }));
+
+    await expect(requestVideoShape("job-1", "4:5")).resolves.toBe(false);
+
+    expect(jobCreateManyMock).not.toHaveBeenCalled();
   });
 });

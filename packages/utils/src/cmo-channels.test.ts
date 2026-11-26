@@ -1,9 +1,55 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CMO_SHAPED_VIDEO_TARGETS,
+  CMO_VIDEO_SHAPES_SKILL,
+  cmoOfferedFormats,
+  cmoShapedVideoTarget,
+  cmoVideoShape,
   isCmoChannelFormat,
   normalizeCmoChannelFormat,
 } from "./cmo-channels.js";
+
+describe("videos in other shapes", () => {
+  it("are never a plan's own entry: no menu offers them and the save check refuses them", () => {
+    for (const target of Object.values(CMO_SHAPED_VIDEO_TARGETS)) {
+      expect(cmoOfferedFormats(target.channel)).not.toContain(target.format);
+      expect(isCmoChannelFormat(target.channel, target.format)).toBe(false);
+    }
+    expect(cmoOfferedFormats("instagram")).toContain("reel");
+  });
+
+  it("are posted in their own shape, the rest as before", () => {
+    expect(cmoVideoShape("x", "video")).toBe("16:9");
+    expect(cmoVideoShape("youtube", "video")).toBe("16:9");
+    expect(cmoVideoShape("instagram", "feed_video")).toBe("4:5");
+    expect(cmoVideoShape("facebook", "feed_video")).toBe("4:5");
+    expect(cmoVideoShape("linkedin", "wide_video")).toBe("16:9");
+    expect(cmoVideoShape("linkedin", "talking_video")).toBe("4:5");
+    expect(cmoVideoShape("instagram", "reel")).toBe("9:16");
+    expect(cmoVideoShape("tiktok", "talking_video")).toBe("9:16");
+  });
+
+  it("are named in alsoOn by a target each, behind one version skill", () => {
+    expect(CMO_VIDEO_SHAPES_SKILL).toBe("cmo-video-shapes");
+    expect(cmoShapedVideoTarget("instagram_feed")).toEqual({
+      channel: "instagram",
+      format: "feed_video",
+    });
+    expect(cmoShapedVideoTarget("instagram")).toBeNull();
+  });
+
+  it("leaves what Cuso writes guessed as before, never as a copy-only format", () => {
+    expect(normalizeCmoChannelFormat("youtube", "video")).toEqual({
+      channel: "youtube",
+      format: "short",
+    });
+    expect(normalizeCmoChannelFormat("instagram", "feed video")).toEqual({
+      channel: "instagram",
+      format: "reel",
+    });
+  });
+});
 
 describe("CMO channels", () => {
   it("offers only formats the publishers support", () => {

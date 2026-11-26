@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { WorkspaceSwitcherSkeleton } from "@/app/components/workspace-switcher/workspace-switcher-skeleton";
 
 import { HeaderCenter } from "./header/header-center.client";
 import { HeaderChrome } from "./header/header-chrome.client";
@@ -28,9 +27,6 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
         data-testid="header-workspace-controls"
       >
         <SidebarToggle />
-        <div className="hidden min-w-0 max-w-48 md:sidebar-hidden:block">
-          <WorkspaceSwitcherSkeleton placement="topBar" />
-        </div>
         {["search", "new-task"].map((action) => (
           <span
             key={action}

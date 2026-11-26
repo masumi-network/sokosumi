@@ -2,6 +2,7 @@ import type {
   BrandBrain as BrandBrainRecord,
   Prisma,
 } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   type BrandBrain,
   brandBrainSchema,
@@ -70,7 +71,7 @@ export async function getBrandBrain(
  * run in parallel, and none may overwrite another.
  */
 async function lockBrandBrain(tx: Prisma.TransactionClient, projectId: string) {
-  await tx.$executeRaw`SELECT 1 FROM project WHERE id = ${projectId}::uuid FOR NO KEY UPDATE`;
+  await tx.$executeRaw`SELECT 1 FROM ${sharedTable("project")} WHERE id = ${projectId}::uuid FOR NO KEY UPDATE`;
   return await tx.brandBrain.findUnique({
     where: { projectId },
     select: { body: true, updatedAt: true },

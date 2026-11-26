@@ -43,7 +43,20 @@ export const PRESET_VERSION = "soko-bot-system-route-v1";
  * recover that inside the old single 8 s budget.
  */
 const ATTEMPT_TIMEOUT_MS = 3_500;
+/**
+ * The plan's stand-in is a full model on a shared plan, not Jev: at 3.5 s, 88
+ * of 101 routing calls in one plan suite timed out and became clarifications.
+ */
+const PLAN_ATTEMPT_TIMEOUT_MS = 45_000;
 const MAX_ATTEMPTS = 2;
+
+export function classifierAttemptTimeoutMs(
+  env: NodeJS.ProcessEnv = process.env,
+): number {
+  return localChatGptPlanEnabled(env)
+    ? PLAN_ATTEMPT_TIMEOUT_MS
+    : ATTEMPT_TIMEOUT_MS;
+}
 const MAX_MESSAGE_LENGTH = 8_000;
 const MAX_PREVIOUS_REPLY_LENGTH = 1_500;
 /** Below this the turn only gets reads: acting on a guess is worse than asking. */
@@ -621,7 +634,7 @@ export class JevTurnClassifier implements TurnClassifier {
       try {
         return await this.evaluate({
           ...request,
-          abortSignal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+          abortSignal: AbortSignal.timeout(classifierAttemptTimeoutMs()),
         });
       } catch (error) {
         if (error instanceof AiGatewayBudgetError || attempt >= MAX_ATTEMPTS) {

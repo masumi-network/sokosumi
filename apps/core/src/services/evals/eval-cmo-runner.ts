@@ -511,7 +511,7 @@ const EVAL_REPORTS = [
   })),
 ] as const;
 
-async function seedCmoReports(lane: EvalLaneRecord): Promise<void> {
+export async function seedCmoReports(lane: EvalLaneRecord): Promise<void> {
   const room = await prisma.chatRoom.findFirst({
     where: { sharedSokoBot: { id: lane.cusoBotId } },
     select: { id: true },

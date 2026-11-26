@@ -1,11 +1,10 @@
 import type { NewsletterIssue } from "@sokosumi/database";
-import { SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
+import { ACTION_LABELS, SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ACTION_CAPABILITIES,
   EXTERNAL_EFFECT_CAPABILITIES,
 } from "@/lib/soko-bot/action-receipts";
-import { ACTION_LABELS } from "@/lib/soko-bot/action-response";
 import {
   NEWSLETTER,
   NEWSLETTER_ISSUE,

@@ -4,6 +4,7 @@ import type {
   ProjectSocialConnection,
   SocialPostStatus,
 } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   LINKEDIN_HOOK_RULE,
   type SocialPostPlanning,
@@ -58,6 +59,7 @@ import {
   mapSocialPostQuote,
   moveSocialPostQuotes,
   QUOTED_POST_CANCELLED,
+  QUOTED_POST_FAILED,
   requireSocialPostQuote,
   socialPostQuotePublishDecision,
   socialPostQuoteSelect,
@@ -544,7 +546,7 @@ async function nearPostId(
   const tail = input.postId.match(/-([0-9a-f]{12})$/i)?.[1]?.toLowerCase();
   if (!tail) return null;
   const rows = await tx.$queryRaw<{ id: string }[]>`
-    SELECT id::text AS id FROM social_post
+    SELECT id::text AS id FROM ${sharedTable("social_post")}
     WHERE "projectId" = ${input.projectId}::uuid
       AND "workspaceId" = ${input.workspaceId}::uuid
       AND id::text LIKE ${`%-${tail}`}
@@ -868,7 +870,7 @@ export async function linkedInOpeningProblem(
   const [{ refused } = { refused: 0 }] = await prisma.$queryRaw<
     { refused: number }[]
   >`
-    SELECT count(*)::int AS refused FROM "soko_bot_tool_call"
+    SELECT count(*)::int AS refused FROM ${sharedTable("soko_bot_tool_call")}
     WHERE "capability" = 'update_social_post' AND "status" = 'FAILED'
       AND "input"->>'postId' = ${input.postId}
       AND "errorDetail" LIKE ${`%${OPENING_REFUSAL}%`}
@@ -2074,6 +2076,151 @@ export async function cancelSocialPost(
   );
   await flagSocialPostQuotes(post.id, QUOTED_POST_CANCELLED, tx);
   return mapSocialPost(canceled);
+}
+
+/** The warnings a quote carries about the post it quotes. */
+const QUOTE_WARNINGS: ReadonlySet<string> = new Set([
+  QUOTED_POST_CANCELLED,
+  QUOTED_POST_FAILED,
+]);
+
+/** The warning a quote needs for its quoted post's status; gone counts as cancelled. */
+function quoteWarning(status: SocialPostStatus | null): string | null {
+  if (status === null || status === "CANCELED") return QUOTED_POST_CANCELLED;
+  if (status === "FAILED" || status === "MISSED") return QUOTED_POST_FAILED;
+  return null;
+}
+
+export interface RestoreCanceledSocialPostInput extends CancelSocialPostInput {
+  organizationId?: string | null;
+  /** The status it had before the cancel: any status a cancel accepts. */
+  status: "DRAFT" | "NEEDS_APPROVAL" | "SCHEDULED" | "FAILED" | "MISSED";
+  /** The time it was planned at before the cancel. */
+  scheduledAt: Date | null;
+  timezone?: string;
+  /** A FAILED or MISSED post's diagnostics, so it comes back as it was. */
+  diagnostics?: {
+    lastError: string | null;
+    needsAttentionReason: string | null;
+  };
+}
+
+/**
+ * Takes back a cancel (an owner's change undone, cmo-v25), in one
+ * transaction: the post comes back with the status it had at its planned
+ * time, under the revision the cancel left; a scheduled one is scheduled
+ * again through `scheduleSocialPost` on the same transaction, so a refused
+ * schedule leaves it cancelled and the retry intact. A draft quoting it
+ * loses the flag the cancel set; a quote the cancel failed keeps its
+ * reason, never a FAILED row without one.
+ */
+export async function restoreCanceledSocialPost(
+  input: RestoreCanceledSocialPostInput,
+): Promise<SocialPostSummary> {
+  if (input.status === "SCHEDULED" && !input.scheduledAt)
+    throw conflict("A scheduled post is restored at its time");
+  const post = await serializableTransaction(async (tx) => {
+    if (input.status === "SCHEDULED")
+      await requireLockedOpenProject(tx, input, {
+        closedMessage: PROJECT_CLOSED_MESSAGE,
+      });
+    else await requireScopedProject(input, { client: tx });
+    const post = await requireScopedPost(input, tx);
+    if (post.status !== "CANCELED")
+      throw conflict("Only a canceled post can be restored");
+    requireRevision(post, input.revision);
+    // A quote carries the warning its quoted post's state calls for now:
+    // still cancelled, failed, or none, so a flag from a cancel since taken
+    // back never blocks it, and one that still holds is never dropped. A
+    // quote whose quoted post was deleted keeps its warning until the owner
+    // detaches or replaces the quote.
+    const target = post.quotedPostId
+      ? await tx.socialPost.findUnique({
+          where: { id: post.quotedPostId },
+          select: { status: true },
+        })
+      : null;
+    const settled = input.status === "FAILED" || input.status === "MISSED";
+    const own = (settled && input.diagnostics) || {
+      lastError: post.lastError,
+      needsAttentionReason: post.needsAttentionReason,
+    };
+    const quoteFlagged =
+      own.needsAttentionReason !== null &&
+      QUOTE_WARNINGS.has(own.needsAttentionReason);
+    const warning = post.quotedPostId
+      ? quoteWarning(target?.status ?? null)
+      : quoteFlagged
+        ? own.needsAttentionReason
+        : null;
+    if (warning === QUOTED_POST_CANCELLED && input.status === "SCHEDULED")
+      throw conflict(
+        "The post it quotes is cancelled; restore that post first, then schedule this one",
+      );
+    const stale = quoteFlagged && post.quotedPostId !== null;
+    const restored = await writeWithRevision(
+      input,
+      input.revision,
+      {
+        status: input.status === "SCHEDULED" ? "DRAFT" : input.status,
+        canceledAt: null,
+        scheduledAt: input.scheduledAt,
+        ...(input.timezone ? { timezone: input.timezone } : {}),
+        ...(warning
+          ? {
+              needsAttentionReason: warning,
+              lastError:
+                warning === own.needsAttentionReason ? own.lastError : warning,
+            }
+          : stale
+            ? { needsAttentionReason: null, lastError: null }
+            : settled
+              ? own
+              : {}),
+      },
+      tx,
+    );
+    // Quotes of this post: the cancel's flag becomes what its status now
+    // calls for: none once it is back, the failure's once it failed.
+    const dependents = quoteWarning(input.status);
+    await tx.socialPost.updateMany({
+      where: {
+        quotedPostId: post.id,
+        needsAttentionReason: QUOTED_POST_CANCELLED,
+        status: { in: ["DRAFT", "NEEDS_APPROVAL"] },
+      },
+      data: {
+        needsAttentionReason: dependents,
+        lastError: dependents,
+        revision: { increment: 1 },
+      },
+    });
+    if (input.status !== "SCHEDULED" || !input.scheduledAt)
+      return mapSocialPost(restored);
+    return scheduleSocialPost(
+      {
+        projectId: input.projectId,
+        workspaceId: input.workspaceId,
+        userId: input.userId,
+        organizationId: input.organizationId,
+        ...(input.coworkerId ? { coworkerId: input.coworkerId } : {}),
+        postId: restored.id,
+        revision: restored.revision,
+        scheduledAt: input.scheduledAt,
+        ...(input.timezone ? { timezone: input.timezone } : {}),
+      },
+      tx,
+    );
+  }, "Post changed while restoring a Social post");
+  if (post.status === "SCHEDULED")
+    await recordSocialStudioAdEvents({
+      ...input,
+      postId: post.id,
+      type: "scheduled",
+      media: post.media,
+      threadParts: post.threadParts,
+    });
+  return post;
 }
 
 export async function approveSocialPost(
