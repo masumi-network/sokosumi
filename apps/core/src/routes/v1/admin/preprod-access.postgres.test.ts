@@ -15,6 +15,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { auth } from "@/lib/auth";
 import {
+  hashStoredOAuthToken,
+  OAUTH_ACCESS_TOKEN_PREFIX,
+} from "@/lib/auth-oauth-token-prefixes";
+import {
   generateCoworkerApiKeyToken,
   generateSokoBotApiKeyToken,
   hashApiKey,
@@ -60,14 +64,6 @@ const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
 
-const migration = readFileSync(
-  new URL(
-    "../../../../../../packages/database/prisma/migrations/20261127001627_preprod_access_flag/migration.sql",
-    import.meta.url,
-  ),
-  "utf8",
-);
-
 type Credential = { cookie: string } | { bearer: string };
 type Account = Awaited<ReturnType<typeof createPasswordUser>>;
 
@@ -85,10 +81,11 @@ interface AccessBody {
 }
 
 describe.skipIf(!enabled)("Preprod access", () => {
-  const app = createCoreApp();
+  let app: ReturnType<typeof createCoreApp>;
   const userIds: string[] = [];
   const organizationIds: string[] = [];
   let vendorId: string;
+  let oauthClientId: string;
 
   let admin: Account;
   let adminCookie: string;
@@ -189,6 +186,7 @@ describe.skipIf(!enabled)("Preprod access", () => {
   }
 
   beforeAll(async () => {
+    app = createCoreApp();
     admin = await account("Ada Admin", "admin");
     adminCookie = await signIn(app, admin.email);
 
@@ -212,6 +210,26 @@ describe.skipIf(!enabled)("Preprod access", () => {
       body: { userId: admin.id, configId: "default", name: "Preprod access" },
     });
     refused["an admin's API key"] = { bearer: key };
+
+    oauthClientId = randomUUID();
+    const scopes = ["sokosumi:api"];
+    await prisma.oauthClient.create({
+      data: { clientId: oauthClientId, scopes },
+    });
+    await prisma.oauthConsent.create({
+      data: { clientId: oauthClientId, userId: admin.id, scopes },
+    });
+    const oauthToken = OAUTH_ACCESS_TOKEN_PREFIX + randomUUID();
+    await prisma.oauthAccessToken.create({
+      data: {
+        clientId: oauthClientId,
+        userId: admin.id,
+        scopes,
+        expiresAt: new Date(Date.now() + 60 * 60_000),
+        token: hashStoredOAuthToken(oauthToken, OAUTH_ACCESS_TOKEN_PREFIX),
+      },
+    });
+    refused["an admin's OAuth token"] = { bearer: oauthToken };
 
     const vendor = await prisma.vendor.create({
       data: { name: "Preprod access", slug: `preprod-access-${randomUUID()}` },
@@ -280,6 +298,7 @@ describe.skipIf(!enabled)("Preprod access", () => {
       },
     });
     await prisma.apikey.deleteMany({ where: { referenceId: { in: userIds } } });
+    await prisma.oauthClient.deleteMany({ where: { clientId: oauthClientId } });
     await prisma.coworker.deleteMany({ where: { vendorId } });
     await prisma.vendor.deleteMany({ where: { id: vendorId } });
     await prisma.organization.deleteMany({
@@ -406,6 +425,83 @@ describe.skipIf(!enabled)("Preprod access", () => {
     }
   });
 
+  it("lists the switch applied last as the newest, whichever transaction began first", async () => {
+    const transaction = prisma.$transaction.bind(prisma);
+    for (const target of await targets()) {
+      let began!: () => void;
+      const beginning = new Promise<void>((resolve) => {
+        began = resolve;
+      });
+      let release!: () => void;
+      const released = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      // The first switch's transaction begins, then waits for the second.
+      vi.spyOn(prisma, "$transaction").mockImplementationOnce(
+        async (callback, options) =>
+          transaction(async (tx) => {
+            await tx.$queryRaw`SELECT 1`;
+            began();
+            await released;
+            return callback(tx);
+          }, options),
+      );
+      const appliedSecond = put({ cookie: adminCookie }, target.path, {
+        enabled: false,
+        reason: "SOK-9: applied second",
+      });
+      await beginning;
+      const appliedFirst = await put({ cookie: adminCookie }, target.path, {
+        enabled: true,
+        reason: "SOK-9: applied first",
+      });
+      expect(appliedFirst.status).toBe(200);
+      release();
+      expect((await appliedSecond).status).toBe(200);
+
+      expect(await flagOf(target.type, target.id)).toBe(false);
+      const read = await request({ cookie: adminCookie }, target.path);
+      const { data } = (await read.json()) as AccessBody;
+      expect(data.enabled).toBe(false);
+      expect(
+        data.changes.map(({ enabled, reason }) => [enabled, reason]),
+      ).toEqual([
+        [false, "SOK-9: applied second"],
+        [true, "SOK-9: applied first"],
+      ]);
+    }
+  });
+
+  it("answers from its own transaction when the target is deleted right after", async () => {
+    const transaction = prisma.$transaction.bind(prisma);
+    for (const target of await targets()) {
+      vi.spyOn(prisma, "$transaction").mockImplementationOnce(
+        async (callback, options) => {
+          const result = await transaction(callback, options);
+          if (target.type === "user") {
+            await prisma.user.delete({ where: { id: target.id } });
+          } else {
+            await prisma.organization.delete({ where: { id: target.id } });
+          }
+          return result;
+        },
+      );
+
+      const response = await put({ cookie: adminCookie }, target.path, {
+        enabled: true,
+        reason: "SOK-10: deleted right after",
+      });
+
+      expect(response.status).toBe(200);
+      const { data } = (await response.json()) as AccessBody;
+      expect(data.enabled).toBe(true);
+      expect(data.changes.map(({ reason }) => reason)).toEqual([
+        "SOK-10: deleted right after",
+      ]);
+      expect(await recordsOf(target.id)).toHaveLength(1);
+    }
+  });
+
   it("answers 404 for an unknown target and writes nothing", async () => {
     const before = await prisma.preprodAccessChange.count({
       where: { operatorId: admin.id },
@@ -434,6 +530,7 @@ describe.skipIf(!enabled)("Preprod access", () => {
       "a user's session",
       "an Organization owner's session",
       "an admin's API key",
+      "an admin's OAuth token",
       "a Coworker key",
       "a Soko Bot key of an admin",
       "an impersonated session",
@@ -468,15 +565,14 @@ describe.skipIf(!enabled)("Preprod access", () => {
 
   it("shows the flag to any admin credential and to no one else", async () => {
     for (const target of await targets()) {
-      const withKey = await request(
-        refused["an admin's API key"] as Credential,
-        target.path,
-      );
-      expect(withKey.status).toBe(200);
-      expect(((await withKey.json()) as AccessBody).data).toEqual({
-        enabled: false,
-        changes: [],
-      });
+      for (const who of ["an admin's API key", "an admin's OAuth token"]) {
+        const response = await request(refused[who] as Credential, target.path);
+        expect([who, response.status]).toEqual([who, 200]);
+        expect(((await response.json()) as AccessBody).data).toEqual({
+          enabled: false,
+          changes: [],
+        });
+      }
       for (const who of [
         "a user's session",
         "an Organization owner's session",
@@ -554,6 +650,13 @@ describe.skipIf(!enabled)("Preprod access", () => {
   });
 
   it("migrates without a rewrite, twice, under inserts of the previous release", async () => {
+    const migration = readFileSync(
+      new URL(
+        "../../../../../../packages/database/prisma/migrations/20261127001627_preprod_access_flag/migration.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    );
     await rolledBack(async (tx) => {
       // The database before the migration. The rollback puts it back.
       await tx.$executeRawUnsafe(`

@@ -48,6 +48,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       adminPreprodAccessSchema.parse(
         await preprodAccessOf(
+          prisma,
           { type: "organization", id: target.id },
           target.preprodEnabled,
         ),

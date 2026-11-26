@@ -1,14 +1,11 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import {
-  preprodAccessOf,
   requirePreprodAccessOperator,
   setPreprodAccess,
 } from "@/helpers/preprod-access";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   adminOrganizationSlugParamSchema,
@@ -54,34 +51,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { slug } = c.req.valid("param");
     const { enabled, reason } = c.req.valid("json");
 
-    const found = await prisma.organization.findUnique({
-      where: { slug },
-      select: { id: true },
-    });
-    if (!found) {
-      throw notFound("Organization not found");
-    }
-    const target = { type: "organization", id: found.id } as const;
-
-    await setPreprodAccess({
-      target,
-      enabled,
-      operatorId: operator.userId,
-      reason,
-    });
-
-    const current = await prisma.organization.findUnique({
-      where: { id: found.id },
-      select: { preprodEnabled: true },
-    });
-    if (!current) {
-      throw notFound("Organization not found");
-    }
-
     return ok(
       c,
       adminPreprodAccessSchema.parse(
-        await preprodAccessOf(target, current.preprodEnabled),
+        await setPreprodAccess({
+          target: { type: "organization", where: { slug } },
+          enabled,
+          operatorId: operator.userId,
+          reason,
+        }),
       ),
     );
   });

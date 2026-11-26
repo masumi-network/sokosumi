@@ -52,13 +52,15 @@ const enabled =
   process.env.DATABASE_URL?.startsWith("postgres");
 
 describe.skipIf(!enabled)("Preprod access flag on existing routes", () => {
-  const app = createCoreApp();
-  const slug = `preprod-no-effect-${randomUUID()}`;
+  let app: ReturnType<typeof createCoreApp>;
+  let slug: string;
   let user: Awaited<ReturnType<typeof createPasswordUser>>;
   let organizationId: string;
   let cookie: string;
 
   beforeAll(async () => {
+    app = createCoreApp();
+    slug = `preprod-no-effect-${randomUUID()}`;
     // An admin, so the admin lists answer too; a member of the Organization.
     user = await createPasswordUser("Preprod no effect", "admin");
     const organization = await prisma.organization.create({

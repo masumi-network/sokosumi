@@ -1,5 +1,6 @@
-import { forbidden } from "@/helpers/error";
-import prisma from "@/lib/db/prisma";
+import { forbidden, notFound } from "@/helpers/error";
+import { databaseNow } from "@/lib/db/database-now";
+import prisma, { type DbClient } from "@/lib/db/prisma";
 import {
   type AuthenticationContext,
   requireInteractiveAdminAuthContext,
@@ -30,18 +31,22 @@ export function requirePreprodAccessOperator(
 
 /** The flag with its recent changes, newest first. */
 export async function preprodAccessOf(
+  db: DbClient,
   target: PreprodAccessTarget,
   enabled: boolean,
 ) {
-  const changes = await prisma.preprodAccessChange.findMany({
+  const changes = await db.preprodAccessChange.findMany({
     where: { targetType: target.type, targetId: target.id },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: RECENT_CHANGES,
   });
-  const operators = await prisma.user.findMany({
-    where: { id: { in: [...new Set(changes.map((c) => c.operatorId))] } },
-    select: { id: true, name: true },
-  });
+  const operators =
+    changes.length === 0
+      ? []
+      : await db.user.findMany({
+          where: { id: { in: [...new Set(changes.map((c) => c.operatorId))] } },
+          select: { id: true, name: true },
+        });
   const names = new Map(operators.map((user) => [user.id, user.name]));
   return {
     enabled,
@@ -59,36 +64,59 @@ export async function preprodAccessOf(
 }
 
 /**
- * Switches the flag and records the change in one transaction. A value the
- * row already holds changes nothing and records nothing, as a repeated refund
- * does on the other operator audit tables; the condition is in the update, so
- * two equal requests at once record one change.
+ * Switches the flag and records the change in one transaction, and answers
+ * from that transaction: a target deleted at any point is 404 with nothing
+ * written. A value the row already holds changes nothing and records nothing,
+ * as a repeated refund does on the other operator audit tables; the condition
+ * is in the update, so two equal requests at once record one change.
  */
-export async function setPreprodAccess(input: {
-  target: PreprodAccessTarget;
+export function setPreprodAccess(input: {
+  target:
+    | { type: "user"; where: { id: string } }
+    | { type: "organization"; where: { slug: string } };
   enabled: boolean;
   operatorId: string;
   reason: string;
-}): Promise<void> {
+}) {
   const { target, enabled, operatorId, reason } = input;
-  await prisma.$transaction(async (tx) => {
-    const args = {
-      where: { id: target.id, preprodEnabled: !enabled },
-      data: { preprodEnabled: enabled },
-    };
-    const { count } =
-      target.type === "user"
-        ? await tx.user.updateMany(args)
-        : await tx.organization.updateMany(args);
-    if (count === 0) return;
-    await tx.preprodAccessChange.create({
-      data: {
-        targetType: target.type,
-        targetId: target.id,
-        enabled,
-        operatorId,
-        reason,
-      },
-    });
+  return prisma.$transaction(async (tx) => {
+    const data = { preprodEnabled: enabled };
+    const select = { id: true, preprodEnabled: true };
+    let count: number;
+    let current: { id: string; preprodEnabled: boolean } | null;
+    if (target.type === "user") {
+      const where = { ...target.where, preprodEnabled: !enabled };
+      ({ count } = await tx.user.updateMany({ where, data }));
+      current = await tx.user.findUnique({ where: target.where, select });
+    } else {
+      const where = { ...target.where, preprodEnabled: !enabled };
+      ({ count } = await tx.organization.updateMany({ where, data }));
+      current = await tx.organization.findUnique({
+        where: target.where,
+        select,
+      });
+    }
+    if (!current) {
+      throw notFound(
+        target.type === "user" ? "User not found" : "Organization not found",
+      );
+    }
+    const changed = { type: target.type, id: current.id };
+    if (count > 0) {
+      await tx.preprodAccessChange.create({
+        data: {
+          // Taken after the update, while this transaction holds the row
+          // lock, so a later switch of the row sorts later; the column's
+          // default is the transaction's start.
+          createdAt: await databaseNow(tx),
+          targetType: changed.type,
+          targetId: changed.id,
+          enabled,
+          operatorId,
+          reason,
+        },
+      });
+    }
+    return preprodAccessOf(tx, changed, current.preprodEnabled);
   });
 }
