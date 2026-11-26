@@ -22,6 +22,7 @@ import { findInvestors } from "@/services/fundraising-research.service";
 import {
   type AuthorizedSokoBotRuntime,
   type ExecuteSokoBotToolInput,
+  SokoBotFeatureOffError,
   SokoBotRefusedUnsentError,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
@@ -69,7 +70,7 @@ export async function fundraisingActor(
   });
   const organizationId = workspace?.organizationId ?? null;
   if (!organizationId || !fundraisingEnabled(organizationId))
-    throw new SokoBotRefusedUnsentError(
+    throw new SokoBotFeatureOffError(
       "Fundraising is not on for this workspace, so there is no raise to read. Say so; do not guess at investors.",
     );
   return {

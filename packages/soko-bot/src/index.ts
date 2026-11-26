@@ -207,9 +207,12 @@ export {
   CMO_SEO_WEEKLY_REPORT_CASE_ID,
   CMO_SEO_WRITE_ARTICLE_CASE_ID,
   evaluateScenario,
+  SAVES_FILE_TOOLS,
   type ScenarioCheck,
   type ScenarioResult,
+  SOKO_BOT_FEATURE_OFF,
   SOKO_BOT_SCENARIOS,
+  SOKO_BOT_TOOL_REFUSED,
   type SokoBotScenario,
 } from "./scenarios.js";
 export {

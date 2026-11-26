@@ -549,6 +549,114 @@ export const TASK = {
   },
 };
 
+/** An `agents_list` Cardano item, trimmed to the fields its result always has. */
+function listedAgent(
+  id: string,
+  name: string,
+  credits: number,
+  ratings: { total: number; average: number | null },
+  summary: string | null,
+) {
+  return {
+    kind: "cardano",
+    id,
+    createdAt: "2026-10-01T09:00:00.000Z",
+    updatedAt: "2026-11-20T09:00:00.000Z",
+    name,
+    image: "https://example.com/agent.png",
+    icon: null,
+    credits,
+    summary,
+    description: `${name} takes a brief and returns a short report.`,
+    metrics: { executions: { count: 40, averageTime: 120 }, ratings },
+    author: { name: "Masumi Labs", image: null, organization: null },
+    legal: { privacyPolicy: null, terms: null, dpa: null, other: null },
+    categories: [],
+  };
+}
+
+const LISTED_AGENTS = [
+  listedAgent(
+    "cm_agent_analyst",
+    "Market Analyst",
+    12.5,
+    { total: 128, average: 4.63 },
+    "Researches markets, competitors and prices, and writes a short report.",
+  ),
+  listedAgent(
+    "cm_agent_seo",
+    "SEO Auditor",
+    8,
+    { total: 1, average: 4 },
+    "Checks a site's pages for search issues and ranks the fixes.",
+  ),
+  listedAgent(
+    "cm_agent_copy",
+    "Brand Copywriter",
+    0,
+    { total: 0, average: null },
+    "Writes headlines and short copy in your brand's voice.",
+  ),
+  listedAgent(
+    "cm_agent_interviews",
+    "Customer Interview Synthesizer for Product Discovery Teams",
+    25,
+    { total: 12, average: 4.9 },
+    "Reads interview notes and transcripts, groups what customers said by theme, and lists the problems worth solving first, with quotes for each one so the team can check the source.",
+  ),
+  listedAgent(
+    "cm_agent_cleaner",
+    "Data Cleaner",
+    3,
+    { total: 5, average: 3.8 },
+    null,
+  ),
+];
+
+/** People pay x402 agents only through a Coworker, so the view skips them. */
+const X402_AGENT = {
+  kind: "x402",
+  id: "cm_agent_x402",
+  specification: "bazaar",
+  name: "Bazaar Research Agent",
+  description: "A research agent payable via x402",
+  image: null,
+  x402ResourcesUrl: "https://agent.example.com/.well-known/x402",
+  openApiSpecUrl: null,
+  pricingType: "dynamic",
+  isPayable: true,
+  paymentSources: [],
+};
+
+const agentsResult = (data: unknown[]) => ({
+  ...toolResult({
+    data,
+    pagination: { limit: 8, total: data.length, nextCursor: null },
+  }),
+  _meta: sokosumi,
+});
+
+/** `agents_show` results: `agents_list`'s, with Core's `_meta`. */
+export const AGENTS = {
+  input: { workspace: "acme", limit: 8, kind: "cardano" },
+  agents: LISTED_AGENTS,
+  x402: X402_AGENT,
+  result: agentsResult([...LISTED_AGENTS, X402_AGENT]),
+  many: agentsResult(
+    Array.from({ length: 10 }, (_, index) =>
+      listedAgent(
+        `cm_agent_${index}`,
+        `Agent ${index + 1}`,
+        index,
+        { total: 0, average: null },
+        null,
+      ),
+    ),
+  ),
+  empty: agentsResult([X402_AGENT]),
+  wrap: agentsResult,
+};
+
 /** Tool results the harness feeds each view, by view id, then by fixture name. */
 export const FIXTURES: Record<string, Record<string, Fixture>> = {
   hello: {
@@ -748,5 +856,24 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
       },
     },
     approval: { input: TASK.input, result: TASK.personApproval },
+  },
+  "agents-browse": {
+    default: { input: AGENTS.input, result: AGENTS.result },
+    sent: {
+      step: "sent",
+      input: AGENTS.input,
+      result: AGENTS.result,
+      play: [{ click: "Hire Market Analyst" }],
+    },
+    noWorkspace: { input: { limit: 8 }, result: AGENTS.result },
+    loading: { input: AGENTS.input },
+    empty: { input: AGENTS.input, result: AGENTS.empty },
+    error: {
+      input: AGENTS.input,
+      result: {
+        content: [{ type: "text", text: "Agents could not load" }],
+        isError: true,
+      },
+    },
   },
 };
