@@ -9785,6 +9785,8 @@
     },
     "Channels": {
       "MobileNav": {
+        "backToRooms": "Volver a las salas",
+        "allChats": "Todos los chats",
         "tasks": "Tareas",
         "agents": "Agents",
         "chats": "Chats",
@@ -9873,6 +9875,7 @@
       },
       "Empty": {
         "noChannels": "No channels yet.",
+        "messageSomeone": "Iniciar un mensaje",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
         "peopleLoadFailedDescription": "Las personas a las que puedes escribir no están disponibles temporalmente. Inténtalo de nuevo en un momento.",

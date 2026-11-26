@@ -123,6 +123,8 @@ interface OrganizationChatListProps {
    * chip instead.
    */
   withChatsHeading?: boolean;
+  directFooter?: React.ReactNode;
+  afterCatchUp?: React.ReactNode;
 }
 
 export function OrganizationChatList({
@@ -135,6 +137,8 @@ export function OrganizationChatList({
   dismissSheetOnNavigate = true,
   paintOnly = false,
   withChatsHeading = false,
+  directFooter,
+  afterCatchUp,
 }: OrganizationChatListProps) {
   const t = useTranslations("App.Channels");
   const roomDisplayName = useRoomDisplayName();
@@ -459,6 +463,7 @@ export function OrganizationChatList({
           withChatsHeading ? undefined : handleUnreadOnlyChange
         }
       />
+      {afterCatchUp}
       {/* Outside the keyed list below: the Unreads filter does not touch them,
           because hiding what is unread is the last thing it should do. */}
       {elsewhereRows.length > 0 ? (
@@ -615,7 +620,7 @@ export function OrganizationChatList({
             <ChatSidebarSectionHeader
               isOpen={directOpen}
               closedAttention={resolveSectionAttention(directMessages)}
-              createAction={<CreateDirectDialog />}
+              createAction={hasDirect ? <CreateDirectDialog /> : undefined}
             >
               {t("directMessages")}
             </ChatSidebarSectionHeader>
@@ -639,11 +644,22 @@ export function OrganizationChatList({
                         "text-muted-foreground py-1.5 pr-2 text-xs",
                       )}
                     >
-                      {t("Empty.noDirectMessages")}
+                      <p className="mb-1">{t("Empty.noDirectMessages")}</p>
+                      <CreateDirectDialog
+                        trigger={
+                          <button
+                            type="button"
+                            className="text-foreground underline underline-offset-4"
+                          >
+                            {t("Empty.messageSomeone")}
+                          </button>
+                        }
+                      />
                     </div>
                   </SidebarMenuItem>
                 ) : null}
               </SidebarMenu>
+              {directFooter}
             </SidebarSectionContent>
           </Collapsible>
         ) : null}

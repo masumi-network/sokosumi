@@ -45,11 +45,11 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarSeparator: () => <hr />,
 }));
 
-vi.mock("@/app/chat/components/chat-desktop-home-redirect.client", () => ({
-  ChatDesktopHomeRedirect: () => null,
+vi.mock("@/app/chat/catch-up/components/catch-up-view", () => ({
+  CatchUpView: () => null,
 }));
 
-import ChatPage from "@/app/chat/page";
+import ChatPage from "@/app/chat/rooms/page";
 import { SidebarChatList } from "@/app/components/sidebar-chat-list.client";
 
 const USER_ID = "user_1";

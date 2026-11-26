@@ -8,7 +8,7 @@ interface ListProps {
   rooms: ChatRoom[];
   archivedRooms: ChatRoom[];
   isOrgOwnerOrAdmin?: boolean;
-  withChatsHeading?: boolean;
+  directFooter?: React.ReactNode;
   dismissSheetOnNavigate?: boolean;
 }
 
@@ -163,11 +163,20 @@ describe("SidebarChatList", () => {
     });
   });
 
-  it("heads the sidebar's list with Chats and closes its sheet on navigate", () => {
-    renderList(deferred().promise);
+  it("passes Soko Bots into Direct messages and retains sheet dismissal", () => {
+    const footer = <a href="/soko-bots">Soko Bots</a>;
+    render(
+      <SidebarChatList
+        rooms={rooms}
+        deferred={deferred().promise}
+        currentUserId="user-1"
+        organizationId="org-1"
+        directFooter={footer}
+      />,
+    );
 
     expect(lastRender()).toMatchObject({
-      withChatsHeading: true,
+      directFooter: footer,
       dismissSheetOnNavigate: true,
     });
   });
@@ -184,7 +193,6 @@ describe("SidebarChatList", () => {
     );
 
     expect(lastRender()).toMatchObject({
-      withChatsHeading: false,
       dismissSheetOnNavigate: false,
     });
   });

@@ -223,7 +223,7 @@ export function SidebarEdgeHandle() {
       className={cn(
         // Straddles the sidebar's border, 3px each side; hidden, the strip
         // hugs the window's edge. Follows the panel as it slides.
-        "group/edge fixed inset-y-0 z-20 hidden w-1.5 cursor-col-resize touch-none outline-none md:block",
+        "group/edge fixed inset-y-0 top-16 z-20 hidden w-1.5 cursor-col-resize touch-none outline-none md:block",
         "left-[calc(var(--app-rail-width,0px)+var(--sidebar-width)-3px)] peer-data-[state=collapsed]:left-[var(--app-rail-width,0px)] peer-data-[state=collapsed]:w-2",
         `transition-[left] ${SIDEBAR_HIDE_TRANSITION} group-data-[resizing=true]/sidebar-wrapper:transition-none`,
         // A 6px strip is too thin to hit: its target reaches 8px into each

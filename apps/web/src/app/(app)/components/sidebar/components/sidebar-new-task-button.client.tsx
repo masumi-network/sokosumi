@@ -37,20 +37,21 @@ const SHORTCUT_KEYS = "Alt+N";
  * Absent, shortcut included, when the reader cannot create a Task (no
  * assigned seat, or the Instant Nav shell outside the wizard).
  */
-export function SidebarNewTaskButton() {
+export function SidebarNewTaskButton({ mobile }: { mobile?: boolean } = {}) {
   return (
     <Suspense fallback={null}>
-      <ScopedNewTaskButton />
+      <ScopedNewTaskButton mobile={mobile} />
     </Suspense>
   );
 }
 
-function ScopedNewTaskButton() {
+function ScopedNewTaskButton({ mobile }: { mobile?: boolean }) {
+  const { isMobile } = useSidebar();
   const openNewTask = useNewTaskOpener();
 
   // Mounted only when the reader can create a Task, so the shortcut is bound
   // only then.
-  return openNewTask ? (
+  return openNewTask && (mobile === undefined || mobile === isMobile) ? (
     <NewTaskShortcutButton openNewTask={openNewTask} />
   ) : null;
 }

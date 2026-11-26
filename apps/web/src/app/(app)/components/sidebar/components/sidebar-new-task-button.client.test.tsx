@@ -83,6 +83,24 @@ describe("SidebarNewTaskButton", () => {
     appleRef.current = false;
   });
 
+  it.each([false, true])(
+    "binds only one New task action at mobile=%s",
+    (isMobile) => {
+      sidebarRef.current = { isMobile, setOpenMobile: setOpenMobileMock };
+      render(
+        <OrganizationSeatContext value>
+          <SidebarNewTaskButton mobile={false} />
+          <SidebarNewTaskButton mobile />
+        </OrganizationSeatContext>,
+      );
+      expect(screen.getAllByRole("button", { name: "newTask" })).toHaveLength(
+        1,
+      );
+      fireEvent.keyDown(window, ALT_N);
+      expect(openNewTaskWizardMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it("opens the New Task wizard scoped to the selected project", () => {
     searchRef.current = "projectId=p-1";
     renderButton();
