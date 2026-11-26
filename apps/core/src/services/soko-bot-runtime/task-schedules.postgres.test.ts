@@ -70,6 +70,28 @@ describe.skipIf(!enabled)("a Soko Bot's Task Schedules", () => {
     await prisma.user.deleteMany({ where: { id: userId } });
   });
 
+  it("replays the first schedule when the same call is retried after its receipt was lost", async () => {
+    const turn = authorized();
+    const create = call("save_task_schedule", {
+      name: "Daily competitor research",
+      assigneeSokoBotId: botId,
+      cron: "0 9 * * 1-5",
+      timezone: "Europe/Berlin",
+      state: "PAUSED",
+    });
+    // The first attempt commits, then its receipt is lost; the runtime
+    // retries the same tool call.
+    const first = (await saveTaskSchedule(runtime, create, turn)) as {
+      taskSchedule: { id: string; state: string };
+    };
+    const retry = (await saveTaskSchedule(runtime, create, turn)) as {
+      taskSchedule: { id: string; state: string };
+    };
+    expect(retry.taskSchedule.id).toBe(first.taskSchedule.id);
+    expect(retry.taskSchedule.state).toBe("PAUSED");
+    expect(await prisma.taskSchedule.count({ where: { workspaceId } })).toBe(1);
+  });
+
   it("creates, pauses and deletes one as the owner, with the bot as Creator", async () => {
     const created = (await saveTaskSchedule(
       runtime,

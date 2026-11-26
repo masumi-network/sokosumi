@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   sokoBotDeleteTaskScheduleInputSchema,
   sokoBotSaveTaskScheduleInputSchema,
@@ -24,8 +25,12 @@ import {
   type ExecuteSokoBotToolInput,
   SokoBotRefusedUnsentError,
 } from "../soko-bot-runtime.service";
-import { actsForOwner } from "./acting-scope";
 import { type RuntimeOperations } from "./operations";
+import {
+  isOursTaskSchedule,
+  keepsOwnersTaskSchedules,
+  ownersOwnChat,
+} from "./task-schedule-access";
 
 /**
  * A personal Soko Bot keeps the owner's Task Schedules (the Schedules page)
@@ -38,11 +43,7 @@ async function botScheduleActor(
   authorized: AuthorizedSokoBotRuntime,
 ): Promise<ScheduleActor> {
   const { actingUserId, workspaceId, sokoBotId } = authorized.turn;
-  if (
-    authorized.reader.sharedScope ||
-    !actingUserId ||
-    !actsForOwner(authorized)
-  )
+  if (!actingUserId || !keepsOwnersTaskSchedules(authorized))
     throw new SokoBotRefusedUnsentError(
       "Task Schedules are kept for your owner, on your owner's own turn. Say what you would change; your owner or a member can do it on the Schedules page.",
     );
@@ -63,29 +64,35 @@ async function botScheduleActor(
   };
 }
 
-/** The owner's own chat turn, the only one that may change someone else's schedule. */
-function ownersOwnChat(authorized: AuthorizedSokoBotRuntime): boolean {
-  return (
-    authorized.turn.source === "CHAT" &&
-    authorized.turn.chainDepth === 0 &&
-    authorized.askedByKind === "OWNER"
-  );
-}
-
 async function requireChangeable(
   actor: ScheduleActor,
   authorized: AuthorizedSokoBotRuntime,
   scheduleId: string,
 ) {
   const current = await findReadableSchedule(actor, scheduleId);
-  const ours =
-    current.creatorUserId === actor.userId ||
-    current.creatorSokoBotId === authorized.turn.sokoBotId;
-  if (!ours && !ownersOwnChat(authorized))
+  if (!isOursTaskSchedule(authorized, current) && !ownersOwnChat(authorized))
     throw new SokoBotRefusedUnsentError(
       `"${current.name}" was made by someone else. Ask your owner first, and change it when they say yes in their chat.`,
     );
   return current;
+}
+
+/**
+ * A UUID that is the same for every attempt of one tool call: the create
+ * service's idempotency key (`operationId`), scoped to the workspace.
+ */
+export function toolCallOperationId(
+  turnId: string,
+  toolCallId: string,
+): string {
+  const hex = createHash("sha256")
+    .update(`save_task_schedule:${turnId}:${toolCallId}`)
+    .digest("hex");
+  // RFC 9562 version 8 (custom) with the RFC variant bits.
+  const variant = ((Number.parseInt(hex[16] ?? "0", 16) & 0x3) | 0x8).toString(
+    16,
+  );
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-8${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
 /** The day's end in UTC; the rule is read in its own timezone anyway. */
@@ -167,7 +174,14 @@ export async function saveTaskSchedule(
         throw new SokoBotRefusedUnsentError(
           "A new Task Schedule needs name, brief, cron and timezone.",
         );
+      if (parsed.state === "ENDED")
+        throw new SokoBotRefusedUnsentError(
+          "A new Task Schedule starts ACTIVE or PAUSED; end one that exists by its scheduleId.",
+        );
       const request = createTaskScheduleRequestSchema.safeParse({
+        // The same tool call, retried after its receipt was lost, replays
+        // the schedule the first attempt made instead of making another.
+        operationId: toolCallOperationId(authorized.turn.id, input.toolCallId),
         name: parsed.name,
         description: parsed.brief ?? null,
         projectId: parsed.projectId ?? null,
@@ -183,7 +197,7 @@ export async function saveTaskSchedule(
           request.error.issues.map((issue) => issue.message).join("; "),
         );
       const created = await createTaskSchedule(actor, request.data);
-      return parsed.state === "PAUSED"
+      return parsed.state === "PAUSED" && created.state !== "PAUSED"
         ? changeTaskScheduleState(actor, created.id, "pause")
         : created;
     }

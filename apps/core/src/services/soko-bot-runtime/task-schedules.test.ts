@@ -190,6 +190,48 @@ describe("saveTaskSchedule", () => {
   });
 });
 
+describe("saveTaskSchedule retries and states", () => {
+  it("sends the same operation id for every attempt of one tool call", async () => {
+    const create = call({ name: "Daily research", cron: "0 9 * * 1-5" });
+    await saveTaskSchedule(runtime, create, authorized());
+    await saveTaskSchedule(runtime, create, authorized());
+    const [first, second] = mocks.create.mock.calls.map(
+      ([, request]) => request.operationId,
+    );
+    expect(first).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    expect(second).toBe(first);
+    await saveTaskSchedule(
+      runtime,
+      { ...create, toolCallId: "call-2" },
+      authorized(),
+    );
+    expect(mocks.create.mock.calls[2]?.[1].operationId).not.toBe(first);
+  });
+
+  it("refuses to create a schedule that is already ENDED, before writing", async () => {
+    await expect(
+      saveTaskSchedule(
+        runtime,
+        call({ name: "x", cron: "0 9 * * *", state: "ENDED" }),
+        authorized(),
+      ),
+    ).rejects.toThrow(/starts ACTIVE or PAUSED/);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("does not pause twice when a replay returns the schedule already paused", async () => {
+    mocks.create.mockResolvedValue({ ...SCHEDULE, state: "PAUSED" });
+    await saveTaskSchedule(
+      runtime,
+      call({ name: "x", cron: "0 9 * * *", state: "PAUSED" }),
+      authorized(),
+    );
+    expect(mocks.changeState).not.toHaveBeenCalled();
+  });
+});
+
 describe("removeTaskSchedule", () => {
   it("deletes one the owner made", async () => {
     const result = await removeTaskSchedule(

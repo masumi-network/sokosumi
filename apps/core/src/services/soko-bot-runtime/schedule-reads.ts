@@ -14,6 +14,7 @@ import {
   type AuthorizedSokoBotRuntime,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
+import { taskScheduleAccess } from "./task-schedule-access";
 
 /**
  * `list_schedules`: who made each schedule, which bot runs it and how its
@@ -130,6 +131,7 @@ async function botSchedules(
 }
 
 async function taskSchedules(
+  authorized: AuthorizedSokoBotRuntime,
   userId: string,
   workspaceId: string,
   query?: string,
@@ -193,9 +195,8 @@ async function taskSchedules(
         ? (row.runs[0].releasedTask?.status ?? row.runs[0].state)
         : null,
       description: clip(row.description),
-      // Bots never change Task Schedules; this says whether the member may.
-      youCanChange: false,
-      memberCanChange: canWriteTaskSchedule(reader, row),
+      // The same rule save_task_schedule and delete_task_schedule apply.
+      ...taskScheduleAccess(authorized, row, canWriteTaskSchedule(reader, row)),
     })),
   };
 }
@@ -236,7 +237,7 @@ export async function listSchedules(
       },
       query,
     ),
-    taskSchedules(actingUserId, workspaceId, query),
+    taskSchedules(authorized, actingUserId, workspaceId, query),
   ]);
   return {
     botSchedules: bots.schedules,

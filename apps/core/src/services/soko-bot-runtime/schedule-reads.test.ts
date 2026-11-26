@@ -28,8 +28,11 @@ function authorized(askedByKind = "OWNER") {
       sokoBotId: "joseph",
       workspaceId: "ws-1",
       actingUserId: "patrick",
+      source: "CHAT",
+      chainDepth: 0,
     },
     askedByKind,
+    reader: { sharedScope: null },
   } as unknown as AuthorizedSokoBotRuntime;
 }
 
@@ -104,6 +107,8 @@ describe("listSchedules", () => {
         id: "t1",
         name: "Summer recap",
         creatorUser: { name: "Jami" },
+        creatorUserId: "jami",
+        creatorSokoBotId: null,
         owner: { name: "Jami" },
         project: null,
         assignee: null,
@@ -138,8 +143,10 @@ describe("listSchedules", () => {
         kind: "task",
         createdBy: "Jami",
         lastResult: "COMPLETED",
-        youCanChange: false,
-        memberCanChange: true,
+        // Jami's: the owner may write it, so the bot may on the owner's
+        // chat turn, after asking.
+        youCanChange: true,
+        askOwnerFirst: true,
       }),
     );
     expect(taskFindMany.mock.calls[0][0].where.AND[0]).toEqual({
