@@ -55,6 +55,22 @@ describe("SEO run action after a failed free first check", () => {
     });
   });
 
+  it("offers the full audit again after the free retry failed too", () => {
+    const workspace = seoTestWorkspace();
+    workspace.analyses = [
+      failedFirst("page_check"),
+      {
+        ...failedFirst("page_check"),
+        id: "a2",
+        createdAt: new Date("2026-01-02T13:00:00Z"),
+      },
+    ];
+    expect(seoRunAction(workspace)).toMatchObject({
+      kind: "audit_full",
+      label: "runFullAudit",
+    });
+  });
+
   it("keeps the full audit after a failed full audit, and once a check saved a result", () => {
     const workspace = seoTestWorkspace();
     workspace.analyses = [failedFirst("audit_full")];
