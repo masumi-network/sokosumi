@@ -689,6 +689,24 @@ describe("the guards of speed data on each path", () => {
     ]);
   });
 
+  it("reads a stored field or lab Core cannot read as unavailable there and keeps the device (review pass 16)", () => {
+    const stored = publicSeoPayloadSchema.parse(
+      storedAudit(
+        [],
+        [
+          { ...device(EXTRA, "mobile"), field: {} },
+          { ...device(EXTRA, "desktop"), lab: { status: "other" } },
+        ],
+      ),
+    ).pageSpeed;
+    expect(
+      stored?.map((row) => [row.device, row.lab.status, row.field.status]),
+    ).toEqual([
+      ["mobile", "unavailable", "unavailable"],
+      ["desktop", "unavailable", "no_data"],
+    ]);
+  });
+
   it("counts an unreadable row once and keeps a later, readable row of the same page", () => {
     const table = read([
       extra(EXTRA, { speed: { mobile: throws() } }),
@@ -699,7 +717,7 @@ describe("the guards of speed data on each path", () => {
   });
 
   it("keeps a stored row and its readable device when the other device is unreadable", () => {
-    const broken = { ...device(EXTRA, "desktop"), lab: { status: "invalid" } };
+    const broken = { ...device(EXTRA, "desktop"), device: "watch" };
     const table = publicSeoPayloadSchema.parse({
       ...storedAudit([
         {

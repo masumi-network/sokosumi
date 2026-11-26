@@ -498,10 +498,15 @@ describe("imported full-audit PageSpeed evidence", () => {
       ),
     );
     const [valid] = stored.pageSpeed;
-    stored.pageSpeed = [valid, { ...valid, lab: { status: "broken" } }];
+    stored.pageSpeed = [valid, { ...valid, device: "watch" }];
     const read = publicSeoPayloadSchema.safeParse(stored);
     expect(read.success).toBe(true);
     expect(read.data?.pageSpeed).toEqual([valid]);
+    // A lab with a status Core does not know costs the lab only, as on a fresh import (review pass 16).
+    stored.pageSpeed = [{ ...valid, lab: { status: "broken" } }];
+    expect(publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.lab).toEqual({
+      status: "unavailable",
+    });
     // A measured lab Core cannot read costs the lab only: the field data stays.
     stored.pageSpeed = [{ ...valid, lab: { ...valid.lab, runs: 0, ok: 0 } }];
     const kept = publicSeoPayloadSchema.parse(stored).pageSpeed?.[0];

@@ -466,12 +466,9 @@ export function readableStoredMeasurement(value: unknown): unknown[] {
             !reportObject(series)
           ? { ...measured, history: { status: "unavailable" } }
           : { ...measured, history: kept };
-    // A measured field with another part Core cannot read (level, period, values) is no field data: the lab
-    // measurement stays, as on a fresh import.
-    if (
-      field.status === "measured" &&
-      !seoPageSpeedRow.shape.field.safeParse(read.field).success
-    )
+    // A field Core cannot read (a status, level, period or values) is no field data: the lab measurement
+    // stays, as on a fresh import.
+    if (!seoPageSpeedRow.shape.field.safeParse(read.field).success)
       read.field = { status: "unavailable" };
   }
   const lab = reportObject(row.lab);
@@ -502,11 +499,8 @@ export function readableStoredMeasurement(value: unknown): unknown[] {
         },
       }),
     };
-    // A measured lab Core cannot read (runs, medians) is no lab data: the field data stays, as on a fresh import.
-    if (
-      lab.status === "measured" &&
-      !seoPageSpeedRow.shape.lab.safeParse(read.lab).success
-    )
+    // A lab Core cannot read (a status, runs, medians) is no lab data: the field data stays, as on a fresh import.
+    if (!seoPageSpeedRow.shape.lab.safeParse(read.lab).success)
       read.lab = { status: "unavailable" };
   }
   return [read];
