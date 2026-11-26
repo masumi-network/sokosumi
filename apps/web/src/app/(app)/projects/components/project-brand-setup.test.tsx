@@ -12,11 +12,13 @@ vi.mock("@/lib/actions/project/action", () => ({
   updateProject: vi.fn(),
 }));
 
+const generation = vi.hoisted(() => ({ status: "idle" }));
+
 vi.mock("@/components/design-md/use-design-md-generation", () => ({
   useDesignMdGeneration: () => ({
     generate: vi.fn(),
     isRunning: false,
-    status: "idle",
+    status: generation.status,
   }),
 }));
 
@@ -35,6 +37,7 @@ vi.mock("sonner", () => ({
 describe("ProjectBrandSetup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    generation.status = "idle";
     resolveProjectSiteIconMock.mockResolvedValue({
       ok: true,
       value: { url: "https://blob.example/logo.png" },
@@ -82,11 +85,12 @@ describe("ProjectBrandSetup", () => {
       />,
     );
 
+    generation.status = "completed";
     // A live region from the first render, so the change to ready or
     // failed is read out.
     expect(screen.getByRole("status")).toHaveTextContent("fetching");
     await waitFor(() => {
-      expect(updateProject).toHaveBeenCalled();
+      expect(screen.getByRole("status")).toHaveTextContent("ready");
     });
   });
 });

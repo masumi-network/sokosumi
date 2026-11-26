@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
+import { projectPageMetadata } from "@/app/projects/[projectId]/project-page-metadata";
 import { BrandKitDownloadButton } from "@/app/projects/components/brand-kit-download-button";
 import { DesignMdDocument } from "@/app/projects/components/design-md-document";
 import {
@@ -33,6 +35,20 @@ interface ProjectDesignPageProps {
  * remove — already lives there and a second copy of those buttons would be a
  * second thing to keep in step.
  */
+
+/** The section's name, then the project's, as the tab title. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ projectId: string }>;
+}): Promise<Metadata> {
+  const [{ projectId }, t] = await Promise.all([
+    params,
+    getTranslations("App.Projects.Detail"),
+  ]);
+  return projectPageMetadata(projectId, t("tabs.design"));
+}
+
 export default async function ProjectDesignPage({
   params,
 }: ProjectDesignPageProps) {

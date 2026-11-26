@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 
 import { RecordProjectVisit } from "./components/record-project-visit";
-import { loadProjectOverviewData } from "./project-overview-data";
+import { projectPageMetadata } from "./project-page-metadata";
 
 /**
- * The project's name as the tab title on every project page; a page with
- * its own title, such as Edit, keeps it. The route announcer reads the
- * title out after each navigation. Same private-cached read as Overview.
+ * The project's name as the tab title for Overview and any page without a
+ * title of its own; a section page adds its name in front.
  */
 export async function generateMetadata({
   params,
@@ -14,8 +13,7 @@ export async function generateMetadata({
   params: Promise<{ projectId: string }>;
 }): Promise<Metadata> {
   const { projectId } = await params;
-  const data = await loadProjectOverviewData(projectId);
-  return data ? { title: data.project.name } : {};
+  return projectPageMetadata(projectId);
 }
 
 export default async function ProjectDetailLayout({

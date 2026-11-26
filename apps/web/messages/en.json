@@ -3804,7 +3804,8 @@
         "bots": {
           "title": "Bots for this project",
           "empty": "No bots for this project yet. A project bot sees the project's public Tasks, and everyone talks to it in one room."
-        }
+        },
+        "sectionTitle": "{section} · {project}"
       },
       "Newsletter": {
         "title": "Newsletter",

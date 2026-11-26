@@ -1,37 +1,25 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-const loadProjectOverviewData = vi.hoisted(() => vi.fn());
+const projectPageMetadata = vi.hoisted(() =>
+  vi.fn(async () => ({ title: "Spring launch" })),
+);
 
-vi.mock("./project-overview-data", () => ({ loadProjectOverviewData }));
-vi.mock("./components/record-project-visit", () => ({
+vi.mock("@/app/projects/[projectId]/project-page-metadata", () => ({
+  projectPageMetadata,
+}));
+vi.mock("@/app/projects/[projectId]/components/record-project-visit", () => ({
   RecordProjectVisit: () => null,
 }));
 
-import { generateMetadata } from "./layout";
+import { generateMetadata } from "@/app/projects/[projectId]/layout";
 
-describe("project pages' title", () => {
-  beforeEach(() => {
-    loadProjectOverviewData.mockReset();
-  });
-
-  // The route announcer reads the title out on every navigation, so the
-  // app's tagline there told a screen reader nothing about the page.
+describe("project pages' default title", () => {
+  // Pages without a section of their own, such as Overview, are titled by
+  // the project's name.
   it("is the project's name", async () => {
-    loadProjectOverviewData.mockResolvedValue({
-      project: { name: "Spring launch" },
-    });
-
     await expect(
       generateMetadata({ params: Promise.resolve({ projectId: "p1" }) }),
     ).resolves.toEqual({ title: "Spring launch" });
-    expect(loadProjectOverviewData).toHaveBeenCalledWith("p1");
-  });
-
-  it("keeps the app's title when the project is not available", async () => {
-    loadProjectOverviewData.mockResolvedValue(null);
-
-    await expect(
-      generateMetadata({ params: Promise.resolve({ projectId: "p1" }) }),
-    ).resolves.toEqual({});
+    expect(projectPageMetadata).toHaveBeenCalledWith("p1");
   });
 });

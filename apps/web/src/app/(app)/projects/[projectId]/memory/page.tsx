@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getFormatter } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
+import { projectPageMetadata } from "@/app/projects/[projectId]/project-page-metadata";
 import { ProjectHeaderActions } from "@/app/projects/components/project-header-actions";
 import { ProjectMemoryPanel } from "@/app/projects/components/project-memory-panel";
 import {
@@ -25,6 +27,20 @@ interface ProjectMemoryPageProps {
  * is the natural place to spend it: no spinner, no click, and the document is
  * in the HTML for anyone who lands on the link.
  */
+
+/** The section's name, then the project's, as the tab title. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ projectId: string }>;
+}): Promise<Metadata> {
+  const [{ projectId }, t] = await Promise.all([
+    params,
+    getTranslations("App.Projects.Detail"),
+  ]);
+  return projectPageMetadata(projectId, t("tabs.memory"));
+}
+
 export default async function ProjectMemoryPage({
   params,
 }: ProjectMemoryPageProps) {

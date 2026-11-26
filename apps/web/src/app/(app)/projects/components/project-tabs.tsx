@@ -2,13 +2,7 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  type ReactNode,
-  Suspense,
-  use,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { type ReactNode, Suspense, use, useSyncExternalStore } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -79,14 +73,15 @@ export function ProjectTabs({
 }) {
   const pathname = usePathname();
   const activeId = activeProjectTabId(pathname, tabs);
-  // The server snapshot answers only while the page hydrates. Kept from the
-  // first render, so the re-render after hydration does not count as arriving.
-  const mountedByHydration = useSyncExternalStore(
+  // The server snapshot answers only while the page hydrates, so the row
+  // carries the mark in the server's HTML and drops it right after. A page
+  // Next kept in a hidden Activity attaches its links again when shown, by
+  // then without the mark.
+  const hydrating = useSyncExternalStore(
     subscribeToNothing,
     () => false,
     () => true,
   );
-  const [arrivedByNavigation] = useState(!mountedByHydration);
 
   return (
     // The tabs wrap rather than scroll. A horizontal scroller here was worse
@@ -96,16 +91,18 @@ export function ProjectTabs({
     // the indicator and offered a vertical scrollbar for it. Four short
     // labels fit on one line at 390px, and a fifth wrapping to a second line
     // is a better failure than an indicator nobody can see.
-    <nav aria-label={ariaLabel} className="border-border border-b">
+    <nav
+      aria-label={ariaLabel}
+      className="border-border border-b"
+      data-hydrating={hydrating || undefined}
+    >
       <ul className="-mb-px flex flex-wrap items-center gap-x-5 text-sm">
         {tabs.map((tab) => {
           const isActive = tab.id === activeId;
           const item = (
             <li key={tab.id}>
               <Link
-                ref={
-                  isActive && arrivedByNavigation ? focusIfDropped : undefined
-                }
+                ref={isActive ? focusIfDropped : undefined}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "relative -mb-px flex items-center gap-2 border-b-2 py-2.5 whitespace-nowrap transition-colors",
@@ -146,14 +143,20 @@ function subscribeToNothing() {
  * Each subpage renders its own row of tabs, so following a tab, or coming
  * back from Edit, removes the focused control with the old page and focus
  * falls to the body: a keyboard user starts again at the top of the app.
- * The current tab takes it back, only when nothing else holds it. Module
- * level, so React calls it once per link rather than on every render.
+ * The current tab takes it back, only when nothing else holds it, and never
+ * on a fresh load. A control in the page Next just hid still counts as
+ * focused until the browser notices, so a hidden one counts as dropped.
+ * Module level, so React calls it once per link rather than on every render.
  */
 function focusIfDropped(link: HTMLAnchorElement | null) {
-  const focused = link?.ownerDocument.activeElement;
-  if (link && (!focused || focused === link.ownerDocument.body)) {
-    link.focus({ preventScroll: true });
-  }
+  if (!link || link.closest("[data-hydrating]")) return;
+  const focused = link.ownerDocument.activeElement;
+  const dropped =
+    !focused ||
+    focused === link.ownerDocument.body ||
+    !focused.isConnected ||
+    focused.checkVisibility?.() === false;
+  if (dropped) link.focus({ preventScroll: true });
 }
 
 function ShowWhen({

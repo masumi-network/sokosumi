@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { Activity } from "react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -168,5 +169,26 @@ describe("ProjectTabs focus after a route change", () => {
     render(ui, { container, hydrate: true });
 
     expect(document.activeElement).toBe(document.body);
+  });
+
+  // Next keeps a visited page in a hidden Activity and shows it again on
+  // Back, so a row first hydrated on a fresh load comes back by navigation.
+  it("puts focus back on the current tab when a kept page is shown again", () => {
+    pathname.current = "/projects/p1";
+    const page = (mode: "visible" | "hidden") => (
+      <Activity mode={mode}>
+        <ProjectTabs ariaLabel="Project sections" tabs={TABS} />
+      </Activity>
+    );
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(page("visible"));
+    document.body.append(container);
+    const { rerender } = render(page("visible"), { container, hydrate: true });
+    expect(document.activeElement).toBe(document.body);
+
+    rerender(page("hidden"));
+    rerender(page("visible"));
+
+    expect(screen.getByRole("link", { name: "Overview" })).toHaveFocus();
   });
 });
