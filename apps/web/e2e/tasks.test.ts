@@ -880,6 +880,8 @@ for (const { name: size, ...viewport } of PROJECTS) {
       // It starts on the Draft-filtered board above.
       await page.getByRole("link", { name: LONG_NAME }).click();
       await page.getByRole("combobox", { name: /^Status:/ }).click();
+      // The picker finds a status by the board column it lands in.
+      await page.keyboard.type("Done");
       await page.getByRole("option", { name: /^Completed/ }).click();
       await page.getByRole("combobox", { name: "Status: Completed" }).waitFor();
       // The combobox updates at once; wait until the save lands before leaving.
