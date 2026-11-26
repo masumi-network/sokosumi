@@ -427,17 +427,22 @@ export const createTalkingVideoJobRequestSchema = z
      * A photo of a person needs their say-so: `consent` records that the
      * caller confirmed they may use it.
      */
-    presenter: z.discriminatedUnion("kind", [
-      z.object({
-        kind: z.literal("stock"),
-        id: z.string().trim().min(1).max(100),
+    presenter: z
+      .discriminatedUnion("kind", [
+        z.object({
+          kind: z.literal("stock"),
+          id: z.string().trim().min(1).max(100),
+        }),
+        z.object({
+          kind: z.literal("file"),
+          fileId: z.string().uuid(),
+          consent: z.literal(true),
+        }),
+      ])
+      .openapi({
+        description:
+          'A stock presenter, `{"kind": "stock", "id": "<presenter id from the catalog>"}`, or the caller\'s own photo in Files, `{"kind": "file", "fileId": "<Drive file id>", "consent": true}`. Only a person can start a video of their own photo: an agent gets 403 `person_approval_required` with the Studio link to send the person to.',
       }),
-      z.object({
-        kind: z.literal("file"),
-        fileId: z.string().uuid(),
-        consent: z.literal(true),
-      }),
-    ]),
     /**
      * Show the Project's website behind the presenter in the middle of the
      * video. Omitted, it is shown when the Project has a website; it never is
