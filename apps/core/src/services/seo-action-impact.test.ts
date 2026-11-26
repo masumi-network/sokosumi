@@ -395,7 +395,7 @@ describe("collectSeoAuditPageSeries", () => {
     measured();
     boundary.integration.mockResolvedValue(account);
     boundary.read.mockImplementation(async (_account, _slug, logical) => {
-      if (JSON.stringify(logical).includes(pageB))
+      if (logical.dimension_filter_groups[0].filters[0].expression === pageB)
         throw new Error("quota exceeded");
       return {
         rows: [
@@ -475,7 +475,8 @@ describe("collectSeoAuditPageSeries", () => {
     measured();
     boundary.integration.mockResolvedValue(account);
     boundary.read.mockImplementation(async (_account, _slug, logical) => {
-      if (JSON.stringify(logical).includes(pageB)) throw new Error("quota");
+      if (logical.dimension_filter_groups[0].filters[0].expression === pageB)
+        throw new Error("quota");
       return { rows: [] };
     });
     const other = { pageUrl: pageB, measuredUrl: pageB, days: [] };
