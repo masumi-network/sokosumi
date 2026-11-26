@@ -399,11 +399,13 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     const stored = await prisma.projectSeoSuggestion.findUniqueOrThrow({
       where: { id },
     });
-    expect(answers).toEqual([
-      expect.objectContaining({ status: "done" }),
-      expect.objectContaining({ status: "done" }),
-    ]);
     expect(stored.doneAt).toEqual(expect.any(Date));
+    // The request that lost the race answers the stored change, not its own.
+    const done = { status: "done", doneAt: stored.doneAt?.toISOString() };
+    expect(answers).toEqual([
+      expect.objectContaining(done),
+      expect.objectContaining(done),
+    ]);
   });
 
   it("reopens a change that the weekly check verified while the reopen ran", async () => {
@@ -703,6 +705,21 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     expect(await rowsOf(id)).toMatchObject([{ lastInspectedAt: later }]);
   });
 
+  it("fills the next page only up to the tick's inspection limit", async () => {
+    await doneChanges(projectId, 500);
+    await syncSeoImpact();
+    // The refused account's two pages come first: one fails, one is deferred.
+    await doneChanges(failingProjectId, 2);
+    vi.mocked(propertyChoices).mockRejectedValueOnce(
+      new Error("Composio refused the read: 403"),
+    );
+    expectCoreLog("warn", "SEO impact tracking could not read Search Console.");
+
+    expect(
+      await syncSeoImpact(undefined, new Date(Date.now() + 21 * HOUR_MS)),
+    ).toMatchObject({ inspected: 500 });
+  });
+
   it("defers an account's other pages when its property list fails", async () => {
     const pages = ["a", "b"].map(
       (page) => `https://battery-sensei.app/${page}`,
@@ -930,27 +947,32 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     ]);
   });
 
-  it("asks Google nothing for a page that is no web URL", async () => {
+  it("asks Google nothing for a page that is no web URL, and ends it at once", async () => {
     const pages = await Promise.all(
       ["battery-sensei.app pricing", "ftp://battery-sensei.app/pricing"].map(
         (pageUrl) => doneChange(pageUrl),
       ),
     );
 
-    await syncSeoImpact();
-
+    // No later tick can find a property for it: it stops waiting now.
+    expect(await syncSeoImpact()).toMatchObject({ notMeasurable: 2 });
     for (const { id } of pages)
-      expect(await rowsOf(id)).toMatchObject([{ reason: "no_property" }]);
+      expect(await rowsOf(id)).toMatchObject([
+        { state: "not_measurable", reason: "no_property" },
+      ]);
     expect(propertyChoices).not.toHaveBeenCalled();
   });
 
-  it("gives a page that is no URL no property, and inspects the next page", async () => {
+  it("gives a page that is no URL no property, and inspects the next pages", async () => {
     const pageUrl = "https://battery-sensei.app/pricing";
+    const plainPage = "http://battery-sensei.app/about";
     const noUrl = await doneChange("battery-sensei.app pricing");
     await doneChange(pageUrl);
+    await doneChange(plainPage);
     lastCrawl.set(pageUrl, "2026-11-22T08:00:00Z");
+    lastCrawl.set(plainPage, "2026-11-22T08:00:00Z");
 
-    expect(await syncSeoImpact()).toMatchObject({ crawled: 1 });
+    expect(await syncSeoImpact()).toMatchObject({ crawled: 2 });
     expect(await rowsOf(noUrl.id)).toMatchObject([{ reason: "no_property" }]);
   });
 

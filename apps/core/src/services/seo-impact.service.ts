@@ -67,7 +67,12 @@ interface WaitingRow {
 
 type Inspection =
   | { crawledAt: Date; property: string }
-  | { reason: SeoImpactReason; property: string | null };
+  | {
+      reason: SeoImpactReason;
+      property: string | null;
+      /** No later tick can answer otherwise: the row ends now. */
+      final?: true;
+    };
 
 /** Not inspected this tick: the row keeps its state, and a later tick asks again. */
 const DEFERRED = "deferred";
@@ -193,10 +198,10 @@ async function inspectRow(
   budgetMs: () => number,
 ): Promise<Inspection | typeof DEFERRED> {
   // Only a web page has a Search Console property: ask Google nothing for
-  // another URL or a text that is no URL.
+  // another URL or a text that is no URL, and never again.
   const protocol = URL.parse(row.pageUrl)?.protocol;
   if (protocol !== "http:" && protocol !== "https:")
-    return { reason: "no_property", property: null };
+    return { reason: "no_property", property: null, final: true };
   const account = await once(lookups.accounts, row.projectId, () =>
     projectAccount(row.projectId),
   );
@@ -280,6 +285,7 @@ async function applyInspection(
     return count ? "crawled" : "waiting";
   }
   const expired =
+    inspection.final ||
     now.getTime() - row.createdAt.getTime() >= IMPACT_CRAWL_WAIT_DAYS * DAY_MS;
   const { count } = await prisma.projectSeoImpactVerdict.updateMany({
     where: { id: row.id, state: "waiting_crawl" },

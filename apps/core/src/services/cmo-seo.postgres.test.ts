@@ -536,61 +536,78 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
     });
   });
 
-  it("keeps a reopen that came after the weekly check read the done change", async () => {
-    const change = await prisma.projectSeoSuggestion.findFirstOrThrow({
-      where: { projectId, source: "audit", status: "open" },
-      orderBy: { id: "asc" },
-    });
-    const rowIds = change.key.slice(change.key.lastIndexOf(":") + 1).split(",");
-    const owner = { userId, projectId };
-    await setCmoSeoSuggestionStatus(
-      owner,
-      change.id,
-      "done",
-      new Date("2026-11-24T10:00:00Z"),
-    );
-    // A later audit checked the page and found the fix.
-    await storeAudit(
-      {
-        ...report,
-        findings: report.findings.filter(
-          (finding: { rowId: string }) => !rowIds.includes(finding.rowId),
-        ),
-        checks: [
-          ...report.checks.filter(
-            (check: { rowId: string }) => !rowIds.includes(check.rowId),
+  it.each([
+    { owner: "reopen", redoneAt: null },
+    { owner: "reopen and redo", redoneAt: new Date("2026-11-26T10:00:00Z") },
+  ])(
+    "keeps a $owner that came after the weekly check read the done change",
+    async ({ redoneAt }) => {
+      const change = await prisma.projectSeoSuggestion.findFirstOrThrow({
+        where: { projectId, source: "audit", status: "open" },
+        orderBy: { id: "asc" },
+      });
+      const rowIds = change.key
+        .slice(change.key.lastIndexOf(":") + 1)
+        .split(",");
+      const owner = { userId, projectId };
+      await setCmoSeoSuggestionStatus(
+        owner,
+        change.id,
+        "done",
+        new Date("2026-11-24T10:00:00Z"),
+      );
+      // A later audit checked the page and found the fix.
+      await storeAudit(
+        {
+          ...report,
+          findings: report.findings.filter(
+            (finding: { rowId: string }) => !rowIds.includes(finding.rowId),
           ),
-          ...rowIds.map((rowId) => ({
-            rowId,
-            device: "mobile",
-            result: "pass",
-            pageUrl: change.pageUrl,
-          })),
-        ],
-      },
-      new Date("2026-11-25T06:10:00Z"),
-    );
-    // The owner reopens the change after the check read it.
-    const list = prisma.projectSeoSuggestion.findMany;
-    const spy = vi
-      .spyOn(prisma.projectSeoSuggestion, "findMany")
-      .mockImplementationOnce((async (args: Parameters<typeof list>[0]) => {
-        const rows = await list(args);
-        await setCmoSeoSuggestionStatus(owner, change.id, "open");
-        return rows;
-      }) as typeof list);
-    try {
-      await verifyCmoSeoChanges(cuso);
-    } finally {
-      spy.mockRestore();
-    }
+          checks: [
+            ...report.checks.filter(
+              (check: { rowId: string }) => !rowIds.includes(check.rowId),
+            ),
+            ...rowIds.map((rowId) => ({
+              rowId,
+              device: "mobile",
+              result: "pass",
+              pageUrl: change.pageUrl,
+            })),
+          ],
+        },
+        new Date("2026-11-25T06:10:00Z"),
+      );
+      // The owner reopens the change after the check read it.
+      const list = prisma.projectSeoSuggestion.findMany;
+      const spy = vi
+        .spyOn(prisma.projectSeoSuggestion, "findMany")
+        .mockImplementationOnce((async (args: Parameters<typeof list>[0]) => {
+          const rows = await list(args);
+          await setCmoSeoSuggestionStatus(owner, change.id, "open");
+          if (redoneAt)
+            await setCmoSeoSuggestionStatus(owner, change.id, "done", redoneAt);
+          return rows;
+        }) as typeof list);
+      try {
+        await verifyCmoSeoChanges(cuso);
+      } finally {
+        spy.mockRestore();
+      }
 
-    expect(
-      await prisma.projectSeoSuggestion.findUniqueOrThrow({
-        where: { id: change.id },
-      }),
-    ).toMatchObject({ status: "open", doneAt: null, checkedAt: null });
-  });
+      // The next audit checks the new change: this check confirms nothing of it.
+      expect(
+        await prisma.projectSeoSuggestion.findUniqueOrThrow({
+          where: { id: change.id },
+        }),
+      ).toMatchObject({
+        status: redoneAt ? "done" : "open",
+        doneAt: redoneAt,
+        checkedAt: null,
+        verifiedAt: null,
+      });
+      await setCmoSeoSuggestionStatus(owner, change.id, "open");
+    },
+  );
 
   it("keeps a newer audit's check over an older passing one that writes later", async () => {
     const change = await prisma.projectSeoSuggestion.findFirstOrThrow({

@@ -32,6 +32,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("No such suggestion"),
+    409: jsonErrorResponse("The suggestion changed while it was saved"),
   },
 });
 
