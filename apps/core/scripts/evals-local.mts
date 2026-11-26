@@ -1,8 +1,10 @@
 /**
  * Run eval cases in this process against the database in `.env`, no Core
- * server or CLI login needed. With `--plan`, OpenAI models run on your own
- * ChatGPT plan (sign in first: `pnpm chatgpt-plan:login`); Gemini, Claude and
- * Jev calls stay on the Gateway. See docs/agents/evals.md.
+ * server or CLI login needed. With `--plan`, nothing reaches the AI Gateway:
+ * OpenAI models run on your own ChatGPT plan (sign in first:
+ * `pnpm chatgpt-plan:login`), Gemini/Claude checks and Jev run on a plan
+ * stand-in, embeddings in process, the judge on Claude Code, and any other
+ * Gateway call fails. See docs/agents/evals.md.
  *
  *   pnpm --filter @sokosumi/core evals:local --plan --cases ambiguous-request
  *   pnpm --filter @sokosumi/core evals:local --plan --suite cmo --cuso-version cmo-v23
@@ -22,13 +24,17 @@ const { values } = parseArgs({
 });
 
 if (values.plan) process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN = "1";
+// `--plan` or the env flag alone: either way this is a plan run.
+const plan = ["1", "true"].includes(
+  process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN ?? "",
+);
 process.env.SOKO_BOT_RUNTIME_ADAPTER = "in-process";
 
 const { default: prisma } = await import("@/lib/db/prisma");
 const { createEvalRun, tickEvalRuns } = await import(
   "@/services/evals/eval-runs.service"
 );
-if (values.plan) {
+if (plan) {
   const { chatGptPlanAccessToken } = await import("@/lib/local-chatgpt-plan");
   await chatGptPlanAccessToken();
 }
@@ -52,13 +58,14 @@ const run = await createEvalRun({
   repeats: Number(values.repeats),
   sokoBotVersionId: values["soko-bot-version"] ?? null,
   cusoVersionId: values["cuso-version"] ?? null,
-  label: values.plan ? "local, OpenAI on ChatGPT plan" : "local, Gateway",
+  // Plan runs get their label from createEvalRun, however plan mode was set.
+  label: plan ? undefined : "local, Gateway",
   commit: {
     sha: git("rev-parse", "HEAD"),
     message: git("log", "-1", "--format=%s"),
   },
 });
-console.log(`Run ${run.id} (${values.plan ? "ChatGPT plan" : "Gateway"})`);
+console.log(`Run ${run.id} (${plan ? "ChatGPT plan" : "Gateway"})`);
 
 for (;;) {
   const tick = await tickEvalRuns();

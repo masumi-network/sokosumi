@@ -46,6 +46,8 @@ import {
   loadLabJudgePayload,
   SokoBotJudgeFailure,
   SokoBotLabJudgeError,
+  sokoBotJudgeModel,
+  sokoBotJudgeRunner,
   sokoBotLabJudgeErrorKind,
 } from "./soko-bot-lab-judge.service";
 
@@ -342,5 +344,30 @@ describe("soko-bot judge on Claude Code", () => {
     );
     expect(runClaudeCodeJudge).not.toHaveBeenCalled();
     expect(generateText).not.toHaveBeenCalled();
+  });
+});
+
+describe("soko-bot judge on a ChatGPT plan run", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("defaults to Claude Code when no runner is set", () => {
+    vi.stubEnv("SOKO_BOT_LOCAL_CHATGPT_PLAN", "1");
+    vi.stubEnv("SOKO_BOT_JUDGE_RUNNER", "");
+    expect(sokoBotJudgeRunner()).toBe("claude-code");
+  });
+
+  it("names the plan model that ran under a Gateway-judge override", () => {
+    vi.stubEnv("SOKO_BOT_LOCAL_CHATGPT_PLAN", "1");
+    vi.stubEnv("SOKO_BOT_JUDGE_RUNNER", "gateway");
+    vi.mocked(getEnv).mockReturnValue({
+      ...getEnv(),
+      SOKO_BOT_JUDGE_RUNNER: "gateway",
+    });
+    expect(sokoBotJudgeModel("anthropic/claude-opus-5.5")).toBe(
+      "chatgpt-plan:gpt-6-luna",
+    );
+    expect(sokoBotJudgeModel("openai/gpt-6.2-sol")).toBe(
+      "chatgpt-plan:gpt-6.2-sol",
+    );
   });
 });

@@ -7,6 +7,8 @@
 
 import { embedMany, gateway } from "ai";
 import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
+import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
+import { embedTextsOnChatGptPlan } from "@/lib/local-chatgpt-plan-stand-ins";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { recordModelCall } from "@/lib/soko-bot/model-calls";
 
@@ -20,6 +22,7 @@ export type EmbedTexts = (
 ) => Promise<{ embeddings: number[][]; costUsd: number }>;
 
 export const embedTexts: EmbedTexts = async (values) => {
+  if (localChatGptPlanEnabled()) return embedTextsOnChatGptPlan(values);
   const result = await embedMany({
     model: gateway.textEmbeddingModel(EMBEDDING_MODEL),
     values: values.map((value) => value.slice(0, MAX_EMBEDDED_CHARS)),

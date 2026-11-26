@@ -28,7 +28,7 @@ describe("local ChatGPT plan", () => {
     ).toThrow(/local only/);
   });
 
-  it("keeps the Gateway for non-OpenAI models and when off", () => {
+  it("keeps the Gateway for every model when off", () => {
     expect(localChatGptPlanModel("google/gemini-3.8-flash")).toBeNull();
     expect(localChatGptPlanModel("openai/gpt-6-luna")).toBeNull();
   });
