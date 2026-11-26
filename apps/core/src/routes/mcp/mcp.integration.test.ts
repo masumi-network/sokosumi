@@ -186,7 +186,14 @@ vi.mock("@/lib/sokosumi-mcp/ui-tools", async (importOriginal) => {
 
 /** Every view a UI tool uses, real rows first. */
 const VIEW_RESOURCES = (
-  ["tasks-board", "agents-hire", "job-status", "task-detail", "hello"] as const
+  [
+    "tasks-board",
+    "agents-hire",
+    "job-status",
+    "task-detail",
+    "social-posts",
+    "hello",
+  ] as const
 ).map((id) => ({
   uri: MCP_UI[id].uri,
   name: id,
@@ -276,10 +283,12 @@ describe("Sokosumi MCP server", () => {
     ]);
     // SOKD-410: feature toolsets keep the default small. Growing it is a
     // deliberate edit here; the ceiling is 45 (docs/agents/agent-surface.md).
-    // UI tools count: 34 data tools, plus tasks_show_board and tasks_show.
-    expect(defaults).toHaveLength(34 + 2);
+    // UI tools count: 34 data tools, plus tasks_show_board, tasks_show and
+    // workspaces_show_social_posts (its twin is in workspaces).
+    expect(defaults).toHaveLength(34 + 3);
     expect(defaults).toContain("tasks_show_board");
     expect(defaults).toContain("tasks_show");
+    expect(defaults).toContain("workspaces_show_social_posts");
     // jobs_show sits in the opt-in jobs toolset with jobs_get.
     expect(defaults).not.toContain("jobs_show");
     expect(new Set(defaults.map(toolsetOf))).toEqual(new Set(DEFAULT_TOOLSETS));

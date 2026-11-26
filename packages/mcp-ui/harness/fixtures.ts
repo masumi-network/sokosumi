@@ -496,6 +496,117 @@ export const TASK = {
   },
 };
 
+const LAUNCH_PROJECT = "0196a000-0000-7000-8000-00000000c001";
+const BLOG_PROJECT = "0196a000-0000-7000-8000-00000000c002";
+
+/** A `workspaces_social_posts` item, trimmed to fields every post has. */
+function socialPost(
+  number: number,
+  {
+    projectId = LAUNCH_PROJECT,
+    projectName = "Autumn launch",
+    projectCmo = false,
+    ...post
+  }: {
+    projectId?: string;
+    projectName?: string;
+    projectCmo?: boolean;
+    text: string;
+    provider?: string;
+    status?: string;
+    scheduledAt?: string | null;
+    account?: { displayName: string | null; externalHandle: string | null };
+    media?: unknown[];
+    threadParts?: unknown[];
+    revision?: number;
+  },
+) {
+  const { account, ...rest } = post;
+  return {
+    post: {
+      id: `0196a000-0000-7000-8000-${String(number).padStart(12, "0")}`,
+      projectId,
+      provider: "linkedin",
+      firstComment: null,
+      media: [],
+      threadParts: [],
+      status: "NEEDS_APPROVAL",
+      scheduledAt: null,
+      timezone: "Europe/Zurich",
+      socialConnection: account
+        ? { id: `0196a000-0000-7000-8000-00000000d00${number}`, ...account }
+        : null,
+      revision: 3,
+      ...rest,
+    },
+    projectName,
+    projectCmo,
+  };
+}
+
+const SOCIAL_POSTS = [
+  socialPost(1, {
+    text: "Autumn pricing is live: every plan now includes two seats and a shared Workspace.\n\nRead what changed and why on our blog.",
+    scheduledAt: "2026-11-27T08:30:00.000Z",
+    account: { displayName: "Acme Studio", externalHandle: "acmestudio" },
+  }),
+  socialPost(2, {
+    text: "Three things we learned shipping agents to 40 teams this year. A thread.",
+    provider: "x",
+    scheduledAt: "2026-11-28T15:00:00.000Z",
+    account: { displayName: null, externalHandle: "acme" },
+    threadParts: [{}, {}],
+    media: [{}],
+  }),
+  socialPost(3, {
+    projectId: BLOG_PROJECT,
+    projectName: "Blog",
+    projectCmo: true,
+    text: "<b>Markup stays text.</b> New on the blog: how we plan a week of posts in ten minutes.",
+    account: { displayName: "Acme Studio", externalHandle: "acmestudio" },
+  }),
+  socialPost(4, {
+    text: "Already approved, so the view leaves it out.",
+    status: "SCHEDULED",
+    scheduledAt: "2026-11-29T09:00:00.000Z",
+  }),
+];
+
+const socialResult = (posts: unknown[], total = posts.length) => ({
+  ...toolResult({
+    data: posts,
+    pagination: { cursor: null, limit: 20, total },
+  }),
+  _meta: sokosumi,
+});
+
+/** `workspaces_show_social_posts` results and what the view's calls return. */
+export const SOCIAL = {
+  input: { workspace: "acme", status: "NEEDS_APPROVAL" },
+  posts: SOCIAL_POSTS,
+  result: socialResult(SOCIAL_POSTS),
+  one: socialResult(SOCIAL_POSTS.slice(0, 1)),
+  none: socialResult([]),
+  /** The twin's answer after the first post was canceled. */
+  afterCancel: socialResult(SOCIAL_POSTS.slice(1)),
+  canceled: toolResult({
+    data: { ...SOCIAL_POSTS[0].post, status: "CANCELED", revision: 4 },
+  }),
+  conflict: {
+    ...toolResult({ status: 409, message: "Social post changed" }),
+    isError: true,
+  },
+  missingToolset: {
+    content: [
+      {
+        type: "text" as const,
+        text: "Unknown tool: projects_social_post_cancel",
+      },
+    ],
+    isError: true,
+  },
+};
+
 /** Tool results the harness feeds each view, by view id, then by fixture name. */
 export const FIXTURES: Record<string, Record<string, Fixture>> = {
   hello: {
@@ -670,5 +781,53 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
       },
     },
     approval: { input: TASK.input, result: TASK.personApproval },
+  },
+  "social-posts": {
+    default: { input: SOCIAL.input, result: SOCIAL.result },
+    confirm: {
+      input: SOCIAL.input,
+      result: SOCIAL.one,
+      play: [{ click: "Cancel" }],
+      step: "confirm",
+      allWidths: true,
+    },
+    canceling: {
+      input: SOCIAL.input,
+      result: SOCIAL.one,
+      calls: { projects_social_post_cancel: "pending" },
+      play: [{ click: "Cancel" }, { click: "Cancel post" }],
+      step: "canceling",
+    },
+    canceled: {
+      input: SOCIAL.input,
+      result: SOCIAL.one,
+      calls: { projects_social_post_cancel: SOCIAL.canceled },
+      play: [{ click: "Cancel" }, { click: "Cancel post" }],
+      step: "canceled",
+      allWidths: true,
+    },
+    conflict: {
+      input: SOCIAL.input,
+      result: SOCIAL.one,
+      calls: { projects_social_post_cancel: SOCIAL.conflict },
+      play: [{ click: "Cancel" }, { click: "Cancel post" }],
+      step: "conflict",
+    },
+    missingToolset: {
+      input: SOCIAL.input,
+      result: SOCIAL.one,
+      calls: { projects_social_post_cancel: SOCIAL.missingToolset },
+      play: [{ click: "Cancel" }, { click: "Cancel post" }],
+      step: "missing-tool",
+    },
+    loading: { input: SOCIAL.input },
+    empty: { input: SOCIAL.input, result: SOCIAL.none },
+    error: {
+      input: SOCIAL.input,
+      result: {
+        content: [{ type: "text", text: "Forbidden" }],
+        isError: true,
+      },
+    },
   },
 };

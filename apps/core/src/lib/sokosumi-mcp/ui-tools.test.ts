@@ -48,6 +48,21 @@ describe("MCP_UI_TOOLS", () => {
     expect(hire?.description).toContain("capped at the price shown");
   });
 
+  it("shows the Social posts that need approval, with cancel and no approve (ADR 0077)", () => {
+    const show = MCP_UI_TOOLS.find(
+      (tool) => tool.name === "workspaces_show_social_posts",
+    );
+
+    expect(show).toMatchObject({
+      data: "workspaces_social_posts",
+      ui: "social-posts",
+    });
+    expect(show?.description).toContain('`status: "NEEDS_APPROVAL"`');
+    expect(show?.description).toContain("projects_social_post_cancel");
+    expect(show?.description).toContain("social toolset");
+    expect(show?.description).toContain("approves and publishes in Sokosumi");
+  });
+
   it("ships no tool for the placeholder view", () => {
     expect(MCP_UI_TOOLS.map((tool) => tool.ui)).not.toContain("hello");
   });

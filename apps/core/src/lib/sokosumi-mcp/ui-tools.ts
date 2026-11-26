@@ -44,6 +44,13 @@ export const MCP_UI_TOOLS: readonly McpUiTool[] = [
     description:
       "Show one Task to the person: its name, status, assignee, due date and description, with its comments and Jobs when the person opens the timeline. Takes tasks_get's arguments and returns its result. Use it when the person wants to see a Task; use tasks_get when you only need the data.",
   },
+  {
+    name: "workspaces_show_social_posts",
+    data: "workspaces_social_posts",
+    ui: "social-posts",
+    description:
+      "Show the person the workspace's Social posts that need approval: each post's text, account, Project and schedule, with Review in Sokosumi and a Cancel the person confirms in the view. Pass `status: \"NEEDS_APPROVAL\"`. A person approves and publishes in Sokosumi; the view only cancels, through projects_social_post_cancel, which needs the social toolset. Takes workspaces_social_posts's arguments and returns its result. Use it when the person wants to review the posts waiting for them; use workspaces_social_posts when you only need the data.",
+  },
 ];
 
 /** The MCP Apps MIME type of a view (SEP-1865). */
