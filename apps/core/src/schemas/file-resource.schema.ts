@@ -188,6 +188,10 @@ const fileSearchMetaSchema = z
         "Unconsumed positions remain in this snapshot. Not a claim about the corpus.",
     }),
     nextCursor: z.string().nullable(),
+    windowCursor: z.string().openapi({
+      description:
+        "This result window, for `POST /drive/resources/selection-token` (`windowCursor`). Set on every page, also when the window fits on one page and `nextCursor` is null.",
+    }),
     restarted: z.boolean().openapi({
       description:
         "The previous cursor no longer applied (access, query or index changed) and a fresh window was taken.",
