@@ -67,6 +67,17 @@ export function SeoRunDiffCard({ diff }: { diff: ProjectSeoRunDiff }) {
           {t("runDiff.rulebookChange", view.rulebookChange)}
         </p>
       ) : null}
+      {/* Issues with no clear result in one check are outside the counts: say so beside them. */}
+      {view.notCheckedAgain ? (
+        <p className="text-muted-foreground">
+          {t("runDiff.notCheckedAgain", { count: view.notCheckedAgain })}
+        </p>
+      ) : null}
+      {view.notCheckedBefore ? (
+        <p className="text-muted-foreground">
+          {t("runDiff.notCheckedBefore", { count: view.notCheckedBefore })}
+        </p>
+      ) : null}
       {added?.items.length ? (
         // Safari drops the list role of a list without markers.
         <ul

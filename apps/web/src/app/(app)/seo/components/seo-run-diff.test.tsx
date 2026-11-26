@@ -143,6 +143,7 @@ it("shows the counts and the first new issues open on the Agent tab, and says wh
     newCount: 4,
     fixedCount: 2,
     rulebookChange: { compared: 40, other: 3 },
+    notCheckedBefore: 1,
     numbers: { issues: { from: 1, to: 4 }, moves: [], moveCount: 0 },
   });
   show(value, <SeoRunDiffCard diff={value} />);
@@ -163,6 +164,11 @@ it("shows the counts and the first new issues open on the Agent tab, and says wh
   expect(
     within(card).getAllByText(
       "The tests changed between the two checks. 40 tests both checks ran are compared, 3 left out.",
+    ),
+  ).toHaveLength(2);
+  expect(
+    within(card).getAllByText(
+      "1 open issue has no clear result in the earlier check. It does not count as new.",
     ),
   ).toHaveLength(2);
 });
