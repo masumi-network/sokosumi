@@ -11,7 +11,6 @@ import {
   Hourglass,
   KeyRound,
   LoaderCircle,
-  type LucideIcon,
   MessageSquareWarning,
   PencilLine,
   ShieldAlert,
@@ -20,6 +19,7 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 import type { ViewContext } from "../shell/Shell.tsx";
+import { type MarkerSpec, StatusMarker } from "../shell/status.tsx";
 import {
   formatDay,
   isMessageKey,
@@ -69,69 +69,24 @@ export function taskWebUrl(id: string, base?: string): string | undefined {
   return isUnderBase(url, base) ? url : undefined;
 }
 
-/**
- * Web's status marker (apps/web/src/components/ui/status-marker.tsx): the
- * hue says the board column, the glyph the exact status. Iris, yellow and
- * green are discs behind a Neutral 950 glyph, never bare ink.
- */
-const DISC = {
-  active: "bg-status-working text-primary-foreground",
-  blocked: "bg-semantic-warning text-semantic-warning-foreground",
-  resolved: "bg-semantic-success text-semantic-success-foreground",
-} as const;
-const INK = {
-  dormant: "text-status-done",
-  staged: "text-status-external",
-  fault: "text-semantic-destructive",
-} as const;
-
-type Marker = {
-  icon: LucideIcon;
-  hue: keyof typeof DISC | keyof typeof INK;
-  spin?: boolean;
-};
-
-/** Web's task-status-badge.tsx table. */
-const MARKERS: Record<string, Marker> = {
-  DRAFT: { icon: PencilLine, hue: "dormant" },
+/** Web's task-status-badge.tsx table, on the shared marker. */
+const MARKERS: Record<string, MarkerSpec> = {
+  DRAFT: { icon: PencilLine, hue: "dormant", weight: "outline" },
   QUEUED: { icon: Clock, hue: "staged" },
   READY: { icon: CirclePlay, hue: "staged" },
-  CREDITS_TOPPED_UP: { icon: CirclePlus, hue: "staged" },
+  CREDITS_TOPPED_UP: { icon: CirclePlus, hue: "staged", weight: "outline" },
   RUNNING: { icon: LoaderCircle, hue: "active", spin: true },
-  AWAITING_EXTERNAL: { icon: Hourglass, hue: "active" },
-  GRANT_PENDING: { icon: ShieldAlert, hue: "blocked" },
+  AWAITING_EXTERNAL: { icon: Hourglass, hue: "active", weight: "outline" },
+  GRANT_PENDING: { icon: ShieldAlert, hue: "blocked", weight: "outline" },
   INPUT_REQUIRED: { icon: MessageSquareWarning, hue: "blocked" },
   APPROVAL_REQUIRED: { icon: BadgeCheck, hue: "blocked" },
   AUTHENTICATION_REQUIRED: { icon: KeyRound, hue: "blocked" },
   OUT_OF_CREDITS: { icon: Wallet, hue: "blocked" },
   COMPLETED: { icon: Check, hue: "resolved" },
-  FAILED: { icon: CircleX, hue: "fault" },
-  CANCELED: { icon: CircleSlash, hue: "dormant" },
+  FAILED: { icon: CircleX, hue: "fault", weight: "solid" },
+  CANCELED: { icon: CircleSlash, hue: "dormant", weight: "outline" },
 };
-const UNKNOWN: Marker = { icon: Clock, hue: "dormant" };
-
-/** The 14px status glyph, on its disc where the hue has one. */
-export function StatusMarker({ status }: { status: string }) {
-  const { icon: Icon, hue, spin } = MARKERS[status] ?? UNKNOWN;
-  const spinning = spin ? "animate-spin motion-reduce:animate-none" : "";
-  if (hue in DISC) {
-    return (
-      <span
-        aria-hidden="true"
-        className={`inline-flex size-3.5 shrink-0 items-center justify-center rounded-full ${DISC[hue as keyof typeof DISC]}`}
-      >
-        <Icon strokeWidth={2.75} className={`size-2.5 ${spinning}`} />
-      </span>
-    );
-  }
-  return (
-    <Icon
-      aria-hidden="true"
-      strokeWidth={2.25}
-      className={`size-3.5 shrink-0 ${INK[hue as keyof typeof INK]} ${spinning}`}
-    />
-  );
-}
+const UNKNOWN: MarkerSpec = { icon: Clock, hue: "dormant", weight: "outline" };
 
 /**
  * The marker and Web's word for the status. `quiet` drops the word where a
@@ -153,7 +108,7 @@ export function TaskStatus({
       aria-label={quiet ? word : undefined}
       className={`text-foreground inline-flex min-w-0 items-center gap-1.5 font-medium ${className}`}
     >
-      <StatusMarker status={status} />
+      <StatusMarker spec={MARKERS[status] ?? UNKNOWN} />
       {!quiet && <span className="truncate">{word}</span>}
     </span>
   );

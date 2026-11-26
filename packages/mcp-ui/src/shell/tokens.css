@@ -29,6 +29,14 @@
   --status-working: #ff51ff; /* Iris Flower */
   --status-external: #0c0c0c; /* Neutral 950 */
   --status-done: #737373; /* Neutral 500 */
+  --quinary: #e5e5e5; /* Neutral 200 */
+  --destructive-hover: #262626; /* Neutral 800 */
+  --semantic-destructive-solid: #0c0c0c; /* Neutral 950 */
+  --semantic-destructive-foreground: #fafafa; /* Neutral 50 */
+  --status-warning: hsla(38, 92%, 30%, 1);
+  --status-info: hsla(217, 70%, 40%, 1);
+  --status-success: hsla(142, 72%, 29%, 1);
+  --status-destructive: hsla(0, 72%, 42%, 1);
 }
 
 [data-theme="dark"] {
@@ -56,4 +64,12 @@
   --status-working: #d141d1; /* Dark Iris */
   --status-external: #fafafa; /* Neutral 50 */
   --status-done: #a3a3a3; /* Neutral 400 */
+  --quinary: #171717; /* Neutral 900 */
+  --destructive-hover: #e5e5e5; /* Neutral 200 */
+  --semantic-destructive-solid: #fafafa; /* Neutral 50 */
+  --semantic-destructive-foreground: #0c0c0c; /* Neutral 950 */
+  --status-warning: hsla(43, 96%, 56%, 1);
+  --status-info: hsla(213, 94%, 68%, 1);
+  --status-success: hsla(142, 65%, 56%, 1);
+  --status-destructive: hsla(0, 90%, 74%, 1);
 }

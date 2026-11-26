@@ -121,7 +121,8 @@ describe("SocialPosts list", () => {
     expect(within(first).getByText("Acme Studio · LinkedIn · Autumn launch"));
     expect(within(first).getByText("Scheduled for Nov 27, 2026, 8:30 AM"));
     expect(within(second).getByText("@acme · X · Autumn launch"));
-    expect(within(second).getByText("Media attached · 3 posts in the thread"));
+    expect(within(second).getByText("Media attached")).toBeTruthy();
+    expect(within(second).getByText("3 posts in the thread")).toBeTruthy();
     expect(within(third).getByText("No time set"));
   });
 

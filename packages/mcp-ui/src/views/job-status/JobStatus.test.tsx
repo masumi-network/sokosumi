@@ -150,11 +150,13 @@ describe("JobStatus", () => {
     expect(sent.calls).not.toHaveBeenCalled();
   });
 
-  it("shows a completed Job's result as plain text", async () => {
+  it("renders a completed Job's result as Markdown, with record HTML as text", async () => {
     await openJob(JOB.completed);
 
     const result = screen.getByRole("region", { name: "Result" });
-    expect(result.textContent).toContain("# DACH pricing summary");
+    expect(
+      within(result).getByRole("heading", { name: "DACH pricing summary" }),
+    ).toBeTruthy();
     expect(result.textContent).toContain(
       '<script>alert("record text stays text")</script>',
     );

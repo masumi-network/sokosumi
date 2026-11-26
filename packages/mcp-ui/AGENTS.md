@@ -31,8 +31,8 @@
 - `SchemaForm` (`src/shell/SchemaForm.tsx`) renders an agent's input schema (`input_data` or `input_groups`) as fields with inline errors, and returns Core's `inputData` (options as indices, as on Web). File fields send people to Sokosumi. Hosts sandbox views without `allow-forms`, so a `<form>` never submits: the button and Enter run the check instead.
 - Theme: views use Sokosumi's own style, as on Web, in every host (ADR 0083 amendment, SOKD-475). Only light or dark follows the host's `theme`; its style variables and fonts are ignored. `tokens.css` holds Sokosumi's tokens, copied from `apps/web/src/app/globals.css`, and `tokens.test.ts` fails when they drift. Change a value in Web first, then here. Use Web's utility names (`bg-card-background`, `text-muted-foreground`, `bg-status-working`, ...).
 - Font: `font.ts` loads the embedded Inter subset (`fonts/`) from bytes with `FontFace`; the spec's default CSP blocks `data:` fonts. The harness applies that CSP, and a screenshot fails when Inter did not load.
-- Primitives: `ui.tsx` has Web's `primary` (`PrimaryButton`) and `ghost` (`QuietButton`) buttons; `views/task.tsx` has Web's status marker, priority glyph, avatar and due badge. Glyphs come from `lucide-react`, as on Web.
-- Markdown: `Markdown.tsx` renders record Markdown (descriptions, comments) as React elements: raw HTML stays text, images show their alt text, links open only under `webBaseUrl`.
+- Primitives: `ui.tsx` has Web's buttons (`PrimaryButton` for the one Iris action; `Button` with `outline`, `ghost` and `destructive`), `Badge`, `StateMessage` (Web's EmptyState) and a `Skeleton` per layout (`mountView`'s `skeleton`: `cards`, `detail` or `form`). `status.tsx` has Web's status marker and chip; `views/task.tsx` maps Task statuses onto it and adds the priority glyph, avatar and due badge. Glyphs come from `lucide-react`, as on Web; Social's brand marks are inline SVG copied from Web.
+- Markdown: `Markdown.tsx` renders record Markdown (descriptions, comments, Job results and questions) as React elements: raw HTML stays text, images show their alt text, links open only under `webBaseUrl`.
 - Size: the App reports its height to the host (`autoResize`).
 - Text: every string goes through `t()` from `messages/en.json`. Dates go through `formatDateTime`, which uses the host's locale and time zone.
 - Links: open only URLs that pass `isUnderBase(url, context.webBaseUrl)`, through `context.app.openLink`.
@@ -45,7 +45,7 @@
 - No `innerHTML`, `outerHTML`, `insertAdjacentHTML` or `dangerouslySetInnerHTML`. Biome fails on them here (`biome-plugins/no-raw-html.grit`). Record text renders as React text.
 - No fetches, remote images, fonts or CSP domains. Data arrives only as tool results.
 - No approve, publish, send or resume control (ADR 0077). A view that spends credits has its own two-step confirm.
-- One Iris `PrimaryButton` per view; everything else is neutral. Targets are at least 44px (`min-h-11`), focus is visible, and a view works from 320px.
+- One Iris `PrimaryButton` per view; everything else is a neutral `Button`, and an irreversible confirm is `destructive`. Targets are at least 44px (`min-h-11`), focus is visible, and a view works from 320px.
 
 ## Commands
 

@@ -21,7 +21,13 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-hover: var(--primary-hover);
+  --color-quinary: var(--quinary);
+  --color-destructive-hover: var(--destructive-hover);
   --color-semantic-destructive: var(--semantic-destructive);
+  --color-semantic-destructive-solid: var(--semantic-destructive-solid);
+  --color-semantic-destructive-foreground: var(
+    --semantic-destructive-foreground
+  );
   --color-semantic-warning: var(--semantic-warning);
   --color-semantic-warning-foreground: var(--semantic-warning-foreground);
   --color-semantic-success: var(--semantic-success);
@@ -29,6 +35,10 @@
   --color-status-working: var(--status-working);
   --color-status-external: var(--status-external);
   --color-status-done: var(--status-done);
+  --color-status-warning: var(--status-warning);
+  --color-status-info: var(--status-info);
+  --color-status-success: var(--status-success);
+  --color-status-destructive: var(--status-destructive);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

@@ -45,7 +45,7 @@ Owner decision: views look like Web, as Web looks, in every host. In Claude and 
 
 - **Theme.** Only light or dark follows the host's `theme` (else the system's). The host's style variables and fonts are ignored. Colours are Sokosumi's tokens from `apps/web/src/app/globals.css`, which `tokens.test.ts` keeps in sync.
 - **Font.** Inter, Web's font, is embedded in each view as a 26 KB subset and loaded from bytes with `FontFace`. The spec's default CSP has no `font-src`, which blocks an `@font-face` with a `data:` URL; bytes are not a fetch. Still no remote font and no CSP domain.
-- **Markdown.** Task descriptions and comments render as Markdown, as on Web, by a small renderer in the package that builds React elements only. Raw HTML stays text, images show their alt text, and a link opens only under `webBaseUrl`. This replaces "record text renders as plain text" for those fields. A parser library would cost 55 to 80 KB of the 600 KB budget.
+- **Markdown.** Task descriptions and comments, Job results and Job input questions render as Markdown, as on Web, by a small renderer in the package that builds React elements only. Raw HTML stays text, images show their alt text, and a link opens only under `webBaseUrl`. This replaces "record text renders as plain text" for those fields. A parser library would cost 55 to 80 KB of the 600 KB budget.
 
 ## Sources
 

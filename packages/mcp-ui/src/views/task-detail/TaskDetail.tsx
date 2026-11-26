@@ -10,7 +10,7 @@ import {
   type MessageKey,
   t,
 } from "../../shell/text.ts";
-import { PrimaryButton, QuietButton } from "../../shell/ui.tsx";
+import { Button, PrimaryButton } from "../../shell/ui.tsx";
 import {
   Avatar,
   DueDate,
@@ -151,14 +151,15 @@ export function TaskDetail({
             <TaskStatus status={task.status} />
           </p>
           {refresh && (
-            <QuietButton
+            <Button
+              variant="ghost"
               className="-my-3 -mr-3"
               onClick={runRefresh}
               disabled={refreshing === "busy"}
               aria-busy={refreshing === "busy"}
             >
               {refreshing === "busy" ? t("view.refreshing") : t("view.refresh")}
-            </QuietButton>
+            </Button>
           )}
         </div>
         <h1 className="text-xl leading-tight font-semibold tracking-tight break-words">

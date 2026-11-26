@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useId, useState } from "react";
 import { z } from "zod";
 import type { ViewContext } from "../../shell/Shell.tsx";
 import { isPlainReference, type MessageKey, t } from "../../shell/text.ts";
-import { PrimaryButton, QuietButton } from "../../shell/ui.tsx";
+import { Button, PrimaryButton } from "../../shell/ui.tsx";
 import {
   Avatar,
   DueDate,
@@ -229,20 +229,21 @@ export function TasksBoard({
         </div>
         <div className="-mx-3 flex items-center">
           {refresh && (
-            <QuietButton
+            <Button
+              variant="ghost"
               onClick={runRefresh}
               disabled={refreshing === "busy"}
               aria-busy={refreshing === "busy"}
             >
               {refreshing === "busy" ? t("view.refreshing") : t("view.refresh")}
-            </QuietButton>
+            </Button>
           )}
           {availableDisplayModes.includes(otherMode) && (
-            <QuietButton onClick={switchMode}>
+            <Button variant="ghost" onClick={switchMode}>
               {fullscreen
                 ? t("tasksBoard.exitFullscreen")
                 : t("tasksBoard.fullscreen")}
-            </QuietButton>
+            </Button>
           )}
         </div>
       </header>

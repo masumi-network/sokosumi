@@ -4,13 +4,13 @@ Last updated: 2026-11-26
 
 Each view next to the Web screen it renders, with what differed before SOKD-475. Owner decision: views look like Web in every host; only light or dark follows the host ([ADR 0083 amendment](../../../docs/adr/0083-mcp-ui-is-an-optional-rendering-of-a-tool-result.md)).
 
-Phase 1 (this PR) fixes the shared base, the Tasks board and Task detail. Phase 2 restyles the rest after the owner approves the direction.
+Phase 1 fixed the shared base, the Tasks board and Task detail. Phase 2, after the owner approved the direction, restyled the rest. Each section below lists the differences found before the restyle; "Done" says what changed.
 
-## Every view (shared base) — fixed in phase 1
+## Every view (shared base)
 
 - **Host style wins.** Host style variables replaced Sokosumi's tokens, so in Claude and ChatGPT the views took the host's background, text, border and font. Now only `theme` is read.
 - **System font.** Web uses Inter. Now an Inter subset is embedded and loaded from bytes (`src/shell/font.ts`).
-- **Too few tokens.** Only 11 of Web's tokens existed, so views could not use `card-background`, `muted`, `control-border`, the status hues or the semantic discs. Now 24, checked against Web by `tokens.test.ts`.
+- **Too few tokens.** Only 11 of Web's tokens existed, so views could not use `card-background`, `muted`, `control-border`, the status hues or the semantic discs. Now 32, checked against Web by `tokens.test.ts`.
 - **Buttons.** Outline focus and 60% disabled; Web uses one ring (`ring-2 ring-offset-2`), the press scale and 50% disabled. Now `PrimaryButton` and `QuietButton` are Web's `primary` and `ghost`. Heights stay 44px for touch (Web: 40px).
 - **No glyphs.** Statuses were words only; Web uses `lucide-react` glyphs on hue discs. Now shared through `lucide-react`.
 
@@ -50,7 +50,7 @@ After: identifier and status marker over a `text-xl` title, then Description (Ma
 
 Not copied: inline editing, the copy-identifier button, attachments and file chips, mentions, Mermaid and syntax highlighting.
 
-## Browse agents — phase 2
+## Browse agents
 
 Web: `apps/web/src/app/(app)/agents/components/marketplace.client.tsx`, `apps/web/src/components/agents/directory/agent-tile.tsx`, `agents-page-classes.ts`, `apps/web/src/components/agents/agent-icon.tsx`.
 
@@ -61,8 +61,9 @@ Web: `apps/web/src/app/(app)/agents/components/marketplace.client.tsx`, `apps/we
 - The view shows the price and rating on the tile and puts a full-width "Hire" below. Web shows neither on the tile.
 - Not copyable: remote agent icons and vendor logos.
 - Plan: Web's grid and tile, the `Bot` square, a `text-xs` meta row with price and rating, and a small bordered "Hire" button with lucide chevrons.
+- Done: Web's tile in the carousel (kept from SOKD-421: eight tiles stacked would fill a chat), the `Bot` square, a muted price badge and a star rating, a bordered Hire with `Plus`, and lucide chevrons.
 
-## Hire form — phase 2
+## Hire form
 
 Web: `apps/web/src/components/job-input/job-inputs-form-builder.tsx`, `job-inputs-grouped-form.tsx`, `apps/web/src/components/ui/input.tsx`, `form.tsx`.
 
@@ -72,8 +73,9 @@ Web: `apps/web/src/components/job-input/job-inputs-form-builder.tsx`, `job-input
 - Groups: the view shows every `fieldset` at once. Web steps through them with tabs, Back and Next.
 - Footer: the view has one bordered "Review". Web has Clear (`secondary`) and Submit with a ⌘↵ hint.
 - Plan: match `Input`, restyle choices to Web's bordered `size-4` controls on `control-border`, Web's label and description sizes, a bordered `default` Review, Iris only on the final Hire, and the confirm summary on a card with the price as a muted badge.
+- Done: Web's Input, Iris checkboxes and neutral radios, `text-sm` descriptions, `gap-6`, a bordered Review and Upload, and the confirm on a card with the price as a badge. Kept: "Optional" instead of Web's "*", and every group at once instead of tabs.
 
-## Job status and input — phase 2
+## Job status and input
 
 Web: `apps/web/src/components/jobs/job-details/job-details-view.tsx`, `job-details-name.tsx`, `job-meta-details.tsx`, `outputs.tsx`, `provide-input.tsx`, `apps/web/src/components/jobs/job-status-badge.tsx`.
 
@@ -84,8 +86,9 @@ Web: `apps/web/src/components/jobs/job-details/job-details-view.tsx`, `job-detai
 - Outputs: the view lists names. Web shows file chips with glyphs.
 - Input request: the same form differences as the hire form.
 - Plan: port the job status badge, the `text-xl` title, card events with a `Bot` avatar, the shared `Markdown` for the result, chip outputs and row meta.
+- Done: Web's status chip, a `text-xl` title, hairline meta rows, the result and the input question as Markdown on a card, and outputs as chips.
 
-## Social posts — phase 2
+## Social posts
 
 Web: `apps/web/src/app/(app)/projects/components/social-posts/project-social-posts.tsx`, `social-post-status-badge.tsx`, `social-post-thread-badge.tsx`, `apps/web/src/components/social-post-provider-icon.tsx`.
 
@@ -95,11 +98,13 @@ Web: `apps/web/src/app/(app)/projects/components/social-posts/project-social-pos
 - Media: the view writes "has media". Web shows thumbnails; the view cannot load images, so a lucide `Image` glyph with a count is the stand-in.
 - Actions: the view uses quiet text buttons, and its cancel confirm uses Iris. Web uses an `outline` Review with `Eye`, and the `destructive` variant to confirm.
 - Plan: card rows, local provider SVGs, the status badge with Web's `--status-*` ink tokens, an outline Review, and a destructive confirm.
+- Done: card rows with Web's provider marks (inline SVG), the needs-approval marker, thread and media badges, an outline Review with `Eye`, and the cancel confirm on `destructive` instead of Iris.
 
-## Hello and the shell states — phase 2
+## Hello and the shell states
 
 Web: `apps/web/src/components/ui/skeleton.tsx`, `apps/web/src/components/common/empty-state.tsx`.
 
 - Loading: three generic bars. Web's skeletons take the shape of the page.
 - Empty and error: a left-aligned `text-base` title and body. Web's `EmptyState` is centred, `py-12`, with an icon disc, a `max-w-[44ch]` description and an action.
 - Plan: an `EmptyState` with an icon disc (`Inbox`, `TriangleAlert`) and "Open in Sokosumi" where there is a link, and a skeleton per view shaped like its layout.
+- Done: Web's EmptyState for empty, error and a person's step, and skeletons shaped as cards, a detail or a form. Hello needed only the shared base.
