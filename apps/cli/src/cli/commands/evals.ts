@@ -88,6 +88,8 @@ interface EvalRunReport {
     counts: Record<string, number>;
     costlier: number;
     slower: number;
+    /** Every case counts once, whatever its repeats. */
+    passRate: number | null;
     passed: number;
     scored: number;
     open: number;
@@ -169,10 +171,9 @@ function counts(report: EvalRunReport): string {
 
 function formatReportText(report: EvalRunReport): string[] {
   const { run, summary } = report;
-  const rate = summary.scored ? summary.passed / summary.scored : null;
   return [
     `Eval run ${run.id} · ${run.trigger.toLowerCase()} · ${run.environment} · ${runRef(run)} · ${run.status.toLowerCase()}`,
-    `${percent(rate)} passed (${summary.passed} of ${summary.scored})${summary.open ? `, ${summary.open} to go` : ""} · $${summary.costUsd.toFixed(2)}`,
+    `${percent(summary.passRate)} passed (${summary.passed} of ${summary.scored} repeats)${summary.open ? `, ${summary.open} to go` : ""} · $${summary.costUsd.toFixed(2)}`,
     report.baseline
       ? `Compared with the weekly run of ${report.baseline.createdAt} (${runRef({ prNumber: report.baseline.prNumber, commitSha: null })})`
       : "No weekly run before this one to compare with.",

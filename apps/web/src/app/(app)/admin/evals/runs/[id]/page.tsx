@@ -132,9 +132,7 @@ export default async function AdminEvalRunPage({
       <div className={cn(HOLDER_CLASS, "flex flex-wrap items-center gap-2")}>
         <span className="bg-background rounded-lg border px-3 py-2">
           <span className="block text-2xl font-semibold tabular-nums">
-            {formatPassRate(
-              summary.scored ? summary.passed / summary.scored : null,
-            )}
+            {formatPassRate(summary.passRate)}
           </span>
           <span className="text-muted-foreground text-xs tabular-nums">
             {t("passedOf", { passed: summary.passed, scored: summary.scored })}

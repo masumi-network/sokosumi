@@ -49,6 +49,7 @@ const suiteScoreSchema = z.object({
   errors: z.number().int(),
   skipped: z.number().int(),
   open: z.number().int(),
+  /** Mean of the cases' pass rates: every case counts once, whatever its repeats. */
   passRate: z.number().nullable(),
 });
 
@@ -130,6 +131,8 @@ export const evalRunReportSchema = z
       /** Cases that cost or took more than 1.3 times their usual run. */
       costlier: z.number().int(),
       slower: z.number().int(),
+      /** Mean of the cases' pass rates: every case counts once, whatever its repeats. */
+      passRate: z.number().nullable(),
       passed: z.number().int(),
       scored: z.number().int(),
       open: z.number().int(),
