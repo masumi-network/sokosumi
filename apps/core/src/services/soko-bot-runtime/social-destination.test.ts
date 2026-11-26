@@ -104,15 +104,71 @@ describe("requireChosenSocialDestination", () => {
     await expect(check(onPersonal)).resolves.toBeUndefined();
   });
 
-  it("goes ahead when the owner chose by @handle, handle, or Project name", async () => {
+  it("goes ahead when the owner chose by @handle or Project name", async () => {
     for (const message of [
       "Post this on @pat: shipping today.",
-      "Use pat for this one.",
       "Draft it for Founder notes.",
     ]) {
       ownerSays(message);
       await expect(check(onPersonal)).resolves.toBeUndefined();
     }
+    // A bare handle is as likely the post's topic: it is asked.
+    ownerSays("Write about pat for this one.");
+    await expect(check(onPersonal)).rejects.toThrow(ASK_WHICH_ACCOUNT);
+  });
+
+  it("reads no destination from quoted or fenced post copy", async () => {
+    for (const message of [
+      'Post this: "Big thanks to @pat for the help!"',
+      "Post this:\n```\nShipped with @pat today\n```",
+      "Post this:\n> Shipped with @pat today",
+    ]) {
+      ownerSays(message);
+      await expect(check(onPersonal)).rejects.toThrow(ASK_WHICH_ACCOUNT);
+    }
+  });
+
+  it("binds the draft to the owner's answer, by place in the question", async () => {
+    ownerSays("the second one");
+    previousTurn("Which account: @acme_hq (Company marketing) or @pat?");
+    await expect(check(onPersonal)).resolves.toBeUndefined();
+    await expect(check(onCompany)).rejects.toThrow(/owner chose @pat /);
+    // The question's order, not the accounts' age.
+    previousTurn("Which account: @pat or @acme_hq?");
+    await expect(check(onCompany)).resolves.toBeUndefined();
+    await expect(check(onPersonal)).rejects.toThrow(/owner chose @acme_hq /);
+  });
+
+  it("binds the draft to the account the owner named in the answer", async () => {
+    ownerSays("@acme_hq please");
+    previousTurn("Which account: @acme_hq or @pat?");
+    await expect(check(onPersonal)).rejects.toThrow(/owner chose @acme_hq /);
+    await expect(check(onCompany)).resolves.toBeUndefined();
+  });
+
+  it("drafts on each account when the owner answers both", async () => {
+    ownerSays("both");
+    previousTurn("Which account: @acme_hq or @pat?");
+    await expect(check(onCompany)).resolves.toBeUndefined();
+    await expect(check(onPersonal)).resolves.toBeUndefined();
+  });
+
+  it("checks the chosen account among every eligible one, listing only ten", async () => {
+    const many = Array.from({ length: 12 }, (_, index) => ({
+      id: `01960001-0001-7001-8001-0000000001${String(index).padStart(2, "0")}`,
+      externalHandle: `brand_${index}`,
+      project: { id: `p${index}`, name: `Brand ${index} team` },
+    }));
+    db.connectionFindMany.mockResolvedValue(many);
+    ownerSays("Post it on @brand_11.");
+    await expect(
+      check({ projectId: "p11", socialConnectionId: many[11]?.id ?? "" }),
+    ).resolves.toBeUndefined();
+    ownerSays("Write an X post.");
+    await expect(
+      check({ projectId: "p0", socialConnectionId: many[0]?.id ?? "" }),
+    ).rejects.toThrow(/and 2 more/);
+    expect(db.connectionFindMany.mock.calls[0]?.[0].take).toBeUndefined();
   });
 
   it("sends the post to the @handle the owner chose", async () => {
@@ -183,11 +239,16 @@ describe("requireChosenSocialDestination", () => {
     expect(previous.OR).toContainEqual({ status: "COMPLETED" });
   });
 
-  it("asks for the id when the owner answered but the draft names no account", async () => {
+  it("names the answered account when the draft names none", async () => {
     ownerSays("the second one");
+    // Core's refusal listed them oldest first.
     previousTurn("", true);
     await expect(check({ projectId: "p2" })).rejects.toThrow(
-      /Pass the socialConnectionId/,
+      /owner chose @pat .*socialConnectionId/,
+    );
+    ownerSays("my personal one, please");
+    await expect(check({ projectId: "p2" })).rejects.toThrow(
+      /account the owner chose from your question/,
     );
   });
 
