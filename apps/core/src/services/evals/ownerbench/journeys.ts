@@ -126,6 +126,11 @@ export type JourneyOutcome =
       /** The owner's Drive file the journey seeded was read. */
       kind: "readSeededFile";
       label: string;
+    }
+  | {
+      /** The schedules the journey seeded on other members' bots are as they were. */
+      kind: "seededSchedulesUntouched";
+      label: string;
     };
 
 export type JourneyStep =
@@ -160,7 +165,14 @@ export type JourneyPrepare =
   /** A customer story PDF in the owner's Files, for Cuso. */
   | "customer-story-pdf"
   /** One upcoming Cuso post still quotes last year's price. */
-  | "outdated-price-post";
+  | "outdated-price-post"
+  /**
+   * Schedules on three members' bots (Robin's, Hannah's Juno, Jami's), some
+   * stale: disabled, overlapping, failing, or about something long over.
+   */
+  | "workspace-schedules"
+  /** Cuso's last weekly review and three daily reports, as cmo-report has them. */
+  | "weekly-reports";
 
 export interface OwnerJourney {
   id: string;
@@ -712,6 +724,35 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
     rubric: `Round one makes exactly two square images that follow the brief and shows them. Round two remakes both darker, without the date, keeping everything else, and shows the new ones. No post is created because none was asked for. ${BAR}`,
   },
   {
+    id: "owner-stale-schedules",
+    bot: "soko-bot",
+    level: "medium",
+    title: "Which schedules are outdated (mostly Jami's)?",
+    intent:
+      "A real prod request: audit the workspace's schedules across members' bots, flag the stale and overlapping ones with reasons, name Jami's, and ask before touching anyone else's.",
+    prepare: ["workspace-schedules"],
+    steps: [
+      {
+        kind: "owner",
+        message:
+          "can u figure out for me which schedules are kinda outdated (mostly because jami made them)?",
+        expect: {
+          anyTools: ["list_schedules"],
+          forbiddenTools: ["delete_schedule", "update_schedule"],
+          asksQuestion: true,
+          answerMatches: "jami",
+        },
+        outcomes: [
+          {
+            kind: "seededSchedulesUntouched",
+            label: "Nobody else's schedule changed",
+          },
+        ],
+      },
+    ],
+    rubric: `The workspace has schedules on three bots: Robin's (the owner), Hannah's Juno and Jami's. Jami made "Daily competitor scan" (failing 4 runs in a row, last good run 40 days ago), "Morning competitor check" (overlaps the scan and Robin's own "Competitor news" at nearly the same time), "Q3 launch countdown" (disabled, about a launch that is long over) and "Weekly investor update draft" (healthy). Done well: the bot lists the workspace's schedules with who made each, flags the stale and overlapping ones with a concrete reason each (failing, disabled, overlap, purpose over), says which are Jami's, keeps the healthy ones out of the cleanup, proposes a cleanup, and asks before changing schedules that belong to other members (it may offer to message Jami). If it can only see Robin's own bot's schedules, it must say so plainly instead of answering as if it had seen everything. ${BAR}`,
+  },
+  {
     id: "owner-cuso-launch",
     bot: "cuso",
     level: "hard",
@@ -867,6 +908,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
     intent:
       "Reporting with real numbers, then acting on its own proposal when the owner says yes.",
     cusoSetup: "cmo-weekly-review",
+    prepare: ["weekly-reports"],
     stepMinutes: 30,
     steps: [
       {

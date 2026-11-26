@@ -11,12 +11,11 @@ import prisma from "@/lib/db/prisma";
 import { setEvalCoworkerScript } from "@/lib/evals/fake-coworker";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
-import { inheritedScheduleRoute } from "@/lib/soko-bot/system-routes";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { simulateSokoBotTaskEvent } from "@/services/soko-bot-lab.service";
 import { judgeEvalChain } from "@/services/soko-bot-lab-judge.service";
 import { startLabScenarioTurn } from "@/services/soko-bot-lab-scenario.service";
-import { scheduleRunPrompt } from "@/services/soko-bot-schedules-sync.service";
+import { sokoBotSchedulesSyncService } from "@/services/soko-bot-schedules-sync.service";
 import { syncSokoBotWatches } from "@/services/soko-bot-watches.service";
 import { loadA2aChain } from "../eval-a2a";
 import type {
@@ -156,17 +155,56 @@ async function startStep(
     orderBy: { updatedAt: "desc" },
   });
   if (!schedule) return { error: "No schedule to fire" };
-  return reconcile(
-    await sokoBotControlPlane.startTurn({
-      userId: lane.userId,
-      sokoBotId: botId,
-      workspaceId: lane.workspaceId,
-      clientTurnId,
-      message: scheduleRunPrompt(schedule),
-      source: "SCHEDULE",
-      ownScheduleId: schedule.id,
-      presetRoute: inheritedScheduleRoute(schedule.capabilityNames),
-    }),
+  return fireSchedule(schedule.id, botId);
+}
+
+/**
+ * Runs the schedule through the cron's own path: due first of all (the sync
+ * claims the most overdue), the lane's bot unpaused for that one claim.
+ */
+async function fireSchedule(
+  scheduleId: string,
+  botId: string,
+): Promise<string | { error: string }> {
+  await prisma.sokoBotSchedule.update({
+    where: { id: scheduleId },
+    data: { nextRunAt: new Date(0) },
+  });
+  const { proactivePaused: paused } = await prisma.sokoBot.findUniqueOrThrow({
+    where: { id: botId },
+    select: { proactivePaused: true },
+  });
+  await prisma.sokoBot.update({
+    where: { id: botId },
+    data: { proactivePaused: false },
+  });
+  let claims = 0;
+  const leases: { turnId: string; leaseToken: string }[] = [];
+  try {
+    await sokoBotSchedulesSyncService.syncDueSchedules({
+      shouldContinue: () => claims++ === 0,
+      enqueueReconciliation: (lease) => leases.push(lease),
+    });
+    for (const lease of leases)
+      await reconcile({
+        turnId: lease.turnId,
+        reconciliationLeaseToken: lease.leaseToken,
+      });
+  } finally {
+    await prisma.sokoBot.update({
+      where: { id: botId },
+      data: { proactivePaused: paused },
+    });
+  }
+  const run = await prisma.sokoBotScheduleRun.findFirst({
+    where: { scheduleId },
+    orderBy: { createdAt: "desc" },
+    select: { turnId: true, status: true },
+  });
+  return (
+    run?.turnId ?? {
+      error: `The schedule did not start a turn (${run?.status ?? "no run"})`,
+    }
   );
 }
 
@@ -368,6 +406,27 @@ async function beginStep(
   };
 }
 
+/**
+ * Each journey is a new conversation: the bot's memory starts empty and its
+ * earlier eval turns no longer count as the owner's, so they leave its
+ * recent turns. Without this a Cuso asked about Instagram answered about
+ * the launch an earlier journey planned.
+ */
+async function forgetEarlierJourneys(lane: EvalLaneRecord, botId: string) {
+  await sokoBotControlPlane.resetMemory(lane.userId, lane.workspaceId, {
+    kind: "id",
+    sokoBotId: botId,
+  });
+  await prisma.sokoBotTurn.updateMany({
+    where: {
+      sokoBotId: botId,
+      clientTurnId: { startsWith: "lab:" },
+      requestedByUserId: lane.userId,
+    },
+    data: { requestedByUserId: null },
+  });
+}
+
 export async function startJourney(
   journey: OwnerJourney,
   lane: EvalLaneRecord,
@@ -382,6 +441,7 @@ export async function startJourney(
     return { kind: "busy" };
   if (journey.bot === "soko-bot") await resetEvalLaneForSokoBot(lane);
   if (journey.cusoSetup) await prepareCmoChatCase(lane, journey.cusoSetup);
+  await forgetEarlierJourneys(lane, botId);
   const world = await prepareJourneyWorld(lane, journey.prepare ?? []);
   await setEvalCoworkerScript(world.coworkers.Mira, []);
   await setEvalCoworkerScript(world.coworkers.CodePat, []);

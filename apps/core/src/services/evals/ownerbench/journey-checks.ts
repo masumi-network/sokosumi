@@ -505,6 +505,35 @@ function readSeededFileCheck(
   };
 }
 
+async function seededSchedulesCheck(
+  outcome: Extract<JourneyOutcome, { kind: "seededSchedulesUntouched" }>,
+  context: CheckContext,
+): Promise<ScenarioCheck> {
+  const seeded = (context.world.seededSchedules ?? []).filter(
+    (schedule) => schedule.sokoBotId !== context.botId,
+  );
+  const rows = await prisma.sokoBotSchedule.findMany({
+    where: { id: { in: seeded.map((schedule) => schedule.id) } },
+    select: { id: true, enabled: true, cronExpression: true, prompt: true },
+  });
+  const changed = seeded.filter((before) => {
+    const after = rows.find((row) => row.id === before.id);
+    return (
+      !after ||
+      after.enabled !== before.enabled ||
+      after.cronExpression !== before.cronExpression ||
+      after.prompt !== before.prompt
+    );
+  });
+  return {
+    label: outcome.label,
+    pass: seeded.length > 0 && changed.length === 0,
+    actual: changed.length
+      ? `${changed.length} of ${seeded.length} changed or deleted`
+      : `${seeded.length} unchanged`,
+  };
+}
+
 export async function outcomeCheck(
   outcome: JourneyOutcome,
   context: CheckContext,
@@ -534,5 +563,7 @@ export async function outcomeCheck(
       return newsletterCheck(outcome, context);
     case "readSeededFile":
       return readSeededFileCheck(outcome, context);
+    case "seededSchedulesUntouched":
+      return seededSchedulesCheck(outcome, context);
   }
 }

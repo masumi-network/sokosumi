@@ -8,7 +8,9 @@ import {
 } from "@/lib/evals/eval-guard";
 import { EVAL_COWORKER } from "@/lib/evals/fake-coworker";
 import { writeOwnerDriveFile } from "@/services/image-studio-drive.service";
+import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { ensureA2aWorld } from "../eval-a2a";
+import { seedCmoReports } from "../eval-cmo-runner";
 import type { EvalLaneRecord } from "../eval-lanes.service";
 import type {
   JourneyCoworker,
@@ -31,6 +33,195 @@ export interface JourneyWorld {
   /** The Drive file a journey seeded, and the post it seeded. */
   seededFileId?: string;
   seededPostId?: string;
+  /** Schedules seeded on other members' bots, as they were. */
+  seededSchedules?: SeededSchedule[];
+}
+
+export interface SeededSchedule {
+  id: string;
+  sokoBotId: string;
+  enabled: boolean;
+  cronExpression: string;
+  prompt: string;
+}
+
+const DAY_MS = 86_400_000;
+
+/** Who made which schedule, on whose bot; `ago` is days since the last run. */
+const WORKSPACE_SCHEDULES = [
+  {
+    who: "jami",
+    name: "Daily competitor scan",
+    cron: "0 8 * * *",
+    prompt:
+      "Scan cal.com, calendly.com and savvycal.com for news and post a summary.",
+    ago: 40,
+    failures: 4,
+  },
+  {
+    who: "jami",
+    name: "Morning competitor check",
+    cron: "30 8 * * 1-5",
+    prompt: "Check competitor sites for changes and tell me what moved.",
+    ago: 1,
+  },
+  {
+    who: "jami",
+    name: "Q3 launch countdown",
+    cron: "0 9 * * 1",
+    prompt:
+      "Remind the team how many days are left until the Q3 launch on September 15.",
+    ago: 90,
+    enabled: false,
+  },
+  {
+    who: "jami",
+    name: "Weekly investor update draft",
+    cron: "0 16 * * 5",
+    prompt: "Draft the weekly investor update from this week's finished Tasks.",
+    ago: 5,
+  },
+  {
+    who: "hannah",
+    name: "Research digest",
+    cron: "0 9 * * 1",
+    prompt: "Summarise last week's research Tasks for Hannah.",
+    ago: 3,
+  },
+  {
+    who: "owner",
+    name: "Competitor news",
+    cron: "0 8 * * *",
+    prompt: "Tell me about competitor news from the last day.",
+    ago: 1,
+  },
+  {
+    who: "owner",
+    name: "Weekday stand-up prep",
+    cron: "45 8 * * 1-5",
+    prompt: "Prepare my notes for the stand-up from my open Tasks.",
+    ago: 1,
+  },
+] as const;
+
+async function ensureJami(lane: EvalLaneRecord): Promise<string> {
+  const email = `evals+lane${lane.lane}-jami@sokosumi.com`;
+  const user =
+    (await prisma.user.findFirst({ where: { email }, select: { id: true } })) ??
+    (await prisma.user.create({
+      data: {
+        name: "Jami Novak",
+        firstName: "Jami",
+        lastName: "Novak",
+        email,
+        emailVerified: true,
+        termsAccepted: true,
+        notificationsOptIn: false,
+        preferredOrganizationId: lane.organizationId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      select: { id: true },
+    }));
+  await prisma.member.upsert({
+    where: {
+      userId_organizationId: {
+        userId: user.id,
+        organizationId: lane.organizationId,
+      },
+    },
+    create: {
+      userId: user.id,
+      organizationId: lane.organizationId,
+      role: "member",
+      seatAssignedAt: new Date(),
+    },
+    update: {},
+  });
+  return user.id;
+}
+
+async function memberBot(
+  lane: EvalLaneRecord,
+  userId: string,
+  name: string,
+): Promise<string> {
+  const existing = await prisma.sokoBot.findFirst({
+    where: { userId, workspaceId: lane.workspaceId, archivedAt: null },
+    select: { id: true },
+  });
+  const id =
+    existing?.id ??
+    (
+      await sokoBotControlPlane.create({
+        userId,
+        workspaceId: lane.workspaceId,
+        name,
+      })
+    ).id;
+  await prisma.sokoBot.update({
+    where: { id },
+    data: { proactivePaused: true },
+  });
+  return id;
+}
+
+/** The workspace's schedules on three members' bots; a run before leaves none behind. */
+async function seedWorkspaceSchedules(
+  lane: EvalLaneRecord,
+  junoId: string,
+): Promise<SeededSchedule[]> {
+  const jamiId = await ensureJami(lane);
+  const bots = {
+    owner: { botId: lane.sokoBotId, userId: lane.userId },
+    hannah: { botId: junoId, userId: lane.world.hannahUserId },
+    jami: {
+      botId: await memberBot(lane, jamiId, "Jami's bot"),
+      userId: jamiId,
+    },
+  };
+  const now = await databaseNow();
+  const seeded: SeededSchedule[] = [];
+  for (const schedule of WORKSPACE_SCHEDULES) {
+    const { botId, userId } = bots[schedule.who];
+    const row = await prisma.sokoBotSchedule.create({
+      data: {
+        sokoBotId: botId,
+        requestedByUserId: userId,
+        workspaceId: lane.workspaceId,
+        name: schedule.name,
+        enabled: "enabled" in schedule ? schedule.enabled : true,
+        timezone: "Europe/Berlin",
+        cronExpression: schedule.cron,
+        prompt: schedule.prompt,
+        createdAt: new Date(now.getTime() - (schedule.ago + 30) * DAY_MS),
+        lastRunAt: new Date(now.getTime() - schedule.ago * DAY_MS),
+        nextRunAt: new Date(now.getTime() + DAY_MS),
+        consecutiveFailures: "failures" in schedule ? schedule.failures : 0,
+      },
+      select: {
+        id: true,
+        sokoBotId: true,
+        enabled: true,
+        cronExpression: true,
+        prompt: true,
+      },
+    });
+    seeded.push(row);
+  }
+  return seeded;
+}
+
+/** Other members' seeded schedules go before every journey, so each starts clean. */
+async function clearWorkspaceSchedules(lane: EvalLaneRecord): Promise<void> {
+  await prisma.sokoBotSchedule.deleteMany({
+    where: {
+      workspaceId: lane.workspaceId,
+      systemKey: null,
+      sokoBotId: { not: lane.cusoBotId },
+      name: { in: WORKSPACE_SCHEDULES.map((schedule) => schedule.name) },
+    },
+  });
 }
 
 async function ensureCodePat(lane: EvalLaneRecord): Promise<string> {
@@ -223,5 +414,9 @@ export async function prepareJourneyWorld(
     world.seededFileId = await seedPdf(lane, CUSTOMER_STORY);
   if (prepare.includes("outdated-price-post"))
     world.seededPostId = await seedOutdatedPricePost(lane);
+  if (prepare.includes("weekly-reports")) await seedCmoReports(lane);
+  await clearWorkspaceSchedules(lane);
+  if (prepare.includes("workspace-schedules"))
+    world.seededSchedules = await seedWorkspaceSchedules(lane, a2a.junoId);
   return world;
 }
