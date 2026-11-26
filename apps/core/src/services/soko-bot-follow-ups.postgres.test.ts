@@ -4951,6 +4951,218 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
           capability: "generate_image",
         }),
       ).rejects.toThrow(/was revoked/);
+
+      // 5. Concurrency barrier race: an active run commits its child delegation
+      //    and settles COMPLETED *after* cleanup's preliminary child scan has
+      //    already returned empty. Atomic DELETE + UPDATE must spare and retire
+      //    the schedule rather than deleting it using stale scan state.
+      for (const mode of ["watched_work", "spent_one_time"] as const) {
+        const raceWatchedTask =
+          mode === "watched_work"
+            ? await prisma.task.create({
+                data: {
+                  workspaceId,
+                  ownerId: userId,
+                  name: "Race watched Task A",
+                  status: "COMPLETED",
+                },
+              })
+            : null;
+        const raceChildTask = await prisma.task.create({
+          data: {
+            workspaceId,
+            ownerId: userId,
+            name: `Race delegated Task B (${mode})`,
+            status: "READY",
+          },
+        });
+        const raceSchedId = randomUUID();
+        const raceGrantId = `race-grant-${randomUUID()}`;
+        await prisma.sokoBotSchedule.create({
+          data: {
+            id: raceSchedId,
+            sokoBotId: botId,
+            workspaceId,
+            requestedByUserId: userId,
+            name: `Race schedule (${mode})`,
+            cronExpression: "0 * * * *",
+            timezone: "UTC",
+            prompt: "Delegate child while cleanup runs.",
+            nextRunAt: pastDue,
+            lastRunAt: pastDue,
+            runOnce: mode === "spent_one_time",
+            enabled: mode === "watched_work",
+            ...(raceWatchedTask ? { taskId: raceWatchedTask.id } : {}),
+            capabilityNames: ["create_task", "generate_image"],
+            authority: {
+              version: 1,
+              grantId: raceGrantId,
+              origin: "owner_chat",
+              sokoBotId: botId,
+              workspaceId,
+              ownerUserId: userId,
+              rootTurnId: watchRoot.id,
+              targetScope: { kind: "project", projectId: projectA },
+              scheduleId: raceSchedId,
+              scope: "owner_writes",
+              socialMode: "draft_only",
+              limits: {
+                grantId: raceGrantId,
+                period: "per_occurrence",
+                images: 1,
+                maxMediaCredits: 10,
+              },
+              stopRule: { mode: "never" },
+            },
+          },
+        });
+        const raceSchedTurn = await prisma.sokoBotTurn.create({
+          data: {
+            sokoBotId: botId,
+            workspaceId,
+            requestedByUserId: userId,
+            source: "SCHEDULE",
+            status: "RUNNING",
+            clientTurnId: `schedule:${raceSchedId}:${pastDue.toISOString()}`,
+            userMessage: "Delegate child while cleanup runs.",
+            versionId: "v36",
+            deadlineAt: new Date(Date.now() + HOUR),
+            capabilityNames: ["create_task", "generate_image"],
+          },
+        });
+        const raceRun = await prisma.sokoBotScheduleRun.create({
+          data: {
+            scheduleId: raceSchedId,
+            scheduledFor: pastDue,
+            status: "RUNNING",
+            turnId: raceSchedTurn.id,
+          },
+        });
+
+        let createdRaceDelegationId: string | null = null;
+        const origQueryRaw = prisma.$queryRaw.bind(prisma);
+        const barrierSpy = vi
+          .spyOn(prisma, "$queryRaw")
+          .mockImplementationOnce((async (...args: unknown[]) => {
+            const rows = await (
+              origQueryRaw as (...a: unknown[]) => Promise<unknown>
+            )(...args);
+            // Preliminary scan finished BEFORE child exists; now the active run
+            // commits its child delegation and settles COMPLETED.
+            const childAuth = await deriveDelegationAuthority(
+              {
+                id: raceSchedTurn.id,
+                sokoBotId: botId,
+                workspaceId,
+                versionId: "v36",
+                source: "SCHEDULE",
+                parentTurnId: null,
+                askedByUserId: null,
+                requestedByUserId: userId,
+                actingUserId: userId,
+                chainDepth: 0,
+              },
+              {
+                followUpAllows: { images: 1, maxCredits: 10 },
+                projectId: projectA,
+              },
+            );
+            const created = await prisma.sokoBotDelegation.create({
+              data: {
+                turnId: raceSchedTurn.id,
+                toolCallId: `tool-race-${randomUUID()}`,
+                action: "create_task",
+                kind: "TASK",
+                taskId: raceChildTask.id,
+                followUp: "Make 1 image after race child finishes.",
+                followUpAllows: { images: 1, maxCredits: 10 },
+                authority: childAuth,
+              },
+            });
+            createdRaceDelegationId = created.id;
+            await prisma.sokoBotScheduleRun.update({
+              where: { id: raceRun.id },
+              data: { status: "COMPLETED", completedAt: new Date() },
+            });
+            await prisma.sokoBotTurn.update({
+              where: { id: raceSchedTurn.id },
+              data: { status: "COMPLETED" },
+            });
+            return rows;
+          }) as typeof prisma.$queryRaw);
+
+        try {
+          const purgeClock =
+            mode === "spent_one_time"
+              ? afterRetention
+              : new Date(Date.now() + 2 * HOUR);
+          const racePurge = await purgeSokoBotSchedules(purgeClock);
+          if (mode === "spent_one_time") {
+            expect(racePurge.spentOneTime).toBe(0);
+          } else {
+            expect(racePurge.watchedWorkFinished).toBe(0);
+          }
+        } finally {
+          barrierSpy.mockRestore();
+        }
+
+        // Schedule survived the barrier race (and watched_work was retired so it never fires again).
+        const survived = await prisma.sokoBotSchedule.findUnique({
+          where: { id: raceSchedId },
+        });
+        expect(survived).not.toBeNull();
+        expect(survived?.enabled).toBe(false);
+        expect(survived?.runOnce).toBe(true);
+        expect(survived?.lastRunAt).not.toBeNull();
+
+        // Child completes -> follow-up retains its 1-image allowance!
+        await prisma.task.update({
+          where: { id: raceChildTask.id },
+          data: { status: "COMPLETED" },
+        });
+        const raceWake = await prisma.sokoBotTurn.create({
+          data: {
+            sokoBotId: botId,
+            workspaceId,
+            requestedByUserId: userId,
+            source: "EVENT",
+            status: "RUNNING",
+            clientTurnId: `event:race:${randomUUID()}`,
+            userMessage: "Follow up after barrier race.",
+            versionId: "v36",
+            deadlineAt: new Date(Date.now() + HOUR),
+            capabilityNames: ["generate_image"],
+          },
+        });
+        await prisma.sokoBotDelegation.update({
+          where: { id: createdRaceDelegationId! },
+          data: { followUpTurnId: raceWake.id },
+        });
+        expect(
+          (
+            await mayMakeMediaForOwner(mediaRuntime, asAuthorized(raceWake), {
+              projectId: projectA,
+              capability: "generate_image",
+            })
+          )?.images,
+        ).toBe(1);
+
+        // Once the follow-up settles COMPLETED, the next cleanup removes the schedule.
+        await prisma.sokoBotTurn.update({
+          where: { id: raceWake.id },
+          data: { status: "COMPLETED" },
+        });
+        const settledClock =
+          mode === "spent_one_time"
+            ? afterRetention
+            : new Date(Date.now() + 2 * HOUR);
+        await purgeSokoBotSchedules(settledClock);
+        expect(
+          await prisma.sokoBotSchedule.findUnique({
+            where: { id: raceSchedId },
+          }),
+        ).toBeNull();
+      }
     });
   });
 });
