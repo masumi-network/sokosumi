@@ -24,7 +24,15 @@
 # 3. The copy is restored as `preprod`: the same tables, its own enums, and its
 #    keys into `shared`; no shared table points at it. It also gets its own
 #    copy of the Network functions, and its triggers and CHECKs run that copy.
-# 4. `prisma/network-layout/shared-trigger-bodies.sql` replaces the bodies of
+# 4. The two unique keys that do not hold the Network are dropped:
+#    `history_kind_entityId_key` and
+#    `notification_userId_kind_referenceId_eventId_messageKey_key`. The keys
+#    that hold it exist beside them already. The window does the same in the
+#    transaction that installs the bodies, so this is one more place where the
+#    script mirrors the window: until the old keys are gone, a second
+#    Network's row with the same id is refused, and once they are gone the
+#    migrations' History bodies fail on their conflict target.
+#    `prisma/network-layout/shared-trigger-bodies.sql` replaces the bodies of
 #    the functions behind the triggers on shared tables, with every name given
 #    its schema. Its guard refuses when a migration changed one of them since
 #    its digest was recorded. `prisma/network-layout/network-trigger-bodies.sql`
@@ -176,6 +184,10 @@ network_bodies="${here%/scripts}/prisma/network-layout/network-trigger-bodies.sq
 CREATE TEMP TABLE functions_before ON COMMIT DROP AS
 SELECT oid, ctid AS row_version FROM pg_proc
 WHERE pronamespace IN ('shared'::regnamespace, 'mainnet'::regnamespace, 'preprod'::regnamespace);
+SQL
+  cat <<'SQL'
+DROP INDEX shared."history_kind_entityId_key";
+DROP INDEX shared."notification_userId_kind_referenceId_eventId_messageKey_key";
 SQL
   cat "$bodies"
   sed 's/@network@/mainnet/g' "$network_bodies"

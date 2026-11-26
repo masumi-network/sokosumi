@@ -19,13 +19,14 @@
 -- the split script and the cutover can both do it, nothing can be edited in
 -- one copy and forgotten in the other, and PostgreSQL refuses the text when
 -- the replacement was not made. Never write `mainnet` or `preprod` in a body
--- here: that copy would then reach into the other Network.
+-- here: that copy would then reach into the other Network. The schema's name
+-- is also the value of a shared row's `network` column, so `'@network@'` is
+-- how a body writes or matches its own Network on `shared."history"`.
 --
 -- Not a migration. Today's layout keeps the migrations' bodies. Only
 -- `scripts/split-network-layout.sh` applies this file, to CI's split test
 -- database, once per Network. The move script of the maintenance window
--- applies the same text, except for the History sync functions: see the known
--- limit below.
+-- applies the same text.
 --
 -- Contract: apply each copy once, in one transaction that stops at the first
 -- error (`psql --single-transaction -v ON_ERROR_STOP=1`), after the Network's
@@ -40,17 +41,17 @@
 -- was compared once for this text, and every later change to a body is
 -- reviewed against its migration before its digest is updated.
 --
--- Known limit of the History sync functions below (`sync_history_from_*`,
--- `upsert_history_job` and its two helpers): they write `shared."history"`,
--- whose key is still (kind, entityId) without the Network, and they do not set
--- the row's `network`. A Job id that exists on both Networks has one History
--- row, and the Network written last owns it: a Preprod Job can overwrite or
--- delete the History row of a Mainnet Job. That is accepted on CI's split test
--- database only. The window must not install this text for them: it installs
--- the bodies of ticket 19 part 2, which delete and upsert the History row by
--- (kind, entityId, network) on the keys ticket 09 adds. New keys alone do not
--- help, because these bodies still delete by Job id and upsert on the old
--- key.
+-- A Job's History row belongs to its Network. `upsert_history_job` writes the
+-- Network into `network` and upserts on (network, kind, entityId), the key
+-- `history_network_kind_entityId_key`; it and `sync_history_from_job` delete
+-- by the same three. So a Job id that exists on both Networks has one row per
+-- Network, and neither copy touches the other's. Two things must hold before
+-- this text is applied, and the caller's transaction owns both:
+-- - the old key `history_kind_entityId_key` is dropped. While it exists it
+--   refuses the second Network's row;
+-- - every JOB row of `shared."history"` has its `network`. A row without one
+--   is not matched here: its Job's next write would add a second row, and its
+--   Job's delete would leave it behind.
 --
 -- `sync_history_from_transaction` finds the Task events of a Transaction by
 -- its id alone, in both Networks' copies. An id that exists on both Networks
@@ -481,7 +482,8 @@ BEGIN
   IF TG_OP = 'DELETE' THEN
     DELETE FROM shared."history"
     WHERE "kind" = 'JOB'::shared."HistoryKind"
-      AND "entityId" = OLD."id";
+      AND "entityId" = OLD."id"
+      AND "network" = '@network@';
     RETURN OLD;
   END IF;
 
@@ -639,7 +641,8 @@ BEGIN
   IF NOT FOUND THEN
     DELETE FROM shared."history"
     WHERE "kind" = 'JOB'::shared."HistoryKind"
-      AND "entityId" = job_id;
+      AND "entityId" = job_id
+      AND "network" = '@network@';
     RETURN;
   END IF;
 
@@ -659,7 +662,8 @@ BEGIN
     "agentId",
     "coworkerId",
     "bucketSlug",
-    "archivedAt"
+    "archivedAt",
+    "network"
   )
   VALUES (
     gen_random_uuid()::TEXT,
@@ -677,9 +681,10 @@ BEGIN
     source_job."agentId",
     NULL,
     NULL,
-    NULL
+    NULL,
+    '@network@'
   )
-  ON CONFLICT ("kind", "entityId") DO UPDATE
+  ON CONFLICT ("network", "kind", "entityId") DO UPDATE
   SET
     "userId" = EXCLUDED."userId",
     "workspaceId" = EXCLUDED."workspaceId",

@@ -9,6 +9,12 @@
 -- its body. Image Studio is Mainnet only and its tables have no `network`
 -- column, so the image History functions (`history_image_amount` and its
 -- callers) name `mainnet`.
+-- The Task and image rows of `shared."history"` have no Network, so their
+-- upserts conflict on (kind, entityId) WHERE network IS NULL, the key
+-- `history_untagged_kind_entityId_key`. The old key on (kind, entityId) must
+-- be dropped in the transaction that applies this file: a Job's row needs it
+-- gone (`network-trigger-bodies.sql`).
+--
 -- A Task's History row has no Network, and its amount counts Mainnet only:
 -- `history_task_amount` sums the `mainnet` Transactions of the Task's charged
 -- events and leaves out every event whose `network` is `preprod`. An event
@@ -1767,7 +1773,7 @@ BEGIN
     NULL,
     NULL
   )
-  ON CONFLICT ("kind", "entityId") DO UPDATE
+  ON CONFLICT ("kind", "entityId") WHERE "network" IS NULL DO UPDATE
   SET
     "userId" = EXCLUDED."userId",
     "workspaceId" = EXCLUDED."workspaceId",
@@ -1843,7 +1849,7 @@ BEGIN
     NULL,
     source_task."archivedAt"
   )
-  ON CONFLICT ("kind", "entityId") DO UPDATE
+  ON CONFLICT ("kind", "entityId") WHERE "network" IS NULL DO UPDATE
   SET
     "userId" = EXCLUDED."userId",
     "workspaceId" = EXCLUDED."workspaceId",
