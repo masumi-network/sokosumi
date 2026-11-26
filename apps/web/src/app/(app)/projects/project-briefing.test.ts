@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  briefingCopySources,
   countBriefingWords,
   insertBriefingHeading,
 } from "@/app/projects/project-briefing";
@@ -36,5 +37,25 @@ describe("insertBriefingHeading", () => {
     expect(insertBriefingHeading("## Goals and scope\nWin.", "Goals")).toBe(
       "## Goals and scope\nWin.\n\n## Goals\n",
     );
+  });
+});
+
+describe("briefingCopySources", () => {
+  it("offers other projects that have a briefing, by name", () => {
+    expect(
+      briefingCopySources(
+        [
+          { id: "self", name: "Self", briefing: "Mine" },
+          { id: "b", name: "Beta", briefing: "Beta brief" },
+          { id: "e", name: "Empty", briefing: "   " },
+          { id: "n", name: "None", briefing: null },
+          { id: "a", name: "alpha", briefing: "Alpha brief" },
+        ],
+        "self",
+      ),
+    ).toEqual([
+      { id: "a", name: "alpha", briefing: "Alpha brief" },
+      { id: "b", name: "Beta", briefing: "Beta brief" },
+    ]);
   });
 });

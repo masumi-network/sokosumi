@@ -1,16 +1,27 @@
 "use client";
 
+import { Copy } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef } from "react";
+import { toast } from "sonner";
 
 import {
   BRIEFING_CHIP_IDS,
   BRIEFING_WORD_TARGET,
   type BriefingChipId,
+  type BriefingCopySource,
   countBriefingWords,
   insertBriefingHeading,
   PROJECT_BRIEFING_MAX_LENGTH,
 } from "@/app/projects/project-briefing";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -22,6 +33,8 @@ interface ProjectBriefingFieldProps {
   disabled?: boolean;
   autoFocus?: boolean;
   className?: string;
+  /** Other projects in this workspace whose briefing can be copied in. */
+  copySources?: BriefingCopySource[];
 }
 
 export function ProjectBriefingField({
@@ -31,6 +44,7 @@ export function ProjectBriefingField({
   disabled = false,
   autoFocus = false,
   className,
+  copySources = [],
 }: ProjectBriefingFieldProps) {
   const t = useTranslations("App.Projects.Briefing");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -51,10 +65,46 @@ export function ProjectBriefingField({
     }
   }
 
+  // Fills the field only; nothing is saved until the form is submitted.
+  function handleCopy(source: BriefingCopySource) {
+    const previous = value;
+    onChange(source.briefing);
+    toast(t("copy.copied", { name: source.name }), {
+      description: t("copy.saveHint"),
+      action: { label: t("copy.undo"), onClick: () => onChange(previous) },
+    });
+  }
+
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col gap-3", className)}>
       <div className="flex items-center justify-between gap-3">
-        <Label htmlFor={id}>{t("label")}</Label>
+        <div className="flex items-center gap-2">
+          <Label htmlFor={id}>{t("label")}</Label>
+          {copySources.length > 0 ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild disabled={disabled}>
+                <Button type="button" variant="ghost" size="sm">
+                  <Copy aria-hidden />
+                  {t("copy.trigger")}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="max-h-72 max-w-[calc(100vw-2rem)] overflow-y-auto"
+              >
+                <DropdownMenuLabel>{t("copy.menuLabel")}</DropdownMenuLabel>
+                {copySources.map((source) => (
+                  <DropdownMenuItem
+                    key={source.id}
+                    onSelect={() => handleCopy(source)}
+                  >
+                    <span className="truncate">{source.name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+        </div>
         <p
           className="text-muted-foreground font-mono text-xs tabular-nums"
           data-testid="briefing-word-count"

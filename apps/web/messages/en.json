@@ -2902,6 +2902,13 @@
           "kpis": "KPIs",
           "mustHaves": "Must-haves",
           "mustAvoids": "Must-avoids"
+        },
+        "copy": {
+          "trigger": "Copy from a project",
+          "menuLabel": "Start from another project's briefing",
+          "copied": "Copied the briefing from {name}",
+          "saveHint": "Edit it if you like, then save to keep it.",
+          "undo": "Undo"
         }
       },
       "Wizard": {

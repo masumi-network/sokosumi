@@ -40,3 +40,23 @@ export function insertBriefingHeading(value: string, heading: string): string {
 
   return `${trimmed}\n\n${marker}\n`;
 }
+
+export interface BriefingCopySource {
+  id: string;
+  name: string;
+  briefing: string;
+}
+
+/** Other projects whose briefing can seed this one, sorted by name. */
+export function briefingCopySources(
+  projects: { id: string; name: string; briefing?: string | null }[],
+  currentProjectId: string,
+): BriefingCopySource[] {
+  return projects
+    .flatMap(({ id, name, briefing }) =>
+      id !== currentProjectId && briefing?.trim()
+        ? [{ id, name, briefing }]
+        : [],
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
