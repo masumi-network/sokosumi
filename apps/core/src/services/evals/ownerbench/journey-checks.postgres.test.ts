@@ -10,7 +10,11 @@ import { randomUUID } from "node:crypto";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
-import type { EvalLaneRecord } from "../eval-lanes.service";
+import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
+import {
+  clearEarlierCaseArtifacts,
+  type EvalLaneRecord,
+} from "../eval-lanes.service";
 import {
   type CheckContext,
   indexedTexts,
@@ -19,9 +23,11 @@ import {
 import {
   claimedRunCheck,
   claimedRunState,
+  earlierCaseTasksCheck,
   foregroundTurnId,
   freshConversationCheck,
   journeyTokens,
+  packetTaskIds,
   routingFailures,
   withDescendants,
 } from "./journey-runner";
@@ -938,6 +944,185 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     await prisma.fileVersion.deleteMany({ where: { resourceId: resource.id } });
     await prisma.fileEvidenceScope.deleteMany({ where: { id: scope.id } });
     await prisma.fileResource.deleteMany({ where: { id: resource.id } });
+  });
+
+  describe("a case's first context holds no earlier case's work", () => {
+    let botId: string;
+    const classification = {
+      schemaVersion: 1 as const,
+      route: "MANAGE_WORK" as const,
+      confidence: 0.9,
+      rationaleSummary: "The owner asked about the board",
+      requestedOutcome: "Answer from the board",
+      candidateProjectIds: [],
+      candidateCoworkerIds: [],
+      candidateAgentIds: [],
+      requiresClarification: false,
+      requiresApproval: false,
+    };
+
+    beforeAll(async () => {
+      botId = (
+        await prisma.sokoBot.create({
+          data: { userId, workspaceId },
+          select: { id: true },
+        })
+      ).id;
+    });
+
+    afterAll(async () => {
+      await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
+      await prisma.task.deleteMany({ where: { workspaceId } });
+      await prisma.taskSchedule.deleteMany({ where: { workspaceId } });
+      await prisma.sokoBot.deleteMany({ where: { id: botId } });
+    });
+
+    /** What one case leaves: a Task it delegated, a Task its schedule released, a post. */
+    async function runCase(kind: "delegated" | "released"): Promise<string> {
+      if (kind === "delegated")
+        return (
+          await prisma.task.create({
+            data: {
+              workspaceId,
+              name: "Earlier case's delegation",
+              creatorSokoBotId: botId,
+            },
+            select: { id: true },
+          })
+        ).id;
+      const schedule = await prisma.taskSchedule.create({
+        data: {
+          workspaceId,
+          creatorSokoBotId: botId,
+          name: "Earlier case's schedule",
+          expr: "0 9 * * *",
+          timezone: "Europe/Berlin",
+          anchorAt: new Date(),
+          ruleEffectiveFrom: new Date(),
+          epochId: randomUUID(),
+        },
+        select: { id: true },
+      });
+      await prisma.socialPost.create({
+        data: {
+          projectId,
+          workspaceId,
+          provider: "x",
+          text: "Earlier case's draft",
+          creatorSokoBotId: botId,
+        },
+      });
+      // A released Task carries the member who owns the schedule, not the bot.
+      return (
+        await prisma.task.create({
+          data: {
+            workspaceId,
+            name: "Earlier case's released Task",
+            creatorUserId: userId,
+            scheduleId: schedule.id,
+          },
+          select: { id: true },
+        })
+      ).id;
+    }
+
+    /** The next case's opening turn, with the packet Core builds for it. */
+    async function openingTurn(): Promise<{
+      turnId: string;
+      taskIds: string[];
+    }> {
+      const built = await new ContextPacketBuilder().build({
+        userId,
+        sokoBotId: botId,
+        workspaceId,
+        source: "CHAT",
+        classification,
+        sharedScope: null,
+      });
+      const turn = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          source: "CHAT",
+          status: "COMPLETED",
+          clientTurnId: `lab:fixture:${randomUUID()}`,
+          userMessage: "What is on my board?",
+          capabilityNames: [],
+          deadlineAt: new Date(Date.now() + 60_000),
+          contextSnapshot: {
+            create: {
+              generatedAt: new Date(),
+              schemaVersion: 1,
+              hash: randomUUID(),
+              packet: built.packet as object,
+              byteSize: built.byteSize,
+              tokenEstimate: built.tokenEstimate,
+              counts: built.counts,
+              omissions: built.omissions,
+            },
+          },
+        },
+        select: { id: true },
+      });
+      return { turnId: turn.id, taskIds: packetTaskIds(built.packet) };
+    }
+
+    for (const order of [
+      ["delegated", "released"],
+      ["released", "delegated"],
+    ] as const)
+      it(`keeps the first case's Tasks out of the second's opening packet (${order.join(" then ")})`, async () => {
+        const seeded = await prisma.task.create({
+          data: {
+            workspaceId,
+            name: "The owner's seeded Task",
+            creatorUserId: userId,
+          },
+          select: { id: true },
+        });
+        const earlier = await runCase(order[0]);
+        // The second case starts: its reset, then its own work.
+        await clearEarlierCaseArtifacts({
+          workspaceId,
+          cusoProjectId: projectId,
+        });
+        const startedAt = new Date();
+        const own = await runCase(order[1]);
+        const { turnId, taskIds } = await openingTurn();
+        expect(taskIds).not.toContain(earlier);
+        // Positive controls: the owner's seeded Task and this case's own work.
+        expect(taskIds).toContain(seeded.id);
+        expect(taskIds).toContain(own);
+        expect(await earlierCaseTasksCheck(turnId, startedAt)).toMatchObject({
+          pass: true,
+        });
+        expect(
+          await prisma.socialPost.count({
+            where: {
+              projectId,
+              text: "Earlier case's draft",
+              createdAt: { lt: startedAt },
+            },
+          }),
+        ).toBe(0);
+        await prisma.task.deleteMany({ where: { workspaceId } });
+        await prisma.taskSchedule.deleteMany({ where: { workspaceId } });
+        await prisma.socialPost.deleteMany({
+          where: { projectId, text: "Earlier case's draft" },
+        });
+      });
+
+    it("fails a case whose opening packet carries another case's Task", async () => {
+      const leaked = await runCase("delegated");
+      const startedAt = new Date();
+      const { turnId, taskIds } = await openingTurn();
+      expect(taskIds).toContain(leaked);
+      expect(await earlierCaseTasksCheck(turnId, startedAt)).toMatchObject({
+        pass: false,
+        actual: expect.stringContaining("Earlier case's delegation"),
+      });
+    });
   });
 
   it("counts a file read only when it returned the file's text", async () => {

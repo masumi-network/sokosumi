@@ -31,6 +31,7 @@ import type {
 } from "../eval-case-runner";
 import { prepareCmoChatCase } from "../eval-cmo-runner";
 import {
+  clearEarlierCaseArtifacts,
   type EvalLaneRecord,
   resetEvalLaneForSokoBot,
 } from "../eval-lanes.service";
@@ -505,6 +506,58 @@ export async function freshConversationCheck(
   };
 }
 
+/**
+ * The first turn's context holds no Task another case made: the Tasks it
+ * carries that a bot created, or a bot's Task Schedule released, before this
+ * journey started. A member's Task from before (the seeded board) is the
+ * world, not a leak. No snapshot is no evidence.
+ */
+export async function earlierCaseTasksCheck(
+  turnId: string,
+  journeyStartedAt: Date,
+): Promise<ScenarioCheck> {
+  const snapshot = await prisma.sokoBotContextSnapshot.findUnique({
+    where: { turnId },
+    select: { packet: true },
+  });
+  const ids = packetTaskIds(snapshot?.packet);
+  const foreign = await prisma.task.findMany({
+    where: {
+      id: { in: ids },
+      createdAt: { lt: journeyStartedAt },
+      OR: [
+        { creatorSokoBotId: { not: null } },
+        { schedule: { creatorSokoBotId: { not: null } } },
+      ],
+    },
+    select: { name: true },
+  });
+  return {
+    label: "Opens with no other case's Tasks",
+    pass: Boolean(snapshot) && foreign.length === 0,
+    actual: snapshot
+      ? foreign.length
+        ? `${foreign.length} of ${ids.length} Task(s) from another case: "${foreign[0]?.name}"`
+        : `0 of ${ids.length} Task(s) from another case`
+      : "no context snapshot",
+  };
+}
+
+/** The Task ids a context packet's tasks names. */
+export function packetTaskIds(packet: unknown): string[] {
+  const tasks =
+    packet && typeof packet === "object" && "tasks" in packet
+      ? (packet as { tasks: unknown }).tasks
+      : null;
+  return Array.isArray(tasks)
+    ? tasks.flatMap((task) =>
+        task && typeof task === "object" && "id" in task
+          ? [String(task.id)]
+          : [],
+      )
+    : [];
+}
+
 /** The turn ids a context packet's recentTurns names. */
 export function packetTurnIds(packet: unknown): string[] {
   const recent =
@@ -554,6 +607,7 @@ async function finishStep(
         turnIds[0],
         new Date(state.journeyStartedAt),
       ),
+      await earlierCaseTasksCheck(turnIds[0], new Date(state.journeyStartedAt)),
     );
   if (step.kind === "schedule_fires")
     checks.push(await claimedRunCheck(state.memo));
@@ -690,6 +744,9 @@ export async function startJourney(
   )
     return { kind: "busy" };
   if (journey.bot === "soko-bot") await resetEvalLaneForSokoBot(lane);
+  // Cuso has no full reset: what earlier cases made goes before its setup
+  // seeds this journey's world.
+  else await clearEarlierCaseArtifacts(lane);
   const cusoRoomId =
     journey.bot === "cuso" ? await freshCusoRoom(lane, journey.id) : undefined;
   if (journey.cusoSetup) await prepareCmoChatCase(lane, journey.cusoSetup);

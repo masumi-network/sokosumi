@@ -478,6 +478,34 @@ export async function seedEvalXDms(
   });
 }
 
+/**
+ * What earlier benchmark cases made in the lane, known by who made it, not
+ * by its title: Tasks and Task Schedules (with their Runs) a bot created, and
+ * the Cuso Project's posts a bot created. A case that starts after this sees
+ * none of them in its first context. A member's Tasks and schedules (the
+ * owner's seeded board) stay; a case's setup seeds its own posts and
+ * strategy after this runs.
+ */
+export async function clearEarlierCaseArtifacts(
+  lane: Pick<EvalLaneRecord, "workspaceId" | "cusoProjectId">,
+): Promise<void> {
+  const botMade = {
+    workspaceId: lane.workspaceId,
+    creatorSokoBotId: { not: null },
+  };
+  await prisma.task.updateMany({
+    where: {
+      archivedAt: null,
+      OR: [botMade, { schedule: botMade }],
+    },
+    data: { archivedAt: new Date() },
+  });
+  await prisma.taskSchedule.deleteMany({ where: botMade });
+  await prisma.socialPost.deleteMany({
+    where: { projectId: lane.cusoProjectId, creatorSokoBotId: { not: null } },
+  });
+}
+
 export async function resetEvalLaneForSokoBot(
   lane: EvalLaneRecord,
 ): Promise<void> {
