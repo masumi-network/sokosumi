@@ -1,5 +1,9 @@
+/**
+ * RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… \
+ *   pnpm --filter core test src/helpers/__tests__/network-unique-indexes.postgres.test.ts
+ */
 import { randomUUID } from "node:crypto";
-import type { Prisma } from "@sokosumi/database";
+import { HistoryKind, NotificationKind, type Prisma } from "@sokosumi/database";
 import {
   createSqlTables,
   sqlTableLayoutFromEnv,
@@ -7,17 +11,18 @@ import {
 import { describe, expect, it } from "vitest";
 
 import type { Network } from "@/lib/network";
-import { withFixtureSchemas } from "@/test/split-layout";
+import { rolledBack, testSchemaNames } from "@/test/split-layout";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
 
-const { sharedTable, sharedType } = createSqlTables(
+const { netTable, sharedTable, sharedType } = createSqlTables(
   sqlTableLayoutFromEnv(process.env),
 );
+const { DATABASE_SCHEMA_SHARED: sharedSchema } = testSchemaNames();
 
-const indexes = {
+const INDEXES = {
   history: {
     old: "history_kind_entityId_key",
     network: "history_network_kind_entityId_key",
@@ -30,35 +35,48 @@ const indexes = {
   },
 };
 
+const HISTORY_UPSERTS = [
+  {
+    procedure: "upsert_history_task(text)",
+    declarations: `source_task ${sharedTable("task").sql};`,
+    setup: "",
+  },
+  {
+    procedure: "upsert_history_job(text)",
+    declarations: "source_job RECORD;",
+    setup: `SELECT j.*, NULL::text AS "agentName" INTO source_job
+      FROM ${netTable("mainnet", "Job").sql} AS j WHERE false;`,
+  },
+  {
+    procedure: "upsert_history_image_asset(uuid)",
+    declarations: "source RECORD; spend bigint;",
+    setup: `SELECT a.*, NULL::text AS "requestedByUserId", NULL::text AS "organizationId"
+      INTO source FROM ${sharedTable("project_image_asset").sql} AS a WHERE false;`,
+  },
+];
+
 type Tx = Prisma.TransactionClient;
-
-class Rollback extends Error {}
-
-async function rolledBack(run: (tx: Tx) => Promise<void>) {
-  await withFixtureSchemas(async (tx) => {
-    await run(tx);
-    throw new Rollback();
-  }).catch((error) => {
-    if (!(error instanceof Rollback)) throw error;
-  });
-}
 
 async function expectDuplicate(
   tx: Tx,
   insert: () => Promise<number>,
-  index: string,
+  index?: string,
 ) {
   await tx.$executeRaw`SAVEPOINT duplicate`;
+  const violation = 'duplicate key value violates unique constraint "';
   await expect(insert()).rejects.toThrow(
-    `duplicate key value violates unique constraint "${index}"`,
+    index ? `${violation}${index}"` : violation,
   );
   await tx.$executeRaw`ROLLBACK TO SAVEPOINT duplicate`;
 }
 
-async function fixture(tx: Tx, table: keyof typeof indexes) {
+async function fixture(tx: Tx, table: keyof typeof INDEXES) {
   const entityId = randomUUID();
   if (table === "history") {
-    return (network: Network | null, kind = "JOB") => tx.$executeRaw`
+    return (
+      network: Network | null,
+      kind: string = HistoryKind.JOB,
+    ) => tx.$executeRaw`
       INSERT INTO ${sharedTable(table)}
         ("id", "kind", "entityId", "title", "status", "sortAt", "network")
       VALUES (gen_random_uuid()::text, ${kind}::${sharedType("HistoryKind")},
@@ -76,7 +94,10 @@ async function fixture(tx: Tx, table: keyof typeof indexes) {
       updatedAt: new Date(),
     },
   });
-  return (network: Network | null, kind = "JOB") => tx.$executeRaw`
+  return (
+    network: Network | null,
+    kind: string = NotificationKind.JOB,
+  ) => tx.$executeRaw`
     INSERT INTO ${sharedTable(table)}
       ("id", "userId", "kind", "referenceId", "eventId", "messageKey", "messageParams", "network")
     VALUES (gen_random_uuid()::text, ${userId}, ${kind}::${sharedType("NotificationKind")},
@@ -87,10 +108,10 @@ describe.skipIf(!enabled)("Network-aware unique indexes", () => {
   describe.each(["history", "notification"] as const)("%s", (table) => {
     it("keeps the old key in use and has both new indexes valid", async () => {
       await rolledBack(async (tx) => {
-        const { old, network, untagged } = indexes[table];
+        const { old, network, untagged } = INDEXES[table];
         const valid = await tx.$queryRaw<{ name: string }[]>`
           SELECT c.relname::text AS name
-          FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+          FROM pg_catalog.pg_index i JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid
           WHERE i.indrelid = ${sharedTable(table).sql}::regclass
             AND i.indisvalid AND c.relname::text IN (${network}, ${untagged})
           ORDER BY c.relname`;
@@ -99,25 +120,26 @@ describe.skipIf(!enabled)("Network-aware unique indexes", () => {
         const insert = await fixture(tx, table);
         expect(await insert("mainnet")).toBe(1);
         await expectDuplicate(tx, () => insert("preprod"), old);
-        await expectDuplicate(tx, () => insert("mainnet"), old);
+        await expectDuplicate(tx, () => insert("mainnet"));
       });
     });
 
     it("allows one row per Network and one untagged row per key", async () => {
       await rolledBack(async (tx) => {
-        const { old, network, untagged } = indexes[table];
+        const { old, network, untagged } = INDEXES[table];
         // DROP INDEX takes ACCESS EXCLUSIVE on the table until rollback.
         // CI has one database per worker. On a shared local test database,
         // reads and writes wait until this transaction ends.
-        await tx.$executeRawUnsafe(`DROP INDEX "${old}"`);
+        await tx.$executeRawUnsafe(`DROP INDEX "${sharedSchema}"."${old}"`);
 
         const insert = await fixture(tx, table);
         expect(await insert("mainnet")).toBe(1);
         expect(await insert("preprod")).toBe(1);
         await expectDuplicate(tx, () => insert("mainnet"), network);
 
-        const sharedKind = table === "history" ? "TASK" : "SYSTEM";
-        for (const kind of ["JOB", sharedKind]) {
+        const sharedKind =
+          table === "history" ? HistoryKind.TASK : NotificationKind.SYSTEM;
+        for (const kind of [HistoryKind.JOB, sharedKind]) {
           expect(await insert(null, kind)).toBe(1);
           await expectDuplicate(tx, () => insert(null, kind), untagged);
         }
@@ -125,33 +147,38 @@ describe.skipIf(!enabled)("Network-aware unique indexes", () => {
     });
   });
 
-  it("still plans the live History upsert with only the old arbiter", async () => {
-    await rolledBack(async (tx) => {
-      const [fn] = await tx.$queryRaw<{ prosrc: string }[]>`
-        SELECT prosrc FROM pg_proc
-        WHERE oid = 'upsert_history_task(text)'::regprocedure`;
-      // Take the final INSERT verbatim from the live function. The typed
-      // PL/pgSQL variable lets PostgreSQL resolve the original field references.
-      const statement = fn.prosrc.slice(
-        fn.prosrc.lastIndexOf("\n  INSERT INTO "),
-        fn.prosrc.lastIndexOf(";\nEND;"),
-      );
-      await tx.$executeRawUnsafe(`
+  it.each(HISTORY_UPSERTS)(
+    "still plans $procedure with only the old arbiter",
+    async ({ procedure, declarations, setup }) => {
+      await rolledBack(async (tx) => {
+        const [fn] = await tx.$queryRaw<{ prosrc: string }[]>`
+          SELECT prosrc FROM pg_catalog.pg_proc
+          WHERE oid = ${`"${sharedSchema}".${procedure}`}::regprocedure`;
+        // Take the final INSERT verbatim from the live function. The typed
+        // PL/pgSQL variable lets PostgreSQL resolve the original field references.
+        const start = fn.prosrc.lastIndexOf("\n  INSERT INTO ");
+        const end = fn.prosrc.lastIndexOf(";\nEND;");
+        expect(start).toBeGreaterThanOrEqual(0);
+        expect(end).toBeGreaterThan(start);
+        const statement = fn.prosrc.slice(start, end);
+        await tx.$executeRawUnsafe(`
         DO $explain$
         DECLARE
-          source_task "task";
+          ${declarations}
           plan json;
         BEGIN
+          ${setup}
           FOR plan IN EXPLAIN (FORMAT JSON) ${statement}
           LOOP
             PERFORM set_config('test.history_upsert_plan', plan::text, true);
           END LOOP;
         END
         $explain$`);
-      const [result] = await tx.$queryRaw<{ arbiters: string[] }[]>`
-        SELECT current_setting('test.history_upsert_plan')::json
-          -> 0 -> 'Plan' -> 'Conflict Arbiter Indexes' AS arbiters`;
-      expect(result.arbiters).toEqual([indexes.history.old]);
-    });
-  });
+        const [result] = await tx.$queryRaw<{ arbiters: string[] }[]>`
+          SELECT current_setting('test.history_upsert_plan')::json
+            -> 0 -> 'Plan' -> 'Conflict Arbiter Indexes' AS arbiters`;
+        expect(result.arbiters).toEqual([INDEXES.history.old]);
+      });
+    },
+  );
 });

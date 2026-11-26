@@ -49,9 +49,11 @@ Test Packages checks new migrations for `SET lock_timeout` whenever the file con
 
 A lock timeout fails the statement with PostgreSQL error `55P03`. Check which statements took effect and make sure the migration can safely run again. Run `pnpm exec prisma migrate resolve --rolled-back <name>` using the direct URL (`DATABASE_URL_UNPOOLED`), then deploy again. A plain redeploy stops at `P3009`.
 
-Put each concurrent index build in its own migration file (Prisma 7.10.1 sends a multi-statement file containing `DROP INDEX CONCURRENTLY` as one batch, which PostgreSQL rejects with `25001`). [prisma/prisma-engines#5847](https://github.com/prisma/prisma-engines/pull/5847)
+### Concurrent index builds
 
-Omit `lock_timeout` because it can cancel a concurrent build and leave an invalid index, and omit `IF NOT EXISTS` because it hides that index. To recover after fixing the cause, run `DROP INDEX CONCURRENTLY "<index>"` and `prisma migrate resolve --rolled-back <migration>` on the direct URL (`DATABASE_URL_UNPOOLED`), then deploy again.
+Prisma 7.10.1 fails with `25001` when a migration file contains `DROP INDEX CONCURRENTLY` alongside another statement. A concurrent build therefore cannot carry its own leading drop. Give the build its own migration file so it can be retried independently. [Prisma engines pull request #5847](https://github.com/prisma/prisma-engines/pull/5847)
+
+For a concurrent build, omit `lock_timeout` because it can cancel the build and leave an invalid index, and omit `IF NOT EXISTS` because it hides an invalid index. A failed build blocks every later production deploy with `P3009` until a human recovers it. Check `pg_stat_activity` first for a still-running `CREATE INDEX` targeting the index. Once the build has stopped and the cause is fixed, run `DROP INDEX CONCURRENTLY IF EXISTS "<index>"` and `pnpm exec prisma migrate resolve --rolled-back <migration>` on the direct URL (`DATABASE_URL_UNPOOLED`), then deploy again.
 
 ## CI checks on migration text
 

@@ -36,6 +36,20 @@ export async function withFixtureSchemas<T>(
   });
 }
 
+class Rollback extends Error {}
+
+/** Always roll back the fixture transaction and propagate test failures. */
+export async function rolledBack(
+  run: (tx: Prisma.TransactionClient) => Promise<void>,
+): Promise<void> {
+  await withFixtureSchemas(async (tx) => {
+    await run(tx);
+    throw new Rollback();
+  }).catch((error) => {
+    if (!(error instanceof Rollback)) throw error;
+  });
+}
+
 /**
  * True in a PostgreSQL run on the new layout: a real database and three
  * different schema names, none `public` (CI's `Test Core PostgreSQL split
