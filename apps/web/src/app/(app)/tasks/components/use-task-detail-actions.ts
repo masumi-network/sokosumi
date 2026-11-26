@@ -291,10 +291,14 @@ export function useTaskDetailActions({
   );
   const canRemoveRelated = canManageRelations && removableTaskLinks.length > 0;
   // A focused SEO check starts only from its audit: the global executor refuses
-  // a Repeat of its `seo_job:` line, so the menu does not offer one.
-  const canRepeat =
+  // a Repeat of its `seo_job:` line, and a Duplicate would carry it into a new
+  // Task, so the menu offers neither.
+  const focusedSeoCheck =
     taskBlueprint !== undefined &&
-    !hasSeoTaskRequest(taskBlueprint.description, "seo_job");
+    hasSeoTaskRequest(taskBlueprint.description, "seo_job");
+  const canRepeat = taskBlueprint !== undefined && !focusedSeoCheck;
+  const canDuplicate =
+    taskBlueprint !== undefined && newTaskWizard !== null && !focusedSeoCheck;
   const hasOverflowMenuActions =
     taskBlueprint !== undefined ||
     sendToChat !== undefined ||
@@ -567,10 +571,10 @@ export function useTaskDetailActions({
     chatRooms,
     setChatRooms,
     isChatRoomsLoading,
-    newTaskWizard,
     handleDuplicate,
     handleRepeat,
     canRepeat,
+    canDuplicate,
     handleSendToChat,
     canMutateTask,
     statusActions,

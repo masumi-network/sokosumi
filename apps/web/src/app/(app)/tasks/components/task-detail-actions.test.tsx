@@ -2495,8 +2495,8 @@ describe("TaskDetailActions", () => {
     });
   });
 
-  describe("Repeat of a focused SEO check", () => {
-    it("is not offered for a Task with a seo_job line", async () => {
+  describe("Repeat and Duplicate of a focused SEO check", () => {
+    it("are not offered for a Task with a seo_job line", async () => {
       const user = userEvent.setup();
       renderActions({
         taskBlueprint: {
@@ -2513,6 +2513,8 @@ describe("TaskDetailActions", () => {
       await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
       expect(screen.queryByRole("menuitem", { name: "repeat" })).toBeNull();
+      // A copy would start a check outside its audit, without its price terms.
+      expect(screen.queryByRole("menuitem", { name: "duplicate" })).toBeNull();
     });
   });
 

@@ -108,10 +108,10 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
     chatRooms,
     setChatRooms,
     isChatRoomsLoading,
-    newTaskWizard,
     handleDuplicate,
     handleRepeat,
     canRepeat,
+    canDuplicate,
     handleSendToChat,
     canMutateTask,
     statusActions,
@@ -214,7 +214,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
               </DropdownMenuItem>
             ) : null}
 
-            {taskBlueprint && newTaskWizard ? (
+            {canDuplicate ? (
               <DropdownMenuItem
                 disabled={actionsDisabled}
                 onSelect={handleDuplicate}
