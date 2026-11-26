@@ -13739,6 +13739,21 @@ export type SeoSiteTrafficReport = {
         date: string;
     }>;
     limited: boolean;
+    brand?: {
+        daily: Array<{
+            date: string;
+            branded: {
+                clicks: number;
+                impressions: number;
+            };
+            nonBranded: {
+                clicks: number;
+                impressions: number;
+            };
+        }>;
+        limited: boolean;
+        terms: Array<string>;
+    };
     pages: Array<{
         clicks: number;
         impressions: number;

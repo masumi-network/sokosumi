@@ -138,7 +138,11 @@ function SeoTrafficContent({
             onApply={applyPages}
           />
           {hasReport ? (
-            <SeoSiteTrafficReportView key={scope + live.site} report={live} />
+            <SeoSiteTrafficReportView
+              key={scope + live.site}
+              report={live}
+              model={model}
+            />
           ) : live ? (
             <p role="status" className="text-muted-foreground text-sm">
               {t("siteTraffic.noRows")}

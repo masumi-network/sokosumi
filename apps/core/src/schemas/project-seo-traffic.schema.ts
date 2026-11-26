@@ -18,14 +18,7 @@ export type SeoTrafficChannel = z.infer<typeof seoTrafficChannelSchema>;
 export const seoSearchTypeSchema = z.enum(SEO_SEARCH_TYPES);
 export type SeoSearchType = z.infer<typeof seoSearchTypeSchema>;
 
-/**
- * Discover and Google News show pages in a feed, with no search query: they have no query rows.
- * INFERRED from the Search Console help, not the Search Analytics API page, which does not say
- * the query dimension is unsupported for these types.
- */
-export function seoSearchTypeHasQueries(type: SeoSearchType = "web"): boolean {
-  return type !== "discover" && type !== "googleNews";
-}
+export { seoSearchTypeHasQueries } from "@sokosumi/utils";
 
 export const SEO_SEARCH_QUERY_ROW_LIMIT = 250;
 /** One Search Console row grouped by query and page. Average position is not a live rank. */
