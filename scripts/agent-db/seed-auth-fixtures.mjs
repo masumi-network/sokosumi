@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readState } from "./apply-env.mjs";
+import { readState, readUrlsFile } from "./apply-env.mjs";
 import { assertAgentFixtureSafety } from "./assert-agent-database.mjs";
 import {
   AUTH_FIXTURES,
@@ -293,8 +293,37 @@ async function upsertFixtureOrganization(
 }
 
 /**
+ * The database to seed and the variables that name its layout. The two come
+ * from the same place: a provisioned agent branch is migrated on today's
+ * layout (all `public`), so schema names exported in the shell describe
+ * another database. That is the URL the provisioner passes, and the URL
+ * `with-db.mjs` puts into the environment from the provisioned URLs file. Any
+ * other URL from the environment takes its layout from the environment.
+ *
+ * @param {string | undefined} passedUrl
+ * @param {Record<string, string | undefined>} env
+ * @param {{ databaseUrl: string, databaseUrlUnpooled: string } | null} provisioned
+ * @returns {{ databaseUrl: string, layoutEnv: Record<string, string | undefined> }}
+ */
+export function seedDatabase(passedUrl, env, provisioned) {
+  const passed = passedUrl?.trim();
+  const databaseUrl =
+    passed ||
+    env.DATABASE_URL_UNPOOLED?.trim() ||
+    env.DATABASE_URL?.trim() ||
+    "";
+  const isProvisioned =
+    Boolean(passed) ||
+    (databaseUrl !== "" &&
+      [provisioned?.databaseUrl, provisioned?.databaseUrlUnpooled].includes(
+        databaseUrl,
+      ));
+  return { databaseUrl, layoutEnv: isProvisioned ? {} : env };
+}
+
+/**
  * @param {{
- *   databaseUrl?: string, // a database on today's layout (all `public`)
+ *   databaseUrl?: string, // a provisioned agent branch
  *   branchName?: string | null,
  *   force?: boolean,
  * }} [options]
@@ -306,12 +335,11 @@ export async function seedAuthFixtures(options = {}) {
   }
 
   const state = await readState(REPO_ROOT);
-  const passedUrl = options.databaseUrl?.trim();
-  const databaseUrl =
-    passedUrl ||
-    process.env.DATABASE_URL_UNPOOLED?.trim() ||
-    process.env.DATABASE_URL?.trim() ||
-    "";
+  const { databaseUrl, layoutEnv } = seedDatabase(
+    options.databaseUrl,
+    process.env,
+    await readUrlsFile(REPO_ROOT),
+  );
   const branchName = options.branchName ?? state?.branchName ?? null;
   const force =
     options.force === true || process.env.CLOUD_AGENT_DB_FORCE === "1";
@@ -322,10 +350,7 @@ export async function seedAuthFixtures(options = {}) {
     force,
   });
 
-  // The URL and the layout come from the same place. A URL the caller passes
-  // is the provisioner's agent branch, migrated on today's layout: schema names
-  // exported in the shell describe another database.
-  const sharedTable = await sharedTableFor(passedUrl ? {} : process.env);
+  const sharedTable = await sharedTableFor(layoutEnv);
 
   const [{ hashPassword }, { default: pg }] = await Promise.all([
     importFromCore("better-auth/crypto"),

@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
 
-import { upsertEnvLines } from "../apply-env.mjs";
+import {
+  applyUrlsToProcessEnv,
+  readUrlsFile,
+  upsertEnvLines,
+  writeEnvFile,
+} from "../apply-env.mjs";
 import { assertAgentFixtureSafety } from "../assert-agent-database.mjs";
 import { AUTH_FIXTURES, FIXTURE_PASSWORD } from "../fixtures.mjs";
 import {
@@ -22,7 +30,7 @@ import {
 import {
   clearUnwantedOrganizationMemberships,
   resetUnwantedPersonalWorkspace,
-  seedAuthFixtures,
+  seedDatabase,
   sharedTableFor,
   throwIfZeroWorkspaceResetFailed,
 } from "../seed-auth-fixtures.mjs";
@@ -267,57 +275,63 @@ describe("sharedTableFor", () => {
   });
 });
 
-describe("seedAuthFixtures layout", () => {
-  // Nothing listens on port 1: a seed that gets as far as connecting fails
-  // with a connection error, one stopped by the layout never connects.
-  const UNREACHABLE = "postgresql://user:password@127.0.0.1:1/none";
-  const KEYS = [
-    ...Object.keys(SPLIT_LAYOUT),
-    "NETWORK_PREPROD_ENABLED",
-    "DATABASE_URL",
-    "DATABASE_URL_UNPOOLED",
-    "CLOUD_AGENT_DB_SKIP_FIXTURES",
-  ];
+describe("seedDatabase", () => {
+  const PROVISIONED = {
+    databaseUrl: "postgresql://agent@pooled.test/db",
+    databaseUrlUnpooled: "postgresql://agent@direct.test/db",
+  };
+  const OTHER = "postgresql://user@other.test/db";
 
-  /** Sets the environment for one test and puts it back afterwards. */
-  function withEnv(t, env) {
-    const before = Object.fromEntries(
-      KEYS.map((key) => [key, process.env[key]]),
-    );
-    t.after(() => {
-      for (const key of KEYS) {
-        if (before[key] === undefined) delete process.env[key];
-        else process.env[key] = before[key];
-      }
+  it("takes the layout from the environment the URL comes from", () => {
+    const env = { DATABASE_URL: OTHER, ...SPLIT_LAYOUT };
+
+    assert.deepEqual(seedDatabase(undefined, env, PROVISIONED), {
+      databaseUrl: OTHER,
+      layoutEnv: env,
     });
-    for (const key of KEYS) delete process.env[key];
-    Object.assign(process.env, env);
-  }
+    assert.deepEqual(seedDatabase("  ", env, null), {
+      databaseUrl: OTHER,
+      layoutEnv: env,
+    });
+  });
 
-  it("stops before connecting when only some schema names are set", async (t) => {
-    withEnv(t, { DATABASE_URL: UNREACHABLE, DATABASE_SCHEMA_SHARED: "shared" });
+  it("pairs a URL the caller passes with the public layout, whatever the shell exports", () => {
+    assert.deepEqual(seedDatabase(OTHER, { ...SPLIT_LAYOUT }, null), {
+      databaseUrl: OTHER,
+      layoutEnv: {},
+    });
+  });
+
+  it("pairs the provisioned URL with the public layout when with-db.mjs launches the seed", async (t) => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), "agent-db-seed-"));
+    t.after(() => rm(repoRoot, { recursive: true, force: true }));
+    await writeEnvFile(repoRoot, PROVISIONED);
+    // What with-db.mjs does before it starts the command: the provisioned
+    // URLs replace the shell's, the shell's schema names stay.
+    const env = { DATABASE_URL: OTHER, ...SPLIT_LAYOUT };
+    const provisioned = await readUrlsFile(repoRoot);
+    applyUrlsToProcessEnv(provisioned, env);
+
+    const { databaseUrl, layoutEnv } = seedDatabase(
+      undefined,
+      env,
+      provisioned,
+    );
+
+    assert.equal(databaseUrl, PROVISIONED.databaseUrlUnpooled);
+    assert.equal((await sharedTableFor(layoutEnv))("user"), '"public"."user"');
+  });
+
+  it("a partial layout in the environment stops the seed of another database", async () => {
+    const { layoutEnv } = seedDatabase(
+      undefined,
+      { DATABASE_URL: OTHER, DATABASE_SCHEMA_SHARED: "shared" },
+      PROVISIONED,
+    );
 
     await assert.rejects(
-      seedAuthFixtures({ force: true }),
+      sharedTableFor(layoutEnv),
       /^Error: Auth fixtures blocked: .*must be all public, or all different and none public/,
-    );
-  });
-
-  it("reads the layout from the environment the URL comes from", async (t) => {
-    withEnv(t, { DATABASE_URL: UNREACHABLE, ...SPLIT_LAYOUT });
-
-    await assert.rejects(seedAuthFixtures({ force: true }), {
-      code: "ECONNREFUSED",
-    });
-  });
-
-  it("pairs a URL the caller passes with the public layout, whatever the shell exports", async (t) => {
-    // A layout Core refuses, so reading it would stop the seed.
-    withEnv(t, { DATABASE_SCHEMA_SHARED: "shared" });
-
-    await assert.rejects(
-      seedAuthFixtures({ databaseUrl: UNREACHABLE, force: true }),
-      { code: "ECONNREFUSED" },
     );
   });
 });
