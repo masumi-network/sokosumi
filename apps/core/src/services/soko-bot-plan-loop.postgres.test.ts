@@ -32,8 +32,23 @@ vi.mock("@/services/soko-bot-version.service", async (importOriginal) => {
       ...(await actual.resolveSokoBotVersion(id)),
       planLoop: true,
     }),
+    resolveRunnableSokoBotVersion: async (
+      id: string | null | undefined,
+      shared?: boolean,
+    ) => ({
+      ...(await actual.resolveRunnableSokoBotVersion(id, shared)),
+      planLoop: true,
+    }),
   };
 });
+// A follow-up wake publishes over Ably and is a proactive turn.
+vi.mock("@/lib/ably/client", async () =>
+  (await import("@/test/ably-client")).fakeAblyClientModule(),
+);
+vi.mock("@/services/soko-bot-proactive.service", async (original) => ({
+  ...(await original<object>()),
+  proactiveGate: async () => ({ ok: true, usedToday: 0, limit: 1_000 }),
+}));
 
 const { default: prisma } = await import("@/lib/db/prisma");
 const { sokoBotRuntimeService } = await import(
@@ -41,6 +56,9 @@ const { sokoBotRuntimeService } = await import(
 );
 const { modelUserMessage } = await import("@/lib/soko-bot/turn-model-context");
 const { withFixtureSchemas } = await import("@/test/split-layout");
+const { sokoBotEventsSyncService } = await import(
+  "@/services/soko-bot-events-sync.service"
+);
 
 describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
   const ownerId = randomUUID();
@@ -61,14 +79,43 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
       },
     });
     await prisma.sokoBot.create({
-      data: { id: sokoBotId, userId: ownerId, workspaceId },
+      data: {
+        id: sokoBotId,
+        userId: ownerId,
+        workspaceId,
+        proactiveDailyLimit: 10_000,
+      },
+    });
+    // Event turns are billed: the owner has a balance to start them on.
+    const grant = await prisma.transaction.create({
+      data: { userId: ownerId, amount: 100_000n * 10_000_000_000n },
+    });
+    await prisma.creditBucket.create({
+      data: {
+        userId: ownerId,
+        amount: grant.amount,
+        sourceTransactionId: grant.id,
+      },
+    });
+    // The events sync reads only events after its first scan.
+    await prisma.syncMetadata.upsert({
+      where: { key: "soko-events-v2" },
+      create: {
+        key: "soko-events-v2",
+        createdAt: new Date(0),
+        lastSyncedAt: new Date(0),
+      },
+      update: {},
     });
   });
 
   afterAll(async () => {
     await withFixtureSchemas(async (tx) => {
+      await tx.task.deleteMany({ where: { workspaceId } });
       await tx.sokoBotTurn.deleteMany({ where: { sokoBotId } });
       await tx.sokoBot.deleteMany({ where: { id: sokoBotId } });
+      // The wake opens the owner's chat with the bot.
+      await tx.chatRoom.deleteMany({ where: { createdByUserId: ownerId } });
       await tx.user.deleteMany({ where: { id: ownerId } });
     });
   });
@@ -89,7 +136,7 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
         source,
         status: "RUNNING",
         versionId: DEFAULT_SOKO_BOT_VERSION_ID,
-        capabilityNames: ["update_plan"],
+        capabilityNames: ["update_plan", "create_task"],
         deadlineAt: new Date(Date.now() + 60 * 60 * 1000),
         leaseExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
         clientTurnId: clientTurnId ?? (parentTurnId ? `background:${id}` : id),
@@ -112,14 +159,14 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
     return id;
   }
 
-  function updatePlan(turnId: string, steps: unknown[]) {
+  function updatePlan(turnId: string, steps: unknown[], revision?: number) {
     calls += 1;
     return sokoBotRuntimeService.executeTool({
       sessionId: `session-${turnId}`,
       turnId,
       capability: "update_plan",
       toolCallId: `call-${calls}`,
-      input: { steps },
+      input: { steps, ...(revision ? { revision } : {}) },
     } as never);
   }
 
@@ -146,7 +193,11 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
     expect(message).toContain("- s2 [pending] Make the pictures");
 
     await expect(
-      updatePlan(run, [{ id: "s1", step: "Write the posts", status: "done" }]),
+      updatePlan(
+        run,
+        [{ id: "s1", step: "Write the posts", status: "done" }],
+        1,
+      ),
     ).rejects.toThrow(/Missing: s2 "Make the pictures"/);
     const refused = await prisma.sokoBotToolCall.findFirstOrThrow({
       where: { turnId: run, capability: "update_plan" },
@@ -154,15 +205,19 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
     expect(refused.status).toBe("FAILED");
 
     await expect(
-      updatePlan(run, [
-        { id: "s1", step: "Write the posts", status: "done" },
-        {
-          id: "s2",
-          step: "Make the pictures",
-          status: "skipped",
-          reason: "The owner wants text only",
-        },
-      ]),
+      updatePlan(
+        run,
+        [
+          { id: "s1", step: "Write the posts", status: "done" },
+          {
+            id: "s2",
+            step: "Make the pictures",
+            status: "skipped",
+            reason: "The owner wants text only",
+          },
+        ],
+        1,
+      ),
     ).resolves.toMatchObject({ requestId: chat, revision: 2 });
     expect(await firstMessage(run, "Go on.")).toContain(
       "- s2 [skipped: The owner wants text only] Make the pictures",
@@ -186,10 +241,14 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
     await updatePlan(chat, [write]);
     const first = await turn("CHAT", chat);
     await expect(
-      updatePlan(first, [
-        { id: "s1", ...write },
-        { step: "Send the edited draft", status: "pending" },
-      ]),
+      updatePlan(
+        first,
+        [
+          { id: "s1", ...write },
+          { step: "Send the edited draft", status: "pending" },
+        ],
+        1,
+      ),
     ).resolves.toMatchObject({ requestId: chat, revision: 2 });
 
     const second = await turn("CHAT", chat);
@@ -197,22 +256,90 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
       "- s2 [pending] Send the edited draft",
     );
     await expect(
-      updatePlan(second, [
-        { id: "s1", step: "Write the posts", status: "done" },
-      ]),
+      updatePlan(
+        second,
+        [{ id: "s1", step: "Write the posts", status: "done" }],
+        2,
+      ),
     ).rejects.toThrow(/Missing: s2 "Send the edited draft"/);
   });
 
-  it("gives two updates at once their own revisions", async () => {
+  it("accepts one of two updates made at once from the same revision", async () => {
     const chat = await turn("CHAT");
     await updatePlan(chat, [write]);
-    const both = await Promise.all([
-      updatePlan(chat, [{ id: "s1", step: "Write the posts", status: "done" }]),
-      updatePlan(chat, [{ id: "s1", ...write }]),
+    const both = await Promise.allSettled([
+      updatePlan(
+        chat,
+        [{ id: "s1", step: "Write the posts", status: "done" }],
+        1,
+      ),
+      updatePlan(chat, [{ id: "s1", ...write }], 1),
     ]);
-    expect(
-      both.map((plan) => (plan as { revision: number }).revision).sort(),
-    ).toEqual([2, 3]);
+    expect(both.map((result) => result.status).sort()).toEqual([
+      "fulfilled",
+      "rejected",
+    ]);
+  });
+
+  it("never puts back a sibling run's progress from an older revision", async () => {
+    const chat = await turn("CHAT");
+    const brief = { id: "s1", step: "Write the brief" };
+    const list = { id: "s2", step: "Clean the mailing list" };
+    await updatePlan(chat, [
+      { ...brief, status: "pending" },
+      { ...list, status: "pending" },
+    ]);
+    const first = await turn("CHAT", chat);
+    const second = await turn("CHAT", chat);
+    // Both runs read revision 1; the first finishes the brief.
+    await expect(
+      updatePlan(
+        first,
+        [
+          { ...brief, status: "done" },
+          { ...list, status: "pending" },
+        ],
+        1,
+      ),
+    ).resolves.toMatchObject({ revision: 2 });
+    // The second still holds revision 1 and is told the newest plan.
+    await expect(
+      updatePlan(
+        second,
+        [
+          { ...brief, status: "pending" },
+          { ...list, status: "done" },
+        ],
+        1,
+      ),
+    ).rejects.toThrow(/revision 2, not 1[\s\S]*- s1 \[done\] Write the brief/);
+    await expect(
+      updatePlan(
+        second,
+        [
+          { ...brief, status: "done" },
+          { ...list, status: "done" },
+        ],
+        2,
+      ),
+    ).resolves.toMatchObject({
+      revision: 3,
+      steps: [
+        { id: "s1", status: "done" },
+        { id: "s2", status: "done" },
+      ],
+    });
+    // Reopening a step from the current revision is the run's call.
+    await expect(
+      updatePlan(
+        first,
+        [
+          { ...brief, status: "in_progress" },
+          { ...list, status: "done" },
+        ],
+        3,
+      ),
+    ).resolves.toMatchObject({ revision: 4 });
   });
 
   it("keeps the plan for an operator's retry of the failed chat", async () => {
@@ -238,16 +365,94 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
     // Within each field's limit, but three bytes a character.
     const long = (n: number) => `${"計画".repeat(99)}${n}`;
     await expect(
-      updatePlan(chat, [
-        { id: "s1", ...write },
-        ...Array.from({ length: 19 }, (_, n) => ({
-          step: long(n),
-          status: "skipped",
-          reason: long(n),
-        })),
-      ]),
+      updatePlan(
+        chat,
+        [
+          { id: "s1", ...write },
+          ...Array.from({ length: 19 }, (_, n) => ({
+            step: long(n),
+            status: "skipped",
+            reason: long(n),
+          })),
+        ],
+        1,
+      ),
     ).rejects.toThrow(/too long to keep/);
     const run = await turn("CHAT", chat);
     expect(await firstMessage(run, "The brief.")).toContain("(revision 1)");
+  });
+
+  it("lets the Coworker follow-up wake update the plan it is shown, with no sandbox", async () => {
+    const chat = await turn("CHAT");
+    await updatePlan(chat, [
+      { step: "Have the research done", status: "in_progress" },
+      { step: "Write the brief from it", status: "pending" },
+    ]);
+    calls += 1;
+    const task = (await sokoBotRuntimeService.executeTool({
+      sessionId: `session-${chat}`,
+      turnId: chat,
+      capability: "create_task",
+      toolCallId: `call-${calls}`,
+      input: {
+        name: "Research three marketplaces",
+        description: "Pricing and positioning.",
+        status: "READY",
+        followUp: "Write the brief from the research.",
+      },
+    } as never)) as { id: string };
+    // The bot is idle again, so the sync wakes it now, not on a later tick.
+    await prisma.sokoBotTurn.updateMany({
+      where: { sokoBotId, status: "RUNNING" },
+      data: { status: "COMPLETED", completedAt: new Date() },
+    });
+    await prisma.$transaction([
+      prisma.taskEvent.create({
+        data: {
+          taskId: task.id,
+          status: "COMPLETED",
+          comment: "Findings: three marketplaces.",
+          channel: "SOKOSUMI",
+          userId: ownerId,
+        },
+      }),
+      prisma.task.update({
+        where: { id: task.id },
+        data: { status: "COMPLETED" },
+      }),
+    ]);
+    await sokoBotEventsSyncService.syncDelegatedWork({
+      abortSignal: new AbortController().signal,
+      shouldContinue: () => true,
+    });
+    const wake = await prisma.sokoBotTurn.findFirstOrThrow({
+      where: { sokoBotId, source: "EVENT" },
+    });
+    // Core granted the plan tool, and nothing that needs a sandbox.
+    expect(wake.capabilityNames).toContain("update_plan");
+    expect(wake.capabilityNames).not.toContain("bash");
+
+    await prisma.sokoBotTurn.update({
+      where: { id: wake.id },
+      data: {
+        status: "RUNNING",
+        leaseExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        // As the runtime attaches its session to the turn.
+        eveSessionId: `session-${wake.id}`,
+      },
+    });
+    expect(await firstMessage(wake.id, wake.userMessage)).toContain(
+      "- s2 [pending] Write the brief from it",
+    );
+    await expect(
+      updatePlan(
+        wake.id,
+        [
+          { id: "s1", step: "Have the research done", status: "done" },
+          { id: "s2", step: "Write the brief from it", status: "in_progress" },
+        ],
+        1,
+      ),
+    ).resolves.toMatchObject({ requestId: chat, revision: 2 });
   });
 });

@@ -8,7 +8,8 @@ vi.mock("@/services/soko-bot-version.service", () => ({
 }));
 const resolveRequestId = vi.fn();
 const readChainPlan = vi.fn();
-vi.mock("@/lib/soko-bot/request-chain", () => ({
+vi.mock("@/lib/soko-bot/request-chain", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   resolveRequestId: (turnId: string) => resolveRequestId(turnId),
   readRequestPlan: (sokoBotId: string, requestId: string) =>
     readChainPlan(sokoBotId, requestId),
@@ -85,9 +86,41 @@ describe("update_plan on a planLoop version", () => {
     );
     await expect(
       updatePlan(authorized, {
+        revision: 1,
         steps: [{ id: "s1", step: "Draft the post", status: "done" }],
       }),
     ).rejects.toThrow(/Missing: s2 "Make two pictures"/);
+  });
+
+  it("refuses an update made from an older revision, with the newest plan", async () => {
+    readChainPlan.mockResolvedValue(
+      current(
+        [
+          { id: "s1", step: "Draft the brief", status: "done" },
+          { id: "s2", step: "Clean the mailing list", status: "pending" },
+        ],
+        2,
+      ),
+    );
+    const stale = {
+      steps: [
+        { id: "s1", step: "Draft the brief", status: "pending" },
+        { id: "s2", step: "Clean the mailing list", status: "done" },
+      ],
+    };
+    await expect(
+      updatePlan(authorized, { ...stale, revision: 1 }),
+    ).rejects.toThrow(
+      /revision 2, not 1: another part of this request changed it\. Nothing was saved\..*\n- s1 \[done\] Draft the brief\n- s2 \[pending\] Clean the mailing list$/s,
+    );
+    await expect(updatePlan(authorized, stale)).rejects.toThrow(
+      /The plan is at revision 2\. Nothing was saved/,
+    );
+    expect(stored).not.toHaveBeenCalled();
+    // Reopening a step from the current revision is allowed.
+    await expect(
+      updatePlan(authorized, { ...stale, revision: 2 }),
+    ).resolves.toMatchObject({ revision: 3 });
   });
 
   it("keeps ids by id or same text, and adds new steps after them", async () => {
@@ -98,6 +131,7 @@ describe("update_plan on a planLoop version", () => {
       ]),
     );
     const plan = await updatePlan(authorized, {
+      revision: 1,
       steps: [
         { step: "draft the post", status: "done" },
         { id: "s2", step: "Make one picture", status: "in_progress" },

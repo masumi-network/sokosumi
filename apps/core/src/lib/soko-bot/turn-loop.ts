@@ -490,8 +490,14 @@ export async function prepareTurn(
   const stable = version.skillsOnDemand === true;
   const capabilities = offeredCapabilities(version, authorized, options);
   const requiresActionProof = turnRequiresActionProof(capabilities);
+  // Core runs a planLoop version's plan: it alone is no sandbox to guide.
   const hasSandbox =
-    options.sandbox && capabilities.some(isSokoBotSandboxCapability);
+    options.sandbox &&
+    capabilities.some(
+      (capability) =>
+        isSokoBotSandboxCapability(capability) &&
+        !(version.planLoop && capability === "update_plan"),
+    );
   const hasWebOnly =
     !hasSandbox &&
     capabilities.some((capability) => IN_PROCESS_WEB_TOOLS.has(capability));
@@ -592,7 +598,8 @@ export async function prepareTurn(
     toolDescriptions,
     requiresActionProof,
     meetingPrep,
-    planLoop: version.planLoop === true,
+    // The plan is shown only to a turn that can update it.
+    planLoop: version.planLoop === true && capabilities.includes("update_plan"),
     parts,
     reasoningEffort: turnReasoningEffortOptions({
       version,

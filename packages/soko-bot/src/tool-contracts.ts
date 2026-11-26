@@ -1442,6 +1442,8 @@ export const sokoBotPlanLoopUpdatePlanInputSchema = z
       )
       .min(1)
       .max(20),
+    /** The revision this update starts from; none for the first plan. */
+    revision: z.number().int().positive().optional(),
   })
   .strict();
 export type SokoBotPlanLoopUpdatePlanInput = z.infer<
@@ -1449,7 +1451,7 @@ export type SokoBotPlanLoopUpdatePlanInput = z.infer<
 >;
 
 export const SOKO_BOT_PLAN_LOOP_UPDATE_PLAN_DESCRIPTION =
-  "Write down or update your step-by-step plan for the owner's request, for work with several steps. The plan is kept for the whole request: background runs and follow-ups you get later on it start with it. Your first plan is what you agreed to do: later updates may change a step's status, reword it (keep its id), or add steps, but not drop one. A step that cannot be done now is blocked, with blockedOn (owner, coworker, agent or external) and a reason; a step no longer needed is skipped, with a reason. Keep exactly one step in_progress, and mark a step done only once a tool result shows it worked.";
+  "Write down or update your step-by-step plan for the owner's request, for work with several steps. The plan is kept for the whole request: background runs and follow-ups you get later on it start with it. Send the whole plan each time, with the revision of the plan you start from (from the last plan you were shown or the last update_plan result); omit it only for the first plan. If the plan has changed since, the update is refused with the newest plan: start again from that. Your first plan is what you agreed to do: later updates may change a step's status, reword it (keep its id), or add steps, but not drop one. A step that cannot be done now is blocked, with blockedOn (owner, coworker, agent or external) and a reason; a step no longer needed is skipped, with a reason. Keep exactly one step in_progress, and mark a step done only once a tool result shows it worked.";
 
 /** A tool's input schema as the turn's version offers it. */
 export function sokoBotToolInputSchema(

@@ -11,6 +11,7 @@ import {
 import {
   type ChainPlan,
   type PlanStep,
+  planLines,
   readRequestPlan,
   resolveRequestId,
 } from "@/lib/soko-bot/request-chain";
@@ -84,8 +85,10 @@ function withIds(steps: PlanStep[], previous: ChainPlan | null): PlanStep[] {
  * request. Every step of the current plan stays in the next one; a step
  * that is no longer wanted is skipped with a reason, never dropped. One
  * update of a request at a time: each reads the newest plan under the
- * request's lock and writes its own before the lock goes, so a sibling's
- * steps are never lost and no two updates share a revision.
+ * request's lock and writes its own before the lock goes, so no two updates
+ * share a revision; one made from an older revision is refused with the
+ * newest plan, so a sibling's progress is never put back. Reopening a step
+ * from the current revision is an update like any other.
  */
 export async function updatePlan(
   authorized: AuthorizedSokoBotRuntime,
@@ -105,6 +108,16 @@ export async function updatePlan(
       SELECT pg_advisory_xact_lock(hashtextextended(${key}::TEXT, 0))
     `;
     const previous = await readRequestPlan(sokoBotId, requestId, tx);
+    // Compare and set: an update made from an older plan would put back
+    // the step states another part of the request has moved on from.
+    if (previous && parsed.revision !== previous.revision)
+      throw new SokoBotRuntimeValidationError(
+        `The plan is at revision ${previous.revision}${
+          parsed.revision === undefined
+            ? ""
+            : `, not ${parsed.revision}: another part of this request changed it`
+        }. Nothing was saved. Start from it, make your changes again and pass revision ${previous.revision}:\n${planLines(previous)}`,
+      );
     const steps = withIds(parsed.steps.map(settled), previous);
     const dropped = (previous?.steps ?? []).filter(
       (earlier) => !steps.some((step) => step.id === earlier.id),
