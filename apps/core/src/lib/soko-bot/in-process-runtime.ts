@@ -52,6 +52,7 @@ import {
   prepareEvaluationStep,
   withEvaluationTurn,
 } from "./evaluation-dispatch";
+import { estimateInputTokens, turnTokenBudget } from "./turn-budget";
 import {
   announceTurn,
   closeTurn,
@@ -144,6 +145,11 @@ async function runTurn(
     const [turn, replyLanguage] = await withReplyLanguage(
       input.turnId,
       prepareTurn(sessionId, input.turnId, { sandbox: false, web: true }),
+    );
+    // One allowance for the turn's parts and its main loop together.
+    const budget = turnTokenBudget(
+      inputTokenBudget,
+      estimateInputTokens(turn.system, input.message),
     );
 
     const tools: ToolSet = {};
@@ -262,7 +268,7 @@ async function runTurn(
       system: turn.system,
       tools,
       shortForms: turn.shortForms,
-      inputTokenBudget,
+      budget,
       maxSteps,
       deadline,
       background,
@@ -286,6 +292,7 @@ async function runTurn(
               message: partMessage(turn.preamble, part),
               tools: partTools(tools, part),
               maxSteps: TURN_PART_MAX_STEPS,
+              part: true,
               background: false,
               deadline: Math.min(deadline, Date.now() + partMs),
             },

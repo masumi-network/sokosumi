@@ -364,6 +364,48 @@ describe("InProcessSokoBotRuntime", () => {
     ).toHaveLength(3);
   });
 
+  it("gives the main call no tool to pick once a part spent the turn's allowance", async () => {
+    authorizeMock.mockResolvedValue({
+      turn: { id: TURN_ID, versionId: "cmo-v2" },
+      grant: { capabilities: ["create_task"] },
+    });
+    cmoTurnPartsMock.mockResolvedValue(
+      ["site", "reviews", "pricing"].map((key) => ({
+        key,
+        title: key,
+        message: `Read the ${key}`,
+        tools: ["web_fetch"],
+      })),
+    );
+    streamModelCallMock.mockImplementation(async (options) => {
+      const message = options.messages[0].content as string;
+      if (message.includes("Read the"))
+        await options.onStepFinish?.({
+          usage: { inputTokens: 9_000_000, outputTokens: 5 },
+          providerMetadata: {},
+          reasoning: [],
+        });
+      return { text: "Done.", finishReason: "stop", steps: [] };
+    });
+
+    await new InProcessSokoBotRuntime().createSession({
+      sessionId: null,
+      turnId: TURN_ID,
+      message: "Save the essentials",
+      userId: "user_1",
+      sokoBotId: "bot_1",
+      workspaceId: "workspace_1",
+    });
+    await Promise.all(pendingTurns);
+
+    const calls = streamModelCallMock.mock.calls.map((call) => call[0]);
+    // Exactly one wrap-up, the turn's; the parts made none of their own.
+    expect(calls.filter((call) => call.toolChoice === "none")).toHaveLength(1);
+    const main = calls.at(-1);
+    expect(main.toolChoice).toBe("none");
+    expect(main.messages.at(-1).content).toContain("you cannot call tools");
+  });
+
   it("ends a turn on the step whose tool said so, with that tool's answer", async () => {
     authorizeMock.mockResolvedValue({
       turn: { id: TURN_ID, versionId: "cmo-v2" },

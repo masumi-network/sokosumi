@@ -2,6 +2,7 @@ import { simulateReadableStream, tool } from "ai";
 import { MockLanguageModelV3 } from "ai/test";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { turnTokenBudget } from "../lib/soko-bot/turn-budget";
 import { runTurnLoop } from "./loop";
 import {
   FOREGROUND_TIME_UP_PROMPT,
@@ -387,17 +388,131 @@ describe("runTurnLoop", () => {
       message: "Fill the table.",
       tools,
       maxSteps: 500,
-      inputTokenBudget: 25,
+      budget: turnTokenBudget(25, 10),
       background: true,
       deadline: 600 * MINUTE,
       stopped: new AbortController().signal,
       now: () => clock.now,
     });
 
-    // 10 input tokens a step: the third step passes 25, then the report.
-    expect(calls).toHaveLength(4);
+    // 10 input tokens a step: a third would pass 25, so two run, then the report.
+    expect(calls).toHaveLength(3);
     expect(calls.at(-1)?.lastUser).toBe(TIME_UP_PROMPT);
     expect(result.text).toBe("filled 12 of 30 rows; 18 left.");
+  });
+
+  it("shares one budget between a turn's parts and its main loop, and still reports", async () => {
+    const clock = { now: 0 };
+    const budget = turnTokenBudget(45, 10);
+    const part = tirelessModel(clock);
+    const main = tirelessModel(clock);
+    const loop = (model: typeof part.model, maxSteps: number) =>
+      runTurnLoop({
+        model,
+        system: "You are a bot.",
+        message: "Work.",
+        tools,
+        maxSteps,
+        budget,
+        background: false,
+        deadline: 600 * MINUTE,
+        stopped: new AbortController().signal,
+        now: () => clock.now,
+      });
+
+    await loop(part.model, 4);
+    expect(budget.used).toBeGreaterThanOrEqual(40);
+    const result = await loop(main.model, 500);
+
+    // The parts spent the allowance: the main loop only writes its answer.
+    expect(main.calls).toHaveLength(1);
+    expect(main.calls.at(-1)?.toolChoice).toEqual({ type: "none" });
+    expect(result.text).toContain("filled 12 of 30 rows");
+  });
+
+  it.each([
+    // Codex rounds 8 and 13: limit 25 with two parts; limit 10 with three.
+    [25, 2],
+    [10, 3],
+  ])(
+    "admits %i tokens' worth of work across %i parts at once, and the turn alone writes the one wrap-up",
+    async (limit, parts) => {
+      const clock = { now: 0 };
+      const budget = turnTokenBudget(limit, 10);
+      const models = Array.from({ length: parts }, () => tirelessModel(clock));
+      const main = tirelessModel(clock);
+      const loop = (model: typeof main.model, part: boolean) =>
+        runTurnLoop({
+          model,
+          system: "You are a bot.",
+          message: "Work.",
+          tools,
+          maxSteps: 500,
+          budget,
+          part,
+          background: false,
+          deadline: 600 * MINUTE,
+          stopped: new AbortController().signal,
+          now: () => clock.now,
+        });
+
+      const handOvers = await Promise.all(
+        models.map(({ model }) => loop(model, true)),
+      );
+      const result = await loop(main.model, false);
+
+      const all = [...models.flatMap(({ calls }) => calls), ...main.calls];
+      const wrapUps = all.filter(
+        (call) => (call.toolChoice as { type?: string })?.type === "none",
+      );
+      // One wrap-up, the turn's; a part out of budget makes no call.
+      expect(wrapUps).toHaveLength(1);
+      expect(main.calls).toEqual([wrapUps[0]]);
+      expect(
+        handOvers.filter((handOver) =>
+          handOver.text.includes("This part stopped before it finished"),
+        ).length,
+      ).toBeGreaterThan(0);
+      expect(result.text).toContain("filled 12 of 30 rows");
+      // Within the allowance plus the one reserved wrap-up step.
+      expect(budget.used).toBeLessThanOrEqual(limit + 10);
+      expect(budget.reserved).toBe(0);
+    },
+  );
+
+  it("lets parts that reach their step ceiling hand back without a report of their own", async () => {
+    // Codex round 16: three parts at 12 steps each, 10 tokens a step, on a
+    // 370-token allowance made three part reports and the turn's fourth.
+    const clock = { now: 0 };
+    const budget = turnTokenBudget(370, 10);
+    const models = Array.from({ length: 3 }, () => tirelessModel(clock));
+    const main = tirelessModel(clock);
+    const loop = (model: typeof main.model, part: boolean, maxSteps: number) =>
+      runTurnLoop({
+        model,
+        system: "You are a bot.",
+        message: "Work.",
+        tools,
+        maxSteps,
+        budget,
+        part,
+        background: false,
+        deadline: 6_000 * MINUTE,
+        stopped: new AbortController().signal,
+        now: () => clock.now,
+      });
+
+    await Promise.all(models.map(({ model }) => loop(model, true, 12)));
+    await loop(main.model, false, 500);
+
+    const wrapUps = [
+      ...models.flatMap(({ calls }) => calls),
+      ...main.calls,
+    ].filter((call) => (call.toolChoice as { type?: string })?.type === "none");
+    expect(wrapUps).toHaveLength(1);
+    expect(main.calls.at(-1)?.toolChoice).toEqual({ type: "none" });
+    // 36 part steps, the turn's own steps up to the limit, one wrap-up.
+    expect(budget.used).toBeLessThanOrEqual(370 + 10);
   });
 
   it("ends on the step whose tool said so, without a closing step", async () => {
@@ -578,7 +693,10 @@ describe("runTurnLoop", () => {
           }),
         },
         maxSteps: 10,
-        inputTokenBudget: edge.inputTokenBudget,
+        budget:
+          edge.inputTokenBudget === undefined
+            ? undefined
+            : turnTokenBudget(edge.inputTokenBudget, 1),
         background: false,
         deadline: 10 * MINUTE,
         stopped: new AbortController().signal,
