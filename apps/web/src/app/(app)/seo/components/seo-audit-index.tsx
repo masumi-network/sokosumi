@@ -50,7 +50,7 @@ const AUDIT_ROW_CLASS = "flex min-w-0 items-center gap-3 p-4";
 
 export function SeoAuditIndex({
   audits: serverAudits,
-  nextCursor,
+  nextCursor: serverNextCursor,
   cursor = null,
   projectId,
   addOpen = false,
@@ -71,11 +71,9 @@ export function SeoAuditIndex({
 }) {
   const t = useTranslations("App.Seo");
   const tSearch = useTranslations("App.PageSearch");
-  // A search ranks the whole list on the server, so only the plain list reads again.
-  const audits = useSeoAuditList(
-    serverAudits,
-    { projectId, archived, cursor },
-    !searching,
+  const { audits, nextCursor } = useSeoAuditList(
+    { audits: serverAudits, nextCursor: serverNextCursor },
+    { projectId, archived, cursor, searching },
   );
   const hasAudits = audits.length > 0 || Boolean(nextCursor);
   const form = useCreateSeoAudit(projectId, !archived && addOpen && hasAudits);

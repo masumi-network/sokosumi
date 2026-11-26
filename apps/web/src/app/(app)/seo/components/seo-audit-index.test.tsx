@@ -48,6 +48,7 @@ function show(
     cursor?: string;
     nextCursor?: string;
     archived?: boolean;
+    searching?: boolean;
   } = {},
 ) {
   const client = new QueryClient({
@@ -64,6 +65,7 @@ function show(
         <SeoAuditIndex
           audits={list}
           archived={options.archived}
+          searching={options.searching}
           cursor={options.cursor ?? null}
           nextCursor={options.nextCursor ?? null}
           projectId={options.projectId ?? null}
@@ -184,6 +186,112 @@ describe("SEO audit list", () => {
       vi.useRealTimers();
       vi.unstubAllGlobals();
     }
+  });
+
+  describe("while a check runs", () => {
+    const at = new Date();
+    const check = (status: "running" | "completed") => ({
+      kind: "page_check" as const,
+      status,
+      createdAt: at,
+      updatedAt: at,
+    });
+    const tick = () =>
+      act(() => vi.advanceTimersByTimeAsync(SEO_AUDIT_LIST_REFRESH_MS));
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      return () => {
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
+      };
+    });
+
+    it("reads again after a failed read and shows the finished check", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(new Response(null, { status: 503 }))
+        .mockResolvedValue(
+          Response.json({
+            audits: [{ ...AUDIT, lastCheck: check("completed") }],
+            pagination: null,
+          }),
+        );
+      vi.stubGlobal("fetch", fetchMock);
+      show([{ ...AUDIT, lastCheck: check("running") }], false);
+      await tick();
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      await tick();
+      await waitFor(() =>
+        expect(screen.getByText(/Last check: Page check/)).toBeVisible(),
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("stops reading when the viewer may no longer read the list", async () => {
+      const fetchMock = vi.fn(async () => new Response(null, { status: 401 }));
+      vi.stubGlobal("fetch", fetchMock);
+      show([{ ...AUDIT, lastCheck: check("running") }], false);
+      await tick();
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      await act(() =>
+        vi.advanceTimersByTimeAsync(SEO_AUDIT_LIST_REFRESH_MS * 3),
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("takes the next-page cursor from the same read as the rows", async () => {
+      const added = { ...AUDIT, id: "added", name: "Added audit" };
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          Response.json({
+            audits: [added, { ...AUDIT, lastCheck: check("completed") }],
+            pagination: { nextCursor: "after-added" },
+          }),
+        ),
+      );
+      show([{ ...AUDIT, lastCheck: check("running") }], false, {
+        nextCursor: "after-battery",
+      });
+      await tick();
+      await waitFor(() => expect(screen.getByText(added.name)).toBeVisible());
+      expect(
+        screen.getByRole("link", { name: messages.App.Seo.more }),
+      ).toHaveAttribute("href", "/seo?cursor=after-added");
+    });
+
+    it("refreshes the rows of a search in the search's order", async () => {
+      const other = { ...AUDIT, id: "other", name: "Battery other" };
+      const fetchMock = vi.fn(async (url: string) =>
+        Response.json(
+          url.includes("cursor=")
+            ? { audits: [other], pagination: null }
+            : {
+                audits: [{ ...AUDIT, lastCheck: check("completed") }],
+                pagination: { nextCursor: "page-2" },
+              },
+        ),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      show([other, { ...AUDIT, lastCheck: check("running") }], false, {
+        searching: true,
+      });
+      await tick();
+      await waitFor(() =>
+        expect(screen.getByText(/Last check: Page check/)).toBeVisible(),
+      );
+      const names = within(
+        screen.getByRole("region", { name: messages.App.Seo.audits.saved }),
+      )
+        .getAllByRole("link")
+        .map((link) => link.textContent);
+      expect(names[0]).toContain(other.name);
+      expect(names[1]).toContain(AUDIT.name);
+      expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+        "/api/seo/audits?",
+        "/api/seo/audits?cursor=page-2",
+      ]);
+    });
   });
 
   it.each([{ audits: [] }, { audits: [AUDIT] }])(
