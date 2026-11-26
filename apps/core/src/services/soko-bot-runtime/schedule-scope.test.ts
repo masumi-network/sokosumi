@@ -31,6 +31,8 @@ describe("briefAsksToEnd", () => {
     "Remind me about the invoice; remove the reminder when it is paid.",
     "Stop the check-ins when the launch ships.",
     "Prüfe täglich den Stand und lösche den Zeitplan, sobald es fertig ist.",
+    // A negation elsewhere does not cancel a real ask.
+    "Don't ping Hannah on weekends. Delete this schedule once the launch ships.",
   ])("reads an ask to end: %s", (brief) => {
     expect(briefAsksToEnd(brief)).toBe(true);
   });
@@ -39,6 +41,12 @@ describe("briefAsksToEnd", () => {
     "Every Friday: summarize the week's Tasks and post the report.",
     "Check the board and tell me what is stuck.",
     "Stop me if I overspend on ads.",
+    // Negated: these forbid ending the schedule (Neon round 6).
+    "Never delete this schedule, even when the board is quiet.",
+    "Do not turn off this schedule.",
+    "Don't remove the reminder until I say so.",
+    "Lösche diesen Zeitplan nicht.",
+    "Diesen Zeitplan niemals beenden; entferne keine Erinnerung.",
   ])("reads no ask to end: %s", (brief) => {
     expect(briefAsksToEnd(brief)).toBe(false);
   });

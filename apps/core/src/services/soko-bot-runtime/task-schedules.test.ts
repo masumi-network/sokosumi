@@ -235,14 +235,20 @@ describe("saveTaskSchedule retries and states", () => {
 describe("a scheduled run", () => {
   it("never deletes, pauses or ends a Task Schedule", async () => {
     const run = authorized({ source: "SCHEDULE" });
-    for (const state of ["PAUSED", "ENDED"])
+    for (const change of [
+      { state: "PAUSED" },
+      { state: "ENDED" },
+      { endsOn: "2026-12-31" },
+      { endsAfterRuns: 1 },
+    ])
       await expect(
         saveTaskSchedule(
           runtime,
-          call({ scheduleId: SCHEDULE.id, state }),
+          call({ scheduleId: SCHEDULE.id, ...change }),
           run,
         ),
       ).rejects.toThrow(/scheduled run doesn't delete, pause or end/);
+    expect(mocks.update).not.toHaveBeenCalled();
     await expect(
       removeTaskSchedule(
         runtime,

@@ -212,7 +212,11 @@ export async function saveTaskSchedule(
     }
     if (
       authorized.turn.source === "SCHEDULE" &&
-      (parsed.state === "PAUSED" || parsed.state === "ENDED")
+      (parsed.state === "PAUSED" ||
+        parsed.state === "ENDED" ||
+        // An end date or a run count ends it too, just later (Neon round 6).
+        (parsed.endsOn !== undefined && parsed.endsOn !== null) ||
+        (parsed.endsAfterRuns !== undefined && parsed.endsAfterRuns !== null))
     )
       throw new SokoBotRefusedUnsentError(SCHEDULED_RUN_REFUSAL);
     const current = await requireChangeable(
