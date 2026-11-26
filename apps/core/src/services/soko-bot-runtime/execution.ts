@@ -25,6 +25,11 @@ import {
   verifyTaskArchiveReceipt,
 } from "@/lib/soko-bot/action-receipts";
 import {
+  type MediaSpendRequest,
+  reserveAuthoritySpend,
+  settleAuthoritySpend,
+} from "@/lib/soko-bot/authority-spend";
+import {
   assertEvaluationActor,
   assertEvaluationTool,
 } from "@/lib/soko-bot/evaluation-dispatch";
@@ -629,30 +634,36 @@ export async function executeTool(
       input = { ...input, toolCallId: existing.toolCallId };
   }
 
+  let mediaSpendRequest: MediaSpendRequest | null = null;
   if (
     input.capability === "generate_image" ||
     input.capability === "generate_video" ||
     input.capability === "generate_talking_video"
   ) {
     try {
-      if (input.capability === "generate_image")
-        await runtime.checkImageRequest(
+      if (input.capability === "generate_image") {
+        const checked = await runtime.checkImageRequest(
           authorized,
           input.input,
           input.toolCallId,
+          operationKey,
         );
-      else if (input.capability === "generate_video")
-        await runtime.checkVideoRequest(
+        mediaSpendRequest = checked.authoritySpend;
+      } else if (input.capability === "generate_video") {
+        const checked = await runtime.checkVideoRequest(
           authorized,
           input.input,
           input.toolCallId,
+          operationKey,
         );
-      else
+        mediaSpendRequest = checked.authoritySpend;
+      } else {
         await runtime.checkTalkingVideoRequest(
           authorized,
           input.input,
           input.toolCallId,
         );
+      }
     } catch (error) {
       // Refused before anything was sent: rejected, and the same request
       // may be made again once whatever refused it has changed.
@@ -673,29 +684,58 @@ export async function executeTool(
       throw error;
     }
   }
+  let spendReserved = false;
   if (externalEffect) {
-    // Fence cancellation and capability revocation at the durable dispatch
-    // boundary. A crash after this commit remains UNKNOWN, never retryable.
-    await serializableTransaction(async (tx) => {
-      await runtime.requireMutationAuthority(
-        tx,
-        authorized,
-        false,
-        input.capability,
-      );
-      const reserved = await tx.sokoBotToolCall.updateMany({
-        where: {
-          turnId: input.turnId,
-          toolCallId: input.toolCallId,
-          status: "PENDING",
-        },
-        data: { disposition: "UNKNOWN", verification: "NONE" },
-      });
-      if (reserved.count !== 1)
-        throw new SokoBotRuntimeConflictError(
-          "External action reservation is unavailable",
+    // Fence cancellation, capability revocation, and shared OwnerAuthority
+    // grant spend atomically at the durable dispatch boundary. A crash after
+    // this commit remains UNKNOWN (holding spend), never retryable.
+    try {
+      await serializableTransaction(async (tx) => {
+        await runtime.requireMutationAuthority(
+          tx,
+          authorized,
+          false,
+          input.capability,
         );
-    }, "External action reservation changed concurrently");
+        if (mediaSpendRequest) {
+          await reserveAuthoritySpend(tx, {
+            ...mediaSpendRequest,
+            operationKey,
+          });
+        }
+        const reserved = await tx.sokoBotToolCall.updateMany({
+          where: {
+            turnId: input.turnId,
+            toolCallId: input.toolCallId,
+            status: "PENDING",
+          },
+          data: { disposition: "UNKNOWN", verification: "NONE" },
+        });
+        if (reserved.count !== 1)
+          throw new SokoBotRuntimeConflictError(
+            "External action reservation is unavailable",
+          );
+      }, "External action reservation changed concurrently");
+      spendReserved = mediaSpendRequest !== null;
+    } catch (error) {
+      if (error instanceof SokoBotRefusedUnsentError) {
+        await prisma.sokoBotToolCall.updateMany({
+          where: {
+            turnId: input.turnId,
+            toolCallId: input.toolCallId,
+            status: "PENDING",
+          },
+          data: {
+            status: "FAILED",
+            disposition: "REJECTED",
+            operationKey: null,
+            errorKind: toolErrorKind(error),
+            errorDetail: persistedErrorDetail(error),
+          },
+        });
+      }
+      throw error;
+    }
   }
   try {
     const result = await runtime.executeAuthorizedTool(input);
@@ -719,6 +759,18 @@ export async function executeTool(
         result: persistedToolResult(result ?? null, input.capability),
       },
     });
+    if (spendReserved) {
+      const submissionUncertain =
+        typeof result === "object" &&
+        result !== null &&
+        "status" in result &&
+        (result as { status?: unknown }).status === "SUBMISSION_UNCERTAIN";
+      await settleAuthoritySpend(
+        prisma,
+        { turnId: input.turnId, toolCallId: input.toolCallId },
+        submissionUncertain ? "UNKNOWN" : "SETTLED",
+      );
+    }
     return result;
   } catch (error) {
     const refusedUnsent = error instanceof SokoBotRefusedUnsentError;
@@ -749,6 +801,13 @@ export async function executeTool(
         errorDetail: persistedErrorDetail(error),
       },
     });
+    if (spendReserved) {
+      await settleAuthoritySpend(
+        prisma,
+        { turnId: input.turnId, toolCallId: input.toolCallId },
+        refusedUnsent ? "RELEASED" : "UNKNOWN",
+      );
+    }
     throw error;
   }
 }

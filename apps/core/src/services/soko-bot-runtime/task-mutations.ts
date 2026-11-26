@@ -6,6 +6,7 @@ import {
   sokoBotUpdateTaskInputSchema as taskUpdateInputSchema,
 } from "@sokosumi/soko-bot";
 import { buildTaskWriteAccessWhere } from "@/helpers/access-control";
+import { jsonInput } from "@/helpers/prisma-json";
 import { seoAuditTextUnchanged } from "@/helpers/seo-task-execution";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -13,6 +14,7 @@ import {
   actionOperationKey,
   commitActionReceipt,
 } from "@/lib/soko-bot/action-receipts";
+import { deriveDelegationAuthority } from "@/lib/soko-bot/owner-authority";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import { claimTaskEventAction } from "@/services/soko-bot-event-action.service";
 import { updateTaskForActor } from "@/services/task-domain.service";
@@ -386,6 +388,26 @@ export async function assignTask(
       status: task.status,
       assigneeId: task.assigneeId,
     };
+    const delegationAuthority =
+      input.followUp !== undefined || input.followUpAllows
+        ? await deriveDelegationAuthority(
+            {
+              id: authorized.turn.id,
+              sokoBotId: authorized.turn.sokoBotId,
+              workspaceId: authorized.turn.workspaceId,
+              versionId: authorized.turn.versionId,
+              source: authorized.turn.source,
+              parentTurnId: authorized.turn.parentTurnId ?? null,
+              askedByUserId: authorized.turn.askedByUserId ?? null,
+              requestedByUserId: authorized.turn.requestedByUserId,
+              actingUserId: authorized.turn.actingUserId,
+              chainDepth: authorized.turn.chainDepth,
+              botProjectId: authorized.turn.botProjectId ?? null,
+            },
+            { followUpAllows: input.followUpAllows },
+            tx,
+          )
+        : undefined;
     await tx.sokoBotDelegation.create({
       data: {
         turnId: authorized.turn.id,
@@ -398,6 +420,9 @@ export async function assignTask(
         ...(input.followUp !== undefined ? { followUp: input.followUp } : {}),
         ...(input.followUpAllows
           ? { followUpAllows: input.followUpAllows }
+          : {}),
+        ...(delegationAuthority
+          ? { authority: jsonInput(delegationAuthority) }
           : {}),
       },
     });

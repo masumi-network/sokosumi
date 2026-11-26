@@ -192,6 +192,7 @@ model Workspace {
   sokoBotTurns             SokoBotTurn[]
   sokoBotPendingDecisions  SokoBotPendingDecision[]
   sokoBotSchedules         SokoBotSchedule[]
+  sokoBotAuthoritySpends   SokoBotAuthoritySpend[]
 
   sokoBots SokoBot[]
 
@@ -2492,6 +2493,10 @@ model SokoBotWatch {
   outcome     String?
   firedAt     DateTime?
   firedTurnId String?   @db.Uuid
+  /// Core-owned OwnerAuthority envelope attenuated for this watch's follow-up
+  /// wake (ADR: neon-arch-owner-authority). Null for legacy rows created before
+  /// OwnerAuthority persistence.
+  authority   Json?
 
   @@index([status, createdAt])
   @@index([sokoBotId, status])
@@ -2739,6 +2744,7 @@ model SokoBot {
   legacyMessages       SokoBotLegacyMessage[]
   pendingDecisions     SokoBotPendingDecision[]
   schedules            SokoBotSchedule[]
+  authoritySpends      SokoBotAuthoritySpend[]
   cmoUpgradesSeen      CmoUpgradeSeen[]
 
   // One LIVE bot per user and workspace. Partial, because a plain unique would
@@ -2898,6 +2904,7 @@ model SokoBotTurn {
   modelCalls          SokoBotModelCall[]
   delegations         SokoBotDelegation[]
   watches             SokoBotWatch[]
+  authoritySpends     SokoBotAuthoritySpend[]
   pendingDecisions    SokoBotPendingDecision[]
   memoryRevisions     SokoBotMemoryRevision[]
   scheduleRun         SokoBotScheduleRun?
@@ -3250,11 +3257,45 @@ model SokoBotDelegation {
   /// The owner's own limits for `followUp` ({ images?, maxCredits? }):
   /// the turn that carries it out may make no more images or spend no more.
   followUpAllows Json?
+  /// Core-owned OwnerAuthority envelope attenuated for this delegation's
+  /// follow-up wake (ADR: neon-arch-owner-authority). Null for legacy rows
+  /// created before OwnerAuthority persistence.
+  authority      Json?
 
   @@unique([turnId, toolCallId])
   @@index([taskId])
   @@index([jobId])
   @@map("soko_bot_delegation")
+}
+
+/// Durable spend reservation and settlement ledger keyed by OwnerAuthority
+/// `grantId` (ADR: neon-arch-owner-authority). Parallel children, retries, and
+/// mixed wakes reserve atomically under one shared balance per `grantId` and
+/// settle once per `operationKey`; `UNKNOWN` provider outcomes stay held so
+/// crashes cannot double-spend.
+model SokoBotAuthoritySpend {
+  id           String      @id @default(uuid(7)) @db.Uuid
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  sokoBotId    String      @db.Uuid
+  sokoBot      SokoBot     @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  workspaceId  String      @db.Uuid
+  workspace    Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  grantId      String
+  operationKey String?     @unique
+  turnId       String      @db.Uuid
+  turn         SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+  toolCallId   String
+  capability   String
+  images       Int         @default(0)
+  videos       Int         @default(0)
+  credits      Int         @default(0)
+  /// RESERVED | SETTLED | UNKNOWN | RELEASED
+  status       String      @default("RESERVED")
+
+  @@unique([turnId, toolCallId])
+  @@index([sokoBotId, grantId, status])
+  @@map("soko_bot_authority_spend")
 }
 
 model SokoBotIntent {

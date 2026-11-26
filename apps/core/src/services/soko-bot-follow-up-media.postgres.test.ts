@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { DEFAULT_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
+import {
+  DEFAULT_SOKO_BOT_VERSION_ID,
+  ownerAuthoritySchema,
+} from "@sokosumi/soko-bot";
+import { HTTPException } from "hono/http-exception";
 import {
   afterAll,
   beforeAll,
@@ -25,6 +29,7 @@ const provider = vi.hoisted(() => ({
   fetchQueueStatus: vi.fn(),
   fetchQueueResult: vi.fn(),
   downloadMedia: vi.fn(),
+  nextCreateImageJobError: null as Error | null,
 }));
 
 const enabled =
@@ -113,8 +118,13 @@ vi.mock("@/services/image-studio-jobs.service", async (importOriginal) => {
       prompt: string;
       modelId: string;
       idempotencyKey: string;
-    }) =>
-      db.projectImageJob.create({
+    }) => {
+      if (provider.nextCreateImageJobError) {
+        const error = provider.nextCreateImageJobError;
+        provider.nextCreateImageJobError = null;
+        throw error;
+      }
+      return db.projectImageJob.create({
         data: {
           projectId: input.projectId,
           workspaceId: input.workspaceId,
@@ -130,7 +140,8 @@ vi.mock("@/services/image-studio-jobs.service", async (importOriginal) => {
           submitAttempts: 1,
           submittedAt: new Date(),
         },
-      }),
+      });
+    },
   };
 });
 vi.mock("@/services/x-subscription-tier.service", async (importOriginal) => ({
@@ -420,5 +431,271 @@ describe.skipIf(!enabled)("a follow-up's images and draft, end to end", () => {
       `The owner allowed ${2 * credits} credits on media for this plan`,
     );
     expect(await studioJobs()).toBe(jobsBefore);
+  });
+
+  it("enforces one shared durable grantId balance across concurrent parallel children, retries, unsent releases, UNKNOWN holds, and expiry on PostgreSQL", async () => {
+    const sharedGrantId = randomUUID();
+    const { credits } = await madeImage(await wakeTurn({ images: 1 }), 500);
+    const sharedAuthority = ownerAuthoritySchema.parse({
+      version: 1,
+      grantId: sharedGrantId,
+      origin: "owner_chat",
+      sokoBotId,
+      workspaceId,
+      ownerUserId: ownerId,
+      rootTurnId: ownerChatId,
+      targetScope: { kind: "workspace" },
+      scope: "draft_and_workspace",
+      socialMode: "draft_only",
+      limits: {
+        grantId: sharedGrantId,
+        period: "lifetime",
+        images: 2,
+        maxMediaCredits: 2 * credits,
+      },
+      stopRule: { mode: "never" },
+    });
+
+    const childA = await eventTurn();
+    const childB = await eventTurn();
+    await prisma.sokoBotDelegation.createMany({
+      data: [
+        {
+          turnId: ownerChatId,
+          toolCallId: `parallel-a-${childA}`,
+          kind: "TASK",
+          action: "create_task",
+          followUp: "Parallel child A",
+          followUpAllows: { images: 2, maxCredits: 2 * credits },
+          authority: sharedAuthority,
+          followUpTurnId: childA,
+        },
+        {
+          turnId: ownerChatId,
+          toolCallId: `parallel-b-${childB}`,
+          kind: "TASK",
+          action: "create_task",
+          followUp: "Parallel child B",
+          followUpAllows: { images: 2, maxCredits: 2 * credits },
+          authority: sharedAuthority,
+          followUpTurnId: childB,
+        },
+      ],
+    });
+
+    const jobsBeforeConcurrent = await prisma.projectImageJob.count({
+      where: { workspaceId },
+    });
+    // Race 3 concurrent generate_image calls across the two parallel children
+    // sharing ONE 2-image grantId: exactly 2 settle, 1 is refused.
+    const raced = await Promise.allSettled([
+      call(childA, "generate_image", {
+        projectId,
+        prompt: "Shared grant concurrent 1",
+        maxCredits: credits,
+      }),
+      call(childB, "generate_image", {
+        projectId,
+        prompt: "Shared grant concurrent 2",
+        maxCredits: credits,
+      }),
+      call(childB, "generate_image", {
+        projectId,
+        prompt: "Shared grant concurrent 3",
+        maxCredits: credits,
+      }),
+    ]);
+    expect(raced.filter((r) => r.status === "fulfilled")).toHaveLength(2);
+    expect(raced.filter((r) => r.status === "rejected")).toHaveLength(1);
+    expect(await prisma.projectImageJob.count({ where: { workspaceId } })).toBe(
+      jobsBeforeConcurrent + 2,
+    );
+    const settledRows = await prisma.sokoBotAuthoritySpend.findMany({
+      where: { sokoBotId, grantId: sharedGrantId, status: "SETTLED" },
+    });
+    expect(settledRows).toHaveLength(2);
+
+    // 2. Two children retrying one paid action (shared intentId -> same operationKey)
+    //    settle a single reservation against their shared 1-image grant.
+    const retryGrantId = randomUUID();
+    const sharedIntent = await prisma.sokoBotIntent.create({
+      data: {
+        sokoBotId,
+        workspaceId,
+        requesterId: ownerId,
+        originatingTurnId: ownerChatId,
+        desiredOutcome: "Shared paid image",
+        targetIds: [],
+        allowedActions: [],
+        acceptanceCriteria: [],
+        evidenceIds: [],
+        state: "ACTIVE",
+        revision: 1,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
+      select: { id: true },
+    });
+    const retryChild1 = await eventTurn();
+    const retryChild2 = await eventTurn();
+    await prisma.sokoBotTurn.updateMany({
+      where: { id: { in: [retryChild1, retryChild2] } },
+      data: { intentId: sharedIntent.id, intentRevision: 1 },
+    });
+    const retryGrantAuth = ownerAuthoritySchema.parse({
+      ...sharedAuthority,
+      grantId: retryGrantId,
+      limits: {
+        grantId: retryGrantId,
+        period: "lifetime",
+        images: 1,
+        maxMediaCredits: credits,
+      },
+    });
+    await prisma.sokoBotDelegation.createMany({
+      data: [
+        {
+          turnId: ownerChatId,
+          toolCallId: `retry-op-1-${retryChild1}`,
+          kind: "TASK",
+          action: "create_task",
+          followUp: "Retry child 1",
+          authority: retryGrantAuth,
+          followUpTurnId: retryChild1,
+        },
+        {
+          turnId: ownerChatId,
+          toolCallId: `retry-op-2-${retryChild2}`,
+          kind: "TASK",
+          action: "create_task",
+          followUp: "Retry child 2",
+          authority: retryGrantAuth,
+          followUpTurnId: retryChild2,
+        },
+      ],
+    });
+    const jobsBeforeRetryOp = await prisma.projectImageJob.count({
+      where: { workspaceId },
+    });
+    const sameInput = {
+      projectId,
+      prompt: "One shared idempotent picture",
+      maxCredits: credits,
+    };
+    const firstPaid = (await call(
+      retryChild1,
+      "generate_image",
+      sameInput,
+    )) as {
+      jobId: string;
+    };
+    const replayedPaid = (await call(
+      retryChild2,
+      "generate_image",
+      sameInput,
+    )) as { jobId: string };
+    expect(replayedPaid.jobId).toBe(firstPaid.jobId);
+    expect(await prisma.projectImageJob.count({ where: { workspaceId } })).toBe(
+      jobsBeforeRetryOp + 1,
+    );
+    expect(
+      await prisma.sokoBotAuthoritySpend.count({
+        where: { sokoBotId, grantId: retryGrantId, status: "SETTLED" },
+      }),
+    ).toBe(1);
+
+    // 3. Confirmed unsent refusal (HTTPException) releases the reservation &
+    //    operationKey for retry, whereas an ambiguous failure holds UNKNOWN.
+    const lifecycleGrantId = randomUUID();
+    const lifecycleTurn = await eventTurn();
+    await prisma.sokoBotDelegation.create({
+      data: {
+        turnId: ownerChatId,
+        toolCallId: `lifecycle-${lifecycleTurn}`,
+        kind: "TASK",
+        action: "create_task",
+        followUp: "Lifecycle test",
+        authority: ownerAuthoritySchema.parse({
+          ...sharedAuthority,
+          grantId: lifecycleGrantId,
+          limits: {
+            grantId: lifecycleGrantId,
+            period: "lifetime",
+            images: 1,
+            maxMediaCredits: credits,
+          },
+        }),
+        followUpTurnId: lifecycleTurn,
+      },
+    });
+    provider.nextCreateImageJobError = new HTTPException(429, {
+      message: "Studio busy before sending",
+    });
+    await expect(
+      call(lifecycleTurn, "generate_image", {
+        projectId,
+        prompt: "Retryable unsent picture",
+        maxCredits: credits,
+      }),
+    ).rejects.toThrow("Studio busy before sending");
+    expect(
+      await prisma.sokoBotAuthoritySpend.findMany({
+        where: { sokoBotId, grantId: lifecycleGrantId },
+        select: { status: true, operationKey: true },
+      }),
+    ).toEqual([{ status: "RELEASED", operationKey: null }]);
+
+    // Ambiguous provider failure (non-HTTPException) holds UNKNOWN permanently.
+    provider.nextCreateImageJobError = new Error("socket closed after submit");
+    await expect(
+      call(lifecycleTurn, "generate_image", {
+        projectId,
+        prompt: "Retryable unsent picture",
+        maxCredits: credits,
+      }),
+    ).rejects.toThrow("socket closed after submit");
+    expect(
+      await prisma.sokoBotAuthoritySpend.count({
+        where: { sokoBotId, grantId: lifecycleGrantId, status: "UNKNOWN" },
+      }),
+    ).toBe(1);
+    // A fresh picture past the held UNKNOWN slot is refused.
+    await expect(
+      call(lifecycleTurn, "generate_image", {
+        projectId,
+        prompt: "Second picture after UNKNOWN",
+        maxCredits: credits,
+      }),
+    ).rejects.toThrow("The owner asked for 1 image in this plan");
+
+    // 4. Expired persisted OwnerAuthority fails closed before creating any job.
+    const expiredTurn = await eventTurn();
+    await prisma.sokoBotDelegation.create({
+      data: {
+        turnId: ownerChatId,
+        toolCallId: `expired-${expiredTurn}`,
+        kind: "TASK",
+        action: "create_task",
+        followUp: "Expired plan",
+        authority: ownerAuthoritySchema.parse({
+          ...sharedAuthority,
+          grantId: randomUUID(),
+          expiresAt: "2020-01-01T00:00:00.000Z",
+        }),
+        followUpTurnId: expiredTurn,
+      },
+    });
+    const jobsBeforeExpired = await prisma.projectImageJob.count({
+      where: { workspaceId },
+    });
+    await expect(
+      call(expiredTurn, "generate_image", {
+        projectId,
+        prompt: "Should not run after expiry",
+        maxCredits: credits,
+      }),
+    ).rejects.toThrow("has expired");
+    expect(await prisma.projectImageJob.count({ where: { workspaceId } })).toBe(
+      jobsBeforeExpired,
+    );
   });
 });
