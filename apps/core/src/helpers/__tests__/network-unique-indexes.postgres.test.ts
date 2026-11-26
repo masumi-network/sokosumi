@@ -20,7 +20,10 @@ const enabled =
 const { netTable, sharedTable, sharedType } = createSqlTables(
   sqlTableLayoutFromEnv(process.env),
 );
-const { DATABASE_SCHEMA_SHARED: sharedSchema } = testSchemaNames();
+const {
+  DATABASE_SCHEMA_SHARED: sharedSchema,
+  DATABASE_SCHEMA_MAINNET: mainnetSchema,
+} = testSchemaNames();
 
 const INDEXES = {
   history: {
@@ -37,17 +40,21 @@ const INDEXES = {
 
 const HISTORY_UPSERTS = [
   {
+    schema: sharedSchema,
     procedure: "upsert_history_task(text)",
     declarations: `source_task ${sharedTable("task").sql};`,
     setup: "",
   },
   {
+    // Each Network schema holds its own copy (networkFunctions).
+    schema: mainnetSchema,
     procedure: "upsert_history_job(text)",
     declarations: "source_job RECORD;",
     setup: `SELECT j.*, NULL::text AS "agentName" INTO source_job
       FROM ${netTable("mainnet", "Job").sql} AS j WHERE false;`,
   },
   {
+    schema: sharedSchema,
     procedure: "upsert_history_image_asset(uuid)",
     declarations: "source RECORD; spend bigint;",
     setup: `SELECT a.*, NULL::text AS "requestedByUserId", NULL::text AS "organizationId"
@@ -149,11 +156,11 @@ describe.skipIf(!enabled)("Network-aware unique indexes", () => {
 
   it.each(HISTORY_UPSERTS)(
     "still plans $procedure with only the old arbiter",
-    async ({ procedure, declarations, setup }) => {
+    async ({ schema, procedure, declarations, setup }) => {
       await rolledBack(async (tx) => {
         const [fn] = await tx.$queryRaw<{ prosrc: string }[]>`
           SELECT prosrc FROM pg_catalog.pg_proc
-          WHERE oid = ${`"${sharedSchema}".${procedure}`}::regprocedure`;
+          WHERE oid = ${`"${schema}".${procedure}`}::regprocedure`;
         // Take the final INSERT verbatim from the live function. The typed
         // PL/pgSQL variable lets PostgreSQL resolve the original field references.
         const start = fn.prosrc.lastIndexOf("\n  INSERT INTO ");
