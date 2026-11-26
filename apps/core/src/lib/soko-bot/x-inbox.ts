@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import type {
   SokoBotInboxMessage,
   SokoBotInboxMessageDetail,
@@ -40,10 +41,18 @@ function cursorOf(value: Prisma.JsonValue | null): XInboxCursor {
     : {};
 }
 
-export function xInboxEntries(cursor: Prisma.JsonValue | null): XInboxEntry[] {
-  return Array.isArray(cursorOf(cursor).xDms)
-    ? (cursorOf(cursor).xDms ?? [])
-    : [];
+/**
+ * The kept DMs still inside the window. Capture prunes only when new DMs
+ * arrive, so a quiet account's list ages: every read applies the window.
+ */
+export function xInboxEntries(
+  cursor: Prisma.JsonValue | null,
+  now: Date = new Date(),
+): XInboxEntry[] {
+  const kept = cursorOf(cursor).xDms;
+  if (!Array.isArray(kept)) return [];
+  const floor = now.getTime() - KEEP_MS;
+  return kept.filter((entry) => new Date(entry.createdAt).getTime() >= floor);
 }
 
 export function xInboxSeenIds(cursor: Prisma.JsonValue | null): Set<string> {
@@ -58,7 +67,7 @@ async function updateCursor(
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const [row] = await tx.$queryRaw<{ cursor: Prisma.JsonValue | null }[]>`
-      SELECT "cursor" FROM "soko_bot_integration"
+      SELECT "cursor" FROM ${sharedTable("soko_bot_integration")}
       WHERE "id" = ${integrationId}::uuid FOR UPDATE`;
     if (!row) return;
     await tx.sokoBotIntegration.update({

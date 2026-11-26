@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type XInboxEntry,
+  xInboxEntries,
   xInboxMessageDetail,
   xInboxMessages,
 } from "./x-inbox";
@@ -17,6 +18,25 @@ const entry = (
   createdAt,
   text: `text ${id}`,
   fromOwner,
+});
+
+describe("xInboxEntries", () => {
+  it("reads only what is inside the window, however long ago capture last pruned", () => {
+    const cursor = {
+      xDms: [
+        { ...entry("new", "2026-11-25T20:00:00.000Z") },
+        { ...entry("old", "2026-11-24T10:00:00.000Z") },
+      ],
+    };
+    expect(
+      xInboxEntries(cursor, new Date("2026-11-26T08:00:00.000Z")).map(
+        (kept) => kept.id,
+      ),
+    ).toEqual(["new"]);
+    expect(xInboxEntries(cursor, new Date("2026-11-28T08:00:00.000Z"))).toEqual(
+      [],
+    );
+  });
 });
 
 describe("xInboxMessages", () => {
