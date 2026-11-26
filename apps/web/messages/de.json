@@ -14704,6 +14704,7 @@
         "notCheckedAgain": "{count, plural, one {# früheres Problem hat in dieser Prüfung kein klares Ergebnis. Es zählt weder als behoben noch als offen.} other {# frühere Probleme haben in dieser Prüfung kein klares Ergebnis. Sie zählen weder als behoben noch als offen.}}",
         "notCheckedBefore": "{count, plural, one {# offenes Problem hat in der früheren Prüfung kein klares Ergebnis. Es zählt nicht als neu.} other {# offene Probleme haben in der früheren Prüfung kein klares Ergebnis. Sie zählen nicht als neu.}}",
         "moves": "Ranking-Bewegungen ({count, number})",
+        "noMoves": "Zwischen den beiden Prüfungen hat sich kein Ranking bewegt.",
         "notComparable": {
           "title": "Nicht mit der Prüfung davor verglichen",
           "market": "Die zwei Prüfungen nutzten verschiedene Märkte. Ihre Probleme werden nicht verglichen.",

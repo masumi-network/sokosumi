@@ -77,6 +77,9 @@ export function SeoRunDiff({
               {t("runDiff.notCheckedBefore", { count: view.notCheckedBefore })}
             </p>
           ) : null}
+          {!view.lists.length && !view.moveCount ? (
+            <p className="text-muted-foreground">{t("runDiff.noMoves")}</p>
+          ) : null}
           {view.moveCount ? (
             <DiffList
               title={t("runDiff.moves", { count: view.moveCount })}

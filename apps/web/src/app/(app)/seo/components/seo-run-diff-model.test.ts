@@ -107,7 +107,7 @@ describe("seoRunDiffView", () => {
         }),
       );
     expect(view(1)).toMatchObject({ lists: [], moveCount: 1 });
-    expect(view(0)).toMatchObject({ lists: { length: 3 } });
+    expect(view(0)).toMatchObject({ lists: [], moveCount: 0 });
   });
 });
 

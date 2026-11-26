@@ -137,6 +137,14 @@ it("names the page and the device of a ranking move, and counts the moves it doe
   expect(screen.getByText("and 3 more")).toBeInTheDocument();
 });
 
+it("says that no ranking moved, with no issue lists, between two checks that read only rankings", () => {
+  show(diff({}));
+  expect(
+    screen.getByText("No ranking moved between the two checks."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { level: 4 })).not.toBeInTheDocument();
+});
+
 it("shows the counts and the first new issues open on the Agent tab, and says which rules a rulebook change compares", () => {
   const value = diff({
     new: ["A", "B", "C", "D"].map((rowId) => issue(rowId)),

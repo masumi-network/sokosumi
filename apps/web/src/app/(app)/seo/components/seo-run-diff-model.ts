@@ -71,8 +71,8 @@ export function seoRunDiffView(diff: ProjectSeoRunDiff): SeoRunDiffView {
     more: Math.max(0, total - items.length),
   });
   const { issues, moves, moveCount } = diff.numbers;
-  // Two checks that read only rankings have no issues to list: their moves say what changed.
-  const ranksOnly = issues.from === null && issues.to === null && moveCount > 0;
+  // Two checks that read only rankings have no issues to list: their moves say what changed, or that none moved.
+  const ranksOnly = issues.from === null && issues.to === null;
   return {
     kind: "compared",
     lists: ranksOnly
