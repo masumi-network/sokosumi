@@ -1598,6 +1598,69 @@ describe("authoritative action responses", () => {
     expect(response.answerText).toContain("Not confirmed: sent a message.");
   });
 
+  it("still reports a rejected structured handoff when a later handoff has the same opener but a different request goal", async () => {
+    refusedThenCreated(
+      {
+        capability: "send_message",
+        input: {
+          to: "CodePat",
+          message: "Please take this.",
+          request: {
+            goal: "Architecture review",
+            deliverable: "X draft",
+          },
+        },
+      },
+      {
+        capability: "send_message",
+        targetId: "msg-req-2",
+        input: {
+          to: "CodePat",
+          message: "Please take this.",
+          request: {
+            goal: "Release checklist",
+            deliverable: "PR comment",
+          },
+        },
+      },
+    );
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.unfulfilledActions).toHaveLength(1);
+    expect(response.answerText).toContain("Not confirmed: sent a message.");
+  });
+
+  it("suppresses a rejected structured handoff retried with the same request after dropping a bad projectId", async () => {
+    refusedThenCreated(
+      {
+        capability: "send_message",
+        input: {
+          to: "CodePat",
+          projectId: "bad-project",
+          message: "Please take this.",
+          request: {
+            goal: "Architecture review",
+            deliverable: "X draft",
+          },
+        },
+      },
+      {
+        capability: "send_message",
+        targetId: "msg-req-ok",
+        input: {
+          to: "@codepat",
+          message: "Please take this.",
+          request: {
+            goal: "Architecture review",
+            deliverable: "X draft",
+          },
+        },
+      },
+    );
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.unfulfilledActions).toEqual([]);
+    expect(response.answerText).toBe("Sent a message.");
+  });
+
   it("suppresses a rejected post_chat, open_direct_chat, or ask_coworker retry of the same message", async () => {
     for (const [capability, earlier, later] of [
       [

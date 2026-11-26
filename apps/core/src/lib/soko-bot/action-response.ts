@@ -281,12 +281,34 @@ function normalizeMessageText(value: unknown): string | null {
   return normalized.length > 0 ? normalized : null;
 }
 
+function sameOptionalText(later: unknown, earlier: unknown): boolean {
+  return normalizeMessageText(later) === normalizeMessageText(earlier);
+}
+
+/**
+ * Structured hand-off fields delivered by `send_message`: two hand-offs with
+ * the same opener ("Please handle this.") but different goals/deliverables are
+ * distinct assignments and must not mask each other.
+ */
+function sameHandoffRequest(later: unknown, earlier: unknown): boolean {
+  const laterObj = isPlainObject(later);
+  const earlierObj = isPlainObject(earlier);
+  if (!laterObj && !earlierObj) return true;
+  if (!laterObj || !earlierObj) return false;
+  return (
+    sameOptionalText(later.goal, earlier.goal) &&
+    sameOptionalText(later.deliverable, earlier.deliverable) &&
+    sameOptionalText(later.deadline, earlier.deadline) &&
+    sameOptionalText(later.context, earlier.context)
+  );
+}
+
 /**
  * Whether `later` retried the same message to the same recipient as `earlier`.
  * A rejected attempt whose extra or invalid field (e.g. a bad `projectId`) was
  * dropped on retry should not print "Not confirmed" beside the confirmed send,
- * while a different message to the same recipient or a different address kind
- * (`#Jordan` room vs `Jordan` person) stays reported.
+ * while a different message, a different structured `request`, or a different
+ * address kind (`#Jordan` room vs `Jordan` person) stays reported.
  */
 function sameMessageRetry(
   later: unknown,
@@ -303,7 +325,9 @@ function sameMessageRetry(
       laterTo !== null &&
       laterTo === earlierTo &&
       laterMsg !== null &&
-      laterMsg === earlierMsg
+      laterMsg === earlierMsg &&
+      sameHandoffRequest(later.request, earlier.request) &&
+      sameOptionalText(later.then, earlier.then)
     );
   }
   if (capability === "open_direct_chat") {
