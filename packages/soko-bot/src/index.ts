@@ -366,6 +366,11 @@ export {
   cmoWritesStrategyStep,
 } from "./versions/cmo-v25-skills.js";
 export {
+  CMO_COMPACT_PRODUCTION_SKILL,
+  CMO_PRODUCTION_TOOLS,
+  cmoCompactProduction,
+} from "./versions/cmo-v26-skills.js";
+export {
   CMO_VIDEO_SHAPES,
   CMO_VIDEO_SHAPES_SKILL,
   cmoPostsVideoShapes,

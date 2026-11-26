@@ -39,6 +39,7 @@ import { cmoReadsOnDemand } from "./cmo-v23-skills.js";
 import { cmoV24 } from "./cmo-v24.js";
 import { cmoV25 } from "./cmo-v25.js";
 import { cmoWritesStrategyStep } from "./cmo-v25-skills.js";
+import { cmoV26 } from "./cmo-v26.js";
 import {
   skillIndexSection,
   splitSkillsForTurn,
@@ -157,6 +158,7 @@ export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [
   cmoV23,
   cmoV24,
   cmoV25,
+  cmoV26,
   ...CMO_MODEL_TRIALS,
 ];
 /** The Cuso version a new hire starts on. */

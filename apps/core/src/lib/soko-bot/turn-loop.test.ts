@@ -36,7 +36,10 @@ vi.mock("./action-response", async (importOriginal) => ({
 }));
 
 import {
+  applyVersionCapabilities,
+  CMO_PRODUCTION_TOOLS,
   getSokoBotVersion,
+  SOKO_BOT_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
 } from "@sokosumi/soko-bot";
 import { expectCoreLogWhys } from "@/test/core-log";
@@ -47,6 +50,7 @@ import {
   isTaintBlocked,
   offeredCapabilities,
   PENDING_STRATEGY_LABEL,
+  productionPacket,
   promptCacheKey,
   RuntimeEventLog,
   runtimeEvent,
@@ -57,6 +61,38 @@ import {
   turnRequiresActionProof,
   WEB_GUIDANCE,
 } from "./turn-loop";
+
+describe("a small-context production run (cmo-v26)", () => {
+  it("offers only tools the version has", () => {
+    const v26 = applyVersionCapabilities(
+      getSokoBotVersion("cmo-v26"),
+      SOKO_BOT_CAPABILITIES,
+    );
+    for (const tool of CMO_PRODUCTION_TOOLS) expect(v26).toContain(tool);
+  });
+
+  it("keeps the marketing context and who started it, and leaves the rest out", () => {
+    const packet = {
+      schemaVersion: 1,
+      generatedAt: "2026-11-26T00:00:00Z",
+      trigger: { kind: "event" },
+      actor: { name: "Robin" },
+      projects: [],
+      recentTurns: [{ finalAnswer: "x".repeat(5000) }],
+      sourceCoverage: { mail: "none" },
+      tasks: [],
+      workspace: { marketing: { core: { business: "Acme" } }, other: 1 },
+    };
+    expect(productionPacket(packet)).toEqual({
+      schemaVersion: 1,
+      generatedAt: "2026-11-26T00:00:00Z",
+      trigger: { kind: "event" },
+      actor: { name: "Robin" },
+      projects: [],
+      workspace: { marketing: { core: { business: "Acme" } } },
+    });
+  });
+});
 
 describe("a version with one fixed tool set", () => {
   const v24 = getSokoBotVersion("cmo-v24");
