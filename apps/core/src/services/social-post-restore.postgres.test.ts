@@ -92,6 +92,11 @@ afterEach(async () => {
       select: { id: true },
     });
     const ids = workspaces.map((workspace) => workspace.id);
+    // Quotes first: deleting a quoted post fires a BEFORE DELETE trigger that
+    // updates its quotes, and a quote deleted in that same statement fails it.
+    await prisma.socialPost.deleteMany({
+      where: { workspaceId: { in: ids }, quotedPostId: { not: null } },
+    });
     await prisma.socialPost.deleteMany({ where: { workspaceId: { in: ids } } });
     await prisma.projectSocialConnection.deleteMany({
       where: { project: { workspaceId: { in: ids } } },
