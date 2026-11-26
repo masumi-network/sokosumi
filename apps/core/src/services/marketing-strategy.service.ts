@@ -24,6 +24,7 @@ import {
   isCmoShapedVideoFormat,
   isCmoShortVideoFormat,
   isCmoTalkingFormat,
+  normalizeCmoChannelFormat,
   SOCIAL_POST_TEXT_LIMITS,
   type SocialPostMediaRef,
   type SocialPostProvider,
@@ -689,10 +690,20 @@ export async function planMarketingStrategyPosts(
     if (!provider) continue;
     const post = byEntry.get(entry.id);
     const stored = parseSocialPostPlanning(post?.planning);
+    // A video's other shape stands only on the post Core made for it, found
+    // by its post id or plan id; anywhere else it names the plan's format.
+    const sentFormat =
+      isCmoShapedVideoFormat(provider, entry.format) &&
+      !copies.has(entry) &&
+      !(stored?.videoOf && stored.format === entry.format)
+        ? normalizeCmoChannelFormat(provider, entry.format).format
+        : entry.format;
     const planning = {
       ...withoutUndefined({
         ...stored,
-        ...withoutUndefined(socialPostPlanningSchema.parse(entry)),
+        ...withoutUndefined(
+          socialPostPlanningSchema.parse({ ...entry, format: sentFormat }),
+        ),
         // What a copy speaks is its entry's: a save of the copy changes its
         // own caption and plan only.
         ...(stored?.videoOf && !copies.has(entry)

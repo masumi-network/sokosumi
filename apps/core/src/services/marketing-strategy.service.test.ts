@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { parseCmoStrategySave } from "@sokosumi/soko-bot";
 import { cmoMonthAtLevel } from "@sokosumi/utils";
 import { describe, expect, it, vi } from "vitest";
 
@@ -337,6 +338,75 @@ describe("a video in other shapes", () => {
     const { talking } = await plan("flagged");
     // v1, v1@tiktok (same shape), then the three shaped copies.
     expect(talking).toEqual([undefined, undefined, false, false, false]);
+  });
+
+  it("keeps an X video's shape when Cuso reads the calendar and saves that piece", async () => {
+    const xCopy = {
+      id: "3f2a9c1e-6d4b-4c8e-9a71-2b5d0e8f4c13",
+      status: "DRAFT",
+      provider: "x",
+      text: "",
+      media: [],
+      lastError: null,
+      revision: 1,
+      scheduledAt: new Date("2026-11-30T11:00:00Z"),
+      createdAt: new Date("2026-11-20T09:00:00Z"),
+      planning: {
+        id: "v1@x",
+        title: "Roasted this morning",
+        format: "video",
+        videoOf: "v1",
+        videoOfTalking: false,
+      },
+    };
+    const read = {
+      socialPost: { findMany: async () => [xCopy] },
+      sokoBotSchedule: { findMany: async () => [] },
+    } as unknown as Prisma.TransactionClient;
+    const [calendar] = await listMarketingStrategyPosts(
+      { id: "version-1", projectId: "project-1" },
+      read,
+    );
+    // The calendar names the copy by its Social post, not its plan id.
+    expect(calendar?.entry.id).toBe(xCopy.id);
+
+    const sent = parseCmoStrategySave({
+      part: "pieces",
+      strategy: {
+        calendar: [{ ...calendar?.entry, draft: "Beans, roasted at six." }],
+      },
+    });
+    const { updated } = await plan("flagged", [xCopy], sent.calendar);
+    expect(updated[0]).toMatchObject({
+      id: "v1@x",
+      format: "video",
+      videoOf: "v1",
+    });
+  });
+
+  it("maps a shape sent for a post that is not that shape's copy", async () => {
+    const reel = {
+      id: "post-reel",
+      status: "DRAFT",
+      provider: "youtube",
+      media: [],
+      planning: { id: "v2", title: "Roasted", format: "short" },
+    };
+    const { updated } = await plan(
+      "flagged",
+      [reel],
+      [
+        {
+          id: "post-reel",
+          date: "2026-11-30",
+          channel: "youtube",
+          format: "video",
+          title: "Roasted",
+          status: "draft",
+        },
+      ],
+    );
+    expect(updated[0]).toMatchObject({ id: "v2", format: "short" });
   });
 
   it("keeps a shape's format when the month writes its post", async () => {

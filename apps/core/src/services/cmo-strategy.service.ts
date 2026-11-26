@@ -18,8 +18,10 @@ import {
 } from "@sokosumi/soko-bot";
 import {
   isCmoChannelFormat,
+  isCmoShapedVideoFormat,
   isCmoShortVideoFormat,
   isCmoTalkingFormat,
+  normalizeCmoChannelFormat,
 } from "@sokosumi/utils";
 import { unprocessableEntity } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
@@ -1643,7 +1645,7 @@ export async function saveCmoStrategy(
   // piece after. A patch keeps what it leaves out, so a draft Cuso sent with
   // a plan once could never be taken back (the review asked, he resent the
   // entry without it, the draft stayed): Core leaves it out instead.
-  const strategy =
+  const undrafted =
     options.turnId && !options.executing && options.part !== "pieces"
       ? {
           ...sent,
@@ -1656,6 +1658,8 @@ export async function saveCmoStrategy(
             : {}),
         }
       : sent;
+  const strategy =
+    options.part === "pieces" ? undrafted : withPlanFormats(undrafted);
   const shapes = (strategy.calendar ?? []).some((entry) => entry.alsoOn?.length)
     ? await cusoPostsVideoShapes(cuso.projectId, db)
     : false;
@@ -1924,6 +1928,31 @@ export async function saveCmoStrategy(
         : { authorUserId: where.userId }),
     },
   });
+}
+
+/**
+ * A plan names only formats a piece of its own takes. A video's other shape
+ * (an X video, a feed video) is a post Core makes from alsoOn, so a plan
+ * entry naming one means the format it maps to ("a YouTube video" is a
+ * Short), or is refused.
+ */
+export function withPlanFormats(save: CmoStrategySave): CmoStrategySave {
+  if (!save.calendar) return save;
+  return {
+    ...save,
+    calendar: save.calendar.map((entry) => {
+      if (!isCmoShapedVideoFormat(entry.channel, entry.format)) return entry;
+      const { format } = normalizeCmoChannelFormat(entry.channel, entry.format);
+      if (
+        entry.status !== "skipped" &&
+        !isCmoChannelFormat(entry.channel, format)
+      )
+        throw unprocessableEntity(
+          `${entry.id}: "${entry.channel}" / "${entry.format}" is a video's other shape, which Core posts from the video's alsoOn. Plan the video on its own network and list the shape in its alsoOn.`,
+        );
+      return { ...entry, format };
+    }),
+  };
 }
 
 /**

@@ -3,7 +3,31 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
-import { patchPlan } from "@/services/cmo-strategy.service";
+import { patchPlan, withPlanFormats } from "@/services/cmo-strategy.service";
+
+describe("a plan entry naming a video's other shape", () => {
+  const entry = (channel: string, format: string) => ({
+    id: "w1-05",
+    date: "2026-11-23",
+    channel,
+    title: "Roasted this morning",
+    format,
+    status: "idea" as const,
+  });
+
+  it("takes the plan's own format for it: a YouTube video is a Short", () => {
+    const saved = withPlanFormats({
+      calendar: [entry("youtube", "video")],
+    } as never);
+    expect(saved.calendar?.[0]?.format).toBe("short");
+  });
+
+  it("is refused when no plan format fits, pointing to alsoOn", () => {
+    expect(() =>
+      withPlanFormats({ calendar: [entry("x", "video")] } as never),
+    ).toThrow(/alsoOn/);
+  });
+});
 
 type Plan = Parameters<typeof patchPlan>[0];
 

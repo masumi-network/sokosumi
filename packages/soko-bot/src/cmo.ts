@@ -222,7 +222,7 @@ export type CmoSaveBrandBrainInput = z.input<
  */
 /**
  * A post Core made from a video's alsoOn in another shape (`<entry>@<target>`,
- * e.g. an X video): its format is exact, never a name to map.
+ * e.g. an X video), by its plan id.
  */
 function isShapedVideoCopy(entry: {
   id?: unknown;
@@ -232,8 +232,20 @@ function isShapedVideoCopy(entry: {
   return (
     typeof entry.id === "string" &&
     entry.id.includes("@") &&
-    isCmoShapedVideoFormat(String(entry.channel), String(entry.format))
+    isShapedVideoFormat(entry)
   );
+}
+
+/**
+ * A video's other shape, named exactly. It goes to Core as sent: Core keeps
+ * it on the post it made for that shape, whichever id the calendar gave
+ * (plan id or Social post id), and maps it anywhere else.
+ */
+function isShapedVideoFormat(entry: {
+  channel: unknown;
+  format: unknown;
+}): boolean {
+  return isCmoShapedVideoFormat(String(entry.channel), String(entry.format));
 }
 
 /** Older channel and format names, mapped to the catalog before the check. */
@@ -260,7 +272,7 @@ function normalizeStrategyChannels(value: unknown): unknown {
         typeof entry === "object" &&
         "channel" in entry &&
         "format" in entry &&
-        !isShapedVideoCopy(entry)
+        !isShapedVideoFormat(entry)
           ? {
               ...entry,
               ...normalizeCmoChannelFormat(
@@ -358,7 +370,7 @@ export const cmoSaveStrategyInputSchema = z
           if (
             entry.status !== "skipped" &&
             !isCmoChannelFormat(entry.channel, entry.format) &&
-            !isShapedVideoCopy(entry)
+            !isShapedVideoFormat(entry)
           ) {
             ctx.addIssue({
               code: "custom",

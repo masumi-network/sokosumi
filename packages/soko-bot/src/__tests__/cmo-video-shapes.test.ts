@@ -60,10 +60,12 @@ describe("cmo-video-shapes", () => {
         format,
       });
     }
-    // A plan's own entry is still mapped: "a YouTube video" is a Short.
+    // The calendar names a copy by its Social post id: it goes to Core as
+    // sent, which keeps the shape only on the post it made for it.
     expect(
-      pieces("youtube", "video", "v2").data?.strategy.calendar?.[0]?.format,
-    ).toBe("short");
+      pieces("x", "video", "3f2a9c1e-6d4b-4c8e-9a71-2b5d0e8f4c13").data
+        ?.strategy.calendar?.[0],
+    ).toMatchObject({ channel: "x", format: "video" });
     // Only the month's pieces write a copy; a plan save leaves it to alsoOn.
     const plan = cmoSaveStrategyInputSchema.safeParse({
       part: "patch",
