@@ -18,7 +18,7 @@ import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { ensureA2aWorld } from "../eval-a2a";
 import { seedCmoReports } from "../eval-cmo-runner";
 import type { EvalLaneRecord } from "../eval-lanes.service";
-import { upcomingByNetwork } from "./journey-checks";
+import { mediaPathnames, upcomingByNetwork } from "./journey-checks";
 import {
   type FixturePicturePost,
   type FixtureTask,
@@ -57,7 +57,7 @@ export interface JourneyWorld {
   /** The room the owner, the teammates and the owner's bot share. */
   teammateRoomId?: string;
   /** Cuso's published posts when the journey started. */
-  seededPublished?: { id: string; text: string }[];
+  seededPublished?: { id: string; text: string; pathnames: string[] }[];
   /** The target picture post's text and picture, and the other seeded posts' pictures. */
   seededPicture?: {
     postId: string;
@@ -889,10 +889,16 @@ export async function prepareJourneyWorld(
       lane,
       needs(fixtures.scheduledPosts, "scheduled-posts"),
     );
-    world.seededPublished = await prisma.socialPost.findMany({
-      where: { projectId: lane.cusoProjectId, status: "PUBLISHED" },
-      select: { id: true, text: true },
-    });
+    world.seededPublished = (
+      await prisma.socialPost.findMany({
+        where: { projectId: lane.cusoProjectId, status: "PUBLISHED" },
+        select: { id: true, text: true, media: true },
+      })
+    ).map((post) => ({
+      id: post.id,
+      text: post.text,
+      pathnames: mediaPathnames(post.media),
+    }));
   }
   if (prepare.includes("picture-posts"))
     world.seededPicture = await seedPicturePosts(

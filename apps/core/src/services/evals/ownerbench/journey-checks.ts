@@ -943,8 +943,12 @@ export function savedFileTexts(
   });
 }
 
-/** Each file's indexed text, from its newest version's chunks in order. */
-async function indexedTexts(
+/**
+ * Each file's indexed text, from its latest revision only: a newer revision
+ * still being indexed has no text yet, and an older revision's text is not
+ * what the file says now.
+ */
+export async function indexedTexts(
   fileIds: readonly string[],
 ): Promise<Record<string, string>> {
   const versions = await prisma.fileVersion.findMany({
@@ -955,12 +959,14 @@ async function indexedTexts(
       chunks: { orderBy: { ordinal: "asc" }, select: { text: true } },
     },
   });
-  const texts: Record<string, string> = {};
+  const latest = new Map<string, (typeof versions)[number]>();
   for (const version of versions)
-    if (!(version.resourceId in texts) && version.chunks.length)
-      texts[version.resourceId] = version.chunks
-        .map((chunk) => chunk.text)
-        .join("\n");
+    if (!latest.has(version.resourceId))
+      latest.set(version.resourceId, version);
+  const texts: Record<string, string> = {};
+  for (const [id, version] of latest)
+    if (version.chunks.length)
+      texts[id] = version.chunks.map((chunk) => chunk.text).join("\n");
   return texts;
 }
 
@@ -1059,11 +1065,17 @@ async function publishedUntouchedCheck(
   const seeded = context.world.seededPublished ?? [];
   const rows = await prisma.socialPost.findMany({
     where: { id: { in: seeded.map((post) => post.id) } },
-    select: { id: true, text: true, status: true },
+    select: { id: true, text: true, status: true, media: true },
   });
   const changed = seeded.filter((before) => {
     const after = rows.find((row) => row.id === before.id);
-    return !after || after.status !== "PUBLISHED" || after.text !== before.text;
+    return (
+      !after ||
+      after.status !== "PUBLISHED" ||
+      after.text !== before.text ||
+      mediaPathnames(after.media).join("\n") !==
+        [...before.pathnames].sort().join("\n")
+    );
   });
   return {
     label: outcome.label,

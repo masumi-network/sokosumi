@@ -33,17 +33,45 @@ describe("versionDelta", () => {
     );
     expect(delta.baseline).toEqual({
       passed: 1,
+      incomplete: 0,
       passRate: 0.5,
       stepsPassed: 3,
       inputTokensPerTurn: 100,
     });
     expect(delta.candidate).toEqual({
       passed: 2,
+      incomplete: 0,
       passRate: 1,
       stepsPassed: 4,
       inputTokensPerTurn: 95,
     });
     expect(delta.meetsBar).toBe(true);
+  });
+
+  it("counts one pass and two ERROR repeats as incomplete, neither passed nor a regression", () => {
+    const result = (status: string) => ({
+      status,
+      output: {
+        score: { stepsPassed: 2 },
+        totals: { tokenTurns: 1, inputTokens: 1, inputTokensPerTurn: 1 },
+      },
+    });
+    const side = (statuses: string[]): ParityReport => ({
+      cases: [{ caseId: "owner-holdout-a", results: statuses.map(result) }],
+    });
+    const delta = versionDelta(
+      side(["PASSED", "PASSED", "PASSED"]),
+      side(["PASSED", "ERROR", "ERROR"]),
+      [],
+      3,
+    );
+    expect(delta.rows[0]).toMatchObject({
+      candidate: { status: "INCOMPLETE", runs: 1, unscored: 2 },
+      regressed: false,
+    });
+    expect(delta.candidate).toMatchObject({ passed: 0, incomplete: 1 });
+    expect(delta.baseline).toMatchObject({ passed: 1, incomplete: 0 });
+    expect(delta.meetsBar).toBe(false);
   });
 
   it("reads repeats as pass^k and pass^1, and a lost repeat fails the bar", () => {

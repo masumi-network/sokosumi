@@ -10,7 +10,7 @@ import { HOLDOUT_PREFIX, HOLDOUT_REPEATS } from "./holdout";
 import type { ParityReport } from "./parity";
 
 interface Side {
-  /** PASSED only when every scored repeat passed (pass^k). */
+  /** PASSED when every repeat scored and passed (pass^k); INCOMPLETE when repeats are missing. */
   status: string;
   /** Scored repeats, how many of them passed, and repeats that never scored (ERROR). */
   runs: number;
@@ -38,16 +38,25 @@ export interface VersionDelta {
 }
 
 interface Totals {
-  /** Journeys whose every repeat passed (pass^k). */
+  /** Journeys whose every repeat scored and passed (pass^k). */
   passed: number;
+  /** Journeys short of scored repeats (an ERROR, or too few): neither passed nor failed. */
+  incomplete: number;
   /** Passed repeats over scored repeats (pass^1). */
   passRate: number | null;
   stepsPassed: number;
   inputTokensPerTurn: number | null;
 }
 
-/** A journey's scored repeats as one side: pass^k, pass^1, mean steps and all tokens. */
-export function scoredSide(results: ParityReport["cases"][number]["results"]) {
+/**
+ * A journey's scored repeats as one side: pass^k, pass^1, mean steps and all
+ * tokens. Short of `minimumRepeats` scored repeats, or with one that never
+ * scored, it is INCOMPLETE: pass^k can't be read from it.
+ */
+export function scoredSide(
+  results: ParityReport["cases"][number]["results"],
+  minimumRepeats = 1,
+) {
   const scored = results.filter(
     (row) => row.status === "PASSED" || row.status === "FAILED",
   );
@@ -76,11 +85,17 @@ export function scoredSide(results: ParityReport["cases"][number]["results"]) {
     (sum, output) => sum + (output.totals?.tokenTurns ?? 0),
     0,
   );
+  const unscored = results.length - scored.length;
   return {
-    status: passes === scored.length ? "PASSED" : "FAILED",
+    status:
+      unscored > 0 || scored.length < minimumRepeats
+        ? "INCOMPLETE"
+        : passes === scored.length
+          ? "PASSED"
+          : "FAILED",
     runs: scored.length,
     passes,
-    unscored: results.length - scored.length,
+    unscored,
     stepsPassed:
       outputs.reduce(
         (sum, output) => sum + (output.score?.stepsPassed ?? 0),
@@ -105,6 +120,7 @@ function totals(
   const runs = scored.reduce((sum, side) => sum + side.runs, 0);
   return {
     passed: scored.filter((side) => side.status === "PASSED").length,
+    incomplete: scored.filter((side) => side.status === "INCOMPLETE").length,
     passRate: runs
       ? scored.reduce((sum, side) => sum + side.passes, 0) / runs
       : null,
@@ -188,7 +204,10 @@ export function versionDelta(
     new Map(
       report.cases
         .filter((evalCase) => evalCase.caseId.startsWith("owner-"))
-        .map((evalCase) => [evalCase.caseId, scoredSide(evalCase.results)]),
+        .map((evalCase) => [
+          evalCase.caseId,
+          scoredSide(evalCase.results, minimumRepeats),
+        ]),
     );
   const left = byCase(baseline);
   const right = byCase(candidate);
@@ -211,11 +230,8 @@ export function versionDelta(
       caseId,
       baseline: strip(before),
       candidate: strip(after),
-      // An unscored candidate is missing, not a regression: the bar fails on it anyway.
-      regressed:
-        before?.status === "PASSED" &&
-        after !== null &&
-        after.status !== "PASSED",
+      // An unscored or incomplete candidate is not a regression: the bar fails on it anyway.
+      regressed: before?.status === "PASSED" && after?.status === "FAILED",
     };
   });
   // Totals over the journeys both runs scored, so a missing one can't help.

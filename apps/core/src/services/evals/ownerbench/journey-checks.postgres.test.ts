@@ -11,7 +11,11 @@ import { convertCreditsToCents } from "@sokosumi/utils";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
 import type { EvalLaneRecord } from "../eval-lanes.service";
-import { type CheckContext, outcomeCheck } from "./journey-checks";
+import {
+  type CheckContext,
+  indexedTexts,
+  outcomeCheck,
+} from "./journey-checks";
 import {
   claimedRunCheck,
   claimedRunState,
@@ -532,6 +536,9 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
         text: "Already out.",
         status: "PUBLISHED",
         creatorUserId: userId,
+        media: [
+          { pathname: "users/fixture/out.png", name: "out.png", kind: "image" },
+        ],
       },
       select: { id: true, text: true },
     });
@@ -557,7 +564,9 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       world: {
         ...context.world,
         coworkers: { ...context.world.coworkers, Mira: coworker.id },
-        seededPublished: [published],
+        seededPublished: [
+          { ...published, pathnames: ["users/fixture/out.png"] },
+        ],
       },
       toolCalls: [
         {
@@ -632,9 +641,31 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       p: true,
       h: true,
     });
+    const untouched = () =>
+      outcomeCheck({ kind: "publishedUntouched", label: "p" }, graded);
+    // Same attachment, keys in another order: untouched.
     await prisma.socialPost.update({
       where: { id: published.id },
-      data: { status: "CANCELED" },
+      data: {
+        media: [
+          { kind: "image", pathname: "users/fixture/out.png", name: "out.png" },
+        ],
+      },
+    });
+    expect((await untouched()).pass).toBe(true);
+    await prisma.socialPost.update({
+      where: { id: published.id },
+      data: {
+        media: [{ pathname: "users/fixture/other.png", kind: "image" }],
+      },
+    });
+    expect((await untouched()).pass).toBe(false);
+    await prisma.socialPost.update({
+      where: { id: published.id },
+      data: {
+        media: [{ pathname: "users/fixture/out.png", kind: "image" }],
+        status: "CANCELED",
+      },
     });
     expect(
       (await outcomeCheck({ kind: "publishedUntouched", label: "p" }, graded))
@@ -825,6 +856,78 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     await prisma.sokoBot.deleteMany({ where: { id: bot.id } });
     await prisma.user.deleteMany({ where: { id: { in: teammates } } });
     await prisma.organization.deleteMany({ where: { id: organizationId } });
+  });
+
+  it("reads a file's indexed text from its latest revision only, even while that one is still indexing", async () => {
+    const resource = await prisma.fileResource.create({
+      data: {
+        workspaceId,
+        sourceKind: "DRIVE_UPLOAD",
+        sourceScope: "USER",
+        sourceId: `users/${userId}/revised.md`,
+        displayName: "revised.md",
+        normalizedName: "revised.md",
+        mimeType: "text/markdown",
+        lifecycle: "ACTIVE",
+      },
+      select: { id: true },
+    });
+    const scope = await prisma.fileEvidenceScope.create({
+      data: {
+        workspaceId,
+        sourceKind: "DRIVE_UPLOAD",
+        sourceScope: "USER",
+        sourceId: `users/${userId}/revised.md`,
+        actorKinds: ["USER"],
+      },
+      select: { id: true },
+    });
+    const version = (revision: number, text?: string) =>
+      prisma.fileVersion.create({
+        data: {
+          resourceId: resource.id,
+          revision,
+          objectKey: `revised-${revision}`,
+          ...(text
+            ? {
+                chunks: {
+                  create: {
+                    chunkId: `c${revision}`,
+                    ordinal: 0,
+                    text,
+                    evidenceScopeId: scope.id,
+                    scopeVersion: 1,
+                    inputDigest: `d${revision}`,
+                  },
+                },
+              }
+            : {}),
+        },
+      });
+    await version(1, "Old wording.");
+    expect(await indexedTexts([resource.id])).toEqual({
+      [resource.id]: "Old wording.",
+    });
+    await version(2);
+    expect(await indexedTexts([resource.id])).toEqual({});
+    const check = await outcomeCheck(
+      { kind: "file", label: "f", textMatches: ["old wording"] },
+      {
+        ...context,
+        toolCalls: [
+          {
+            capability: "upload_file",
+            status: "SUCCEEDED",
+            input: { filename: "revised.md", workspacePath: "out/revised.md" },
+            result: { id: resource.id, filename: "revised.md", size: 1 },
+          },
+        ],
+      },
+    );
+    expect(check.pass).toBe(false);
+    await prisma.fileVersion.deleteMany({ where: { resourceId: resource.id } });
+    await prisma.fileEvidenceScope.deleteMany({ where: { id: scope.id } });
+    await prisma.fileResource.deleteMany({ where: { id: resource.id } });
   });
 
   it("counts a file read only when it returned the file's text", async () => {
