@@ -7,7 +7,9 @@ import { describe, expect, it } from "vitest";
 
 import { presetClassificationResult } from "@/lib/soko-bot/classifier";
 import {
+  delegationEventPostRefusal,
   failedTurnRoute,
+  inheritedFollowUpRoute,
   inheritedScheduleRoute,
   isStoredMeetingPrep,
   PERSON_SCHEDULE_CAPABILITIES,
@@ -15,6 +17,116 @@ import {
   storedMeetingRetrySlot,
   systemScheduleRoute,
 } from "@/lib/soko-bot/system-routes";
+
+describe("a delegation follow-up", () => {
+  const owner = [
+    "create_social_post",
+    "generate_image",
+    "create_table",
+    "write_table_rows",
+    "create_task",
+    "publish_social_post",
+    "schedule_social_post",
+    "update_social_post",
+    "update_social_posts",
+    "hire_agent",
+    "send_email_draft",
+    "post_chat",
+    "start_background_run",
+    "delete_file",
+    "bash",
+  ];
+
+  it("inherits the owner's request's writes that stay with the owner", () => {
+    const capabilities = inheritedFollowUpRoute(owner).capabilities ?? [];
+    for (const capability of [
+      "create_social_post",
+      "generate_image",
+      "create_table",
+      "write_table_rows",
+      // The event route's own tools stay.
+      "create_task",
+      "reply_to_task",
+    ])
+      expect(capabilities).toContain(capability);
+  });
+
+  it("never inherits reaching other people, hiring, sending, runs, deletes or the sandbox", () => {
+    const base = capabilitiesForClassification(
+      presetClassificationResult("", SYSTEM_TURN_ROUTES.events).classification,
+    );
+    // What the inheritance adds to the event route's own tools.
+    const capabilities = (
+      inheritedFollowUpRoute(owner).capabilities ?? []
+    ).filter((capability) => !base.includes(capability));
+    for (const capability of [
+      "publish_social_post",
+      "schedule_social_post",
+      "update_social_post",
+      "update_social_posts",
+      "hire_agent",
+      "send_email_draft",
+      "post_chat",
+      "start_background_run",
+      "delete_file",
+      "bash",
+    ])
+      expect(capabilities).not.toContain(capability);
+  });
+
+  it("is the plain event route when the owner's request had nothing to add", () => {
+    expect(inheritedFollowUpRoute([])).toBe(SYSTEM_TURN_ROUTES.events);
+    expect(inheritedFollowUpRoute(["publish_social_post"])).toBe(
+      SYSTEM_TURN_ROUTES.events,
+    );
+  });
+
+  describe("posting", () => {
+    const eventTurn = { clientTurnId: "event:abc", versionId: "v34" };
+
+    it("keeps a post a draft", () => {
+      expect(
+        delegationEventPostRefusal(eventTurn, {
+          capability: "create_social_post",
+          input: {
+            projectId: "01a0af3b-32c5-76bb-ab34-5cf4a81a5014",
+            connectionId: "01a0af3b-32c5-76bb-ab34-5cf4a81a5015",
+            text: "How we keep a bot's memory",
+            scheduledAt: "2026-11-27T09:00:00.000Z",
+          },
+        }),
+      ).toContain("stays a draft");
+      for (const capability of ["publish_social_post", "schedule_social_post"])
+        expect(
+          delegationEventPostRefusal(eventTurn, { capability, input: {} }),
+        ).toContain("stays a draft");
+    });
+
+    it("lets it create the draft", () => {
+      expect(
+        delegationEventPostRefusal(eventTurn, {
+          capability: "create_social_post",
+          input: { text: "How we keep a bot's memory" },
+        }),
+      ).toBeNull();
+    });
+
+    it("leaves other turns and Cuso's own posting alone", () => {
+      expect(
+        delegationEventPostRefusal(
+          { clientTurnId: "chat:1", versionId: "v34" },
+          { capability: "publish_social_post", input: {} },
+        ),
+      ).toBeNull();
+      expect(
+        delegationEventPostRefusal(
+          { clientTurnId: "event:abc", versionId: "cmo-v23" },
+          { capability: "schedule_social_post", input: {} },
+        ),
+      ).toBeNull();
+    });
+  });
+});
 
 describe("system turn routes", () => {
   it("runs a bot-written follow-up with exactly its writing turn's tools", () => {

@@ -25,6 +25,11 @@ export interface StartSokoBotTurnInput {
      * the turn, so a plan reaches exactly one turn; a lost claim aborts it.
      */
     followUpDelegationIds?: string[];
+    /**
+     * The failed turn these plans were handed to first: this turn may take
+     * them over from it, once (`soko-bot-events-sync`).
+     */
+    followUpRetryOfTurnId?: string;
     status: string;
     taskCursorAt?: Date;
     delegationEventAt?: Date;

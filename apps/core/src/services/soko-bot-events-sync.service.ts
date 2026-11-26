@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
+import {
+  type SokoBotFollowUpAllows,
+  sokoBotFollowUpAllowsSchema,
+} from "@sokosumi/soko-bot";
 import { createError } from "evlog";
 import { getEnv } from "@/config/env";
 import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
@@ -7,8 +11,16 @@ import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
+import { FOLLOW_UP_RETRY_SUFFIX } from "@/lib/soko-bot/follow-up-retry";
+import {
+  isOwnerRequest,
+  type OwnerRequestTurn,
+} from "@/lib/soko-bot/owner-request";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
-import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
+import {
+  DELEGATION_EVENT_TURN_PREFIX,
+  inheritedFollowUpRoute,
+} from "@/lib/soko-bot/system-routes";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
 import {
@@ -115,6 +127,12 @@ interface Change {
   creditsCharged?: number;
   /** The plan the bot attached to this delegation, while it has not run. */
   followUp?: string | null;
+  /** The owner's request's tools, when the owner asked for that plan. */
+  ownerGranted?: readonly string[];
+  /** The owner's own limits for the plan, when they gave any. */
+  followUpAllows?: SokoBotFollowUpAllows | null;
+  /** The failed turn this change hands the plan over from, on its one retry. */
+  retryOfTurnId?: string;
 }
 
 /** A follow-up plan the bot attached to delegated work, as one wake reports it. */
@@ -127,6 +145,24 @@ export interface FollowUpPlan {
   delegationIds: string[];
   /** The work settled: this wake carries the plan out, and it never comes back. */
   due: boolean;
+  /** The owner's own limits for these plans, when they gave any. */
+  allows: SokoBotFollowUpAllows[];
+}
+
+/** The limits as stored; anything else stored there is no limit. */
+export function storedAllows(value: unknown): SokoBotFollowUpAllows | null {
+  return sokoBotFollowUpAllowsSchema.safeParse(value).data ?? null;
+}
+
+/** "at most 3 images and 50 credits", from the owner's limits. */
+function allowsText(allows: readonly SokoBotFollowUpAllows[]): string | null {
+  const parts = allows.flatMap((allow) => [
+    ...(allow.images
+      ? [`${allow.images} image${allow.images > 1 ? "s" : ""}`]
+      : []),
+    ...(allow.maxCredits ? [`${allow.maxCredits} credits on media`] : []),
+  ]);
+  return parts.length ? `at most ${parts.join(" and ")}` : null;
 }
 
 /**
@@ -154,6 +190,7 @@ export function followUpPlans(
       plans: [],
       delegationIds: [],
       due: false,
+      allows: [],
     };
     plan.status = change.to;
     plan.due = settlesFollowUp(change.kind, change.to);
@@ -170,6 +207,7 @@ export function followUpPlans(
     plan.delegationIds.push(delegation.delegationId);
     if (!plan.plans.includes(delegation.followUp))
       plan.plans.push(delegation.followUp);
+    if (delegation.followUpAllows) plan.allows.push(delegation.followUpAllows);
   }
   return Array.from(byEntity.values()).filter((plan) => plan.plans.length);
 }
@@ -177,8 +215,9 @@ export function followUpPlans(
 function followUpLine(plan: FollowUpPlan): string {
   const label = `${plan.kind === "TASK" ? "Task" : "Job"} "${plan.name}" (id ${plan.entityId})`;
   const planned = plan.plans.map((text) => `"${text}"`).join(" and ");
+  const limits = allowsText(plan.allows);
   if (plan.status === "COMPLETED")
-    return `- ${label} is COMPLETED. Your plan: ${planned}. Do it now: read the full result with ${plan.kind === "TASK" ? "get_task_status" : "get_job_status"}, put its substance into what you hand on (not only a link or a one-line summary), and report what you did. This plan will not be handed to you again.`;
+    return `- ${label} is COMPLETED. Your plan: ${planned}.${limits ? ` The owner allowed ${limits}; Core refuses more.` : ""} Do it now: read the full result with ${plan.kind === "TASK" ? "get_task_status" : "get_job_status"}, put its substance into what you hand on (not only a link or a one-line summary), and report what you did. Something the plan prepares for the owner (a post, an email) is made as a draft on the project and account the plan names, left for their approval: publishing, scheduling and sending wait for their OK. This plan will not be handed to you again.`;
   if (plan.due)
     return `- ${label} is ${plan.status}, so your plan ${planned} will not run. Tell the owner if it mattered; to try again, attach the plan as followUp to the new ${plan.kind === "TASK" ? "Task" : "hire"}.`;
   return `- ${label} is ${plan.status}. Your plan for when it completes: ${planned}. Not due yet: Core hands it back to you when the work completes, so do not create a schedule for it.`;
@@ -203,7 +242,7 @@ export function sokoBotEventClientTurnId(changes: Change[]): string {
   const occurrences = changes
     .map((c) => [c.kind, c.entityId, c.eventId ?? c.to])
     .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-  return `event:${createHash("sha256").update(JSON.stringify(occurrences)).digest("hex")}`;
+  return `${DELEGATION_EVENT_TURN_PREFIX}${createHash("sha256").update(JSON.stringify(occurrences)).digest("hex")}`;
 }
 
 export function buildEventMessage(
@@ -286,6 +325,66 @@ function pendingFollowUp(delegation: {
   return delegation.followUpTurnId ? null : delegation.followUp;
 }
 
+/**
+ * The tools of the turn that attached a follow-up, when the owner asked for
+ * that work themselves: in their chat, or in a background run they started.
+ * Empty for work the bot took on by itself or for someone else.
+ */
+function ownerRequestGrant(delegation: {
+  followUp: string | null;
+  followUpTurnId: string | null;
+  turn: OwnerRequestTurn & {
+    parentTurnId: string | null;
+    parentTurn: OwnerRequestTurn | null;
+    capabilityNames: string[];
+  };
+}): readonly string[] {
+  // A schedule's run counts: it already has the tools of whoever wrote it
+  // (`inheritedScheduleRoute`), so "every day have a Coworker research it,
+  // then draft the post" hands the draft back to that run's tools.
+  return pendingFollowUp(delegation) &&
+    isOwnerRequest(delegation.turn, { schedules: true })
+    ? delegation.turn.capabilityNames
+    : [];
+}
+
+/**
+ * Turns a follow-up plan was handed to that FAILED and were not themselves
+ * a retry: those plans get one more turn. A failed retry stays failed.
+ */
+async function failedFollowUpTurns(
+  turnIds: readonly string[],
+): Promise<Map<string, FailedFollowUpTurn>> {
+  if (!turnIds.length) return new Map();
+  const failed = await prisma.sokoBotTurn.findMany({
+    where: { id: { in: [...new Set(turnIds)] }, status: "FAILED" },
+    select: {
+      id: true,
+      eventInbox: { select: { eventId: true, entityId: true } },
+    },
+  });
+  return new Map(
+    failed.map((turn) => [
+      turn.id,
+      {
+        retried: new Set(
+          turn.eventInbox
+            .filter((entry) => entry.eventId.endsWith(FOLLOW_UP_RETRY_SUFFIX))
+            .map((entry) => entry.entityId),
+        ),
+      },
+    ]),
+  );
+}
+
+/**
+ * A failed turn and the Tasks and Jobs whose plans it carried as a retry:
+ * those are spent, while a first hand-over in the same turn still gets one.
+ */
+interface FailedFollowUpTurn {
+  retried: ReadonlySet<string>;
+}
+
 const BACKGROUND_RUN_ACTIVE_STATUSES = new Set<string>([
   "QUEUED",
   "STARTING",
@@ -350,6 +449,7 @@ export class SokoBotEventsSyncService {
           lastSeenEventId: true,
           lastSeenEventAt: true,
           followUp: true,
+          followUpAllows: true,
           followUpTurnId: true,
           task: {
             select: {
@@ -395,12 +495,31 @@ export class SokoBotEventsSyncService {
               workspaceId: true,
               parentTurnId: true,
               status: true,
+              source: true,
+              chainDepth: true,
+              askedByUserId: true,
+              capabilityNames: true,
+              parentTurn: {
+                select: {
+                  source: true,
+                  chainDepth: true,
+                  askedByUserId: true,
+                  requestedByUserId: true,
+                },
+              },
             },
           },
         },
       });
     const delegations = await readPage(scan.cursorId);
     result.scanned = delegations.length;
+    const retryableFollowUps = await failedFollowUpTurns(
+      delegations.flatMap((delegation) =>
+        delegation.followUp && delegation.followUpTurnId
+          ? [delegation.followUpTurnId]
+          : [],
+      ),
+    );
 
     const byBot = new Map<string, BotWork>();
     for (const delegation of delegations) {
@@ -449,10 +568,50 @@ export class SokoBotEventsSyncService {
               byThisBot: false,
             }
           : null;
+      if (!current?.status) continue;
+      // The turn the plan was handed to failed before carrying it out: the
+      // change is already seen, so one more wake carries the plan, once.
+      const failedFollowUp =
+        delegation.followUp && delegation.followUpTurnId
+          ? retryableFollowUps.get(delegation.followUpTurnId)
+          : undefined;
       if (
-        !current?.status ||
-        (current.status === delegation.lastSeenStatus &&
-          (!current.eventId || current.eventId === delegation.lastSeenEventId))
+        failedFollowUp &&
+        !failedFollowUp.retried.has(current.id) &&
+        delegation.followUpTurnId
+      ) {
+        const retry = {
+          sokoBotId: delegation.turn.sokoBotId,
+          userId: sokoBotActingUserId(delegation.turn),
+          workspaceId: delegation.turn.workspaceId,
+        };
+        const key = `${retry.sokoBotId}:${retry.userId ?? ""}`;
+        const work = byBot.get(key) ?? { ...retry, changes: [], baselines: [] };
+        byBot.set(key, work);
+        work.changes.push({
+          delegationId: delegation.id,
+          eventId: `${current.eventId ?? `${current.id}:${current.status}`}${FOLLOW_UP_RETRY_SUFFIX}`,
+          eventAt: current.eventAt,
+          designatedHandlerBotId: delegation.turn.sokoBotId,
+          kind: delegation.task ? "TASK" : "JOB",
+          entityId: current.id,
+          name: current.name,
+          from: delegation.lastSeenStatus,
+          to: current.status,
+          note: current.note,
+          followUp: delegation.followUp,
+          followUpAllows: storedAllows(delegation.followUpAllows),
+          retryOfTurnId: delegation.followUpTurnId,
+          ownerGranted: ownerRequestGrant({
+            ...delegation,
+            followUpTurnId: null,
+          }),
+        });
+        continue;
+      }
+      if (
+        current.status === delegation.lastSeenStatus &&
+        (!current.eventId || current.eventId === delegation.lastSeenEventId)
       ) {
         continue;
       }
@@ -581,6 +740,8 @@ export class SokoBotEventsSyncService {
             to: event.status ?? current.status,
             note: event.comment,
             followUp: pendingFollowUp(delegation),
+            followUpAllows: storedAllows(delegation.followUpAllows),
+            ownerGranted: ownerRequestGrant(delegation),
           });
         }
         if (!actionable.length && events.length) {
@@ -598,10 +759,12 @@ export class SokoBotEventsSyncService {
         ? TASK_WAKE_STATUSES.has(current.status)
         : JOB_WAKE_STATUSES.has(current.status);
       // An ended run's change is new to it even on the first look: the run
-      // kept it unseen while it worked.
+      // kept it unseen while it worked. So is work with a plan waiting on
+      // it: a hired Agent can finish before the first scan sees its Job.
       if (
         (delegation.lastSeenStatus === null &&
           !delegation.turn.parentTurnId &&
+          !pendingFollowUp(delegation) &&
           (current.status === "COMPLETED" || current.status === "CANCELED")) ||
         current.byThisBot ||
         !wake
@@ -631,6 +794,8 @@ export class SokoBotEventsSyncService {
         to: current.status,
         note: current.note ?? null,
         followUp: pendingFollowUp(delegation),
+        followUpAllows: storedAllows(delegation.followUpAllows),
+        ownerGranted: ownerRequestGrant(delegation),
       });
     }
 
@@ -729,6 +894,14 @@ export class SokoBotEventsSyncService {
           return plan.due && last ? [[last, plan.delegationIds] as const] : [];
         }),
       );
+      // A plan this wake carries out keeps the drafting tools of the owner's
+      // request that attached it; any other wake keeps the event route's.
+      const claimed = new Set([...claimsOf.values()].flat());
+      const presetRoute = inheritedFollowUpRoute(
+        work.changes.flatMap((change) =>
+          claimed.has(change.delegationId) ? (change.ownerGranted ?? []) : [],
+        ),
+      );
       try {
         const started = await sokoBotControlPlane.startTurn({
           userId: work.userId,
@@ -737,7 +910,7 @@ export class SokoBotEventsSyncService {
           clientTurnId: sokoBotEventClientTurnId(changes),
           message: buildEventMessage(changes, plans),
           source: "EVENT",
-          presetRoute: SYSTEM_TURN_ROUTES.events,
+          presetRoute,
           eventBatch: changes.map((change) => ({
             eventId: change.eventId ?? `${change.entityId}:${change.to}`,
             entityId: change.entityId,
@@ -752,6 +925,9 @@ export class SokoBotEventsSyncService {
               .filter((item) => item.entityId === change.entityId)
               .map((item) => item.delegationId),
             followUpDelegationIds: claimsOf.get(change),
+            ...(change.retryOfTurnId && claimsOf.has(change)
+              ? { followUpRetryOfTurnId: change.retryOfTurnId }
+              : {}),
           })),
         });
         result.woken += 1;
