@@ -2223,6 +2223,118 @@ export async function restoreCanceledSocialPost(
   return post;
 }
 
+export interface CreatePlannedSocialPostInput
+  extends ProjectScope,
+    WorkspaceOwnerScope {
+  userId: string;
+  /** The strategy version whose calendar plans it. */
+  marketingStrategyId: string;
+  provider: string;
+  socialConnectionId: string | null;
+  /** Its words until production writes them: the entry's placeholder. */
+  text: string;
+  /** Its planned time; it stays a draft until production schedules it. */
+  plannedAt: Date;
+  timezone: string;
+  planning: SocialPostPlanning;
+  /** The owner's change op that makes it: a retry finds it instead of making another. */
+  applyOpId: string;
+}
+
+/**
+ * A calendar entry's post, made as a draft at its planned time for
+ * production to write and schedule. Made once per op: a retry of the same
+ * op returns the post it made.
+ */
+export async function createPlannedSocialPost(
+  input: CreatePlannedSocialPostInput,
+): Promise<SocialPostSummary> {
+  return serializableTransaction(async (tx) => {
+    await requireScopedProject(input, { client: tx });
+    const made = await tx.socialPost.findFirst({
+      where: {
+        projectId: input.projectId,
+        planning: { path: ["applyOpId"], equals: input.applyOpId },
+      },
+      include: socialPostInclude,
+    });
+    if (made) return mapSocialPost(made);
+    const connection = input.socialConnectionId
+      ? await requireProjectConnection(
+          input.projectId,
+          input.socialConnectionId,
+          tx,
+        )
+      : null;
+    if (connection && connection.provider !== input.provider)
+      throw conflict("That connection is on another network");
+    const post = await tx.socialPost.create({
+      data: {
+        projectId: input.projectId,
+        workspaceId: input.workspaceId,
+        marketingStrategyId: input.marketingStrategyId,
+        socialConnectionId: connection?.id ?? null,
+        provider: requireProvider(input.provider),
+        text: input.text,
+        status: "DRAFT",
+        scheduledAt: input.plannedAt,
+        timezone: input.timezone,
+        creatorUserId: input.userId,
+        planning: { ...input.planning, applyOpId: input.applyOpId },
+      },
+      include: socialPostInclude,
+    });
+    return mapSocialPost(post);
+  }, "Project changed while planning a Social post");
+}
+
+export interface PlanSocialPostInput extends ProjectScope {
+  postId: string;
+  revision: number;
+  planning: SocialPostPlanning;
+  /** The owner's change op that writes it, kept on the plan as its mark. */
+  applyOpId: string;
+  /**
+   * Its words are to be written again: it goes back to a draft at its time
+   * with this placeholder, for production to rewrite.
+   */
+  rewrite?: { text: string };
+}
+
+/**
+ * Writes a post's plan, revision-checked: only while it has not gone out.
+ * A rewrite takes it back to an unwritten draft at its time.
+ */
+export async function planSocialPost(
+  input: PlanSocialPostInput,
+): Promise<SocialPostSummary> {
+  return serializableTransaction(async (tx) => {
+    await requireScopedProject(input, { client: tx });
+    const post = await requireScopedPost(input, tx);
+    if (!EDITABLE_STATUSES.includes(post.status) || post.leaseToken)
+      throw conflict("Only a post that has not gone out can be planned again");
+    requireRevision(post, input.revision);
+    const planned = await writeWithRevision(
+      input,
+      input.revision,
+      {
+        planning: { ...input.planning, applyOpId: input.applyOpId },
+        ...(input.rewrite
+          ? {
+              text: input.rewrite.text,
+              status: "DRAFT",
+              scheduledByUserId: null,
+              scheduledByCoworkerId: null,
+              nextAttemptAt: null,
+            }
+          : {}),
+      },
+      tx,
+    );
+    return mapSocialPost(planned);
+  }, "Project changed while planning a Social post");
+}
+
 export async function approveSocialPost(
   input: ApproveSocialPostInput,
   tx: Prisma.TransactionClient = prisma,

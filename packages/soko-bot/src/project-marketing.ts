@@ -567,36 +567,41 @@ export type CmoCalendarEntry = z.infer<typeof cmoCalendarEntrySchema>;
  * 0062): the entry's id and its planning fields. The post itself holds the
  * words, media, network and time.
  */
-export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
-  id: true,
-  title: true,
-  format: true,
-  hook: true,
-  brief: true,
-  why: true,
-  approach: true,
-  pillar: true,
-  stage: true,
-  campaignId: true,
-  visual: true,
-  visualFileIds: true,
-  styleReferenceId: true,
-  pictureKind: true,
-  headline: true,
-  slides: true,
-  slideHeadlines: true,
-  script: true,
-  presenter: true,
-  voice: true,
-  shortFormat: true,
-  hookLine: true,
-  languageCode: true,
-  alsoOn: true,
-  videoOf: true,
-  videoOfTalking: true,
-  story: true,
-  claim: true,
-});
+export const socialPostPlanningSchema = cmoCalendarEntrySchema
+  .pick({
+    id: true,
+    title: true,
+    format: true,
+    hook: true,
+    brief: true,
+    why: true,
+    approach: true,
+    pillar: true,
+    stage: true,
+    campaignId: true,
+    visual: true,
+    visualFileIds: true,
+    styleReferenceId: true,
+    pictureKind: true,
+    headline: true,
+    slides: true,
+    slideHeadlines: true,
+    script: true,
+    presenter: true,
+    voice: true,
+    shortFormat: true,
+    hookLine: true,
+    languageCode: true,
+    alsoOn: true,
+    videoOf: true,
+    videoOfTalking: true,
+    story: true,
+    claim: true,
+  })
+  .extend({
+    /** The owner's change op that last wrote it (design v5): recovery finds it by this. */
+    applyOpId: z.string().optional(),
+  });
 export type SocialPostPlanning = z.infer<typeof socialPostPlanningSchema>;
 
 /** The kinds of print in the reference library. */
