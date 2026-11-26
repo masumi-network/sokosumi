@@ -21,12 +21,20 @@
 #    `mainnet`, so the shared tables' foreign keys point at Mainnet.
 # 3. The copy is restored as `preprod`: the same tables, its own enums, and its
 #    keys into `shared`; no shared table points at it.
+# 4. `prisma/network-layout/shared-trigger-bodies.sql` replaces the bodies of
+#    the functions behind the triggers on shared tables, with every name given
+#    its schema. In the same transaction it is checked against the bodies the
+#    migrations created: only schema names may differ, apart from the listed
+#    exceptions, and every function of `shared` is either in the file or on
+#    the list of functions that wait. So a migration that changes or adds a
+#    function fails here until the file or the list follows.
 #
-# After a failure, recreate the database: step 1 and steps 2 and 3 are two
-# transactions.
+# After a failure, recreate the database: step 1, steps 2 and 3, and step 4 are
+# three transactions.
 #
 # Left broken on purpose: function and trigger bodies that name `public.` or an
-# unqualified table (ticket 19), and unqualified raw SQL (tickets 16 and 17).
+# unqualified table (ticket 19: the functions step 4 lists as waiting), and
+# unqualified raw SQL (tickets 16 and 17).
 set -euo pipefail
 
 url=${1:?usage: split-network-layout.sh <database-url>}
@@ -138,3 +146,119 @@ dump=$("${pg_dump[@]}" --schema-only --no-owner --no-privileges --schema=preprod
 "${psql[@]}" "$url" --quiet --output=/dev/null -v ON_ERROR_STOP=1 --single-transaction \
   <<<"ALTER SCHEMA preprod RENAME TO mainnet;
 $dump"
+
+{
+  cat <<'SQL'
+CREATE TEMP TABLE functions_before ON COMMIT DROP AS
+SELECT p.oid, p.prosrc, to_jsonb(p) - 'prosrc' AS attributes
+FROM pg_proc p
+WHERE p.pronamespace = 'shared'::regnamespace;
+SQL
+  cat "$here/../prisma/network-layout/shared-trigger-bodies.sql"
+  cat <<'SQL'
+DO $check$
+DECLARE
+  file CONSTANT text := 'packages/database/prisma/network-layout/shared-trigger-bodies.sql';
+  list CONSTANT text := 'the waiting list in packages/database/scripts/split-network-layout.sh';
+  -- Functions the file does not replace yet.
+  waiting CONSTANT text[] := ARRAY[
+    -- Ticket 19 part 2: they read the Network named on the row (tickets 07 to 09).
+    'scope_notification_to_workspace_membership',
+    'sync_history_from_project_image_asset',
+    'sync_history_from_project_image_job_charge',
+    'sync_history_from_task',
+    'sync_history_from_task_event',
+    'upsert_history_task',
+    'upsert_history_image_asset',
+    'history_task_amount',
+    'history_image_amount',
+    -- Ticket 19 slice B: on Network tables, one copy per Network.
+    'canonicalize_credit_cost_unit_write',
+    'complete_task_x402_payment_action_snapshot',
+    'normalize_task_x402_payment_replay_key',
+    'record_task_x402_payment_failure_outcome',
+    'enforce_job_project_workspace_placement',
+    'sync_history_from_job',
+    'sync_history_from_job_event',
+    'sync_history_from_job_input',
+    'sync_history_from_job_purchase',
+    'sync_history_from_transaction',
+    'canonical_credit_cost_unit',
+    'history_job_amount',
+    'upsert_history_job',
+    -- Core calls it by its bare name (`EXCEPTIONS` in apps/core/scripts/prepare-raw-sql.ts).
+    'compute_history_job_status'
+  ];
+  -- What differs besides `shared.` before a name: function, the migrations'
+  -- text, the file's text.
+  exceptions CONSTANT text[] := ARRAY[
+    ['contact_search_refresh', 'lower(unaccent(', 'lower(public.unaccent('],
+    ['enqueue_calendar_invalidation',
+      $text$'calendar_invalidation_revision_seq'$text$,
+      $text$'shared.calendar_invalidation_revision_seq'$text$]
+  ];
+  swap text[];
+  fn record;
+  body text;
+  stale text;
+BEGIN
+  SELECT string_agg(name, ', ') INTO stale
+  FROM unnest(waiting) AS listed(name)
+  WHERE NOT EXISTS (
+    SELECT FROM pg_proc p
+    WHERE p.pronamespace = 'shared'::regnamespace AND p.proname = listed.name
+  );
+  IF stale IS NOT NULL THEN
+    RAISE EXCEPTION 'no migration creates %: remove it from %', stale, list;
+  END IF;
+
+  FOR fn IN
+    SELECT p.proname, p.prosrc, to_jsonb(p) - 'prosrc' AS attributes,
+      b.oid IS NOT NULL AS migrated, b.prosrc AS migrated_body,
+      b.attributes AS migrated_attributes,
+      -- Written by this transaction, so by the file.
+      p.xmin = pg_current_xact_id()::xid AS in_file
+    FROM pg_proc p
+    LEFT JOIN functions_before b ON b.oid = p.oid
+    WHERE p.pronamespace = 'shared'::regnamespace
+    ORDER BY p.proname
+  LOOP
+    IF NOT fn.in_file THEN
+      IF fn.proname <> ALL (waiting) THEN
+        RAISE EXCEPTION 'function % has no body for the new layout: add it to %, or to % with the ticket it waits for',
+          fn.proname, file, list;
+      END IF;
+      CONTINUE;
+    END IF;
+    IF fn.proname = ANY (waiting) THEN
+      RAISE EXCEPTION 'function % is in % now: remove it from %', fn.proname, file, list;
+    END IF;
+    IF NOT fn.migrated THEN
+      RAISE EXCEPTION '% defines %, which no migration creates with that signature: update or remove it',
+        file, fn.proname;
+    END IF;
+    IF fn.attributes <> fn.migrated_attributes THEN
+      RAISE EXCEPTION '% changes more than the body of %: migrations %, file %',
+        file, fn.proname, fn.migrated_attributes, fn.attributes;
+    END IF;
+
+    -- `shared.` before a name, in code: not inside a longer name, and not at
+    -- the start of a string.
+    body := regexp_replace(fn.prosrc, '(?<![''".[:alnum:]_])shared\.(?=["[:alpha:]_])', '', 'g');
+    FOREACH swap SLICE 1 IN ARRAY exceptions LOOP
+      CONTINUE WHEN swap[1] <> fn.proname;
+      IF position(swap[3] IN body) = 0 THEN
+        RAISE EXCEPTION 'function % in % no longer has %: remove the exception from packages/database/scripts/split-network-layout.sh',
+          fn.proname, file, swap[3];
+      END IF;
+      body := replace(body, swap[3], swap[2]);
+    END LOOP;
+    IF body <> fn.migrated_body THEN
+      RAISE EXCEPTION 'the body of % in % differs from the one the migrations create by more than schema names: copy the migration''s body into the file and name its schemas again',
+        fn.proname, file;
+    END IF;
+  END LOOP;
+END
+$check$;
+SQL
+} | "${psql[@]}" "$url" --quiet --output=/dev/null -v ON_ERROR_STOP=1 --single-transaction
