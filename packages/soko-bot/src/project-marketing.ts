@@ -1116,6 +1116,8 @@ export const cmoApplyLogSchema = z.object({
   baseUpdatedAt: z.string().max(40),
   state: z.enum(CMO_APPLY_STATES),
   startedAt: z.string().max(40),
+  /** Refreshed on every write: a live apply keeps it recent, a crashed one doesn't. */
+  updatedAt: z.string().max(40),
   endedAt: z.string().max(40).optional(),
   ops: z.array(cmoApplyOpSchema).max(2_000).default([]),
 });

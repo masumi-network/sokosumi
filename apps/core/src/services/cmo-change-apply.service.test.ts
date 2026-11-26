@@ -15,6 +15,7 @@ const log = (state: CmoApplyLog["state"], ops: CmoApplyOp[]): CmoApplyLog => ({
   baseUpdatedAt: "2026-11-26T00:00:00.000Z",
   state,
   startedAt: "2026-11-26T00:00:00.000Z",
+  updatedAt: "2026-11-26T00:00:00.000Z",
   ops,
 });
 

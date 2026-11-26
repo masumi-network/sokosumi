@@ -19,6 +19,7 @@ import {
   cmoApplyLogOf,
   commitCmoChangeApply,
   recordCmoApplyOp,
+  setCmoApplyState,
   staleCmoApplies,
 } from "@/services/cmo-change-apply.service";
 import { withFixtureSchemas } from "@/test/split-layout";
@@ -283,6 +284,94 @@ describe.runIf(enabled)(
       });
       expect(await staleCmoApplies()).toContain(world.candidateId);
       expect(await staleCmoApplies(started)).not.toContain(world.candidateId);
+    });
+
+    const begin = (world: Awaited<ReturnType<typeof seed>>, id?: string) =>
+      beginCmoChangeApply({
+        candidateId: id ?? world.candidateId,
+        baseVersionId: world.base.id,
+        baseUpdatedAt: world.base.updatedAt.toISOString(),
+      });
+
+    it("starts one apply when two begin at once, and keeps its ops (Neon r15)", async () => {
+      const world = await seed();
+      const results = await Promise.all([begin(world), begin(world)]);
+      expect(results.filter((result) => result.started)).toHaveLength(1);
+      await recordCmoApplyOp(world.candidateId, op("op-1", "done"));
+      expect(await begin(world)).toMatchObject({ started: false });
+      const candidate = await prisma.marketingStrategy.findUniqueOrThrow({
+        where: { id: world.candidateId },
+      });
+      expect(
+        cmoApplyLogOf(candidate.plan)?.ops.map((item) => item.opId),
+      ).toEqual(["op-1"]);
+    });
+
+    it("runs one apply per Project and never on an approved candidate (Neon r15)", async () => {
+      const world = await seed();
+      const second = await prisma.marketingStrategy.create({
+        data: { projectId: world.projectId, plan: jsonInput(plan("Second")) },
+      });
+      expect(await begin(world)).toEqual({ started: true });
+      expect(await begin(world, second.id)).toEqual({
+        started: false,
+        reason: "another change is being applied to the month",
+      });
+      expect(await begin(world, world.base.id)).toEqual({
+        started: false,
+        reason: "the candidate is already approved",
+      });
+    });
+
+    it("never approves a candidate whose apply is being undone (Neon r15)", async () => {
+      const world = await seed();
+      await begin(world);
+      expect(await setCmoApplyState(world.candidateId, "undoing")).toBe(true);
+      expect(
+        await commitCmoChangeApply({
+          candidateId: world.candidateId,
+          approverUserId: world.userId,
+        }),
+      ).toBe("not_applying");
+      const candidate = await prisma.marketingStrategy.findUniqueOrThrow({
+        where: { id: world.candidateId },
+      });
+      expect(candidate.approvedAt).toBeNull();
+      expect(cmoApplyLogOf(candidate.plan)?.state).toBe("undoing");
+      expect(await setCmoApplyState(world.candidateId, "applied")).toBe(false);
+    });
+
+    it("takes no op into a settled log (Neon r15)", async () => {
+      const world = await seed();
+      await begin(world);
+      await commitCmoChangeApply({
+        candidateId: world.candidateId,
+        approverUserId: world.userId,
+      });
+      await expect(
+        recordCmoApplyOp(world.candidateId, op("late")),
+      ).rejects.toThrow("takes no more ops");
+    });
+
+    it("judges a crash by when the log last moved, Go back included (Neon r15)", async () => {
+      const world = await seed();
+      const old = new Date(Date.now() - CMO_APPLY_STALE_MS - 60_000);
+      await beginCmoChangeApply({
+        candidateId: world.candidateId,
+        baseVersionId: world.base.id,
+        baseUpdatedAt: world.base.updatedAt.toISOString(),
+        now: old,
+      });
+      // A long apply that is still writing ops is alive.
+      await recordCmoApplyOp(world.candidateId, op("op-1"));
+      expect(await staleCmoApplies()).not.toContain(world.candidateId);
+      // An approved version whose Go back crashed while undoing is found.
+      await commitCmoChangeApply({
+        candidateId: world.candidateId,
+        approverUserId: world.userId,
+      });
+      await setCmoApplyState(world.candidateId, "undoing", old);
+      expect(await staleCmoApplies()).toContain(world.candidateId);
     });
   },
 );

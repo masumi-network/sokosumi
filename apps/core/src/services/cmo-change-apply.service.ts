@@ -21,36 +21,64 @@ import {
  * first (the one-approved index is checked at once), the base's unpublished
  * posts follow it. Before that commit, a crash is rolled back; nothing ever
  * finishes a change the owner's month never committed.
+ *
+ * Every write takes the Project's lock, then the candidate row's, in that
+ * order, and reads the candidate only after holding both. One apply runs
+ * per Project at a time.
  */
 
-/** An apply left in a state this long crashed with its invocation. */
+/** An apply whose log has not moved this long crashed with its invocation. */
 export const CMO_APPLY_STALE_MS = 10 * 60_000;
 
-async function lockProject(tx: Prisma.TransactionClient, projectId: string) {
-  await tx.$executeRaw`SELECT 1 FROM project WHERE id = ${projectId}::uuid FOR UPDATE`;
+/** Applies still running: no other may start on the Project meanwhile. */
+const OPEN_STATES = ["applying", "undoing"] as const;
+
+interface LockedCandidate {
+  id: string;
+  projectId: string;
+  approvedAt: Date | null;
+  plan: MarketingStrategyPlan;
 }
 
-async function readCandidate(
+/**
+ * The candidate under the Project's lock and its own row lock, read after
+ * both are held, so no write races another on a stale copy.
+ */
+async function lockCandidate(
   tx: Prisma.TransactionClient,
   candidateId: string,
-): Promise<{ plan: MarketingStrategyPlan; projectId: string } | null> {
+): Promise<LockedCandidate | null> {
+  const owner = await tx.marketingStrategy.findUnique({
+    where: { id: candidateId },
+    select: { projectId: true },
+  });
+  if (!owner) return null;
+  await tx.$executeRaw`SELECT 1 FROM project WHERE id = ${owner.projectId}::uuid FOR UPDATE`;
+  await tx.$executeRaw`SELECT 1 FROM marketing_strategy WHERE id = ${candidateId}::uuid FOR UPDATE`;
   const row = await tx.marketingStrategy.findUnique({
     where: { id: candidateId },
-    select: { plan: true, projectId: true, approvedAt: true },
+    select: { id: true, projectId: true, approvedAt: true, plan: true },
   });
   const plan = parseMarketingPlan(row?.plan);
-  return row && plan ? { plan, projectId: row.projectId } : null;
+  return row && plan ? { ...row, plan } : null;
 }
 
 async function writeLog(
   tx: Prisma.TransactionClient,
-  candidateId: string,
-  plan: MarketingStrategyPlan,
+  candidate: LockedCandidate,
   log: CmoApplyLog,
+  now: Date,
+  extra: Prisma.MarketingStrategyUncheckedUpdateInput = {},
 ) {
   await tx.marketingStrategy.update({
-    where: { id: candidateId },
-    data: { plan: jsonInput({ ...plan, applyLog: log }) },
+    where: { id: candidate.id },
+    data: {
+      ...extra,
+      plan: jsonInput({
+        ...candidate.plan,
+        applyLog: { ...log, updatedAt: now.toISOString() },
+      }),
+    },
   });
 }
 
@@ -70,14 +98,34 @@ async function baseStillApproved(
   );
 }
 
+/** Another version of the Project with an apply still running. */
+async function otherOpenApply(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  candidateId: string,
+): Promise<boolean> {
+  const open = await tx.marketingStrategy.findFirst({
+    where: {
+      projectId,
+      id: { not: candidateId },
+      OR: OPEN_STATES.map((state) => ({
+        plan: { path: ["applyLog", "state"], equals: state },
+      })),
+    },
+    select: { id: true },
+  });
+  return open !== null;
+}
+
 export type CmoApplyStart =
   | { started: true }
   | { started: false; reason: string };
 
 /**
- * Opens an apply on the candidate, under the Project's lock: only on the
- * approved version the change was written on, still unchanged. Otherwise
- * the candidate stays a proposal (`left`).
+ * Opens an apply on the candidate: an unapproved version other than its
+ * base, on the approved version the change was written on, still
+ * unchanged, while no other apply runs on the Project. A stale base leaves
+ * the candidate a proposal (`left`).
  */
 export async function beginCmoChangeApply(input: {
   candidateId: string;
@@ -87,57 +135,66 @@ export async function beginCmoChangeApply(input: {
 }): Promise<CmoApplyStart> {
   const now = input.now ?? new Date();
   return prisma.$transaction(async (tx) => {
-    const candidate = await readCandidate(tx, input.candidateId);
+    const candidate = await lockCandidate(tx, input.candidateId);
     if (!candidate) return { started: false, reason: "no candidate version" };
-    await lockProject(tx, candidate.projectId);
+    if (candidate.approvedAt || candidate.id === input.baseVersionId)
+      return { started: false, reason: "the candidate is already approved" };
+    if (candidate.plan.applyLog)
+      return { started: false, reason: "this change was applied before" };
+    if (await otherOpenApply(tx, candidate.projectId, candidate.id))
+      return {
+        started: false,
+        reason: "another change is being applied to the month",
+      };
     const log: CmoApplyLog = {
       baseVersionId: input.baseVersionId,
       baseUpdatedAt: input.baseUpdatedAt,
       state: "applying",
       startedAt: now.toISOString(),
+      updatedAt: now.toISOString(),
       ops: [],
     };
-    if (candidate.plan.applyLog)
-      return { started: false, reason: "this change was applied before" };
     const fresh = await baseStillApproved(tx, candidate.projectId, {
       id: input.baseVersionId,
       updatedAt: input.baseUpdatedAt,
     });
     if (!fresh) {
-      await writeLog(tx, input.candidateId, candidate.plan, {
-        ...log,
-        state: "left",
-        endedAt: now.toISOString(),
-      });
+      await writeLog(
+        tx,
+        candidate,
+        { ...log, state: "left", endedAt: now.toISOString() },
+        now,
+      );
       return {
         started: false,
         reason: "the month changed since the change was written",
       };
     }
-    await writeLog(tx, input.candidateId, candidate.plan, log);
+    await writeLog(tx, candidate, log, now);
     return { started: true };
   });
 }
 
 /**
- * Writes one op into the candidate's log, by its id: as an intent before
- * Social is called, then done or refused. Its own short transaction, under
- * the candidate row's lock, so ops written one after another never lose
- * each other.
+ * Writes one op into a running apply's log, by its id: as an intent before
+ * Social is called, then done or refused (and while undoing, the undo's
+ * outcome). A settled log takes no op.
  */
 export async function recordCmoApplyOp(
   candidateId: string,
   op: CmoApplyOp,
+  now: Date = new Date(),
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT 1 FROM marketing_strategy WHERE id = ${candidateId}::uuid FOR UPDATE`;
-    const candidate = await readCandidate(tx, candidateId);
+    const candidate = await lockCandidate(tx, candidateId);
     const log = candidate?.plan.applyLog;
     if (!candidate || !log) throw new Error("No apply is open on that version");
+    if (!(OPEN_STATES as readonly string[]).includes(log.state))
+      throw new Error(`The apply is ${log.state}; it takes no more ops`);
     const ops = log.ops.some((item) => item.opId === op.opId)
       ? log.ops.map((item) => (item.opId === op.opId ? op : item))
       : [...log.ops, op];
-    await writeLog(tx, candidateId, candidate.plan, { ...log, ops });
+    await writeLog(tx, candidate, { ...log, ops }, now);
   });
 }
 
@@ -145,10 +202,11 @@ export type CmoApplyCommit = "applied" | "base_changed" | "not_applying";
 
 /**
  * Makes the candidate the approved version once its post changes are in:
- * under the Project's lock, the base must still be the approved version,
- * unchanged. The base's approval is cleared before the candidate's is set,
- * since the one-approved index is checked at once; the base's unpublished
- * posts and written files follow the candidate.
+ * only while it is still applying and the base is still the approved
+ * version, unchanged. The base's approval is cleared before the candidate's
+ * is set, since the one-approved index is checked at once; the base's
+ * unpublished posts follow the candidate, and its written files for the
+ * entries the candidate still has.
  */
 export async function commitCmoChangeApply(input: {
   candidateId: string;
@@ -157,10 +215,9 @@ export async function commitCmoChangeApply(input: {
 }): Promise<CmoApplyCommit> {
   const now = input.now ?? new Date();
   return prisma.$transaction(async (tx) => {
-    const candidate = await readCandidate(tx, input.candidateId);
+    const candidate = await lockCandidate(tx, input.candidateId);
     const log = candidate?.plan.applyLog;
     if (!candidate || log?.state !== "applying") return "not_applying";
-    await lockProject(tx, candidate.projectId);
     const fresh = await baseStillApproved(tx, candidate.projectId, {
       id: log.baseVersionId,
       updatedAt: log.baseUpdatedAt,
@@ -170,17 +227,13 @@ export async function commitCmoChangeApply(input: {
       where: { id: log.baseVersionId },
       data: { approvedAt: null, approvedByUserId: null },
     });
-    await tx.marketingStrategy.update({
-      where: { id: input.candidateId },
-      data: {
-        approvedAt: now,
-        approvedByUserId: input.approverUserId,
-        plan: jsonInput({
-          ...candidate.plan,
-          applyLog: { ...log, state: "applied", endedAt: now.toISOString() },
-        }),
-      },
-    });
+    await writeLog(
+      tx,
+      candidate,
+      { ...log, state: "applied", endedAt: now.toISOString() },
+      now,
+      { approvedAt: now, approvedByUserId: input.approverUserId },
+    );
     await tx.socialPost.updateMany({
       where: {
         marketingStrategyId: log.baseVersionId,
@@ -188,8 +241,12 @@ export async function commitCmoChangeApply(input: {
       },
       data: { marketingStrategyId: input.candidateId },
     });
+    const entries = candidate.plan.calendar.map((entry) => entry.id);
     const files = await tx.marketingStrategyFile.findMany({
-      where: { marketingStrategyId: log.baseVersionId },
+      where: {
+        marketingStrategyId: log.baseVersionId,
+        entryId: { in: entries },
+      },
       select: { entryId: true, fileResourceId: true, mediaFileIds: true },
     });
     if (files.length > 0)
@@ -204,24 +261,40 @@ export async function commitCmoChangeApply(input: {
   });
 }
 
-/** Moves a candidate's apply to another state (undoing, undone). */
+/**
+ * The moves an apply's state may make: applying → undoing (rolled back),
+ * applied → undoing (Go back), undoing → undone.
+ */
+const NEXT_STATES: Partial<
+  Record<CmoApplyLog["state"], readonly CmoApplyLog["state"][]>
+> = {
+  applying: ["undoing"],
+  applied: ["undoing"],
+  undoing: ["undone"],
+};
+
+/** Moves a candidate's apply to its next state; false when it may not. */
 export async function setCmoApplyState(
   candidateId: string,
   state: CmoApplyLog["state"],
   now: Date = new Date(),
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT 1 FROM marketing_strategy WHERE id = ${candidateId}::uuid FOR UPDATE`;
-    const candidate = await readCandidate(tx, candidateId);
+): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const candidate = await lockCandidate(tx, candidateId);
     const log = candidate?.plan.applyLog;
-    if (!candidate || !log) return;
-    await writeLog(tx, candidateId, candidate.plan, {
-      ...log,
-      state,
-      ...(state === "undone" || state === "applied"
-        ? { endedAt: now.toISOString() }
-        : {}),
-    });
+    if (!candidate || !log || !NEXT_STATES[log.state]?.includes(state))
+      return false;
+    await writeLog(
+      tx,
+      candidate,
+      {
+        ...log,
+        state,
+        ...(state === "undone" ? { endedAt: now.toISOString() } : {}),
+      },
+      now,
+    );
+    return true;
   });
 }
 
@@ -246,14 +319,17 @@ export function cmoApplyRecovery(log: CmoApplyLog): CmoApplyRecoveryStep[] {
     .map((op) => ({ op, action: op.state === "refused" ? "none" : "undo" }));
 }
 
-/** Candidates whose apply has stood in `applying` or `undoing` past its limit. */
+/**
+ * Versions whose apply is still applying or undoing but whose log has not
+ * moved past its limit: a change or a Go back (whose version is still
+ * approved while it undoes) that crashed with its invocation.
+ */
 export async function staleCmoApplies(
   now: Date = new Date(),
 ): Promise<string[]> {
   const rows = await prisma.marketingStrategy.findMany({
     where: {
-      approvedAt: null,
-      OR: ["applying", "undoing"].map((state) => ({
+      OR: OPEN_STATES.map((state) => ({
         plan: { path: ["applyLog", "state"], equals: state },
       })),
     },
@@ -261,8 +337,8 @@ export async function staleCmoApplies(
   });
   return rows
     .filter((row) => {
-      const startedAt = Date.parse(cmoApplyLogOf(row.plan)?.startedAt ?? "");
-      return startedAt < now.getTime() - CMO_APPLY_STALE_MS;
+      const updatedAt = Date.parse(cmoApplyLogOf(row.plan)?.updatedAt ?? "");
+      return updatedAt < now.getTime() - CMO_APPLY_STALE_MS;
     })
     .map((row) => row.id);
 }
