@@ -4,13 +4,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/app/drive/tables/table-create-dialog", () => ({
   TableCreateDialog: ({
     workspaceId,
-    csvFile,
+    sourceFile,
   }: {
     workspaceId: string | null;
-    csvFile: { url: string; name: string };
+    sourceFile: { url: string; name: string };
   }) => (
     <button type="button" data-workspace={workspaceId ?? "personal"}>
-      Open as Table {csvFile.name} {csvFile.url}
+      Open as Table {sourceFile.name} {sourceFile.url}
     </button>
   ),
 }));

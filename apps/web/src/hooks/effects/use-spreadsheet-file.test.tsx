@@ -29,6 +29,7 @@ const SAMPLE_SHEETS: Spreadsheet[] = [
     rows: [[{ text: "A1", bold: false, numeric: false }]],
     images: [],
     truncated: false,
+    size: { rows: 1, columns: 1 },
   },
 ];
 
