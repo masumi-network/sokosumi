@@ -9,6 +9,7 @@ import {
   attenuateForChildWork,
   capabilitiesForDelegationFollowUp,
   capabilitiesForWatchFollowUp,
+  checkScheduleFirstRunCapabilities,
   DELEGATION_EVENT_SOCIAL_DRAFT_ONLY_MESSAGE,
   deriveDelegationAuthority,
   deriveTurnOwnerAuthority,
@@ -2497,6 +2498,225 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
         kind: "unresolved",
         detail: SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
       },
+    });
+  });
+
+  it("refuses schedule creation when first-run authority drops requested writes while allowing direct owner writes and read-only checks", () => {
+    const directPersonalAuthority = attenuateForChildWork(
+      mintTurnOwnerAuthority({
+        turn: {
+          id: TURN_ID,
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "v36",
+          source: "CHAT",
+          parentTurnId: null,
+          chainDepth: 0,
+          askedByUserId: null,
+          requestedByUserId: OWNER_ID,
+        },
+        actingUserId: OWNER_ID,
+        askedByKind: "OWNER",
+      }),
+      "schedule",
+      {
+        versionId: "v36",
+        scheduleId: SCHED_ID,
+        scheduleEdit: DIRECT_CHAT_EDIT,
+      },
+    );
+
+    // 1. Direct personal owner chat creating a write schedule (including social draft narrowing) succeeds.
+    expect(
+      checkScheduleFirstRunCapabilities({
+        scheduleId: SCHED_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        authority: directPersonalAuthority,
+        actingUserId: OWNER_ID,
+        botUserId: OWNER_ID,
+        botProjectId: null,
+        botVersionId: "v36",
+        requestedCapabilities: [
+          "read_table",
+          "write_table_rows",
+          "create_social_post",
+          "publish_social_post",
+          "create_schedule",
+        ],
+      }),
+    ).toEqual({ ok: true });
+
+    // 2. Personal background task (`parentTurnId !== null`) gets read-only system authority:
+    //    write_table_rows is refused at creation with a clear reason, while read-only checks pass.
+    const backgroundAuthority = attenuateForChildWork(
+      mintTurnOwnerAuthority({
+        turn: {
+          id: BG_TURN_ID,
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "v36",
+          source: "CHAT",
+          parentTurnId: TURN_ID,
+          chainDepth: 0,
+          askedByUserId: null,
+          requestedByUserId: OWNER_ID,
+        },
+        actingUserId: OWNER_ID,
+        askedByKind: "OWNER",
+      }),
+      "schedule",
+      {
+        versionId: "v36",
+        scheduleId: SCHED_ID,
+      },
+    );
+    const backgroundWriteCheck = checkScheduleFirstRunCapabilities({
+      scheduleId: SCHED_ID,
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      authority: backgroundAuthority,
+      actingUserId: OWNER_ID,
+      botUserId: OWNER_ID,
+      botProjectId: null,
+      botVersionId: "v36",
+      requestedCapabilities: [
+        "read_table",
+        "write_table_rows",
+        "create_schedule",
+      ],
+    });
+    expect(backgroundWriteCheck).toMatchObject({
+      ok: false,
+      denialReason: "read_only_authority",
+      droppedWriteCapabilities: ["write_table_rows"],
+    });
+    if (!backgroundWriteCheck.ok) {
+      expect(backgroundWriteCheck.detail).toContain("write_table_rows");
+      expect(backgroundWriteCheck.detail).toContain(
+        "direct top-level owner chat",
+      );
+    }
+    expect(
+      checkScheduleFirstRunCapabilities({
+        scheduleId: SCHED_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        authority: backgroundAuthority,
+        actingUserId: OWNER_ID,
+        botUserId: OWNER_ID,
+        botProjectId: null,
+        botVersionId: "v36",
+        requestedCapabilities: ["read_table", "create_schedule"],
+      }),
+    ).toEqual({ ok: true });
+
+    // 3. Teammate creating a custom Cuso / shared-bot schedule (`botUserId === null`):
+    //    first run runs as Cuso (`actingUserId: null`) -> write tools are refused, read-only checks pass.
+    const cusoTeammateAuthority = attenuateForChildWork(
+      mintTurnOwnerAuthority({
+        turn: {
+          id: TURN_ID,
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "cmo-v24",
+          source: "CHAT",
+          parentTurnId: null,
+          chainDepth: 0,
+          askedByUserId: TEAMMATE_ID,
+          requestedByUserId: TEAMMATE_ID,
+        },
+        actingUserId: TEAMMATE_ID,
+        askedByKind: "TEAMMATE",
+      }),
+      "schedule",
+      {
+        versionId: "cmo-v24",
+        scheduleId: SCHED_ID,
+      },
+    );
+    const cusoWriteCheck = checkScheduleFirstRunCapabilities({
+      scheduleId: SCHED_ID,
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      authority: cusoTeammateAuthority,
+      actingUserId: null,
+      botUserId: null,
+      botProjectId: null,
+      botVersionId: "cmo-v24",
+      requestedCapabilities: [
+        "read_memory",
+        "update_memory",
+        "create_schedule",
+      ],
+    });
+    expect(cusoWriteCheck).toMatchObject({
+      ok: false,
+      denialReason: "audience_restricted",
+      droppedWriteCapabilities: ["update_memory"],
+    });
+    if (!cusoWriteCheck.ok) {
+      expect(cusoWriteCheck.detail).toContain("shared bot");
+      expect(cusoWriteCheck.detail).toContain("update_memory");
+    }
+    expect(
+      checkScheduleFirstRunCapabilities({
+        scheduleId: SCHED_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        authority: cusoTeammateAuthority,
+        actingUserId: null,
+        botUserId: null,
+        botProjectId: null,
+        botVersionId: "cmo-v24",
+        requestedCapabilities: [
+          "read_memory",
+          "list_social_posts",
+          "create_schedule",
+        ],
+      }),
+    ).toEqual({ ok: true });
+
+    // 4. Requesting only disallowed social writes under draft_only, or an expired grant, is also refused.
+    expect(
+      checkScheduleFirstRunCapabilities({
+        scheduleId: SCHED_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        authority: directPersonalAuthority,
+        actingUserId: OWNER_ID,
+        botUserId: OWNER_ID,
+        botProjectId: null,
+        botVersionId: "v36",
+        requestedCapabilities: [
+          "list_social_posts",
+          "publish_social_post",
+          "create_schedule",
+        ],
+      }),
+    ).toMatchObject({
+      ok: false,
+      droppedWriteCapabilities: ["publish_social_post"],
+    });
+    expect(
+      checkScheduleFirstRunCapabilities({
+        scheduleId: SCHED_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        authority: {
+          ...directPersonalAuthority,
+          expiresAt: "2020-01-01T00:00:00.000Z",
+        },
+        actingUserId: OWNER_ID,
+        botUserId: OWNER_ID,
+        botProjectId: null,
+        botVersionId: "v36",
+        requestedCapabilities: ["read_table", "write_table_rows"],
+      }),
+    ).toMatchObject({
+      ok: false,
+      denialReason: "expired",
+      droppedWriteCapabilities: ["write_table_rows"],
     });
   });
 });

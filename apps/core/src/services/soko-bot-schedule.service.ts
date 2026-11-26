@@ -20,7 +20,11 @@ import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access
 import { AI_BUDGET_EXCEEDED } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { intersectOwnerAuthority } from "@/lib/soko-bot/owner-authority";
+import { sokoBotScheduleActingUserId } from "@/lib/soko-bot/acting-user";
+import {
+  checkScheduleFirstRunCapabilities,
+  intersectOwnerAuthority,
+} from "@/lib/soko-bot/owner-authority";
 import {
   effectiveRuns,
   isCronTime,
@@ -344,12 +348,13 @@ export async function createSokoBotSchedule(
         });
   if (!workspace) throw new SokoBotScheduleNotFoundError("Workspace not found");
   await requireWatchedWork(input, db);
-  const botDetails = input.resolveAuthority
-    ? await db.sokoBot.findUnique({
-        where: { id: bot.id },
-        select: { userId: true, projectId: true, versionId: true },
-      })
-    : null;
+  const botDetails =
+    input.resolveAuthority || (input.capabilityNames?.length ?? 0) > 0
+      ? await db.sokoBot.findUnique({
+          where: { id: bot.id },
+          select: { userId: true, projectId: true, versionId: true },
+        })
+      : null;
   const link = { taskId: input.taskId ?? null, jobId: input.jobId ?? null };
   const mutate = async (tx: Prisma.TransactionClient) => {
     // Same name = same follow-up: a model retrying or re-planning updates
@@ -358,6 +363,8 @@ export async function createSokoBotSchedule(
       where: { sokoBotId: bot.id, name: name.slice(0, 120) },
       select: {
         id: true,
+        requestedByUserId: true,
+        systemKey: true,
         authority: true,
         completedRuns: true,
         sokoBot: { select: SCHEDULE_STOP_AUTHORITY_BOT_SELECT },
@@ -383,6 +390,35 @@ export async function createSokoBotSchedule(
         parseOwnerAuthority(
           "authority" in existing ? existing.authority : null,
         );
+      if (
+        effectiveAuthority !== null &&
+        existing.systemKey === null &&
+        (input.capabilityNames?.length ?? 0) > 0
+      ) {
+        const botUserId =
+          botDetails?.userId ?? existing.sokoBot?.userId ?? null;
+        const capabilityCheck = checkScheduleFirstRunCapabilities({
+          scheduleId: existing.id,
+          sokoBotId: bot.id,
+          workspaceId: input.workspaceId,
+          authority: effectiveAuthority,
+          actingUserId: sokoBotScheduleActingUserId({
+            requestedByUserId: existing.requestedByUserId ?? null,
+            systemKey: existing.systemKey,
+            sokoBot: { userId: botUserId },
+          }),
+          botUserId,
+          botProjectId:
+            botDetails?.projectId ?? existing.sokoBot?.projectId ?? null,
+          botVersionId:
+            botDetails?.versionId ?? existing.sokoBot?.versionId ?? null,
+          requestedCapabilities: input.capabilityNames ?? [],
+          now,
+        });
+        if (!capabilityCheck.ok) {
+          throw new SokoBotScheduleValidationError(capabilityCheck.detail);
+        }
+      }
       const completedRuns =
         "completedRuns" in existing &&
         typeof existing.completedRuns === "number"
@@ -460,6 +496,31 @@ export async function createSokoBotSchedule(
             sharedBot: botDetails ? isSharedSokoBot(botDetails) : false,
           })
         : undefined;
+    if (
+      nextAuthority !== undefined &&
+      scheduleId !== undefined &&
+      (input.capabilityNames?.length ?? 0) > 0
+    ) {
+      const botUserId = botDetails?.userId ?? null;
+      const capabilityCheck = checkScheduleFirstRunCapabilities({
+        scheduleId,
+        sokoBotId: bot.id,
+        workspaceId: input.workspaceId,
+        authority: nextAuthority,
+        actingUserId: sokoBotScheduleActingUserId({
+          requestedByUserId: input.userId,
+          systemKey: null,
+          sokoBot: { userId: botUserId },
+        }),
+        botUserId,
+        botProjectId: botDetails?.projectId ?? null,
+        botVersionId: botDetails?.versionId ?? null,
+        requestedCapabilities: input.capabilityNames ?? [],
+      });
+      if (!capabilityCheck.ok) {
+        throw new SokoBotScheduleValidationError(capabilityCheck.detail);
+      }
+    }
     return tx.sokoBotSchedule.create({
       data: {
         ...(scheduleId ? { id: scheduleId } : {}),
@@ -621,23 +682,55 @@ export async function updateSokoBotSchedule(
           nextRunAt,
         )
       : nextRunAt;
-  const botDetails = input.resolveAuthority
-    ? await db.sokoBot.findUnique({
-        where: { id: schedule.sokoBotId },
-        select: { userId: true, projectId: true, versionId: true },
-      })
-    : null;
+  const existingAuthority = parseOwnerAuthority(schedule.authority);
+  const botDetails =
+    input.resolveAuthority ||
+    (input.capabilityNames !== undefined &&
+      existingAuthority !== null &&
+      schedule.systemKey === null)
+      ? await db.sokoBot.findUnique({
+          where: { id: schedule.sokoBotId },
+          select: { userId: true, projectId: true, versionId: true },
+        })
+      : null;
   const nextAuthority = input.resolveAuthority
     ? resolveScheduleAuthorityField(input.resolveAuthority, {
         scheduleId: schedule.id,
         sokoBotId: schedule.sokoBotId,
         workspaceId: schedule.workspaceId,
-        existingAuthority: parseOwnerAuthority(schedule.authority),
+        existingAuthority,
         botProjectId: botDetails?.projectId ?? null,
         botVersionId: botDetails?.versionId ?? null,
         sharedBot: botDetails ? isSharedSokoBot(botDetails) : false,
       })
     : undefined;
+  const effectiveUpdatedAuthority = nextAuthority ?? existingAuthority;
+  if (
+    effectiveUpdatedAuthority !== null &&
+    schedule.systemKey === null &&
+    (input.capabilityNames?.length ?? 0) > 0
+  ) {
+    const botUserId = botDetails?.userId ?? null;
+    const capabilityCheck = checkScheduleFirstRunCapabilities({
+      scheduleId: schedule.id,
+      sokoBotId: schedule.sokoBotId,
+      workspaceId: schedule.workspaceId,
+      authority: effectiveUpdatedAuthority,
+      actingUserId: sokoBotScheduleActingUserId({
+        requestedByUserId: schedule.requestedByUserId,
+        systemKey: schedule.systemKey,
+        sokoBot: { userId: botUserId },
+      }),
+      botUserId,
+      botProjectId: botDetails?.projectId ?? null,
+      botVersionId: botDetails?.versionId ?? null,
+      requestedCapabilities: input.capabilityNames ?? [],
+      now,
+    });
+    if (!capabilityCheck.ok) {
+      throw new SokoBotScheduleValidationError(capabilityCheck.detail);
+    }
+  }
   const data = {
     ...(input.name !== undefined ? { name: input.name.trim() } : {}),
     ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),

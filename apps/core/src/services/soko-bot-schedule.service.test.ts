@@ -190,8 +190,8 @@ describe("schedules of a shared bot", () => {
     archivedAt: null,
     status: "RUNNING",
     adminPausedAt: null,
-    projectId: null,
-    versionId: null,
+    projectId: null as string | null,
+    versionId: null as string | null,
     workspace: { organizationId: "org_1" },
   }));
   const workspaceFindFirst = vi.fn(
@@ -1089,6 +1089,196 @@ describe("schedules of a shared bot", () => {
       );
       expect(upsertedExpired.enabled).toBe(true);
       expect(runUpdateMany).not.toHaveBeenCalled();
+    });
+
+    it("refuses creating or updating write schedules whose first run drops writes while allowing direct personal writes and read-only checks", async () => {
+      // 1. Personal background task (system / read_only authority) requesting write_table_rows is refused.
+      scheduleFindFirst.mockResolvedValueOnce(null);
+      await expect(
+        createSokoBotSchedule(
+          {
+            ...createInput("owner_1", PERSONAL_BOT_ID),
+            capabilityNames: [
+              "read_table",
+              "write_table_rows",
+              "create_schedule",
+            ],
+            resolveAuthority: ({ scheduleId }) => ({
+              version: 1 as const,
+              grantId: "01960001-0001-7001-8001-0000000000e1",
+              origin: "system" as const,
+              sokoBotId: PERSONAL_BOT_ID,
+              workspaceId: WORKSPACE_ID,
+              ownerUserId: null,
+              rootTurnId: "turn-bg",
+              targetScope: { kind: "workspace" as const },
+              scheduleId,
+              scope: "read_only" as const,
+              socialMode: "none" as const,
+              stopRule: { mode: "never" as const },
+            }),
+          },
+          tx,
+        ),
+      ).rejects.toThrow(/write_table_rows/);
+      expect(scheduleCreate).not.toHaveBeenCalled();
+
+      // Same personal background task creating a read-only check succeeds.
+      scheduleFindFirst.mockResolvedValueOnce(null);
+      await createSokoBotSchedule(
+        {
+          ...createInput("owner_1", PERSONAL_BOT_ID),
+          capabilityNames: ["read_table", "create_schedule"],
+          resolveAuthority: ({ scheduleId }) => ({
+            version: 1 as const,
+            grantId: "01960001-0001-7001-8001-0000000000e2",
+            origin: "system" as const,
+            sokoBotId: PERSONAL_BOT_ID,
+            workspaceId: WORKSPACE_ID,
+            ownerUserId: null,
+            rootTurnId: "turn-bg",
+            targetScope: { kind: "workspace" as const },
+            scheduleId,
+            scope: "read_only" as const,
+            socialMode: "none" as const,
+            stopRule: { mode: "never" as const },
+          }),
+        },
+        tx,
+      );
+      expect(scheduleCreate).toHaveBeenCalledTimes(1);
+
+      // 2. Direct top-level personal owner chat creating a write_table_rows schedule succeeds.
+      scheduleFindFirst.mockResolvedValueOnce(null);
+      await createSokoBotSchedule(
+        {
+          ...createInput("owner_1", PERSONAL_BOT_ID),
+          capabilityNames: [
+            "read_table",
+            "write_table_rows",
+            "create_schedule",
+          ],
+          resolveAuthority: ({ scheduleId }) => ({
+            version: 1 as const,
+            grantId: "01960001-0001-7001-8001-0000000000e3",
+            origin: "owner_chat" as const,
+            sokoBotId: PERSONAL_BOT_ID,
+            workspaceId: WORKSPACE_ID,
+            ownerUserId: "owner_1",
+            rootTurnId: "turn-direct",
+            targetScope: { kind: "workspace" as const },
+            scheduleId,
+            scope: "owner_writes" as const,
+            socialMode: "draft_only" as const,
+            stopRule: { mode: "never" as const },
+          }),
+        },
+        tx,
+      );
+      expect(scheduleCreate).toHaveBeenCalledTimes(2);
+
+      // 3. Teammate creating a custom shared-bot (Cuso) write schedule is refused
+      //    because custom shared schedules execute without a member identity.
+      const sharedCmoBot = {
+        userId: null,
+        archivedAt: null,
+        status: "RUNNING",
+        adminPausedAt: null,
+        projectId: null,
+        versionId: "cmo-v24",
+        workspace: { organizationId: "org_1" },
+      };
+      botFindUnique.mockResolvedValueOnce(sharedCmoBot);
+      botFindUnique.mockResolvedValueOnce(sharedCmoBot);
+      scheduleFindFirst.mockResolvedValueOnce(null);
+      await expect(
+        createSokoBotSchedule(
+          {
+            ...createInput("member_2", SHARED_BOT_ID),
+            capabilityNames: [
+              "read_memory",
+              "update_memory",
+              "create_schedule",
+            ],
+            resolveAuthority: ({ scheduleId }) => ({
+              version: 1 as const,
+              grantId: "01960001-0001-7001-8001-0000000000e4",
+              origin: "owner_chat" as const,
+              sokoBotId: SHARED_BOT_ID,
+              workspaceId: WORKSPACE_ID,
+              ownerUserId: "member_2",
+              rootTurnId: "turn-cuso",
+              targetScope: { kind: "workspace" as const },
+              scheduleId,
+              scope: "owner_writes" as const,
+              socialMode: "full" as const,
+              stopRule: { mode: "never" as const },
+            }),
+          },
+          tx,
+        ),
+      ).rejects.toThrow(/update_memory/);
+      expect(scheduleCreate).toHaveBeenCalledTimes(2);
+
+      // Read-only custom shared-bot schedule succeeds.
+      botFindUnique.mockResolvedValueOnce(sharedCmoBot);
+      botFindUnique.mockResolvedValueOnce(sharedCmoBot);
+      scheduleFindFirst.mockResolvedValueOnce(null);
+      await createSokoBotSchedule(
+        {
+          ...createInput("member_2", SHARED_BOT_ID),
+          capabilityNames: ["read_memory", "create_schedule"],
+          resolveAuthority: ({ scheduleId }) => ({
+            version: 1 as const,
+            grantId: "01960001-0001-7001-8001-0000000000e5",
+            origin: "owner_chat" as const,
+            sokoBotId: SHARED_BOT_ID,
+            workspaceId: WORKSPACE_ID,
+            ownerUserId: "member_2",
+            rootTurnId: "turn-cuso-ro",
+            targetScope: { kind: "workspace" as const },
+            scheduleId,
+            scope: "owner_writes" as const,
+            socialMode: "full" as const,
+            stopRule: { mode: "never" as const },
+          }),
+        },
+        tx,
+      );
+      expect(scheduleCreate).toHaveBeenCalledTimes(3);
+
+      // 4. Updating a custom shared-bot schedule with write capabilityNames is also refused.
+      const sharedWithAuthority = {
+        ...SHARED,
+        authority: {
+          version: 1 as const,
+          grantId: "01960001-0001-7001-8001-0000000000e6",
+          origin: "owner_chat" as const,
+          sokoBotId: SHARED_BOT_ID,
+          workspaceId: WORKSPACE_ID,
+          ownerUserId: "member_2",
+          rootTurnId: "turn-cuso-ro",
+          targetScope: { kind: "workspace" as const },
+          scheduleId: SHARED.id,
+          scope: "owner_writes" as const,
+          socialMode: "full" as const,
+          stopRule: { mode: "never" as const },
+        },
+      };
+      scheduleFindFirst.mockResolvedValueOnce(sharedWithAuthority as never);
+      botFindUnique.mockResolvedValueOnce(sharedCmoBot);
+      botFindUnique.mockResolvedValueOnce(sharedCmoBot);
+      await expect(
+        updateSokoBotSchedule(
+          {
+            userId: "member_2",
+            ...turnRef(SHARED),
+            capabilityNames: ["read_memory", "update_memory"],
+          },
+          tx,
+        ),
+      ).rejects.toThrow(SokoBotScheduleValidationError);
+      expect(scheduleUpdate).not.toHaveBeenCalled();
     });
   });
 });

@@ -2202,5 +2202,397 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         ),
       ).rejects.toThrow(SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE);
     });
+
+    it("refuses recurring write schedules whose first run cannot perform the write while allowing direct personal writes and read-only checks", async () => {
+      const fireScheduleRun = async (
+        targetBotId: string,
+        targetWorkspaceId: string,
+        scheduleId: string,
+        versionId: string,
+      ) => {
+        await prisma.sokoBotSchedule.update({
+          where: { id: scheduleId },
+          data: { nextRunAt: new Date(Date.now() - 60_000) },
+        });
+        let captured: {
+          userId: string | null;
+          capabilities: readonly SokoBotCapability[];
+        } | null = null;
+        const spy = vi
+          .spyOn(sokoBotControlPlane, "startTurn")
+          .mockImplementation(async (input) => {
+            const caps = input.presetRoute?.capabilities ?? [];
+            captured = {
+              userId: input.userId,
+              capabilities: caps,
+            };
+            const turn = await prisma.sokoBotTurn.create({
+              data: {
+                sokoBotId: targetBotId,
+                requestedByUserId: input.userId,
+                workspaceId: targetWorkspaceId,
+                source: "SCHEDULE",
+                status: "COMPLETED",
+                clientTurnId: input.clientTurnId,
+                versionId,
+                userMessage: input.message,
+                capabilityNames: [...caps],
+                deadlineAt: new Date(Date.now() + HOUR),
+              },
+              select: { id: true },
+            });
+            return {
+              turnId: turn.id,
+              sokoBotId: targetBotId,
+              sessionId: "fixture",
+              status: "COMPLETED",
+              route: "DELEGATE_TASK",
+              capabilities: [...caps],
+              duplicate: false,
+            };
+          });
+        try {
+          await new SokoBotSchedulesSyncService().syncDueSchedules({
+            shouldContinue: () => true,
+            scheduleId,
+          });
+        } finally {
+          spy.mockRestore();
+        }
+        return captured as {
+          userId: string | null;
+          capabilities: readonly SokoBotCapability[];
+        } | null;
+      };
+
+      // 1. Direct top-level personal owner chat creating a recurring table write succeeds
+      //    and keeps write_table_rows on its first run.
+      const ownerSessionId = randomUUID();
+      await prisma.sokoBot.update({
+        where: { id: botId },
+        data: { eveSessionId: ownerSessionId, versionId: "v36" },
+      });
+      const directChat = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "CHAT",
+          status: "RUNNING",
+          clientTurnId: randomUUID(),
+          versionId: "v36",
+          userMessage: "Update our pipeline table every morning.",
+          capabilityNames: [
+            "read_table",
+            "write_table_rows",
+            "create_schedule",
+          ],
+          deadlineAt: new Date(Date.now() + HOUR),
+          leaseExpiresAt: new Date(Date.now() + HOUR),
+          contextSnapshot: {
+            create: {
+              generatedAt: new Date(),
+              schemaVersion: 1,
+              hash: randomUUID(),
+              packet: { trigger: { askedBy: { kind: "OWNER" } } },
+              byteSize: 2,
+              tokenEstimate: 1,
+              counts: {},
+              omissions: {},
+            },
+          },
+        },
+      });
+      const directSchedule = (await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "create_schedule",
+        toolCallId: `direct-${randomUUID()}`,
+        input: {
+          name: "Daily pipeline table update",
+          cronExpression: "0 9 * * *",
+          timezone: "UTC",
+          prompt: "Update the pipeline table rows.",
+        },
+      })) as { id: string };
+      const directFirstRun = await fireScheduleRun(
+        botId,
+        workspaceId,
+        directSchedule.id,
+        "v36",
+      );
+      expect(directFirstRun?.userId).toBe(userId);
+      expect(directFirstRun?.capabilities).toContain("write_table_rows");
+
+      // 2. Authorized personal background task (`parentTurnId !== null`) trying to
+      //    create the same recurring table write is refused at creation with a clear
+      //    reason and creates no schedule row, while a read-only check still works.
+      const bgWriteTurn = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "CHAT",
+          parentTurnId: directChat.id,
+          status: "RUNNING",
+          clientTurnId: randomUUID(),
+          versionId: "v36",
+          userMessage: "Background run setting up a recurring table write.",
+          capabilityNames: [
+            "read_table",
+            "write_table_rows",
+            "create_schedule",
+          ],
+          deadlineAt: new Date(Date.now() + HOUR),
+          leaseExpiresAt: new Date(Date.now() + HOUR),
+          contextSnapshot: {
+            create: {
+              generatedAt: new Date(),
+              schemaVersion: 1,
+              hash: randomUUID(),
+              packet: { trigger: { askedBy: { kind: "OWNER" } } },
+              byteSize: 2,
+              tokenEstimate: 1,
+              counts: {},
+              omissions: {},
+            },
+          },
+        },
+      });
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: bgWriteTurn.id,
+          capability: "create_schedule",
+          toolCallId: `bg-write-${randomUUID()}`,
+          input: {
+            name: "Background table write",
+            cronExpression: "0 10 * * *",
+            timezone: "UTC",
+            prompt: "Update the pipeline table rows.",
+          },
+        }),
+      ).rejects.toThrow(/write_table_rows/);
+      expect(
+        await prisma.sokoBotSchedule.count({
+          where: { sokoBotId: botId, name: "Background table write" },
+        }),
+      ).toBe(0);
+
+      const bgReadOnlyTurn = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "CHAT",
+          parentTurnId: directChat.id,
+          status: "RUNNING",
+          clientTurnId: randomUUID(),
+          versionId: "v36",
+          userMessage: "Background run setting up a read-only table check.",
+          capabilityNames: ["read_table", "create_schedule"],
+          deadlineAt: new Date(Date.now() + HOUR),
+          leaseExpiresAt: new Date(Date.now() + HOUR),
+          contextSnapshot: {
+            create: {
+              generatedAt: new Date(),
+              schemaVersion: 1,
+              hash: randomUUID(),
+              packet: { trigger: { askedBy: { kind: "OWNER" } } },
+              byteSize: 2,
+              tokenEstimate: 1,
+              counts: {},
+              omissions: {},
+            },
+          },
+        },
+      });
+      const bgReadSchedule = (await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: bgReadOnlyTurn.id,
+        capability: "create_schedule",
+        toolCallId: `bg-ro-${randomUUID()}`,
+        input: {
+          name: "Background table check",
+          cronExpression: "0 11 * * *",
+          timezone: "UTC",
+          prompt: "Check the pipeline table and report anomalies.",
+        },
+      })) as { id: string };
+      const bgFirstRun = await fireScheduleRun(
+        botId,
+        workspaceId,
+        bgReadSchedule.id,
+        "v36",
+      );
+      expect(bgFirstRun?.capabilities).toContain("read_table");
+      expect(bgFirstRun?.capabilities).not.toContain("write_table_rows");
+
+      // 3. Teammate on a shared Cuso org bot trying to create a custom recurring
+      //    organization-memory update is refused at creation with a clear reason,
+      //    while a read-only check still succeeds and runs as Cuso (`actingUserId: null`).
+      const { withFixtureSchemas } = await import("@/test/split-layout");
+      const orgId = randomUUID();
+      const teammateId = randomUUID();
+      const cusoSessionId = randomUUID();
+      let orgWorkspaceId: string | null = null;
+      let cusoBotId: string | null = null;
+      try {
+        const orgWorkspace = await withFixtureSchemas(async (tx) => {
+          await tx.organization.create({
+            data: { id: orgId, name: "Cuso Schedule Org", slug: orgId },
+          });
+          await tx.user.create({
+            data: {
+              id: teammateId,
+              name: "Cuso Teammate",
+              email: `${teammateId}@example.test`,
+              emailVerified: true,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          });
+          await tx.member.create({
+            data: {
+              userId: teammateId,
+              organizationId: orgId,
+              role: "member",
+              seatAssignedAt: new Date(),
+            },
+          });
+          return tx.workspace.create({
+            data: { organizationId: orgId },
+          });
+        });
+        orgWorkspaceId = orgWorkspace.id;
+        const cusoBot = await prisma.sokoBot.create({
+          data: {
+            userId: null,
+            workspaceId: orgWorkspaceId,
+            versionId: "cmo-v24",
+            eveSessionId: cusoSessionId,
+            proactiveDailyLimit: 10_000,
+          },
+        });
+        cusoBotId = cusoBot.id;
+
+        const cusoWriteTurn = await prisma.sokoBotTurn.create({
+          data: {
+            sokoBotId: cusoBotId,
+            requestedByUserId: teammateId,
+            askedByUserId: teammateId,
+            workspaceId: orgWorkspaceId,
+            source: "CHAT",
+            status: "RUNNING",
+            clientTurnId: randomUUID(),
+            versionId: "cmo-v24",
+            userMessage: "Update organization memory every Monday.",
+            capabilityNames: [
+              "read_memory",
+              "update_memory",
+              "create_schedule",
+            ],
+            deadlineAt: new Date(Date.now() + HOUR),
+            leaseExpiresAt: new Date(Date.now() + HOUR),
+            contextSnapshot: {
+              create: {
+                generatedAt: new Date(),
+                schemaVersion: 1,
+                hash: randomUUID(),
+                packet: { trigger: { askedBy: { kind: "TEAMMATE" } } },
+                byteSize: 2,
+                tokenEstimate: 1,
+                counts: {},
+                omissions: {},
+              },
+            },
+          },
+        });
+        await expect(
+          sokoBotRuntimeService.executeTool({
+            sessionId: cusoSessionId,
+            turnId: cusoWriteTurn.id,
+            capability: "create_schedule",
+            toolCallId: `cuso-write-${randomUUID()}`,
+            input: {
+              name: "Weekly org memory update",
+              cronExpression: "0 9 * * 1",
+              timezone: "UTC",
+              prompt: "Update our brand memory each Monday.",
+            },
+          }),
+        ).rejects.toThrow(/update_memory/);
+        expect(
+          await prisma.sokoBotSchedule.count({
+            where: { sokoBotId: cusoBotId, name: "Weekly org memory update" },
+          }),
+        ).toBe(0);
+
+        const cusoReadOnlyTurn = await prisma.sokoBotTurn.create({
+          data: {
+            sokoBotId: cusoBotId,
+            requestedByUserId: teammateId,
+            askedByUserId: teammateId,
+            workspaceId: orgWorkspaceId,
+            source: "CHAT",
+            status: "RUNNING",
+            clientTurnId: randomUUID(),
+            versionId: "cmo-v24",
+            userMessage: "Check organization memory every Monday.",
+            capabilityNames: ["read_memory", "create_schedule"],
+            deadlineAt: new Date(Date.now() + HOUR),
+            leaseExpiresAt: new Date(Date.now() + HOUR),
+            contextSnapshot: {
+              create: {
+                generatedAt: new Date(),
+                schemaVersion: 1,
+                hash: randomUUID(),
+                packet: { trigger: { askedBy: { kind: "TEAMMATE" } } },
+                byteSize: 2,
+                tokenEstimate: 1,
+                counts: {},
+                omissions: {},
+              },
+            },
+          },
+        });
+        const cusoReadSchedule = (await sokoBotRuntimeService.executeTool({
+          sessionId: cusoSessionId,
+          turnId: cusoReadOnlyTurn.id,
+          capability: "create_schedule",
+          toolCallId: `cuso-ro-${randomUUID()}`,
+          input: {
+            name: "Weekly org memory check",
+            cronExpression: "0 10 * * 1",
+            timezone: "UTC",
+            prompt: "Review our brand memory and flag stale facts.",
+          },
+        })) as { id: string };
+        const cusoFirstRun = await fireScheduleRun(
+          cusoBotId,
+          orgWorkspaceId,
+          cusoReadSchedule.id,
+          "cmo-v24",
+        );
+        // Cuso keeps its shared execution identity (actingUserId === null) and read_memory.
+        expect(cusoFirstRun?.userId).toBeNull();
+        expect(cusoFirstRun?.capabilities).toContain("read_memory");
+        expect(cusoFirstRun?.capabilities).not.toContain("update_memory");
+      } finally {
+        await withFixtureSchemas(async (tx) => {
+          if (cusoBotId) {
+            await tx.sokoBotSchedule.deleteMany({
+              where: { sokoBotId: cusoBotId },
+            });
+            await tx.sokoBot.deleteMany({ where: { id: cusoBotId } });
+          }
+          if (orgWorkspaceId) {
+            await tx.workspace.deleteMany({ where: { id: orgWorkspaceId } });
+          }
+          await tx.organization.deleteMany({ where: { id: orgId } });
+          await tx.user.deleteMany({ where: { id: teammateId } });
+        });
+      }
+    });
   });
 });

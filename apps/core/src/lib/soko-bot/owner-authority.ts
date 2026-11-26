@@ -1124,6 +1124,167 @@ export const SCHEDULE_SOCIAL_PUBLISH_BLOCKED_MESSAGE =
 export const SCHEDULE_SOCIAL_DENIED_MESSAGE =
   "This schedule is not authorized to perform that social write.";
 
+const SCHEDULE_META_CAPABILITIES: ReadonlySet<string> = new Set([
+  "create_schedule",
+  "update_schedule",
+  "delete_schedule",
+]);
+
+function formatCapabilitySample(
+  capabilities: readonly SokoBotCapability[],
+): string {
+  const unique = [...new Set(capabilities)];
+  if (unique.length <= 3) return unique.join(", ");
+  return `${unique.slice(0, 3).join(", ")} and ${unique.length - 3} more`;
+}
+
+export interface ScheduleFirstRunCapabilityCheckInput {
+  scheduleId: string;
+  sokoBotId: string;
+  workspaceId: string;
+  authority: OwnerAuthority;
+  /** Live execution actor (`sokoBotScheduleActingUserId`) the first run will use. */
+  actingUserId: string | null;
+  botUserId: string | null;
+  botProjectId: string | null;
+  botVersionId: string | null;
+  requestedCapabilities: readonly string[];
+  now?: Date;
+}
+
+export type ScheduleFirstRunCapabilityCheckResult =
+  | { ok: true }
+  | {
+      ok: false;
+      droppedWriteCapabilities: SokoBotCapability[];
+      denialReason:
+        | OwnerAuthorityDenialReason
+        | "read_only_authority"
+        | "invalid_authority";
+      detail: string;
+    };
+
+/**
+ * Verifies at schedule creation/rewrite time that the persisted `OwnerAuthority`
+ * and first-run execution identity can actually execute the requested write
+ * capabilities, so Core never accepts a recurring write job whose first run
+ * would silently drop its writes to read-only.
+ *
+ * Narrowing social writes to `draft_only` or `schedule_posts` on an otherwise
+ * effective owner grant is expected (direct owner chat passes all chat tools);
+ * losing non-social writes or losing all requested social writes fails closed
+ * with an actionable reason.
+ */
+export function checkScheduleFirstRunCapabilities(
+  input: ScheduleFirstRunCapabilityCheckInput,
+): ScheduleFirstRunCapabilityCheckResult {
+  const requested = input.requestedCapabilities.filter(isSokoBotCapability);
+  if (requested.length === 0) {
+    return { ok: true };
+  }
+  const requestedWrites = requested.filter(
+    (capability) =>
+      !isReadOnlyCapability(capability) &&
+      !SCHEDULE_META_CAPABILITIES.has(capability),
+  );
+  const firstRun = intersectScheduleRouteCapabilities({
+    scheduleId: input.scheduleId,
+    sokoBotId: input.sokoBotId,
+    workspaceId: input.workspaceId,
+    authority: input.authority,
+    actingUserId: input.actingUserId,
+    botUserId: input.botUserId,
+    botProjectId: input.botProjectId,
+    botVersionId: input.botVersionId,
+    offeredCapabilities: requested,
+    now: input.now,
+  });
+
+  if (
+    firstRun.denialReason === "invalid_authority" ||
+    (firstRun.denialReason !== null &&
+      ZERO_TOOL_DENIAL_REASONS.has(firstRun.denialReason))
+  ) {
+    const sample = formatCapabilitySample(
+      requestedWrites.length > 0 ? requestedWrites : requested,
+    );
+    return {
+      ok: false,
+      droppedWriteCapabilities: requestedWrites,
+      denialReason: firstRun.denialReason,
+      detail: `This schedule's owner authorization does not allow running ${sample} on its first run.`,
+    };
+  }
+
+  if (requestedWrites.length === 0) {
+    return { ok: true };
+  }
+
+  const allowed = new Set<SokoBotCapability>(firstRun.capabilities);
+  const droppedNonSocialWrites = requestedWrites.filter(
+    (capability) => !SOCIAL_WRITE.has(capability) && !allowed.has(capability),
+  );
+  const requestedSocialWrites = requestedWrites.filter((capability) =>
+    SOCIAL_WRITE.has(capability),
+  );
+  const droppedAllSocialWrites =
+    requestedSocialWrites.length > 0 &&
+    !requestedSocialWrites.some((capability) => allowed.has(capability));
+  const droppedWriteCapabilities = [
+    ...droppedNonSocialWrites,
+    ...(droppedAllSocialWrites ? requestedSocialWrites : []),
+  ];
+
+  if (droppedWriteCapabilities.length === 0 && firstRun.effective) {
+    return { ok: true };
+  }
+
+  const sample = formatCapabilitySample(
+    droppedWriteCapabilities.length > 0
+      ? droppedWriteCapabilities
+      : requestedWrites,
+  );
+  const reason = firstRun.denialReason ?? "read_only_authority";
+
+  if (
+    input.botUserId === null &&
+    input.actingUserId === null &&
+    reason === "audience_restricted"
+  ) {
+    return {
+      ok: false,
+      droppedWriteCapabilities,
+      denialReason: reason,
+      detail: `Custom schedules on a shared bot run without a member identity and cannot run write tools (${sample}). Ask for a read-only check instead, or perform the write directly in chat.`,
+    };
+  }
+  if (reason === "expired") {
+    return {
+      ok: false,
+      droppedWriteCapabilities,
+      denialReason: reason,
+      detail: `This schedule's owner authorization has expired and cannot run write tools (${sample}). Ask the owner in chat to renew it.`,
+    };
+  }
+  if (
+    input.authority.origin === "system" ||
+    input.authority.scope === "read_only"
+  ) {
+    return {
+      ok: false,
+      droppedWriteCapabilities,
+      denialReason: reason,
+      detail: `Only a direct top-level owner chat or console action can authorize a schedule to run write tools (${sample}). Ask the owner in chat to set up this scheduled write directly, or create a read-only check instead.`,
+    };
+  }
+  return {
+    ok: false,
+    droppedWriteCapabilities,
+    denialReason: reason,
+    detail: `This schedule cannot execute the requested write tools (${sample}) under its owner authorization. Adjust the schedule's posting permission in direct owner chat or create a read-only check instead.`,
+  };
+}
+
 export interface ScheduleRouteAuthorityInput {
   scheduleId: string;
   sokoBotId: string;
