@@ -309,7 +309,8 @@ export function seoPageTrend(
 }
 
 /**
- * Why a page with the short check was read on its one device. The share is that device's part of the visits, when Google gave one.
+ * Why a page with the short check has its one device. The text names the chosen device and does not say its read ran (a gap
+ * can stop that read). The share is that device's part of the visits, when Google gave one.
  * stopped: basis default with a gap. The worker writes it when a limit cut the read of the shares, and also when it found no shares,
  * took the default device and a limit then cut that device's read. The row cannot tell the two apart, so the text holds for both.
  */
