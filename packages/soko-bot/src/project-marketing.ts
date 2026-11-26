@@ -1056,6 +1056,71 @@ export const cmoMonthWriterSchema = z.object({
 });
 export type CmoMonthWriter = z.infer<typeof cmoMonthWriterSchema>;
 
+/**
+ * Where an owner's change to the running month stands (cmo-v25): applying
+ * its post changes, applied (this version approved), being undone, undone,
+ * or left as a proposal because the month changed meanwhile.
+ */
+export const CMO_APPLY_STATES = [
+  "applying",
+  "applied",
+  "undoing",
+  "undone",
+  "left",
+] as const;
+export const CMO_APPLY_OP_KINDS = [
+  "move",
+  "update",
+  "cancel",
+  "create",
+  "swap",
+] as const;
+/** intent: written before Social is called; done/refused: after. */
+export const CMO_APPLY_OP_STATES = ["intent", "done", "refused"] as const;
+
+/** A post as it was before an op, so undo can restore it. */
+const cmoApplyPostStateSchema = z.object({
+  status: z.string().max(40),
+  scheduledAt: z.string().max(40).nullable(),
+  text: z.string().max(10_000),
+  /** The post's planning as JSON text, so the plan stays plain JSON. */
+  planning: z.string().max(20_000).nullable(),
+  socialConnectionId: z.string().max(64).nullable(),
+  revision: z.number().int(),
+});
+
+/** One post change of an owner's change, durable before and after it runs. */
+export const cmoApplyOpSchema = z.object({
+  /** Durable id, written before Social is called; a created post carries it. */
+  opId: z.string().max(64),
+  entryId: z.string().max(64),
+  kind: z.enum(CMO_APPLY_OP_KINDS),
+  /** The existing post it changes (null for a create). */
+  postId: z.string().max(64).nullable(),
+  prior: cmoApplyPostStateSchema.nullable(),
+  state: z.enum(CMO_APPLY_OP_STATES),
+  reason: z.string().max(400).optional(),
+  after: z
+    .object({
+      /** The changed post's revision, which undo must still find. */
+      revision: z.number().int().nullable(),
+      /** The post a create or swap made. */
+      postId: z.string().max(64).nullable(),
+    })
+    .optional(),
+});
+export type CmoApplyOp = z.infer<typeof cmoApplyOpSchema>;
+
+export const cmoApplyLogSchema = z.object({
+  baseVersionId: z.string().max(64),
+  baseUpdatedAt: z.string().max(40),
+  state: z.enum(CMO_APPLY_STATES),
+  startedAt: z.string().max(40),
+  endedAt: z.string().max(40).optional(),
+  ops: z.array(cmoApplyOpSchema).max(2_000).default([]),
+});
+export type CmoApplyLog = z.infer<typeof cmoApplyLogSchema>;
+
 /** Whether Core writes this strategy's calendar after payment (cmo-v22). */
 export function cmoCalendarAfterPayment(
   plan: { monthWriter?: unknown } | null | undefined,
@@ -1115,6 +1180,12 @@ export const marketingStrategyPlanSchema = z.object({
    * Set by Core; Cuso never sends it.
    */
   monthWriter: cmoMonthWriterSchema.optional(),
+  /**
+   * cmo-v25: an owner's change applied to the running month, op by op, so
+   * a crash is resumed or undone and Go back undoes exactly it. Set by Core;
+   * Cuso never sends it.
+   */
+  applyLog: cmoApplyLogSchema.optional(),
   /**
    * What the last patch changed: each entry it touched, with the entry as it
    * was before (null when the patch added it), so CMO can strike it through.
