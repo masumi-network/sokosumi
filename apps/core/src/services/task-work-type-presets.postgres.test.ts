@@ -13,10 +13,11 @@ const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
 
-it.skipIf(!enabled)(
-  "backfills old workspaces in batches, preserving collisions and later edits",
-  async () => {
+it.skipIf(!enabled).each(["UTC", "Europe/Berlin", "America/New_York"])(
+  "backfills old workspaces in batches in %s, preserving collisions and later edits",
+  async (zone) => {
     await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT set_config('TimeZone', ${zone}, true)`;
       // The production statement scans all workspaces. Isolate it from other suites
       // in a scratch schema and copy the real label schema and unique index.
       // The backfill gets the scratch tables explicitly. Bare names cannot
@@ -52,6 +53,12 @@ it.skipIf(!enabled)(
       expect(
         await backfillTaskWorkTypePresets(tx, { batchSize: 1, tables }),
       ).toBe(expected);
+      const [{ utcStamps }] = await tx.$queryRaw<{ utcStamps: boolean }[]>`
+        SELECT bool_and("createdAt" = (now() AT TIME ZONE 'UTC')::timestamp(3)
+          AND "updatedAt" = (now() AT TIME ZONE 'UTC')::timestamp(3)) AS "utcStamps"
+        FROM ${tables.sharedTable("workspace_label")} WHERE "workspaceId" = ${second}::uuid
+      `;
+      expect(utcStamps).toBe(true);
       const rows = await tx.$queryRaw<
         {
           displayName: string;

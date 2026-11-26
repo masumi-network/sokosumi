@@ -245,9 +245,9 @@ async function lastContactGroups(
   const rows = await prisma.$queryRaw<{ key: string | null; count: number }[]>`
     SELECT CASE
         WHEN c."lastContactAt" IS NULL THEN NULL
-        WHEN c."lastContactAt" >= now() - interval '30 days' THEN '30d'
-        WHEN c."lastContactAt" >= now() - interval '90 days' THEN '90d'
-        WHEN c."lastContactAt" >= now() - interval '365 days' THEN '365d'
+        WHEN c."lastContactAt" >= (now() AT TIME ZONE 'UTC') - interval '30 days' THEN '30d'
+        WHEN c."lastContactAt" >= (now() AT TIME ZONE 'UTC') - interval '90 days' THEN '90d'
+        WHEN c."lastContactAt" >= (now() AT TIME ZONE 'UTC') - interval '365 days' THEN '365d'
         ELSE 'older'
       END AS key,
       count(*)::int AS count
