@@ -441,7 +441,9 @@ describe("CMO version", () => {
       expect(applyVersionCapabilities(cmo, routed)).toEqual([
         "read_memory",
         ...SOKO_BOT_CMO_CAPABILITIES.filter(
-          (capability) => !isSokoBotCmoReadCapability(capability),
+          (capability) =>
+            !isSokoBotCmoReadCapability(capability) &&
+            capability !== "write_strategy",
         ),
         ...SOKO_BOT_COMPETITOR_CAPABILITIES,
       ]);

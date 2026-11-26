@@ -19,6 +19,7 @@ const CMO_STEP_LABELS: Record<string, string> = {
   read_writing_skill: "Checking how to write it",
   find_style_references: "Looking for a picture style",
   write_month_pieces: "Writing the month",
+  write_strategy: "Writing your strategy",
   read_calendar: "Looking at your month",
   read_strategy: "Reading your strategy",
   read_brand_brain: "Reading your Brand Brain",

@@ -10,6 +10,7 @@ import {
   CMO_V20_STRATEGY_SKILL,
   CMO_V21_STRATEGY_SKILL,
   CMO_V22_STRATEGY_SKILL,
+  cmoWritesStrategyStep,
   type MarketingStrategyPlan,
 } from "@sokosumi/soko-bot";
 import {
@@ -478,6 +479,11 @@ export interface PlanReviewOptions {
    * its own rules whatever the version.
    */
   examplesOnly?: boolean;
+  /**
+   * Core writes the strategy in one step, checks it whole and repairs it
+   * once (cmo-v25): no finish or fix turns follow its strategy turns.
+   */
+  strategyStep?: boolean;
   /** The social networks the Project has connected, which are never left out. */
   connectedNetworks?: readonly string[];
 }
@@ -524,6 +530,7 @@ export function cmoStrategyRules(skills: readonly string[]): PlanReviewOptions {
     pillarFacts,
     industryTopics,
     examplesOnly,
+    strategyStep: cmoWritesStrategyStep(skills),
   };
 }
 

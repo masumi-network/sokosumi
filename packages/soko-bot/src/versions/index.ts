@@ -36,6 +36,8 @@ import { cmoV21 } from "./cmo-v21.js";
 import { cmoV22 } from "./cmo-v22.js";
 import { cmoV23 } from "./cmo-v23.js";
 import { cmoReadsOnDemand } from "./cmo-v23-skills.js";
+import { cmoV25 } from "./cmo-v25.js";
+import { cmoWritesStrategyStep } from "./cmo-v25-skills.js";
 import {
   getSokoBotSkill,
   SOKO_BOT_SKILLS,
@@ -145,6 +147,7 @@ export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [
   cmoV21,
   cmoV22,
   cmoV23,
+  cmoV25,
   ...CMO_MODEL_TRIALS,
 ];
 /** The Cuso version a new hire starts on. */
@@ -295,6 +298,8 @@ export function applyVersionCapabilities(
           (capability) =>
             (capability !== "write_month_pieces" ||
               cmoWritesMonthAtOnce(version.skills)) &&
+            (capability !== "write_strategy" ||
+              cmoWritesStrategyStep(version.skills)) &&
             (!isSokoBotCmoReadCapability(capability) ||
               cmoReadsOnDemand(version.skills)),
         ),
