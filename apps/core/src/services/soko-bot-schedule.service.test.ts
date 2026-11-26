@@ -575,7 +575,7 @@ describe("schedules of a shared bot", () => {
     ).resolves.toMatchObject({ enabled: false });
   });
 
-  it("keeps a built-in rhythm's name and prompt, for a person too: another job is its own schedule", async () => {
+  it("keeps a built-in rhythm's name, prompt, and capabilities, for a person too: another job is its own schedule", async () => {
     const rhythm = {
       ...SHARED,
       name: "End of day",
@@ -585,6 +585,13 @@ describe("schedules of a shared bot", () => {
     for (const change of [
       { name: "End of day: CodePat runs + merged PRs" },
       { prompt: "List today's CodePat runs and merged PRs." },
+      { capabilityNames: ["read_table"], explicitCapabilities: true },
+      {
+        prompt: rhythm.prompt,
+        capabilityNames: ["read_table"],
+        explicitCapabilities: true,
+      },
+      { capabilityNames: ["read_table"] },
     ]) {
       scheduleFindFirst.mockResolvedValueOnce(rhythm);
       await expect(
@@ -598,7 +605,8 @@ describe("schedules of a shared bot", () => {
     }
     expect(scheduleUpdate).not.toHaveBeenCalled();
 
-    // The console sends the whole form back: unchanged values pass.
+    // The console sends the whole form back: unchanged values pass and do not
+    // overwrite the built-in rhythm's capabilityNames.
     scheduleFindFirst.mockResolvedValueOnce(rhythm);
     await expect(
       updateSokoBotSchedule(
@@ -607,11 +615,15 @@ describe("schedules of a shared bot", () => {
           ...turnRef(SHARED),
           name: rhythm.name,
           prompt: rhythm.prompt,
+          capabilityNames: ["read_table"],
           cronExpression: "0 19 * * 1-5",
         },
         tx,
       ),
     ).resolves.toBeDefined();
+    expect(scheduleUpdate.mock.lastCall?.[0]?.data).not.toHaveProperty(
+      "capabilityNames",
+    );
   });
 
   it("lets any member with access edit and delete a schedule another member wrote", async () => {

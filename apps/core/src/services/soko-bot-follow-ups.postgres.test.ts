@@ -2630,6 +2630,65 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       );
       expect(socialFirstRun?.capabilities).not.toContain("publish_social_post");
 
+      // Built-in personal rhythm (standup): capability changes are refused
+      // (its fixed system route ignores stored capabilityNames), while timing-only
+      // updates still succeed.
+      const standup = await prisma.sokoBotSchedule.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          name: "Daily stand-up",
+          systemKey: "standup",
+          prompt: "Run the daily stand-up.",
+          cronExpression: "0 9 * * 1-5",
+          timezone: "UTC",
+          enabled: true,
+          nextRunAt: new Date(Date.now() + HOUR),
+          capabilityNames: [],
+        },
+      });
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: directChat.id,
+          capability: "update_schedule",
+          toolCallId: `standup-caps-${randomUUID()}`,
+          input: {
+            scheduleId: standup.id,
+            capabilities: ["read_table"],
+          },
+        }),
+      ).rejects.toThrow(/built-in rhythm/);
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: standup.id },
+          select: { capabilityNames: true, cronExpression: true },
+        }),
+      ).toEqual({
+        capabilityNames: [],
+        cronExpression: "0 9 * * 1-5",
+      });
+      await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "update_schedule",
+        toolCallId: `standup-time-${randomUUID()}`,
+        input: {
+          scheduleId: standup.id,
+          cronExpression: "0 10 * * 1-5",
+        },
+      });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: standup.id },
+          select: { capabilityNames: true, cronExpression: true },
+        }),
+      ).toEqual({
+        capabilityNames: [],
+        cronExpression: "0 10 * * 1-5",
+      });
+
       // Direct top-level owner chat CAN upgrade that read-only schedule to write_table_rows,
       // and its next run actually carries write_table_rows.
       await sokoBotRuntimeService.executeTool({

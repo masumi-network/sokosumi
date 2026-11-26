@@ -645,14 +645,18 @@ export async function updateSokoBotSchedule(
     throw new SokoBotScheduleValidationError(
       `"${schedule.name}" is one of your built-in rhythms and stays as it is. For something the owner wants on a schedule, such as a reminder, create a separate schedule with create_schedule.`,
     );
-  // A built-in rhythm keeps its purpose: Joseph's end-of-day was rewritten
-  // into another job (2026-11-08) and the console went on describing the
-  // built-in. Its time, timezone and on/off change; anything else is a
-  // schedule of its own.
+  // A built-in rhythm keeps its purpose and fixed system route: Joseph's
+  // end-of-day was rewritten into another job (2026-11-08) and the console
+  // went on describing the built-in. Its time, timezone and on/off change;
+  // anything else (name, prompt, or capabilities) is a schedule of its own.
+  const unchangedBuiltInPrompt =
+    input.prompt !== undefined && input.prompt.trim() === schedule.prompt;
   if (
     schedule.systemKey &&
     ((input.name !== undefined && input.name.trim() !== schedule.name) ||
-      (input.prompt !== undefined && input.prompt.trim() !== schedule.prompt))
+      (input.prompt !== undefined && !unchangedBuiltInPrompt) ||
+      (input.capabilityNames !== undefined &&
+        (input.explicitCapabilities === true || !unchangedBuiltInPrompt)))
   )
     throw new SokoBotScheduleValidationError(
       `"${schedule.name}" is a built-in rhythm: only its time, timezone and on/off change. For another job, create a schedule of its own, and pause this one if it should stop.`,
@@ -751,7 +755,7 @@ export async function updateSokoBotSchedule(
     // A new cron makes a one-time schedule recurring.
     ...(input.cronExpression ? { runOnce: false } : {}),
     ...(input.prompt !== undefined ? { prompt: input.prompt.trim() } : {}),
-    ...(input.capabilityNames
+    ...(input.capabilityNames && !schedule.systemKey
       ? { capabilityNames: [...input.capabilityNames] }
       : {}),
     ...(nextAuthority !== undefined
