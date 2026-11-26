@@ -70,7 +70,7 @@ const {
   transactionMemoryRevisionCreateMock,
   transactionMemoryRevisionFindUniqueMock,
   transactionSnapshotFindUniqueMock,
-  transactionToolCallFindFirstMock,
+  transactionToolCallFindManyMock,
   transactionProjectFindFirstMock,
   transactionDecisionCreateMock,
   transactionDecisionFindFirstMock,
@@ -215,7 +215,7 @@ const {
   transactionMemoryRevisionCreateMock: vi.fn(),
   transactionMemoryRevisionFindUniqueMock: vi.fn(),
   transactionSnapshotFindUniqueMock: vi.fn(),
-  transactionToolCallFindFirstMock: vi.fn(),
+  transactionToolCallFindManyMock: vi.fn(),
   transactionProjectFindFirstMock: vi.fn(),
   transactionDecisionCreateMock: vi.fn(),
   transactionDecisionFindFirstMock: vi.fn(),
@@ -649,6 +649,7 @@ vi.mock("@/lib/db/transaction", () => ({
         sokoBotContextSnapshot: {
           findUnique: transactionSnapshotFindUniqueMock,
         },
+        sokoBotRuntimeEvent: { findMany: vi.fn().mockResolvedValue([]) },
         sokoBotDelegation: {
           create: delegationCreateMock,
           update: delegationUpdateMock,
@@ -662,7 +663,7 @@ vi.mock("@/lib/db/transaction", () => ({
           count: transactionToolCallCountMock,
           create: transactionToolCallCreateMock,
           findUnique: transactionToolCallFindUniqueMock,
-          findFirst: transactionToolCallFindFirstMock,
+          findMany: transactionToolCallFindManyMock,
           update: transactionToolCallUpdateMock,
           upsert: vi.fn().mockResolvedValue({}),
         },
@@ -4767,7 +4768,7 @@ describe("SokoBotRuntimeService memory updates", () => {
     transactionSnapshotFindUniqueMock.mockResolvedValue({
       omissions: { memory: 4_000 },
     });
-    transactionToolCallFindFirstMock.mockResolvedValueOnce(null);
+    transactionToolCallFindManyMock.mockResolvedValueOnce([]);
     const write = () =>
       new SokoBotRuntimeService().executeTool({
         ...SCOPE,
@@ -4779,7 +4780,9 @@ describe("SokoBotRuntimeService memory updates", () => {
     await expect(write()).rejects.toThrow("Call read_memory");
     expect(transactionMemoryRevisionCreateMock).not.toHaveBeenCalled();
 
-    transactionToolCallFindFirstMock.mockResolvedValueOnce({ id: "read" });
+    transactionToolCallFindManyMock.mockResolvedValueOnce([
+      { toolCallId: "call_read" },
+    ]);
     transactionMemoryRevisionCreateMock.mockResolvedValue({
       id: "01960001-0001-7001-8001-000000000023",
       version: 2,

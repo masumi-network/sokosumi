@@ -8,6 +8,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
+import { TOOL_RESULT_SHORTENED_EVENT } from "@/lib/soko-bot/tool-result-fit";
 import {
   type AuthorizedSokoBotRuntime,
   SokoBotRuntimeConflictError,
@@ -35,11 +36,28 @@ async function requireWholeMemorySeen(
   const omitted = (snapshot?.omissions as Record<string, unknown> | null)
     ?.memory;
   if (typeof omitted !== "number" || omitted <= 0) return;
-  const read = await tx.sokoBotToolCall.findFirst({
-    where: { turnId, capability: "read_memory", status: "COMPLETED" },
-    select: { id: true },
-  });
-  if (!read)
+  const [reads, shortened] = await Promise.all([
+    tx.sokoBotToolCall.findMany({
+      // A script's read (`script:` id) reached a script, not the model.
+      where: {
+        turnId,
+        capability: "read_memory",
+        status: "COMPLETED",
+        NOT: { toolCallId: { startsWith: "script:" } },
+      },
+      select: { toolCallId: true },
+    }),
+    tx.sokoBotRuntimeEvent.findMany({
+      where: { turnId, type: TOOL_RESULT_SHORTENED_EVENT },
+      select: { data: true },
+    }),
+  ]);
+  const cut = new Set(
+    shortened.map(
+      (event) => (event.data as { callId?: unknown } | null)?.callId,
+    ),
+  );
+  if (!reads.some((read) => !cut.has(read.toolCallId)))
     throw new SokoBotRuntimeValidationError(
       "Nothing was saved: your context showed only part of your memory, and update_memory replaces all of it. Call read_memory, then save the whole document with your change.",
     );
