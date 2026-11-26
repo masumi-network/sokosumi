@@ -331,6 +331,7 @@ export {
   type SkillOccasion,
   splitSkillsForTurn,
 } from "./versions/skill-index.js";
+export { sokoBotReadsXDms, X_DMS_SKILL_ID } from "./versions/x-dms-skills.js";
 export { sokoBotContextPacketSchema } from "./wire-contracts.js";
 export {
   judgedWritingRules,

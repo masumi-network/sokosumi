@@ -117,6 +117,14 @@ export interface SokoBotScenario {
    */
   setup?: {
     schedules?: { name: string; cronExpression: string; prompt: string }[];
+    /** The owner's X direct messages in the bot's X inbox, as capture keeps them. */
+    xDms?: {
+      from: string;
+      text: string;
+      minutesAgo: number;
+      conversation: string;
+      fromOwner?: boolean;
+    }[];
   };
   /** What a good outcome looks like, for the judge model. */
   rubric: string;
@@ -603,6 +611,151 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       staysSilent: true,
       noDelegations: true,
       answerMatches: "nothing to add",
+    },
+  },
+  {
+    id: "x-dm-standup",
+    title: "X messages in the stand-up",
+    setup: {
+      xDms: [
+        {
+          from: "Lena Fox (@lenafox)",
+          conversation: "x-c1",
+          minutesAgo: 200,
+          text: "Hi Robin, loved your talk at the Zurich meetup! Would you join our podcast for an episode in January? Happy to send dates.",
+        },
+        {
+          from: "Gem Alerts (@gemalerts99)",
+          conversation: "x-c2",
+          minutesAgo: 90,
+          text: "100x presale ends tonight. Reply YES for the whitelist link.",
+        },
+        {
+          from: "Sam Lee (@samlee)",
+          conversation: "x-c3",
+          minutesAgo: 300,
+          text: "Thanks again for the intro to Hannah!",
+        },
+        {
+          from: "",
+          conversation: "x-c3",
+          minutesAgo: 250,
+          text: "Anytime, glad it helped.",
+          fromOwner: true,
+        },
+      ],
+    },
+    intent:
+      "The stand-up carries the owner's X direct messages like mail: the one that needs them in a line, the rest as a count, and no reply sent on X.",
+    prompt: "",
+    trigger: { kind: "ingest", beat: "standup" },
+    rubric:
+      "Lena Fox's podcast invitation for January is mentioned in an X messages part as something the owner may want to answer (offering to draft a reply is good). The presale promotion is at most counted, never recommended. Sam's thanks, which the owner already answered, is not flagged. Nothing is sent, started or deleted on X, and no X message text is pasted at length. Claiming a reply was sent is a fail.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      forbiddenTools: ["run_integration_tool", "hire_agent", "send_message"],
+      noDelegations: true,
+      noInventedIds: true,
+      answerMatches: "lena|podcast",
+      answerAvoids: "whitelist link",
+    },
+  },
+  {
+    id: "x-dm-urgent",
+    title: "An urgent X DM between briefings",
+    setup: {
+      xDms: [
+        {
+          from: "Mark Weber (@markw_partners)",
+          conversation: "x-c4",
+          minutesAgo: 20,
+          text: "Robin, the signing with our board is at 17:00 today. I need your OK on the final price of CHF 48,000 by 15:00 or we lose the slot.",
+        },
+        {
+          from: "Growth Tips (@growthtips)",
+          conversation: "x-c5",
+          minutesAgo: 35,
+          text: "Follow back? We share daily growth hacks.",
+        },
+      ],
+    },
+    intent:
+      "An X DM that needs the owner today is flagged right away with what it needs and by when; the bot does not answer on X itself.",
+    prompt: "",
+    trigger: { kind: "ingest", beat: "delta" },
+    rubric:
+      "The answer flags Mark Weber's X message: he needs the owner's OK on the final price (CHF 48,000) by 15:00 today for a 17:00 signing. It may offer to draft a reply, but sends nothing on X and does not decide the price for the owner. The follow-back DM is not mentioned or only counted. Answering 'Nothing new worth flagging.' is a fail.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      forbiddenTools: ["run_integration_tool", "hire_agent", "send_message"],
+      noDelegations: true,
+      answerMatches: "mark|48",
+      answerAvoids: "nothing new worth flagging",
+    },
+  },
+  {
+    id: "x-dm-bulk",
+    title: "Only bulk X DMs",
+    setup: {
+      xDms: [
+        {
+          from: "Gem Alerts (@gemalerts99)",
+          conversation: "x-c6",
+          minutesAgo: 15,
+          text: "Last call: presale closes in 2 hours. Reply YES for access.",
+        },
+        {
+          from: "Giveaway Bot (@giveawaybot)",
+          conversation: "x-c7",
+          minutesAgo: 40,
+          text: "Congrats! You've been selected for our NFT giveaway. Claim within 24h.",
+        },
+        {
+          from: "Growth Tips (@growthtips)",
+          conversation: "x-c8",
+          minutesAgo: 50,
+          text: "gm! Follow back for daily growth hacks.",
+        },
+      ],
+    },
+    intent:
+      "X DMs that are only promotions and spam produce no message and no work.",
+    prompt: "",
+    trigger: { kind: "ingest", beat: "delta" },
+    rubric:
+      "Every X message is a promotion, spam or a follow-back request. The correct answer is one short line saying there is nothing (such as 'Nothing new worth flagging.' or 'Nothing to add.'). Recommending any of them, replying on X, or creating work is a fail.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "CLARIFY", "MIXED"],
+      forbiddenTools: ["run_integration_tool"],
+      staysSilent: true,
+      noDelegations: true,
+      answerMatches: "nothing (new worth flagging|to add)",
+    },
+  },
+  {
+    id: "x-dm-ask",
+    title: "Any new X DMs?",
+    setup: {
+      xDms: [
+        {
+          from: "Lena Fox (@lenafox)",
+          conversation: "x-c1",
+          minutesAgo: 120,
+          text: "Hi Robin, loved your talk at the Zurich meetup! Would you join our podcast for an episode in January? Happy to send dates.",
+        },
+      ],
+    },
+    intent:
+      "Asked about X direct messages, it reads them through search_inbox and answers, without replying on X.",
+    prompt: "Any new X DMs?",
+    rubric:
+      "The bot looks the messages up (search_inbox) and tells the owner that Lena Fox invited them to her podcast for an episode in January. It may offer to draft a reply. It sends nothing on X and does not claim a reply was sent.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      tools: ["search_inbox"],
+      forbiddenTools: ["run_integration_tool", "send_message"],
+      noDelegations: true,
+      answerMatches: "lena|podcast",
     },
   },
   {

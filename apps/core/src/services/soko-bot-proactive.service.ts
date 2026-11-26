@@ -55,6 +55,12 @@ import {
   type RhythmBot,
   rhythmInputFailed,
 } from "@/services/soko-bot-rhythms.service";
+import {
+  MAX_X_DMS_PER_PACKET,
+  ownerXDms,
+  triageXDms,
+  X_DM_GUIDE,
+} from "@/services/soko-bot-x-dms.service";
 
 const HOUR_MS = 60 * 60 * 1_000;
 const STANDUP_MAIL_LIMIT = 40;
@@ -683,6 +689,28 @@ export async function buildSystemBeatMessage(input: {
         }),
       );
     }
+    const version = bot.userId
+      ? await prisma.sokoBot.findUnique({
+          where: { id: bot.id },
+          select: { versionId: true },
+        })
+      : null;
+    const xDms = await ownerXDms(
+      { ...bot, versionId: version?.versionId ?? null },
+      { briefing: true, since: dayAgo },
+    );
+    const xMessages = await triageXDms(bot.id, xDms.messages, "standup");
+    if (xMessages.length > 0)
+      lines.push(
+        X_DM_GUIDE,
+        "",
+        ...triagedMailLines({
+          timeZone: bot.ingestTimezone,
+          mail: xMessages,
+          limit: MAX_X_DMS_PER_PACKET,
+          title: "X direct messages",
+        }),
+      );
   }
   {
     const items = await findAttentionItems({ ...bot, now });

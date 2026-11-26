@@ -11,8 +11,10 @@
  */
 import type { Prisma } from "@sokosumi/database";
 import {
+  getSokoBotVersion,
   SOKO_BOT_SLACK_CAPTURE_TOOLS,
   SOKO_BOT_X_CAPTURE_TOOLS,
+  sokoBotReadsXDms,
 } from "@sokosumi/soko-bot";
 import {
   CONTACT_LIST_COLORS,
@@ -40,6 +42,7 @@ import {
   type SlackProfile,
   slackCandidate,
   slackDays,
+  type XDmEvent,
   type XUser,
   xCandidate,
 } from "@/lib/contacts/capture-extract";
@@ -60,6 +63,7 @@ import {
   type XFollower,
 } from "@/lib/contacts/x-followers";
 import prisma from "@/lib/db/prisma";
+import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
 import {
   type CoreError,
   createCoreLogger,
@@ -67,6 +71,7 @@ import {
   emitCoreWarning,
 } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { keepXDms } from "@/lib/soko-bot/x-inbox";
 import {
   runIntegrationTool,
   SokoBotIntegrationError,
@@ -335,7 +340,12 @@ interface CaptureRow {
   composioAccountId: string;
   connectorUserId: string | null;
   cursor: Prisma.JsonValue | null;
-  sokoBot: { id: string; userId: string | null; workspaceId: string };
+  sokoBot: {
+    id: string;
+    userId: string | null;
+    workspaceId: string;
+    versionId: string | null;
+  };
   contactCaptureState: {
     id: string;
     backfillFloor: Date;
@@ -378,6 +388,8 @@ async function loadCaptureRows(workspaceId?: string): Promise<CaptureRow[]> {
     where: {
       status: "ACTIVE",
       provider: { in: Object.keys(PROVIDER_SOURCES) },
+      // An eval lane's stand-in connection has nothing to read.
+      composioAccountId: { not: { startsWith: EVAL_CONNECTED_ACCOUNT_PREFIX } },
       sokoBot: { archivedAt: null, ...(workspaceId ? { workspaceId } : {}) },
     },
     select: {
@@ -386,7 +398,9 @@ async function loadCaptureRows(workspaceId?: string): Promise<CaptureRow[]> {
       composioAccountId: true,
       connectorUserId: true,
       cursor: true,
-      sokoBot: { select: { id: true, userId: true, workspaceId: true } },
+      sokoBot: {
+        select: { id: true, userId: true, workspaceId: true, versionId: true },
+      },
       contactCaptureState: {
         select: {
           id: true,
@@ -1526,7 +1540,15 @@ export class ContactCaptureService {
         cursor.backfillUntil !== null
           ? floor
           : new Date(since.getTime() - this.limits.overlapMs);
-      if (await this.readXDms(context, budget, me, from, cursor)) {
+      const read = await this.readXDms(context, budget, me, from, cursor).catch(
+        async (error: unknown) => {
+          if (isXDmRefusal(error))
+            await recordXDmAccess(context.integration.id, false);
+          throw error;
+        },
+      );
+      await recordXDmAccess(context.integration.id, true);
+      if (read) {
         cursor.since = now.toISOString();
         cursor.backfillUntil = null;
         cursor.pageToken = null;
@@ -1576,13 +1598,29 @@ export class ContactCaptureService {
         return true;
       }
     } else if (!probe.nextToken) return true;
-    const events = [];
+    // A personal bot's owner reads their new DMs through it (x-inbox), on a
+    // version that reads them.
+    const keepsDms =
+      context.row.sokoBot.userId === context.teammateUserId &&
+      sokoBotReadsXDms(getSokoBotVersion(context.row.sokoBot.versionId).skills);
+    const events: XDmEvent[] = [];
     const users = new Map<string, XUser>();
     let token: string | null = null;
     let reached = false;
     while (budget.calls > 0 && this.canRead(context)) {
       const page = parseXPage(
         await dmEvents({
+          ...(keepsDms
+            ? {
+                dm_event_fields: [
+                  "created_at",
+                  "sender_id",
+                  "dm_conversation_id",
+                  "participant_ids",
+                  "text",
+                ],
+              }
+            : {}),
           expansions: ["sender_id", "participant_ids"],
           user_fields: ["name", "username"],
           max_results: this.limits.xDmPageSize,
@@ -1615,6 +1653,19 @@ export class ContactCaptureService {
       );
     }
     const outcome = await this.write(context, { candidates, skipped });
+    if (keepsDms)
+      await keepXDms(
+        context.integration.id,
+        events.map((event) => ({
+          id: event.id,
+          conversationId: event.conversationId,
+          from: xSender(users.get(event.senderId), event.senderId),
+          createdAt: event.createdAt,
+          text: event.text,
+          fromOwner: event.senderId === me.id,
+        })),
+        context.now,
+      );
     if (!reached || !outcome.complete) return false;
     if (events[0]?.id) cursor.newestDmId = events[0].id;
     return true;
@@ -1833,6 +1884,42 @@ export class ContactCaptureService {
 }
 
 /** Each follower's own audience on their X channel, whoever they are on. */
+export const X_DM_ACCESS_ERROR =
+  "X does not let your assistant read your direct messages. Reconnect X and allow messages.";
+
+/** X answered a DM read with a permission error, not a passing failure. */
+function isXDmRefusal(error: unknown): boolean {
+  return (
+    error instanceof SokoBotIntegrationError &&
+    /\b403\b|forbidden|not permitted|unauthori[sz]ed|dm\.read|scope/i.test(
+      error.message,
+    )
+  );
+}
+
+/**
+ * Shows a refused DM read on the owner's Connections page, where the
+ * connection then offers Reconnect, and clears it once a read works.
+ */
+async function recordXDmAccess(
+  integrationId: string,
+  allowed: boolean,
+): Promise<void> {
+  await prisma.sokoBotIntegration.updateMany({
+    where: allowed
+      ? { id: integrationId, lastError: X_DM_ACCESS_ERROR }
+      : { id: integrationId },
+    data: allowed
+      ? { lastError: null, lastErrorAt: null }
+      : { lastError: X_DM_ACCESS_ERROR, lastErrorAt: new Date() },
+  });
+}
+
+function xSender(user: XUser | undefined, id: string): string {
+  if (!user) return `X user ${id}`;
+  return user.name ? `${user.name} (@${user.username})` : `@${user.username}`;
+}
+
 async function recordXFollowerCounts(
   workspaceId: string,
   followers: readonly XFollower[],
