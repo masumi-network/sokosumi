@@ -465,6 +465,56 @@ describe.runIf(enabled)("taking back a cancel", () => {
     expect(row.needsAttentionReason).toBe(QUOTED_POST_CANCELLED);
   });
 
+  it("keeps a cancelled quote's warning when its quoted post is deleted meanwhile (Codex)", async () => {
+    const { scope, socialConnectionId } = await seed();
+    const target = await createSocialPost({
+      ...scope,
+      socialConnectionId,
+      text: "The launch",
+    });
+    const quote = await createSocialPost({
+      ...scope,
+      socialConnectionId,
+      text: "About the launch",
+      quotedPostId: target.id,
+    });
+    const canceled = await cancelSocialPost({
+      ...scope,
+      postId: quote.id,
+      revision: quote.revision,
+    });
+    await prisma.socialPost.delete({ where: { id: target.id } });
+    const flagged = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: quote.id },
+    });
+    expect(flagged.status).toBe("CANCELED");
+    expect(flagged.quotedPostId).toBeNull();
+    expect(flagged.needsAttentionReason).toBe(QUOTED_POST_CANCELLED);
+    expect(flagged.revision).toBe(canceled.revision);
+    await expect(
+      restoreCanceledSocialPost({
+        ...scope,
+        postId: canceled.id,
+        revision: canceled.revision,
+        status: "SCHEDULED",
+        scheduledAt: new Date(Date.now() + 3 * 86_400_000),
+        timezone: "UTC",
+      }),
+    ).rejects.toThrow("restore that post first");
+    const back = await restoreCanceledSocialPost({
+      ...scope,
+      postId: canceled.id,
+      revision: canceled.revision,
+      status: "DRAFT",
+      scheduledAt: null,
+    });
+    expect(back.status).toBe("DRAFT");
+    const row = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: quote.id },
+    });
+    expect(row.needsAttentionReason).toBe(QUOTED_POST_CANCELLED);
+  });
+
   it("keeps a FAILED post's own diagnostics when the caller passes none (Codex)", async () => {
     const { scope, socialConnectionId } = await seed();
     const draft = await createSocialPost({
