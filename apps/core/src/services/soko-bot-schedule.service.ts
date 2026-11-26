@@ -442,6 +442,18 @@ export async function updateSokoBotSchedule(
     throw new SokoBotScheduleValidationError(
       `"${schedule.name}" is one of your built-in rhythms and stays as it is. For something the owner wants on a schedule, such as a reminder, create a separate schedule with create_schedule.`,
     );
+  // A built-in rhythm keeps its purpose: Joseph's end-of-day was rewritten
+  // into another job (2026-11-08) and the console went on describing the
+  // built-in. Its time, timezone and on/off change; anything else is a
+  // schedule of its own.
+  if (
+    schedule.systemKey &&
+    ((input.name !== undefined && input.name.trim() !== schedule.name) ||
+      (input.prompt !== undefined && input.prompt.trim() !== schedule.prompt))
+  )
+    throw new SokoBotScheduleValidationError(
+      `"${schedule.name}" is a built-in rhythm: only its time, timezone and on/off change. For another job, create a schedule of its own, and pause this one if it should stop.`,
+    );
   if (input.run) return changeScheduleRun(schedule, input.run, transaction);
   const timezone = input.timezone ?? schedule.timezone;
   const cronExpression = input.cronExpression ?? schedule.cronExpression;

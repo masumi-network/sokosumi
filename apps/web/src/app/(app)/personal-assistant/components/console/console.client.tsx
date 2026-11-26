@@ -147,9 +147,12 @@ function ScheduleRow({
   useFocusWhen(row, focused, { preventScroll: true });
   const t = useTranslations("App.SokoBot");
   const format = useFormatter();
+  // A built-in rewritten into another job before Core refused that (Joseph's
+  // end-of-day, 2026-11-08) is described by what it does now, untagged.
   const rhythm = schedule.systemKey
     ? SOKO_BOT_SYSTEM_SCHEDULES.find(
-        (entry) => entry.key === schedule.systemKey,
+        (entry) =>
+          entry.key === schedule.systemKey && entry.name === schedule.name,
       )
     : undefined;
   // Next run reads on the schedule's own clock, as its rule above does; the
@@ -180,7 +183,7 @@ function ScheduleRow({
           {/* Wraps: on a phone the controls leave room for a few letters. */}
           <p className="text-sm font-medium wrap-anywhere">
             {schedule.name}
-            {schedule.systemKey ? (
+            {rhythm ? (
               <span className="text-muted-foreground ml-1.5 text-2xs whitespace-nowrap">
                 {t("Schedules.builtIn")}
               </span>
