@@ -32,6 +32,7 @@ import {
   extractSentMail,
   extractSlackConversation,
   extractXDms,
+  keepXDmDay,
   newXDmWalk,
   parseEvent,
   parseMail,
@@ -1682,7 +1683,18 @@ export class ContactCaptureService {
       }
       // Staged: the walk moves past this page only once all of it is
       // handled, so a failed inbox write reads the page again next run.
-      const next = addXDmPage(walk, { events, users: page.users });
+      let staged = addXDmPage(walk, { events, users: page.users });
+      const oldestDay = events.at(-1)?.createdAt.slice(0, 10);
+      if (staged.overflow && oldestDay) {
+        // More conversations than the walk holds: write the contacts it has,
+        // then keep only what this page's oldest day can still add to.
+        if (!(await this.writeXDmWalk(context, walk, me.id))) return null;
+        staged = addXDmPage(keepXDmDay(walk, oldestDay), {
+          events,
+          users: page.users,
+        });
+      }
+      const next = staged.walk;
       next.newestId ??= events[0]?.id || null;
       next.token = page.nextToken;
       next.reached = older || !page.nextToken;
@@ -1707,12 +1719,22 @@ export class ContactCaptureService {
     }
     cursor.dmWalk = walk;
     if (!walk.reached) return null;
+    // A write the budget cut short is tried again next run, without reading.
+    if (!(await this.writeXDmWalk(context, walk, me.id))) return null;
+    delete cursor.dmWalk;
+    if (walk.newestId) cursor.newestDmId = walk.newestId;
+    return walk.startedAt;
+  }
+
+  /** Writes the contacts a DM walk found; false when the budget cut it short. */
+  private async writeXDmWalk(
+    context: RunContext,
+    walk: XDmWalk,
+    ownerId: string,
+  ): Promise<boolean> {
     const candidates: CaptureCandidate[] = [];
     const skipped: CaptureSkipReason[] = [];
-    for (const talk of extractXDms({
-      events: xDmWalkEvents(walk),
-      ownerId: me.id,
-    })) {
+    for (const talk of extractXDms({ events: xDmWalkEvents(walk), ownerId })) {
       const known = walk.users[talk.userId];
       if (!known) {
         skipped.push("invalid_address");
@@ -1726,12 +1748,7 @@ export class ContactCaptureService {
         }),
       );
     }
-    // A write the budget cut short is tried again next run, without reading.
-    if (!(await this.write(context, { candidates, skipped })).complete)
-      return null;
-    delete cursor.dmWalk;
-    if (walk.newestId) cursor.newestDmId = walk.newestId;
-    return walk.startedAt;
+    return (await this.write(context, { candidates, skipped })).complete;
   }
 
   /**

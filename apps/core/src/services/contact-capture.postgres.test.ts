@@ -1559,6 +1559,76 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       expect((await xCursor()).newestDmId).toBe(events[0]?.id);
     });
 
+    it("writes the contacts of more conversations than a walk holds before moving on", async () => {
+      const manyOrganizationId = randomUUID();
+      const manyWorkspaceId = randomUUID();
+      await prisma.organization.create({
+        data: {
+          id: manyOrganizationId,
+          name: "Capture X many",
+          slug: `capture-x-many-${manyOrganizationId}`,
+          members: { create: { userId: alice, role: "member" } },
+        },
+      });
+      await prisma.workspace.create({
+        data: { id: manyWorkspaceId, organizationId: manyOrganizationId },
+      });
+      await addBot(manyWorkspaceId, ["twitter"]);
+      const start = Date.now();
+      const talkers = 305;
+      // Newest first: each person writes, the owner answers a minute before.
+      const events = Array.from({ length: talkers }, (_, i) => {
+        const id = String(1000 + i);
+        const at = start - 60_000 - i * 120_000;
+        return [
+          dm(`100-${id}`, id, new Date(at).toISOString()),
+          dm(`100-${id}`, "100", new Date(at - 60_000).toISOString()),
+        ];
+      }).flat();
+      const people = Array.from({ length: talkers }, (_, i) =>
+        user(String(1000 + i), `Person ${i}`, `person${i}`),
+      );
+      mocks.runIntegrationTool.mockImplementation(
+        async (...args: unknown[]) => {
+          const tool = args[1] as string;
+          const input = args[2] as Record<string, unknown>;
+          if (tool === "TWITTER_USER_LOOKUP_ME")
+            return { data: user("100", "Alice Owner", "alice") };
+          if (tool === "TWITTER_FOLLOWERS_BY_USER_ID") return { data: [] };
+          const token = (input.pagination_token as string | undefined) ?? null;
+          const from = token ? events.findIndex((e) => e.id === token) : 0;
+          const page = events.slice(from, from + (input.max_results as number));
+          const next = events[from + page.length];
+          return {
+            data: page,
+            includes: { users: people },
+            meta: next ? { next_token: next.id } : {},
+          };
+        },
+      );
+      await new ContactCaptureService({
+        now: () => new Date(start),
+        sleep: async () => undefined,
+        limits: {
+          backfillDays: 30,
+          pagesPerIntegration: 20,
+          capturesPerWorkspace: 1_000,
+          enrichmentWorkspaces: 0,
+          embeddingsPerWorkspace: 0,
+          companiesPerWorkspace: 0,
+          xCallsPerRun: 20,
+          xDmCallsPerRun: 12,
+          xDmPageSize: 100,
+        },
+      }).captureWorkspace(manyWorkspaceId, () => true);
+
+      const contacts = await contactsOf(manyWorkspaceId);
+      expect(
+        contacts.filter((contact) => contact.interactions.length > 0),
+      ).toHaveLength(talkers);
+      // 305 contacts are written one by one.
+    }, 60_000);
+
     it("starts a DM walk over when X refuses its saved page token, or it is a day old", async () => {
       const resetOrganizationId = randomUUID();
       const resetWorkspaceId = randomUUID();

@@ -702,16 +702,22 @@ export function newXDmWalk(startedAt: string): XDmWalk {
 /**
  * The walk with one more page: its events and the people a kept conversation
  * names. A copy, so a caller commits it only once the page is fully handled.
+ * `overflow`: a new conversation did not fit; the caller writes the contacts
+ * so far and starts again from `keepXDmDay`.
  */
 export function addXDmPage(
   walk: XDmWalk,
   page: { events: readonly XDmEvent[]; users: readonly XUser[] },
-): XDmWalk {
+): { walk: XDmWalk; overflow: boolean } {
   const next: XDmWalk = structuredClone(walk);
+  let overflow = false;
   for (const event of page.events) {
     let conversation = next.talk[event.conversationId];
     if (!conversation) {
-      if (Object.keys(next.talk).length >= X_WALK_CONVERSATIONS) continue;
+      if (Object.keys(next.talk).length >= X_WALK_CONVERSATIONS) {
+        overflow = true;
+        continue;
+      }
       conversation = { members: [], days: {} };
       next.talk[event.conversationId] = conversation;
     }
@@ -741,7 +747,31 @@ export function addXDmPage(
   for (const user of page.users)
     if (named.has(user.id))
       next.users[user.id] = { name: user.name, username: user.username };
-  return next;
+  return { walk: next, overflow };
+}
+
+/**
+ * After its contacts were written, the part of a walk later pages can still
+ * add to: pages go back in time, so only conversations with talk on `day`
+ * (the oldest day read so far), with that day alone, and their people.
+ */
+export function keepXDmDay(walk: XDmWalk, day: string): XDmWalk {
+  const talk: XDmWalk["talk"] = {};
+  for (const [id, conversation] of Object.entries(walk.talk)) {
+    const senders = conversation.days[day];
+    if (senders)
+      talk[id] = { members: conversation.members, days: { [day]: senders } };
+  }
+  const named = new Set(
+    Object.values(talk).flatMap((conversation) => conversation.members),
+  );
+  return {
+    ...walk,
+    talk,
+    users: Object.fromEntries(
+      Object.entries(walk.users).filter(([id]) => named.has(id)),
+    ),
+  };
 }
 
 /** One event per person and day, as `extractXDms` reads them. */
