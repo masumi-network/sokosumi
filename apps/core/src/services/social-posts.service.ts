@@ -59,6 +59,7 @@ import {
   mapSocialPostQuote,
   moveSocialPostQuotes,
   QUOTED_POST_CANCELLED,
+  QUOTED_POST_FAILED,
   requireSocialPostQuote,
   socialPostQuotePublishDecision,
   socialPostQuoteSelect,
@@ -2077,13 +2078,31 @@ export async function cancelSocialPost(
   return mapSocialPost(canceled);
 }
 
+/** The warnings a quote carries about the post it quotes. */
+const QUOTE_WARNINGS: ReadonlySet<string> = new Set([
+  QUOTED_POST_CANCELLED,
+  QUOTED_POST_FAILED,
+]);
+
+/** The warning a quote needs for its quoted post's status; gone counts as cancelled. */
+function quoteWarning(status: SocialPostStatus | null): string | null {
+  if (status === null || status === "CANCELED") return QUOTED_POST_CANCELLED;
+  if (status === "FAILED" || status === "MISSED") return QUOTED_POST_FAILED;
+  return null;
+}
+
 export interface RestoreCanceledSocialPostInput extends CancelSocialPostInput {
   organizationId?: string | null;
-  /** The status it had before the cancel. */
-  status: "DRAFT" | "NEEDS_APPROVAL" | "SCHEDULED";
+  /** The status it had before the cancel: any status a cancel accepts. */
+  status: "DRAFT" | "NEEDS_APPROVAL" | "SCHEDULED" | "FAILED" | "MISSED";
   /** The time it was planned at before the cancel. */
   scheduledAt: Date | null;
   timezone?: string;
+  /** A FAILED or MISSED post's diagnostics, so it comes back as it was. */
+  diagnostics?: {
+    lastError: string | null;
+    needsAttentionReason: string | null;
+  };
 }
 
 /**
@@ -2110,6 +2129,35 @@ export async function restoreCanceledSocialPost(
     if (post.status !== "CANCELED")
       throw conflict("Only a canceled post can be restored");
     requireRevision(post, input.revision);
+    // A quote carries the warning its quoted post's state calls for now:
+    // still cancelled, failed, or none, so a flag from a cancel since taken
+    // back never blocks it, and one that still holds is never dropped. A
+    // quote whose quoted post was deleted keeps its warning until the owner
+    // detaches or replaces the quote.
+    const target = post.quotedPostId
+      ? await tx.socialPost.findUnique({
+          where: { id: post.quotedPostId },
+          select: { status: true },
+        })
+      : null;
+    const settled = input.status === "FAILED" || input.status === "MISSED";
+    const own = (settled && input.diagnostics) || {
+      lastError: post.lastError,
+      needsAttentionReason: post.needsAttentionReason,
+    };
+    const quoteFlagged =
+      own.needsAttentionReason !== null &&
+      QUOTE_WARNINGS.has(own.needsAttentionReason);
+    const warning = post.quotedPostId
+      ? quoteWarning(target?.status ?? null)
+      : quoteFlagged
+        ? own.needsAttentionReason
+        : null;
+    if (warning === QUOTED_POST_CANCELLED && input.status === "SCHEDULED")
+      throw conflict(
+        "The post it quotes is cancelled; restore that post first, then schedule this one",
+      );
+    const stale = quoteFlagged && post.quotedPostId !== null;
     const restored = await writeWithRevision(
       input,
       input.revision,
@@ -2118,9 +2166,23 @@ export async function restoreCanceledSocialPost(
         canceledAt: null,
         scheduledAt: input.scheduledAt,
         ...(input.timezone ? { timezone: input.timezone } : {}),
+        ...(warning
+          ? {
+              needsAttentionReason: warning,
+              lastError:
+                warning === own.needsAttentionReason ? own.lastError : warning,
+            }
+          : stale
+            ? { needsAttentionReason: null, lastError: null }
+            : settled
+              ? own
+              : {}),
       },
       tx,
     );
+    // Quotes of this post: the cancel's flag becomes what its status now
+    // calls for: none once it is back, the failure's once it failed.
+    const dependents = quoteWarning(input.status);
     await tx.socialPost.updateMany({
       where: {
         quotedPostId: post.id,
@@ -2128,8 +2190,8 @@ export async function restoreCanceledSocialPost(
         status: { in: ["DRAFT", "NEEDS_APPROVAL"] },
       },
       data: {
-        needsAttentionReason: null,
-        lastError: null,
+        needsAttentionReason: dependents,
+        lastError: dependents,
         revision: { increment: 1 },
       },
     });
