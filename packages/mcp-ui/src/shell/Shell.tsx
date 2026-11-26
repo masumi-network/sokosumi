@@ -50,6 +50,11 @@ export interface ShellProps<T> {
   empty?: { title: MessageKey; body: MessageKey };
   /** The data twin `context.refresh` re-runs. */
   refreshTool?: string;
+  /**
+   * Arguments the refresh sends over the call's: those the show tool always
+   * sends its twin (`args` in Core's `ui-tools.ts`).
+   */
+  refreshArgs?: Readonly<Record<string, string>>;
   /** The loading skeleton's shape, like the view's layout. */
   skeleton?: "cards" | "detail" | "form";
   children: (data: T, context: ViewContext) => ReactNode;
@@ -108,6 +113,7 @@ export function Shell<T>({
   isEmpty,
   empty = { title: "shell.empty.title", body: "shell.empty.body" },
   refreshTool,
+  refreshArgs,
   skeleton,
   children,
 }: ShellProps<T>) {
@@ -119,7 +125,7 @@ export function Shell<T>({
       ? () =>
           rerun(
             refreshTool,
-            input,
+            { ...input, ...refreshArgs },
             (result) => schema.safeParse(result.structuredContent).success,
           )
       : undefined;

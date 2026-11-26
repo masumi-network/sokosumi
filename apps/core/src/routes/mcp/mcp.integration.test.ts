@@ -130,6 +130,9 @@ const { CORE, USER, JOB, FIXTURE_UI_TOOLS, HIRE_AGENT, INPUT_SCHEMA } =
     },
   }));
 
+/** The Task rows `task.findMany` answers; empty unless a test fills it. */
+const TASK_ROWS = vi.hoisted(() => [] as Record<string, unknown>[]);
+
 vi.mock("@/lib/auth", () => ({
   auth: { $context: Promise.resolve({ baseURL: `${CORE}/auth` }) },
 }));
@@ -164,8 +167,8 @@ vi.mock("@/lib/db/prisma", () => ({
     // An empty Task list: the board test needs a successful tasks_list.
     // No Task by id: tasks_get answers 404 (the Task detail test).
     task: {
-      findMany: async () => [],
-      count: async () => 0,
+      findMany: async () => TASK_ROWS,
+      count: async () => TASK_ROWS.length,
       findFirst: async () => null,
     },
     // One completed Job: the Job status test needs a successful jobs_get.
@@ -453,14 +456,28 @@ describe("Sokosumi MCP server", () => {
       _meta: { ui: { resourceUri: MCP_UI["tasks-board"].uri } },
     });
 
+    // The board always asks for Tasks without descriptions (SOKD-496), even
+    // when the agent asks for them.
+    TASK_ROWS.push(listedTask("A long runbook"));
     const args = { limit: 5, sort: "dueOn" };
-    const data = await client.callTool({ name: "tasks_list", arguments: args });
+    const full = await client.callTool({ name: "tasks_list", arguments: args });
+    const data = await client.callTool({
+      name: "tasks_list",
+      arguments: { ...args, includeDescription: "false" },
+    });
     const ui = await client.callTool({
       name: "tasks_show_board",
-      arguments: args,
+      arguments: { ...args, includeDescription: "true" },
+    });
+    TASK_ROWS.length = 0;
+    expect(full).toMatchObject({
+      structuredContent: { data: [{ description: "A long runbook" }] },
     });
     expect(data).toMatchObject({
-      structuredContent: { data: [], pagination: { total: 0 } },
+      structuredContent: {
+        data: [{ name: "Listed Task", description: null }],
+        pagination: { total: 1 },
+      },
     });
     expect(data.isError).toBeFalsy();
     const { _meta: uiMeta, ...uiResult } = ui;
@@ -471,6 +488,53 @@ describe("Sokosumi MCP server", () => {
       ui: { resourceUri: MCP_UI["tasks-board"].uri },
       sokosumi: { webBaseUrl: getWebAppBaseUrl() },
     });
+  }, 15_000);
+
+  it("keeps a team board of 100 Tasks with long descriptions light (SOKD-496)", async () => {
+    const { workspaceRepository } = await import(
+      "@sokosumi/database/repositories"
+    );
+    vi.spyOn(
+      workspaceRepository,
+      "resolveWorkspaceForContext",
+    ).mockResolvedValue({
+      id: "0196a000-0000-7000-8000-00000000a001",
+      userId: USER.id,
+      organizationId: null,
+    } as Awaited<
+      ReturnType<typeof workspaceRepository.resolveWorkspaceForContext>
+    >);
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=tasks",
+    );
+    // utxo's 100 newest Tasks had a median description of 12.5 KB.
+    for (let index = 0; index < 100; index += 1) {
+      TASK_ROWS.push({
+        ...listedTask("Runbook step. ".repeat(900)),
+        id: `0196a000-0000-7000-8000-${String(index).padStart(12, "0")}`,
+      });
+    }
+    const args = { scope: "workspace", limit: 100 };
+    const full = await client.callTool({ name: "tasks_list", arguments: args });
+    const board = await client.callTool({
+      name: "tasks_show_board",
+      arguments: args,
+    });
+    TASK_ROWS.length = 0;
+
+    const bytes = (result: unknown) => JSON.stringify(result).length;
+    expect(board.structuredContent).toMatchObject({
+      data: expect.arrayContaining([
+        expect.objectContaining({ description: null }),
+      ]),
+      pagination: { total: 100 },
+    });
+    // Claude.ai and ChatGPT rendered a 725 KB board result and failed a
+    // 2.6 MB one. With text and structuredContent, this result counts twice.
+    expect(bytes(full)).toBeGreaterThan(2_500_000);
+    expect(bytes(board)).toBeLessThan(bytes(full) / 10);
+    expect(bytes(board)).toBeLessThan(725_000);
   }, 15_000);
 
   it("shows the hire form in the agents toolset with exactly agents_input_schema's result", async () => {
@@ -858,3 +922,33 @@ describe("Sokosumi MCP server", () => {
     );
   });
 });
+
+/** A Task row as `tasks_list` reads it, with the fields its list item maps. */
+function listedTask(description: string): Record<string, unknown> {
+  const at = new Date("2026-11-26T09:00:00.000Z");
+  return {
+    id: "0196a000-0000-7000-8000-00000000b001",
+    createdAt: at,
+    updatedAt: at,
+    ownerId: USER.id,
+    owner: { id: USER.id, name: "Ada", image: null },
+    organizationId: null,
+    organization: null,
+    projectId: null,
+    assigneeId: null,
+    assignee: null,
+    name: "Listed Task",
+    description,
+    status: "READY",
+    priority: "NONE",
+    archivedAt: null,
+    number: null,
+    _count: { events: 0, jobs: 0 },
+    events: [],
+    workspace: {
+      id: "0196a000-0000-7000-8000-00000000a001",
+      organizationId: null,
+      organization: null,
+    },
+  };
+}

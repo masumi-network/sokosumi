@@ -35,6 +35,12 @@ export const TasksList = z.object({
 });
 export type TasksList = z.infer<typeof TasksList>;
 
+/**
+ * What tasks_show_board always sends tasks_list (Core's `ui-tools.ts`), so a
+ * refresh stays as light: the board shows no descriptions (SOKD-496).
+ */
+export const BOARD_REFRESH_ARGS = { includeDescription: "false" } as const;
+
 export const BOARD_EMPTY = {
   title: "tasksBoard.empty.title",
   body: "tasksBoard.empty.body",
