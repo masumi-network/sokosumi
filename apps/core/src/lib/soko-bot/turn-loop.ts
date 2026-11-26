@@ -301,7 +301,13 @@ export interface PreparedTurn {
   inferenceRegion: Awaited<
     ReturnType<typeof resolveRunnableSokoBotVersion>
   >["inferenceRegion"];
+  /** The tools the model is offered: on cmo-v24 on, one set per version. */
   capabilities: readonly SokoBotCapability[];
+  /**
+   * What the turn's route opens: Core runs nothing else, and the shell's
+   * setup and keys go only to a turn granted `bash`.
+   */
+  granted: readonly SokoBotCapability[];
   /**
    * Each tool's description as this version's bot reads it, where it differs
    * from the general one (Cuso's, from cmo-v4 on).
@@ -377,7 +383,10 @@ export function stableCapabilities(
 ): SokoBotCapability[] {
   return applyVersionCapabilities(version, SOKO_BOT_CAPABILITIES).filter(
     (capability) =>
+      // The sandbox runs its own tools (the shell, the workspace, the web)
+      // without asking Core, so only a grant opens them.
       (!isSokoBotAnnouncementCapability(capability) &&
+        !isSokoBotSandboxCapability(capability) &&
         capability !== "search_exa") ||
       granted.includes(capability),
   );
@@ -530,6 +539,7 @@ export async function prepareTurn(
     model: turnRunModel(version, authorized.turn.modelId),
     inferenceRegion: version.inferenceRegion,
     capabilities,
+    granted: authorized.grant.capabilities,
     toolDescriptions,
     requiresActionProof,
     meetingPrep,

@@ -21,6 +21,30 @@ export function readWritingSkill(id: string) {
   };
 }
 
+/** The reads that return a whole skill: trusted Core text, never cut. */
+export const SKILL_READS: ReadonlySet<string> = new Set([
+  "read_skill",
+  "read_writing_skill",
+]);
+
+export function isSkillRead(capability: string): boolean {
+  return SKILL_READS.has(capability);
+}
+
+/** A skill read replayed for a retried call: the whole skill again. */
+export async function readSkillAgain(
+  authorized: AuthorizedSokoBotRuntime,
+  capability: string,
+  input: unknown,
+) {
+  if (capability === "read_skill") return readSkill(authorized, input);
+  const { skill: id } =
+    SOKO_BOT_TOOL_INPUT_SCHEMAS.read_writing_skill.parse(input);
+  const skill = readWritingSkill(id);
+  if (!skill) throw new SokoBotRuntimeValidationError("No such writing skill.");
+  return skill;
+}
+
 /**
  * read_skill: one of the turn's version skills in full, or for Cuso a
  * writing skill, for versions whose prompt carries only a skill index.

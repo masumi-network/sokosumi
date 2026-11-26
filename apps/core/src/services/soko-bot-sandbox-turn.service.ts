@@ -177,7 +177,7 @@ async function authorizeTurn(claims: TurnTokenClaims) {
 }
 
 export interface SandboxTurnStart
-  extends Omit<PreparedTurn, "inferenceRegion" | "meetingPrep"> {
+  extends Omit<PreparedTurn, "inferenceRegion" | "meetingPrep" | "granted"> {
   message: string;
   deadlineAt: string;
   budgetMs: number;
@@ -223,9 +223,10 @@ export async function startSandboxTurn(
   const {
     inferenceRegion: _region,
     meetingPrep: _meetingPrep,
+    granted,
     ...turn
   } = prepared;
-  const shell = await sandboxShellFor(stored.sokoBotId, turn.capabilities);
+  const shell = await sandboxShellFor(stored.sokoBotId, granted);
   const shellNote = shell ? sandboxShellNote(shell) : null;
   const message = await modelUserMessage(
     prepared,

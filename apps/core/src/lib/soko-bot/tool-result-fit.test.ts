@@ -48,4 +48,10 @@ describe("fitToolResult", () => {
     const result = { markdown: '"q" \\ '.repeat(4_000) };
     expect(fitToolResult(capability, result)).toBe(result);
   });
+
+  it("leaves a skill read whole: the model follows all of it", () => {
+    const skill = { content: `${"rule ".repeat(10_000)}LAST RULE` };
+    expect(fitToolResult("read_skill", skill)).toBe(skill);
+    expect(fitToolResult("read_writing_skill", skill)).toBe(skill);
+  });
 });

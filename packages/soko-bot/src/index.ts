@@ -294,10 +294,6 @@ export {
   cmoReadsOnDemand,
 } from "./versions/cmo-v23-skills.js";
 export {
-  CMO_STRATEGY_STEP_SKILL,
-  cmoWritesStrategyStep,
-} from "./versions/cmo-v25-skills.js";
-export {
   CMO_SHORT_FORM_DESCRIPTIONS,
   CMO_SHORT_FORM_TOOLS,
   CMO_TOOL_HIGHLIGHTS_SKILL,
@@ -308,6 +304,10 @@ export {
   isCmoShortFormCall,
   isCmoShortFormTool,
 } from "./versions/cmo-v24-skills.js";
+export {
+  CMO_STRATEGY_STEP_SKILL,
+  cmoWritesStrategyStep,
+} from "./versions/cmo-v25-skills.js";
 export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,

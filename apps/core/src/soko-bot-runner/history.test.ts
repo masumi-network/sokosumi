@@ -55,6 +55,50 @@ describe("compactHistory", () => {
     );
   });
 
+  it("keeps a skill the model read whole, however old", () => {
+    const skill = `# Strategy\n${"rule ".repeat(10_000)}LAST RULE`;
+    const read: ModelMessage[] = [
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "s",
+            toolName: "read_skill",
+            input: { skill: "cmo-strategy-v22" },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "s",
+            toolName: "read_skill",
+            output: { type: "json", value: { content: skill } },
+          },
+        ],
+      },
+    ];
+    const messages: ModelMessage[] = [
+      { role: "user", content: "Why these pillars?" },
+      ...read,
+      ...Array.from({ length: 16 }, (_, i) =>
+        toolRound(`c${i}`, "x".repeat(5_000)),
+      ).flat(),
+    ];
+    const compacted = compactHistory(messages, 20_000);
+    expect(compacted?.[2]).toEqual(read[1]);
+    expect(JSON.stringify(compacted?.[2])).toContain("LAST RULE");
+    const searched = compacted?.[4];
+    expect(
+      searched?.role === "tool" &&
+        searched.content[0]?.type === "tool-result" &&
+        searched.content[0].output.type,
+    ).toBe("text");
+  });
+
   it("shortens old call inputs and drops old reasoning", () => {
     const rows = "r".repeat(5_000);
     const write = (id: string): ModelMessage[] => [

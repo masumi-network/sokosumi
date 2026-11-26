@@ -516,4 +516,132 @@ describe("runTurnLoop", () => {
       { part: "pieces" },
     ]);
   });
+
+  it.each([
+    ["tokens", { inputTokenBudget: 10, advanceMs: 0 }],
+    ["time", { inputTokenBudget: undefined, advanceMs: 9 * MINUTE }],
+  ])(
+    "gives a short-form call that spends the last %s no second round, and still answers",
+    async (_limit, edge) => {
+      const clock = { now: 0 };
+      const calls: { toolChoice: unknown; keys: string[] }[] = [];
+      const model = new MockLanguageModelV3({
+        doStream: async ({ tools: sent, toolChoice }) => {
+          const schema = sent?.find((t) => t.name === "save_strategy") as
+            | { inputSchema: { properties?: Record<string, unknown> } }
+            | undefined;
+          calls.push({
+            toolChoice,
+            keys: Object.keys(schema?.inputSchema.properties ?? {}),
+          });
+          clock.now += edge.advanceMs;
+          return streamOf(
+            toolChoice?.type === "none"
+              ? {
+                  content: [{ type: "text", text: "I'll save it next." }],
+                  finishReason: { unified: "stop", raw: "stop" },
+                  warnings: [],
+                  usage,
+                }
+              : {
+                  content: [
+                    {
+                      type: "tool-call",
+                      toolCallId: "short",
+                      toolName: "save_strategy",
+                      input: JSON.stringify({ shortForm: true, what: "x" }),
+                    },
+                  ],
+                  finishReason: { unified: "tool-calls", raw: "tool_calls" },
+                  warnings: [],
+                  usage,
+                },
+          );
+        },
+      });
+
+      const result = await runTurnLoop({
+        model,
+        system: "You are Cuso.",
+        message: "Move Friday's post to Monday.",
+        tools: {
+          save_strategy: tool({
+            inputSchema: z.object({ part: z.string() }),
+            execute: async () => ({ saved: false }),
+          }),
+        },
+        maxSteps: 10,
+        inputTokenBudget: edge.inputTokenBudget,
+        background: false,
+        deadline: 10 * MINUTE,
+        stopped: new AbortController().signal,
+        now: () => clock.now,
+        shortForms: ["save_strategy"],
+      });
+
+      expect(calls).toHaveLength(2);
+      expect(calls[0]?.keys).toEqual(["shortForm", "what"]);
+      expect(calls[1]?.toolChoice).toEqual({ type: "none" });
+      expect(result.text).toBe("I'll save it next.");
+    },
+  );
+
+  it("keeps a skill read early in a long turn whole, so its last rule still reaches the model", async () => {
+    const skill = `# Strategy\n${"rule ".repeat(10_000)}LAST RULE: never post on Sundays.`;
+    const prompts: string[] = [];
+    let step = 0;
+    const model = new MockLanguageModelV3({
+      doStream: async ({ prompt }) => {
+        prompts.push(JSON.stringify(prompt));
+        step += 1;
+        const call = (toolName: string, input: object) =>
+          streamOf({
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: `c${step}`,
+                toolName,
+                input: JSON.stringify(input),
+              },
+            ],
+            finishReason: { unified: "tool-calls", raw: "tool_calls" },
+            warnings: [],
+            usage,
+          });
+        if (step === 1) return call("read_skill", { skill: "cmo-strategy" });
+        if (step <= 24) return call("work", {});
+        return streamOf({
+          content: [{ type: "text", text: "No Sunday posts." }],
+          finishReason: { unified: "stop", raw: "stop" },
+          warnings: [],
+          usage,
+        });
+      },
+    });
+
+    await runTurnLoop({
+      model,
+      system: "You are Cuso.",
+      message: "Plan the week.",
+      tools: {
+        read_skill: tool({
+          inputSchema: z.object({ skill: z.string() }),
+          execute: async () => ({ content: skill }),
+        }),
+        work: tool({
+          inputSchema: z.object({}),
+          execute: async () => ({ rows: "x".repeat(5_000) }),
+        }),
+      },
+      maxSteps: 40,
+      background: false,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => 0,
+    });
+
+    const last = prompts.at(-1) ?? "";
+    expect(last).toContain("LAST RULE: never post on Sundays.");
+    expect(last).toContain("shortened to save room");
+  });
 });

@@ -10,7 +10,7 @@ vi.mock("@/services/cmo-cuso.service", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
-const { readSkill } = await import("./read-skill");
+const { isSkillRead, readSkill, readSkillAgain } = await import("./read-skill");
 const { skillOccasions } = await import("./context");
 
 function authorized(versionId: string) {
@@ -38,6 +38,26 @@ describe("read_skill", () => {
     await expect(
       readSkill(authorized("v36"), { skill: "linkedin" }),
     ).rejects.toThrow(/No skill "linkedin"\. Your skills: /);
+  });
+
+  it("reads the whole skill again on a replayed call", async () => {
+    resolveSokoBotVersion.mockResolvedValue(getSokoBotVersion("cmo-v24"));
+    const strategy = SOKO_BOT_SKILLS.find(
+      (skill) => skill.id === "cmo-strategy-v22",
+    )?.content;
+    const again = await readSkillAgain(authorized("cmo-v24"), "read_skill", {
+      skill: "cmo-strategy-v22",
+    });
+    expect(again.content).toBe(strategy);
+    expect((strategy ?? "").length).toBeGreaterThan(40_000);
+    const writing = await readSkillAgain(
+      authorized("cmo-v24"),
+      "read_writing_skill",
+      { skill: "linkedin" },
+    );
+    expect(writing.skill).toBe("linkedin");
+    expect(isSkillRead("read_skill")).toBe(true);
+    expect(isSkillRead("read_calendar")).toBe(false);
   });
 
   it("refuses a skill of another version", async () => {

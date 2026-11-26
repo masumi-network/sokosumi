@@ -12,7 +12,9 @@ export const TOOL_RESULT_SHORTENED_EVENT = "action.result_shortened";
  * Reads bounded already, and whole documents a cut copy would harm: the
  * context packet has its own byte budget; memory is at most 16 KB and
  * update_memory replaces all of it, so the model must see every entry; Cuso's
- * reads cut themselves at 24 KB with their own note (`cmo-reads.ts`).
+ * reads cut themselves at 24 KB with their own note (`cmo-reads.ts`); a skill
+ * read is Core's own text, which the model must follow whole (the strategy
+ * skill is about 50k characters).
  */
 const UNCAPPED_RESULTS: ReadonlySet<string> = new Set([
   "refresh_context",
@@ -22,6 +24,8 @@ const UNCAPPED_RESULTS: ReadonlySet<string> = new Set([
   "read_brand_brain",
   "read_report",
   "read_competitor_moves",
+  "read_skill",
+  "read_writing_skill",
 ]);
 
 const SHORTENED_NOTE =

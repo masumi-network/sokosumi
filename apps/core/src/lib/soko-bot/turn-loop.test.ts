@@ -56,6 +56,18 @@ describe("a version with one fixed tool set", () => {
     expect(stableCapabilities(v24, ["search_exa"])).toContain("search_exa");
   });
 
+  it("offers the sandbox's own tools only when the route grants them", () => {
+    const v36 = { ...getSokoBotVersion("v36"), skillsOnDemand: true as const };
+    const scheduled = stableCapabilities(v36, ["create_task"]);
+    expect(scheduled).not.toContain("bash");
+    expect(scheduled).not.toContain("web_fetch");
+    expect(scheduled).toContain("create_task");
+    expect(scheduled).toContain("hire_agent");
+    const asked = stableCapabilities(v36, ["bash", "web_fetch"]);
+    expect(asked).toContain("bash");
+    expect(asked).toContain("web_fetch");
+  });
+
   it("keys the cache by system prompt and tools, not by turn", () => {
     const key = promptCacheKey("cmo-v24", "system", ["a", "b"], []);
     expect(promptCacheKey("cmo-v24", "system", ["a", "b"], [])).toBe(key);
