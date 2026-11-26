@@ -14,6 +14,9 @@ export type {
   X402Wallet,
   X402WalletBalance,
 } from "./masumi-payment-x402.js";
-export { createRegistryClient } from "./masumi-registry.client.js";
+export {
+  createRegistryClient,
+  type RegistryEntry,
+} from "./masumi-registry.client.js";
 export type { PostPurchaseResponses } from "./openapi/generated/payment/index.js";
 export type { PostRegistryDiffResponse } from "./openapi/generated/registry/index.js";

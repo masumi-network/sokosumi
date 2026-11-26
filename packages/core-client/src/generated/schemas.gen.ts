@@ -73679,6 +73679,352 @@ export const AblyTokenRequestSchema = {
     ]
 } as const;
 
+export const RegistryAgentSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Registry entry id. Use it as the pagination cursor.'
+        },
+        agentIdentifier: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'Online',
+                'Offline',
+                'Deregistered',
+                'Invalid'
+            ]
+        },
+        statusUpdatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        type: {
+            type: 'string',
+            enum: [
+                'Standard',
+                'OpenApi',
+                'X402',
+                'A2A'
+            ]
+        },
+        paymentType: {
+            type: 'string',
+            enum: [
+                'Web3CardanoV1',
+                'Web3CardanoV2',
+                'None'
+            ]
+        },
+        apiBaseUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        openApiSpecUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        x402ResourcesUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        tags: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        capability: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                name: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                version: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'name',
+                'version'
+            ]
+        },
+        author: {
+            type: 'object',
+            properties: {
+                name: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                organization: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                contactEmail: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                contactOther: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'name',
+                'organization',
+                'contactEmail',
+                'contactOther'
+            ]
+        },
+        legal: {
+            type: 'object',
+            properties: {
+                privacyPolicy: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                terms: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                other: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'privacyPolicy',
+                'terms',
+                'other'
+            ]
+        },
+        pricing: {
+            $ref: '#/components/schemas/RegistryAgentPricing'
+        },
+        uptime: {
+            type: 'object',
+            properties: {
+                count: {
+                    type: 'integer'
+                },
+                checkCount: {
+                    type: 'integer'
+                },
+                lastCheckedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                }
+            },
+            required: [
+                'count',
+                'checkCount',
+                'lastCheckedAt'
+            ]
+        },
+        policyId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        supersedesAgentIdentifier: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        supersededByAgentIdentifier: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'agentIdentifier',
+        'name',
+        'description',
+        'status',
+        'statusUpdatedAt',
+        'type',
+        'paymentType',
+        'apiBaseUrl',
+        'openApiSpecUrl',
+        'x402ResourcesUrl',
+        'image',
+        'tags',
+        'capability',
+        'author',
+        'legal',
+        'pricing',
+        'uptime',
+        'policyId',
+        'supersedesAgentIdentifier',
+        'supersededByAgentIdentifier',
+        'createdAt'
+    ]
+} as const;
+
+export const RegistryAgentPricingSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                pricingType: {
+                    type: 'string',
+                    enum: [
+                        'Fixed'
+                    ]
+                },
+                amounts: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            amount: {
+                                type: 'string',
+                                example: '1000000'
+                            },
+                            unit: {
+                                type: 'string',
+                                example: 'lovelace'
+                            }
+                        },
+                        required: [
+                            'amount',
+                            'unit'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'pricingType',
+                'amounts'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                pricingType: {
+                    type: 'string',
+                    enum: [
+                        'Free'
+                    ]
+                }
+            },
+            required: [
+                'pricingType'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                pricingType: {
+                    type: 'string',
+                    enum: [
+                        'Dynamic'
+                    ]
+                }
+            },
+            required: [
+                'pricingType'
+            ]
+        },
+        {
+            type: 'null'
+        }
+    ],
+    description: 'Null when the registry sends a pricing shape Core does not know.'
+} as const;
+
+export const RegistryAgentsPaginationMetadataSchema = {
+    type: 'object',
+    properties: {
+        cursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cmg4zknxt0000l404yn4li0kp',
+            description: 'Cursor for the current page'
+        },
+        limit: {
+            type: 'integer',
+            minimum: 1,
+            example: 20,
+            description: 'Number of items returned'
+        },
+        nextCursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cmi4gmksz000104l8wps8p7fp',
+            description: 'Cursor for the next page'
+        }
+    },
+    required: [
+        'cursor',
+        'limit',
+        'nextCursor'
+    ]
+} as const;
+
 export const VendorListSchema = {
     type: 'array',
     items: {
