@@ -65,6 +65,13 @@ export function useSeoActionInstructions(
     action.evidence.length
       ? action.evidence.map((line) => `- ${line}`).join("\n")
       : null,
+    action.edit?.target.trim()
+      ? `${t("actions.copyTarget")}: ${action.edit.target}`
+      : null,
+    // An empty value under its label reads as a missing part of the text: both say it in words.
+    action.edit
+      ? `${t("actions.before")}:\n${action.edit.before?.trim() ? action.edit.before : t("actions.noBefore")}`
+      : null,
     action.edit ? `${t("actions.after")}:\n${action.edit.after}` : null,
   ]
     .filter(Boolean)
