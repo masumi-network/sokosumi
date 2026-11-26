@@ -12,15 +12,15 @@
  * depend on which tools a model happens to reach for. What the run creates is
  * cleaned up where the platform allows and listed where it does not.
  */
-import { randomUUID } from "node:crypto";
 
+import { randomUUID } from "node:crypto";
 import {
   SOKO_BOT_CAPABILITIES,
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
-
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { SokoBotRuntimeService } from "@/services/soko-bot-runtime.service";
 
 function flag(name: string): string | undefined {
@@ -109,6 +109,7 @@ await prisma.sokoBotContextSnapshot.create({
     packet: { memory: { version: memoryVersion } },
     turn: {
       create: {
+        network: DETACHED_SOKO_BOT_NETWORK,
         id: turnId,
         sokoBotId: bot.id,
         requestedByUserId: bot.userId,

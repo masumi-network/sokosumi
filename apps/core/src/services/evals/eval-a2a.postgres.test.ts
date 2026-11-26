@@ -715,6 +715,7 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
     });
     await expect(
       sokoBotControlPlane.startTurn({
+        network: "mainnet",
         userId: lane.userId,
         workspaceId: lane.workspaceId,
         clientTurnId: randomUUID(),

@@ -40,6 +40,7 @@ import {
   probeBackgroundFailure,
 } from "@/test/background-probe";
 import { coreLogEvents, expectCoreLog } from "@/test/core-log";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 import mount from "./post";
 
 const TURN_ID = "00000000-0000-4000-8000-000000000001";
@@ -49,6 +50,10 @@ function startTurn() {
   const app = new OpenAPIHonoWithAuth();
   app.use("*", coreEvlogMiddleware());
   app.use("*", async (c, next) => {
+    c.set(
+      "networkScope",
+      Object.create(testNetworkScope(), { network: { value: "preprod" } }),
+    );
     c.set("authContext", {
       actor: "user",
       userId: "user-1",
@@ -103,6 +108,9 @@ describe("POST /soko-bots/me/turns", () => {
     await Promise.all(pending);
 
     expect(response.status).toBe(201);
+    expect(startTurnMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "preprod" }),
+    );
     expect(reconcileTurnMock).toHaveBeenCalledWith(
       TURN_ID,
       undefined,

@@ -155,6 +155,7 @@ vi.mock("@/services/soko-bot-control-plane.service", async (importOriginal) => {
 import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import type { EnvVariables } from "@/lib/hono";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 
 import app from "./index";
 
@@ -164,6 +165,10 @@ function createApp() {
   }>();
   parent.use("*", async (c, next) => {
     c.set("requestId", "req_shared_routes");
+    c.set(
+      "networkScope",
+      Object.create(testNetworkScope(), { network: { value: "preprod" } }),
+    );
     c.set("isAuthenticated", true);
     c.set("authContext", {
       actor: "user",
@@ -499,8 +504,9 @@ describe("shared Soko Bot routes", () => {
         createdAt: now,
         updatedAt: now,
       };
-      createScheduleMock.mockResolvedValue(scheduleResponse);
-      updateScheduleMock.mockResolvedValue(scheduleResponse);
+      const storedSchedule = { ...scheduleResponse, network: "preprod" };
+      createScheduleMock.mockResolvedValue(storedSchedule);
+      updateScheduleMock.mockResolvedValue(storedSchedule);
       resolveMock.mockResolvedValue({ id: BOT_ID });
 
       const stopRule = { mode: "ends_after_runs" as const, maxRuns: 2 };
@@ -515,6 +521,7 @@ describe("shared Soko Bot routes", () => {
       expect(createdMe.status).toBe(201);
       expect(createScheduleMock).toHaveBeenCalledWith(
         expect.objectContaining({
+          network: "preprod",
           userId: USER_ID,
           workspaceId: WORKSPACE_ID,
           stopRule,
@@ -531,6 +538,7 @@ describe("shared Soko Bot routes", () => {
       expect(createdById.status).toBe(201);
       expect(createScheduleMock).toHaveBeenLastCalledWith(
         expect.objectContaining({
+          network: "preprod",
           userId: USER_ID,
           workspaceId: WORKSPACE_ID,
           sokoBotId: BOT_ID,
@@ -570,6 +578,15 @@ describe("shared Soko Bot routes", () => {
         scheduleId: SCHEDULE_ID,
         stopRule: { mode: "never" },
       });
+      for (const response of [createdMe, createdById, patchedMe, patchedById]) {
+        const { data } = await response.json();
+        expect(data).toEqual({
+          ...scheduleResponse,
+          nextRunAt: now.toISOString(),
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        });
+      }
 
       // Rule-only PATCH accepts ends_on with explicit timezone offset (+01:00),
       // matching the shared OwnerAuthority datetime contract.

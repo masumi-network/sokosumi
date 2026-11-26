@@ -119,6 +119,7 @@ export function mountSokoBotScheduleByIdRoutes(app: OpenAPIHonoWithAuth) {
         c.req.valid("param").sokoBotId,
       );
       const schedule = await sokoBotControlPlane.createSchedule({
+        network: c.var.networkScope.network,
         userId: auth.userId,
         workspaceId: workspace.workspaceId,
         sokoBotId: bot.id,

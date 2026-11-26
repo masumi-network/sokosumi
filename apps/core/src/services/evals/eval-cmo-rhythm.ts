@@ -1,4 +1,5 @@
 import prisma from "@/lib/db/prisma";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { systemScheduleRoute } from "@/lib/soko-bot/system-routes";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { buildScheduledSystemBeat } from "@/services/soko-bot-scheduled-beat.service";
@@ -35,6 +36,7 @@ export async function startCusoRhythmTurn(
   const beat = await buildScheduledSystemBeat(bot, key, now, schedule.prompt);
   if (beat.skip) throw new Error(`The ${key} rhythm had nothing to do`);
   const started = await sokoBotControlPlane.startTurn({
+    network: DETACHED_SOKO_BOT_NETWORK,
     userId: lane.userId,
     workspaceId: lane.workspaceId,
     sokoBotId: lane.cusoBotId,

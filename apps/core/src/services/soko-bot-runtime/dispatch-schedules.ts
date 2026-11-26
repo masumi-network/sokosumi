@@ -1,3 +1,4 @@
+import type { SokoBotSchedule } from "@sokosumi/database";
 import {
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   getSokoBotVersion,
@@ -8,6 +9,7 @@ import {
   sokoBotUpdateScheduleInputSchema as updateScheduleInputSchema,
 } from "@sokosumi/soko-bot";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import { manageSokoBotReminder } from "@/services/soko-bot-proactive.service";
@@ -139,9 +141,10 @@ export async function dispatchSchedulesTools(
           } = authorized.turn;
           const scope = { userId, workspaceId, sokoBotId };
           let schedule:
-            | Awaited<ReturnType<typeof createSokoBotSchedule>>
-            | Awaited<ReturnType<typeof updateSokoBotSchedule>>
-            | Awaited<ReturnType<typeof deleteSokoBotSchedule>>;
+            | SokoBotSchedule
+            | (Awaited<ReturnType<typeof deleteSokoBotSchedule>> & {
+                network?: never;
+              });
           if (input.capability === "create_schedule") {
             const {
               stopRule,
@@ -157,6 +160,7 @@ export async function dispatchSchedulesTools(
               {
                 ...scope,
                 ...scheduleInput,
+                network: DETACHED_SOKO_BOT_NETWORK,
                 capabilityNames,
                 explicitCapabilities: capabilities !== undefined,
                 resolveAuthority: resolveBotScheduleAuthority(
@@ -226,10 +230,11 @@ export async function dispatchSchedulesTools(
               tx,
             );
           }
+          const { network: _network, ...scheduleResult } = schedule;
           const result =
             input.capability === "delete_schedule"
-              ? { ...schedule, deleted: true }
-              : schedule;
+              ? { ...scheduleResult, deleted: true }
+              : scheduleResult;
           await commitActionReceipt(tx, {
             turnId: authorized.turn.id,
             toolCallId: input.toolCallId,

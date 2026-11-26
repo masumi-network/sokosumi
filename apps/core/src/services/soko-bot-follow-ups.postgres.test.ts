@@ -528,6 +528,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
 
     await expect(
       sokoBotControlPlane.startTurn({
+        network: "mainnet",
         userId,
         workspaceId,
         clientTurnId: `event:${randomUUID()}`,
@@ -628,6 +629,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
     it("may not touch another schedule with tools it only has for its own", async () => {
       const { turn } = await scheduleRun([]);
       const other = await createSokoBotSchedule({
+        network: "mainnet",
         userId,
         workspaceId,
         name: "Weekly review",
@@ -667,6 +669,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         "delete_schedule",
       ]);
       const other = await createSokoBotSchedule({
+        network: "mainnet",
         userId,
         workspaceId,
         name: "Stale follow-up",
@@ -875,6 +878,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
     it("removes a schedule watching a Task once that Task finishes, and only then", async () => {
       const taskId = await delegateWithPlan("Report to the owner.");
       const watcher = await createSokoBotSchedule({
+        network: "mainnet",
         userId,
         workspaceId,
         name: "Check on Hannah daily",
@@ -896,6 +900,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
     it("refuses to watch a Task outside the workspace", async () => {
       await expect(
         createSokoBotSchedule({
+          network: "mainnet",
           userId,
           workspaceId,
           name: "Watch nothing",
@@ -909,6 +914,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
 
     it("removes recurring schedules the failure budget switched off, after retention", async () => {
       const failing = await createSokoBotSchedule({
+        network: "mainnet",
         userId,
         workspaceId,
         name: "Broken check",
@@ -930,6 +936,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
 
     it("drops settled runs of a recurring schedule after retention and keeps the schedule", async () => {
       const recurring = await createSokoBotSchedule({
+        network: "mainnet",
         userId,
         workspaceId,
         name: "Every hour",
@@ -963,6 +970,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
 
     it("stops a monthly ends_after_runs schedule through real claim, settlement, purge, and recovery paths while fencing extra pending runs and preserving runOnce retries", async () => {
       const monthly = await sokoBotControlPlane.createSchedule({
+        network: "mainnet",
         userId,
         workspaceId,
         name: "Monthly digest",
@@ -1133,6 +1141,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       });
       await expect(
         sokoBotControlPlane.startTurn({
+          network: "mainnet",
           userId,
           sokoBotId: botId,
           workspaceId,
@@ -1294,6 +1303,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       // 8. Control: a one-time schedule (`runOnce: true`, disabled on claim) STILL
       //    recovers its pending retry occurrence cleanly.
       const oneTime = await createSokoBotSchedule({
+        network: "mainnet",
         userId,
         workspaceId,
         name: "One-time reminder",

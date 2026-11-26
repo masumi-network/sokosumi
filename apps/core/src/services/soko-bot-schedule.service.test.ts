@@ -644,6 +644,7 @@ describe("schedules of a shared bot", () => {
       await expect(
         createSokoBotSchedule(
           {
+            network: "mainnet",
             userId: "owner_1",
             workspaceId: WORKSPACE_ID,
             sokoBotId: PERSONAL_BOT_ID,
@@ -747,6 +748,7 @@ describe("schedules of a shared bot", () => {
 
   const SEAT_REQUIRED = new Error("An assigned seat is required");
   const createInput = (userId: string | null, sokoBotId: string) => ({
+    network: "mainnet" as const,
     userId,
     workspaceId: WORKSPACE_ID,
     sokoBotId,
@@ -809,6 +811,7 @@ describe("schedules of a shared bot", () => {
   it("creates on the turn's own bot, not the member's personal one", async () => {
     await createSokoBotSchedule(
       {
+        network: "mainnet",
         userId: "member_2",
         workspaceId: WORKSPACE_ID,
         sokoBotId: SHARED_BOT_ID,
@@ -837,6 +840,7 @@ describe("schedules of a shared bot", () => {
       for (const name of [SHARED.name, "Margin 50%", "Margin 5%"]) {
         await createSokoBotSchedule(
           {
+            network: "mainnet",
             userId: "owner_1",
             workspaceId: WORKSPACE_ID,
             sokoBotId: PERSONAL_BOT_ID,

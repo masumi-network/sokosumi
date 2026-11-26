@@ -28,6 +28,7 @@ import {
   runAsBackgroundWork,
 } from "@/lib/evlog";
 import { failOpen } from "@/lib/fail-open";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getSeoAnalysisExecution } from "@/lib/seo/analysis-executor-config";
 import { evaluateWithJev } from "@/lib/soko-bot/jev";
@@ -629,6 +630,7 @@ async function startProductionRun(
     "@/services/soko-bot-control-plane.service"
   );
   const started = await sokoBotControlPlane.startTurn({
+    network: DETACHED_SOKO_BOT_NETWORK,
     userId: runnerId,
     workspaceId: cuso.workspaceId,
     sokoBotId: cuso.sokoBotId,

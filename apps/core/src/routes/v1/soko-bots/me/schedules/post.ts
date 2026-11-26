@@ -38,6 +38,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspace = requireWorkspaceContext(c.var.workspaceContext);
     try {
       const schedule = await sokoBotControlPlane.createSchedule({
+        network: c.var.networkScope.network,
         userId: auth.userId,
         workspaceId: workspace.workspaceId,
         ...c.req.valid("json"),

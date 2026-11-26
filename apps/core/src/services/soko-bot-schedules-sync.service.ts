@@ -10,6 +10,7 @@ import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import { createCoreLogger, emitCoreError, logCoreWarning } from "@/lib/evlog";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { sokoBotScheduleActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   isRetryableSokoBotRuntimeError,
@@ -673,6 +674,7 @@ export class SokoBotSchedulesSyncService {
         }
         const actingUserId = sokoBotScheduleActingUserId(schedule);
         const started = await sokoBotControlPlane.startTurn({
+          network: DETACHED_SOKO_BOT_NETWORK,
           userId: actingUserId,
           sokoBotId: schedule.sokoBotId,
           workspaceId: schedule.workspaceId,
