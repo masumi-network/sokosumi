@@ -150,10 +150,7 @@ async function startStep(
     await deliverCoworkerAnswer(task.id, world.coworkers[step.coworker], step);
     return null;
   }
-  const schedule = await prisma.sokoBotSchedule.findFirst({
-    where: { sokoBotId: botId, systemKey: null, enabled: true },
-    orderBy: { updatedAt: "desc" },
-  });
+  const schedule = await ownerSchedule(botId);
   if (!schedule) return { error: "No schedule to fire" };
   return fireSchedule(schedule.id, botId);
 }
@@ -218,11 +215,23 @@ async function whileUnpaused<T>(
 async function fireSchedule(
   scheduleId: string,
   botId: string,
-): Promise<string | { error: string }> {
+): Promise<string | null | { error: string }> {
   await prisma.sokoBotSchedule.update({
     where: { id: scheduleId },
     data: { nextRunAt: new Date(0) },
   });
+  const run = await claimScheduleRun(scheduleId, botId);
+  if (!run) return { error: "The schedule sync claimed nothing" };
+  // A busy bot defers the run, as the cron does; the step's polls claim it
+  // again (`stepSettled`) until its turn starts.
+  return run.turnId;
+}
+
+/** One scoped schedule sync: the run it claimed, due or recovered, if any. */
+async function claimScheduleRun(
+  scheduleId: string,
+  botId: string,
+): Promise<{ turnId: string | null; status: string } | null> {
   let claims = 0;
   const leases: { turnId: string; leaseToken: string }[] = [];
   const synced = await whileUnpaused(botId, () =>
@@ -238,17 +247,20 @@ async function fireSchedule(
       reconciliationLeaseToken: lease.leaseToken,
     });
   const [runId] = synced.runIds;
-  const run = runId
-    ? await prisma.sokoBotScheduleRun.findUnique({
+  return runId
+    ? prisma.sokoBotScheduleRun.findUnique({
         where: { id: runId },
         select: { turnId: true, status: true },
       })
     : null;
-  return (
-    run?.turnId ?? {
-      error: `The schedule did not start a turn (${run?.status ?? "nothing claimed"})`,
-    }
-  );
+}
+
+/** The schedule the owner had the bot make, newest first. */
+function ownerSchedule(botId: string) {
+  return prisma.sokoBotSchedule.findFirst({
+    where: { sokoBotId: botId, systemKey: null, enabled: true },
+    orderBy: { updatedAt: "desc" },
+  });
 }
 
 /**
@@ -307,14 +319,30 @@ async function stepSettled(
   botId: string,
   since: Date,
   now: Date,
-  awaitsWake: boolean,
+  awaits: "wake" | "schedule" | null,
 ): Promise<boolean> {
-  if (awaitsWake) {
+  if (awaits === "wake") {
     await wakeOnDelegatedWork(botId);
     const woken = await prisma.sokoBotTurn.count({
       where: { sokoBotId: botId, source: "EVENT", createdAt: { gte: since } },
     });
     if (woken === 0) return false;
+  }
+  if (awaits === "schedule") {
+    const started = await prisma.sokoBotTurn.count({
+      where: {
+        sokoBotId: botId,
+        source: "SCHEDULE",
+        createdAt: { gte: since },
+      },
+    });
+    if (started === 0) {
+      // Deferred while the bot was busy: claim it again, as the next cron
+      // tick would.
+      const schedule = await ownerSchedule(botId);
+      if (schedule) await claimScheduleRun(schedule.id, botId);
+      return false;
+    }
   }
   const active = await prisma.sokoBotTurn.count({
     where: {
@@ -672,10 +700,16 @@ export async function pollJourney(
     const since = new Date(current.startedAt);
     const timedOut =
       now.getTime() - since.getTime() > (journey.stepMinutes ?? 20) * 60_000;
-    const awaitsWake = journey.steps[current.index]?.kind === "coworker";
+    const kind = journey.steps[current.index]?.kind;
+    const awaits =
+      kind === "coworker"
+        ? "wake"
+        : kind === "schedule_fires"
+          ? "schedule"
+          : null;
     if (
       !timedOut &&
-      !(await stepSettled(botId, since, now, awaitsWake)) &&
+      !(await stepSettled(botId, since, now, awaits)) &&
       !(await coworkerCanAnswer(journey, current, lane, state))
     )
       return { kind: "waiting" };
