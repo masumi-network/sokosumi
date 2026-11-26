@@ -19,7 +19,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
@@ -70,6 +69,8 @@ export function ProjectBriefingField({
     const previous = value;
     onChange(source.briefing);
     toast(t("copy.copied", { name: source.name }), {
+      // The default bottom corner sits on the form's Save button.
+      position: "top-center",
       description: t("copy.saveHint"),
       action: { label: t("copy.undo"), onClick: () => onChange(previous) },
     });
@@ -92,7 +93,6 @@ export function ProjectBriefingField({
                 align="start"
                 className="max-h-72 max-w-[calc(100vw-2rem)] overflow-y-auto"
               >
-                <DropdownMenuLabel>{t("copy.menuLabel")}</DropdownMenuLabel>
                 {copySources.map((source) => (
                   <DropdownMenuItem
                     key={source.id}

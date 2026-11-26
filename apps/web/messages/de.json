@@ -2905,7 +2905,6 @@
         },
         "copy": {
           "trigger": "Aus Projekt kopieren",
-          "menuLabel": "Mit dem Briefing eines anderen Projekts beginnen",
           "copied": "Briefing aus {name} kopiert",
           "saveHint": "Passe es bei Bedarf an und speichere, um es zu behalten.",
           "undo": "Rückgängig"
