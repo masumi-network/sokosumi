@@ -121,7 +121,7 @@ function VendorCard({
             className="text-sm font-medium"
           />
           {status ? (
-            <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+            <Badge variant="muted">
               {statusLabel()}
             </Badge>
           ) : null}
