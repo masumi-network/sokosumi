@@ -1,5 +1,6 @@
 // The CMO subscription owns these receipts. They do not settle a full SEO audit Task.
 import { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import prisma from "@/lib/db/prisma";
 import { CmoConflictError } from "./cmo-cuso.service";
 
@@ -45,7 +46,7 @@ export async function reserveKeywordRun(
   usable: (payload: unknown) => boolean,
 ) {
   return prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT "id" FROM "project" WHERE "id" = ${projectId}::uuid FOR UPDATE`;
+    await tx.$queryRaw`SELECT "id" FROM ${sharedTable("project")} WHERE "id" = ${projectId}::uuid FOR UPDATE`;
     const find = (kind: string, k: string) =>
       tx.projectSeoResearch.findUnique({
         where: { projectId_kind_key: { projectId, kind, key: k } },

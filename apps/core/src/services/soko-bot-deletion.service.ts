@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import {
   failOpenChatRoomMentions,
@@ -107,7 +108,7 @@ export async function deleteSokoBot(
     if (!bot) throw notFound("Soko Bot not found");
     await tx.$queryRaw`
       SELECT "id"
-      FROM "soko_bot"
+      FROM ${sharedTable("soko_bot")}
       WHERE "id" = ${bot.id}::uuid
       FOR UPDATE
     `;

@@ -2463,6 +2463,21 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-video-shapes-alsoon",
+    title: "Posts a talking video on X and the Instagram feed in their shapes",
+    intent:
+      "On a version with cmo-video-shapes (cmo-v26), the owner asks for one more talking video that also goes out on X and in the Instagram feed: Cuso plans it with those targets in alsoOn, so Core posts it there in 16:9 and 4:5 from the same video.",
+    prompt:
+      "Can you add one talking video next week about how a team books its first demo in under a minute? Put it on LinkedIn, and also on X and in our Instagram feed, not just as a Reel.",
+    rubric:
+      "Cuso adds exactly one talking_video entry next week about booking a first demo in under a minute, on LinkedIn, with a script in the brand's own voice (never as a customer), through save_strategy. On a version with the cmo-video-shapes skill its alsoOn names x and instagram_feed (an instagram Reel copy may be there too); he tells the owner in plain words that it goes out on X and in the Instagram feed in the right shape. Changing other entries, inventing results or customers, more than one new video, or claiming it went out on X or Instagram when alsoOn does not name them fails. A version without the skill says plainly it cannot post the video on X or in the feed yet instead of pretending.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      tools: ["save_strategy"],
+      forbiddenTools: ["create_task", "publish_social_post", "hire_agent"],
+    },
+  },
+  {
     id: "cmo-daily-run-watch",
     title: "Runs the day by his daily-run skill",
     intent:

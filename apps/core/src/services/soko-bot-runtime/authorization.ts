@@ -1,4 +1,5 @@
 import { type Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { type SokoBotCapability } from "@sokosumi/soko-bot";
 import { getEnv } from "@/config/env";
 import {
@@ -132,13 +133,13 @@ export async function authorize(
       // either commits before PAUSE or reloads its paused state and fails.
       await tx.$queryRaw`
           SELECT "id"
-          FROM "soko_bot"
+          FROM ${sharedTable("soko_bot")}
           WHERE "id" = ${turn.sokoBotId}::uuid
           FOR UPDATE
         `;
       await tx.$queryRaw`
           SELECT "id"
-          FROM "soko_bot_turn"
+          FROM ${sharedTable("soko_bot_turn")}
           WHERE "id" = ${turn.id}::uuid
           FOR UPDATE
         `;
@@ -282,7 +283,7 @@ export async function requireMutationAuthority(
   targets: SokoBotWriteTargets = {},
 ) {
   if (approved && authorized.confirmationTurnId) {
-    await tx.$queryRaw`SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${authorized.confirmationTurnId}::uuid FOR UPDATE`;
+    await tx.$queryRaw`SELECT "id" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${authorized.confirmationTurnId}::uuid FOR UPDATE`;
   }
   if (approved) {
     // Serialize approved decisions with administrator PAUSE. Whichever
@@ -290,7 +291,7 @@ export async function requireMutationAuthority(
     // before the pause or is rejected after it.
     await tx.$queryRaw`
         SELECT "id"
-        FROM "soko_bot"
+        FROM ${sharedTable("soko_bot")}
         WHERE "id" = ${authorized.turn.sokoBotId}::uuid
         FOR UPDATE
       `;
@@ -299,19 +300,19 @@ export async function requireMutationAuthority(
     // Task/memory writes to commit after cancelTurn changes this row.
     await tx.$queryRaw`
         SELECT "id"
-        FROM "soko_bot_turn"
+        FROM ${sharedTable("soko_bot_turn")}
         WHERE "id" = ${authorized.turn.id}::uuid
         FOR UPDATE
       `;
     // Serialize runtime effects with pause as well as turn cancellation.
-    await tx.$queryRaw`SELECT "id" FROM "soko_bot" WHERE "id" = ${authorized.turn.sokoBotId}::uuid FOR UPDATE`;
+    await tx.$queryRaw`SELECT "id" FROM ${sharedTable("soko_bot")} WHERE "id" = ${authorized.turn.sokoBotId}::uuid FOR UPDATE`;
   }
   const intentTurn = await tx.sokoBotTurn.findFirst({
     where: { id: authorized.turn.id },
     select: { intentId: true, intentRevision: true },
   });
   if (intentTurn?.intentId) {
-    await tx.$queryRaw`SELECT "id" FROM "soko_bot_intent" WHERE "id" = ${intentTurn.intentId}::uuid FOR UPDATE`;
+    await tx.$queryRaw`SELECT "id" FROM ${sharedTable("soko_bot_intent")} WHERE "id" = ${intentTurn.intentId}::uuid FOR UPDATE`;
   }
   // Sample after the last lock so intent and lease expirations during the wait both count.
   const now = await databaseNow(tx);

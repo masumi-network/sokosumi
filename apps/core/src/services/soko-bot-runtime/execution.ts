@@ -1,3 +1,4 @@
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   isSokoBotAnnouncementCapability,
   isSokoBotNewsletterCapability,
@@ -17,8 +18,8 @@ import {
   ACTION_CAPABILITIES,
   actionInputHash,
   actionOperationKey,
-  EXTERNAL_EFFECT_CAPABILITIES,
   externalActionReceipt,
+  isExternalEffectToolCall,
   verifyTaskArchiveReceipt,
 } from "@/lib/soko-bot/action-receipts";
 import {
@@ -80,11 +81,10 @@ export async function executeTool(
   });
   assertEvaluationTool(input.capability, input.input);
   const inputHash = actionInputHash(input.input ?? null);
-  const externalEffect =
-    EXTERNAL_EFFECT_CAPABILITIES.has(input.capability) ||
-    (input.capability === "investor_warm_paths" &&
-      SOKO_BOT_TOOL_INPUT_SCHEMAS.investor_warm_paths.safeParse(input.input)
-        .data?.research === true);
+  const externalEffect = isExternalEffectToolCall(
+    input.capability,
+    input.input,
+  );
   const action = externalEffect || ACTION_CAPABILITIES.has(input.capability);
   const operationKey = action
     ? actionOperationKey({
@@ -109,7 +109,7 @@ export async function executeTool(
     existing = await serializableTransaction(async (tx) => {
       await tx.$queryRaw`
           SELECT "id"
-          FROM "soko_bot_turn"
+          FROM ${sharedTable("soko_bot_turn")}
           WHERE "id" = ${input.turnId}::uuid
           FOR UPDATE
         `;

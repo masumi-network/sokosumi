@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   type CompetitorFeedItem,
   competitorFeedItemSchema,
@@ -157,7 +158,7 @@ export async function lockCompetitorFeed(
   tx: Prisma.TransactionClient,
   projectId: string,
 ): Promise<void> {
-  await tx.$executeRaw`SELECT 1 FROM project WHERE id = ${projectId}::uuid FOR NO KEY UPDATE`;
+  await tx.$executeRaw`SELECT 1 FROM ${sharedTable("project")} WHERE id = ${projectId}::uuid FOR NO KEY UPDATE`;
 }
 
 /**

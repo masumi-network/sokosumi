@@ -1,3 +1,4 @@
+export { ACTION_LABELS, withoutActionReceipts } from "./action-labels.js";
 export * from "./avatar/index.js";
 export {
   CMO_BRAND_SECTIONS,
@@ -56,6 +57,41 @@ export {
   sokoBotMemoryNotKept,
 } from "./memory.js";
 export {
+  assertDirectOwnerScheduleEdit,
+  bindScheduleStopRule,
+  type DirectOwnerScheduleEdit,
+  type EvaluateScheduleStopContext,
+  evaluateScheduleStopRule,
+  isOwnerAuthorityExpired,
+  minOwnerAuthorityScope,
+  minOwnerAuthoritySocialMode,
+  type NarrowOwnerAuthorityInput,
+  narrowOwnerAuthority,
+  OWNER_AUTHORITY_ALLOWANCE_PERIODS,
+  OWNER_AUTHORITY_ORIGINS,
+  OWNER_AUTHORITY_SCOPES,
+  OWNER_AUTHORITY_SOCIAL_MODES,
+  type OwnerAuthority,
+  type OwnerAuthorityAllowancePeriod,
+  OwnerAuthorityError,
+  type OwnerAuthorityLimits,
+  type OwnerAuthorityOrigin,
+  type OwnerAuthorityScope,
+  type OwnerAuthoritySocialMode,
+  type OwnerAuthorityStopRule,
+  type OwnerAuthorityStopRuleInput,
+  type OwnerAuthorityTargetScope,
+  ownerAuthorityLimitsSchema,
+  ownerAuthoritySchema,
+  ownerAuthorityStopRuleInputSchema,
+  ownerAuthorityStopRuleSchema,
+  ownerAuthorityTargetScopeSchema,
+  parseOwnerAuthority,
+  type ScheduleStopDenialReason,
+  type ScheduleStopEvaluation,
+  sameOwnerAuthorityTargetScope,
+} from "./owner-authority.js";
+export {
   composeSokoBotIntroduction,
   composeSokoBotVersionNotice,
   isSokoBotIntroduction,
@@ -74,7 +110,9 @@ export {
   SOKO_BOT_ANNOUNCEMENT_CAPABILITIES,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_CAPABILITIES,
+  SOKO_BOT_CMO_READ_CAPABILITIES,
   SOKO_BOT_COMPETITOR_CAPABILITIES,
+  SOKO_BOT_DIRECT_READ_CAPABILITIES,
   SOKO_BOT_MEMORY_LIMITS,
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
@@ -313,6 +351,11 @@ export {
   CMO_STRATEGY_STEP_SKILL,
   cmoWritesStrategyStep,
 } from "./versions/cmo-v25-skills.js";
+export {
+  CMO_VIDEO_SHAPES,
+  CMO_VIDEO_SHAPES_SKILL,
+  cmoPostsVideoShapes,
+} from "./versions/cmo-video-shapes-skill.js";
 export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,

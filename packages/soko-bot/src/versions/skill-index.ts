@@ -57,6 +57,10 @@ export const SKILL_INDEX: Readonly<Record<string, SkillIndexEntry>> = {
     preloadOn: ["strategy"],
     requiresTools: ["save_strategy"],
   },
+  "cmo-video-shapes": {
+    useWhen:
+      "planning where a talking video or short goes out, or an owner asking for a video on X, in the Instagram or Facebook feed, as a YouTube video or wide on LinkedIn.",
+  },
   "cmo-production-picked": {
     useWhen:
       "making the month's pieces after approval and payment, fixing a piece Core handed back, or writing an ad, article or newsletter issue.",

@@ -9611,6 +9611,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;
+            videoOfTalking?: boolean;
             story?: string;
             claim?: string;
             imageFileId?: string;
@@ -9689,6 +9690,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 languageCode?: string;
                 alsoOn?: Array<string>;
                 videoOf?: string;
+                videoOfTalking?: boolean;
                 story?: string;
                 claim?: string;
                 imageFileId?: string;
@@ -9961,6 +9963,7 @@ export type MarketingStrategyRequest = {
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;
+            videoOfTalking?: boolean;
             story?: string;
             claim?: string;
             imageFileId?: string;
@@ -10039,6 +10042,7 @@ export type MarketingStrategyRequest = {
                 languageCode?: string;
                 alsoOn?: Array<string>;
                 videoOf?: string;
+                videoOfTalking?: boolean;
                 story?: string;
                 claim?: string;
                 imageFileId?: string;
@@ -11779,6 +11783,7 @@ export type SocialPost = {
         languageCode?: string;
         alsoOn?: Array<string>;
         videoOf?: string;
+        videoOfTalking?: boolean;
         story?: string;
         claim?: string;
     } | null;
@@ -15507,6 +15512,7 @@ export type CmoPlan = {
         languageCode?: string;
         alsoOn?: Array<string>;
         videoOf?: string;
+        videoOfTalking?: boolean;
         story?: string;
         claim?: string;
         imageFileId?: string;
@@ -15585,6 +15591,7 @@ export type CmoPlan = {
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;
+            videoOfTalking?: boolean;
             story?: string;
             claim?: string;
             imageFileId?: string;

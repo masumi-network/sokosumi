@@ -1,6 +1,7 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
+import { cmoShapedVideoTarget, cmoVideoShape } from "@sokosumi/utils";
 import {
   ChevronLeft,
   ChevronRight,
@@ -22,6 +23,14 @@ import { DraftText } from "./draft-text";
 import { withoutLabel } from "./showcases";
 
 type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
+
+/** "Instagram", or for a video in another shape "Instagram 4:5". */
+function alsoOnLabel(name: string): string {
+  const shaped = cmoShapedVideoTarget(name);
+  return shaped
+    ? `${channelLabel(shaped.channel)} ${cmoVideoShape(shaped.channel, shaped.format)}`
+    : channelLabel(name);
+}
 type Media = CmoOverview["media"][number];
 
 /**
@@ -110,7 +119,7 @@ export function EntrySheet({
                   ? ` · image by ${AGENT_NAME}`
                   : ""}
             {entry.alsoOn?.length
-              ? ` · also on ${entry.alsoOn.map(channelLabel).join(", ")}`
+              ? ` · also on ${entry.alsoOn.map(alsoOnLabel).join(", ")}`
               : ""}
           </span>
           {position ? (

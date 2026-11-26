@@ -35,7 +35,9 @@ const {
   putMock,
   jobCreateManyMock,
   assetCreateMock,
+  startCmoProductionMock,
 } = vi.hoisted(() => ({
+  startCmoProductionMock: vi.fn(),
   jobCreateMock: vi.fn(),
   jobFindUniqueMock: vi.fn(),
   jobFindUniqueOrThrowMock: vi.fn(),
@@ -64,6 +66,9 @@ const {
 }));
 
 vi.mock("@vercel/blob", () => ({ put: putMock }));
+vi.mock("@/services/cmo-cuso.service", () => ({
+  startCmoProductionForProject: startCmoProductionMock,
+}));
 vi.mock("@/helpers/task-credits", async () => ({
   ...(await vi.importActual<typeof import("@/helpers/task-credits")>(
     "@/helpers/task-credits",
@@ -156,6 +161,7 @@ import {
   createTalkingVideoJob,
   failImageJob,
   reconcileJob,
+  requestVideoShape,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
 
@@ -993,6 +999,7 @@ describe("the presenter model's video arriving with word timings", () => {
               ...row,
               status: "SUCCEEDED",
               falRequestId: "cutout-1",
+              idempotencyKey: "cmo-media:month-1:v1",
               pendingMediaUrl: AVATAR_URL,
               model: "heygen/avatar-6/turbo/image-to-video",
               settings: { ...row.settings, sitePagePathname: SITE },
@@ -1003,6 +1010,7 @@ describe("the presenter model's video arriving with word timings", () => {
       kind: "error",
       message: "cut-out failed",
     });
+    startCmoProductionMock.mockClear();
     editTalkingVideoMock.mockResolvedValue({
       bytes: new Uint8Array([7]),
       durationSeconds: 7,
@@ -1026,6 +1034,10 @@ describe("the presenter model's video arriving with word timings", () => {
       expect.objectContaining({
         data: expect.objectContaining({ status: "FAILED" }),
       }),
+    );
+    // The month waiting on this cut moves on.
+    await vi.waitFor(() =>
+      expect(startCmoProductionMock).toHaveBeenCalledWith("project-1"),
     );
   });
 
@@ -1171,5 +1183,50 @@ describe("the caption step being cancelled", () => {
       }),
     );
     expect(logged).toHaveLength(1);
+  });
+});
+
+describe("asking for another shape of a delivered video", () => {
+  const delivered = (settings: Record<string, unknown>) => ({
+    id: "job-1",
+    projectId: "project-1",
+    workspaceId: "workspace-1",
+    requestedByUserId: "user-1",
+    kind: "TALKING_VIDEO",
+    model: "heygen/avatar-6/turbo/image-to-video",
+    prompt: SCRIPT,
+    status: "SUCCEEDED",
+    settings: { durationSeconds: 9, words: WORDS, ...settings },
+    voiceBlobPathname: null,
+    pendingMediaUrl: null,
+    presenterConsentAt: null,
+    sessionId: "session-1",
+    productId: null,
+    productName: null,
+  });
+
+  it("starts one free cut, keeping the video's session", async () => {
+    jobFindUniqueMock.mockResolvedValue(delivered({ shape: "9:16" }));
+
+    await expect(requestVideoShape("job-1", "4:5")).resolves.toBe(true);
+
+    expect(jobCreateManyMock).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          idempotencyKey: "video-shape:job-1:4:5",
+          chargedCents: 0n,
+          sessionId: "session-1",
+        }),
+      ],
+      skipDuplicates: true,
+    });
+  });
+
+  it("starts nothing for a video already in that shape, so it is posted itself", async () => {
+    jobFindUniqueMock.mockResolvedValue(delivered({ shape: "4:5" }));
+
+    await expect(requestVideoShape("job-1", "4:5")).resolves.toBe(false);
+
+    expect(jobCreateManyMock).not.toHaveBeenCalled();
   });
 });

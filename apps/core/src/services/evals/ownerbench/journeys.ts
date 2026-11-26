@@ -56,6 +56,8 @@ export type JourneyOutcome =
        * `edited`: the remembered schedule (same id), enabled, changed.
        */
       identity?: "remember" | "unchanged" | "edited";
+      /** A one-time reminder (true) or a recurring schedule (false). */
+      runOnce?: boolean;
     }
   | {
       kind: "task";
@@ -73,6 +75,8 @@ export type JourneyOutcome =
       max?: number;
       /** Every pattern must match each counted image's prompt. */
       promptMatches?: string[];
+      /** No pattern may match a counted image's prompt. */
+      promptAvoids?: string[];
       /** Only images started in this step. */
       thisStep?: boolean;
     }
@@ -173,7 +177,63 @@ export type JourneyOutcome =
       /** The schedules the journey seeded on other members' bots are as they were. */
       kind: "seededSchedulesUntouched";
       label: string;
+    }
+  | {
+      /** A contact made or updated in this journey whose name matches. */
+      kind: "contact";
+      label: string;
+      nameMatches: string;
+      /** Every pattern must match its notes, role, company or logged interactions. */
+      notesMatch?: string[];
+    }
+  | {
+      /** A text file this journey saved to the owner's Files (upload_file), still there. */
+      kind: "file";
+      label: string;
+      nameMatches?: string;
+      /** Every pattern must match the file's text. */
+      textMatches: string[];
+      /** No pattern may match the file's text. */
+      textAvoids?: string[];
+    }
+  | {
+      /** The bot's own comment, in this step, on a Task the Coworker holds. */
+      kind: "taskReply";
+      label: string;
+      coworker: JourneyCoworker;
+      textMatches: string[];
+    }
+  | {
+      /** How many Cuso posts are SCHEDULED now (published ones not counted). */
+      kind: "scheduledPosts";
+      label: string;
+      min?: number;
+      max?: number;
+    }
+  | {
+      /** The Cuso posts that were PUBLISHED when the journey started still are, unchanged. */
+      kind: "publishedUntouched";
+      label: string;
+    }
+  | {
+      /**
+       * The target picture post (`picture-posts`) is the same post with its
+       * text unchanged, its seeded picture gone and one this journey made
+       * attached; no image made matches `promptAvoids`; the other seeded
+       * pictures are unchanged.
+       */
+      kind: "seededPictureReplaced";
+      label: string;
+      promptAvoids: string[];
+    }
+  | {
+      /** No Agent was hired: no hire_agent succeeded and no Job started. */
+      kind: "noHires";
+      label: string;
     };
+
+/** Workspace members other than the owner a journey can speak as. */
+export type JourneyTeammate = "Hannah" | "Alex";
 
 export type JourneyStep =
   | {
@@ -194,6 +254,17 @@ export type JourneyStep =
   | {
       /** The schedule the bot made fires, as the cron starts it. */
       kind: "schedule_fires";
+      expect?: StepExpect;
+      outcomes?: JourneyOutcome[];
+    }
+  | {
+      /**
+       * A member who is not the bot's owner mentions it in the room they
+       * share (`teammate-room`), through the chat route's mention dispatch.
+       */
+      kind: "teammate";
+      member: JourneyTeammate;
+      message: string;
       expect?: StepExpect;
       outcomes?: JourneyOutcome[];
     };
@@ -218,7 +289,49 @@ export type JourneyPrepare =
   /** Upcoming Cuso posts on the next two Fridays and on LinkedIn, so doing nothing fails. */
   | "friday-and-linkedin-posts"
   /** The owner's investor research notes in Files (`INVESTOR_FIXTURE`). */
-  | "investor-notes";
+  | "investor-notes"
+  /** The owner's Tasks in `fixtures.tasks`. */
+  | "tasks"
+  /** A room the owner, the teammates (Hannah, Alex) and the journey's bot share. */
+  | "teammate-room"
+  /** Cuso's upcoming posts replaced by `fixtures.scheduledPosts`; the published ones stay. */
+  | "scheduled-posts"
+  /** Upcoming Cuso posts with the pictures in `fixtures.picturePosts`. */
+  | "picture-posts"
+  /** A listed marketplace Agent at the price in `fixtures.agent`; local runs only. */
+  | "agent";
+
+/** A Task the `tasks` prepare seeds for the owner. */
+export interface FixtureTask {
+  name: string;
+  status: "READY" | "RUNNING" | "INPUT_REQUIRED";
+  /** Mira, the owner, or nobody. */
+  assignee?: "Mira" | "owner";
+  createdDaysAgo: number;
+  touchedDaysAgo: number;
+  /** Due this many days from today (Europe/Berlin). */
+  dueInDays?: number;
+  /** What the assignee last asked on it. */
+  question?: string;
+}
+
+/** An upcoming Cuso post with a picture; the `target` is the one checks follow. */
+export interface FixturePicturePost {
+  text: string;
+  /** The picture's file holds this text. */
+  pictureText: string;
+  provider: string;
+  inDays: number;
+  target?: boolean;
+}
+
+/** What a journey's prepares seed, for the prepares that need it. */
+export interface JourneyFixtures {
+  tasks?: readonly FixtureTask[];
+  scheduledPosts?: { count: number; providers: readonly string[] };
+  picturePosts?: readonly FixturePicturePost[];
+  agent?: { name: string; description: string; credits: number };
+}
 
 /**
  * The investor journey's fixed research source: 12 fitting investors and 2
@@ -278,6 +391,7 @@ export interface OwnerJourney {
   /** The Cuso world it starts from (eval-cmo-runner). */
   cusoSetup?: CmoChatSetup;
   prepare?: JourneyPrepare[];
+  fixtures?: JourneyFixtures;
   steps: JourneyStep[];
   /** For the judge: what doing this well means, end to end. */
   rubric: string;
@@ -1127,12 +1241,17 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
 
 /** The judge's scenario for a journey: its rubric, the owner's first message. */
 export function journeyJudgeScenario(journey: OwnerJourney): SokoBotScenario {
-  const first = journey.steps.find((step) => step.kind === "owner");
+  const first = journey.steps.find(
+    (step) => step.kind === "owner" || step.kind === "teammate",
+  );
   return {
     id: journey.id,
     title: journey.title,
     intent: journey.intent,
-    prompt: first?.kind === "owner" ? first.message : "",
+    prompt:
+      first?.kind === "owner" || first?.kind === "teammate"
+        ? first.message
+        : "",
     rubric: journey.rubric,
     expect: { routes: [] },
   };

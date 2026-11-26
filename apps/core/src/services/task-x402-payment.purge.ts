@@ -1,6 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 
-import prisma from "@/lib/db/prisma";
+import type { NetworkDb } from "@/lib/db/network-scope";
 import { X402_MAX_PLAUSIBLE_VALIDITY_MS } from "@/services/task-x402-payment.finalize";
 
 export interface PurgeExpiredTaskX402PaymentHeadersOptions {
@@ -105,6 +105,7 @@ export const X402_UNDATED_HEADER_TTL_MS =
  * trade than one extra round trip per 500 rows.
  */
 export async function purgeExpiredTaskX402PaymentHeaders(
+  networkDb: NetworkDb,
   options: PurgeExpiredTaskX402PaymentHeadersOptions = {},
 ): Promise<{ purged: number }> {
   const now = options.now ?? new Date();
@@ -126,7 +127,7 @@ export async function purgeExpiredTaskX402PaymentHeaders(
     if (options.abortSignal?.aborted) {
       break;
     }
-    const batch = await prisma.taskX402Payment.findMany({
+    const batch = await networkDb.taskX402Payment.findMany({
       where: cursor === undefined ? where : { ...where, id: { gt: cursor } },
       select: { id: true },
       orderBy: { id: "asc" },
@@ -149,7 +150,7 @@ export async function purgeExpiredTaskX402PaymentHeaders(
     // Scoped to the ids just read, and still guarded on the column, so a row
     // purged by a concurrent pass between the read and the write is not
     // recounted.
-    const result = await prisma.taskX402Payment.updateMany({
+    const result = await networkDb.taskX402Payment.updateMany({
       where: {
         id: { in: batch.map((row) => row.id) },
         xPaymentHeader: { not: null },

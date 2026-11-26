@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { z } from "zod";
 import {
   listMcpServerTools,
@@ -347,7 +348,7 @@ export async function updateSokoBotMcpTool(
   return prisma.$transaction(async (tx) => {
     // Locked: two switches flipped at once must not overwrite each other.
     const [row] = await tx.$queryRaw<{ id: string }[]>`
-      SELECT id FROM soko_bot_mcp_server
+      SELECT id FROM ${sharedTable("soko_bot_mcp_server")}
       WHERE id = ${serverId}::uuid AND "sokoBotId" = ${sokoBotId}::uuid
       FOR UPDATE`;
     if (!row) return null;

@@ -50,6 +50,7 @@ import {
   type EvalSuite,
   evalCase,
   isJudgedEvalCase,
+  minimumEvalRepeats,
   selectEvalCases,
 } from "./eval-cases";
 import { stopPendingAfterBudgetError } from "./eval-infrastructure";
@@ -117,13 +118,23 @@ export async function createEvalRun(input: CreateEvalRunInput) {
   const repeats = input.repeats ?? 1;
   if (!Number.isInteger(repeats) || repeats < 1 || repeats > EVAL_LANE_COUNT)
     throw new EvalRunError(`Repeats must be 1 to ${EVAL_LANE_COUNT}`);
-  const lanes = input.judgedRepeats ?? repeats;
-  if (!Number.isInteger(lanes) || lanes < repeats || lanes > EVAL_LANE_COUNT)
+  const judgedRepeats = input.judgedRepeats ?? repeats;
+  if (
+    !Number.isInteger(judgedRepeats) ||
+    judgedRepeats < repeats ||
+    judgedRepeats > EVAL_LANE_COUNT
+  )
     throw new EvalRunError(
       `Judged repeats must be ${repeats} to ${EVAL_LANE_COUNT}`,
     );
   const cases = selectEvalCases({ suites, caseIds });
   if (cases.length === 0) throw new EvalRunError("No cases to run");
+  const repeatsOf = (evalCase: EvalCase) =>
+    Math.max(
+      isJudgedEvalCase(evalCase) ? judgedRepeats : repeats,
+      minimumEvalRepeats(evalCase),
+    );
+  const lanes = Math.max(...cases.map(repeatsOf));
   const commit = evalCommit();
   const environment = evalEnvironment();
   const local = environment === "local" || environment === "local-chatgpt-plan";
@@ -159,7 +170,7 @@ export async function createEvalRun(input: CreateEvalRunInput) {
         create: Array.from({ length: lanes }, (_, index) => index + 1).flatMap(
           (repeat) =>
             cases.flatMap((evalCase, position) =>
-              repeat <= repeats || isJudgedEvalCase(evalCase)
+              repeat <= repeatsOf(evalCase)
                 ? [
                     {
                       caseId: evalCase.id,

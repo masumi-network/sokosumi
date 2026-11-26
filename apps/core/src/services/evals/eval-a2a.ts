@@ -1,3 +1,4 @@
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   A2A_SCENARIOS,
   type ScenarioCheck,
@@ -217,8 +218,8 @@ async function clearEarlierTraffic(lane: EvalLaneRecord): Promise<void> {
     data: { archivedAt: new Date() },
   });
   await prisma.$executeRaw`
-    UPDATE chat_room_message m SET "createdAt" = m."createdAt" - interval '1 hour'
-    FROM chat_room r
+    UPDATE ${sharedTable("chat_room_message")} m SET "createdAt" = m."createdAt" - interval '1 hour'
+    FROM ${sharedTable("chat_room")} r
     WHERE r.id = m."roomId" AND r."organizationId" = ${lane.organizationId}
       AND m."createdAt" > now() - interval '1 hour'
       AND (m."senderSokoBotId" IS NOT NULL OR m."senderCoworkerId" IS NOT NULL)`;
