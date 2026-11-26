@@ -18,6 +18,8 @@ import {
 export const ASK_WHICH_ACCOUNT = "Several accounts could take this post";
 /** An answer belongs to a question asked this recently in the same chat. */
 const ANSWER_WINDOW_MS = 24 * 60 * 60 * 1_000;
+/** How many earlier turns an open question survives ("wait, let me check"). */
+const OPEN_QUESTION_TURNS = 5;
 
 interface Candidate {
   id: string;
@@ -54,12 +56,16 @@ function saysFor(text: string, phrase: string): boolean {
 
 /** The owner's own words: quoted or fenced text is the post, never where it goes. */
 export function withoutQuotedCopy(message: string): string {
-  return message
-    .replaceAll(/```[\s\S]*?```/g, " ")
-    .replaceAll(/"[^"]*"|“[^”]*”|«[^»]*»|„[^“”]*[“”]/g, " ")
-    .split("\n")
-    .filter((line) => !line.trimStart().startsWith(">"))
-    .join("\n");
+  return (
+    message
+      .replaceAll(/```[\s\S]*?```/g, " ")
+      .replaceAll(/"[^"]*"|“[^”]*”|‘[^’]*’|«[^»]*»|„[^“”]*[“”]/g, " ")
+      // 'copy' between single quotes, but not the apostrophe in "it's".
+      .replaceAll(/(^|[\s(:])'[^'\n]+'(?=[\s.,!?;:)]|$)/g, "$1 ")
+      .split("\n")
+      .filter((line) => !line.trimStart().startsWith(">"))
+      .join("\n")
+  );
 }
 
 /** The owner picked this account itself: its @handle or its id. */
@@ -157,7 +163,9 @@ async function askedJustBefore(
   current: { createdAt: Date; destinationRoomId: string | null },
   candidates: readonly Candidate[],
 ): Promise<Candidate[] | null> {
-  const previous = await prisma.sokoBotTurn.findFirst({
+  // The question stays open over a few turns ("wait, let me check") until a
+  // post is saved after it.
+  const recent = await prisma.sokoBotTurn.findMany({
     where: {
       sokoBotId: authorized.turn.sokoBotId,
       requestedByUserId: authorized.turn.requestedByUserId,
@@ -182,29 +190,41 @@ async function askedJustBefore(
       },
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: OPEN_QUESTION_TURNS,
     select: {
       finalAnswer: true,
       toolCalls: {
         where: {
           capability: "create_social_post",
-          status: "FAILED",
-          errorDetail: { startsWith: ASK_WHICH_ACCOUNT },
+          OR: [
+            { status: "COMPLETED" },
+            {
+              status: "FAILED",
+              errorDetail: { startsWith: ASK_WHICH_ACCOUNT },
+            },
+          ],
         },
-        select: { id: true },
-        take: 1,
+        select: { status: true },
       },
     },
   });
-  if (!previous) return null;
-  const question = previous.finalAnswer ?? "";
-  const listed = candidates
-    .map((candidate) => ({ candidate, at: firstMention(question, candidate) }))
-    .filter((entry) => entry.at >= 0)
-    .sort((a, b) => a.at - b.at)
-    .map((entry) => entry.candidate);
-  if (listed.length > 1) return listed;
-  // Core's refusal listed them oldest first; the bot relays that list.
-  return previous.toolCalls.length > 0 ? [...candidates] : null;
+  for (const previous of recent) {
+    if (previous.toolCalls.some((call) => call.status === "COMPLETED"))
+      return null;
+    const question = previous.finalAnswer ?? "";
+    const listed = candidates
+      .map((candidate) => ({
+        candidate,
+        at: firstMention(question, candidate),
+      }))
+      .filter((entry) => entry.at >= 0)
+      .sort((a, b) => a.at - b.at)
+      .map((entry) => entry.candidate);
+    if (listed.length > 1) return listed;
+    // Core's refusal showed the oldest ten; the bot relays that list.
+    if (previous.toolCalls.length > 0) return candidates.slice(0, SHOWN);
+  }
+  return null;
 }
 
 /** Where the question first names this account (@handle or Project), or -1. */
@@ -268,14 +288,11 @@ export async function requireChosenSocialDestination(
       `The owner chose ${labels(choice)}. Create the post there, with that socialConnectionId and projectId.`,
     );
   }
-  // An answer Core cannot read ("my personal one"): the bot read it, but
-  // only an account the question offered can be the answer.
-  if (asked) {
-    if (pick && asked.includes(pick)) return;
+  // The question stays open until the answer names one of the options.
+  if (asked)
     throw new SokoBotRefusedUnsentError(
-      `Create the post on the account the owner chose from your question, with its socialConnectionId and projectId: ${labels(asked)}.`,
+      `The owner has not picked an account yet. Draft nothing; ask them to pick one by name or place in your list: ${labels(asked)}.`,
     );
-  }
   throw new SokoBotRefusedUnsentError(
     `${ASK_WHICH_ACCOUNT}, and the owner has not chosen one: ${labels(candidates)}. Ask the owner once which one, naming them, and draft nothing until they answer. Then create the post with that account's socialConnectionId and projectId.`,
   );
