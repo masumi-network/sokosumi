@@ -1,13 +1,18 @@
-import type { Coworker } from "@sokosumi/core-client";
+import { type Coworker, SokoBotScope } from "@sokosumi/core-client";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
-
 import { OpenCoworkerRoomProvider } from "@/app/chat/components/landing/use-open-coworker-room";
 import { coworkerCanChat } from "@/app/chat/utils/coworker-utils";
 import { PersonAvatar } from "@/app/contacts/components/contact-visuals";
+import { CreateSokoBotDialog } from "@/app/soko-bots/components/create-soko-bot-dialog.client";
+import { ArchivedBotRows } from "@/app/soko-bots/components/managed-bot-sections";
+import {
+  loadSokoBotsManagement,
+  type ManagedBot,
+} from "@/app/soko-bots/managed-bots";
 import { CoworkerAvatar } from "@/components/agents/coworker-avatar";
 import { AgentStatus } from "@/components/agents/directory/agent-status";
 import {
@@ -28,7 +33,7 @@ import {
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
 import { mapAgentListItemToCatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
-import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
 import {
@@ -42,11 +47,14 @@ import {
   botPurpose,
   botStatusLabel,
 } from "./bot-labels";
+import { ArchivedFold } from "./components/archived-fold.client";
+import { BotManageMenu } from "./components/bot-manage-menu.client";
 import {
   BotCardAction,
   CoworkerCardAction,
 } from "./components/card-actions.client";
 import { Marketplace } from "./components/marketplace.client";
+import { NotSetUpLine } from "./components/not-set-up-line";
 import type { DirectoryBot } from "./soko-bot-directory";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -89,11 +97,14 @@ function BotOwner({ bot, t }: { bot: DirectoryBot; t: DirectoryT }) {
 function BotGroup({
   label,
   bots,
+  managed,
   t,
   children,
 }: {
   label: string;
   bots: DirectoryBot[];
+  /** The bots the viewer configures, by id; others get no menu. */
+  managed: Map<string, ManagedBot>;
   t: DirectoryT;
   children?: ReactNode;
 }) {
@@ -124,11 +135,10 @@ function BotGroup({
                 />
               }
               action={
-                <BotCardAction
-                  botId={bot.id}
-                  botName={botName(bot, t)}
-                  shared={!isPersonal(bot)}
-                  sharedRoomId={bot.sharedRoomId}
+                <BotActions
+                  bot={bot}
+                  managed={managed.get(bot.id)}
+                  name={botName(bot, t)}
                 />
               }
             />
@@ -140,13 +150,57 @@ function BotGroup({
   );
 }
 
+/** Message, and the "…" menu on the bots the viewer configures. */
+function BotActions({
+  bot,
+  managed,
+  name,
+}: {
+  bot: DirectoryBot;
+  managed: ManagedBot | undefined;
+  name: string;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <BotCardAction
+        botId={bot.id}
+        botName={name}
+        shared={!isPersonal(bot)}
+        sharedRoomId={bot.sharedRoomId}
+      />
+      {managed ? (
+        <BotManageMenu
+          name={name}
+          settingsHref={managed.settingsHref}
+          botId={managed.targetId}
+          paused={managed.paused}
+          canArchive={managed.canArchive}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+const INVITERS = new Set(["owner", "admin"]);
+
 async function SokoBotsSection() {
-  const [t, directory] = await Promise.all([
+  const [t, tSoko, format, directory, management] = await Promise.all([
     getTranslations("App.Agents.Directory"),
+    getTranslations("App.SokoBots"),
+    getFormatter(),
     loadAgentsBotDirectory(),
+    loadSokoBotsManagement(),
   ]);
   const personal = directory?.bots.filter(isPersonal) ?? [];
   const shared = directory?.bots.filter((bot) => !isPersonal(bot)) ?? [];
+  const managed = new Map(
+    management.bots
+      .filter((bot) => bot.archivedAt === null)
+      .map((bot) => [bot.id, bot]),
+  );
+  const archived = management.bots.filter((bot) => bot.archivedAt !== null);
+  const { team, projects } = management;
+  const me = team?.members.find((member) => member.isYou) ?? null;
 
   return (
     <AgentsSection
@@ -154,9 +208,13 @@ async function SokoBotsSection() {
       title={t("sokoBotsTitle")}
       note={t("sokoBotsNote")}
       action={
-        <AgentsSectionLink href={SOKO_BOTS_ROUTE}>
-          {t("manageSokoBots")}
-        </AgentsSectionLink>
+        directory && projects ? (
+          <CreateSokoBotDialog
+            canCreatePersonal={!directory.hasOwnBot}
+            projects={projects}
+            defaultScope={SokoBotScope.WORKSPACE}
+          />
+        ) : null
       }
     >
       {!directory ? (
@@ -165,7 +223,12 @@ async function SokoBotsSection() {
         </p>
       ) : (
         <>
-          <BotGroup label={t("groupPersonal")} bots={personal} t={t}>
+          <BotGroup
+            label={t("groupPersonal")}
+            bots={personal}
+            managed={managed}
+            t={t}
+          >
             {directory.hasOwnBot ? null : (
               <li>
                 <Link
@@ -188,7 +251,31 @@ async function SokoBotsSection() {
             )}
           </BotGroup>
           {shared.length > 0 ? (
-            <BotGroup label={t("groupShared")} bots={shared} t={t} />
+            <BotGroup
+              label={t("groupShared")}
+              bots={shared}
+              managed={managed}
+              t={t}
+            />
+          ) : null}
+          {archived.length > 0 ? (
+            <ArchivedFold
+              label={tSoko("archivedTitle")}
+              count={format.number(archived.length)}
+            >
+              <ArchivedBotRows
+                bots={archived}
+                t={tSoko}
+                tDir={t}
+                format={format}
+              />
+            </ArchivedFold>
+          ) : null}
+          {team?.workspace.kind === "organization" ? (
+            <NotSetUpLine
+              others={team.members.filter((member) => !member.isYou)}
+              canInvite={INVITERS.has(me?.role ?? "")}
+            />
           ) : null}
         </>
       )}

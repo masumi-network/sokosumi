@@ -152,7 +152,7 @@ describe("SharedSokoBotPage", () => {
     expect(screen.queryByTestId("console")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "back" })).toHaveAttribute(
       "href",
-      "/soko-bots",
+      "/agents",
     );
   });
 

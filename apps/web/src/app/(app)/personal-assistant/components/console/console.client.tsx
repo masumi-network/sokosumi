@@ -50,7 +50,7 @@ import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { useSokoBotIntegrationOutcomeToast } from "@/hooks/effects/use-soko-bot-integration-outcome-toast";
 import type { ChatSchedule, SokoBotChatState } from "@/lib/soko-bot/chat-state";
-import { SOKO_BOTS_ROUTE, sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
+import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { describeSchedule } from "@/lib/soko-bot/describe-cron";
 import type { BotAdAccount } from "@/lib/soko-bot/load-bot-ad-accounts";
 import { cn } from "@/lib/utils";
@@ -396,10 +396,7 @@ export function SokoBotConsole({
               <CmoProjectBanner projectId={cmoProjectId} />
             ) : null}
             <div className="flex flex-col gap-4">
-              <BackLink
-                href={SOKO_BOTS_ROUTE}
-                className={AGENTS_BACK_LINK_CLASS}
-              >
+              <BackLink href="/agents" className={AGENTS_BACK_LINK_CLASS}>
                 <ArrowLeft aria-hidden className="size-4" />
                 {t("Console.back")}
               </BackLink>

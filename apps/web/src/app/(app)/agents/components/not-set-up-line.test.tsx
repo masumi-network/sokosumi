@@ -5,7 +5,7 @@ vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
 }));
 
-import { NotSetUpSection } from "./not-set-up-section";
+import { NotSetUpLine } from "./not-set-up-line";
 
 const bot = {
   id: "milo",
@@ -27,19 +27,19 @@ function member(userId: string, name: string, hasBot: boolean) {
   };
 }
 
-async function renderSection(
+async function renderLine(
   others: ReturnType<typeof member>[],
   canInvite = false,
 ) {
   const { container } = render(
-    (await NotSetUpSection({ others, canInvite })) ?? <></>,
+    (await NotSetUpLine({ others, canInvite })) ?? <></>,
   );
   return container;
 }
 
-describe("NotSetUpSection", () => {
+describe("NotSetUpLine", () => {
   it("lists only teammates without a bot", async () => {
-    await renderSection([
+    await renderLine([
       member("bob", "Bob Keller", true),
       member("zo", "Zara Ortiz", false),
     ]);
@@ -48,7 +48,7 @@ describe("NotSetUpSection", () => {
   });
 
   it("links owners and admins to the invite links", async () => {
-    await renderSection([member("zo", "Zara Ortiz", false)], true);
+    await renderLine([member("zo", "Zara Ortiz", false)], true);
     expect(screen.getByRole("link", { name: /invitePeople/ })).toHaveAttribute(
       "href",
       "/organization#invite-links",
@@ -56,22 +56,24 @@ describe("NotSetUpSection", () => {
   });
 
   it("keeps the invite link from members", async () => {
-    await renderSection([member("zo", "Zara Ortiz", false)]);
+    await renderLine([member("zo", "Zara Ortiz", false)]);
     expect(
       screen.queryByRole("link", { name: /invitePeople/ }),
     ).not.toBeInTheDocument();
   });
 
   it("renders nothing when everyone has a bot", async () => {
-    const container = await renderSection([member("bob", "Bob Keller", true)]);
+    const container = await renderLine(
+      [member("bob", "Bob Keller", true)],
+      true,
+    );
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("asks an organization of one to invite its team", async () => {
-    await renderSection([], true);
+  it("asks an organization of one to invite its team, but only an inviter", async () => {
+    await renderLine([], true);
     expect(screen.getByText("teamEmpty")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /invitePeople/ }),
-    ).toBeInTheDocument();
+    const container = await renderLine([]);
+    expect(container).toBeEmptyDOMElement();
   });
 });

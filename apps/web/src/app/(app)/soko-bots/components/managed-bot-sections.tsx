@@ -150,7 +150,7 @@ function LiveBotRows({
   );
 }
 
-function ArchivedBotRows({
+export function ArchivedBotRows({
   bots,
   t,
   tDir,

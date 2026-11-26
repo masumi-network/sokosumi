@@ -14,7 +14,7 @@ import { BackLink } from "@/components/back-link";
 import { BotFace, botFaceSeed } from "@/components/soko-bot/bot-face";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
-import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { loadBotAdAccounts } from "@/lib/soko-bot/load-bot-ad-accounts";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -61,7 +61,7 @@ export default async function SharedSokoBotPage({
     return (
       <div className={AGENTS_PAGE_CLASS} data-testid="archived-shared-bot">
         <div className="flex flex-col gap-4">
-          <BackLink href={SOKO_BOTS_ROUTE} className={AGENTS_BACK_LINK_CLASS}>
+          <BackLink href="/agents" className={AGENTS_BACK_LINK_CLASS}>
             <ArrowLeft aria-hidden className="size-4" />
             {t("back")}
           </BackLink>

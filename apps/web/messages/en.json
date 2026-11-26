@@ -9411,7 +9411,6 @@
         "sokoBotsTitle": "Soko Bots",
         "sokoBotsNote": "Assistants that work for one person, a project or the whole team.",
         "sokoBotsUnavailable": "Soko Bots can't be loaded right now. Try again in a moment.",
-        "manageSokoBots": "Manage Soko Bots",
         "createOwnBot": "Set up your Soko Bot",
         "createOwnBotHint": "Your own assistant for mail, tasks and chats.",
         "coworkersTitle": "Coworkers",
@@ -11511,7 +11510,7 @@
           "help": "Schedules and chat still work.",
           "retry": "Try again"
         },
-        "back": "Soko Bots"
+        "back": "Agents"
       },
       "Avatar": {
         "edit": "Change look",
@@ -11717,12 +11716,6 @@
         "description": "Nothing was lost. Try again in a moment.",
         "retry": "Try again"
       },
-      "manageTitle": "Manage Soko Bots",
-      "manageNote": "Your own bot and the bots your team shares. A paused bot stops the work it starts on its own but still answers when messaged.",
-      "manageNotePersonal": "A paused bot stops the work it starts on its own but still answers when messaged.",
-      "manageEmpty": "No Soko Bots yet. Create one for yourself, a project or the whole team.",
-      "allAgents": "All agents",
-      "setUpOwn": "Set up your Soko Bot",
       "settings": "Settings",
       "settingsName": "Settings for {name}",
       "pause": "Pause",
@@ -11737,7 +11730,6 @@
       "archivedTitle": "Archived",
       "archivedOn": "Archived {date}",
       "notSetUpTitle": "Not set up yet",
-      "notSetUpNote": "Teammates without a Soko Bot. They can set one up from Agents.",
       "invitePeople": "Invite people",
       "teamEmpty": "Nobody else is in this workspace yet. Invite your team, and they can set up their own Soko Bots.",
       "Archive": {
@@ -11782,13 +11774,14 @@
         "Archived": {
           "title": "{name} is archived",
           "description": "An archived bot no longer reads, runs its schedules or answers in its room. Its history stays.",
-          "back": "Soko Bots",
+          "back": "Agents",
           "reactivate": "Restore",
           "reactivateName": "Restore {name}",
           "reactivated": "Soko Bot restored.",
           "reactivateError": "Could not restore the Soko Bot."
         }
-      }
+      },
+      "moreName": "More for {name}"
     },
     "Calendar": {
       "Metadata": {

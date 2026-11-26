@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useTransition } from "react";
+import { type ReactNode, useTransition } from "react";
 import { toast } from "sonner";
 
 import {
@@ -18,17 +18,26 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { archiveSokoBotAction } from "@/lib/actions/soko-bot/action";
-import { SOKO_BOTS_ROUTE, sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
+import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { useSokoBotTargetId } from "./soko-bot-target";
 
+const AGENTS_ROUTE = "/agents";
+
 /**
- * Archives the console's bot, or the one `botId` names where a list holds
- * several (`null` for the viewer's own).
+ * Asks before archiving the console's bot, or the one `botId` names where a
+ * list holds several (`null` for the viewer's own). `children` is its trigger;
+ * a menu leaves it out and opens the dialog through `open`.
  */
-export function ArchiveSokoBotButton({
+export function ArchiveSokoBotDialog({
   botId: listedBotId,
+  open,
+  onOpenChange,
+  children,
 }: {
   botId?: string | null;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  children?: ReactNode;
 }) {
   const t = useTranslations("App.SokoBots.Archive");
   const router = useRouter();
@@ -39,12 +48,8 @@ export function ArchiveSokoBotButton({
   const [isPending, startTransition] = useTransition();
 
   return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button type="button" size="sm" disabled={isPending}>
-          {t("archive")}
-        </Button>
-      </AlertDialogTrigger>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      {children}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
@@ -59,6 +64,7 @@ export function ArchiveSokoBotButton({
         <AlertDialogFooter>
           <AlertDialogCancel>{t("archiveCancel")}</AlertDialogCancel>
           <AlertDialogAction
+            loading={isPending}
             onClick={() =>
               startTransition(async () => {
                 const result = await archiveSokoBotAction({ botId });
@@ -67,9 +73,9 @@ export function ArchiveSokoBotButton({
                   return;
                 }
                 toast.success(t("archived"));
-                // A shared bot's console closes with it; Soko Bots lists it.
+                // A shared bot's console closes with it; Agents lists it.
                 if (botId && pathname === sokoBotConsoleRoute(botId)) {
-                  router.push(SOKO_BOTS_ROUTE);
+                  router.push(AGENTS_ROUTE);
                 }
               })
             }
@@ -79,5 +85,18 @@ export function ArchiveSokoBotButton({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+export function ArchiveSokoBotButton({ botId }: { botId?: string | null }) {
+  const t = useTranslations("App.SokoBots.Archive");
+  return (
+    <ArchiveSokoBotDialog botId={botId}>
+      <AlertDialogTrigger asChild>
+        <Button type="button" size="sm">
+          {t("archive")}
+        </Button>
+      </AlertDialogTrigger>
+    </ArchiveSokoBotDialog>
   );
 }
