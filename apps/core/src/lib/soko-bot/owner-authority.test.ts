@@ -7,11 +7,24 @@ import {
 import { describe, expect, it } from "vitest";
 import {
   attenuateForChildWork,
+  capabilitiesForDelegationFollowUp,
+  capabilitiesForWatchFollowUp,
+  DELEGATION_EVENT_SOCIAL_DRAFT_ONLY_MESSAGE,
+  deriveDelegationAuthority,
+  deriveTurnOwnerAuthority,
+  deriveWatchAuthority,
+  evaluateSocialWriteAuthority,
+  evaluateTurnWebTaint,
   intersectOwnerAuthority,
+  isCapabilityWebTaintSensitive,
   isReadOnlyToolCall,
   isToolCallAllowedByAuthority,
   mintTurnOwnerAuthority,
   mintUiOwnerAuthority,
+  resolveDelegationWakeAuthority,
+  resolveSocialWriteOriginSource,
+  resolveWatchWakeAuthority,
+  TAINTED_SOCIAL_SCHEDULE_DETAIL,
 } from "./owner-authority";
 
 const BOT_ID = "01960000-0000-7000-8000-000000000001";
@@ -905,5 +918,883 @@ describe("intersectOwnerAuthority", () => {
     expect(live.effective).toBe(true);
     expect(live.privateChannelAllowed).toBe(false);
     expect(live.allowedCapabilities).toContain("create_social_post");
+  });
+
+  it("derives monotonic turn-chain authority and rejects cross-bot, cross-workspace, owner-switch, or non-CHAT hops", () => {
+    const ownerNode = {
+      id: TURN_ID,
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      versionId: "v36",
+      source: "CHAT",
+      clientTurnId: "chat:1",
+      parentTurnId: null as string | null,
+      askedByUserId: null as string | null,
+      requestedByUserId: OWNER_ID,
+      chainDepth: 0,
+      sokoBot: { userId: OWNER_ID as string | null },
+    };
+
+    const direct = deriveTurnOwnerAuthority([ownerNode]);
+    expect(direct?.origin).toBe("owner_chat");
+    expect(direct?.ownerUserId).toBe(OWNER_ID);
+
+    const bgChild = deriveTurnOwnerAuthority([
+      { ...ownerNode, id: BG_TURN_ID, parentTurnId: TURN_ID },
+      ownerNode,
+    ]);
+    expect(bgChild?.origin).toBe("owner_chat");
+    expect(bgChild?.rootTurnId).toBe(TURN_ID);
+
+    // Shared Cuso workspace-member CHAT mints owner_chat; personal bot teammate fails closed.
+    const cusoMember = deriveTurnOwnerAuthority([
+      {
+        ...ownerNode,
+        versionId: "cmo-v24",
+        askedByUserId: TEAMMATE_ID,
+        requestedByUserId: OWNER_ID,
+        sokoBot: { userId: null },
+      },
+    ]);
+    expect(cusoMember?.origin).toBe("owner_chat");
+
+    const personalTeammate = deriveTurnOwnerAuthority([
+      {
+        ...ownerNode,
+        versionId: "cmo-v24",
+        askedByUserId: TEAMMATE_ID,
+        requestedByUserId: OWNER_ID,
+        sokoBot: { userId: OWNER_ID },
+      },
+    ]);
+    expect(personalTeammate?.origin).toBe("system");
+
+    // Cross-bot, cross-workspace, owner-switch, EVENT child, and dangling parent all fail closed.
+    expect(
+      deriveTurnOwnerAuthority([
+        { ...ownerNode, id: BG_TURN_ID, parentTurnId: TURN_ID },
+        { ...ownerNode, sokoBotId: OTHER_BOT_ID },
+      ])?.origin,
+    ).toBe("system");
+    expect(
+      deriveTurnOwnerAuthority([
+        { ...ownerNode, id: BG_TURN_ID, parentTurnId: TURN_ID },
+        { ...ownerNode, workspaceId: "01960000-0000-7000-8000-000000000088" },
+      ])?.origin,
+    ).toBe("system");
+    expect(
+      deriveTurnOwnerAuthority([
+        {
+          ...ownerNode,
+          id: BG_TURN_ID,
+          parentTurnId: TURN_ID,
+          requestedByUserId: TEAMMATE_ID,
+        },
+        ownerNode,
+      ])?.origin,
+    ).toBe("system");
+    expect(
+      deriveTurnOwnerAuthority([
+        {
+          ...ownerNode,
+          id: BG_TURN_ID,
+          source: "EVENT",
+          parentTurnId: TURN_ID,
+        },
+        ownerNode,
+      ])?.origin,
+    ).toBe("system");
+    expect(
+      deriveTurnOwnerAuthority([
+        { ...ownerNode, id: BG_TURN_ID, parentTurnId: "missing-root" },
+      ])?.origin,
+    ).toBe("system");
+    expect(
+      deriveTurnOwnerAuthority([{ ...ownerNode, sokoBotId: "" }]),
+    ).toBeNull();
+  });
+
+  it("evaluates web taint and social write authority uniformly across create, schedule, cancel, and edits", () => {
+    const ownerNode = {
+      id: TURN_ID,
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      versionId: "v36",
+      source: "CHAT",
+      clientTurnId: "chat:1",
+      parentTurnId: null,
+      askedByUserId: null,
+      requestedByUserId: OWNER_ID,
+      chainDepth: 0,
+      sokoBot: { userId: OWNER_ID },
+    };
+    const ownerAuth = deriveTurnOwnerAuthority([ownerNode])!;
+
+    expect(
+      isCapabilityWebTaintSensitive("investor_warm_paths", {
+        contactId: CONTACT_ID,
+        research: false,
+      }),
+    ).toBe(false);
+    expect(
+      isCapabilityWebTaintSensitive("investor_warm_paths", {
+        contactId: CONTACT_ID,
+        research: true,
+      }),
+    ).toBe(true);
+    expect(
+      evaluateTurnWebTaint(
+        { turn: ownerNode, authority: ownerAuth },
+        "create_social_post",
+        { text: "Unscheduled draft" },
+      ),
+    ).toEqual({ blocked: false });
+    expect(
+      evaluateTurnWebTaint(
+        { turn: ownerNode, authority: ownerAuth },
+        "create_social_post",
+        { text: "Scheduled post", scheduledAt: "2026-12-01T09:00:00.000Z" },
+      ),
+    ).toEqual({ blocked: true, detail: TAINTED_SOCIAL_SCHEDULE_DETAIL });
+    expect(
+      evaluateTurnWebTaint(
+        { turn: ownerNode, authority: ownerAuth },
+        "investor_warm_paths",
+        { contactId: CONTACT_ID, research: true },
+      ),
+    ).toEqual({ blocked: true });
+
+    // Web-tainted owner CHAT: unscheduled create allowed, scheduledAt blocked, edit requires unapproved draft.
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: { ...ownerNode, actingUserId: OWNER_ID, askedByKind: "OWNER" },
+        capability: "create_social_post",
+        rawInput: { text: "Draft copy" },
+        tainted: true,
+        turnAuthority: ownerAuth,
+      }),
+    ).toEqual({ allowed: true, requireUnapprovedDraft: false });
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: { ...ownerNode, actingUserId: OWNER_ID, askedByKind: "OWNER" },
+        capability: "create_social_post",
+        rawInput: {
+          text: "Scheduled copy",
+          scheduledAt: "2026-12-01T09:00:00.000Z",
+        },
+        tainted: true,
+        turnAuthority: ownerAuth,
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "tainted",
+      detail: TAINTED_SOCIAL_SCHEDULE_DETAIL,
+    });
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: { ...ownerNode, actingUserId: OWNER_ID, askedByKind: "OWNER" },
+        capability: "update_social_post",
+        rawInput: {},
+        tainted: true,
+        turnAuthority: ownerAuth,
+      }),
+    ).toEqual({ allowed: true, requireUnapprovedDraft: true });
+
+    // Non-CMO EVENT turn: untainted allows unscheduled draft, blocks scheduledAt/schedule/publish/cancel/edits;
+    // tainted EVENT blocks even unscheduled create_social_post.
+    const eventNode = {
+      ...ownerNode,
+      source: "EVENT",
+      clientTurnId: "taskboard:1",
+    };
+    const eventAuth = deriveTurnOwnerAuthority([eventNode])!;
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: { ...eventNode, actingUserId: OWNER_ID, askedByKind: "OWNER" },
+        capability: "create_social_post",
+        rawInput: { text: "Draft from event" },
+        tainted: false,
+      }),
+    ).toEqual({ allowed: true, requireUnapprovedDraft: false });
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: { ...eventNode, actingUserId: OWNER_ID, askedByKind: "OWNER" },
+        capability: "cancel_social_post",
+        rawInput: {},
+        tainted: false,
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "delegation_event_draft_only",
+      detail: DELEGATION_EVENT_SOCIAL_DRAFT_ONLY_MESSAGE,
+    });
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: { ...eventNode, actingUserId: OWNER_ID, askedByKind: "OWNER" },
+        capability: "create_social_post",
+        rawInput: { text: "Injected draft" },
+        tainted: true,
+        turnAuthority: eventAuth,
+      }),
+    ).toEqual({ allowed: false, kind: "tainted" });
+
+    // Clean CMO EVENT allowed; tainted CMO EVENT refused.
+    const cmoEventNode = { ...eventNode, versionId: "cmo-v24" };
+    const cmoEventAuth = deriveTurnOwnerAuthority([cmoEventNode])!;
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: { ...cmoEventNode, actingUserId: OWNER_ID, askedByKind: "OWNER" },
+        capability: "schedule_social_post",
+        rawInput: {},
+        tainted: false,
+      }),
+    ).toEqual({ allowed: true, requireUnapprovedDraft: false });
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: { ...cmoEventNode, actingUserId: OWNER_ID, askedByKind: "OWNER" },
+        capability: "schedule_social_post",
+        rawInput: {},
+        tainted: true,
+        turnAuthority: cmoEventAuth,
+      }),
+    ).toEqual({ allowed: false, kind: "tainted" });
+  });
+
+  it("traces production admin-retry:<uuid>:<op> chains with bot-scoped lookup and fails closed on missing, malformed, or cross-bot targets", async () => {
+    const ORIG_EVENT_ID = "01960000-0000-7000-8000-000000000101";
+    const RETRY_EVENT_ID = "01960000-0000-7000-8000-000000000102";
+    const RETRY_EVENT_2_ID = "01960000-0000-7000-8000-000000000103";
+    const ORIG_CHAT_ID = "01960000-0000-7000-8000-000000000104";
+    const RETRY_CHAT_ID = "01960000-0000-7000-8000-000000000105";
+    const OTHER_BOT_CHAT_ID = "01960000-0000-7000-8000-000000000106";
+    const RETRY_CROSS_BOT_ID = "01960000-0000-7000-8000-000000000107";
+    const RETRY_MALFORMED_ID = "01960000-0000-7000-8000-000000000108";
+    const RETRY_SCHEDULE_ID = "01960000-0000-7000-8000-000000000109";
+    const MISSING_ID = "01960000-0000-7000-8000-000000000199";
+    const UUID_RE =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    const rows = new Map<
+      string,
+      { id: string; sokoBotId: string; source: string; clientTurnId: string }
+    >([
+      [
+        RETRY_EVENT_ID,
+        {
+          id: RETRY_EVENT_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: `admin-retry:${ORIG_EVENT_ID}:op-1`,
+        },
+      ],
+      [
+        RETRY_EVENT_2_ID,
+        {
+          id: RETRY_EVENT_2_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: `admin-retry:${RETRY_EVENT_ID}:op-2`,
+        },
+      ],
+      [
+        ORIG_EVENT_ID,
+        {
+          id: ORIG_EVENT_ID,
+          sokoBotId: BOT_ID,
+          source: "EVENT",
+          clientTurnId: "event:1",
+        },
+      ],
+      [
+        RETRY_CHAT_ID,
+        {
+          id: RETRY_CHAT_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: `admin-retry:${ORIG_CHAT_ID}:op-3`,
+        },
+      ],
+      [
+        ORIG_CHAT_ID,
+        {
+          id: ORIG_CHAT_ID,
+          sokoBotId: BOT_ID,
+          source: "CHAT",
+          clientTurnId: "chat:1",
+        },
+      ],
+      [
+        RETRY_CROSS_BOT_ID,
+        {
+          id: RETRY_CROSS_BOT_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: `admin-retry:${OTHER_BOT_CHAT_ID}:op-4`,
+        },
+      ],
+      [
+        OTHER_BOT_CHAT_ID,
+        {
+          id: OTHER_BOT_CHAT_ID,
+          sokoBotId: OTHER_BOT_ID,
+          source: "CHAT",
+          clientTurnId: "chat:2",
+        },
+      ],
+      [
+        RETRY_MALFORMED_ID,
+        {
+          id: RETRY_MALFORMED_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: "admin-retry:not-a-uuid:op-5",
+        },
+      ],
+      [
+        RETRY_SCHEDULE_ID,
+        {
+          id: RETRY_SCHEDULE_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: `admin-schedule-retry:${SCHED_ID}:op-6`,
+        },
+      ],
+    ]);
+    const fakeClient = {
+      sokoBotTurn: {
+        findFirst: async ({
+          where,
+        }: {
+          where: { id: string; sokoBotId: string };
+        }) => {
+          // Mirror PostgreSQL @db.Uuid rejection on non-UUID query params.
+          if (!UUID_RE.test(where.id)) {
+            throw new Error(
+              `22P02 invalid input syntax for type uuid: ${where.id}`,
+            );
+          }
+          const row = rows.get(where.id);
+          return row && row.sokoBotId === where.sokoBotId ? row : null;
+        },
+      },
+    } as never;
+
+    expect(
+      await resolveSocialWriteOriginSource(
+        { id: RETRY_EVENT_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toBe("EVENT");
+    expect(
+      await resolveSocialWriteOriginSource(
+        { id: RETRY_EVENT_2_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toBe("EVENT");
+    expect(
+      await resolveSocialWriteOriginSource(
+        { id: RETRY_CHAT_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toBe("CHAT");
+    expect(
+      await resolveSocialWriteOriginSource(
+        { id: RETRY_CROSS_BOT_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toBe("EVENT");
+    expect(
+      await resolveSocialWriteOriginSource(
+        { id: RETRY_MALFORMED_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toBe("EVENT");
+    expect(
+      await resolveSocialWriteOriginSource(
+        { id: MISSING_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toBe("EVENT");
+    expect(
+      await resolveSocialWriteOriginSource(
+        { id: RETRY_SCHEDULE_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toBe("SCHEDULE");
+  });
+});
+
+describe("delegation and watch OwnerAuthority persistence, schedules, and legacy fallback", () => {
+  it("shares one deterministic grantId across parallel delegations from the same owner chat turn", async () => {
+    const ownerTurn = {
+      id: TURN_ID,
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      versionId: "v36",
+      source: "CHAT",
+      parentTurnId: null,
+      askedByUserId: null,
+      requestedByUserId: OWNER_ID,
+      actingUserId: OWNER_ID,
+      chainDepth: 0,
+    };
+    const first = await deriveDelegationAuthority(ownerTurn, {
+      followUpAllows: { images: 2, maxCredits: 20 },
+    });
+    const second = await deriveDelegationAuthority(ownerTurn, {
+      followUpAllows: { images: 2, maxCredits: 20 },
+    });
+    expect(first.grantId).toBe(TURN_ID);
+    expect(second.grantId).toBe(TURN_ID);
+    expect(first.limits).toEqual({
+      grantId: TURN_ID,
+      period: "lifetime",
+      images: 2,
+      maxMediaCredits: 20,
+    });
+    expect(second.limits).toEqual(first.limits);
+    expect(first.scope).toBe("draft_and_workspace");
+    expect(first.socialMode).toBe("draft_only");
+  });
+
+  it("honors explicit lifetime vs per_occurrence periods on recurring schedule delegations", async () => {
+    const lifetimeScheduleAuthority = attenuateForChildWork(
+      mintTurnOwnerAuthority({
+        turn: {
+          id: TURN_ID,
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "v36",
+          source: "CHAT",
+          parentTurnId: null,
+          chainDepth: 0,
+          askedByUserId: null,
+          requestedByUserId: OWNER_ID,
+        },
+        actingUserId: OWNER_ID,
+        askedByKind: "OWNER",
+        grantId: "sched-lifetime-grant",
+        limits: {
+          grantId: "sched-lifetime-grant",
+          period: "lifetime",
+          images: 3,
+          maxMediaCredits: 30,
+        },
+      }),
+      "schedule",
+      { versionId: "v36", scheduleId: SCHED_ID },
+    );
+    const perOccurrenceScheduleAuthority = attenuateForChildWork(
+      mintTurnOwnerAuthority({
+        turn: {
+          id: TURN_ID,
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "v36",
+          source: "CHAT",
+          parentTurnId: null,
+          chainDepth: 0,
+          askedByUserId: null,
+          requestedByUserId: OWNER_ID,
+        },
+        actingUserId: OWNER_ID,
+        askedByKind: "OWNER",
+        grantId: "sched-daily-grant",
+        limits: {
+          grantId: "sched-daily-grant",
+          period: "per_occurrence",
+          images: 3,
+          maxMediaCredits: 30,
+        },
+      }),
+      "schedule",
+      {
+        versionId: "v36",
+        scheduleId: OTHER_SCHED_ID,
+        scheduleAllowancePeriod: "per_occurrence",
+      },
+    );
+
+    const day1RunId = "01960000-0000-7000-8000-000000000501";
+    const day2RunId = "01960000-0000-7000-8000-000000000502";
+    const makeScheduleClient = (scheduleId: string, authority: unknown) =>
+      ({
+        sokoBotTurn: {
+          findUnique: async ({ where }: { where: { id: string } }) => ({
+            id: where.id,
+            sokoBotId: BOT_ID,
+            workspaceId: WS_ID,
+            versionId: "v36",
+            source: "SCHEDULE",
+            clientTurnId: `schedule:${scheduleId}:${where.id}`,
+            parentTurnId: null,
+            askedByUserId: null,
+            requestedByUserId: OWNER_ID,
+            chainDepth: 0,
+            sokoBot: { userId: OWNER_ID },
+            scheduleRun: {
+              schedule: {
+                id: scheduleId,
+                sokoBotId: BOT_ID,
+                workspaceId: WS_ID,
+                requestedByUserId: OWNER_ID,
+                systemKey: null,
+                authority,
+              },
+            },
+          }),
+        },
+      }) as never;
+
+    const lifetimeDay1 = await deriveDelegationAuthority(
+      {
+        id: day1RunId,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "SCHEDULE",
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: OWNER_ID,
+        actingUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      { followUpAllows: { images: 3, maxCredits: 30 } },
+      makeScheduleClient(SCHED_ID, lifetimeScheduleAuthority),
+    );
+    const lifetimeDay2 = await deriveDelegationAuthority(
+      {
+        id: day2RunId,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "SCHEDULE",
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: OWNER_ID,
+        actingUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      { followUpAllows: { images: 3, maxCredits: 30 } },
+      makeScheduleClient(SCHED_ID, lifetimeScheduleAuthority),
+    );
+    // Lifetime schedule allowances share one grantId across all occurrences.
+    expect(lifetimeDay1.limits?.grantId).toBe("sched-lifetime-grant");
+    expect(lifetimeDay2.limits?.grantId).toBe("sched-lifetime-grant");
+    expect(lifetimeDay1.limits?.period).toBe("lifetime");
+
+    const dailyDay1A = await deriveDelegationAuthority(
+      {
+        id: day1RunId,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "SCHEDULE",
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: OWNER_ID,
+        actingUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      { followUpAllows: { images: 3, maxCredits: 30 } },
+      makeScheduleClient(OTHER_SCHED_ID, perOccurrenceScheduleAuthority),
+    );
+    const dailyDay1B = await deriveDelegationAuthority(
+      {
+        id: day1RunId,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "SCHEDULE",
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: OWNER_ID,
+        actingUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      { followUpAllows: { images: 3, maxCredits: 30 } },
+      makeScheduleClient(OTHER_SCHED_ID, perOccurrenceScheduleAuthority),
+    );
+    const dailyDay2 = await deriveDelegationAuthority(
+      {
+        id: day2RunId,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "SCHEDULE",
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: OWNER_ID,
+        actingUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      { followUpAllows: { images: 3, maxCredits: 30 } },
+      makeScheduleClient(OTHER_SCHED_ID, perOccurrenceScheduleAuthority),
+    );
+    // Parallel children of Day 1 share one occurrence grantId; Day 2 gets a fresh one.
+    expect(dailyDay1A.limits?.grantId).toBe(
+      `sched-daily-grant:turn:${day1RunId}`,
+    );
+    expect(dailyDay1B.limits?.grantId).toBe(dailyDay1A.limits?.grantId);
+    expect(dailyDay2.limits?.grantId).toBe(
+      `sched-daily-grant:turn:${day2RunId}`,
+    );
+    expect(dailyDay2.limits?.grantId).not.toBe(dailyDay1A.limits?.grantId);
+  });
+
+  it("never mints owner limits from a system/teammate parent turn and preserves legacy pre-migration rows", async () => {
+    const ingestDelegation = await deriveDelegationAuthority(
+      {
+        id: TURN_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "INGEST",
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: OWNER_ID,
+        actingUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      { followUpAllows: { images: 3, maxCredits: 30 } },
+    );
+    expect(ingestDelegation.origin).toBe("system");
+    expect(ingestDelegation.scope).toBe("read_only");
+    expect(ingestDelegation.socialMode).toBe("none");
+    expect(ingestDelegation.limits).toBeUndefined();
+
+    // Legacy delegation row (`authority: null`) created before migration still resumes.
+    const legacyDelegation = resolveDelegationWakeAuthority(
+      {
+        id: "del-legacy-1",
+        authority: null,
+        followUpAllows: { images: 2, maxCredits: 25 },
+        turn: {
+          id: TURN_ID,
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "v36",
+          source: "CHAT",
+          chainDepth: 0,
+          askedByUserId: null,
+          requestedByUserId: OWNER_ID,
+          parentTurnId: null,
+          parentTurn: null,
+        },
+      },
+      { sokoBotId: BOT_ID, workspaceId: WS_ID, versionId: "v36" },
+    );
+    expect(legacyDelegation).toMatchObject({
+      origin: "owner_chat",
+      grantId: "legacy-delegation:del-legacy-1",
+      scope: "draft_and_workspace",
+      socialMode: "draft_only",
+      limits: {
+        grantId: "legacy-delegation:del-legacy-1",
+        period: "lifetime",
+        images: 2,
+        maxMediaCredits: 25,
+      },
+    });
+
+    // Legacy watch row (`authority: null`) created before migration still resumes.
+    const legacyWatch = resolveWatchWakeAuthority({
+      id: "watch-legacy-1",
+      kind: "studio_job",
+      projectId: null,
+      sokoBotId: BOT_ID,
+      authority: null,
+      turn: {
+        id: TURN_ID,
+        requestedByUserId: OWNER_ID,
+        askedByUserId: null,
+        chainDepth: 0,
+        workspaceId: WS_ID,
+        source: "CHAT",
+        versionId: "v36",
+        sokoBot: { userId: OWNER_ID },
+      },
+    });
+    expect(legacyWatch.origin).toBe("owner_chat");
+    expect(legacyWatch.scope).toBe("owner_writes");
+    expect(legacyWatch.grantId).toBe(TURN_ID);
+  });
+
+  it("unifies delegation and watch follow-up capabilities through OwnerAuthority including chat_reply taint and expiry", async () => {
+    const offered: SokoBotCapability[] = [
+      "list_tasks",
+      "get_image",
+      "create_social_post",
+      "schedule_social_post",
+      "publish_social_post",
+      "post_chat",
+      "start_background_run",
+      "hire_agent",
+      "delete_file",
+    ];
+
+    const delegationCaps = capabilitiesForDelegationFollowUp(offered);
+    expect(delegationCaps).toEqual([
+      "list_tasks",
+      "get_image",
+      "create_social_post",
+    ]);
+
+    const watchAuthority = await deriveWatchAuthority(
+      {
+        id: TURN_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "CHAT",
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: OWNER_ID,
+        actingUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      { kind: "chat_reply" },
+    );
+    expect(watchAuthority.socialMode).toBe("draft_only");
+
+    // chat_reply carries untrusted messages -> blocks outward sends & schedule/publish while keeping draft + reads.
+    const chatReplyCaps = capabilitiesForWatchFollowUp("chat_reply", offered, {
+      authority: watchAuthority,
+      live: {
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        actingUserId: OWNER_ID,
+        askedByKind: "OWNER",
+        sharedBot: false,
+        source: "CHAT",
+        hasWorkspaceAccess: true,
+        botAlive: true,
+      },
+    });
+    expect(chatReplyCaps).toContain("list_tasks");
+    expect(chatReplyCaps).toContain("get_image");
+    expect(chatReplyCaps).toContain("create_social_post");
+    expect(chatReplyCaps).not.toContain("publish_social_post");
+    expect(chatReplyCaps).not.toContain("schedule_social_post");
+    expect(chatReplyCaps).not.toContain("post_chat");
+    expect(chatReplyCaps).not.toContain("start_background_run");
+
+    // Expired watch degrades to read-only (no post_chat, no run_integration_tool).
+    const expiredWatchAuthority = narrowOwnerAuthority(watchAuthority, {
+      expiresAt: "2026-01-01T00:00:00.000Z",
+    });
+    const expiredAppCaps = capabilitiesForWatchFollowUp(
+      "app_connected",
+      offered,
+      {
+        authority: expiredWatchAuthority,
+        live: {
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "v36",
+          actingUserId: OWNER_ID,
+          askedByKind: "OWNER",
+          sharedBot: false,
+          source: "CHAT",
+          hasWorkspaceAccess: true,
+          botAlive: true,
+          now: new Date("2026-11-26T10:00:00.000Z"),
+        },
+      },
+    );
+    expect(expiredAppCaps).toEqual(["list_tasks", "get_image"]);
+  });
+
+  it("preserves Project Cuso targetScope across chat, delegation handoff, and watch derivation", async () => {
+    const cusoTurn = {
+      id: "0193a000-0000-7000-8000-0000000000c0",
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      versionId: "cmo-v24",
+      source: "CHAT",
+      parentTurnId: null,
+      askedByUserId: OWNER_ID,
+      requestedByUserId: OWNER_ID,
+      actingUserId: OWNER_ID,
+      askedByKind: "TEAMMATE" as const,
+      chainDepth: 0,
+      botProjectId: PROJECT_A,
+    };
+
+    const delegationAuth = await deriveDelegationAuthority(cusoTurn, {
+      followUpAllows: { images: 2, maxCredits: 20 },
+    });
+    expect(delegationAuth.origin).toBe("owner_chat");
+    expect(delegationAuth.targetScope).toEqual({
+      kind: "project",
+      projectId: PROJECT_A,
+    });
+    expect(delegationAuth.socialMode).toBe("full");
+    expect(delegationAuth.limits).toEqual({
+      grantId: cusoTurn.id,
+      period: "lifetime",
+      images: 2,
+      maxMediaCredits: 20,
+    });
+
+    // Attempting to rebind a Project Cuso delegation to another Project fails closed.
+    await expect(
+      deriveDelegationAuthority(cusoTurn, { projectId: PROJECT_B }),
+    ).rejects.toThrow("Cannot rebind target scope");
+
+    // Project Cuso watch inherits its own Project targetScope even without explicit watch.projectId.
+    const watchAuth = await deriveWatchAuthority(cusoTurn, {
+      kind: "background_run",
+      projectId: null,
+    });
+    expect(watchAuth.origin).toBe("owner_chat");
+    expect(watchAuth.targetScope).toEqual({
+      kind: "project",
+      projectId: PROJECT_A,
+    });
+    const wakeCaps = capabilitiesForWatchFollowUp(
+      "background_run",
+      ["get_image", "post_chat", "create_social_post", "start_background_run"],
+      {
+        authority: watchAuth,
+        live: {
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "cmo-v24",
+          actingUserId: OWNER_ID,
+          askedByKind: "TEAMMATE",
+          sharedBot: true,
+          source: "CHAT",
+          targetScope: { kind: "project", projectId: PROJECT_A },
+          hasWorkspaceAccess: true,
+          botAlive: true,
+        },
+      },
+    );
+    expect(wakeCaps).toEqual(["get_image", "post_chat", "create_social_post"]);
+
+    // Legacy authority=null watch for Project Cuso preserves its project targetScope.
+    const legacyCusoWatch = resolveWatchWakeAuthority({
+      id: "legacy-cmo-watch",
+      kind: "background_run",
+      projectId: null,
+      sokoBotId: BOT_ID,
+      authority: null,
+      turn: {
+        id: cusoTurn.id,
+        requestedByUserId: OWNER_ID,
+        askedByUserId: OWNER_ID,
+        chainDepth: 0,
+        workspaceId: WS_ID,
+        source: "CHAT",
+        versionId: "cmo-v24",
+        sokoBot: { userId: null, projectId: PROJECT_A },
+      },
+    });
+    expect(legacyCusoWatch.targetScope).toEqual({
+      kind: "project",
+      projectId: PROJECT_A,
+    });
   });
 });

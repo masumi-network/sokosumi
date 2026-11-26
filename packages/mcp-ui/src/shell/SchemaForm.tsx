@@ -90,7 +90,8 @@ const CHOICE_TYPES = new Set(["option", "radio", "multiselect"]);
 const isGrouped = (schema: InputSchema): schema is Grouped =>
   Array.isArray(schema.input_groups);
 
-function groupsOf(schema: InputSchema) {
+/** The schema's fields by group; a flat schema is one untitled group. */
+export function groupsOf(schema: InputSchema) {
   return isGrouped(schema)
     ? schema.input_groups.map(({ id, title, input_data }) => ({
         id,

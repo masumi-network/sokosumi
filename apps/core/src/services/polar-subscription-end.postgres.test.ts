@@ -10,8 +10,13 @@
  * the Cuso, so whichever of the two checks second sees the other and
  * revokes. Fixtures are committed and deleted after.
  */
+
 import { randomUUID } from "node:crypto";
 import { createPrismaClient } from "@sokosumi/database/client";
+import {
+  createSqlTables,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import {
   afterAll,
@@ -23,6 +28,7 @@ import {
   vi,
 } from "vitest";
 import { expectCoreLogWhys } from "@/test/core-log";
+import { testSchemaNames } from "@/test/split-layout";
 import { handlePolarSubscriptionEvent } from "./polar-subscription.service";
 import {
   retryOwedPolarRevokes,
@@ -36,17 +42,32 @@ vi.mock("@/clients/polar.client", () => ({
   revokePolarSubscription: m.revokePolarSubscription,
 }));
 
+const { sharedTable } = createSqlTables(sqlTableLayoutFromEnv(process.env));
+
 const url = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
-const db = enabled && url ? createPrismaClient(url) : null;
+const schemas = testSchemaNames();
+const db =
+  enabled && url
+    ? createPrismaClient(url, { schema: schemas.DATABASE_SCHEMA_SHARED })
+    : null;
+const mainnet =
+  enabled && url
+    ? createPrismaClient(url, { schema: schemas.DATABASE_SCHEMA_MAINNET })
+    : null;
 
 const ORGANIZATION = `org-${randomUUID()}`;
 const WORKSPACE = randomUUID();
 const DAY_MS = 86_400_000;
 /** 10^10 ledger units are one credit. */
 const CREDIT = 10_000_000_000n;
+
+function networkDatabase() {
+  if (!mainnet) throw new Error("Missing integration database");
+  return mainnet;
+}
 
 function database() {
   if (!db) throw new Error("Missing integration database");
@@ -57,7 +78,7 @@ function database() {
 async function hiredCuso() {
   const projectId = randomUUID();
   await database()
-    .$executeRaw`INSERT INTO "project" ("id", "createdAt", "updatedAt", "workspaceId", "name") VALUES (${projectId}::uuid, NOW(), NOW(), ${WORKSPACE}::uuid, 'Cuso project')`;
+    .$executeRaw`INSERT INTO ${sharedTable("project")} ("id", "createdAt", "updatedAt", "workspaceId", "name") VALUES (${projectId}::uuid, NOW(), NOW(), ${WORKSPACE}::uuid, 'Cuso project')`;
   const bot = await database().sokoBot.create({
     data: {
       workspaceId: WORKSPACE,
@@ -116,7 +137,7 @@ async function archive(botId: string) {
 
 /** What is left of the Project's credits. */
 async function left(projectId: string): Promise<bigint> {
-  const buckets = await database().creditBucket.findMany({
+  const buckets = await networkDatabase().creditBucket.findMany({
     where: { projectId },
     select: { amount: true, consumptions: { select: { amount: true } } },
   });
@@ -141,8 +162,8 @@ describe.skipIf(!db)(
   () => {
     beforeAll(async () => {
       if (!db) return;
-      await db.$executeRaw`INSERT INTO "organization" ("id", "name", "slug", "createdAt") VALUES (${ORGANIZATION}, 'Polar Org', ${ORGANIZATION}, NOW())`;
-      await db.$executeRaw`INSERT INTO "workspace" ("id", "createdAt", "updatedAt", "userId", "organizationId") VALUES (${WORKSPACE}::uuid, NOW(), NOW(), NULL, ${ORGANIZATION})`;
+      await db.$executeRaw`INSERT INTO ${sharedTable("organization")} ("id", "name", "slug", "createdAt") VALUES (${ORGANIZATION}, 'Polar Org', ${ORGANIZATION}, NOW())`;
+      await db.$executeRaw`INSERT INTO ${sharedTable("workspace")} ("id", "createdAt", "updatedAt", "userId", "organizationId") VALUES (${WORKSPACE}::uuid, NOW(), NOW(), NULL, ${ORGANIZATION})`;
     });
 
     beforeEach(() => {
@@ -155,14 +176,15 @@ describe.skipIf(!db)(
         where: { organizationId: ORGANIZATION },
       });
       // Buckets and consumptions go with their transactions.
-      await db.transaction.deleteMany({
+      await mainnet?.transaction.deleteMany({
         where: { organizationId: ORGANIZATION },
       });
       await db.sokoBot.deleteMany({ where: { workspaceId: WORKSPACE } });
-      await db.$executeRaw`DELETE FROM "project" WHERE "workspaceId" = ${WORKSPACE}::uuid`;
-      await db.$executeRaw`DELETE FROM "workspace" WHERE "id" = ${WORKSPACE}::uuid`;
-      await db.$executeRaw`DELETE FROM "organization" WHERE "id" = ${ORGANIZATION}`;
+      await db.$executeRaw`DELETE FROM ${sharedTable("project")} WHERE "workspaceId" = ${WORKSPACE}::uuid`;
+      await db.$executeRaw`DELETE FROM ${sharedTable("workspace")} WHERE "id" = ${WORKSPACE}::uuid`;
+      await db.$executeRaw`DELETE FROM ${sharedTable("organization")} WHERE "id" = ${ORGANIZATION}`;
       await db.$disconnect();
+      await mainnet?.$disconnect();
     });
 
     it("revokes after the ending a subscription created after its first revoke", async () => {
@@ -266,7 +288,7 @@ describe.skipIf(!db)(
       await revokeCusoSubscription(cuso.botId);
       await handlePolarSubscriptionEvent(subscriptionCreated(cuso));
       // The payment's grant, which the archive's write-off did not see.
-      await database().transaction.create({
+      await networkDatabase().transaction.create({
         data: {
           amount: 25_000n * CREDIT,
           organizationId: ORGANIZATION,

@@ -243,6 +243,16 @@ export const AdminSeoAlertsSchema = {
                             'otherApiMicroUsd'
                         ],
                         additionalProperties: false
+                    },
+                    costDetail: {
+                        anyOf: [
+                            {
+                                $ref: '#/components/schemas/SeoFullAuditCostDetail'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
                     }
                 },
                 required: [
@@ -469,6 +479,137 @@ export const AdminSeoAlertsSchema = {
         'connections',
         'items'
     ]
+} as const;
+
+export const SeoFullAuditCostDetailSchema = {
+    type: 'object',
+    properties: {
+        version: {
+            type: 'number',
+            enum: [
+                1
+            ]
+        },
+        models: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    model: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 200,
+                        description: '1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.'
+                    },
+                    provider: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 1,
+                        maxLength: 200,
+                        description: '1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.'
+                    },
+                    calls: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 9007199254740991
+                    },
+                    microUsd: {
+                        type: [
+                            'integer',
+                            'null'
+                        ],
+                        minimum: 0,
+                        maximum: 1000000000000
+                    }
+                },
+                required: [
+                    'model',
+                    'provider',
+                    'calls',
+                    'microUsd'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 200
+        },
+        dataForSeo: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    endpoint: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 200,
+                        description: '1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.'
+                    },
+                    reads: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 9007199254740991
+                    },
+                    microUsd: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 1000000000000
+                    }
+                },
+                required: [
+                    'endpoint',
+                    'reads',
+                    'microUsd'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 200
+        },
+        steps: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    step: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 200,
+                        description: '1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.'
+                    },
+                    modelMicroUsd: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 1000000000000
+                    },
+                    dataForSeoMicroUsd: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 1000000000000
+                    },
+                    otherApiMicroUsd: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 1000000000000
+                    }
+                },
+                required: [
+                    'step',
+                    'modelMicroUsd',
+                    'dataForSeoMicroUsd',
+                    'otherApiMicroUsd'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 200
+        }
+    },
+    required: [
+        'version',
+        'models',
+        'dataForSeo',
+        'steps'
+    ],
+    additionalProperties: false
 } as const;
 
 export const AdminAgentListSchema = {
@@ -54514,6 +54655,77 @@ export const SeoSiteTrafficReportSchema = {
         limited: {
             type: 'boolean'
         },
+        brand: {
+            type: 'object',
+            properties: {
+                daily: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            date: {
+                                type: 'string',
+                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                            },
+                            branded: {
+                                type: 'object',
+                                properties: {
+                                    clicks: {
+                                        type: 'integer',
+                                        minimum: 0
+                                    },
+                                    impressions: {
+                                        type: 'integer',
+                                        minimum: 0
+                                    }
+                                },
+                                required: [
+                                    'clicks',
+                                    'impressions'
+                                ]
+                            },
+                            nonBranded: {
+                                type: 'object',
+                                properties: {
+                                    clicks: {
+                                        type: 'integer',
+                                        minimum: 0
+                                    },
+                                    impressions: {
+                                        type: 'integer',
+                                        minimum: 0
+                                    }
+                                },
+                                required: [
+                                    'clicks',
+                                    'impressions'
+                                ]
+                            }
+                        },
+                        required: [
+                            'date',
+                            'branded',
+                            'nonBranded'
+                        ]
+                    },
+                    maxItems: 366
+                },
+                limited: {
+                    type: 'boolean'
+                },
+                terms: {
+                    type: 'array',
+                    items: {
+                        type: 'string'
+                    }
+                }
+            },
+            required: [
+                'daily',
+                'limited',
+                'terms'
+            ]
+        },
         pages: {
             type: 'array',
             items: {
@@ -67145,6 +67357,9 @@ export const CreateSokoBotScheduleRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 20000
+        },
+        stopRule: {
+            $ref: '#/components/schemas/SokoBotScheduleStopRuleInput'
         }
     },
     required: [
@@ -67154,6 +67369,138 @@ export const CreateSokoBotScheduleRequestSchema = {
         'prompt'
     ],
     additionalProperties: false
+} as const;
+
+export const SokoBotScheduleStopRuleInputSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'never'
+                    ]
+                }
+            },
+            required: [
+                'mode'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'ends_on'
+                    ]
+                },
+                scheduleId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                },
+                endsOn: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-12-31T23:59:59+01:00'
+                }
+            },
+            required: [
+                'mode',
+                'endsOn'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'ends_after_runs'
+                    ]
+                },
+                scheduleId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                },
+                maxRuns: {
+                    type: 'integer',
+                    minimum: 1,
+                    maximum: 10000
+                }
+            },
+            required: [
+                'mode',
+                'maxRuns'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'when_target_settled'
+                    ]
+                },
+                scheduleId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                },
+                targetKind: {
+                    type: 'string',
+                    enum: [
+                        'task',
+                        'job'
+                    ]
+                },
+                targetId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                }
+            },
+            required: [
+                'mode',
+                'targetKind',
+                'targetId'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'owner_authorized_stop'
+                    ]
+                },
+                scheduleId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                },
+                condition: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 300
+                }
+            },
+            required: [
+                'mode',
+                'condition'
+            ],
+            additionalProperties: false
+        }
+    ]
 } as const;
 
 export const UpdateSokoBotScheduleRequestSchema = {
@@ -67181,6 +67528,9 @@ export const UpdateSokoBotScheduleRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 20000
+        },
+        stopRule: {
+            $ref: '#/components/schemas/SokoBotScheduleStopRuleInput'
         },
         run: {
             type: 'object',
@@ -73538,6 +73888,352 @@ export const AblyTokenRequestSchema = {
         'timestamp',
         'nonce',
         'mac'
+    ]
+} as const;
+
+export const RegistryAgentSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Registry entry id. Use it as the pagination cursor.'
+        },
+        agentIdentifier: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'Online',
+                'Offline',
+                'Deregistered',
+                'Invalid'
+            ]
+        },
+        statusUpdatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        type: {
+            type: 'string',
+            enum: [
+                'Standard',
+                'OpenApi',
+                'X402',
+                'A2A'
+            ]
+        },
+        paymentType: {
+            type: 'string',
+            enum: [
+                'Web3CardanoV1',
+                'Web3CardanoV2',
+                'None'
+            ]
+        },
+        apiBaseUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        openApiSpecUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        x402ResourcesUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        tags: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        capability: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                name: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                version: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'name',
+                'version'
+            ]
+        },
+        author: {
+            type: 'object',
+            properties: {
+                name: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                organization: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                contactEmail: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                contactOther: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'name',
+                'organization',
+                'contactEmail',
+                'contactOther'
+            ]
+        },
+        legal: {
+            type: 'object',
+            properties: {
+                privacyPolicy: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                terms: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                other: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'privacyPolicy',
+                'terms',
+                'other'
+            ]
+        },
+        pricing: {
+            $ref: '#/components/schemas/RegistryAgentPricing'
+        },
+        uptime: {
+            type: 'object',
+            properties: {
+                count: {
+                    type: 'integer'
+                },
+                checkCount: {
+                    type: 'integer'
+                },
+                lastCheckedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                }
+            },
+            required: [
+                'count',
+                'checkCount',
+                'lastCheckedAt'
+            ]
+        },
+        policyId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        supersedesAgentIdentifier: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        supersededByAgentIdentifier: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'agentIdentifier',
+        'name',
+        'description',
+        'status',
+        'statusUpdatedAt',
+        'type',
+        'paymentType',
+        'apiBaseUrl',
+        'openApiSpecUrl',
+        'x402ResourcesUrl',
+        'image',
+        'tags',
+        'capability',
+        'author',
+        'legal',
+        'pricing',
+        'uptime',
+        'policyId',
+        'supersedesAgentIdentifier',
+        'supersededByAgentIdentifier',
+        'createdAt'
+    ]
+} as const;
+
+export const RegistryAgentPricingSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                pricingType: {
+                    type: 'string',
+                    enum: [
+                        'Fixed'
+                    ]
+                },
+                amounts: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            amount: {
+                                type: 'string',
+                                example: '1000000'
+                            },
+                            unit: {
+                                type: 'string',
+                                example: 'lovelace'
+                            }
+                        },
+                        required: [
+                            'amount',
+                            'unit'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'pricingType',
+                'amounts'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                pricingType: {
+                    type: 'string',
+                    enum: [
+                        'Free'
+                    ]
+                }
+            },
+            required: [
+                'pricingType'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                pricingType: {
+                    type: 'string',
+                    enum: [
+                        'Dynamic'
+                    ]
+                }
+            },
+            required: [
+                'pricingType'
+            ]
+        },
+        {
+            type: 'null'
+        }
+    ],
+    description: 'Null when the registry sends a pricing shape Core does not know.'
+} as const;
+
+export const RegistryAgentsPaginationMetadataSchema = {
+    type: 'object',
+    properties: {
+        cursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cmg4zknxt0000l404yn4li0kp',
+            description: 'Cursor for the current page'
+        },
+        limit: {
+            type: 'integer',
+            minimum: 1,
+            example: 20,
+            description: 'Number of items returned'
+        },
+        nextCursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cmi4gmksz000104l8wps8p7fp',
+            description: 'Cursor for the next page'
+        }
+    },
+    required: [
+        'cursor',
+        'limit',
+        'nextCursor'
     ]
 } as const;
 

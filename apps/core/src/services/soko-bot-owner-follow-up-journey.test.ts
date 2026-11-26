@@ -68,7 +68,25 @@ vi.mock("@/schemas/social-post.schema", async (original) => ({
 }));
 vi.mock("@/lib/db/transaction", () => ({
   serializableTransaction: async (work: (tx: object) => Promise<unknown>) =>
-    work({}),
+    work({
+      sokoBotRuntimeEvent: { findFirst: async () => null },
+      sokoBotTurn: {
+        findUnique: async () => ({
+          id: "event-turn",
+          sokoBotId: "joseph",
+          workspaceId: "ws",
+          versionId: "v36",
+          source: "EVENT",
+          clientTurnId: "event:codepat-review",
+          parentTurnId: null,
+          askedByUserId: null,
+          requestedByUserId: "owner",
+          chainDepth: 0,
+          sokoBot: { userId: "owner" },
+          parentTurn: null,
+        }),
+      },
+    }),
 }));
 vi.mock("@/lib/soko-bot/action-receipts", async (original) => ({
   ...(await original<object>()),
@@ -156,9 +174,23 @@ vi.mock("@/lib/db/prisma", () => ({
         ),
     },
     taskEvent: { findMany: async () => [] },
+    sokoBotRuntimeEvent: { findFirst: async () => null },
     sokoBotTurn: {
       findMany: async () => [],
-      findUnique: async () => ({ clientTurnId: "event:codepat-review" }),
+      findUnique: async () => ({
+        id: "event-turn",
+        sokoBotId: "joseph",
+        workspaceId: "ws",
+        versionId: "v36",
+        source: "EVENT",
+        clientTurnId: "event:codepat-review",
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: "owner",
+        chainDepth: 0,
+        sokoBot: { userId: "owner" },
+        parentTurn: null,
+      }),
     },
     sokoBotDelegation: {
       findMany: async ({ where }: { where: { followUpTurnId?: string } }) =>
@@ -496,11 +528,32 @@ describe("request → research → images → draft", () => {
     );
   });
 
-  it("never schedules or publishes the post", async () => {
+  it("never schedules, publishes, cancels, or edits posts", async () => {
     await sync();
     await expect(
       draft({ scheduledAt: "2026-11-27T09:00:00.000Z" }),
     ).rejects.toThrow("stays a draft");
+    for (const capability of [
+      "schedule_social_post",
+      "publish_social_post",
+      "cancel_social_post",
+      "update_social_post",
+      "update_social_posts",
+    ] as const) {
+      await expect(
+        executeSocialTool(
+          runtime,
+          {
+            turnId: "event-turn",
+            sessionId: "s",
+            toolCallId: `social-${capability}`,
+            capability,
+            input: {},
+          } as never,
+          turn("event-turn"),
+        ),
+      ).rejects.toThrow("stays a draft");
+    }
     expect(store.drafts).toHaveLength(0);
   });
 

@@ -131,6 +131,7 @@ function createNotificationRecord(
     isRead: false,
     readAt: null,
     createdAt: CREATED_AT,
+    network: null,
     inApp: true,
     emailId: null,
     emailScheduledAt: null,

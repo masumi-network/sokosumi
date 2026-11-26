@@ -1,5 +1,5 @@
 import { HTTPException } from "hono/http-exception";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -265,6 +265,34 @@ describe("GET /tasks/{id}/events", () => {
       total: 25,
       nextCursor: null,
     });
+  });
+
+  it("answers the same whether or not an event has a Network", async () => {
+    // The body carries the time of the answer.
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-11-26T12:00:00Z"),
+    });
+    onTestFinished(() => void vi.useRealTimers());
+    const bodies: string[] = [];
+    for (const network of [null, "mainnet"]) {
+      taskEventFindManyMock.mockResolvedValue([
+        {
+          ...makeEvent({ id: "evt_1", createdAt: "2026-01-01T00:00:00.000Z" }),
+          cents: 500n,
+          transactionId: "txn_1",
+          network,
+        },
+      ]);
+      taskEventCountMock.mockResolvedValueOnce(1).mockResolvedValueOnce(0);
+      const response = await createApp().request(
+        "http://localhost/tsk_123/events",
+      );
+      expect(response.status).toBe(200);
+      bodies.push(await response.text());
+    }
+    expect(bodies[1]).toBe(bodies[0]);
+    expect(bodies[0]).not.toContain("network");
   });
 
   it("returns null latestCommentId when there are no comments", async () => {

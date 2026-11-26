@@ -157,3 +157,58 @@ describe("createRegistryClient.getAgentsDiff", () => {
     );
   });
 });
+
+describe("createRegistryClient.listEntries", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    postRegistryEntryMock.mockResolvedValue({
+      data: { data: { entries: [] } },
+      error: undefined,
+      response: { status: 200 },
+    });
+  });
+
+  it("omits the filter when no status is given; the registry then returns only Online entries", async () => {
+    const registry = createRegistryClient(
+      "Mainnet",
+      "https://registry.example.com",
+      "api-key",
+    );
+
+    await registry.listEntries({ limit: 22 });
+
+    expect(postRegistryEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: {
+          network: "Mainnet",
+          limit: 22,
+          cursorId: undefined,
+          filter: undefined,
+        },
+      }),
+    );
+  });
+
+  it("forwards a status filter and cursor", async () => {
+    const registry = createRegistryClient(
+      "Mainnet",
+      "https://registry.example.com",
+      "api-key",
+    );
+
+    await registry.listEntries({
+      cursorId: "entry_1",
+      limit: 5,
+      status: ["Deregistered"],
+    });
+
+    expect(postRegistryEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          cursorId: "entry_1",
+          filter: { status: ["Deregistered"] },
+        }),
+      }),
+    );
+  });
+});

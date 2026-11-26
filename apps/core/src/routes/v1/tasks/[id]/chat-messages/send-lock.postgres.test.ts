@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
+import {
+  createSqlTables,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { testSchemaNames } from "@/test/split-layout";
 
 import { lockTaskChatSend } from "./send-lock";
 import { writeTaskChatMessage } from "./send-write";
@@ -13,11 +18,20 @@ import { writeTaskChatMessage } from "./send-write";
  * nor that a send waiting on such a change reads its result, nor that two
  * complete sends into one room both commit instead of deadlocking.
  */
+const { sharedTable, sharedType } = createSqlTables(
+  sqlTableLayoutFromEnv(process.env),
+);
+
 const url = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
-const db = enabled && url ? createPrismaClient(url) : null;
+const db =
+  enabled && url
+    ? createPrismaClient(url, {
+        schema: testSchemaNames().DATABASE_SCHEMA_SHARED,
+      })
+    : null;
 
 const ORG = `org-${randomUUID()}`;
 const USER = `user-${randomUUID()}`;
@@ -72,15 +86,15 @@ describe.skipIf(!db)("lockTaskChatSend against PostgreSQL", () => {
         "SET LOCAL session_replication_role = replica",
       );
       for (const id of [USER, PEER]) {
-        await tx.$executeRaw`INSERT INTO "user" (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${id}, ${id}, ${`${id}@fixture.invalid`}, true, now(), now())`;
+        await tx.$executeRaw`INSERT INTO ${sharedTable("user")} (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${id}, ${id}, ${`${id}@fixture.invalid`}, true, now(), now())`;
       }
-      await tx.$executeRaw`INSERT INTO workspace (id, "updatedAt", "organizationId") VALUES (${WORKSPACE}::uuid, now(), ${ORG})`;
-      await tx.$executeRaw`INSERT INTO member (id, "userId", "organizationId") VALUES (${MEMBER}, ${USER}, ${ORG})`;
-      await tx.$executeRaw`INSERT INTO task (id, "updatedAt", "ownerId", "creatorUserId", name, status, "workspaceId", visibility) VALUES (${TASK}, now(), ${USER}, ${USER}, 'Weekly report', 'READY', ${WORKSPACE}::uuid, 'PUBLIC'::"TaskVisibility")`;
-      await tx.$executeRaw`INSERT INTO chat_room (id, "organizationId", name, slug, kind, discoverability, "updatedAt", "createdByUserId") VALUES (${ROOM}::uuid, ${ORG}, 'general', ${`general-${ROOM.slice(0, 8)}`}, 'channel', 'public', now(), ${USER})`;
-      await tx.$executeRaw`INSERT INTO chat_room_user_member (id, "roomId", "userId") VALUES (${ROOM_MEMBER}::uuid, ${ROOM}::uuid, ${USER})`;
-      await tx.$executeRaw`INSERT INTO member (id, "userId", "organizationId") VALUES (${PEER_MEMBER}, ${PEER}, ${ORG})`;
-      await tx.$executeRaw`INSERT INTO chat_room_user_member (id, "roomId", "userId") VALUES (${PEER_ROOM_MEMBER}::uuid, ${ROOM}::uuid, ${PEER})`;
+      await tx.$executeRaw`INSERT INTO ${sharedTable("workspace")} (id, "updatedAt", "organizationId") VALUES (${WORKSPACE}::uuid, now(), ${ORG})`;
+      await tx.$executeRaw`INSERT INTO ${sharedTable("member")} (id, "userId", "organizationId") VALUES (${MEMBER}, ${USER}, ${ORG})`;
+      await tx.$executeRaw`INSERT INTO ${sharedTable("task")} (id, "updatedAt", "ownerId", "creatorUserId", name, status, "workspaceId", visibility) VALUES (${TASK}, now(), ${USER}, ${USER}, 'Weekly report', 'READY', ${WORKSPACE}::uuid, 'PUBLIC'::${sharedType("TaskVisibility")})`;
+      await tx.$executeRaw`INSERT INTO ${sharedTable("chat_room")} (id, "organizationId", name, slug, kind, discoverability, "updatedAt", "createdByUserId") VALUES (${ROOM}::uuid, ${ORG}, 'general', ${`general-${ROOM.slice(0, 8)}`}, 'channel', 'public', now(), ${USER})`;
+      await tx.$executeRaw`INSERT INTO ${sharedTable("chat_room_user_member")} (id, "roomId", "userId") VALUES (${ROOM_MEMBER}::uuid, ${ROOM}::uuid, ${USER})`;
+      await tx.$executeRaw`INSERT INTO ${sharedTable("member")} (id, "userId", "organizationId") VALUES (${PEER_MEMBER}, ${PEER}, ${ORG})`;
+      await tx.$executeRaw`INSERT INTO ${sharedTable("chat_room_user_member")} (id, "roomId", "userId") VALUES (${PEER_ROOM_MEMBER}::uuid, ${ROOM}::uuid, ${PEER})`;
     });
   });
 
@@ -90,14 +104,14 @@ describe.skipIf(!db)("lockTaskChatSend against PostgreSQL", () => {
       await tx.$executeRawUnsafe(
         "SET LOCAL session_replication_role = replica",
       );
-      await tx.$executeRaw`DELETE FROM chat_room_read_state WHERE "roomId" = ${ROOM}::uuid`;
-      await tx.$executeRaw`DELETE FROM chat_room_message WHERE "roomId" = ${ROOM}::uuid`;
-      await tx.$executeRaw`DELETE FROM chat_room_user_member WHERE "roomId" = ${ROOM}::uuid`;
-      await tx.$executeRaw`DELETE FROM chat_room WHERE id = ${ROOM}::uuid`;
-      await tx.$executeRaw`DELETE FROM task WHERE id = ${TASK}`;
-      await tx.$executeRaw`DELETE FROM member WHERE id IN (${MEMBER}, ${PEER_MEMBER})`;
-      await tx.$executeRaw`DELETE FROM workspace WHERE id = ${WORKSPACE}::uuid`;
-      await tx.$executeRaw`DELETE FROM "user" WHERE id IN (${USER}, ${PEER})`;
+      await tx.$executeRaw`DELETE FROM ${sharedTable("chat_room_read_state")} WHERE "roomId" = ${ROOM}::uuid`;
+      await tx.$executeRaw`DELETE FROM ${sharedTable("chat_room_message")} WHERE "roomId" = ${ROOM}::uuid`;
+      await tx.$executeRaw`DELETE FROM ${sharedTable("chat_room_user_member")} WHERE "roomId" = ${ROOM}::uuid`;
+      await tx.$executeRaw`DELETE FROM ${sharedTable("chat_room")} WHERE id = ${ROOM}::uuid`;
+      await tx.$executeRaw`DELETE FROM ${sharedTable("task")} WHERE id = ${TASK}`;
+      await tx.$executeRaw`DELETE FROM ${sharedTable("member")} WHERE id IN (${MEMBER}, ${PEER_MEMBER})`;
+      await tx.$executeRaw`DELETE FROM ${sharedTable("workspace")} WHERE id = ${WORKSPACE}::uuid`;
+      await tx.$executeRaw`DELETE FROM ${sharedTable("user")} WHERE id IN (${USER}, ${PEER})`;
     });
     await db.$disconnect();
   });
@@ -105,29 +119,33 @@ describe.skipIf(!db)("lockTaskChatSend against PostgreSQL", () => {
   it.each([
     [
       "opening the room to guests",
-      `UPDATE chat_room SET discoverability = 'external' WHERE id = '${ROOM}'`,
+      () =>
+        `UPDATE ${sharedTable("chat_room").sql} SET discoverability = 'external' WHERE id = '${ROOM}'`,
     ],
     [
       "making the Task private",
-      `UPDATE task SET visibility = 'PRIVATE' WHERE id = '${TASK}'`,
+      () =>
+        `UPDATE ${sharedTable("task").sql} SET visibility = 'PRIVATE' WHERE id = '${TASK}'`,
     ],
     [
       "moving the Task to another workspace",
-      `UPDATE task SET "workspaceId" = '${randomUUID()}' WHERE id = '${TASK}'`,
+      () =>
+        `UPDATE ${sharedTable("task").sql} SET "workspaceId" = '${randomUUID()}' WHERE id = '${TASK}'`,
     ],
     [
       "removing the sender from the organization",
-      `DELETE FROM member WHERE id = '${MEMBER}'`,
+      () => `DELETE FROM ${sharedTable("member").sql} WHERE id = '${MEMBER}'`,
     ],
     [
       "removing the sender from the room",
-      `DELETE FROM chat_room_user_member WHERE id = '${ROOM_MEMBER}'`,
+      () =>
+        `DELETE FROM ${sharedTable("chat_room_user_member").sql} WHERE id = '${ROOM_MEMBER}'`,
     ],
   ])("makes %s wait for a send in flight", async (_label, sql) => {
     const send = holdSend();
     await send.locked;
     try {
-      await expect(writeWithin(sql)).rejects.toThrow(/lock timeout|55P03/);
+      await expect(writeWithin(sql())).rejects.toThrow(/lock timeout|55P03/);
     } finally {
       send.release();
       await send.done;
@@ -231,7 +249,7 @@ describe.skipIf(!db)("lockTaskChatSend against PostgreSQL", () => {
     });
     const change = db.$transaction(
       async (tx) => {
-        await tx.$executeRaw`UPDATE chat_room SET discoverability = 'external' WHERE id = ${ROOM}::uuid`;
+        await tx.$executeRaw`UPDATE ${sharedTable("chat_room")} SET discoverability = 'external' WHERE id = ${ROOM}::uuid`;
         changed();
         await committed;
       },
@@ -243,7 +261,7 @@ describe.skipIf(!db)("lockTaskChatSend against PostgreSQL", () => {
       async (tx) => {
         await lockTaskChatSend(tx, input);
         const rows = await tx.$queryRaw<{ discoverability: string }[]>`
-          SELECT discoverability FROM chat_room WHERE id = ${ROOM}::uuid
+          SELECT discoverability FROM ${sharedTable("chat_room")} WHERE id = ${ROOM}::uuid
         `;
         return rows[0]?.discoverability;
       },
@@ -257,7 +275,7 @@ describe.skipIf(!db)("lockTaskChatSend against PostgreSQL", () => {
     try {
       expect(await seen).toBe("external");
     } finally {
-      await db.$executeRaw`UPDATE chat_room SET discoverability = 'public' WHERE id = ${ROOM}::uuid`;
+      await db.$executeRaw`UPDATE ${sharedTable("chat_room")} SET discoverability = 'public' WHERE id = ${ROOM}::uuid`;
     }
   });
 });

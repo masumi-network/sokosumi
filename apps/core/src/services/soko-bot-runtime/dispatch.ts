@@ -25,6 +25,7 @@ import { dispatchTaskInterestTools } from "./dispatch-task-interest";
 import { dispatchTasksTools } from "./dispatch-tasks";
 import { type RuntimeOperations } from "./operations";
 import { readSkill } from "./read-skill";
+import { updatePlan } from "./update-plan";
 
 export async function executeAuthorizedTool(
   runtime: RuntimeOperations,
@@ -162,6 +163,8 @@ async function executeTool(
       return dispatchOtherTools(runtime, input, authorized);
     case "read_skill":
       return readSkill(authorized, input.input);
+    case "update_plan":
+      return updatePlan(authorized, input);
     case "read_calendar":
     case "read_strategy":
     case "read_brand_brain":

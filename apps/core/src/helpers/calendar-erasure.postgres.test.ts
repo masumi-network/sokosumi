@@ -1,8 +1,12 @@
 import { randomUUID } from "node:crypto";
-
 import type { Prisma } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
+import {
+  createSqlTables,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
 import { afterAll, describe, expect, it } from "vitest";
+import { testSchemaNames } from "@/test/split-layout";
 
 import {
   eraseWorkspaceCalendarData,
@@ -12,11 +16,18 @@ import {
 import { lockCalendarWorkspaceMembership } from "./calendar-membership-fence";
 import { prepareTasksForUserDeletion } from "./user-deletion-tasks";
 
+const { sharedTable } = createSqlTables(sqlTableLayoutFromEnv(process.env));
+
 const databaseUrl = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   databaseUrl?.startsWith("postgres");
-const db = enabled && databaseUrl ? createPrismaClient(databaseUrl) : null;
+const db =
+  enabled && databaseUrl
+    ? createPrismaClient(databaseUrl, {
+        schema: testSchemaNames().DATABASE_SCHEMA_SHARED,
+      })
+    : null;
 
 afterAll(async () => {
   await db?.$disconnect();
@@ -85,7 +96,7 @@ describe.skipIf(!enabled)("Calendar erasure against PostgreSQL", () => {
           const erasureTx = tx as Prisma.TransactionClient;
           await lockCalendarErasureUser(erasureTx, user.id);
           await tx.$queryRaw`
-            SELECT id FROM "organization"
+            SELECT id FROM ${sharedTable("organization")}
             WHERE id = ${organization.id} FOR UPDATE
           `;
           await lockWorkspaceCalendarForErasure(erasureTx, workspace.id);

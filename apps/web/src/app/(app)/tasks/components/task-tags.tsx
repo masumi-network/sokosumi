@@ -159,7 +159,7 @@ export function TaskTags({
                   // On a card's one-line row the count keeps one fixed height.
                   compact && "h-6",
                 )}
-                aria-label={t("showAll", { count: badges.length })}
+                aria-label={t("moreTags", { count: remaining })}
                 onPointerDown={(event) => event.stopPropagation()}
                 onKeyDown={(event) => event.stopPropagation()}
               >

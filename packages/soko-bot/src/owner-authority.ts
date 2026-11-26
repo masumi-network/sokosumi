@@ -87,7 +87,7 @@ export const ownerAuthorityLimitsSchema = z
     period: z.enum(OWNER_AUTHORITY_ALLOWANCE_PERIODS),
     images: z.number().int().min(0).max(20).optional(),
     videos: z.number().int().min(0).max(5).optional(),
-    maxMediaCredits: z.number().int().min(0).optional(),
+    maxMediaCredits: z.number().finite().min(0).optional(),
   })
   .strict();
 export type OwnerAuthorityLimits = z.infer<typeof ownerAuthorityLimitsSchema>;
@@ -581,9 +581,11 @@ export function assertDirectOwnerScheduleEdit(
 /**
  * Sets or clears an explicit schedule stop rule on an owner-originated
  * authority. Verifies the current direct owner action separately from the
- * stored grant (supporting later owner chat turns and UI edits on chat-created
- * schedules) and updates only `stopRule` (and unbound `scheduleId`),
- * preserving `targetScope`, `limits`, `expiresAt`, `origin`, and `rootTurnId`.
+ * stored grant (supporting later owner chat turns, UI edits on chat-created
+ * schedules, and eligible replacement workspace members on shared CMO
+ * schedules), updating `stopRule` (and `ownerUserId` to the active eligible
+ * member when `allowWorkspaceMember` is true) while preserving `grantId`,
+ * `targetScope`, `limits`, `expiresAt`, `origin`, and `rootTurnId`.
  */
 export function bindScheduleStopRule(
   authority: OwnerAuthority,
@@ -621,12 +623,17 @@ export function bindScheduleStopRule(
     parsedRule.mode === "never"
       ? { mode: "never" }
       : { ...parsedRule, scheduleId };
+  const nextOwnerUserId =
+    input.edit.allowWorkspaceMember === true
+      ? input.edit.actorUserId
+      : authority.ownerUserId;
 
   return ownerAuthoritySchema.parse({
     ...narrowOwnerAuthority(authority, {
       scheduleId,
       keepStopRule: false,
     }),
+    ownerUserId: nextOwnerUserId,
     stopRule: boundRule,
   });
 }

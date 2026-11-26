@@ -4288,6 +4288,42 @@ describe("TaskForm draft tags", () => {
     }
   });
 
+  it("wraps the property row and says under it which tags Jev added", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", suggestTaskTags);
+    try {
+      suggestTaskTags.mockReset().mockResolvedValue(
+        Response.json({
+          tags: ["design"],
+          receipt: "receipt",
+          workspaceSuggestions: [],
+        }),
+      );
+      renderComposer();
+      const row = screen.getByTestId("task-compose-meta-row");
+      expect(row).toHaveClass("flex-wrap");
+      expect(row).not.toHaveClass("overflow-x-auto");
+      // Let the title's first-frame focus land, then type in the details.
+      await act(async () => vi.advanceTimersByTimeAsync(50));
+      screen.getByTestId("markdown-editor").focus();
+      // Mounted empty before Jev answers, so the later text is announced.
+      const announcement = row.nextElementSibling;
+      expect(announcement).toHaveAttribute("role", "status");
+      expect(announcement).toHaveAttribute("aria-live", "polite");
+      expect(announcement).toBeEmptyDOMElement();
+      await act(async () => vi.advanceTimersByTimeAsync(1150));
+      expect(within(row).getByText("vocabulary.design")).toBeVisible();
+      expect(row.nextElementSibling).toBe(announcement);
+      expect(announcement).toHaveTextContent("appliedByJev");
+      expect(screen.getByTestId("markdown-editor")).toHaveFocus();
+      fireEvent.click(within(row).getByRole("button", { name: "remove" }));
+      expect(announcement).toBeEmptyDOMElement();
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps Jev workspace matches removable after a punctuation or case edit without sending the old receipt", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("fetch", suggestTaskTags);
@@ -4541,9 +4577,9 @@ describe("TaskForm draft tags", () => {
       expect(onCreateTask).toHaveBeenCalledWith(
         expect.objectContaining({ tagSuggestionReceipt: "receipt-1" }),
       );
-      const progress = within(screen.getByRole("status")).getAllByRole(
-        "listitem",
-      );
+      const progress = screen
+        .getAllByRole("status")
+        .flatMap((status) => within(status).queryAllByRole("listitem"));
       expect(progress.map((item) => item.textContent)).toEqual([
         "naming",
         "tagsReady",

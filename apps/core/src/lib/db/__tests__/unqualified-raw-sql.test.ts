@@ -33,6 +33,13 @@ const ROOT = fileURLToPath(new URL("../../../../../..", import.meta.url));
 // False findings: a common table expression named like a table, a statement
 // on a temporary table after its `CREATE`, and prose in a comment or string
 // that happens to read like SQL. These are why it does not fail the build.
+// What does fail: the prepare step of CI's job `Test Core PostgreSQL split
+// layout` (`scripts/prepare-raw-sql.ts`), on a bare table or type name in a
+// raw SQL statement under its `SOURCE_PATHS` that it can resolve and prepare.
+// It skips commands PostgreSQL cannot prepare (for example `LOCK TABLE`) and
+// statements with a fragment it cannot resolve: a bare name there fails only
+// in a test that runs that SQL on the split layout. That job is not a
+// required check today, so it turns red and does not block a merge.
 const KEYWORDS = "FROM|JOIN|INTO|UPDATE|USING|TABLE|TRUNCATE|ONLY|REFERENCES";
 
 /**
@@ -46,8 +53,6 @@ const EXCLUDED: Record<string, string> = {
     "moves the tables out of public by name, for the test layout only",
   "packages/database/prisma/tests/task-schedule-cutover-report.sql":
     "a psql report for one finished cutover; it cannot read the configuration",
-  "packages/database/src/helpers/credit-bucket-owner-xor.test.ts":
-    "quotes migration text",
   "packages/database/src/repositories/curated-vocabulary-migration.test.ts":
     "quotes migration text",
   "packages/database/src/types/__tests__/calendar-collaboration-migration.test.ts":
@@ -131,7 +136,7 @@ function groupOf(file: string): Group {
 
 /** Every source file where SQL can live, tracked or new, minus `EXCLUDED`. */
 function sourceFiles(): string[] {
-  return execFileSync(
+  const files = execFileSync(
     "git",
     [
       "ls-files",
@@ -146,17 +151,18 @@ function sourceFiles(): string[] {
       ),
     ],
     { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
-  )
-    .split("\n")
-    .filter(
-      (file) =>
-        file !== "" &&
-        !Object.keys(EXCLUDED).some((excluded) =>
-          excluded.endsWith("/")
-            ? file.startsWith(excluded)
-            : file === excluded,
-        ),
-    );
+  ).split("\n");
+  return withoutExcluded(files);
+}
+
+function withoutExcluded(files: string[]): string[] {
+  return files.filter(
+    (file) =>
+      file !== "" &&
+      !Object.keys(EXCLUDED).some((excluded) =>
+        excluded.endsWith("/") ? file.startsWith(excluded) : file === excluded,
+      ),
+  );
 }
 
 /** `find` over every scanned file that still exists. */
@@ -224,13 +230,12 @@ describe("unqualified table names in raw SQL", () => {
   });
 
   it("leaves out an excluded file, not every path that starts like it", () => {
+    const excluded =
+      "packages/database/src/repositories/curated-vocabulary-migration.test.ts";
+    const included = `${excluded}.ts`;
+    expect(withoutExcluded([excluded, included])).toEqual([included]);
+
     const files = sourceFiles();
-    expect(files).not.toContain(
-      "packages/database/src/helpers/credit-bucket-owner-xor.test.ts",
-    );
-    expect(files).toContain(
-      "packages/database/src/helpers/credit-bucket-owner-xor.ts",
-    );
     expect(files.some((file) => file.includes("/prisma/migrations/"))).toBe(
       false,
     );

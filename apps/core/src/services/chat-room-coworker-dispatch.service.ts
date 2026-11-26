@@ -19,6 +19,7 @@ import { getCoworkerAuthorizationHeader } from "@/lib/coworker-request-auth";
 import prisma from "@/lib/db/prisma";
 import { isEvalWorkspace } from "@/lib/evals/eval-guard";
 import {
+  EMPTY_COWORKER_RESPONSE,
   isEvalCoworkerBaseUrl,
   scriptedReplyModel,
   takeEvalCoworkerReply,
@@ -608,7 +609,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       if (!responseText || coworkerTextLooksLikeAgentError(responseText)) {
         await markMentionFailed(
           mentionId,
-          responseText || "Coworker returned an empty response",
+          responseText || EMPTY_COWORKER_RESPONSE,
         );
         keepFailedPlaceholder = true;
         return;

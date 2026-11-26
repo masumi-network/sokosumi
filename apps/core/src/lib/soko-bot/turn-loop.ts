@@ -14,9 +14,7 @@ import {
   type RuntimeEvent,
   type RuntimeJsonValue,
   SOKO_BOT_CAPABILITIES,
-  SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES,
-  SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
-  SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
+  SOKO_BOT_PLAN_LOOP_UPDATE_PLAN_DESCRIPTION,
   type SokoBotCapability,
   type SokoBotVersion,
   sokoBotIdentity,
@@ -31,7 +29,12 @@ import {
   ACTION_CAPABILITIES,
   ACTION_RECEIPT_CAPABILITIES,
 } from "@/lib/soko-bot/action-receipts";
-import { isOwnerRequest, ownerAskedIn } from "@/lib/soko-bot/owner-request";
+import {
+  evaluateTurnWebTaint,
+  isCapabilityWebTaintSensitive,
+  type OwnerAuthorityTurnClient,
+  resolveTurnOwnerAuthority,
+} from "@/lib/soko-bot/owner-authority";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
@@ -330,6 +333,11 @@ export interface PreparedTurn {
    * skills on demand). Empty for every other version.
    */
   preamble: string;
+  /**
+   * Core runs update_plan and keeps the plan for the whole request (the
+   * version's planLoop), so the runner offers it with Core's schema.
+   */
+  planLoop: boolean;
   /** The provider's prompt cache key for this system and tool set, or null. */
   cacheKey: string | null;
   /**
@@ -428,7 +436,9 @@ export function offeredCapabilities(
       : offerable.filter(
           (capability) =>
             !isSokoBotSandboxCapability(capability) ||
-            (options.web === true && IN_PROCESS_WEB_TOOLS.has(capability)),
+            (options.web === true && IN_PROCESS_WEB_TOOLS.has(capability)) ||
+            // Core runs a planLoop version's plan, sandbox or not.
+            (version.planLoop === true && capability === "update_plan"),
         )
   ).filter(
     (capability) =>
@@ -480,8 +490,14 @@ export async function prepareTurn(
   const stable = version.skillsOnDemand === true;
   const capabilities = offeredCapabilities(version, authorized, options);
   const requiresActionProof = turnRequiresActionProof(capabilities);
+  // Core runs a planLoop version's plan: it alone is no sandbox to guide.
   const hasSandbox =
-    options.sandbox && capabilities.some(isSokoBotSandboxCapability);
+    options.sandbox &&
+    capabilities.some(
+      (capability) =>
+        isSokoBotSandboxCapability(capability) &&
+        !(version.planLoop && capability === "update_plan"),
+    );
   const hasWebOnly =
     !hasSandbox &&
     capabilities.some((capability) => IN_PROCESS_WEB_TOOLS.has(capability));
@@ -555,15 +571,19 @@ export async function prepareTurn(
         cacheKey,
       }),
     );
-  const toolDescriptions: Partial<Record<SokoBotCapability, string>> =
-    version.texts
+  const toolDescriptions: Partial<Record<SokoBotCapability, string>> = {
+    ...(version.texts
       ? Object.fromEntries(
           capabilities.map((capability) => [
             capability,
             sokoBotToolDescription(capability, version),
           ]),
         )
-      : {};
+      : {}),
+    ...(version.planLoop && capabilities.includes("update_plan")
+      ? { update_plan: SOKO_BOT_PLAN_LOOP_UPDATE_PLAN_DESCRIPTION }
+      : {}),
+  };
   return {
     turnId,
     sessionId,
@@ -578,6 +598,8 @@ export async function prepareTurn(
     toolDescriptions,
     requiresActionProof,
     meetingPrep,
+    // The plan is shown only to a turn that can update it.
+    planLoop: version.planLoop === true && capabilities.includes("update_plan"),
     parts,
     reasoningEffort: turnReasoningEffortOptions({
       version,
@@ -589,83 +611,53 @@ export async function prepareTurn(
 }
 
 /** Whether the turn has already read the web or run a shell command. */
-export async function isTainted(turnId: string): Promise<boolean> {
-  const event = await prisma.sokoBotRuntimeEvent.findFirst({
+export async function isTainted(
+  turnId: string,
+  client: Pick<Prisma.TransactionClient, "sokoBotRuntimeEvent"> = prisma,
+): Promise<boolean> {
+  const event = await client.sokoBotRuntimeEvent.findFirst({
     where: { turnId, type: WEB_TAINT_EVENT },
     select: { id: true },
   });
   return event != null;
 }
 
-const OWNER_REQUEST_TURN_SELECT = {
-  source: true,
-  parentTurnId: true,
-  askedByUserId: true,
-  requestedByUserId: true,
-  chainDepth: true,
-} as const;
-
-const MAX_OWNER_PARENT_HOPS = 8;
-
 /**
  * The owner typed this turn, or started this background run from one: the
  * work and its spending are theirs, so a page read on the way may not end it.
  * A teammate's, another bot's, or a Core-started turn's follow-up is not.
  */
-export async function isOwnerDirected(turnId: string): Promise<boolean> {
-  const turn = await prisma.sokoBotTurn.findUnique({
-    where: { id: turnId },
-    select: {
-      ...OWNER_REQUEST_TURN_SELECT,
-      parentTurn: { select: OWNER_REQUEST_TURN_SELECT },
-    },
-  });
-  if (!turn) return false;
-  if (!turn.parentTurnId) return isOwnerRequest(turn);
-  // Most background runs hang directly under the owner's chat (resolved in
-  // the query above). If a child itself has a parent, walk up to the root
-  // and require every hop to be an owner CHAT turn.
-  let ancestor = turn.parentTurn;
-  const seen = new Set<string>([turnId]);
-  let hops = 0;
-  while (ancestor?.parentTurnId) {
-    if (!ownerAskedIn(ancestor) || ancestor.source !== "CHAT") return false;
-    if (seen.has(ancestor.parentTurnId) || ++hops >= MAX_OWNER_PARENT_HOPS)
-      return false;
-    seen.add(ancestor.parentTurnId);
-    ancestor = await prisma.sokoBotTurn.findUnique({
-      where: { id: ancestor.parentTurnId },
-      select: OWNER_REQUEST_TURN_SELECT,
-    });
+export async function isOwnerDirected(
+  turnId: string,
+  client?: OwnerAuthorityTurnClient,
+): Promise<boolean> {
+  const resolved = await resolveTurnOwnerAuthority(turnId, client);
+  return resolved !== null && resolved.authority.origin === "owner_chat";
+}
+
+async function evaluateWebTaintBlock(
+  turnId: string,
+  capability: SokoBotCapability,
+  rawInput?: unknown,
+): Promise<{ blocked: boolean; detail?: string }> {
+  if (
+    !isCapabilityWebTaintSensitive(capability, rawInput) ||
+    !(await isTainted(turnId))
+  ) {
+    return { blocked: false };
   }
-  return isOwnerRequest({ ...turn, parentTurn: ancestor });
+  const resolved = await resolveTurnOwnerAuthority(turnId);
+  if (!resolved) return { blocked: true };
+  return evaluateTurnWebTaint(resolved, capability, rawInput);
 }
 
 /** Whether a tool is refused because the turn read the web or ran a shell. */
 export async function isTaintBlocked(
   turnId: string,
   capability: SokoBotCapability,
+  rawInput?: unknown,
 ): Promise<boolean> {
-  if (
-    !(
-      SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES as readonly SokoBotCapability[]
-    ).includes(capability) ||
-    !(await isTainted(turnId))
-  )
-    return false;
-  if (
-    (
-      SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES as readonly SokoBotCapability[]
-    ).includes(capability)
-  )
-    return !(await isOwnerDirected(turnId));
-  if (
-    (
-      SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES as readonly SokoBotCapability[]
-    ).includes(capability)
-  )
-    return true;
-  return !(await isOwnerDirected(turnId));
+  return (await evaluateWebTaintBlock(turnId, capability, rawInput)).blocked;
 }
 
 export class SokoBotTaintedActionError extends Error {
@@ -707,8 +699,13 @@ export async function runTurnTool(input: {
   // promises the full tool only where the full call could run: past the
   // same taint and grant checks.
   if (isCmoShortFormCall(capability, input.toolInput)) {
-    if (await isTaintBlocked(log.turnId, capability))
-      throw new SokoBotTaintedActionError(capability);
+    const taint = await evaluateWebTaintBlock(
+      log.turnId,
+      capability,
+      input.toolInput,
+    );
+    if (taint.blocked)
+      throw new SokoBotTaintedActionError(capability, taint.detail);
     await (await runtimeService())
       .authorize({ sessionId: log.sessionId, turnId: log.turnId, capability })
       .catch((error: unknown) => {
@@ -730,8 +727,13 @@ export async function runTurnTool(input: {
     );
     return cmoShortFormAnswer(capability);
   }
-  if (await isTaintBlocked(log.turnId, capability)) {
-    throw new SokoBotTaintedActionError(capability);
+  const taint = await evaluateWebTaintBlock(
+    log.turnId,
+    capability,
+    input.toolInput,
+  );
+  if (taint.blocked) {
+    throw new SokoBotTaintedActionError(capability, taint.detail);
   }
   await log.append(
     // The model chose this input; it can carry a key or password, and

@@ -44,7 +44,7 @@ export type Rerun = (
  * toolsets: `Unknown tool: <name>` (`server.ts`), as a thrown protocol error
  * or, from some hosts, as an error result's whole text.
  */
-function isUnknownTool(failure: unknown, name: string): boolean {
+export function isUnknownTool(failure: unknown, name: string): boolean {
   const answer = `Unknown tool: ${name}`;
   if (failure instanceof Error) return failure.message.endsWith(answer);
   if (!failure || typeof failure !== "object") return false;

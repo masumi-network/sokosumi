@@ -210,6 +210,10 @@ function execute(
 /** The owner typed this turn in their own chat (or started a background run from one). */
 function ownerTurn(userMessage: string, parentTurnId: string | null = null) {
   m.ownerTurn.mockResolvedValue({
+    id: "turn",
+    sokoBotId: "bot",
+    workspaceId: NEWSLETTER_WORKSPACE_ID,
+    versionId: null,
     source: "CHAT",
     parentTurnId,
     askedByUserId: null,
@@ -217,13 +221,19 @@ function ownerTurn(userMessage: string, parentTurnId: string | null = null) {
     chainDepth: 0,
     chatMentionId: "mention",
     userMessage,
+    sokoBot: { userId: "owner" },
     parentTurn: parentTurnId
       ? {
+          id: parentTurnId,
+          sokoBotId: "bot",
+          workspaceId: NEWSLETTER_WORKSPACE_ID,
+          versionId: null,
           source: "CHAT",
           parentTurnId: null,
           askedByUserId: null,
           requestedByUserId: "owner",
           chainDepth: 0,
+          sokoBot: { userId: "owner" },
         }
       : null,
   });

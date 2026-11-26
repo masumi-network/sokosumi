@@ -673,6 +673,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setupHistoryError:
       needsSetupHistory && setupHistory.isError && !setupHistory.data,
     retrySetupHistory: () => setupHistory.refetch(),
+    refresh: refetchForViewer,
     skipGoogleSetup,
     viewerKey: identity,
     openChat,

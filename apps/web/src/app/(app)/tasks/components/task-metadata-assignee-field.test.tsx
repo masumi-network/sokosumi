@@ -62,7 +62,7 @@ function renderField(
       assigneeId={id}
       options={OPTIONS}
       peopleLock={peopleLock}
-      labels={{ assignee: "Assignee", noAssignee: "No assignee" }}
+      labels={{ assignee: "Assignee", noAssignee: "Unassigned" }}
     />
   );
   const view = render(field(assigneeId));
@@ -129,7 +129,7 @@ describe("TaskMetadataAssigneeField", () => {
     });
 
     user = await open("Assignee: Hepha");
-    await user.click(screen.getByRole("option", { name: "No assignee" }));
+    await user.click(screen.getByRole("option", { name: "Unassigned" }));
     expect(setTaskAssigneeMock).toHaveBeenLastCalledWith({
       taskId: "task-1",
       assigneeId: null,
@@ -138,7 +138,7 @@ describe("TaskMetadataAssigneeField", () => {
     });
   });
 
-  it("keeps people and No assignee out of reach where Core needs an agent", async () => {
+  it("keeps people and Unassigned out of reach where Core needs an agent", async () => {
     renderField("cw_1", "agentRequired");
     await open("Assignee: Hepha");
 
@@ -146,7 +146,7 @@ describe("TaskMetadataAssigneeField", () => {
       "aria-disabled",
       "true",
     );
-    expect(screen.getByRole("option", { name: "No assignee" })).toHaveAttribute(
+    expect(screen.getByRole("option", { name: "Unassigned" })).toHaveAttribute(
       "aria-disabled",
       "true",
     );
@@ -166,7 +166,7 @@ describe("TaskMetadataAssigneeField", () => {
       "true",
     );
     expect(
-      screen.getByRole("option", { name: "No assignee" }),
+      screen.getByRole("option", { name: "Unassigned" }),
     ).not.toHaveAttribute("aria-disabled", "true");
     expect(screen.getByText("privateHint")).toBeVisible();
   });
@@ -181,7 +181,7 @@ describe("TaskMetadataAssigneeField", () => {
         assigneeId="user_1"
         options={OPTIONS}
         peopleLock={null}
-        labels={{ assignee: "Assignee", noAssignee: "No assignee" }}
+        labels={{ assignee: "Assignee", noAssignee: "Unassigned" }}
       />,
     );
 
