@@ -261,6 +261,119 @@ const REWRITTEN_KEYS: Record<string, Set<string>> = {
   update_social_post: new Set(["revision"]),
 };
 
+function normalizeMessageTarget(
+  value: unknown,
+  allowRoomHash: boolean,
+): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return null;
+  if (allowRoomHash && trimmed.startsWith("#")) {
+    const room = trimmed.replace(/^#+/, "").trim();
+    return room.length > 0 ? `#${room}` : null;
+  }
+  const handle = trimmed.replace(/^@+/, "").trim();
+  return handle.length > 0 ? handle : null;
+}
+
+function normalizeMessageText(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().replace(/\s+/g, " ");
+  return normalized.length > 0 ? normalized : null;
+}
+
+function sameOptionalText(later: unknown, earlier: unknown): boolean {
+  return normalizeMessageText(later) === normalizeMessageText(earlier);
+}
+
+/**
+ * Structured hand-off fields delivered by `send_message`: two hand-offs with
+ * the same opener ("Please handle this.") but different goals/deliverables are
+ * distinct assignments and must not mask each other.
+ */
+function sameHandoffRequest(later: unknown, earlier: unknown): boolean {
+  const laterObj = isPlainObject(later);
+  const earlierObj = isPlainObject(earlier);
+  if (!laterObj && !earlierObj) return true;
+  if (!laterObj || !earlierObj) return false;
+  return (
+    sameOptionalText(later.goal, earlier.goal) &&
+    sameOptionalText(later.deliverable, earlier.deliverable) &&
+    sameOptionalText(later.deadline, earlier.deadline) &&
+    sameOptionalText(later.context, earlier.context)
+  );
+}
+
+/**
+ * Whether `later` retried the same message to the same recipient as `earlier`.
+ * A rejected attempt whose extra or invalid field (e.g. a bad `projectId`) was
+ * dropped on retry should not print "Not confirmed" beside the confirmed send,
+ * while a different message, a different structured `request`, or a different
+ * address kind (`#Jordan` room vs `Jordan` person) stays reported.
+ */
+function sameMessageRetry(
+  later: unknown,
+  earlier: unknown,
+  capability: string,
+): boolean {
+  if (!isPlainObject(later) || !isPlainObject(earlier)) return false;
+  if (capability === "send_message") {
+    const laterTo = normalizeMessageTarget(later.to, true);
+    const earlierTo = normalizeMessageTarget(earlier.to, true);
+    const laterMsg = normalizeMessageText(later.message);
+    const earlierMsg = normalizeMessageText(earlier.message);
+    return (
+      laterTo !== null &&
+      laterTo === earlierTo &&
+      laterMsg !== null &&
+      laterMsg === earlierMsg &&
+      sameHandoffRequest(later.request, earlier.request) &&
+      sameOptionalText(later.then, earlier.then)
+    );
+  }
+  if (capability === "open_direct_chat") {
+    const laterPerson = normalizeMessageTarget(later.person, false);
+    const earlierPerson = normalizeMessageTarget(earlier.person, false);
+    const laterMsg = normalizeMessageText(later.message);
+    const earlierMsg = normalizeMessageText(earlier.message);
+    return (
+      laterPerson !== null &&
+      laterPerson === earlierPerson &&
+      laterMsg !== null &&
+      laterMsg === earlierMsg
+    );
+  }
+  if (capability === "post_chat") {
+    const laterContent = normalizeMessageText(later.content);
+    const earlierContent = normalizeMessageText(earlier.content);
+    return (
+      typeof later.roomId === "string" &&
+      later.roomId === earlier.roomId &&
+      laterContent !== null &&
+      laterContent === earlierContent
+    );
+  }
+  if (capability === "ask_coworker") {
+    if (
+      !Array.isArray(later.coworkerIds) ||
+      !Array.isArray(earlier.coworkerIds)
+    )
+      return false;
+    const laterIds = later.coworkerIds.map(String).sort();
+    const earlierIds = earlier.coworkerIds.map(String).sort();
+    const laterQuestion = normalizeMessageText(later.question);
+    const earlierQuestion = normalizeMessageText(earlier.question);
+    return (
+      laterIds.length > 0 &&
+      laterIds.length === earlierIds.length &&
+      laterIds.every((id, index) => id === earlierIds[index]) &&
+      laterQuestion !== null &&
+      laterQuestion === earlierQuestion
+    );
+  }
+  return false;
+}
+
 function inputCovers(
   later: unknown,
   earlier: unknown,
@@ -404,8 +517,9 @@ export async function buildActionResponse(
   const unique = [...new Map(current.map((call) => [call.id, call])).values()];
   const appliedReceiptIds = unique.map((call) => call.id);
   // A refused attempt the bot then made good — the same call on the same
-  // target, or again with the missing fields filled in — is not something the
-  // owner needs to hear about. One whose outcome is unknown always is.
+  // target, a retry of the same message to the same recipient, or again with
+  // the missing fields filled in — is not something the owner needs to hear
+  // about. One whose outcome is unknown always is.
   const madeGood = (call: (typeof calls)[number]) =>
     call.disposition !== "UNKNOWN" &&
     unique.some(
@@ -414,7 +528,8 @@ export async function buildActionResponse(
         applied.capability === call.capability &&
         applied.createdAt > call.createdAt &&
         ((call.targetId !== null && applied.targetId === call.targetId) ||
-          inputCovers(applied.input, call.input, call.capability)),
+          inputCovers(applied.input, call.input, call.capability) ||
+          sameMessageRetry(applied.input, call.input, call.capability)),
     );
   const unfulfilledActions = calls
     .filter(

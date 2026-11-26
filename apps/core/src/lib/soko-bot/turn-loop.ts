@@ -763,8 +763,33 @@ export async function runTurnTool(input: {
 
 /** The changes this turn's receipts confirm, as the answer names them. */
 /** Saves that carry no action receipt but are Core-checked writes the owner may hear about. */
-const RECORDED_SAVES: Record<string, string> = {
-  save_seo_suggestions: "Saved page changes or articles to the SEO page",
+const RECORDED_SAVES: Record<
+  string,
+  { label: string; confirmed?: (result: unknown) => boolean }
+> = {
+  save_seo_suggestions: {
+    label: "Saved page changes or articles to the SEO page",
+  },
+  save_brand_brain: { label: "Saved Brand Brain" },
+  save_strategy: { label: "Saved marketing strategy" },
+  // write_strategy returns { written: true } only once the step saved;
+  // { written: false } and { writing: true } also settle COMPLETED.
+  write_strategy: {
+    label: "Saved marketing strategy",
+    confirmed: (result) =>
+      typeof result === "object" &&
+      result !== null &&
+      (result as { written?: unknown }).written === true,
+  },
+  // write_month_pieces settles COMPLETED with { written: 0 } when nothing was saved.
+  write_month_pieces: {
+    label: "Wrote month pieces",
+    confirmed: (result) =>
+      typeof result === "object" &&
+      result !== null &&
+      typeof (result as { written?: unknown }).written === "number" &&
+      (result as { written: number }).written > 0,
+  },
 };
 
 async function confirmedChanges(turnId: string): Promise<string[]> {
@@ -780,16 +805,19 @@ async function confirmedChanges(turnId: string): Promise<string[]> {
         { capability: { in: Object.keys(RECORDED_SAVES) } },
       ],
     },
-    select: { capability: true },
+    select: { capability: true, result: true },
   });
   return [
     ...new Set(
-      calls.map(
-        (call) =>
-          RECORDED_SAVES[call.capability] ??
-          ACTION_LABELS[call.capability] ??
-          call.capability,
-      ),
+      calls.flatMap((call) => {
+        const save = RECORDED_SAVES[call.capability];
+        if (save) {
+          return save.confirmed && !save.confirmed(call.result)
+            ? []
+            : [save.label];
+        }
+        return [ACTION_LABELS[call.capability] ?? call.capability];
+      }),
     ),
   ];
 }

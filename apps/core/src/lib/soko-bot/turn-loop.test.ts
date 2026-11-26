@@ -255,6 +255,60 @@ describe("finishTurn", () => {
     );
   });
 
+  it("includes completed CMO saves in confirmedChanges and ignores unwritten strategy/month results", async () => {
+    toolCallFind.mockResolvedValue([
+      { capability: "save_brand_brain", result: { saved: "brandBrain" } },
+      { capability: "save_strategy", result: { saved: "strategy" } },
+      {
+        capability: "write_strategy",
+        result: { written: true, versionId: "v2" },
+      },
+      { capability: "write_month_pieces", result: { written: 4, left: 0 } },
+    ]);
+    await finish(
+      "I updated your Brand Brain, strategy, and month pieces.",
+      true,
+    );
+    expect(toolCallFind).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            {
+              capability: {
+                in: expect.arrayContaining([
+                  "save_seo_suggestions",
+                  "save_brand_brain",
+                  "save_strategy",
+                  "write_strategy",
+                  "write_month_pieces",
+                ]),
+              },
+            },
+          ]),
+        }),
+      }),
+    );
+    expect(claimsActionMock).toHaveBeenCalledWith(
+      "I updated your Brand Brain, strategy, and month pieces.",
+      ["Saved Brand Brain", "Saved marketing strategy", "Wrote month pieces"],
+    );
+
+    claimsActionMock.mockClear();
+    toolCallFind.mockResolvedValue([
+      {
+        capability: "write_strategy",
+        result: { written: false, reason: "err" },
+      },
+      { capability: "write_strategy", result: { writing: true } },
+      { capability: "write_month_pieces", result: { written: 0, left: 0 } },
+    ]);
+    await finish("Still working on your strategy.", true);
+    expect(claimsActionMock).toHaveBeenCalledWith(
+      "Still working on your strategy.",
+      [],
+    );
+  });
+
   it("says so when the message could not be checked", async () => {
     expectCoreLogWhys("warn", "Withheld a Soko Bot reply", [
       "The check for claims of unconfirmed changes could not run",
