@@ -1473,6 +1473,133 @@ describe("authoritative action responses", () => {
     expect(response.unfulfilledActions).toHaveLength(1);
   });
 
+  it("suppresses a rejected send_message when a later retry to the same recipient succeeded", async () => {
+    refusedThenCreated(
+      {
+        capability: "send_message",
+        input: {
+          to: "CodePat",
+          projectId: "bad-project",
+          message: "Please check the architecture post.",
+        },
+      },
+      {
+        capability: "send_message",
+        targetId: "msg-1",
+        input: {
+          to: "@codepat",
+          message: "Please check the architecture post.",
+        },
+      },
+    );
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.answerText).toBe("Sent a message.");
+    expect(response.answerText).not.toContain("Not confirmed");
+    expect(response.unfulfilledActions).toEqual([]);
+  });
+
+  it("still reports a rejected send_message to a different recipient", async () => {
+    refusedThenCreated(
+      {
+        capability: "send_message",
+        input: { to: "Hannah", message: "Can you review?" },
+      },
+      {
+        capability: "send_message",
+        targetId: "msg-2",
+        input: { to: "CodePat", message: "Can you review?" },
+      },
+    );
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.unfulfilledActions).toHaveLength(1);
+    expect(response.answerText).toContain("Not confirmed: sent a message.");
+  });
+
+  it("never suppresses an UNKNOWN send_message even when a later call to the same recipient succeeded", async () => {
+    refusedThenCreated(
+      {
+        capability: "send_message",
+        status: "COMPLETED",
+        disposition: "UNKNOWN",
+        input: { to: "CodePat", message: "Check this." },
+      },
+      {
+        capability: "send_message",
+        targetId: "msg-3",
+        input: { to: "CodePat", message: "Check this." },
+      },
+    );
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.unfulfilledActions).toHaveLength(1);
+    expect(response.answerText).toContain(
+      "I couldn't confirm whether this went through: sent a message.",
+    );
+  });
+
+  it("still reports a rejected send_message that happened after an earlier success to the same recipient", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        id: "sent-first",
+        toolCallId: "call-sent",
+        capability: "send_message",
+        targetId: "msg-first",
+        input: { to: "CodePat", message: "Part 1" },
+        createdAt: new Date("2026-09-26T12:00:00Z"),
+      }),
+      receipt({
+        id: "refused-later",
+        toolCallId: "call-refused",
+        capability: "send_message",
+        status: "FAILED",
+        disposition: "REJECTED",
+        verification: "NONE",
+        committedAt: null,
+        targetId: null,
+        input: { to: "CodePat", message: "Part 2" },
+        createdAt: new Date("2026-09-26T12:00:05Z"),
+      }),
+    ]);
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.unfulfilledActions).toHaveLength(1);
+    expect(response.answerText).toContain("Not confirmed: sent a message.");
+  });
+
+  it("suppresses a rejected post_chat, open_direct_chat, or ask_coworker retry to the same recipient", async () => {
+    for (const [capability, earlier, later] of [
+      [
+        "post_chat",
+        {
+          roomId: "room-1",
+          content: "Draft 1",
+          resultReferences: [{ id: "bad" }],
+        },
+        { roomId: "room-1", content: "Draft 1" },
+      ],
+      [
+        "open_direct_chat",
+        { person: "Hannah", message: "First try" },
+        { person: "hannah", message: "Cleaned message" },
+      ],
+      [
+        "ask_coworker",
+        { coworkerIds: ["mira", "codepat"], question: "Q1" },
+        { coworkerIds: ["codepat", "mira"], question: "Q2" },
+      ],
+    ] as const) {
+      refusedThenCreated(
+        { capability, input: earlier },
+        { capability, targetId: `ok-${capability}`, input: later },
+      );
+      const response = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "Done.",
+      );
+      expect(response.unfulfilledActions).toEqual([]);
+      expect(response.answerText).not.toContain("Not confirmed");
+    }
+  });
+
   it("always reports an attempt whose outcome is unknown", async () => {
     refusedThenCreated({ status: "COMPLETED", disposition: "UNKNOWN" });
     const response = await buildActionResponse(prisma, "turn-current", "Done.");

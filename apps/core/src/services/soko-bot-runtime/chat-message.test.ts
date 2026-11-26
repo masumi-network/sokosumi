@@ -220,7 +220,12 @@ describe("sendMessage", () => {
       id: "ask-mira",
       then: "Tell Robin the price.",
     });
-    expect(result).toMatchObject({ waiting: true });
+    expect(result).toMatchObject({
+      waiting: true,
+      note: expect.stringMatching(
+        /Finish any independent steps.*end your turn/,
+      ),
+    });
   });
 
   it("stops a conversation at four messages to one recipient", async () => {

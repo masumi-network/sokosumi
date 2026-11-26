@@ -260,6 +260,57 @@ const REWRITTEN_KEYS: Record<string, Set<string>> = {
   update_social_post: new Set(["revision"]),
 };
 
+function normalizeRecipient(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value
+    .trim()
+    .replace(/^[@#]+/, "")
+    .toLowerCase();
+  return normalized.length > 0 ? normalized : null;
+}
+
+/**
+ * Whether `later` reached the same message recipient as `earlier`. A rejected
+ * attempt whose extra or invalid field (e.g. a bad `projectId`) was dropped
+ * on retry to the same recipient should not print "Not confirmed" beside the
+ * confirmed send.
+ */
+function sameMessageRecipient(
+  later: unknown,
+  earlier: unknown,
+  capability: string,
+): boolean {
+  if (!isPlainObject(later) || !isPlainObject(earlier)) return false;
+  if (capability === "send_message") {
+    const laterTo = normalizeRecipient(later.to);
+    const earlierTo = normalizeRecipient(earlier.to);
+    return laterTo !== null && laterTo === earlierTo;
+  }
+  if (capability === "open_direct_chat") {
+    const laterPerson = normalizeRecipient(later.person);
+    const earlierPerson = normalizeRecipient(earlier.person);
+    return laterPerson !== null && laterPerson === earlierPerson;
+  }
+  if (capability === "post_chat") {
+    return typeof later.roomId === "string" && later.roomId === earlier.roomId;
+  }
+  if (capability === "ask_coworker") {
+    if (
+      !Array.isArray(later.coworkerIds) ||
+      !Array.isArray(earlier.coworkerIds)
+    )
+      return false;
+    const laterIds = later.coworkerIds.map(String).sort();
+    const earlierIds = earlier.coworkerIds.map(String).sort();
+    return (
+      laterIds.length > 0 &&
+      laterIds.length === earlierIds.length &&
+      laterIds.every((id, index) => id === earlierIds[index])
+    );
+  }
+  return false;
+}
+
 function inputCovers(
   later: unknown,
   earlier: unknown,
@@ -399,8 +450,9 @@ export async function buildActionResponse(
   const unique = [...new Map(current.map((call) => [call.id, call])).values()];
   const appliedReceiptIds = unique.map((call) => call.id);
   // A refused attempt the bot then made good — the same call on the same
-  // target, or again with the missing fields filled in — is not something the
-  // owner needs to hear about. One whose outcome is unknown always is.
+  // target, a retry to the same message recipient, or again with the missing
+  // fields filled in — is not something the owner needs to hear about. One
+  // whose outcome is unknown always is.
   const madeGood = (call: (typeof calls)[number]) =>
     call.disposition !== "UNKNOWN" &&
     unique.some(
@@ -409,7 +461,8 @@ export async function buildActionResponse(
         applied.capability === call.capability &&
         applied.createdAt > call.createdAt &&
         ((call.targetId !== null && applied.targetId === call.targetId) ||
-          inputCovers(applied.input, call.input, call.capability)),
+          inputCovers(applied.input, call.input, call.capability) ||
+          sameMessageRecipient(applied.input, call.input, call.capability)),
     );
   const unfulfilledActions = calls
     .filter(
