@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, unstable_rethrow } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import {
   JobsListHeaderSkeleton,
@@ -18,7 +19,10 @@ import { cn } from "@/lib/utils";
 
 import AgentFullbleedEffect from "../components/agent-fullbleed-effect";
 
-import { getCachedMyJobs } from "./_lib/get-cached-my-jobs";
+import {
+  getCachedMyJobs,
+  getLastKnownAgentName,
+} from "./_lib/get-cached-my-jobs";
 import { JobsHeaderContext } from "./components/jobs-header-context";
 import { JobsList } from "./components/jobs-list";
 import { JobsListHeader } from "./components/jobs-list-header";
@@ -27,10 +31,15 @@ export async function generateMetadata({
   params,
 }: JobLayoutProps): Promise<Metadata> {
   const { agentId } = await params;
-  const agent = await getCoreAgentById(agentId);
+  const [agent, t] = await Promise.all([
+    getCoreAgentById(agentId),
+    getTranslations("App.Agents.Jobs.Header"),
+  ]);
+
+  const lastKnownName = agent ? null : await getLastKnownAgentName(agentId);
 
   return {
-    title: agent?.name ?? agentId,
+    title: agent?.name ?? lastKnownName ?? t("unavailableAgent"),
     description: agent?.description ?? undefined,
   };
 }
@@ -92,18 +101,27 @@ async function JobLayoutInner({
   }
 
   const { agentId } = await params;
-  const coreAgent = await getCoreAgentById(agentId);
+  const [coreAgent, t] = await Promise.all([
+    getCoreAgentById(agentId),
+    getTranslations("App.Agents.Jobs.Header"),
+  ]);
 
-  const agent = coreAgent ?? createUnavailableCoreAgent(agentId);
   const disabled = !coreAgent;
 
-  const [agentJobsPage, canRate, existingRating] = await Promise.all([
-    getCachedMyJobs(agentId),
-    coreAgent ? agentService.canUserRateAgent(agentId) : Promise.resolve(false),
-    coreAgent
-      ? agentService.getUserRatingForAgent(agentId)
-      : Promise.resolve(null),
-  ]);
+  const [agentJobsPage, canRate, existingRating, lastKnownName] =
+    await Promise.all([
+      getCachedMyJobs(agentId),
+      coreAgent
+        ? agentService.canUserRateAgent(agentId)
+        : Promise.resolve(false),
+      coreAgent
+        ? agentService.getUserRatingForAgent(agentId)
+        : Promise.resolve(null),
+      coreAgent ? Promise.resolve(null) : getLastKnownAgentName(agentId),
+    ]);
+  const agent =
+    coreAgent ??
+    createUnavailableCoreAgent(agentId, lastKnownName ?? t("unavailableAgent"));
 
   return (
     <JobsHeaderContext
@@ -145,6 +163,7 @@ async function JobLayoutInner({
                     agent={agent}
                     total={agentJobsPage.total}
                     disabled={disabled}
+                    unlisted={lastKnownName !== null}
                   />
                 }
               />

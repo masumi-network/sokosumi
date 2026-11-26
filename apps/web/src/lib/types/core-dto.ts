@@ -23,13 +23,19 @@ export type RiskClassification = AgentDetail["riskClassification"];
 
 const UNAVAILABLE_AGENT_DATE = new Date(0);
 
-/** Placeholder when Core returns no agent (e.g. deleted or inaccessible). */
-export function createUnavailableCoreAgent(agentId: string): Agent {
+/**
+ * Placeholder when Core returns no agent (e.g. deleted or inaccessible).
+ * `name` is what people see in its place, never the raw id.
+ */
+export function createUnavailableCoreAgent(
+  agentId: string,
+  name: string,
+): Agent {
   return {
     id: agentId,
     createdAt: UNAVAILABLE_AGENT_DATE,
     updatedAt: UNAVAILABLE_AGENT_DATE,
-    name: agentId,
+    name,
     image: null,
     icon: null,
     credits: 0,
