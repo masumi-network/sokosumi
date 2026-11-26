@@ -13,7 +13,6 @@ import { recordCoreWarning } from "@/lib/evlog";
 import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { effectiveSokoBotRuntimeAdapter } from "@/lib/soko-bot/factory";
-import { dispatchChatRoomMention } from "@/services/chat-room-coworker-dispatch.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import {
   SOKO_EVENTS_SYNC_KEY,
@@ -177,6 +176,11 @@ async function askInRoom(
   });
   const [mention] = message.mentionsAsSource;
   if (!mention) return { error: "The message mentions nobody" };
+  // Loaded here: the dispatch pulls in auth and Stripe, which every route
+  // reaching the eval cases (the sync routes) would otherwise construct.
+  const { dispatchChatRoomMention } = await import(
+    "@/services/chat-room-coworker-dispatch.service"
+  );
   await dispatchChatRoomMention(mention.id);
   const turn = await prisma.sokoBotTurn.findFirst({
     where: { chatMentionId: mention.id },
@@ -852,6 +856,36 @@ export function journeyRuntime(): { adapter: string; models: string } {
   };
 }
 
+/**
+ * Tokens the journey's turns used, from the model-call ledger: the cost
+ * proxy where the ChatGPT plan reports no price. Background runs started by
+ * a journey turn are its children and count too.
+ */
+export async function journeyTokens(turnIds: readonly string[]) {
+  const turns = await prisma.sokoBotTurn.findMany({
+    where: {
+      OR: [
+        { id: { in: [...turnIds] } },
+        { parentTurnId: { in: [...turnIds] } },
+      ],
+    },
+    select: { id: true },
+  });
+  const sum = await prisma.sokoBotModelCall.aggregate({
+    where: { turnId: { in: turns.map((turn) => turn.id) } },
+    _sum: { inputTokens: true, cacheReadTokens: true, outputTokens: true },
+  });
+  const inputTokens = sum._sum.inputTokens ?? 0;
+  return {
+    inputTokens,
+    cachedInputTokens: sum._sum.cacheReadTokens ?? 0,
+    outputTokens: sum._sum.outputTokens ?? 0,
+    inputTokensPerTurn: turns.length
+      ? Math.round(inputTokens / turns.length)
+      : 0,
+  };
+}
+
 /** Progress: the share of checks passed and how many steps in a row were right. */
 export function journeyScore(
   journey: OwnerJourney,
@@ -944,6 +978,7 @@ async function journeyOutcome(
       (sum, step) => sum + (step.durationMs ?? 0),
       0,
     ),
+    ...(await journeyTokens(turnIds)),
   };
   return {
     status: passed ? "PASSED" : "FAILED",

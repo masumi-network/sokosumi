@@ -1,0 +1,125 @@
+/**
+ * A candidate version against the baseline on the owner benchmark, for the
+ * fleet-move bar: journeys passed and steps right no worse, no journey that
+ * passed on the baseline failing on the candidate, and input tokens per
+ * turn no worse. Both runs should come from the same code, only the
+ * versions differ.
+ */
+import type { ParityReport } from "./parity";
+
+interface Side {
+  status: string;
+  stepsPassed: number;
+  inputTokensPerTurn: number | null;
+}
+
+export interface DeltaRow {
+  caseId: string;
+  baseline: Side | null;
+  candidate: Side | null;
+  /** Passed on the baseline, not on the candidate. */
+  regressed: boolean;
+}
+
+export interface VersionDelta {
+  rows: DeltaRow[];
+  baseline: Totals;
+  candidate: Totals;
+  /** Every part of the benchmark bar holds. */
+  meetsBar: boolean;
+}
+
+interface Totals {
+  passed: number;
+  stepsPassed: number;
+  inputTokensPerTurn: number | null;
+}
+
+function firstScored(results: ParityReport["cases"][number]["results"]) {
+  const result = results.find(
+    (row) => row.status === "PASSED" || row.status === "FAILED",
+  );
+  if (!result) return null;
+  const output = (result.output ?? {}) as {
+    score?: { stepsPassed?: number };
+    totals?: { inputTokensPerTurn?: number; turns?: number };
+  };
+  return {
+    status: result.status,
+    stepsPassed: output.score?.stepsPassed ?? 0,
+    inputTokensPerTurn: output.totals?.inputTokensPerTurn ?? null,
+    turns: output.totals?.turns ?? 0,
+  };
+}
+
+function totals(
+  sides: readonly (ReturnType<typeof firstScored> | null)[],
+): Totals {
+  const scored = sides.filter((side) => side !== null);
+  const weighted = scored.filter((side) => side.inputTokensPerTurn !== null);
+  const turns = weighted.reduce((sum, side) => sum + side.turns, 0);
+  return {
+    passed: scored.filter((side) => side.status === "PASSED").length,
+    stepsPassed: scored.reduce((sum, side) => sum + side.stepsPassed, 0),
+    // Weighted by turns, so a long journey counts for its turns.
+    inputTokensPerTurn: turns
+      ? Math.round(
+          weighted.reduce(
+            (sum, side) => sum + (side.inputTokensPerTurn ?? 0) * side.turns,
+            0,
+          ) / turns,
+        )
+      : null,
+  };
+}
+
+export function versionDelta(
+  baseline: ParityReport,
+  candidate: ParityReport,
+): VersionDelta {
+  const byCase = (report: ParityReport) =>
+    new Map(
+      report.cases
+        .filter((evalCase) => evalCase.caseId.startsWith("owner-"))
+        .map((evalCase) => [evalCase.caseId, firstScored(evalCase.results)]),
+    );
+  const left = byCase(baseline);
+  const right = byCase(candidate);
+  const ids = [...new Set([...left.keys(), ...right.keys()])];
+  const rows = ids.map((caseId): DeltaRow => {
+    const before = left.get(caseId) ?? null;
+    const after = right.get(caseId) ?? null;
+    const strip = (side: typeof before): Side | null =>
+      side
+        ? {
+            status: side.status,
+            stepsPassed: side.stepsPassed,
+            inputTokensPerTurn: side.inputTokensPerTurn,
+          }
+        : null;
+    return {
+      caseId,
+      baseline: strip(before),
+      candidate: strip(after),
+      regressed: before?.status === "PASSED" && after?.status !== "PASSED",
+    };
+  });
+  // Totals over the journeys both runs scored, so a missing one can't help.
+  const shared = rows.filter((row) => row.baseline && row.candidate);
+  const base = totals(shared.map((row) => left.get(row.caseId) ?? null));
+  const cand = totals(shared.map((row) => right.get(row.caseId) ?? null));
+  return {
+    rows,
+    baseline: base,
+    candidate: cand,
+    meetsBar:
+      shared.length === ids.length &&
+      cand.passed >= base.passed &&
+      cand.stepsPassed >= base.stepsPassed &&
+      !rows.some((row) => row.regressed) &&
+      // No token count is no evidence the cost held.
+      base.inputTokensPerTurn !== null &&
+      cand.inputTokensPerTurn !== null &&
+      cand.inputTokensPerTurn <= base.inputTokensPerTurn,
+  };
+}

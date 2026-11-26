@@ -122,6 +122,16 @@ pnpm evals:local --plan --cases owner-codepat-daily-post
 
 A new Soko Bot or Cuso default must pass the owner benchmark at least as well as the current default, with cost per turn no worse.
 
+**A new version against the baseline.** Run the benchmark twice from the same checkout, once on the baseline versions and once on the candidate, then compare. Each journey's `totals` carry its tokens (`inputTokens`, `cachedInputTokens`, `outputTokens`, `inputTokensPerTurn`, background runs included), which is the cost proxy on the plan, where no price is reported.
+
+```bash
+pnpm evals:local --plan --ownerbench --soko-bot-version v36 --cuso-version cmo-v23 --json-out baseline.json
+pnpm evals:local --plan --ownerbench --soko-bot-version v39 --cuso-version cmo-v26 --json-out candidate.json
+pnpm --filter @sokosumi/core exec tsx scripts/ownerbench-compare.mts baseline.json candidate.json
+```
+
+It prints each journey side by side, marks every journey that passed on the baseline and fails on the candidate, and says whether the bar holds: at least as many journeys passed and steps right, no such regression, and input tokens per turn no higher.
+
 **Runtime parity.** `evals:local` always runs the in-process runtime: its own loop, no sandbox tools (shell, files, helper agents) and no final report call when time runs out. Deployments run the sandbox runtime. Each journey's output records where it ran (`runtime.adapter`, and `runtime.models`: `chatgpt-plan` or `gateway`). Before a local delta decides anything, run the same journeys once on a deployment and compare:
 
 ```bash
