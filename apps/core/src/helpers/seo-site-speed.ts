@@ -170,18 +170,36 @@ export function readableStoredSiteSpeed(value: unknown) {
   const rows: StoredSiteSpeed["rows"] = [];
   for (const item of table.rows.slice(0, SITE_SPEED_ROWS)) {
     const row = reportObject(item);
-    if (!row || !publicSpeedUrl(row.url) || seen.has(row.url)) continue;
-    const { check: _check, why: _why, group: _group, ...rest } = row;
-    const check =
-      row.tier === "reduced" ? readCheck(row.check, true) : undefined;
+    // The home page without its root slash is the home page, as on a fresh import.
+    const url = speedPageUrl(row?.url);
+    if (!row || !publicSpeedUrl(url) || seen.has(url)) continue;
+    const {
+      check: _check,
+      why: _why,
+      group: _group,
+      cause: _cause,
+      tier: _tier,
+      ...rest
+    } = row;
+    // A tier or a cause Core does not know goes, the row stays.
+    const tier = SITE_SPEED_TIERS.find((value) => value === row.tier);
+    const cause = SITE_SPEED_CAUSES.find((value) => value === row.cause);
+    const check = tier === "reduced" ? readCheck(row.check, true) : undefined;
     const group = publicGroup(row.group);
     const why = publicSpeedText(row.why, SITE_SPEED_WHY_CHARS);
     // The devices of the row's tier come first: a measurement the row cannot show is not read.
     // Then the first readable measurement of each device: a repeated device is no second result.
-    const allowed: readonly unknown[] = speedRowDevices(row.tier, check);
+    // A measurement of another page is no result of this row.
+    const allowed: readonly unknown[] = speedRowDevices(tier, check);
     const taken = new Set<unknown>();
     const devices = (Array.isArray(row.devices) ? row.devices : [])
-      .filter((device) => allowed.includes(reportObject(device)?.device))
+      .filter((device) => {
+        const measured = reportObject(device);
+        return (
+          allowed.includes(measured?.device) &&
+          speedPageUrl(measured?.pageUrl) === url
+        );
+      })
       .flatMap(readableStoredMeasurement)
       .filter((device) => seoPageSpeedRow.safeParse(device).success)
       .filter((device) => {
@@ -190,15 +208,18 @@ export function readableStoredSiteSpeed(value: unknown) {
       });
     const stored = storedSiteSpeedRow.safeParse({
       ...rest,
+      url,
       ...(group && { group }),
+      ...(cause && { cause }),
       ...(why && { why }),
+      ...(tier && { tier }),
       ...(check && { check }),
       devices,
     });
     // An unreadable row does not take the URL from a later, readable row.
     if (stored.success) {
       rows.push(stored.data);
-      seen.add(row.url);
+      seen.add(url);
     }
   }
   // A summary Core cannot read goes, the rows stay.
@@ -235,11 +256,24 @@ export function scopedSiteSpeed(
   )
     return null;
   const speed = data.pageSpeed ?? [];
+  // A stored row is bound to the audit as a fresh import binds it: an audited page, or the start page's host.
+  const start = URL.parse(data.pageUrls[0] ?? "");
+  const audited = new Set(
+    [
+      ...data.pageUrls,
+      ...speed.flatMap((row) => [row.pageUrl, row.testedUrl]),
+    ].map(auditedSeoPageKey),
+  );
+  const rows = data.siteSpeed.rows.filter(
+    (item) =>
+      audited.has(item.url) || (!!start && publicLanding(start, item.url)),
+  );
   return {
     ...data.siteSpeed,
     observationId: row.id,
     observedAt: row.observedAt.toISOString(),
-    rows: data.siteSpeed.rows.map((item) => {
+    dropped: data.siteSpeed.dropped + data.siteSpeed.rows.length - rows.length,
+    rows: rows.map((item) => {
       const allowed = speedRowDevices(item.tier, item.check);
       if (!item.audited)
         return {

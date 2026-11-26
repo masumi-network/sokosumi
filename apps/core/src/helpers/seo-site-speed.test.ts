@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { SITE_SPEED_CAUSES } from "@/schemas/seo-site-speed.schema";
 import { legacyReport, SEO_TEST_PAGE } from "@/test-fixtures/project-seo";
 import {
   parsePublicSeoArtifact,
@@ -854,6 +855,89 @@ describe("the guards of speed data on each path", () => {
     ]);
     expect(stored?.rows.map((row) => row.url)).toEqual([EXTRA]);
     expect(stored?.dropped).toBe(1);
+  });
+
+  it("shows no measurement of another page on a stored row", () => {
+    const table = storedRows([
+      {
+        url: EXTRA,
+        audited: false,
+        tier: "full",
+        devices: [
+          device("https://example.test/other", "mobile"),
+          device(EXTRA, "desktop"),
+        ],
+      },
+    ]);
+    expect(
+      table?.rows[0]?.devices.map((item) => [item.pageUrl, item.device]),
+    ).toEqual([[EXTRA, "desktop"]]);
+  });
+
+  it("reads a stored home page without its root slash as the home page, once", () => {
+    const home = "https://example.test";
+    const table = storedRows([
+      { url: home, audited: false, devices: [device(home, "mobile")] },
+      { url: home + "/", audited: false, devices: [] },
+    ]);
+    expect(table).toMatchObject({
+      rows: [{ url: home + "/", devices: [{ device: "mobile" }] }],
+      dropped: 1,
+    });
+  });
+
+  it("omits a cause and a tier that Core does not know from a stored row and keeps the row", () => {
+    const table = storedRows([
+      { url: EXTRA, audited: false, cause: "new-cause", devices: [] },
+      {
+        url: "https://example.test/tier",
+        audited: false,
+        tier: "new-tier",
+        cause: SITE_SPEED_CAUSES[0],
+        devices: [],
+      },
+    ]);
+    expect(table).toEqual({
+      rows: [
+        { url: EXTRA, audited: false, devices: [] },
+        {
+          url: "https://example.test/tier",
+          audited: false,
+          cause: SITE_SPEED_CAUSES[0],
+          devices: [],
+        },
+      ],
+      dropped: 0,
+    });
+  });
+
+  it("gives a view no stored row of another host and counts it", () => {
+    const row = (url: string, audited = false) => ({
+      url,
+      audited,
+      devices: [],
+    });
+    const table = scopedSiteSpeed(
+      {
+        siteSpeed: {
+          rows: [
+            row(EXTRA),
+            row("https://other.test/pricing"),
+            row("https://other.test/audited", true),
+            row("https://www.example.test/shop"),
+          ],
+          dropped: 1,
+        },
+        pageUrls: [SEO_TEST_PAGE],
+      },
+      view,
+      new Set([SEO_TEST_PAGE]),
+    );
+    expect(table?.rows.map((item) => item.url)).toEqual([
+      EXTRA,
+      "https://www.example.test/shop",
+    ]);
+    expect(table?.dropped).toBe(3);
   });
 
   it("drops only the stored row Core cannot read and counts it", () => {
