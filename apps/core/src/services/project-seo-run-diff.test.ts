@@ -629,6 +629,18 @@ describe("withSeoRunDiffs edge cases", () => {
     expect(diff).toMatchObject({ newCount: 1, notCheckedBefore: 0 });
   });
 
+  it("counts no new issue from a finding without a device where a note answers the row of a device not read before", () => {
+    const anyDevice = {
+      ...failed({ rowId: "A", device: "mobile" }),
+      finding: { ...failed({ rowId: "A" }).finding, device: null },
+    };
+    const diff = diffOf([
+      source(8, result([anyDevice, failed({ rowId: "A" }, "note")])),
+      source(1, result([check("pass", { rowId: "A", device: "mobile" })])),
+    ]);
+    expect(diff).toMatchObject({ newCount: 0, notCheckedBefore: 1 });
+  });
+
   it("counts no new issue from a finding without a device or a row that fired", () => {
     const diff = diffOf([
       source(

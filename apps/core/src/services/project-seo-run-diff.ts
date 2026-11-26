@@ -105,7 +105,9 @@ function readIssueStates(payload: PublicSeoPayload, selected: Selected) {
           },
     );
   }
-  const passed: Devices = new Map();
+  const passed: Devices = new Map(),
+    // Devices a row fired on, also with a note: where a finding that names no device is open.
+    fired: Devices = new Map();
   // Every row counts, also two rows of one rule on one device: one that fired still blocks a fix.
   for (const check of payload.checks) {
     if (check.result !== "pass" && check.result !== "fired") continue;
@@ -114,6 +116,7 @@ function readIssueStates(payload: PublicSeoPayload, selected: Selected) {
     if (check.result === "pass") addDevice(passed, key, check.device);
     // A row that fired with a note of its own did not fail there. A row with no note left failed.
     if (check.result !== "fired") continue;
+    addDevice(fired, key, check.device);
     const at = `${key}\n${check.device}`;
     const left = notes.get(at) ?? 0;
     if (left) notes.set(at, left - 1);
@@ -123,7 +126,7 @@ function readIssueStates(payload: PublicSeoPayload, selected: Selected) {
   for (const [key, issue] of open)
     if ((failed.get(key)?.size ?? 0) > 1)
       open.set(key, { ...issue, device: null });
-  return { open, passed, failed, issued, noted };
+  return { open, passed, failed, fired, issued, noted };
 }
 
 const measuredRules = (payload: PublicSeoPayload) =>
@@ -167,7 +170,7 @@ export function compareSeoRuns(
         // never without such a row.
         const anyDevice = after.issued.get(key)?.has(null);
         const devices = anyDevice
-          ? [...(after.failed.get(key) ?? [])].filter((device) => device)
+          ? [...(after.fired.get(key) ?? [])].filter((device) => device)
           : [...(after.issued.get(key) ?? [])];
         if (
           anyDevice
