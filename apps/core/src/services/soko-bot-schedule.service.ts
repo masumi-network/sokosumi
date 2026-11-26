@@ -21,6 +21,7 @@ import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access
 import { AI_BUDGET_EXCEEDED } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import type { Network } from "@/lib/network";
 import { sokoBotScheduleActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   checkScheduleFirstRunCapabilities,
@@ -105,6 +106,7 @@ function resolveScheduleAuthorityField(
 }
 
 export interface CreateSokoBotScheduleInput {
+  network: Network;
   /** The member who asked; null when a shared bot acts on its own. */
   userId: string | null;
   workspaceId: string;
@@ -429,6 +431,7 @@ export async function createSokoBotSchedule(
     }
     return tx.sokoBotSchedule.create({
       data: {
+        network: input.network,
         ...(scheduleId ? { id: scheduleId } : {}),
         sokoBotId: bot.id,
         requestedByUserId: input.userId,

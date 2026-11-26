@@ -4,6 +4,7 @@ import {
   parseOwnerAuthority,
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import {
   sokoBotActingUserId,
   sokoBotScheduleActingUserId,
@@ -351,6 +352,7 @@ export async function failedRetryInput(
     ? await meetingRetryInput(bot, slot, durable)
     : { message: failed.userMessage, presetRoute };
   return {
+    network: DETACHED_SOKO_BOT_NETWORK,
     // A replay acts only for the person the failed turn acted for.
     userId: actingUserId,
     sokoBotId: bot.id,

@@ -15,6 +15,7 @@ import {
   runAsBackgroundWork,
 } from "@/lib/evlog";
 import { failOpen } from "@/lib/fail-open";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
@@ -748,6 +749,7 @@ export async function syncSokoBotWatches(input: {
     );
     try {
       const started = await sokoBotControlPlane.startTurn({
+        network: DETACHED_SOKO_BOT_NETWORK,
         userId: watch.turn.requestedByUserId,
         sokoBotId: watch.sokoBotId,
         workspaceId: watch.turn.workspaceId,

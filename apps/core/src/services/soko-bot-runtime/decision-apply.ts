@@ -9,6 +9,7 @@ import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import {
   decisionProposalTargets,
   parseHireAgentInput,
@@ -240,6 +241,7 @@ export async function applyDecision(
             } else {
               await tx.sokoBotDelegation.create({
                 data: {
+                  network: DETACHED_SOKO_BOT_NETWORK,
                   turnId: decision.turnId,
                   toolCallId: decisionToolCallId,
                   kind: "JOB",
@@ -409,6 +411,7 @@ export async function applyDecision(
           } else {
             await tx.sokoBotDelegation.create({
               data: {
+                network: DETACHED_SOKO_BOT_NETWORK,
                 turnId: decision.turnId,
                 toolCallId: decisionToolCallId,
                 kind: "JOB",

@@ -91,6 +91,7 @@ import {
   recordCoreWarning,
   runAsBackgroundWork,
 } from "@/lib/evlog";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   sokoBotActingUserId,
@@ -2894,6 +2895,7 @@ export class SokoBotControlPlane {
         });
         const created = await tx.sokoBotTurn.create({
           data: {
+            network: input.network,
             sokoBotId: bot.id,
             requestedByUserId: input.userId,
             workspaceId: input.workspaceId,
@@ -5269,6 +5271,7 @@ export class SokoBotControlPlane {
           boundReplayTurnId,
         );
         retry = await this.startTurn({
+          network: DETACHED_SOKO_BOT_NETWORK,
           userId: sokoBotScheduleActingUserId({
             requestedByUserId: scheduleRun.schedule.requestedByUserId,
             systemKey: scheduleRun.schedule.systemKey,

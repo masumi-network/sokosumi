@@ -11,6 +11,9 @@ import { getEnv } from "@/config/env";
  */
 export type Network = TableNetwork;
 
+// Detached Soko Bot work runs on Mainnet until tickets 24 and 30 carry provenance.
+export const DETACHED_SOKO_BOT_NETWORK = "mainnet" satisfies Network;
+
 export const NETWORKS = [
   "mainnet",
   "preprod",

@@ -9,6 +9,7 @@ import { getEnv } from "@/config/env";
 import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
@@ -1062,6 +1063,7 @@ export class SokoBotEventsSyncService {
       );
       try {
         const started = await sokoBotControlPlane.startTurn({
+          network: DETACHED_SOKO_BOT_NETWORK,
           userId: work.userId,
           sokoBotId: work.sokoBotId,
           workspaceId: work.workspaceId,
