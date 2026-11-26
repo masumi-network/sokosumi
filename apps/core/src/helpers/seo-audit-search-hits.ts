@@ -25,9 +25,18 @@ const LINE_PREFIX = seoRequestLinePrefix("seo_audit");
 const OUTER_SPACE = `^${SEO_LINE_SPACE}+|${SEO_LINE_SPACE}+$`;
 
 /**
+ * Postgres parses JSON by recursion and throws (not a soft error) on deep
+ * nesting, near 20,000 levels. A marker line with more `[` and `{` than this
+ * is hidden without a parse, so the search fails closed and never errors.
+ */
+const MAX_JSON_OPENERS = 1000;
+
+/**
  * SQL twin of `hideSeoAuditRequest`: the description without its `seo_audit`
  * lines (the marker, then JSON that is an object or an array), the same text
  * the JS rule returns. A parity test runs the same cases through both.
+ * `json`, not `jsonb`: `jsonb` refuses `\u0000` and lone surrogates, which
+ * JSON.parse accepts.
  */
 export function visibleDescriptionSql(description: Prisma.Sql): Prisma.Sql {
   const rest = Prisma.sql`regexp_replace(s.line, ${LINE_PREFIX}, '', 'i')`;
@@ -39,8 +48,11 @@ export function visibleDescriptionSql(description: Prisma.Sql): Prisma.Sql {
       ELSE ${description} END
     FROM (
       SELECT s.line, s.n,
-        s.line ~* ${LINE_PREFIX} AND CASE WHEN pg_input_is_valid(${rest}, 'jsonb')
-          THEN jsonb_typeof(${rest}::jsonb) IN ('object', 'array')
+        s.line ~* ${LINE_PREFIX} AND CASE
+          WHEN length(${rest}) - length(translate(${rest}, '[{', '')) > ${MAX_JSON_OPENERS}
+            THEN true
+          WHEN pg_input_is_valid(${rest}, 'json')
+            THEN json_typeof(${rest}::json) IN ('object', 'array')
           ELSE false END AS hidden
       FROM regexp_split_to_table(${description}, E'\r?\n') WITH ORDINALITY s(line, n)
     ) l

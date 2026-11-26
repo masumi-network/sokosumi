@@ -22,6 +22,9 @@ const coworkerId = randomUUID();
 const vendorId = randomUUID();
 const PACKET = { price: { markupPercent: 7345 } };
 
+/** Deeper than the Postgres JSON parser's stack allows (it throws near 20,000). */
+const DEEP = 30_000;
+
 /** Descriptions where a wrong line rule would show or hide the wrong text. */
 const PARITY_CASES: Record<string, string> = {
   plain: "No request line here",
@@ -41,6 +44,13 @@ const PARITY_CASES: Record<string, string> = {
   onlyTheLine: 'seo_audit: {"a":1}',
   twoLines: 'A\nseo_audit: {"a":1}\nB\nseo_audit: [1]\nC',
   markerMidLine: 'see seo_audit: {"a":1}',
+  // JSON that `jsonb` refuses and JSON.parse accepts: the line is still hidden.
+  nullEscape: "Audit\n" + String.raw`seo_audit: {"a":"\u0000","\u0000":1}`,
+  loneSurrogate: "Audit\n" + String.raw`seo_audit: {"a":"\ud800"}`,
+  numberForms: "Audit\nseo_audit: [1e999,-0,1E+2]",
+  leadingZero: "Audit\nseo_audit: [01]",
+  rawTabInString: 'Audit\nseo_audit: {"a":"x\ty"}',
+  deepArray: `Audit\nseo_audit: ${"[".repeat(DEEP)}${"]".repeat(DEEP)}`,
 };
 
 describe.skipIf(!enabled)("visibleDescriptionSql", () => {
@@ -55,6 +65,15 @@ describe.skipIf(!enabled)("visibleDescriptionSql", () => {
       );
     },
   );
+
+  // Fails closed: the search hides a line it cannot check, and never errors.
+  it("hides a marker line too deep for the SQL JSON parser", async () => {
+    const description = `Audit\nseo_audit: ${"[".repeat(DEEP)}`;
+    const [row] = await prisma.$queryRaw<{ visible: string | null }[]>(
+      Prisma.sql`SELECT ${visibleDescriptionSql(Prisma.sql`${description}::text`)} AS visible`,
+    );
+    expect(row.visible).toBe("Audit");
+  });
 });
 
 describe.skipIf(!enabled)("Task and history description search", () => {
