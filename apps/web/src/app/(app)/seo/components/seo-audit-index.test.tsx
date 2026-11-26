@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import { createSeoAuditAction } from "@/lib/actions/seo/create-audit";
 import { setSeoAuditArchivedAction } from "@/lib/actions/seo/set-audit-archived";
+import { getQueryClient } from "@/queries/get-query-client";
 import messages from "../../../../../messages/en.json";
 import { SeoAuditIndex } from "./seo-audit-index";
 import { SEO_AUDIT_LIST_REFRESH_MS } from "./seo-audit-status";
@@ -49,11 +50,14 @@ function show(
     nextCursor?: string;
     archived?: boolean;
     searching?: boolean;
+    client?: QueryClient;
   } = {},
 ) {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
+  const client =
+    options.client ??
+    new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
   const tree = (list: SeoAuditSummary[]) => (
     <QueryClientProvider client={client}>
       <NextIntlClientProvider
@@ -314,6 +318,52 @@ describe("SEO audit list", () => {
         expect(screen.queryByText(archived.name)).not.toBeInTheDocument(),
       );
       expect(screen.getByText(AUDIT.name)).toBeVisible();
+    });
+
+    // The app's own client: its retry setting is the one a viewer gets.
+    describe("with the production query client", () => {
+      const client = getQueryClient();
+      beforeEach(() => () => client.clear());
+
+      it.each([404, 403])(
+        "sends a read that failed with %i only once",
+        async (status) => {
+          const fetchMock = vi.fn(async () => new Response(null, { status }));
+          vi.stubGlobal("fetch", fetchMock);
+          show([{ ...AUDIT, lastCheck: check("running") }], false, { client });
+          await tick();
+          await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+          await act(() =>
+            vi.advanceTimersByTimeAsync(SEO_AUDIT_LIST_REFRESH_MS * 3),
+          );
+          expect(fetchMock).toHaveBeenCalledTimes(1);
+        },
+      );
+
+      it.each([503, 429])(
+        "reads again after a read that failed with %i",
+        async (status) => {
+          const fetchMock = vi
+            .fn()
+            .mockResolvedValueOnce(new Response(null, { status }))
+            .mockResolvedValue(
+              Response.json({
+                audits: [{ ...AUDIT, lastCheck: check("completed") }],
+                pagination: null,
+              }),
+            );
+          vi.stubGlobal("fetch", fetchMock);
+          show([{ ...AUDIT, lastCheck: check("running") }], false, { client });
+          await tick();
+          await act(() =>
+            vi.advanceTimersByTimeAsync(SEO_AUDIT_LIST_REFRESH_MS),
+          );
+          await waitFor(() =>
+            expect(screen.getByText(/Last check: Page check/)).toBeVisible(),
+          );
+          expect(fetchMock).toHaveBeenCalledTimes(2);
+        },
+      );
     });
   });
 

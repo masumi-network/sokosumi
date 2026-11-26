@@ -23,14 +23,26 @@ export type SeoAuditListPage = {
   nextCursor: string | null;
 };
 
-/** A read the viewer may no longer make (signed out, other workspace): polling stops. */
-const AUTHORIZATION_STATUSES = new Set([401, 403, 409]);
+/** TanStack Query's default retry count, kept for a read that can pass on the next try. */
+const TRANSIENT_RETRIES = 3;
+/** 4xx statuses that can pass on the next try: a timeout and a rate limit. */
+const TRANSIENT_CLIENT_STATUSES = new Set([408, 429]);
 
 class AuditListReadError extends Error {
   constructor(readonly status: number) {
     super(`Audit list read ${status}`);
   }
 }
+
+/**
+ * A read that fails the same way each time (signed out, other workspace, a missing Project or cursor):
+ * neither a retry nor the next poll sends it again.
+ */
+const isPermanent = (error: unknown) =>
+  error instanceof AuditListReadError &&
+  error.status >= 400 &&
+  error.status < 500 &&
+  !TRANSIENT_CLIENT_STATUSES.has(error.status);
 
 /**
  * The Audit list the server rendered, read again while a check is open. The server list sits in a cache, so a
@@ -105,10 +117,11 @@ export function useSeoAuditList(
     staleTime: Number.POSITIVE_INFINITY,
     refetchOnWindowFocus: false,
     enabled: !!session?.user.id,
+    retry: (failures, error) =>
+      !isPermanent(error) && failures < TRANSIENT_RETRIES,
     // A failed read keeps the last rows and reads again while their check is open; the check's own age ends it.
     refetchInterval: (state) =>
-      state.state.error instanceof AuditListReadError &&
-      AUTHORIZATION_STATUSES.has(state.state.error.status)
+      isPermanent(state.state.error)
         ? false
         : seoAuditListRefetchMs(
             (state.state.data ?? server).audits,
