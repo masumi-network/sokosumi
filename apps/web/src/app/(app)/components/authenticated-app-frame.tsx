@@ -45,7 +45,10 @@ import {
 } from "./sidebar/components/feature-badges";
 import { SidebarNewTaskButton } from "./sidebar/components/sidebar-new-task-button.client";
 import { SidebarSearchButton } from "./sidebar/components/sidebar-search-button.client";
-import { SidebarWorkspaceRow } from "./workspace-switcher/sidebar-workspace-row";
+import {
+  RailWorkspaceCell,
+  SidebarWorkspaceRow,
+} from "./workspace-switcher/sidebar-workspace-row";
 import WorkspaceSwitcherMenu from "./workspace-switcher/workspace-switcher-menu.client";
 
 const EMPTY_NOTICES: Notice[] = [];
@@ -173,6 +176,9 @@ export default async function AuthenticatedAppFrame({
                             >
                               <WorkspaceSwitcherMenu placement="sidebar" />
                             </SidebarWorkspaceRow>
+                            <RailWorkspaceCell>
+                              <WorkspaceSwitcherMenu placement="rail" />
+                            </RailWorkspaceCell>
                             <GlobalRail />
                             <PrivateCachedAppSidebar
                               sessionUser={session.user}

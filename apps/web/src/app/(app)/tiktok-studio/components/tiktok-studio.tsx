@@ -14,6 +14,9 @@ import {
   resolveUserUploadContentType,
   SHORT_VIDEO_MAX_PICTURES,
   talkingVideoQuotedSeconds,
+  VIDEO_RECIPES,
+  type VideoShape,
+  videoShapesFor,
 } from "@sokosumi/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
@@ -75,6 +78,14 @@ import {
   type TalkingVideoAsset,
 } from "./tiktok-studio-stage";
 import { useTalkingVideoHistory } from "./use-talking-video-history";
+import {
+  oneJobPerVideo,
+  ShapePicker,
+  ShapeTabs,
+  shapeFamily,
+  shapeOf,
+  videoIdOf,
+} from "./video-shapes";
 
 const TikTokComposer = dynamic(() =>
   import(
@@ -168,6 +179,10 @@ export function TikTokStudio({
   const siteShots = hasWebsite && showSite;
   const [music, setMusic] = useState(false);
   const [broll, setBroll] = useState(false);
+  const [wantedShapes, setWantedShapes] = useState<VideoShape[]>(["9:16"]);
+  const [previewShape, setPreviewShape] = useState<VideoShape>("9:16");
+  /** The shape of the stage's video being watched; none shows the first. */
+  const [stageShape, setStageShape] = useState<VideoShape | null>(null);
   const [voice, setVoice] = useState(
     catalog.presenters[0]?.voice ?? catalog.defaultVoice,
   );
@@ -210,7 +225,21 @@ export function TikTokStudio({
     catalog.presenters.find((presenter) => presenter.id === id)?.imageUrl;
   const assetFor = (job: ProjectImageJob): TalkingVideoAsset | null =>
     videos.assetsByJob.get(job.id) ?? null;
-  const stageJob = videos.jobs.find((job) => job.id === stageJobId) ?? null;
+  const recipe = VIDEO_RECIPES[kind];
+  const shapes = videoShapesFor(recipe, wantedShapes);
+  const shownPreviewShape = shapes.includes(previewShape)
+    ? previewShape
+    : shapes[0]!;
+  /** The job put on the stage; its other shapes are a tab away. */
+  const stageSource = videos.jobs.find((job) => job.id === stageJobId) ?? null;
+  const stageFamily = stageSource ? shapeFamily(videos.jobs, stageSource) : [];
+  const stageJob =
+    stageFamily.find((job) => shapeOf(job) === stageShape) ?? stageSource;
+  const libraryJobs = oneJobPerVideo(videos.libraryJobs);
+  const libraryPick = stageSource
+    ? (libraryJobs.find((job) => videoIdOf(job) === videoIdOf(stageSource))
+        ?.id ?? null)
+    : null;
   const stageAsset = stageJob ? assetFor(stageJob) : null;
   const playbackFor = (asset: TalkingVideoAsset) => playback[asset.id];
   const markPlayback = (asset: TalkingVideoAsset, next: Playback) =>
@@ -246,6 +275,7 @@ export function TikTokStudio({
     flushSync(() => {
       videos.pinSelection(jobId);
       setStageJobId(jobId);
+      setStageShape(null);
     });
     stage.current?.scrollIntoView({ block: "nearest" });
   }
@@ -331,6 +361,7 @@ export function TikTokStudio({
             voice,
             languageCode,
             pictureAssetIds: pictureIds,
+            shapes,
             idempotencyKey,
           })
         : await startTalkingVideo({
@@ -346,6 +377,7 @@ export function TikTokStudio({
             siteShots,
             broll,
             music,
+            shapes,
             idempotencyKey,
           });
       if (!result.ok) {
@@ -434,12 +466,13 @@ export function TikTokStudio({
       {videos.jobs.length > 0 ? (
         <TikTokStudioLibrary
           assetFor={assetFor}
-          jobs={videos.libraryJobs}
+          // Each video once: its other shapes are on the stage.
+          jobs={libraryJobs}
           retryHistory={videos.retry}
           onNew={readOnly ? undefined : startNew}
           onSelect={(job) => showOnStage(job.id)}
           playbackFor={playbackFor}
-          selectedId={stageJob?.id ?? null}
+          selectedId={libraryPick}
         />
       ) : null}
       <section
@@ -456,6 +489,28 @@ export function TikTokStudio({
         ref={stage}
       >
         <div className="mx-auto flex w-full max-w-72 flex-col gap-2 lg:max-w-none">
+          {stageJob ? (
+            <ShapeTabs
+              label={t("shapes.onStage")}
+              making={
+                new Set(
+                  stageFamily
+                    .filter((job) => ACTIVE_STATUSES.has(job.status))
+                    .map(shapeOf),
+                )
+              }
+              onChange={setStageShape}
+              shapes={stageFamily.map(shapeOf)}
+              value={shapeOf(stageJob)}
+            />
+          ) : (
+            <ShapeTabs
+              label={t("shapes.previewIn")}
+              onChange={setPreviewShape}
+              shapes={shapes}
+              value={shownPreviewShape}
+            />
+          )}
           {stageJob ? (
             <StageJob
               asset={stageAsset}
@@ -491,6 +546,7 @@ export function TikTokStudio({
               }
               missingPhoto={!short && ownPhoto && !photo}
               script={trimmed}
+              shape={shownPreviewShape}
             />
           )}
           <div className="flex min-h-8 items-center justify-between gap-2 px-1">
@@ -747,6 +803,21 @@ export function TikTokStudio({
               </>
             ) : null}
           </div>
+          <ShapePicker
+            allowed={recipe.shapes}
+            onChange={(next) =>
+              edit(() => {
+                setWantedShapes(next);
+                if (!next.includes(previewShape)) setPreviewShape(next[0]!);
+                else if (next.length > shapes.length)
+                  setPreviewShape(
+                    next.find((shape) => !shapes.includes(shape)) ?? next[0]!,
+                  );
+              })
+            }
+            readOnly={readOnly}
+            value={shapes}
+          />
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
             <p className="text-sm tabular-nums" id={makeHintId}>
               {missing || !model ? (

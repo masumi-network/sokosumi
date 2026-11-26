@@ -750,14 +750,27 @@ describe("image studio job submission", () => {
     expect(submitToQueueMock).not.toHaveBeenCalled();
   });
 
-  it("leaves the month's own pictures out of the owner's hourly count", async () => {
+  it("leaves the month's own pictures and other video shapes out of the owner's hourly count", async () => {
     // cmo-post-with-picture on mainnet, 2026-11-25: a month's 46 pictures
     // used the owner's 40 an hour, and the picture asked for in chat failed.
     await createImageJob(BASE_INPUT);
     expect(jobCountMock).toHaveBeenLastCalledWith({
       where: expect.objectContaining({
         requestedByUserId: "user-1",
-        NOT: { idempotencyKey: { startsWith: "cmo-media:" } },
+        NOT: [
+          { idempotencyKey: { startsWith: "cmo-media:" } },
+          { idempotencyKey: { startsWith: "video-shape:" } },
+        ],
+      }),
+    });
+  });
+
+  it("leaves other video shapes out of the project's slots: they ask no provider", async () => {
+    await createImageJob(BASE_INPUT);
+    expect(jobCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        projectId: "project-1",
+        NOT: { idempotencyKey: { startsWith: "video-shape:" } },
       }),
     });
   });

@@ -4,6 +4,7 @@ import {
   sokoBotScheduleIdInputSchema as scheduleIdInputSchema,
   sokoBotUpdateScheduleInputSchema as updateScheduleInputSchema,
 } from "@sokosumi/soko-bot";
+import { briefAsksToEnd } from "@/lib/soko-bot/schedule-brief";
 import { OWN_SCHEDULE_CAPABILITIES } from "@/lib/soko-bot/system-routes";
 import {
   SokoBotScheduleNotFoundError,
@@ -24,6 +25,44 @@ export async function runScheduleTool<T>(run: () => Promise<T>): Promise<T> {
     }
     throw error;
   }
+}
+
+/**
+ * A scheduled run deletes or switches off a schedule only when it is its own
+ * and its brief, the owner's words, asks for that. A weekly-report run once
+ * read the board and deleted its own schedule on a guess (Codex round 13).
+ */
+export async function requireScheduledRunMayEnd(
+  tx: Prisma.TransactionClient,
+  turnId: string,
+  capability: SokoBotCapability,
+  rawInput: unknown,
+) {
+  const ends =
+    capability === "delete_schedule" ||
+    (capability === "update_schedule" &&
+      updateScheduleInputSchema.safeParse(rawInput).data?.enabled === false);
+  if (!ends) return;
+  const refusal =
+    "A scheduled run doesn't delete or switch off schedules unless its own brief says to. Report what you found and let the owner decide.";
+  const run = await tx.sokoBotScheduleRun.findUnique({
+    where: { turnId },
+    select: { schedule: { select: { id: true, name: true, prompt: true } } },
+  });
+  if (!run) throw new SokoBotRuntimeValidationError(refusal);
+  const ref = (
+    capability === "update_schedule"
+      ? updateScheduleInputSchema
+      : scheduleIdInputSchema
+  ).safeParse(rawInput);
+  const own =
+    ref.success &&
+    (ref.data.scheduleId
+      ? ref.data.scheduleId === run.schedule.id
+      : ref.data.scheduleName?.trim().toLowerCase() ===
+        run.schedule.name.trim().toLowerCase());
+  if (!own || !briefAsksToEnd(run.schedule.prompt))
+    throw new SokoBotRuntimeValidationError(refusal);
 }
 
 /**

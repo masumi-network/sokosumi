@@ -28,6 +28,8 @@ import {
   SCHEDULES_SCENARIO,
 } from "./eval-schedules";
 import type { StandupEvalSetup } from "./eval-standup";
+import { holdoutJourneys } from "./ownerbench/holdout";
+import { OWNER_JOURNEYS, type OwnerJourney } from "./ownerbench/journeys";
 
 export const EVAL_SUITES = ["soko-bot", "cmo"] as const;
 export type EvalSuite = (typeof EVAL_SUITES)[number];
@@ -58,6 +60,11 @@ export type EvalCase =
       /** The organization's daily agent stand-up, run by Core in the lane. */
       kind: "standup";
       setup: StandupEvalSetup;
+    })
+  | (EvalCaseCommon & {
+      /** An owner benchmark journey: several steps, checked and judged as one. */
+      kind: "journey";
+      journey: OwnerJourney;
     });
 
 /** Soko Bot scenarios by area, in the order they run: later ones use what earlier ones made. */
@@ -269,7 +276,30 @@ export const EVAL_CASES: readonly EvalCase[] = [
             ),
   ),
   scenarioCase(CMO_COMMENT_SCENARIO, "cmo", "Replies", "cmo-comments"),
+  ...[
+    ...OWNER_JOURNEYS.map((journey) => ({ journey, area: "Owner bench" })),
+    // Loaded from a file outside the repository when a run names one.
+    ...holdoutJourneys().map((journey) => ({
+      journey,
+      area: "Owner bench (held out)",
+    })),
+  ].map(
+    ({ journey, area }): EvalCase => ({
+      id: journey.id,
+      suite: journey.bot === "cuso" ? "cmo" : "soko-bot",
+      area,
+      title: journey.title,
+      intent: journey.intent,
+      kind: "journey",
+      journey,
+    }),
+  ),
 ];
+
+/** The owner benchmark's cases; they run only when named (`evals:local --ownerbench`). */
+export const OWNER_BENCH_CASE_IDS: readonly string[] = OWNER_JOURNEYS.map(
+  (journey) => journey.id,
+);
 
 export function evalCase(id: string): EvalCase | undefined {
   return EVAL_CASES.find((evalCase) => evalCase.id === id);
@@ -283,14 +313,28 @@ export function selectEvalCases(input: {
   const unknown = input.caseIds.filter((id) => !evalCase(id));
   if (unknown.length)
     throw new Error(`Unknown eval cases: ${unknown.join(", ")}`);
-  return EVAL_CASES.filter(
+  // Owner journeys run many turns each, so a suite run leaves them out.
+  const selected = EVAL_CASES.filter(
     (evalCase) =>
       input.suites.includes(evalCase.suite) &&
-      (input.caseIds.length === 0 || input.caseIds.includes(evalCase.id)),
+      (input.caseIds.length === 0
+        ? evalCase.kind !== "journey"
+        : input.caseIds.includes(evalCase.id)),
   );
+  // Other cases build on each other in registry order. Each journey sets up
+  // its own world, so named journeys run in the order named: running two
+  // both ways shows whether one leaks into the other.
+  const rank = (evalCase: EvalCase) =>
+    evalCase.kind === "journey" ? input.caseIds.indexOf(evalCase.id) : -1;
+  return [
+    ...selected.filter((evalCase) => evalCase.kind !== "journey"),
+    ...selected
+      .filter((evalCase) => evalCase.kind === "journey")
+      .sort((a, b) => rank(a) - rank(b)),
+  ];
 }
 
 /** Scenario cases end in a judge's verdict; the others are scored by checks alone. */
 export function isJudgedEvalCase(evalCase: EvalCase): boolean {
-  return evalCase.kind === "scenario";
+  return evalCase.kind === "scenario" || evalCase.kind === "journey";
 }

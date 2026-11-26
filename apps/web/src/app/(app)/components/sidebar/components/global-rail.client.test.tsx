@@ -7,6 +7,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { Sidebar, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
+import { SIDEBAR_ROW_LINK_CLASS } from "@/components/ui/sidebar-classes";
 import { SIDEBAR_COMPACT_MEDIA_QUERY } from "@/lib/ui-preferences/sidebar-state";
 import { GlobalRail } from "./global-rail.client";
 import {
@@ -208,11 +209,21 @@ it("starts unknown and Home routes in Chats with Home first", () => {
   const chats = screen.getByRole("button", { name: "chats" });
   expect(chats).toHaveAttribute("aria-current", "location");
   fireEvent.click(chats);
-  expect(screen.getAllByRole("link")[0]).toHaveAttribute("href", "/chat");
-  expect(screen.getAllByRole("link")[0]).toHaveAttribute(
-    "aria-current",
-    "page",
-  );
+  const [home] = within(
+    document.getElementById("app-sidebar-panel") as HTMLElement,
+  ).getAllByRole("link");
+  expect(home).toHaveAttribute("href", "/chat");
+  expect(home).toHaveAttribute("aria-current", "page");
+  expect(home).toHaveClass(...SIDEBAR_ROW_LINK_CLASS.split(" "));
+});
+
+it("rests Home like the rooms below it when another page is open", () => {
+  render(<Fixture />);
+  const [home] = within(
+    document.getElementById("app-sidebar-panel") as HTMLElement,
+  ).getAllByRole("link");
+  expect(home).not.toHaveAttribute("aria-current");
+  expect(home).toHaveClass(...SIDEBAR_ROW_LINK_CLASS.split(" "));
 });
 
 it("keeps the approved Work briefcase at 16px and matches the other row glyphs", () => {

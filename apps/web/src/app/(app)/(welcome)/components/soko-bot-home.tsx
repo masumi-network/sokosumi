@@ -125,8 +125,6 @@ export async function SokoBotHome({
       schedule,
     })),
   ].sort((a, b) => b.at.getTime() - a.at.getTime());
-  const rowClassName =
-    "hover:bg-accent focus-visible:ring-ring flex min-w-0 items-center gap-3 rounded-md px-3 py-2 outline-none transition-colors focus-visible:ring-2";
   const pillClassName =
     "bg-muted text-foreground hover:bg-quinary focus-visible:ring-ring inline-flex h-8 items-center gap-2 rounded-full px-3 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2";
   const timeOf = (at: Date) => (
@@ -222,107 +220,53 @@ export async function SokoBotHome({
             <ul className="flex flex-col">
               {rows.map((row) =>
                 row.kind === "schedule" ? (
-                  <li key={`schedule:${row.schedule.id}`}>
-                    <Link
-                      href={`${SOKO_BOT_ROUTE}?schedule=${encodeURIComponent(row.schedule.id)}`}
-                      className={rowClassName}
-                    >
+                  <HomeRow
+                    key={`schedule:${row.schedule.id}`}
+                    href={`${SOKO_BOT_ROUTE}?schedule=${encodeURIComponent(row.schedule.id)}`}
+                    icon={
                       <CalendarClock
                         aria-hidden
                         className="text-muted-foreground size-4 shrink-0"
                       />
-                      {/* On a phone the time beside the text left it about
-                          130px and cut the bot and the reminder off, so there
-                          the bot, the reminder and the time get a line each. */}
-                      <span className="min-w-0 flex-1 text-sm sm:truncate">
-                        <span className="text-foreground block truncate sm:inline">
-                          {t("newSchedule", { name: botName })}
-                        </span>
-                        <span className="text-muted-foreground block truncate sm:inline">
-                          <span className="hidden sm:inline"> · </span>
-                          {row.schedule.name}
-                        </span>
-                        <span className="block sm:hidden">
-                          {timeOf(row.at)}
-                        </span>
-                      </span>
-                      <span className="hidden sm:contents">
-                        {timeOf(row.at)}
-                      </span>
-                    </Link>
-                  </li>
+                    }
+                    title={row.schedule.name}
+                    meta={t("newSchedule", { name: botName })}
+                    time={timeOf(row.at)}
+                    open={t("open")}
+                  />
                 ) : row.kind === "chat" ? (
-                  <li key={`chat:${row.chat.roomId}`}>
-                    <Link
-                      href={chatRoomMessageHref(
-                        row.chat.roomId,
-                        row.chat.messageId,
-                      )}
-                      className={rowClassName}
-                    >
+                  <HomeRow
+                    key={`chat:${row.chat.roomId}`}
+                    href={chatRoomMessageHref(
+                      row.chat.roomId,
+                      row.chat.messageId,
+                    )}
+                    icon={
                       <MessageCircle
                         aria-hidden
                         className="text-muted-foreground size-4 shrink-0"
                       />
-                      {/* Who wrote it shows on a phone too, on its own
-                          line under the message; a column beside it on
-                          wider screens. On a phone the time beside the
-                          message left it a few letters, so there the
-                          message wraps to two lines and the time joins
-                          the sender's line, as schedule rows do. The name
-                          truncates alone and the time keeps its width, so a
-                          long bot name cannot push the time out of view. */}
-                      <span className="min-w-0 flex-1 text-sm sm:flex sm:items-center sm:gap-3">
-                        <span className="text-foreground line-clamp-2 break-words sm:line-clamp-1 sm:flex-1">
-                          {row.chat.title}
-                        </span>
-                        <span className="text-muted-foreground flex min-w-0 items-center gap-1 sm:block sm:max-w-40 sm:shrink-0 sm:truncate">
-                          <span className="min-w-0 truncate">
-                            {row.chat.from}
-                          </span>
-                          <span className="flex shrink-0 items-center gap-1 sm:hidden">
-                            <span aria-hidden>·</span>
-                            {timeOf(row.at)}
-                          </span>
-                        </span>
-                      </span>
-                      <span className="hidden sm:contents">
-                        {timeOf(row.at)}
-                      </span>
-                      <span className="text-foreground shrink-0 text-sm font-medium">
-                        {t("open")}
-                      </span>
-                    </Link>
-                  </li>
+                    }
+                    title={row.chat.title}
+                    meta={row.chat.from}
+                    time={timeOf(row.at)}
+                    open={t("open")}
+                  />
                 ) : (
-                  <li key={row.task.id}>
-                    <Link
-                      href={`/tasks/${encodeURIComponent(row.task.id)}`}
-                      className={rowClassName}
-                    >
+                  <HomeRow
+                    key={row.task.id}
+                    href={`/tasks/${encodeURIComponent(row.task.id)}`}
+                    icon={
                       <TaskStatusIcon
                         status={row.task.status}
                         label={tStatus(row.task.status)}
                       />
-                      {/* On a phone the time beside the title cut it to a
-                          few words, so there the title wraps to two lines
-                          and the time sits under it, as chat rows do. */}
-                      <span className="min-w-0 flex-1 text-sm sm:flex sm:items-center sm:gap-3">
-                        <span className="text-foreground line-clamp-2 break-words sm:line-clamp-1 sm:flex-1">
-                          {row.task.name}
-                        </span>
-                        <span className="text-muted-foreground hidden max-w-40 shrink-0 truncate sm:block">
-                          {row.task.who}
-                        </span>
-                        <span className="block sm:hidden">
-                          {timeOf(row.at)}
-                        </span>
-                      </span>
-                      <span className="hidden sm:contents">
-                        {timeOf(row.at)}
-                      </span>
-                    </Link>
-                  </li>
+                    }
+                    title={row.task.name}
+                    meta={row.task.who}
+                    time={timeOf(row.at)}
+                    open={t("open")}
+                  />
                 ),
               )}
             </ul>
@@ -334,6 +278,55 @@ export async function SokoBotHome({
         </section>
       </div>
     </SokoBotHomeComposer>
+  );
+}
+
+/**
+ * One row of the day, whatever it is: what happened on its first line, who
+ * and when under it, and Open at the end, so every row reads and opens the
+ * same way. The first line wraps to two on a phone and cuts at one from
+ * `sm`; who truncates alone and the time keeps its width, so a long name
+ * cannot push the time out of view.
+ */
+function HomeRow({
+  href,
+  icon,
+  title,
+  meta,
+  time,
+  open,
+}: {
+  href: string;
+  icon: ReactNode;
+  title: string;
+  meta: string | null;
+  time: ReactNode;
+  open: string;
+}) {
+  return (
+    <li>
+      <Link
+        href={href}
+        className="hover:bg-accent focus-visible:ring-ring flex min-w-0 items-center gap-3 rounded-md px-3 py-2 outline-none transition-colors focus-visible:ring-2"
+      >
+        {icon}
+        <span className="min-w-0 flex-1 text-sm">
+          <span className="text-foreground line-clamp-2 break-words sm:line-clamp-1">
+            {title}
+          </span>
+          <span className="text-muted-foreground flex min-w-0 items-center gap-1">
+            {meta ? <span className="min-w-0 truncate">{meta}</span> : null}
+            <span className="flex shrink-0 items-center gap-1">
+              {meta ? <span aria-hidden>·</span> : null}
+              {time}
+            </span>
+          </span>
+        </span>
+        <span className="text-foreground shrink-0 text-sm font-medium">
+          {open}
+        </span>
+      </Link>
+    </li>
   );
 }
 
