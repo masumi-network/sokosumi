@@ -35,7 +35,9 @@ export {
   type GoogleEventKind,
 } from "./seo-google-events.js";
 export {
+  SEO_IMPACT_MAX_WINDOW_DAYS,
   SEO_IMPACT_MIN_COUNT,
+  SEO_IMPACT_MIN_WINDOW_DAYS,
   SEO_IMPACT_SETTLE_DAYS,
   SEO_IMPACT_WINDOW_DAYS,
   type SeoActionImpact,

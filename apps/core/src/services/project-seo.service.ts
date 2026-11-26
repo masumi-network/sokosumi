@@ -497,6 +497,8 @@ export async function getProjectSeoWorkspace(
     includePrivateIndexing?: boolean;
     includePrivateReviews?: boolean;
     includeAuditPerformance?: boolean;
+    /** The caller's window length. The audit performance read brings the default one. */
+    actionImpact?: { days?: number };
   } = {},
 ) {
   await requireSeoOwner(actor);
@@ -678,9 +680,12 @@ export async function getProjectSeoWorkspace(
     workspace,
     privateReviews,
   );
+  const impact =
+    options.actionImpact ??
+    (options.includeAuditPerformance && !actor.sokoBotId ? {} : null);
   const actions =
-    options.includeAuditPerformance && privateMetricsAllowed && !actor.sokoBotId
-      ? await withSeoActionImpact(actor, reviewedActions)
+    impact && privateMetricsAllowed
+      ? await withSeoActionImpact(actor, reviewedActions, impact.days)
       : reviewedActions;
   const sourceTask = new Map(
     observations.map((row) => [row.id, row.sourceTaskId]),

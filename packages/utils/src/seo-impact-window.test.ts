@@ -163,6 +163,18 @@ describe("seoActionImpact", () => {
     ).toBe("measured");
   });
 
+  it("uses the window length the caller asks for", () => {
+    // 7 days after 2026-06-10 end on 2026-06-17 and settle on 2026-06-20, while 28 days are still open.
+    const now = new Date("2026-06-21T12:00:00Z");
+    expect(seoActionImpact(action, full, now, 7)).toMatchObject({
+      days: 7,
+      state: "measured",
+      before: { from: "2026-06-03", to: "2026-06-09", clicks: 21 },
+      after: { from: "2026-06-11", to: "2026-06-17", clicks: 21 },
+    });
+    expect(seoActionImpact(action, full, now)?.state).toBe("too_early");
+  });
+
   it("is not measured when no read of the page covers the after-window", () => {
     expect(
       seoActionImpact(

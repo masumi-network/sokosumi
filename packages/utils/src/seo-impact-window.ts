@@ -4,6 +4,13 @@
  */
 export const SEO_IMPACT_WINDOW_DAYS = 28;
 /**
+ * The window lengths a caller may ask for instead. A week is the shortest
+ * span that holds every weekday. A quarter is the longest: a longer window
+ * mixes in more of the season than of the change.
+ */
+export const SEO_IMPACT_MIN_WINDOW_DAYS = 7;
+export const SEO_IMPACT_MAX_WINDOW_DAYS = 91;
+/**
  * Search Console's final data trails today by about 3 days, so the last 3
  * days of an after-window can still grow.
  */
@@ -81,18 +88,21 @@ export function seoImpactAnchor(action: {
 }
 
 /** The anchor day holds both states of the page, so neither window includes it. */
-export function seoImpactWindows(anchor: string): {
+export function seoImpactWindows(
+  anchor: string,
+  days = SEO_IMPACT_WINDOW_DAYS,
+): {
   before: SeoImpactWindow;
   after: SeoImpactWindow;
 } {
   return {
     before: {
-      from: shiftDay(anchor, -SEO_IMPACT_WINDOW_DAYS),
+      from: shiftDay(anchor, -days),
       to: shiftDay(anchor, -1),
     },
     after: {
       from: shiftDay(anchor, 1),
-      to: shiftDay(anchor, SEO_IMPACT_WINDOW_DAYS),
+      to: shiftDay(anchor, days),
     },
   };
 }
@@ -144,16 +154,17 @@ export function seoActionImpact(
   action: { completedAt?: string; verifiedAt?: string },
   series: readonly SeoImpactSeries[],
   now: Date,
+  days = SEO_IMPACT_WINDOW_DAYS,
 ): SeoActionImpact | null {
   const anchor = seoImpactAnchor(action);
   if (!anchor) return null;
-  const windows = seoImpactWindows(anchor.anchor);
+  const windows = seoImpactWindows(anchor.anchor, days);
   const before = seoImpactTotals(series, windows.before);
   const settled = windows.after.to <= seoImpactSettledDay(now);
   const after = settled ? seoImpactTotals(series, windows.after) : null;
   return {
     ...anchor,
-    days: SEO_IMPACT_WINDOW_DAYS,
+    days,
     state: !settled
       ? "too_early"
       : !before || !after

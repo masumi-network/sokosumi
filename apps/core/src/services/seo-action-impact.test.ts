@@ -102,6 +102,7 @@ describe("withSeoActionImpact", () => {
     const [a, other] = await withSeoActionImpact(
       actor,
       [action(pageA), action("https://example.test/c")],
+      undefined,
       new Date("2026-08-01T00:00:00Z"),
     );
     expect(a.impact).toMatchObject({
@@ -122,9 +123,22 @@ describe("withSeoActionImpact", () => {
     const [a] = await withSeoActionImpact(
       actor,
       [action(pageA)],
+      undefined,
       new Date("2026-07-09T12:00:00Z"),
     );
     expect(a.impact).toMatchObject({ state: "too_early", after: null });
+    // The caller's shorter window is settled on the same day.
+    const [week] = await withSeoActionImpact(
+      actor,
+      [action(pageA)],
+      7,
+      new Date("2026-07-09T12:00:00Z"),
+    );
+    expect(week.impact).toMatchObject({
+      days: 7,
+      state: "measured",
+      after: { clicks: 14 },
+    });
   });
 
   it("does not read the store when no action is done", async () => {
@@ -206,6 +220,10 @@ describe("collectSeoAuditPageSeries", () => {
     expect(boundary.read).toHaveBeenCalledTimes(2);
     for (const [, slug, logical] of boundary.read.mock.calls) {
       expect(slug).toBe(GSC_STATS_TOOL);
+      expect(logical).toMatchObject({
+        start_date: "2025-04-30",
+        end_date: "2026-06-03",
+      });
       expect(logical.dimension_filter_groups[0].filters).toEqual([
         {
           dimension: "page",
@@ -222,6 +240,11 @@ describe("collectSeoAuditPageSeries", () => {
       ownerId: "owner",
       visibility: "PRIVATE",
       auditId: "audit",
+    });
+    // The stored row names the 400 days the reads asked for, not the audit's own period.
+    expect(create.payload).toMatchObject({
+      from: "2025-04-30",
+      to: "2026-06-03",
     });
     expect(create.payload.pages).toEqual([
       {

@@ -34,6 +34,14 @@ import {
 } from "./seo-connections.service";
 
 /**
+ * How far back each page is read. One read returns one row per day and at most
+ * SEO_STATS_MAX_ROWS rows, so this is the longest history one read per page
+ * holds. It lets an action done months before the audit keep its before-window.
+ */
+const AUDIT_PAGE_SERIES_DAYS = SEO_STATS_MAX_ROWS;
+const DAY_MS = 86_400_000;
+
+/**
  * Store the daily Search Console rows of each audit page alone. The audit's own
  * statistics filter all its pages together, so they cannot show what one page did.
  */
@@ -46,7 +54,16 @@ export async function collectSeoAuditPageSeries(
   },
   authorize: (tx: Prisma.TransactionClient) => Promise<void>,
 ) {
-  const { actor, access, period } = binding;
+  const { actor, access } = binding;
+  const period = {
+    from: new Date(
+      Date.parse(`${binding.period.to}T00:00:00Z`) -
+        (AUDIT_PAGE_SERIES_DAYS - 1) * DAY_MS,
+    )
+      .toISOString()
+      .slice(0, 10),
+    to: binding.period.to,
+  };
   const where = {
     ...seoOwnerWhere(actor),
     ownerId: actor.userId,

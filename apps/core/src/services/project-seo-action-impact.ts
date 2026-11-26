@@ -10,8 +10,8 @@ import {
 } from "@/schemas/seo-action-impact.schema";
 import { seoOwnerWhere } from "./project-seo-store";
 
-/** Each audit reads about 90 days, so the newest 30 audits reach back far enough for a 28-day window. */
-const IMPACT_SERIES_AUDITS = 30;
+/** Each audit holds over a year of days per page. An older audit only adds a page that the newer ones left out. */
+const IMPACT_SERIES_AUDITS = 6;
 
 /**
  * Add the before and after of each done action from the daily rows of its page alone.
@@ -21,6 +21,7 @@ const IMPACT_SERIES_AUDITS = 30;
 export async function withSeoActionImpact(
   actor: SeoActor,
   actions: ProjectSeoWorkspace["actions"],
+  days?: number,
   now = new Date(),
 ): Promise<ProjectSeoWorkspace["actions"]> {
   if (!actions.some((action) => action.completedAt || action.verifiedAt))
@@ -47,7 +48,7 @@ export async function withSeoActionImpact(
   }
   return actions.map((action) => {
     const series = byPage.get(action.pageUrl);
-    const impact = series && seoActionImpact(action, series, now);
+    const impact = series && seoActionImpact(action, series, now, days);
     return impact ? { ...action, impact } : action;
   });
 }
