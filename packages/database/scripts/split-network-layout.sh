@@ -201,17 +201,7 @@ DECLARE
     'shared.upsert_history_task(text)',
     'shared.upsert_history_image_asset(uuid)',
     'shared.history_task_amount(text)',
-    'shared.history_image_amount(uuid)',
-    -- Ticket 19 slice B: on Network tables, one copy per Network.
-    'shared.sync_history_from_job()',
-    'shared.sync_history_from_job_event()',
-    'shared.sync_history_from_job_input()',
-    'shared.sync_history_from_job_purchase()',
-    'shared.sync_history_from_transaction()',
-    'shared.history_job_amount(text)',
-    'shared.upsert_history_job(text)',
-    -- Core calls it by its bare name (`EXCEPTIONS` in apps/core/scripts/prepare-raw-sql.ts).
-    'shared.compute_history_job_status(text)'
+    'shared.history_image_amount(uuid)'
   ];
   gone text;
   fn record;

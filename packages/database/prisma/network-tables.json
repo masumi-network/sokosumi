@@ -56,9 +56,17 @@
     "canonical_credit_cost_unit(text)",
     "canonicalize_credit_cost_unit_write()",
     "complete_task_x402_payment_action_snapshot()",
+    "compute_history_job_status(text)",
     "enforce_job_project_workspace_placement()",
+    "history_job_amount(text)",
     "normalize_task_x402_payment_replay_key()",
-    "record_task_x402_payment_failure_outcome()"
+    "record_task_x402_payment_failure_outcome()",
+    "sync_history_from_job()",
+    "sync_history_from_job_event()",
+    "sync_history_from_job_input()",
+    "sync_history_from_job_purchase()",
+    "sync_history_from_transaction()",
+    "upsert_history_job(text)"
   ],
   "shared": {
     "Account": "account",

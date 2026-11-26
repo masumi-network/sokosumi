@@ -254,6 +254,127 @@ describe.runIf(ON_POSTGRES)("Network trigger bodies", () => {
             "Job projectId must reference a project in the same workspace as workspaceId",
         });
       });
+
+      // Both Networks still share one History row per Job id (the template's
+      // header): this proves where each copy reads and writes, not that the
+      // two rows are kept apart.
+      it("keeps a Job's shared History row from its own tables", async () => {
+        const [job, charge, event, purchase, input] = [
+          randomUUID(),
+          randomUUID(),
+          randomUUID(),
+          randomUUID(),
+          randomUUID(),
+        ];
+        const history = `SELECT title, status, amount::int FROM shared.history
+          WHERE kind = 'JOB' AND "entityId" = $1`;
+
+        const rows = await firing(
+          {
+            Job: ["history_job_sync"],
+            jobPurchase: ["history_job_purchase_sync"],
+            jobEvent: ["history_job_event_sync"],
+            jobInput: ["history_job_input_sync"],
+            Transaction: ["history_transaction_sync"],
+          },
+          async (db) => {
+            // The other Network has the same Job and charge: it is free there,
+            // failed, and cost another amount.
+            await db.query(
+              `INSERT INTO ${other}."Job" (id, "updatedAt", "agentId", "agentJobId", "jobType",
+                 "workspaceId", name)
+               VALUES ($1, now(), 'agent', $1::text, 'FREE', $2, 'other Network')`,
+              [job, randomUUID()],
+            );
+            await db.query(
+              `INSERT INTO ${other}."jobEvent" (id, "updatedAt", "jobId", status)
+               VALUES ($1, now(), $2, 'FAILED')`,
+              [randomUUID(), job],
+            );
+            for (const [schema, cents] of [
+              [network, 700],
+              [other, 900],
+            ]) {
+              await db.query(
+                `INSERT INTO ${schema}."Transaction" (id, "updatedAt", amount)
+                 VALUES ($1, now(), -$2::bigint)`,
+                [charge, cents],
+              );
+            }
+          },
+          async (db) => {
+            const seen: unknown[] = [];
+            const after = async (sql: string, values: unknown[]) => {
+              await db.query(sql, values);
+              seen.push((await db.query(history, [job])).rows[0] ?? null);
+            };
+            await after(
+              `INSERT INTO ${network}."Job" (id, "updatedAt", "agentId", "agentJobId", "jobType",
+                 "workspaceId", name, "transactionId", "blockchainIdentifier", "payByTime",
+                 "submitResultTime", "unlockTime", "externalDisputeUnlockTime", "sellerVkey",
+                 "identifierFromPurchaser")
+               VALUES ($1, now(), 'agent', $1::text, 'PAID', $2, 'own Network', $3, $1::text,
+                 now() + interval '1 day', now() + interval '2 days', now() + interval '3 days',
+                 now() + interval '4 days', 'vkey', 'purchaser')`,
+              [job, randomUUID(), charge],
+            );
+            await after(
+              `INSERT INTO ${network}."jobPurchase" (id, "updatedAt", "externalId", "jobId",
+                 "onChainStatus")
+               VALUES ($1, now(), $1::text, $2, 'FUNDS_LOCKED')`,
+              [purchase, job],
+            );
+            await after(
+              `INSERT INTO ${network}."jobEvent" (id, "updatedAt", "jobId", status)
+               VALUES ($1, now(), $2, 'AWAITING_INPUT')`,
+              [event, job],
+            );
+            await after(
+              `INSERT INTO ${network}."jobInput" (id, "updatedAt", input, "eventId")
+               VALUES ($1, now(), '{}', $2)`,
+              [input, event],
+            );
+            await after(
+              `UPDATE ${network}."Transaction" SET amount = -800 WHERE id = $1`,
+              [charge],
+            );
+            await after(
+              `UPDATE ${network}."jobEvent" SET status = 'COMPLETED' WHERE id = $1`,
+              [event],
+            );
+            await after(
+              `UPDATE ${network}."jobPurchase" SET "onChainStatus" = 'REFUND_REQUESTED' WHERE id = $1`,
+              [purchase],
+            );
+            await after(
+              `UPDATE ${network}."jobInput" SET input = '{"a":1}' WHERE id = $1`,
+              [input],
+            );
+            await after(`DELETE FROM ${network}."Job" WHERE id = $1`, [job]);
+            const away = await db.query(
+              `SELECT name FROM ${RENAMED_OTHER_SCHEMA}."Job" WHERE id = $1`,
+              [job],
+            );
+            return { seen, away: away.rows };
+          },
+        );
+
+        const title = "own Network";
+        expect(rows).toEqual({
+          seen: [
+            { title, status: "payment_pending", amount: 700 },
+            { title, status: "started", amount: 700 },
+            { title, status: "input_required", amount: 700 },
+            { title, status: "processing", amount: 700 },
+            { title, status: "processing", amount: 800 },
+            { title, status: "completed", amount: 800 },
+            { title, status: "refund_pending", amount: 800 },
+            { title, status: "refund_pending", amount: 800 },
+            null,
+          ],
+          away: [{ name: "other Network" }],
+        });
+      });
     });
   });
 });

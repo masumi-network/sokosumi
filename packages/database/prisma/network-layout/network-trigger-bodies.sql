@@ -24,7 +24,8 @@
 -- Not a migration. Today's layout keeps the migrations' bodies. Only
 -- `scripts/split-network-layout.sh` applies this file, to CI's split test
 -- database, once per Network. The move script of the maintenance window
--- applies the same text.
+-- applies the same text, except for the History sync functions: see the known
+-- limit below.
 --
 -- Contract: apply each copy once, in one transaction that stops at the first
 -- error (`psql --single-transaction -v ON_ERROR_STOP=1`), after the Network's
@@ -39,8 +40,20 @@
 -- was compared once for this text, and every later change to a body is
 -- reviewed against its migration before its digest is updated.
 --
--- Not here yet: the History sync triggers on Network tables and their helpers
--- (the split script lists them as waiting).
+-- Known limit of the History sync functions below (`sync_history_from_*`,
+-- `upsert_history_job` and its two helpers): they write `shared."history"`,
+-- whose key is still (kind, entityId) without the Network, and they do not set
+-- the row's `network`. A Job id that exists on both Networks has one History
+-- row, and the Network written last owns it: a Preprod Job can overwrite or
+-- delete the History row of a Mainnet Job. That is accepted on CI's split test
+-- database only. The window must not install this text for them: it installs
+-- the bodies of ticket 19 part 2, which delete and upsert the History row by
+-- (kind, entityId, network) on the keys ticket 09 adds. New keys alone do not
+-- help, because these bodies still delete by Job id and upsert on the old
+-- key. Also,
+-- `sync_history_from_transaction` calls `shared.upsert_history_task`, which
+-- still waits for part 2: a Transaction that a Task event points at fails
+-- there on the split database.
 
 DO $guard$
 DECLARE
@@ -75,9 +88,17 @@ BEGIN
       ('canonical_credit_cost_unit(text)', '7eb707322590dbe6169be1902a7cf904'),
       ('canonicalize_credit_cost_unit_write()', '0cc3908554473ec121e38746a4698ebb'),
       ('complete_task_x402_payment_action_snapshot()', '708d42f9fb18e6744588ae98a711607a'),
+      ('compute_history_job_status(text)', '11ed240e03d668a32d06b58b7fea0892'),
       ('enforce_job_project_workspace_placement()', '236c56cf1e4537c8dc2ad7c2b8f1639c'),
+      ('history_job_amount(text)', 'dac4d7e001dafb319b0639ea64f99cfb'),
       ('normalize_task_x402_payment_replay_key()', '03c423a077261b9551e660240868ab3c'),
-      ('record_task_x402_payment_failure_outcome()', '6d2c9c21bd2204ad67840cc5a6cc0b40')
+      ('record_task_x402_payment_failure_outcome()', '6d2c9c21bd2204ad67840cc5a6cc0b40'),
+      ('sync_history_from_job()', '744228a94191023b5c32e1ef8b13f0a4'),
+      ('sync_history_from_job_event()', '446d58b8108a70029a99816a868d037c'),
+      ('sync_history_from_job_input()', '3a59446d6e2b7380f0d4d7bc6e574975'),
+      ('sync_history_from_job_purchase()', '446d58b8108a70029a99816a868d037c'),
+      ('sync_history_from_transaction()', '580a797cf30c70160deff0b4109981e2'),
+      ('upsert_history_job(text)', 'c0094858168f917afeca9d3ff4627c67')
     ) AS listed(signature, digest)
     LEFT JOIN pg_proc p ON p.oid = to_regprocedure('@network@.' || listed.signature)
     LEFT JOIN pg_language l ON l.oid = p.prolang
@@ -207,6 +228,142 @@ BEGIN
 END
 $function$;
 
+CREATE OR REPLACE FUNCTION @network@.compute_history_job_status(job_id text)
+ RETURNS text
+ LANGUAGE plpgsql
+ STABLE
+AS $function$
+DECLARE
+  source_job RECORD;
+  latest_status TEXT;
+  latest_has_input BOOLEAN;
+  payment_deadline TIMESTAMP(3);
+BEGIN
+  SELECT
+    j.*,
+    p."onChainStatus"::TEXT AS "onChainStatusText",
+    p."nextAction"::TEXT AS "nextActionText"
+  INTO source_job
+  FROM @network@."Job" AS j
+  LEFT JOIN @network@."jobPurchase" AS p ON p."jobId" = j."id"
+  WHERE j."id" = job_id;
+
+  IF NOT FOUND THEN
+    RETURN 'started';
+  END IF;
+
+  SELECT e."status"::TEXT, i."id" IS NOT NULL
+  INTO latest_status, latest_has_input
+  FROM @network@."jobEvent" AS e
+  LEFT JOIN @network@."jobInput" AS i ON i."eventId" = e."id"
+  WHERE e."jobId" = job_id
+  ORDER BY e."createdAt" DESC, e."id" DESC
+  LIMIT 1;
+
+  IF source_job."jobType"::TEXT = 'FREE' THEN
+    IF latest_status IS NULL THEN
+      RETURN 'started';
+    END IF;
+
+    CASE latest_status
+      WHEN 'INITIATED' THEN RETURN 'processing';
+      WHEN 'AWAITING_PAYMENT' THEN RETURN 'failed';
+      WHEN 'AWAITING_INPUT' THEN
+        IF latest_has_input THEN
+          RETURN 'processing';
+        END IF;
+        RETURN 'input_required';
+      WHEN 'RUNNING' THEN RETURN 'processing';
+      WHEN 'COMPLETED' THEN RETURN 'completed';
+      WHEN 'FAILED' THEN RETURN 'failed';
+      ELSE RETURN 'failed';
+    END CASE;
+  END IF;
+
+  IF source_job."refundedTransactionId" IS NOT NULL THEN
+    RETURN 'refund_resolved';
+  END IF;
+
+  IF source_job."onChainStatusText" IS NULL
+    AND source_job."nextActionText" IS NULL THEN
+    payment_deadline := COALESCE(source_job."payByTime", source_job."createdAt");
+
+    IF payment_deadline < CURRENT_TIMESTAMP - INTERVAL '10 minutes' THEN
+      RETURN 'payment_failed';
+    END IF;
+
+    RETURN 'payment_pending';
+  END IF;
+
+  IF source_job."nextActionText" IN (
+    'FUNDS_LOCKING_INITIATED',
+    'FUNDS_LOCKING_REQUESTED'
+  ) THEN
+    RETURN 'payment_pending';
+  END IF;
+
+  IF source_job."nextActionText" IN (
+    'SET_REFUND_REQUESTED_INITIATED',
+    'SET_REFUND_REQUESTED_REQUESTED',
+    'UNSET_REFUND_REQUESTED_INITIATED',
+    'UNSET_REFUND_REQUESTED_REQUESTED'
+  ) THEN
+    RETURN 'refund_pending';
+  END IF;
+
+  IF latest_status IS NULL THEN
+    RETURN 'started';
+  END IF;
+
+  IF source_job."onChainStatusText" IS NULL THEN
+    RETURN 'payment_pending';
+  END IF;
+
+  CASE source_job."onChainStatusText"
+    WHEN 'FUNDS_LOCKED' THEN
+      CASE latest_status
+        WHEN 'INITIATED' THEN RETURN 'payment_pending';
+        WHEN 'AWAITING_PAYMENT' THEN RETURN 'payment_pending';
+        WHEN 'AWAITING_INPUT' THEN
+          IF latest_has_input THEN
+            RETURN 'processing';
+          END IF;
+          RETURN 'input_required';
+        WHEN 'COMPLETED' THEN RETURN 'completed';
+        WHEN 'FAILED' THEN RETURN 'failed';
+        ELSE
+          IF source_job."externalDisputeUnlockTime" IS NOT NULL
+            AND source_job."externalDisputeUnlockTime" < CURRENT_TIMESTAMP - INTERVAL '10 minutes' THEN
+            RETURN 'failed';
+          END IF;
+
+          IF source_job."submitResultTime" IS NOT NULL
+            AND source_job."submitResultTime" < CURRENT_TIMESTAMP - INTERVAL '10 minutes' THEN
+            RETURN 'result_pending';
+          END IF;
+
+          RETURN 'processing';
+      END CASE;
+    WHEN 'RESULT_SUBMITTED', 'WITHDRAW_AUTHORIZED' THEN
+      IF latest_status = 'COMPLETED' THEN
+        RETURN 'completed';
+      END IF;
+      RETURN 'result_pending';
+    WHEN 'FUNDS_WITHDRAWN' THEN
+      IF latest_status = 'COMPLETED' THEN
+        RETURN 'completed';
+      END IF;
+      RETURN 'failed';
+    WHEN 'FUNDS_OR_DATUM_INVALID' THEN RETURN 'payment_failed';
+    WHEN 'REFUND_REQUESTED', 'REFUND_AUTHORIZED' THEN RETURN 'refund_pending';
+    WHEN 'REFUND_WITHDRAWN' THEN RETURN 'refund_resolved';
+    WHEN 'DISPUTED' THEN RETURN 'dispute_pending';
+    WHEN 'DISPUTED_WITHDRAWN' THEN RETURN 'dispute_resolved';
+    ELSE RETURN 'payment_pending';
+  END CASE;
+END;
+$function$;
+
 CREATE OR REPLACE FUNCTION @network@.enforce_job_project_workspace_placement()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -225,6 +382,17 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
+$function$;
+
+CREATE OR REPLACE FUNCTION @network@.history_job_amount(job_id text)
+ RETURNS bigint
+ LANGUAGE sql
+ STABLE
+AS $function$
+  SELECT COALESCE(ABS(t."amount"), 0)::BIGINT
+  FROM @network@."Job" AS j
+  LEFT JOIN @network@."Transaction" AS t ON t."id" = j."transactionId"
+  WHERE j."id" = job_id;
 $function$;
 
 CREATE OR REPLACE FUNCTION @network@.normalize_task_x402_payment_replay_key()
@@ -298,4 +466,228 @@ BEGIN
 
   RETURN NEW;
 END
+$function$;
+
+CREATE OR REPLACE FUNCTION @network@.sync_history_from_job()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    DELETE FROM shared."history"
+    WHERE "kind" = 'JOB'::shared."HistoryKind"
+      AND "entityId" = OLD."id";
+    RETURN OLD;
+  END IF;
+
+  PERFORM @network@.upsert_history_job(NEW."id");
+  RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION @network@.sync_history_from_job_event()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP IN ('UPDATE', 'DELETE') THEN
+    PERFORM @network@.upsert_history_job(OLD."jobId");
+  END IF;
+
+  IF TG_OP IN ('INSERT', 'UPDATE') THEN
+    PERFORM @network@.upsert_history_job(NEW."jobId");
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION @network@.sync_history_from_job_input()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  linked_job_id TEXT;
+BEGIN
+  IF TG_OP IN ('UPDATE', 'DELETE') THEN
+    SELECT e."jobId"
+    INTO linked_job_id
+    FROM @network@."jobEvent" AS e
+    WHERE e."id" = OLD."eventId";
+
+    IF linked_job_id IS NOT NULL THEN
+      PERFORM @network@.upsert_history_job(linked_job_id);
+    END IF;
+  END IF;
+
+  IF TG_OP IN ('INSERT', 'UPDATE') THEN
+    SELECT e."jobId"
+    INTO linked_job_id
+    FROM @network@."jobEvent" AS e
+    WHERE e."id" = NEW."eventId";
+
+    IF linked_job_id IS NOT NULL THEN
+      PERFORM @network@.upsert_history_job(linked_job_id);
+    END IF;
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION @network@.sync_history_from_job_purchase()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP IN ('UPDATE', 'DELETE') THEN
+    PERFORM @network@.upsert_history_job(OLD."jobId");
+  END IF;
+
+  IF TG_OP IN ('INSERT', 'UPDATE') THEN
+    PERFORM @network@.upsert_history_job(NEW."jobId");
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION @network@.sync_history_from_transaction()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  linked_job_id TEXT;
+  linked_task_id TEXT;
+BEGIN
+  IF TG_OP IN ('UPDATE', 'DELETE') THEN
+    SELECT "id"
+    INTO linked_job_id
+    FROM @network@."Job"
+    WHERE "transactionId" = OLD."id";
+
+    IF linked_job_id IS NOT NULL THEN
+      PERFORM @network@.upsert_history_job(linked_job_id);
+    END IF;
+
+    FOR linked_task_id IN
+      SELECT DISTINCT "taskId"
+      FROM shared."taskEvent"
+      WHERE "transactionId" = OLD."id"
+    LOOP
+      PERFORM shared.upsert_history_task(linked_task_id);
+    END LOOP;
+  END IF;
+
+  IF TG_OP IN ('INSERT', 'UPDATE') THEN
+    SELECT "id"
+    INTO linked_job_id
+    FROM @network@."Job"
+    WHERE "transactionId" = NEW."id";
+
+    IF linked_job_id IS NOT NULL THEN
+      PERFORM @network@.upsert_history_job(linked_job_id);
+    END IF;
+
+    FOR linked_task_id IN
+      SELECT DISTINCT "taskId"
+      FROM shared."taskEvent"
+      WHERE "transactionId" = NEW."id"
+    LOOP
+      PERFORM shared.upsert_history_task(linked_task_id);
+    END LOOP;
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION @network@.upsert_history_job(job_id text)
+ RETURNS void
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  source_job RECORD;
+BEGIN
+  SELECT j.*, a."name" AS "agentName"
+  INTO source_job
+  FROM @network@."Job" AS j
+  LEFT JOIN @network@."Agent" AS a ON a."id" = j."agentId"
+  WHERE j."id" = job_id;
+
+  IF NOT FOUND THEN
+    DELETE FROM shared."history"
+    WHERE "kind" = 'JOB'::shared."HistoryKind"
+      AND "entityId" = job_id;
+    RETURN;
+  END IF;
+
+  INSERT INTO shared."history" (
+    "id",
+    "kind",
+    "entityId",
+    "userId",
+    "workspaceId",
+    "organizationId",
+    "title",
+    "description",
+    "status",
+    "sortAt",
+    "amount",
+    "projectId",
+    "agentId",
+    "coworkerId",
+    "bucketSlug",
+    "archivedAt"
+  )
+  VALUES (
+    gen_random_uuid()::TEXT,
+    'JOB'::shared."HistoryKind",
+    source_job."id",
+    source_job."ownerId",
+    source_job."workspaceId",
+    source_job."organizationId",
+    COALESCE(source_job."name", source_job."agentName", 'Untitled job'),
+    NULL,
+    @network@.compute_history_job_status(source_job."id"),
+    source_job."createdAt",
+    @network@.history_job_amount(source_job."id"),
+    source_job."projectId",
+    source_job."agentId",
+    NULL,
+    NULL,
+    NULL
+  )
+  ON CONFLICT ("kind", "entityId") DO UPDATE
+  SET
+    "userId" = EXCLUDED."userId",
+    "workspaceId" = EXCLUDED."workspaceId",
+    "organizationId" = EXCLUDED."organizationId",
+    "title" = EXCLUDED."title",
+    "description" = EXCLUDED."description",
+    "status" = EXCLUDED."status",
+    "sortAt" = EXCLUDED."sortAt",
+    "amount" = EXCLUDED."amount",
+    "projectId" = EXCLUDED."projectId",
+    "agentId" = EXCLUDED."agentId",
+    "coworkerId" = EXCLUDED."coworkerId",
+    "bucketSlug" = EXCLUDED."bucketSlug",
+    "archivedAt" = EXCLUDED."archivedAt";
+END;
 $function$;
