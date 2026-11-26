@@ -75,6 +75,19 @@ describe("mergedKeywordSeries", () => {
     });
   });
 
+  it("counts an earlier sync as read only up to the day it was collected", () => {
+    // Collected on Feb 20 with a period to Mar 3: Feb 21 to 28 were never read.
+    const earlier = sync(
+      "2026-02-10",
+      "2026-03-03",
+      [["battery", "US", ["2026-02-10", "2026-02-19"]]],
+      { collectedAt: "2026-02-20T08:00:00.000Z" },
+    );
+    expect(merged(current, [earlier]).keywords).toEqual([
+      { from: undefined, dates: ["2026-03-01", "2026-03-09"] },
+    ]);
+  });
+
   it("keeps the newest read of a day both syncs cover", () => {
     const earlier = sync(
       "2026-02-20",

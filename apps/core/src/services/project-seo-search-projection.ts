@@ -53,6 +53,12 @@ function collectedAt(source: SearchEvidenceSource): string {
   return source.data.collectedAt ?? source.row.observedAt.toISOString();
 }
 
+/** The last day a sync can have read: its period can end after the day it was collected. */
+function readEnd(source: SearchEvidenceSource): string {
+  const collected = collectedAt(source).slice(0, 10);
+  return source.data.to < collected ? source.data.to : collected;
+}
+
 /**
  * The daily positions of one sync, with older days from earlier syncs of the
  * same property. Per keyword and country, an earlier sync adds days only when
@@ -80,7 +86,7 @@ export function mergedKeywordSeries(
     // Of two syncs with one last day, the one collected later holds the fresher values.
     .sort(
       (a, b) =>
-        b.data.to.localeCompare(a.data.to) ||
+        readEnd(b).localeCompare(readEnd(a)) ||
         collectedAt(b).localeCompare(collectedAt(a)),
     );
   let truncated = series.truncated;
@@ -91,7 +97,7 @@ export function mergedKeywordSeries(
       // Sources come latest last day first: once one ends before the read days, all later ones do.
       if (
         from <= floor ||
-        source.data.to < shiftDay(from, SEARCH_CONSOLE_OPEN_DAYS - 1)
+        readEnd(source) < shiftDay(from, SEARCH_CONSOLE_OPEN_DAYS - 1)
       )
         break;
       const match = source.data.keywordSeries?.keywords.find(
