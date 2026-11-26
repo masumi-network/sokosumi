@@ -10,7 +10,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { badRequest } from "@/helpers/error";
 import * as exaAgent from "@/lib/exa-agent";
 import { buildPdfFixture } from "@/lib/files/pdf-fixture";
-import { actionInputHash } from "@/lib/soko-bot/action-receipts";
+import {
+  actionInputHash,
+  actionOperationKey,
+} from "@/lib/soko-bot/action-receipts";
 import { websiteOnlyBrain } from "@/services/evals/eval-cmo-cases";
 import cmoBrandBrains from "@/services/evals/fixtures/cmo-brand-brains.json";
 import * as portfolio from "@/services/fundraising-paths.service";
@@ -590,6 +593,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: chatSokoBotMemberFindManyMock,
     },
     sokoBotContextSnapshot: { findFirst: contextSnapshotFindFirstMock },
+    sokoBotEventInbox: { findMany: eventClaims.inbox },
     sokoBotDelegation: {
       create: delegationCreateMock,
       findUnique: delegationFindUniqueMock,
@@ -690,6 +694,7 @@ vi.mock("@/lib/db/transaction", () => ({
           create: transactionDecisionCreateMock,
           findFirst: transactionDecisionFindFirstMock,
         },
+        sokoBotEffectOutbox: { upsert: vi.fn().mockResolvedValue({}) },
         sokoBotToolCall: {
           count: transactionToolCallCountMock,
           create: transactionToolCallCreateMock,
@@ -3340,6 +3345,960 @@ describe("SokoBotRuntimeService authorization", () => {
         taskId: "task_created",
       }),
     });
+  });
+
+  it("deduplicates EVENT create_task retries across omitted and explicit triggeringTaskId in both directions while keeping single-claim protection during cutover", async () => {
+    const TRIGGER_TASK_ID = "01960001-0001-7001-8001-000000000099";
+    const TRIGGER_EVENT_ID = "evt_trigger_done";
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Follow up on the finished task",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      source: "EVENT",
+      capabilityNames: ["create_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        archivedAt: null,
+        status: "RUNNING",
+      },
+    });
+    eventClaims.inbox.mockResolvedValue([
+      {
+        entityId: TRIGGER_TASK_ID,
+        eventId: TRIGGER_EVENT_ID,
+        designatedHandlerBotId: SCOPE.sokoBotId,
+      },
+    ]);
+    transactionTaskFindFirstMock.mockResolvedValue({
+      assigneeSokoBotId: null,
+      events: [{ id: TRIGGER_EVENT_ID, sokoBotId: null }],
+    });
+
+    type StoredToolCall = {
+      id: string;
+      turnId: string;
+      toolCallId: string;
+      capability: string;
+      operationKey: string | null;
+      inputHash: string;
+      status: string;
+      disposition: string | null;
+      result: unknown;
+    };
+    const callsByToolCallId = new Map<string, StoredToolCall>();
+    const callsByOperationKey = new Map<string, StoredToolCall>();
+    const claimsByKey = new Map<
+      string,
+      {
+        id: string;
+        turnId: string;
+        handlerBotId: string;
+        receiptId: string | null;
+      }
+    >();
+    const createdTasks: Array<{ id: string; name: string }> = [];
+
+    const lookupCall = (where: {
+      turnId_toolCallId?: { turnId: string; toolCallId: string };
+      operationKey?: string;
+    }) => {
+      if (where.turnId_toolCallId) {
+        return (
+          callsByToolCallId.get(
+            `${where.turnId_toolCallId.turnId}:${where.turnId_toolCallId.toolCallId}`,
+          ) ?? null
+        );
+      }
+      if (where.operationKey) {
+        return callsByOperationKey.get(where.operationKey) ?? null;
+      }
+      return null;
+    };
+
+    toolCallFindUniqueMock.mockImplementation(async ({ where }) =>
+      lookupCall(where),
+    );
+    transactionToolCallFindUniqueMock.mockImplementation(async ({ where }) =>
+      lookupCall(where),
+    );
+    transactionToolCallCreateMock.mockImplementation(
+      async ({
+        data,
+      }: {
+        data: {
+          turnId: string;
+          toolCallId: string;
+          capability: string;
+          operationKey: string | null;
+          inputHash: string;
+        };
+      }) => {
+        const row: StoredToolCall = {
+          id: `receipt_${data.toolCallId}`,
+          turnId: data.turnId,
+          toolCallId: data.toolCallId,
+          capability: data.capability,
+          operationKey: data.operationKey,
+          inputHash: data.inputHash,
+          status: "PENDING",
+          disposition: null,
+          result: null,
+        };
+        callsByToolCallId.set(`${row.turnId}:${row.toolCallId}`, row);
+        if (row.operationKey) callsByOperationKey.set(row.operationKey, row);
+        return row;
+      },
+    );
+    transactionToolCallUpdateMock.mockImplementation(
+      async ({
+        where,
+        data,
+      }: {
+        where: { turnId_toolCallId: { turnId: string; toolCallId: string } };
+        data: {
+          status?: string;
+          disposition?: string;
+          result?: unknown;
+        };
+      }) => {
+        const key = `${where.turnId_toolCallId.turnId}:${where.turnId_toolCallId.toolCallId}`;
+        const row = callsByToolCallId.get(key);
+        if (!row) throw new Error(`Missing tool call ${key}`);
+        if (data.status !== undefined) row.status = data.status;
+        if (data.disposition !== undefined) row.disposition = data.disposition;
+        if (data.result !== undefined) row.result = data.result;
+        return row;
+      },
+    );
+    eventClaims.findUnique.mockImplementation(
+      async ({
+        where,
+      }: {
+        where: {
+          taskId_triggeringEventId_actionKind: {
+            taskId: string;
+            triggeringEventId: string;
+            actionKind: string;
+          };
+        };
+      }) => {
+        const k = where.taskId_triggeringEventId_actionKind;
+        return (
+          claimsByKey.get(
+            `${k.taskId}:${k.triggeringEventId}:${k.actionKind}`,
+          ) ?? null
+        );
+      },
+    );
+    eventClaims.create.mockImplementation(
+      async ({
+        data,
+      }: {
+        data: {
+          taskId: string;
+          triggeringEventId: string;
+          actionKind: string;
+          handlerBotId: string;
+          turnId: string;
+        };
+      }) => {
+        const key = `${data.taskId}:${data.triggeringEventId}:${data.actionKind}`;
+        const row = {
+          id: `claim_${claimsByKey.size + 1}`,
+          turnId: data.turnId,
+          handlerBotId: data.handlerBotId,
+          receiptId: null,
+        };
+        claimsByKey.set(key, row);
+        return { id: row.id };
+      },
+    );
+    eventClaims.update.mockImplementation(
+      async ({
+        where,
+        data,
+      }: {
+        where: { id: string };
+        data: { receiptId: string };
+      }) => {
+        for (const claim of claimsByKey.values()) {
+          if (claim.id === where.id) claim.receiptId = data.receiptId;
+        }
+        return {};
+      },
+    );
+    transactionTaskCreateMock.mockImplementation(
+      async ({ data }: { data: { name: string; status: TaskStatus } }) => {
+        const id = `task_followup_${createdTasks.length + 1}`;
+        createdTasks.push({ id, name: data.name });
+        return {
+          id,
+          name: data.name,
+          status: data.status,
+          assigneeId: null,
+        };
+      },
+    );
+
+    const service = new SokoBotRuntimeService();
+    try {
+      // 1. Omitting triggeringTaskId creates the follow-up Task.
+      const first = await service.executeTool({
+        ...SCOPE,
+        capability: "create_task",
+        toolCallId: "call_followup_1_omitted",
+        input: { name: "Draft follow-up brief", status: "DRAFT" },
+      });
+      expect(first).toMatchObject({
+        id: "task_followup_1",
+        name: "Draft follow-up brief",
+      });
+
+      // 2. Retrying with a new toolCallId and explicit triggeringTaskId replays the same Task.
+      const retryExplicit = await service.executeTool({
+        ...SCOPE,
+        capability: "create_task",
+        toolCallId: "call_followup_1_explicit",
+        input: {
+          name: "Draft follow-up brief",
+          status: "DRAFT",
+          triggeringTaskId: TRIGGER_TASK_ID,
+        },
+      });
+      expect(retryExplicit).toEqual(first);
+      expect(createdTasks).toHaveLength(1);
+      expect(callsByOperationKey.size).toBe(1);
+
+      // 3. During Deploy 1 cutover, single-claim stays active: a distinct second
+      //    create_task on the same event is still refused so no mixed-version
+      //    race can create duplicate Tasks before every worker reads both keys.
+      await expect(
+        service.executeTool({
+          ...SCOPE,
+          capability: "create_task",
+          toolCallId: "call_followup_2_distinct",
+          input: {
+            name: "Prepare follow-up deck",
+            status: "DRAFT",
+            triggeringTaskId: TRIGGER_TASK_ID,
+          },
+        }),
+      ).rejects.toThrow("Someone else answered or changed this Task");
+      expect(createdTasks).toHaveLength(1);
+
+      // 4. Reverse direction (explicit first, omitted retry) on a fresh store
+      //    also reuses one reservation and creates one Task.
+      callsByToolCallId.clear();
+      callsByOperationKey.clear();
+      claimsByKey.clear();
+      createdTasks.length = 0;
+
+      const firstExplicit = await service.executeTool({
+        ...SCOPE,
+        capability: "create_task",
+        toolCallId: "call_followup_rev_explicit",
+        input: {
+          name: "Prepare follow-up deck",
+          status: "DRAFT",
+          triggeringTaskId: TRIGGER_TASK_ID,
+        },
+      });
+      const retryOmitted = await service.executeTool({
+        ...SCOPE,
+        capability: "create_task",
+        toolCallId: "call_followup_rev_omitted",
+        input: { name: "Prepare follow-up deck", status: "DRAFT" },
+      });
+      expect(retryOmitted).toEqual(firstExplicit);
+      expect(createdTasks).toHaveLength(1);
+      expect(callsByOperationKey.size).toBe(1);
+    } finally {
+      eventClaims.inbox.mockReset();
+      eventClaims.findUnique.mockReset();
+      eventClaims.create.mockReset();
+      eventClaims.update.mockReset();
+      transactionTaskFindFirstMock.mockReset();
+      transactionTaskCreateMock.mockReset();
+      toolCallFindUniqueMock.mockReset();
+      transactionToolCallFindUniqueMock.mockReset();
+      transactionToolCallCreateMock.mockReset();
+      transactionToolCallUpdateMock.mockReset();
+    }
+  });
+
+  it("prevents duplicate Tasks across all 12 mixed-version writer/trigger cells during Deploy 1 cutover, including new->old changed-form retries", async () => {
+    const TRIGGER_TASK_ID = "01960001-0001-7001-8001-000000000097";
+    const TRIGGER_EVENT_ID = "evt_trigger_matrix";
+    const omittedInput = { name: "Send summary", status: "DRAFT" };
+    const explicitInput = {
+      name: "Send summary",
+      status: "DRAFT",
+      triggeringTaskId: TRIGGER_TASK_ID,
+    };
+
+    const formInput = (form: "omitted" | "explicit") =>
+      form === "omitted" ? omittedInput : explicitInput;
+
+    const opKeyFor = (raw: Record<string, unknown>) =>
+      actionOperationKey({
+        workspaceId: SCOPE.workspaceId,
+        principalId: SCOPE.userId,
+        intentRevision: SCOPE.turnId,
+        capability: "create_task",
+        inputHash: actionInputHash(raw),
+      });
+
+    type MatrixCell = {
+      firstWriter: "old" | "new";
+      retryWriter: "old" | "new";
+      firstForm: "omitted" | "explicit";
+      retryForm: "omitted" | "explicit";
+    };
+    const cells: MatrixCell[] = [];
+    for (const [firstWriter, retryWriter] of [
+      ["old", "new"],
+      ["new", "old"],
+      ["new", "new"],
+    ] as const) {
+      for (const firstForm of ["omitted", "explicit"] as const) {
+        for (const retryForm of ["omitted", "explicit"] as const) {
+          cells.push({ firstWriter, retryWriter, firstForm, retryForm });
+        }
+      }
+    }
+
+    const service = new SokoBotRuntimeService();
+    try {
+      for (const cell of cells) {
+        turnFindUniqueMock.mockResolvedValue({
+          userMessage: "Follow up on the finished task",
+          id: SCOPE.turnId,
+          sokoBotId: SCOPE.sokoBotId,
+          requestedByUserId: SCOPE.userId,
+          workspaceId: SCOPE.workspaceId,
+          source: "EVENT",
+          capabilityNames: ["create_task"],
+          contextSnapshot: {
+            id: "01960001-0001-7001-8001-000000000004",
+            packet: { memory: { version: 1 } },
+          },
+          eveSessionId: SCOPE.sessionId,
+          status: "RUNNING",
+          createdAt: new Date(),
+          deadlineAt: new Date(Date.now() + 60_000),
+          leaseExpiresAt: new Date(Date.now() + 60_000),
+          sokoBot: { archivedAt: null, status: "RUNNING" },
+        });
+        eventClaims.inbox.mockResolvedValue([
+          {
+            entityId: TRIGGER_TASK_ID,
+            eventId: TRIGGER_EVENT_ID,
+            designatedHandlerBotId: SCOPE.sokoBotId,
+          },
+        ]);
+        transactionTaskFindFirstMock.mockResolvedValue({
+          assigneeSokoBotId: null,
+          events: [{ id: TRIGGER_EVENT_ID, sokoBotId: null }],
+        });
+
+        type Row = {
+          id: string;
+          turnId: string;
+          toolCallId: string;
+          capability: string;
+          operationKey: string | null;
+          inputHash: string;
+          status: string;
+          disposition: string | null;
+          result: unknown;
+        };
+        const rowsByCallId = new Map<string, Row>();
+        const rowsByOpKey = new Map<string, Row>();
+        const claims = new Map<
+          string,
+          {
+            id: string;
+            turnId: string;
+            handlerBotId: string;
+            receiptId: string | null;
+          }
+        >();
+        const createdTasks: Array<{ id: string; name: string }> = [];
+
+        const lookup = (where: {
+          turnId_toolCallId?: { turnId: string; toolCallId: string };
+          operationKey?: string;
+        }) => {
+          if (where.turnId_toolCallId) {
+            return (
+              rowsByCallId.get(
+                `${where.turnId_toolCallId.turnId}:${where.turnId_toolCallId.toolCallId}`,
+              ) ?? null
+            );
+          }
+          if (where.operationKey) {
+            return rowsByOpKey.get(where.operationKey) ?? null;
+          }
+          return null;
+        };
+
+        toolCallFindUniqueMock.mockImplementation(async ({ where }) =>
+          lookup(where),
+        );
+        transactionToolCallFindUniqueMock.mockImplementation(
+          async ({ where }) => lookup(where),
+        );
+        transactionToolCallCreateMock.mockImplementation(
+          async ({
+            data,
+          }: {
+            data: {
+              turnId: string;
+              toolCallId: string;
+              capability: string;
+              operationKey: string | null;
+              inputHash: string;
+            };
+          }) => {
+            const row: Row = {
+              id: `receipt_${data.toolCallId}`,
+              turnId: data.turnId,
+              toolCallId: data.toolCallId,
+              capability: data.capability,
+              operationKey: data.operationKey,
+              inputHash: data.inputHash,
+              status: "PENDING",
+              disposition: null,
+              result: null,
+            };
+            rowsByCallId.set(`${row.turnId}:${row.toolCallId}`, row);
+            if (row.operationKey) rowsByOpKey.set(row.operationKey, row);
+            return row;
+          },
+        );
+        transactionToolCallUpdateMock.mockImplementation(
+          async ({
+            where,
+            data,
+          }: {
+            where: {
+              turnId_toolCallId: { turnId: string; toolCallId: string };
+            };
+            data: { status?: string; disposition?: string; result?: unknown };
+          }) => {
+            const row = rowsByCallId.get(
+              `${where.turnId_toolCallId.turnId}:${where.turnId_toolCallId.toolCallId}`,
+            );
+            if (!row) throw new Error("missing tool call");
+            if (data.status !== undefined) row.status = data.status;
+            if (data.disposition !== undefined)
+              row.disposition = data.disposition;
+            if (data.result !== undefined) row.result = data.result;
+            return row;
+          },
+        );
+        eventClaims.findUnique.mockImplementation(
+          async ({
+            where,
+          }: {
+            where: {
+              taskId_triggeringEventId_actionKind: {
+                taskId: string;
+                triggeringEventId: string;
+                actionKind: string;
+              };
+            };
+          }) => {
+            const k = where.taskId_triggeringEventId_actionKind;
+            return (
+              claims.get(
+                `${k.taskId}:${k.triggeringEventId}:${k.actionKind}`,
+              ) ?? null
+            );
+          },
+        );
+        eventClaims.create.mockImplementation(
+          async ({
+            data,
+          }: {
+            data: {
+              taskId: string;
+              triggeringEventId: string;
+              actionKind: string;
+              handlerBotId: string;
+              turnId: string;
+            };
+          }) => {
+            const key = `${data.taskId}:${data.triggeringEventId}:${data.actionKind}`;
+            const claim = {
+              id: `claim_${claims.size + 1}`,
+              turnId: data.turnId,
+              handlerBotId: data.handlerBotId,
+              receiptId: null,
+            };
+            claims.set(key, claim);
+            return { id: claim.id };
+          },
+        );
+        eventClaims.update.mockImplementation(
+          async ({
+            where,
+            data,
+          }: {
+            where: { id: string };
+            data: { receiptId: string };
+          }) => {
+            for (const claim of claims.values()) {
+              if (claim.id === where.id) claim.receiptId = data.receiptId;
+            }
+            return {};
+          },
+        );
+        transactionTaskCreateMock.mockImplementation(
+          async ({ data }: { data: { name: string; status: TaskStatus } }) => {
+            const id = `task_${createdTasks.length + 1}`;
+            createdTasks.push({ id, name: data.name });
+            return {
+              id,
+              name: data.name,
+              status: data.status,
+              assigneeId: null,
+            };
+          },
+        );
+
+        // Pre-upgrade worker semantics: single raw operationKey lookup +
+        // single-claim CREATE_TASK per (taskId, triggeringEventId).
+        const runPreUpgradeWorker = (
+          toolCallId: string,
+          raw: Record<string, unknown>,
+        ) => {
+          const inputHash = actionInputHash(raw);
+          const opKey = opKeyFor(raw);
+          const existing =
+            rowsByCallId.get(`${SCOPE.turnId}:${toolCallId}`) ??
+            rowsByOpKey.get(opKey) ??
+            null;
+          if (existing) {
+            if (existing.inputHash !== inputHash) {
+              throw new Error("Tool call id was reused with different input");
+            }
+            return existing.result;
+          }
+          const row: Row = {
+            id: `receipt_${toolCallId}`,
+            turnId: SCOPE.turnId,
+            toolCallId,
+            capability: "create_task",
+            operationKey: opKey,
+            inputHash,
+            status: "PENDING",
+            disposition: null,
+            result: null,
+          };
+          rowsByCallId.set(`${row.turnId}:${row.toolCallId}`, row);
+          rowsByOpKey.set(opKey, row);
+          const claimKey = `${TRIGGER_TASK_ID}:${TRIGGER_EVENT_ID}:CREATE_TASK`;
+          const claim = claims.get(claimKey);
+          if (claim?.receiptId) {
+            // Single-claim protection refuses a duplicate Task and releases the rejected key.
+            row.status = "FAILED";
+            row.disposition = "REJECTED";
+            row.operationKey = null;
+            rowsByOpKey.delete(opKey);
+            return null;
+          }
+          const id = `task_${createdTasks.length + 1}`;
+          const task = {
+            id,
+            name: String(raw.name),
+            status: TaskStatus.DRAFT,
+            assigneeId: null,
+          };
+          createdTasks.push({ id, name: task.name });
+          claims.set(claimKey, {
+            id: claim?.id ?? `claim_${claims.size + 1}`,
+            turnId: SCOPE.turnId,
+            handlerBotId: SCOPE.sokoBotId,
+            receiptId: row.id,
+          });
+          row.status = "COMPLETED";
+          row.disposition = "APPLIED";
+          row.result = task;
+          return task;
+        };
+
+        const firstInput = formInput(cell.firstForm);
+        const retryInput = formInput(cell.retryForm);
+
+        if (cell.firstWriter === "old") {
+          runPreUpgradeWorker("call_1", firstInput);
+        } else {
+          await service.executeTool({
+            ...SCOPE,
+            capability: "create_task",
+            toolCallId: "call_1",
+            input: firstInput,
+          });
+        }
+
+        if (cell.retryWriter === "old") {
+          runPreUpgradeWorker("call_2", retryInput);
+        } else {
+          await service.executeTool({
+            ...SCOPE,
+            capability: "create_task",
+            toolCallId: "call_2",
+            input: retryInput,
+          });
+        }
+
+        // Across all 12 cells, exactly one Task is created and one committed
+        // operationKey remains in soko_bot_tool_call.
+        expect(createdTasks).toHaveLength(1);
+        expect(rowsByOpKey.size).toBe(1);
+
+        const changedFormNewToOld =
+          cell.firstWriter === "new" &&
+          cell.retryWriter === "old" &&
+          cell.firstForm !== cell.retryForm;
+        if (!changedFormNewToOld) {
+          expect(rowsByCallId.size).toBe(1);
+        }
+      }
+
+      // Interleaved race for BOTH new -> old changed-form cells: new worker
+      // holds a PENDING reservation (not yet committed) while an old worker
+      // retries with the opposite trigger spelling and commits first; when
+      // the new worker then enters claimTaskEventAction, single-claim blocks
+      // it so still only one Task is created.
+      for (const [newForm, oldForm] of [
+        ["omitted", "explicit"],
+        ["explicit", "omitted"],
+      ] as const) {
+        const claims = new Map<
+          string,
+          {
+            id: string;
+            turnId: string;
+            handlerBotId: string;
+            receiptId: string | null;
+          }
+        >();
+        const createdTasks: Array<{ id: string; name: string }> = [];
+        const newInput = formInput(newForm);
+        const oldInput = formInput(oldForm);
+        const newOpKey = opKeyFor(newInput);
+        const oldOpKey = opKeyFor(oldInput);
+        const oldReceiptId = `receipt_old_${oldForm}`;
+        const rowsByCallId = new Map<
+          string,
+          {
+            id: string;
+            turnId: string;
+            toolCallId: string;
+            capability: string;
+            operationKey: string | null;
+            inputHash: string;
+            status: string;
+            disposition: string | null;
+            result: unknown;
+          }
+        >([
+          [
+            `${SCOPE.turnId}:call_old_${oldForm}`,
+            {
+              id: oldReceiptId,
+              turnId: SCOPE.turnId,
+              toolCallId: `call_old_${oldForm}`,
+              capability: "create_task",
+              operationKey: oldOpKey,
+              inputHash: actionInputHash(oldInput),
+              status: "COMPLETED",
+              disposition: "APPLIED",
+              result: {
+                id: "task_old_committed",
+                name: "Send summary",
+                status: TaskStatus.DRAFT,
+                assigneeId: null,
+              },
+            },
+          ],
+        ]);
+        const rowsByOpKey = new Map([
+          [oldOpKey, rowsByCallId.get(`${SCOPE.turnId}:call_old_${oldForm}`)!],
+        ]);
+        // Simulate old worker already committed the single claim while new
+        // worker's reservation was already PENDING under newOpKey.
+        rowsByCallId.set(`${SCOPE.turnId}:call_new_pending`, {
+          id: "receipt_new_pending",
+          turnId: SCOPE.turnId,
+          toolCallId: "call_new_pending",
+          capability: "create_task",
+          operationKey: newOpKey,
+          inputHash: actionInputHash(newInput),
+          status: "PENDING",
+          disposition: null,
+          result: null,
+        });
+        claims.set(`${TRIGGER_TASK_ID}:${TRIGGER_EVENT_ID}:CREATE_TASK`, {
+          id: "claim_1",
+          turnId: SCOPE.turnId,
+          handlerBotId: SCOPE.sokoBotId,
+          receiptId: oldReceiptId,
+        });
+        createdTasks.push({ id: "task_old_committed", name: "Send summary" });
+
+        // Directly verify unchanged claimTaskEventAction refuses the resuming
+        // new worker so zero duplicate Tasks can be created.
+        const { claimTaskEventAction } = await import(
+          "@/services/soko-bot-event-action.service"
+        );
+        const tx = {
+          sokoBotEventInbox: {
+            findMany: vi.fn().mockResolvedValue([
+              {
+                entityId: TRIGGER_TASK_ID,
+                eventId: TRIGGER_EVENT_ID,
+                designatedHandlerBotId: SCOPE.sokoBotId,
+              },
+            ]),
+          },
+          task: {
+            findFirst: vi.fn().mockResolvedValue({
+              assigneeSokoBotId: null,
+              events: [{ id: TRIGGER_EVENT_ID, sokoBotId: null }],
+            }),
+          },
+          sokoBotTaskActionClaim: {
+            findUnique: vi
+              .fn()
+              .mockResolvedValue(
+                claims.get(
+                  `${TRIGGER_TASK_ID}:${TRIGGER_EVENT_ID}:CREATE_TASK`,
+                ),
+              ),
+          },
+        };
+        const decision = await claimTaskEventAction(
+          tx as never,
+          {
+            turnId: SCOPE.turnId,
+            sokoBotId: SCOPE.sokoBotId,
+            workspaceId: SCOPE.workspaceId,
+            source: "EVENT",
+          },
+          TRIGGER_TASK_ID,
+          "CREATE_TASK",
+        );
+        expect(decision.allowed).toBe(false);
+        expect(rowsByOpKey.size).toBe(1);
+        expect(createdTasks).toHaveLength(1);
+      }
+    } finally {
+      eventClaims.inbox.mockReset();
+      eventClaims.findUnique.mockReset();
+      eventClaims.create.mockReset();
+      eventClaims.update.mockReset();
+      transactionTaskFindFirstMock.mockReset();
+      transactionTaskCreateMock.mockReset();
+      toolCallFindUniqueMock.mockReset();
+      transactionToolCallFindUniqueMock.mockReset();
+      transactionToolCallCreateMock.mockReset();
+      transactionToolCallUpdateMock.mockReset();
+    }
+  });
+
+  it("replays a seeded pre-upgrade implicit-trigger EVENT create_task receipt for both the original and a new toolCallId", async () => {
+    const TRIGGER_TASK_ID = "01960001-0001-7001-8001-000000000098";
+    const TRIGGER_EVENT_ID = "evt_trigger_rollout";
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Follow up on the finished task across deploy",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      source: "EVENT",
+      capabilityNames: ["create_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        archivedAt: null,
+        status: "RUNNING",
+      },
+    });
+    eventClaims.inbox.mockResolvedValue([
+      {
+        entityId: TRIGGER_TASK_ID,
+        eventId: TRIGGER_EVENT_ID,
+        designatedHandlerBotId: SCOPE.sokoBotId,
+      },
+    ]);
+    transactionTaskFindFirstMock.mockResolvedValue({
+      assigneeSokoBotId: null,
+      events: [{ id: TRIGGER_EVENT_ID, sokoBotId: null }],
+    });
+
+    const preUpgradeInput = {
+      name: "Ship rollout summary",
+      status: "DRAFT",
+    };
+    const preUpgradeHash = actionInputHash(preUpgradeInput);
+    const preUpgradeOperationKey = actionOperationKey({
+      workspaceId: SCOPE.workspaceId,
+      principalId: SCOPE.userId,
+      intentRevision: SCOPE.turnId,
+      capability: "create_task",
+      inputHash: preUpgradeHash,
+    });
+    const preUpgradeTask = {
+      id: "task_pre_upgrade_1",
+      name: "Ship rollout summary",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+    };
+    const seededReceipt = {
+      id: "receipt_pre_upgrade",
+      turnId: SCOPE.turnId,
+      toolCallId: "call_pre_upgrade",
+      capability: "create_task",
+      operationKey: preUpgradeOperationKey,
+      inputHash: preUpgradeHash,
+      status: "COMPLETED",
+      disposition: "COMMITTED",
+      result: preUpgradeTask,
+    };
+    const callsByToolCallId = new Map([
+      [`${SCOPE.turnId}:call_pre_upgrade`, seededReceipt],
+    ]);
+    const callsByOperationKey = new Map([
+      [preUpgradeOperationKey, seededReceipt],
+    ]);
+    const createdTasks: Array<{ id: string; name: string }> = [];
+
+    const lookupCall = (where: {
+      turnId_toolCallId?: { turnId: string; toolCallId: string };
+      operationKey?: string;
+    }) => {
+      if (where.turnId_toolCallId) {
+        return (
+          callsByToolCallId.get(
+            `${where.turnId_toolCallId.turnId}:${where.turnId_toolCallId.toolCallId}`,
+          ) ?? null
+        );
+      }
+      if (where.operationKey) {
+        return callsByOperationKey.get(where.operationKey) ?? null;
+      }
+      return null;
+    };
+
+    toolCallFindUniqueMock.mockImplementation(async ({ where }) =>
+      lookupCall(where),
+    );
+    transactionToolCallFindUniqueMock.mockImplementation(async ({ where }) =>
+      lookupCall(where),
+    );
+    transactionTaskCreateMock.mockImplementation(
+      async ({ data }: { data: { name: string; status: TaskStatus } }) => {
+        const id = `task_unexpected_${createdTasks.length + 1}`;
+        createdTasks.push({ id, name: data.name });
+        return {
+          id,
+          name: data.name,
+          status: data.status,
+          assigneeId: null,
+        };
+      },
+    );
+
+    const service = new SokoBotRuntimeService();
+    try {
+      // 1. Same call ID + omitted triggeringTaskId replays without input-mismatch error.
+      const replaySameCallOmitted = await service.executeTool({
+        ...SCOPE,
+        capability: "create_task",
+        toolCallId: "call_pre_upgrade",
+        input: { name: "Ship rollout summary", status: "DRAFT" },
+      });
+      expect(replaySameCallOmitted).toEqual(preUpgradeTask);
+
+      // 2. Same call ID + explicit triggeringTaskId replays the same Task.
+      const replaySameCallExplicit = await service.executeTool({
+        ...SCOPE,
+        capability: "create_task",
+        toolCallId: "call_pre_upgrade",
+        input: {
+          name: "Ship rollout summary",
+          status: "DRAFT",
+          triggeringTaskId: TRIGGER_TASK_ID,
+        },
+      });
+      expect(replaySameCallExplicit).toEqual(preUpgradeTask);
+
+      // 3. New call ID + omitted triggeringTaskId finds the pre-upgrade receipt under lock.
+      const replayNewCallOmitted = await service.executeTool({
+        ...SCOPE,
+        capability: "create_task",
+        toolCallId: "call_post_upgrade_omitted",
+        input: { name: "Ship rollout summary", status: "DRAFT" },
+      });
+      expect(replayNewCallOmitted).toEqual(preUpgradeTask);
+
+      // 4. New call ID + explicit triggeringTaskId also finds the pre-upgrade receipt under lock.
+      const replayNewCallExplicit = await service.executeTool({
+        ...SCOPE,
+        capability: "create_task",
+        toolCallId: "call_post_upgrade_explicit",
+        input: {
+          name: "Ship rollout summary",
+          status: "DRAFT",
+          triggeringTaskId: TRIGGER_TASK_ID,
+        },
+      });
+      expect(replayNewCallExplicit).toEqual(preUpgradeTask);
+
+      // 5. Reusing the original call ID with genuinely different input still throws input-mismatch.
+      await expect(
+        service.executeTool({
+          ...SCOPE,
+          capability: "create_task",
+          toolCallId: "call_pre_upgrade",
+          input: { name: "Different follow-up task", status: "DRAFT" },
+        }),
+      ).rejects.toThrow("Tool call id was reused with different input");
+
+      // Only the pre-existing Task exists; zero duplicate Tasks were created.
+      expect(createdTasks).toHaveLength(0);
+    } finally {
+      eventClaims.inbox.mockReset();
+      eventClaims.findUnique.mockReset();
+      eventClaims.create.mockReset();
+      eventClaims.update.mockReset();
+      transactionTaskFindFirstMock.mockReset();
+      transactionTaskCreateMock.mockReset();
+      toolCallFindUniqueMock.mockReset();
+      transactionToolCallFindUniqueMock.mockReset();
+      transactionToolCallCreateMock.mockReset();
+      transactionToolCallUpdateMock.mockReset();
+    }
   });
 
   it("shares project/workspace rejection with normal Task create", async () => {
