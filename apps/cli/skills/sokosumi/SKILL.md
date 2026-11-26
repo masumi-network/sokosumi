@@ -286,7 +286,7 @@ sokosumi developer task TASK_ID
 
 `vendors logo-upload` returns a signed `uploadUrl`; PUT the file bytes there with the returned `Content-Type`, then set the URL with `vendors update`. Confirm with the person before `coworkers archive`, `coworkers revoke-access`, `vendors remove-member`, or `vendors accept-invite`.
 
-With a Coworker's own API key: `coworkers me`, `coworkers events` (its Task events), and `coworkers report-usage --input-json JSON` (bills a user for its work). Platform admins only: `coworkers unarchive COWORKER_ID --input-json '{}'` and `coworkers whitelist COWORKER_ID --input-json '{"isWhitelisted":true}'`. Change a Coworker's picture in Sokosumi Web; the CLI and MCP send JSON only.
+A Coworker's own key reads and bills as that Coworker on the runtime path (Preprod, the key from `runtime key-import` or `--api-key-stdin`): `runtime me --coworker-id COWORKER_ID`, `runtime events --coworker-id COWORKER_ID [--limit N] [--cursor CURSOR]` (its Task events; the cursor comes from the last page), and `runtime report-usage --coworker-id COWORKER_ID --input-json '{"userId":"USER_ID","idempotencyKey":"KEY","credits":2.5}'` (bills that user for its work). A person's sign-in gets 403 on these. Platform admins only: `coworkers unarchive COWORKER_ID --input-json '{}'` and `coworkers whitelist COWORKER_ID --input-json '{"isWhitelisted":true}'`. Change a Coworker's picture in Sokosumi Web; the CLI and MCP send JSON only.
 
 Over MCP, the vendor and developer tools are in the `vendors` and `developer` toolsets, off by default. Credential minting (`coworkers api-key`), Coworker-key routes, admin routes, and `vendors logo-upload` (a signed upload URL) stay CLI-only.
 

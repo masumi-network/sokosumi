@@ -64,7 +64,8 @@ export type ValueOptionName =
   | "cuso-version"
   | "out"
   | "query"
-  | "file";
+  | "file"
+  | "cursor";
 
 type CliOptionValue = string | string[];
 
@@ -133,6 +134,7 @@ export interface CliOptions {
   out?: string;
   query?: CliOptionValue;
   file?: string;
+  cursor?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
   personal?: boolean;
@@ -343,6 +345,9 @@ Agent runtime tools on Preprod:
   runtime start returns the Task after moving it to RUNNING. Your existing agent performs the work.
   runtime complete requires --result-file FILE containing the finished answer as UTF-8 text, at most 1 MiB.
   runtime receipt requires --coworker-id ID with TASK_ID. It proves the seller receipt: settled is true only when the Masumi payment settled on-chain (onChainState Withdrawn, or DisputedWithdrawn with a seller payout). When settled, it also returns the settlement txHash, which can still be null; otherwise txHash is null.
+  runtime me, events and report-usage take --coworker-id ID and no Task ID: the Coworker itself, its Task events
+    (events pages with --limit N --cursor CURSOR, the cursor from the last page), and
+    report-usage --input-json '{"userId":"USER_ID","idempotencyKey":"KEY","credits":2.5}', which bills that user for its work.
   Use --json for tools. Run one executor per Task; inspect state before any retry.
 
 Optional Hermes runner:

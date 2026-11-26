@@ -5,7 +5,6 @@ import {
   createCoworkerApiKey,
   fetchCoworker,
   fetchCoworkers,
-  fetchCurrentCoworker,
   grantCoworkerWorkspaceAccess,
   updateCoworker,
 } from "../../api/services/coworker-service.js";
@@ -550,12 +549,6 @@ export async function runCoworkersCommand({
         "WARNING: Token is partially masked in text output. Use --json to retrieve the full token.",
         "Store this token securely. It is only returned once.",
       ]);
-    return;
-  }
-  if (command === "me") {
-    const { coworker } = await fetchCurrentCoworker(client, signal);
-    if (json) writeJson(stdout, { coworker });
-    else printCoworker(stdout, coworker);
     return;
   }
   throw new Error(`Unknown coworkers subcommand: ${command}`);
