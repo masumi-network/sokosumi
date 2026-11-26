@@ -2090,6 +2090,29 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       await capture(4);
       expect(followerCalls.slice(legacyBefore)).toEqual([null, "p2"]);
       expect(followerSizes.slice(legacyBefore)).toEqual([100, 100]);
+
+      // An unfinished old walk whose token X refuses: the fresh walk is the
+      // complete pass it owed, so after it the walk probes again, once.
+      await legacy({
+        followsAt: new Date(start + 8 * day).toISOString(),
+        followersToken: "stale",
+        followersWalked: false,
+      });
+      const refusedBefore = followerCalls.length;
+      for (const offset of [9, 10, 11, 12]) {
+        clock = new Date(start + offset * day);
+        await capture(4);
+      }
+      expect(followerCalls.slice(refusedBefore)).toEqual([
+        "stale",
+        null,
+        "p2",
+        "p3",
+        null,
+      ]);
+      expect(followerSizes.slice(refusedBefore)).toEqual([
+        100, 100, 100, 100, 20,
+      ]);
     });
   });
 

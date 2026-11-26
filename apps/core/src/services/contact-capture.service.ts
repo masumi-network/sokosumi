@@ -1882,9 +1882,11 @@ export class ContactCaptureService {
       }).catch(async (error: unknown) => {
         if (!token || !isXPageTokenRefusal(error)) throw error;
         // A token X no longer takes: this walk starts over at the newest
-        // tomorrow, and the other walk still runs today.
+        // tomorrow, and the other walk still runs today. That fresh walk is
+        // already the complete pass a `recheck` asked for.
         walk.token = null;
         walk.walked = false;
+        delete walk.recheck;
         delete walk.walkFrom;
         await save();
         return null;
