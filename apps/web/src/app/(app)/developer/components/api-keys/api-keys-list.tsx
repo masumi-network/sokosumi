@@ -11,7 +11,11 @@ import {
 } from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 
-import { ApiKeyActions, ApiKeyStatus } from "./api-key-row-parts";
+import {
+  ApiKeyActions,
+  ApiKeyLastUsed,
+  ApiKeyStatus,
+} from "./api-key-row-parts";
 import { getApiKeyColumns } from "./api-keys-columns";
 import type { ApiKeysListProps } from "./types";
 
@@ -78,13 +82,14 @@ export function ApiKeysList({
                 <p className="min-w-0 truncate font-medium">{apiKey.name}</p>
                 <ApiKeyStatus apiKey={apiKey} t={t} />
               </div>
-              <p className="text-muted-foreground flex items-center gap-2 text-xs">
+              <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                 <code className="bg-muted rounded px-1 font-mono">
                   {apiKey.start ?? "••••••••"}
                 </code>
                 {formatter.dateTime(new Date(apiKey.createdAt), {
                   dateStyle: "medium",
                 })}
+                <ApiKeyLastUsed apiKey={apiKey} t={t} />
               </p>
             </div>
             <ApiKeyActions

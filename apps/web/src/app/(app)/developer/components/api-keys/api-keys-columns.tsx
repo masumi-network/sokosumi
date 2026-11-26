@@ -5,7 +5,11 @@ import type { useFormatter, useTranslations } from "next-intl";
 import { createAppColumnHelper } from "@/components/data-table/create-data-table-hook";
 import DataTableColumnHeader from "@/components/data-table/data-table-column-header";
 
-import { ApiKeyActions, ApiKeyStatus } from "./api-key-row-parts";
+import {
+  ApiKeyActions,
+  ApiKeyLastUsed,
+  ApiKeyStatus,
+} from "./api-key-row-parts";
 import type { ApiKeyRecord } from "./types";
 
 const columnHelper = createAppColumnHelper<ApiKeyRecord>();
@@ -72,6 +76,22 @@ export function getApiKeyColumns(
         </div>
       ),
       enableSorting: true,
+      enableHiding: true,
+    }),
+
+    columnHelper.accessor("lastRequest", {
+      id: "lastUsed",
+      minSize: 100,
+      size: 100,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t("Table.lastUsed")} />
+      ),
+      cell: ({ row }) => (
+        <div className="text-muted-foreground text-center">
+          <ApiKeyLastUsed apiKey={row.original} t={t} bare />
+        </div>
+      ),
+      enableSorting: false,
       enableHiding: true,
     }),
 
