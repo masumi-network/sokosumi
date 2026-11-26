@@ -39,4 +39,44 @@ describe("withoutActionReceipts", () => {
     const text = "Not confirmed: archived task.\n\nI could not archive it.";
     expect(withoutActionReceipts(text)).toBe(text);
   });
+
+  it("keeps a first paragraph that only starts like a receipt", () => {
+    const text =
+      "Already satisfied with the draft? I would still verify the numbers.\n\nHere are the details.";
+    expect(withoutActionReceipts(text)).toBe(text);
+  });
+
+  it("keeps a sentence that names a label and goes on in prose", () => {
+    const text = "Updated memory with your timezone.\n\nAnything else?";
+    expect(withoutActionReceipts(text)).toBe(text);
+  });
+
+  it("drops a receipt whose linked target spans lines", () => {
+    expect(
+      withoutActionReceipts(
+        "Created task [Week 1\nLaunch](/tasks/1).\n\nDone.",
+      ),
+    ).toBe("Done.");
+  });
+
+  it("drops a receipt naming who got the Task, and a linked-out one", () => {
+    expect(
+      withoutActionReceipts(
+        "Created task [Plan](/tasks/1) → Ada.\nCreated table ([Open table](/drive/tables/t1)).\n\nDone.",
+      ),
+    ).toBe("Done.");
+  });
+
+  it("keeps prose that follows a receipt on its next line", () => {
+    const text = "Created task [A](/tasks/1).\nI also moved B.\n\nDone.";
+    expect(withoutActionReceipts(text)).toBe(text);
+  });
+
+  it("drops a receipt whose Task name holds an escaped bracket", () => {
+    expect(
+      withoutActionReceipts(
+        "Created task [\\[TEST\\] Launch](/tasks/1).\n\nDone.",
+      ),
+    ).toBe("Done.");
+  });
 });

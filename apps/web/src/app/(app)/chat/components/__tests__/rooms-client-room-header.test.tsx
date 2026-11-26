@@ -720,6 +720,10 @@ describe("RoomsClient room header chrome", () => {
     expect(face).toHaveClass("md:hidden");
     expect(face).toHaveAttribute("aria-hidden", "true");
     expect(heading).toHaveAccessibleName("Bob");
+    // Only the face: presence or a bot's status hidden here would be seen
+    // but never heard, so none of it is drawn.
+    expect(face.querySelector("[data-testid^='dm-sidebar-']")).toBeNull();
+    expect(face.textContent).toBe("BO");
   });
 
   it("names a self Direct on the second line", () => {

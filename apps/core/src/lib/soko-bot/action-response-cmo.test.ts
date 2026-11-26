@@ -1,10 +1,13 @@
 import type { SokoBotToolCall } from "@sokosumi/database";
-import { SOKO_BOT_SEO_WRITE_CAPABILITIES } from "@sokosumi/soko-bot";
+import {
+  ACTION_LABELS,
+  SOKO_BOT_SEO_WRITE_CAPABILITIES,
+} from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getWebAppBaseUrl } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { ACTION_CAPABILITIES } from "./action-receipts";
-import { ACTION_LABELS, buildActionResponse } from "./action-response";
+import { buildActionResponse } from "./action-response";
 
 const db = vi.hoisted(() => ({
   sokoBotToolCall: { findMany: vi.fn(), findUnique: vi.fn(), count: vi.fn() },

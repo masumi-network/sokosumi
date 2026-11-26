@@ -5,8 +5,6 @@ import {
 } from "@sokosumi/soko-bot";
 import { z } from "zod";
 
-export { ACTION_LABELS };
-
 /** A comment that also changed the status says which change it was. */
 export function actionLabel(call: {
   capability: string;

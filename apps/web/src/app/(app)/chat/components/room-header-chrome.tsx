@@ -21,6 +21,7 @@ import {
   ChannelDiscoverabilityIcon,
 } from "@/components/chat/channel-discoverability-icon";
 import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
+import { getDirectParticipants } from "@/components/chat/direct-room-participants";
 import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
 import {
   ROOM_COUNT_CAP,
@@ -403,6 +404,10 @@ export function RoomHeaderChrome({
             count: getRoomParticipantPreviews(room).length,
           }));
   const showRoster = showParticipants && shouldShowRoomRosterControl(room);
+  const directFace =
+    isDirectRoom && !room.isGroupDirect && !room.isSelfDirect
+      ? getDirectParticipants(room, currentUserId)[0]
+      : undefined;
   const channelTitle = (
     <>
       <ChannelDiscoverabilityIcon
@@ -450,18 +455,31 @@ export function RoomHeaderChrome({
                 <>
                   {/* On a phone the header is the room's only identity, so
                       it shows who the Direct is with, as the sidebar row
-                      does; from md the sidebar sits beside it. */}
+                      does; from md the sidebar sits beside it. Only the
+                      face: presence drawn inside a hidden mark would be
+                      seen and never heard. */}
+                  {directFace ? (
+                    <span
+                      aria-hidden
+                      data-testid="room-title-face"
+                      className={cn(CHAT_TITLE_MARK_CLASS, "md:hidden")}
+                    >
+                      <Avatar className="size-6">
+                        <AvatarImage
+                          alt=""
+                          src={directFace.image ?? undefined}
+                        />
+                        <AvatarFallback className="text-2xs font-medium">
+                          {getInitials(directFace.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </span>
+                  ) : null}
                   <span
-                    aria-hidden
-                    data-testid="room-title-face"
-                    className={cn(CHAT_TITLE_MARK_CLASS, "md:hidden")}
+                    className={directFace ? "hidden md:contents" : "contents"}
                   >
-                    <DirectRoomAvatarStack
-                      room={room}
-                      currentUserId={currentUserId}
-                    />
+                    {DIRECT_ICON}
                   </span>
-                  <span className="hidden md:contents">{DIRECT_ICON}</span>
                 </>
               )}
               <span className="min-w-0 truncate" data-testid="room-open-title">

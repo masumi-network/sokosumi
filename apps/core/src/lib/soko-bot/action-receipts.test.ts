@@ -1,3 +1,4 @@
+import { ACTION_LABELS } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
 import {
   ACTION_CAPABILITIES,
@@ -5,7 +6,6 @@ import {
   EXTERNAL_EFFECT_CAPABILITIES,
   externalActionReceipt,
 } from "./action-receipts";
-import { ACTION_LABELS } from "./action-response-targets";
 
 describe("Task Schedule actions", () => {
   it("count as actions with a label, so the reply can claim them", () => {

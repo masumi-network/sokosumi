@@ -275,11 +275,13 @@ export function withSokoBotChat(
     {
       roomId: botRoom.roomId,
       messageId: shown.id,
-      // A reply previews the bot's words, not Core's receipts above them.
+      // A reply previews the bot's words, not Core's receipts above them,
+      // unless those words preview as nothing (a bare link): then the whole.
       title:
-        buildChatMessagePreview(
-          reply ? withoutActionReceipts(reply.content) : shown.content,
-        ) || reader.untitled,
+        (reply &&
+          buildChatMessagePreview(withoutActionReceipts(reply.content))) ||
+        buildChatMessagePreview(shown.content) ||
+        reader.untitled,
       from: reply ? reader.replied : reader.from,
       at: shown.createdAt,
     },

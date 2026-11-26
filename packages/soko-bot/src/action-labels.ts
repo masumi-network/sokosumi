@@ -101,22 +101,37 @@ const RECEIPT_HEADS = [
   "Already satisfied",
 ];
 
+const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
- * One receipt line as Core collapses it: a head, then its target, a counted
- * "Created 3 Tasks" or "(28×)", or a list after a colon, ending in a period.
+ * A receipt head as Core collapses it: the label, "Created 3 Tasks" for a
+ * Task label, or "Updated social post (28×)" for any other.
  */
-function isReceiptLine(line: string): boolean {
-  const text = line.trim().replace(/^Previously verified: /, "");
-  if (!text.endsWith(".")) return false;
-  return RECEIPT_HEADS.some((head) => {
-    const counted = / task$/i.test(head)
-      ? new RegExp(`^${head.slice(0, -5)} \\d+ Tasks[.:]`)
-      : null;
-    return (
-      counted?.test(text) ||
-      (text.startsWith(head) && /^[ .:]/.test(text.slice(head.length)))
-    );
-  });
+const HEAD = `(?:Previously verified: )?(?:${RECEIPT_HEADS.map((head) => {
+  const label = escape(head);
+  const task = / task$/i.test(head)
+    ? `|${escape(head.slice(0, -5))} \\d+ Tasks`
+    : "";
+  return `${label}(?: \\(\\d+×\\))?${task}`;
+}).join("|")})`;
+
+/**
+ * Only the unambiguous forms: a bare head, or a head whose target opens with
+ * a markdown link (`[Name](/tasks/1)`, `([Open table](…))`), alone or after a
+ * colon. Prose that starts with a label ("Updated memory with…") is not one.
+ * Only a link's text may span lines (Core keeps a Task name's newlines), so
+ * lines split where a head starts and a line of prose after a receipt stays.
+ */
+const LINK_TEXT = String.raw`\[(?:\\.|[^\]\\])*\]`;
+const RECEIPT = new RegExp(
+  String.raw`^${HEAD}(?:(?: |: )\(?${LINK_TEXT}(?:${LINK_TEXT}|[^\n[])*)?\.$`,
+);
+const NEXT_RECEIPT = new RegExp(`\\n(?=${HEAD})`);
+
+function isReceiptParagraph(paragraph: string): boolean {
+  return paragraph
+    .split(NEXT_RECEIPT)
+    .every((line) => RECEIPT.test(line.trim()));
 }
 
 /**
@@ -128,7 +143,7 @@ function isReceiptLine(line: string): boolean {
 export function withoutActionReceipts(content: string): string {
   const paragraphs = content.trim().split(/\n{2,}/);
   const firstOwn = paragraphs.findIndex(
-    (paragraph) => !paragraph.split("\n").every(isReceiptLine),
+    (paragraph) => !isReceiptParagraph(paragraph),
   );
   return firstOwn > 0 ? paragraphs.slice(firstOwn).join("\n\n") : content;
 }
