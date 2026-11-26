@@ -1,8 +1,8 @@
 /**
  * Get initials from a name string.
  * Takes the first character of each word (up to 2 characters total), or the
- * first two characters of a single-word name. Words that start with
- * punctuation, such as "(Beta)", are skipped.
+ * first two characters of a single-word name. A trailing qualifier in
+ * parentheses, such as "(Beta)", is left out.
  *
  * @param name - The name to extract initials from
  * @returns The initials in uppercase (max 2 characters), or "?" if the name is empty
@@ -18,17 +18,13 @@ export function getInitials(name: string): string {
     return "?";
   }
 
-  // A word like "(Beta)" or "-" is a label, not part of the name.
-  const parts = trimmedName
-    .split(/\s+/)
-    .filter((part) => /^[\p{L}\p{N}]/u.test(part));
-  if (parts.length === 0) {
-    const letters = trimmedName.replace(/[^\p{L}\p{N}]/gu, "");
-    return letters ? letters.slice(0, 2).toUpperCase() : "?";
-  }
+  // A trailing qualifier such as "(Beta)" labels the name; it is not part of it.
+  const base = trimmedName.replace(/\s*\([^()]*\)$/u, "") || trimmedName;
+  const parts = base.split(/\s+/);
+  // Array.from walks code points, so a letter outside the basic plane stays whole.
   const letters =
     parts.length === 1
-      ? parts[0].slice(0, 2)
-      : parts.map((part) => part[0]).join("");
-  return letters.toUpperCase().slice(0, 2);
+      ? Array.from(parts[0]).slice(0, 2).join("")
+      : parts.map((part) => Array.from(part)[0]).join("");
+  return Array.from(letters.toUpperCase()).slice(0, 2).join("");
 }
