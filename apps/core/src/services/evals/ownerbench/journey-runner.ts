@@ -469,7 +469,13 @@ async function journeyToolCalls(state: JourneyState, current: string[]) {
   return prisma.sokoBotToolCall.findMany({
     where: { turnId: { in: ids } },
     orderBy: { createdAt: "asc" },
-    select: { capability: true, status: true, input: true, result: true },
+    select: {
+      capability: true,
+      status: true,
+      input: true,
+      result: true,
+      errorKind: true,
+    },
   });
 }
 
