@@ -61,15 +61,19 @@ function gap(raw: unknown, isField: boolean) {
   const reason = typeof row?.none === "string" ? row.none.toLowerCase() : "";
   // The worker's sentence for a template that has its lab test. It ends with a template and a page: their
   // words are no reason.
-  if (reason.startsWith("one lab page per template"))
+  if (!isField && reason.startsWith("one lab page per template"))
     return { status: "not_checked" as const };
   if (/request budget|call budget/.test(reason))
     return { status: "budget" as const };
   if (reason.includes("could not verify a public landing page"))
     return { status: "unsafe" as const };
   if (/quota|429|rate limit/.test(reason)) return { status: "quota" as const };
-  if (/deadline|time budget|timeout|timed out/.test(reason))
+  if (/deadline|time budget|time limit|timeout|timed out/.test(reason))
     return { status: "deadline" as const };
+  // The worker's sentence for a CrUX read that it did not collect starts with "was not collected": a read that
+  // Google refused or that gave no usable answer was sent, so its suffix is the cause.
+  if (/did not accept|did not return a usable response/.test(reason))
+    return { status: "unavailable" as const };
   if (
     /not checked|was not collected|excluded|not enabled|not configured|no speed reads/.test(
       reason,
@@ -78,7 +82,6 @@ function gap(raw: unknown, isField: boolean) {
   )
     return { status: "not_checked" as const };
   if (
-    isField &&
     Array.isArray(row?.sourceRefs) &&
     row.sourceRefs.some((ref) =>
       ["error", "wall"].includes(
@@ -184,6 +187,10 @@ function boundSource(
       if (
         ref?.port !== port ||
         request?.port !== port ||
+        // A CrUX read without a measured value reads a record: a History comes only after a record with data.
+        (port === "crux" &&
+          !measured &&
+          reportObject(request?.params)?.kind !== "record") ||
         (request?.device !== device && !allDevices) ||
         typeof request.url !== "string"
       )
@@ -492,6 +499,12 @@ export function readableStoredMeasurement(value: unknown): unknown[] {
         },
       }),
     };
+    // A measured lab Core cannot read (runs, medians) is no lab data: the field data stays, as on a fresh import.
+    if (
+      lab.status === "measured" &&
+      !seoPageSpeedRow.shape.lab.safeParse(read.lab).success
+    )
+      read.lab = { status: "unavailable" };
   }
   return [read];
 }

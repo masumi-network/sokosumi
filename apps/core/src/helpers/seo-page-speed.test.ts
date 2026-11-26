@@ -165,6 +165,62 @@ describe("imported full-audit PageSpeed evidence", () => {
         ],
       })[0],
     ).toBe("unavailable");
+    // The worker's CrUX gaps start with "was not collected": the suffix is the cause.
+    const notCollected =
+      "URL: Chrome UX Report field data was not collected by this public audit.";
+    const sent = [ref(all, { kind: "error", message: "x" })];
+    expect(
+      [
+        "Google did not accept the CrUX request.",
+        "CrUX did not return a usable response.",
+        "The speed time limit had passed.",
+        "The worker holds no PageSpeed key.",
+      ].map(
+        (cause) =>
+          status({
+            none: `${notCollected} ${cause}`,
+            failed: true,
+            sourceRefs: sent,
+          })[0],
+      ),
+    ).toEqual(["unavailable", "unavailable", "deadline", "not_checked"]);
+    // The lab template sentence is no field reason.
+    expect(
+      status({ none: "one lab page per template: /* is measured on p1" })[0],
+    ).toBe("unavailable");
+    // A lab read with a failed source was sent too.
+    expect(
+      status(
+        { none: "not read" },
+        {
+          none: "not read",
+          sourceRefs: [
+            {
+              port: "psi",
+              request: {
+                port: "psi",
+                url: SEO_TEST_PAGE,
+                device: "mobile",
+                params: { run: 1 },
+              },
+              outcome: { kind: "error", message: "x" },
+            },
+          ],
+        },
+      )[1],
+    ).toBe("unavailable");
+    // A device History without data does not say that the current record holds no data.
+    expect(
+      status({
+        none: "no CrUX data for this URL",
+        sourceRefs: [
+          ref(
+            { device: "mobile", params: { kind: "history", level: "url" } },
+            { kind: "no-data", status: 404 },
+          ),
+        ],
+      })[0],
+    ).toBe("unavailable");
     // A template or a page with a failure word in its name is no failure.
     for (const none of [
       "one lab page per template: /quota/* is measured on p1",
@@ -425,6 +481,13 @@ describe("imported full-audit PageSpeed evidence", () => {
     const read = publicSeoPayloadSchema.safeParse(stored);
     expect(read.success).toBe(true);
     expect(read.data?.pageSpeed).toEqual([valid]);
+    // A measured lab Core cannot read costs the lab only: the field data stays.
+    stored.pageSpeed = [{ ...valid, lab: { ...valid.lab, runs: 0, ok: 0 } }];
+    const kept = publicSeoPayloadSchema.parse(stored).pageSpeed?.[0];
+    expect([kept?.lab, kept?.field]).toEqual([
+      { status: "unavailable" },
+      valid.field,
+    ]);
   });
 
   it("reads a measured lab without a Lighthouse version as version null, fresh and stored", () => {
