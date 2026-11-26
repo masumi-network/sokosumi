@@ -3380,6 +3380,137 @@ describe.skipIf(!enabled)(
       expect(week?.site).toBeGreaterThan(0);
       expect(week?.others).toBeGreaterThan(0);
     });
+
+    it("shows an audit's Search Console snapshot to a colleague for a public Task only, and offers the retry to the requester only", async () => {
+      const organizationId = randomUUID();
+      const sharedWorkspaceId = randomUUID();
+      const sharedProjectId = randomUUID();
+      await prisma.organization.create({
+        data: {
+          id: organizationId,
+          name: "Shared SEO",
+          slug: `shared-seo-${organizationId}`,
+          createdAt: now,
+          members: {
+            create: [userId, otherId].map((id) => ({
+              userId: id,
+              role: "member",
+              seatAssignedAt: now,
+            })),
+          },
+          workspace: { create: { id: sharedWorkspaceId } },
+        },
+      });
+      try {
+        await prisma.project.create({
+          data: {
+            id: sharedProjectId,
+            workspaceId: sharedWorkspaceId,
+            name: "Shared SEO project",
+          },
+        });
+        const requester: SeoActor = {
+          owner: { kind: "project", id: sharedProjectId },
+          workspaceId: sharedWorkspaceId,
+          organizationId,
+          userId,
+        };
+        const page = await addProjectSeoPage(requester, {
+          url: "https://example.test/shared-audit",
+          relationship: "primary",
+        });
+        const audits: Record<"PUBLIC" | "PRIVATE", string> = {
+          PUBLIC: "",
+          PRIVATE: "",
+        };
+        for (const visibility of ["PUBLIC", "PRIVATE"] as const) {
+          const task = await prisma.task.create({
+            data: {
+              name: `${visibility} audit`,
+              ownerId: userId,
+              workspaceId: sharedWorkspaceId,
+              projectId: sharedProjectId,
+              status: "COMPLETED",
+              visibility,
+              assigneeId: coworkerId,
+            },
+          });
+          audits[visibility] = task.id;
+          await prisma.projectSeoAnalysis.create({
+            data: {
+              projectId: sharedProjectId,
+              idempotencyKey: randomUUID(),
+              requestHash: "shared-audit",
+              kind: "audit_full",
+              status: "completed",
+              taskId: task.id,
+              pageIds: [page.id],
+              request: {
+                searchConsoleAccess: {
+                  propertyId: "sc-domain:example.test",
+                  connectionVersion: "a".repeat(64),
+                },
+              },
+              requestedBy: userId,
+            },
+          });
+          // Stored as the requester's private row. The audit Task decides who reads it.
+          await prisma.projectSeoObservation.create({
+            data: {
+              projectId: sharedProjectId,
+              source: "search_console",
+              kind: AUDIT_PERFORMANCE_KIND,
+              sourceKey: randomUUID(),
+              sourceTaskId: task.id,
+              ownerId: userId,
+              visibility: "PRIVATE",
+              pageIds: [page.id],
+              artifactHash: "shared-audit",
+              observedAt: now,
+              payload: {
+                ...metrics([page.url]),
+                provider: "search_console",
+                propertyId: "sc-domain:example.test",
+                auditMeasuredPages: [
+                  {
+                    pageUrl: page.url,
+                    measuredUrl: page.url,
+                    basis: "selected",
+                  },
+                ],
+              },
+            },
+          });
+        }
+        const read = async (reader: string) => {
+          const workspace = await getProjectSeoWorkspace(
+            { ...requester, userId: reader },
+            {},
+            { includeAuditPerformance: true },
+          );
+          return {
+            snapshots: workspace.auditSearchConsole
+              ?.map((row) => row.taskId)
+              .sort(),
+            retry: workspace.auditSearchConsoleRetryTaskIds?.toSorted(),
+          };
+        };
+        expect(await read(userId)).toEqual({
+          snapshots: [audits.PUBLIC, audits.PRIVATE].sort(),
+          retry: [audits.PUBLIC, audits.PRIVATE].sort(),
+        });
+        expect(await read(otherId)).toEqual({
+          snapshots: [audits.PUBLIC],
+          retry: [],
+        });
+      } finally {
+        await prisma.task.deleteMany({
+          where: { workspaceId: sharedWorkspaceId },
+        });
+        await prisma.workspace.deleteMany({ where: { id: sharedWorkspaceId } });
+        await prisma.organization.deleteMany({ where: { id: organizationId } });
+      }
+    });
   },
 );
 
