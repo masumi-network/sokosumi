@@ -30,6 +30,7 @@ import {
   foregroundTurnId,
   freshConversationCheck,
   journeyTokens,
+  recoveredAttemptChecks,
   retriedAttempts,
   routingFailures,
   scheduleToFire,
@@ -1548,9 +1549,32 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       });
       expect(await outcomeCheck(delivered, step)).toMatchObject({ pass: true });
       // The step's status reads the retry; an unrelated failure stays visible.
-      expect([
-        ...(await retriedAttempts([failedAttempt, retry, unrelated])),
-      ]).toEqual([failedAttempt]);
+      const retried = await retriedAttempts([failedAttempt, retry, unrelated]);
+      expect([...retried]).toEqual([failedAttempt]);
+      // The failed attempt sent a message the step forbids; the retry was
+      // clean. The step still fails: the clean retry can't unsend it.
+      const forbidsSending = {
+        kind: "schedule_fires" as const,
+        expect: { forbiddenTools: ["send_message", "publish_social_post"] },
+      };
+      expect(await recoveredAttemptChecks(forbidsSending, retried)).toEqual([
+        expect.objectContaining({ pass: true }),
+      ]);
+      await prisma.sokoBotToolCall.create({
+        data: {
+          turnId: failedAttempt,
+          toolCallId: randomUUID(),
+          capability: "send_message",
+          inputHash: randomUUID(),
+          status: "COMPLETED",
+        },
+      });
+      expect(await recoveredAttemptChecks(forbidsSending, retried)).toEqual([
+        expect.objectContaining({
+          pass: false,
+          actual: "a failed attempt called send_message",
+        }),
+      ]);
       await clearPosts();
       // A correct report may also say when it looks again.
       await postToOwner(`${report} I'll check again tomorrow.`);

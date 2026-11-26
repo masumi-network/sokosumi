@@ -736,6 +736,32 @@ export async function wakeCheck(
  * Task is a different event and earns nothing.
  */
 /**
+ * What the recovered attempts did that the step forbids. They leave the
+ * step's status to their retries, but a prohibited call stays done: a later
+ * clean retry can't undo it. Any call counts, as in the step's own check.
+ */
+export async function recoveredAttemptChecks(
+  step: JourneyStep,
+  retried: ReadonlySet<string>,
+): Promise<ScenarioCheck[]> {
+  const forbidden = step.expect?.forbiddenTools ?? [];
+  if (!forbidden.length || !retried.size) return [];
+  const calls = await prisma.sokoBotToolCall.findMany({
+    where: { turnId: { in: [...retried] }, capability: { in: forbidden } },
+    select: { capability: true },
+  });
+  return [
+    {
+      label: `Never calls ${forbidden.join(", ")}, failed attempts included`,
+      pass: calls.length === 0,
+      actual: calls.length
+        ? `a failed attempt called ${[...new Set(calls.map((call) => call.capability))].join(", ")}`
+        : "no failed attempt called one",
+    },
+  ];
+}
+
+/**
  * The failed or cancelled turns among these whose event a later turn here
  * processed again as its retry (the retry's event id is the failed one's
  * with a suffix, ":follow-up-retry"). An unrelated failed turn is not one.
@@ -818,6 +844,7 @@ async function finishStep(
       merged,
       step.kind === "schedule_fires" && state.memo.scheduleKind?.[0] === "task",
     ),
+    ...(await recoveredAttemptChecks(step, retried)),
   );
   if (record.index === 0 && turnIds[0])
     checks.push(
