@@ -2,6 +2,7 @@ import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
+import { evalWorkspaceIds } from "@/lib/evals/eval-guard";
 import {
   CUSO_BOT_WHERE,
   cmoBusinessNameFromUrl,
@@ -19,6 +20,8 @@ export interface CmoSpendLine {
 export interface CmoSpend {
   sokoBotId: string;
   businessName: string;
+  /** One of our eval lanes' Cusos, not a customer's. */
+  evalLane: boolean;
   ownerEmail: string;
   turns: number;
   /** What Cuso's work cost us: his loop, search, Exa and overhead. */
@@ -95,12 +98,26 @@ function number(value: unknown): number {
  * Read from the turns' own spend split, the tool-call log, image jobs and the
  * credit ledger, so it matches what owners were charged.
  */
-export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
+export async function cmoSpend(
+  since: Date,
+  evals: "exclude" | "include" | "only" = "exclude",
+): Promise<CmoSpend[]> {
+  const evalWorkspaces = await evalWorkspaceIds();
   const hires = (
     await prisma.sokoBot.findMany({
-      where: CUSO_BOT_WHERE,
+      where: {
+        AND: [
+          CUSO_BOT_WHERE,
+          evals === "exclude"
+            ? { workspaceId: { notIn: evalWorkspaces } }
+            : evals === "only"
+              ? { workspaceId: { in: evalWorkspaces } }
+              : {},
+        ],
+      },
       select: {
         id: true,
+        workspaceId: true,
         projectId: true,
         // Cuso is the business's shared bot; his hirer stands for it here.
         createdByUserId: true,
@@ -112,6 +129,7 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
     projectId: bot.projectId ?? "",
     businessName: cmoBusinessNameFromUrl(bot.project?.websiteUrl ?? ""),
     createdByUserId: bot.createdByUserId,
+    evalLane: evalWorkspaces.includes(bot.workspaceId),
   }));
   if (hires.length === 0) return [];
   const bots = hires.map((cuso) => cuso.sokoBotId);
@@ -237,6 +255,7 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
       return {
         sokoBotId: cuso.sokoBotId,
         businessName: cuso.businessName,
+        evalLane: cuso.evalLane,
         ownerEmail:
           owners.find((owner) => owner.id === cuso.createdByUserId)?.email ??
           "",

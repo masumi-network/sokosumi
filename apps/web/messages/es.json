@@ -7063,6 +7063,8 @@
           "archived": "Archivado",
           "version": "Versión",
           "showDormant": "Mostrar sin uso y archivados ({count})",
+          "showEvals": "Mostrar bots de evals",
+          "evalBadge": "Eval",
           "chat": "Chat",
           "kindLabel": "Mostrar",
           "kind": {
@@ -7637,8 +7639,10 @@
           "usersTitle": "Personas que escribieron a un Soko Bot",
           "usersSub": "máximo {peak} en {days} días",
           "usersBar": "{day}: {users} personas, {messages} mensajes",
-          "costTitle": "Coste de modelo de Soko Bots",
-          "cmoCostTitle": "Coste de modelo de CMO.xyz",
+          "costTitle": "Coste por turno de Soko Bots",
+          "cmoCostTitle": "Coste por turno de CMO.xyz",
+          "evalCostTitle": "Coste por turno de evals y laboratorio",
+          "costScope": "Coste por turno: el coste de modelo del bucle, el enrutado, el juez y las comprobaciones dentro de un turno. Las lanes de evals y las ejecuciones de laboratorio solo cuentan en Evals. No incluye el trabajo fuera de un turno: las comprobaciones de estilo, sector e imagen de Cuso, el redactor del mes, imágenes y vídeo.",
           "costSub": "{total} en {days} días",
           "costBar": "{day}: {cost}",
           "today": "hoy",
@@ -7649,7 +7653,8 @@
           "turns": "Turnos",
           "tokens": "Tokens",
           "cost": "Soko Bots",
-          "cmoCost": "CMO.xyz"
+          "cmoCost": "CMO.xyz",
+          "evalCost": "Evals"
         },
         "Avatar": {
           "title": "Aspecto",
@@ -7894,6 +7899,9 @@
         "title": "Gasto de CMO",
         "description": "Lo que gastó cada bot CMO en su trabajo, lo que se cobró a su dueño y en qué: cada modelo, búsqueda web, Exa, gastos generales e imágenes.",
         "summary": "{bots, plural, one {# bot CMO gastó} other {# bots CMO gastaron}} {spent} y cobraron {charged} créditos.",
+        "showEvals": "Mostrar Cusos de evals",
+        "hideEvals": "Ocultar Cusos de evals",
+        "evalBadge": "Eval",
         "period": "Periodo",
         "days": "{days} días",
         "empty": "Ningún bot CMO trabajó en este periodo.",

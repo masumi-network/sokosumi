@@ -283,6 +283,7 @@ export type AdminOrganizationOption = {
 export type AdminSokoBotList = {
     items: Array<AdminSokoBotListItem>;
     total: number;
+    summary: AdminSokoBotFleetSummary;
 };
 
 export type AdminSokoBotListItem = {
@@ -303,6 +304,7 @@ export type AdminSokoBotListItem = {
     pendingDecisionCount: number;
     scheduleCount: number;
     owner: AdminSokoBotOwner | null;
+    evalLane: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -320,6 +322,14 @@ export type AdminSokoBotOwner = {
     id: string;
     name: string | null;
     email: string;
+};
+
+export type AdminSokoBotFleetSummary = {
+    active: number;
+    activeRecently: number;
+    pendingDecisions: number;
+    attention: Array<AdminSokoBotListItem>;
+    attentionTotal: number;
 };
 
 export type AdminSokoBotQuality = {
@@ -521,6 +531,7 @@ export type AdminCmoSpend = {
     bots: Array<{
         sokoBotId: string;
         businessName: string;
+        evalLane: boolean;
         ownerEmail: string;
         turns: number;
         totalUsd: number;
@@ -579,6 +590,7 @@ export type AdminSokoBotFleetDays = {
         totalTokens: number;
         costUsd: number;
         cmoCostUsd: number;
+        evalCostUsd: number;
     }>;
 };
 
@@ -19935,6 +19947,10 @@ export type ListAdminSokoBotsData = {
          * Personal Soko Bots, Cuso (CMO.xyz) bots, or both.
          */
         kind?: 'all' | 'assistant' | 'cmo';
+        /**
+         * Leave eval-lane bots out (default), include them, or show only them.
+         */
+        evals?: 'exclude' | 'include' | 'only';
     };
     url: '/admin/soko-bots';
 };
@@ -20924,6 +20940,10 @@ export type GetAdminCmoSpendData = {
     path?: never;
     query?: {
         days?: number;
+        /**
+         * Leave eval-lane bots out (default), include them, or show only them.
+         */
+        evals?: 'exclude' | 'include' | 'only';
     };
     url: '/admin/soko-bots/cmo-spend';
 };

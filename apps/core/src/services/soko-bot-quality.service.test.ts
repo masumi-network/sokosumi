@@ -14,6 +14,11 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: { findMany: turnFindManyMock },
     sokoBotToolCall: { findMany: receiptFindManyMock },
+    evalLane: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue([{ workspaceId: "ws_eval", cusoProjectId: null }]),
+    },
   },
 }));
 
@@ -187,9 +192,21 @@ describe("getSokoBotQualityOverview", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           NOT: { clientTurnId: { startsWith: "lab:" } },
+          // Eval-lane turns are ours, lab-prefixed or not.
+          workspaceId: { notIn: ["ws_eval"] },
         }),
       }),
     );
+  });
+
+  it("shows one bot's own turns even when it is an eval-lane bot", async () => {
+    turnFindManyMock.mockResolvedValue([]);
+
+    await getSokoBotQualityOverview({ sokoBotId: "bot_eval" });
+
+    const where = turnFindManyMock.mock.lastCall?.[0].where;
+    expect(where).toMatchObject({ sokoBotId: "bot_eval" });
+    expect(where).not.toHaveProperty("workspaceId");
   });
 
   it("includes recent feedback from older turns without changing headline turn counts", async () => {

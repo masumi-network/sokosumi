@@ -43,6 +43,11 @@ async function evalLanes(): Promise<NonNullable<typeof cache> | null> {
   return cache;
 }
 
+/** Workspaces of the eval lanes: their bots and turns are ours, not customers'. */
+export async function evalWorkspaceIds(): Promise<string[]> {
+  return [...((await evalLanes())?.workspaceIds ?? [])];
+}
+
 export async function isEvalWorkspace(workspaceId: string): Promise<boolean> {
   return (await evalLanes())?.workspaceIds.has(workspaceId) ?? false;
 }

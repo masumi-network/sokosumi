@@ -29,13 +29,13 @@ const cmoSpendRoute = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(cmoSpendRoute, async (c) => {
     requireAdminAuthContext(c.var.authContext);
-    const { days } = c.req.valid("query");
+    const { days, evals } = c.req.valid("query");
     const since = new Date((await databaseNow()).getTime() - days * DAY_MS);
     return ok(
       c,
       adminCmoSpendSchema.parse({
         since: since.toISOString(),
-        bots: await cmoSpend(since),
+        bots: await cmoSpend(since, evals),
       }),
     );
   });

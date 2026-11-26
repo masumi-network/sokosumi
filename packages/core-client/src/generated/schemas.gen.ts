@@ -1256,11 +1256,15 @@ export const AdminSokoBotListSchema = {
         total: {
             type: 'integer',
             minimum: 0
+        },
+        summary: {
+            $ref: '#/components/schemas/AdminSokoBotFleetSummary'
         }
     },
     required: [
         'items',
-        'total'
+        'total',
+        'summary'
     ]
 } as const;
 
@@ -1366,6 +1370,9 @@ export const AdminSokoBotListItemSchema = {
                 }
             ]
         },
+        evalLane: {
+            type: 'boolean'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -1395,6 +1402,7 @@ export const AdminSokoBotListItemSchema = {
         'pendingDecisionCount',
         'scheduleCount',
         'owner',
+        'evalLane',
         'createdAt',
         'updatedAt'
     ]
@@ -1431,6 +1439,41 @@ export const AdminSokoBotOwnerSchema = {
         'id',
         'name',
         'email'
+    ]
+} as const;
+
+export const AdminSokoBotFleetSummarySchema = {
+    type: 'object',
+    properties: {
+        active: {
+            type: 'integer',
+            minimum: 0
+        },
+        activeRecently: {
+            type: 'integer',
+            minimum: 0
+        },
+        pendingDecisions: {
+            type: 'integer',
+            minimum: 0
+        },
+        attention: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdminSokoBotListItem'
+            }
+        },
+        attentionTotal: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'active',
+        'activeRecently',
+        'pendingDecisions',
+        'attention',
+        'attentionTotal'
     ]
 } as const;
 
@@ -2300,6 +2343,9 @@ export const AdminCmoSpendSchema = {
                     businessName: {
                         type: 'string'
                     },
+                    evalLane: {
+                        type: 'boolean'
+                    },
                     ownerEmail: {
                         type: 'string'
                     },
@@ -2419,6 +2465,7 @@ export const AdminCmoSpendSchema = {
                 required: [
                     'sokoBotId',
                     'businessName',
+                    'evalLane',
                     'ownerEmail',
                     'turns',
                     'totalUsd',
@@ -2551,6 +2598,9 @@ export const AdminSokoBotFleetDaysSchema = {
                     },
                     cmoCostUsd: {
                         type: 'number'
+                    },
+                    evalCostUsd: {
+                        type: 'number'
                     }
                 },
                 required: [
@@ -2560,7 +2610,8 @@ export const AdminSokoBotFleetDaysSchema = {
                     'turns',
                     'totalTokens',
                     'costUsd',
-                    'cmoCostUsd'
+                    'cmoCostUsd',
+                    'evalCostUsd'
                 ]
             }
         }

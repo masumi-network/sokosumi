@@ -280,6 +280,9 @@ vi.mock("@/lib/db/prisma", () => ({
       groupBy: botGroupByMock,
       update: botUpdateMock,
     },
+    sokoBotPendingDecision: {
+      count: vi.fn().mockResolvedValue(4),
+    },
     sokoBotTurn: {
       count: turnCountMock,
       findFirst: turnFindFirstMock,
@@ -2046,9 +2049,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       { id: "bot_1", userId: "u", workspace: { organizationId: null } },
     ]);
     botCountMock.mockResolvedValue(5);
-    transactionMock.mockImplementationOnce(async (queries) =>
-      Promise.all(queries),
-    );
+    transactionMock.mockImplementation(async (queries) => Promise.all(queries));
 
     const result = await new SokoBotControlPlane().listForAdmin(" Ada ", {
       cursor: "bot_4",
@@ -2061,7 +2062,12 @@ describe("SokoBotControlPlane lifecycle", () => {
         skip: 1,
         take: 3,
         where: expect.objectContaining({
-          AND: [{}, expect.objectContaining({ OR: expect.any(Array) })],
+          AND: [
+            {},
+            // Eval lanes are left out unless asked for.
+            { workspaceId: { notIn: [] } },
+            expect.objectContaining({ OR: expect.any(Array) }),
+          ],
         }),
         include: expect.objectContaining({
           createdByUser: { select: { id: true, name: true, email: true } },
@@ -2074,14 +2080,75 @@ describe("SokoBotControlPlane lifecycle", () => {
         }),
       }),
     );
+    const listed = (id: string, outOfCredits: boolean) => ({
+      id,
+      userId: "u",
+      kind: "assistant",
+      outOfCredits,
+      evalLane: false,
+    });
     expect(result).toEqual({
-      items: [
-        { id: "bot_3", userId: "u", kind: "assistant", outOfCredits: false },
-        { id: "bot_2", userId: "u", kind: "assistant", outOfCredits: true },
-      ],
+      items: [listed("bot_3", false), listed("bot_2", true)],
       total: 5,
       hasMore: true,
+      // Counted over the whole filtered fleet, not the loaded page.
+      summary: {
+        active: 5,
+        activeRecently: 5,
+        pendingDecisions: 4,
+        attention: [
+          listed("bot_3", false),
+          listed("bot_2", true),
+          listed("bot_1", false),
+        ],
+        attentionTotal: 5,
+      },
     });
+  });
+
+  it("lists only eval-lane bots when asked, and marks them", async () => {
+    const evalLaneFindManyMock = vi
+      .fn()
+      .mockResolvedValue([{ workspaceId: "ws_eval", cusoProjectId: null }]);
+    const db = (await import("@/lib/db/prisma")).default as unknown as Record<
+      string,
+      unknown
+    >;
+    db.evalLane = { findMany: evalLaneFindManyMock };
+    (await import("@/lib/evals/eval-guard")).forgetEvalWorkspaces();
+    try {
+      botFindManyMock.mockResolvedValue([
+        {
+          id: "bot_eval",
+          userId: "u",
+          workspaceId: "ws_eval",
+          workspace: { organizationId: null },
+        },
+      ]);
+      botCountMock.mockResolvedValue(1);
+      transactionMock.mockImplementation(async (queries) =>
+        Promise.all(queries),
+      );
+
+      const result = await new SokoBotControlPlane().listForAdmin(undefined, {
+        evals: "only",
+      });
+
+      expect(botFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            AND: [{}, { workspaceId: { in: ["ws_eval"] } }, {}],
+          }),
+        }),
+      );
+      expect(result.items[0]).toMatchObject({
+        id: "bot_eval",
+        evalLane: true,
+      });
+    } finally {
+      delete db.evalLane;
+      (await import("@/lib/evals/eval-guard")).forgetEvalWorkspaces();
+    }
   });
 
   it("filters the admin fleet to Cuso bots and marks them", async () => {
@@ -2094,9 +2161,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       },
     ]);
     botCountMock.mockResolvedValue(1);
-    transactionMock.mockImplementationOnce(async (queries) =>
-      Promise.all(queries),
-    );
+    transactionMock.mockImplementation(async (queries) => Promise.all(queries));
 
     const result = await new SokoBotControlPlane().listForAdmin(undefined, {
       kind: "cmo",
@@ -2111,6 +2176,7 @@ describe("SokoBotControlPlane lifecycle", () => {
                 in: expect.arrayContaining(["cmo-v1", "cmo-v1-gpt-oss-20b"]),
               },
             },
+            { workspaceId: { notIn: [] } },
             {},
           ],
         }),
@@ -6385,6 +6451,42 @@ describe("SET_VERSION and fleet migration", () => {
       { versionId: "v16", count: 19 },
       { versionId: "v14", count: 12 },
     ]);
+  });
+
+  it("leaves eval lanes out of version counts and fleet moves", async () => {
+    const db = (await import("@/lib/db/prisma")).default as unknown as Record<
+      string,
+      unknown
+    >;
+    db.evalLane = {
+      findMany: vi
+        .fn()
+        .mockResolvedValue([{ workspaceId: "ws_eval", cusoProjectId: null }]),
+    };
+    const guard = await import("@/lib/evals/eval-guard");
+    guard.forgetEvalWorkspaces();
+    try {
+      botGroupByMock.mockResolvedValue([]);
+      botFindManyMock.mockResolvedValue([]);
+
+      await new SokoBotControlPlane().versionUsage();
+      await new SokoBotControlPlane().migrateVersions({
+        operatorId: "admin_1",
+        toVersionId: "v16",
+        reason: "Move the fleet",
+      });
+
+      const notEvals = { workspaceId: { notIn: ["ws_eval"] } };
+      expect(botGroupByMock).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining(notEvals) }),
+      );
+      expect(botFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining(notEvals) }),
+      );
+    } finally {
+      delete db.evalLane;
+      guard.forgetEvalWorkspaces();
+    }
   });
 });
 

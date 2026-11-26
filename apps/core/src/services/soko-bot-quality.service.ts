@@ -4,6 +4,7 @@ import { z } from "zod";
 import { DAY_MS } from "@/config/constants";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
+import { evalWorkspaceIds } from "@/lib/evals/eval-guard";
 
 const receiptIdSchema = z.uuid();
 
@@ -75,7 +76,10 @@ export async function getSokoBotQualityOverview(
       status: { in: ["COMPLETED", "FAILED"] },
       NOT: { clientTurnId: { startsWith: "lab:" } },
       OR: [{ createdAt: { gte: since } }, { ownerFeedbackAt: { gte: since } }],
-      ...(options.sokoBotId ? { sokoBotId: options.sokoBotId } : {}),
+      // One bot's own page shows its turns; the fleet view is customers only.
+      ...(options.sokoBotId
+        ? { sokoBotId: options.sokoBotId }
+        : { workspaceId: { notIn: await evalWorkspaceIds() } }),
     },
     select: {
       id: true,

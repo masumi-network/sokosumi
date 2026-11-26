@@ -7063,6 +7063,8 @@
           "archived": "Archiviert",
           "version": "Version",
           "showDormant": "Ungenutzte und archivierte anzeigen ({count})",
+          "showEvals": "Eval-Bots anzeigen",
+          "evalBadge": "Eval",
           "chat": "Chat",
           "kindLabel": "Anzeigen",
           "kind": {
@@ -7637,8 +7639,10 @@
           "usersTitle": "Personen, die einem Soko Bot geschrieben haben",
           "usersSub": "Spitze {peak} in {days} Tagen",
           "usersBar": "{day}: {users} Personen, {messages} Nachrichten",
-          "costTitle": "Modellkosten Soko Bots",
-          "cmoCostTitle": "Modellkosten CMO.xyz",
+          "costTitle": "Durchlaufkosten Soko Bots",
+          "cmoCostTitle": "Durchlaufkosten CMO.xyz",
+          "evalCostTitle": "Durchlaufkosten Evals und Labor",
+          "costScope": "Durchlaufkosten: die Modellkosten von Schleife, Routing, Bewertung und Prüfungen innerhalb eines Durchlaufs. Eval-Lanes und Laborläufe zählen nur unter Evals. Arbeit außerhalb eines Durchlaufs ist nicht enthalten: Cusos Stil-, Branchen- und Bildprüfungen, der Monatsschreiber, Bilder und Videos.",
           "costSub": "{total} in {days} Tagen",
           "costBar": "{day}: {cost}",
           "today": "heute",
@@ -7649,7 +7653,8 @@
           "turns": "Durchläufe",
           "tokens": "Tokens",
           "cost": "Soko Bots",
-          "cmoCost": "CMO.xyz"
+          "cmoCost": "CMO.xyz",
+          "evalCost": "Evals"
         },
         "Avatar": {
           "title": "Aussehen",
@@ -7894,6 +7899,9 @@
         "title": "CMO-Kosten",
         "description": "Was jeder CMO-Bot für seine Arbeit ausgegeben hat, was dem Inhaber belastet wurde und wofür: jedes Modell, Websuche, Exa, Overhead und Bilder.",
         "summary": "{bots, plural, one {# CMO-Bot hat} other {# CMO-Bots haben}} {spent} ausgegeben und {charged} Credits belastet.",
+        "showEvals": "Eval-Cusos anzeigen",
+        "hideEvals": "Eval-Cusos ausblenden",
+        "evalBadge": "Eval",
         "period": "Zeitraum",
         "days": "{days} Tage",
         "empty": "In diesem Zeitraum hat kein CMO-Bot gearbeitet.",

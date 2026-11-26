@@ -31,7 +31,11 @@ export interface ListAdminSokoBotsParams {
   limit?: number;
   /** Personal Soko Bots, Cuso (CMO.xyz) bots, or both. */
   kind?: "all" | "assistant" | "cmo";
+  /** Eval-lane bots: left out (Core's default), included, or alone. */
+  evals?: AdminEvalBots;
 }
+
+export type AdminEvalBots = "exclude" | "include" | "only";
 
 export interface AdminSokoBotQualityParams {
   versionId?: string;
@@ -47,6 +51,7 @@ export const adminSokoBotService = {
       cursor: params.cursor,
       limit: params.limit,
       kind: params.kind,
+      evals: params.evals,
     });
     return response.data;
   },
@@ -68,12 +73,15 @@ export const adminSokoBotService = {
   },
 
   /** What each CMO bot (Cuso) spent over the last days, and on what. */
-  async cmoSpend(days: number): Promise<AdminCmoSpend> {
-    const response = await coreClient.getAdminCmoSpend({ days });
+  async cmoSpend(
+    days: number,
+    evals: AdminEvalBots = "exclude",
+  ): Promise<AdminCmoSpend> {
+    const response = await coreClient.getAdminCmoSpend({ days, evals });
     return response.data;
   },
 
-  /** Per UTC day: people who wrote to a bot, and what all turns cost. */
+  /** Per UTC day: people who wrote to a bot, and what turns cost, evals apart. */
   async fleetDays(days: number): Promise<AdminSokoBotFleetDays> {
     const response = await coreClient.getAdminSokoBotFleetDays({ days });
     return response.data;
