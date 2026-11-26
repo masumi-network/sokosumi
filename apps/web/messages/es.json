@@ -15276,7 +15276,7 @@
         "gap": {
           "limit": "The audit checks a limited number of pages for speed.",
           "deadline": "The audit ran out of time.",
-          "quota": "Google’s test limit was reached.",
+          "quota": "A CrUX rate limit was reached.",
           "other": "The speed test did not finish."
         }
       }
