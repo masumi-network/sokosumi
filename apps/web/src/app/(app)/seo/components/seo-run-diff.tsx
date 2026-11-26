@@ -23,15 +23,8 @@ export function SeoRunDiff({
   titled?: boolean;
 }) {
   const t = useSeoResultTranslations("App.Seo");
-  const format = useSeoResultFormatter();
   const view = seoRunDiffView(diff);
-  const title = t("runDiff.title", {
-    // The UTC day, as the runs row names its days. The workspace reaches the page as JSON, so the date is a string.
-    day: format.dateTime(new Date(diff.from), {
-      dateStyle: "medium",
-      timeZone: "UTC",
-    }),
-  });
+  const title = useSeoRunDiffTitle(diff);
   return (
     <section
       lang="en"
@@ -49,6 +42,11 @@ export function SeoRunDiff({
         />
       ) : (
         <>
+          {view.rulebookChange ? (
+            <p className="text-muted-foreground">
+              {t("runDiff.rulebookChange", view.rulebookChange)}
+            </p>
+          ) : null}
           {view.issues ? (
             <p className="text-muted-foreground">
               {t("runDiff.issues", view.issues)}
@@ -62,19 +60,10 @@ export function SeoRunDiff({
               empty={list.total === 0}
             >
               {list.items.map((item) => (
-                <li
+                <SeoRunDiffIssue
                   key={JSON.stringify([item.pageUrl, item.rowId])}
-                  className="flex flex-wrap items-baseline gap-x-2"
-                >
-                  <span className="min-w-0 break-words">{item.title}</span>
-                  <span className="text-muted-foreground min-w-0 break-all">
-                    {pathOf(item.pageUrl)}
-                    {item.device
-                      ? ` (${t("timeline.device", { device: item.device })})`
-                      : null}
-                  </span>
-                  <SeoSeverity severity={item.severity} />
-                </li>
+                  issue={item}
+                />
               ))}
             </DiffList>
           ))}
@@ -123,6 +112,40 @@ export function SeoRunDiff({
         </>
       )}
     </section>
+  );
+}
+
+/** The heading of a comparison: the UTC day of the earlier check, as the runs row names its days. */
+export function useSeoRunDiffTitle(diff: ProjectSeoRunDiff) {
+  const t = useSeoResultTranslations("App.Seo");
+  const format = useSeoResultFormatter();
+  return t("runDiff.title", {
+    // The workspace reaches the page as JSON, so the date is a string.
+    day: format.dateTime(new Date(diff.from), {
+      dateStyle: "medium",
+      timeZone: "UTC",
+    }),
+  });
+}
+
+/** One issue of a comparison: its rule, its page and device, and its severity. */
+export function SeoRunDiffIssue({
+  issue,
+}: {
+  issue: ProjectSeoRunDiff["new"][number];
+}) {
+  const t = useSeoResultTranslations("App.Seo");
+  return (
+    <li className="flex flex-wrap items-baseline gap-x-2">
+      <span className="min-w-0 break-words">{issue.title}</span>
+      <span className="text-muted-foreground min-w-0 break-all">
+        {pathOf(issue.pageUrl)}
+        {issue.device
+          ? ` (${t("timeline.device", { device: issue.device })})`
+          : null}
+      </span>
+      <SeoSeverity severity={issue.severity} />
+    </li>
   );
 }
 

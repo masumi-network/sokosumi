@@ -14709,7 +14709,14 @@
           "market": "Las dos comprobaciones usaron mercados distintos, así que sus problemas no se comparan.",
           "rulebook": "Las pruebas cambiaron entre las dos comprobaciones, así que sus problemas no se comparan.",
           "pages": "Una de las dos comprobaciones no leyó todas las páginas seleccionadas, así que sus problemas no se comparan."
-        }
+        },
+        "all": "Todos los cambios",
+        "count": {
+          "new": "Nuevos",
+          "fixed": "Corregidos",
+          "stillOpen": "Siguen abiertos"
+        },
+        "rulebookChange": "Las pruebas cambiaron entre las dos comprobaciones. Se {compared, plural, one {compara # prueba que ejecutaron ambas} other {comparan # pruebas que ejecutaron ambas}}; {other, number} quedan fuera."
       },
       "filterDates": "Filtrar por fecha",
       "syncNow": "Sincronizar ahora",

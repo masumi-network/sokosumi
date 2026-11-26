@@ -7,6 +7,7 @@ import { SeoResultMessagesProvider } from "@/i18n/use-seo-result-translations";
 import german from "../../../../../messages/de.json";
 import english from "../../../../../messages/en.json";
 import { SeoRunDiff } from "./seo-run-diff";
+import { SeoRunDiffCard } from "./seo-run-diff-card";
 
 const issue = (rowId: string, device: "mobile" | null = null) => ({
   rowId,
@@ -30,7 +31,10 @@ const diff = (patch: Partial<ProjectSeoRunDiff>): ProjectSeoRunDiff => ({
   numbers: { issues: { from: null, to: null }, moves: [], moveCount: 0 },
   ...patch,
 });
-const show = (value: ProjectSeoRunDiff) =>
+const show = (
+  value: ProjectSeoRunDiff,
+  node = <SeoRunDiff diff={value} titled />,
+) =>
   render(
     <NextIntlClientProvider
       locale="de"
@@ -39,7 +43,7 @@ const show = (value: ProjectSeoRunDiff) =>
       formats={createFormats("h23")}
     >
       <SeoResultMessagesProvider messages={english.App.Seo} hourCycle="h23">
-        <SeoRunDiff diff={value} titled />
+        {node}
       </SeoResultMessagesProvider>
     </NextIntlClientProvider>,
   );
@@ -131,4 +135,40 @@ it("names the page and the device of a ranking move, and counts the moves it doe
     "pricing: position 10 → 2 /pricing",
   ]);
   expect(screen.getByText("and 3 more")).toBeInTheDocument();
+});
+
+it("shows the counts and the first new issues open on the Agent tab, and says which rules a rulebook change compares", () => {
+  const value = diff({
+    new: ["A", "B", "C", "D"].map((rowId) => issue(rowId)),
+    newCount: 4,
+    fixedCount: 2,
+    rulebookChange: { compared: 40, other: 3 },
+    numbers: { issues: { from: 1, to: 4 }, moves: [], moveCount: 0 },
+  });
+  show(value, <SeoRunDiffCard diff={value} />);
+  const card = screen.getByTestId("seo-agent-run-diff-card");
+  expect(
+    within(card).getByRole("heading", {
+      level: 4,
+      name: "Since the check on Nov 1, 2026",
+    }),
+  ).toBeInTheDocument();
+  expect(within(card).getByText("Fixed").nextSibling).toHaveTextContent("2");
+  expect(
+    within(within(card).getByRole("list", { name: "New (4)" }))
+      .getAllByRole("listitem")
+      .map((item) => item.firstChild?.textContent),
+  ).toEqual(["Title of A", "Title of B", "Title of C"]);
+  expect(card).toHaveTextContent(
+    "The tests changed between the two checks. 40 tests both checks ran are compared, 3 left out.",
+  );
+});
+
+it("keeps a comparison without issue counts in its fold on the Agent tab", () => {
+  const value = diff({ comparable: false, reason: "market" });
+  show(value, <SeoRunDiffCard diff={value} />);
+  expect(screen.queryByTestId("seo-agent-run-diff-card")).toBeNull();
+  expect(
+    screen.getByText("What changed since the check before"),
+  ).toBeInTheDocument();
 });

@@ -40,12 +40,12 @@ import { seoPlanMessage } from "./seo-plan-message-model";
 import { SeoPlanPdfLink } from "./seo-plan-pdf-link";
 import { SeoPropertyPerformance } from "./seo-property-performance";
 import { SeoReportPlan } from "./seo-report-plan";
-import { SeoRunDiff } from "./seo-run-diff";
+import { SeoRunDiffCard } from "./seo-run-diff-card";
 import { seoRunDiffOf } from "./seo-run-diff-model";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
 import { seoCheckRunning, seoRunAction } from "./seo-setup-model";
-import { SEO_ROW_LIST_CLASS, SeoDate, SeoFoldSummary } from "./seo-shared";
+import { SEO_ROW_LIST_CLASS, SeoDate } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
 import { lastRuleCheck, seoSummary } from "./seo-summary-model";
@@ -95,16 +95,7 @@ function SeoAgentPanel({
   const lastCheckDiff = seoRunDiffOf(model.data, brief.lastCheck?.id);
   // The written plan and the verdict card both show one: the plan takes the place of the card.
   const runDiffFold = (diff: typeof lastCheckDiff) =>
-    diff ? (
-      <details data-testid="seo-agent-run-diff">
-        <SeoFoldSummary className="text-muted-foreground text-sm">
-          <span lang="en">{report("runDiff.open")}</span>
-        </SeoFoldSummary>
-        <div className="pt-2">
-          <SeoRunDiff diff={diff} />
-        </div>
-      </details>
-    ) : null;
+    diff ? <SeoRunDiffCard diff={diff} /> : null;
   const check = lastRuleCheck(model.data);
   const runsShown = seoRunsDateCheck(
     model.data,

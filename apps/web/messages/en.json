@@ -14709,7 +14709,14 @@
           "market": "The two checks used different markets, so their issues are not compared.",
           "rulebook": "The tests changed between the two checks, so their issues are not compared.",
           "pages": "One of the two checks did not read every selected page, so their issues are not compared."
-        }
+        },
+        "all": "All changes",
+        "count": {
+          "new": "New",
+          "fixed": "Fixed",
+          "stillOpen": "Still open"
+        },
+        "rulebookChange": "The tests changed between the two checks. {compared, plural, one {# test both checks ran is} other {# tests both checks ran are}} compared, {other, number} left out."
       },
       "filterDates": "Filter by date",
       "syncNow": "Sync now",

@@ -7,6 +7,9 @@ import type { SeoStopNode } from "./seo-timeline-model";
 
 type Issue = ProjectSeoRunDiff["new"][number];
 
+/** New issues the Agent tab names under its counts. The fold under them lists the rest. */
+export const SEO_RUN_DIFF_CARD_ISSUES = 3;
+
 export interface SeoRunDiffList {
   id: "new" | "fixed" | "stillOpen";
   items: Issue[];
@@ -31,6 +34,8 @@ export type SeoRunDiffView =
       moves: ProjectSeoRunDiff["numbers"]["moves"];
       moveCount: number;
       moreMoves: number;
+      /** Set where the rulebook changed: only the rules both checks tested are compared. */
+      rulebookChange: NonNullable<ProjectSeoRunDiff["rulebookChange"]> | null;
     };
 
 /** What the check with this id changed against the earlier comparable check. The first check of a kind has none. */
@@ -86,5 +91,6 @@ export function seoRunDiffView(diff: ProjectSeoRunDiff): SeoRunDiffView {
     moves,
     moveCount,
     moreMoves: Math.max(0, moveCount - moves.length),
+    rulebookChange: diff.rulebookChange ?? null,
   };
 }
