@@ -73,6 +73,7 @@ function days(from: string, to: string, clicks: number, impressions: number) {
 beforeEach(() => vi.resetAllMocks());
 
 describe("withSeoActionImpact", () => {
+  const visible = new Set(["audit-task"]);
   const action = (pageUrl: string) =>
     ({
       id: `fix:${pageUrl}`,
@@ -102,6 +103,7 @@ describe("withSeoActionImpact", () => {
     const [a, other] = await withSeoActionImpact(
       actor,
       [action(pageA), action("https://example.test/c")],
+      visible,
       undefined,
       new Date("2026-08-01T00:00:00Z"),
     );
@@ -111,11 +113,27 @@ describe("withSeoActionImpact", () => {
       after: { clicks: 56, impressions: 1120 },
     });
     expect(other.impact).toBeUndefined();
-    expect(boundary.findMany.mock.calls[0][0].where).toMatchObject({
+    expect(boundary.findMany.mock.calls[0][0].where).toEqual({
+      auditId: "audit",
+      projectId: null,
       kind: AUDIT_PAGE_SERIES_KIND,
-      ownerId: "owner",
-      visibility: "PRIVATE",
+      sourceTaskId: { in: ["audit-task"] },
     });
+  });
+
+  it("reads the rows by the audit Tasks the reader may see, not by who requested the audit", async () => {
+    boundary.findMany.mockResolvedValue([{ payload: series }]);
+    const [a] = await withSeoActionImpact(
+      { ...actor, userId: "colleague" },
+      [action(pageA)],
+      new Set(["public-audit"]),
+      undefined,
+      new Date("2026-08-01T00:00:00Z"),
+    );
+    expect(a.impact).toMatchObject({ state: "measured" });
+    const { where } = boundary.findMany.mock.calls[0][0];
+    expect(where.sourceTaskId).toEqual({ in: ["public-audit"] });
+    expect(where).not.toHaveProperty("ownerId");
   });
 
   it("reports an unsettled after-window as too early", async () => {
@@ -123,6 +141,7 @@ describe("withSeoActionImpact", () => {
     const [a] = await withSeoActionImpact(
       actor,
       [action(pageA)],
+      visible,
       undefined,
       new Date("2026-07-09T12:00:00Z"),
     );
@@ -131,7 +150,8 @@ describe("withSeoActionImpact", () => {
     const [week] = await withSeoActionImpact(
       actor,
       [action(pageA)],
-      7,
+      visible,
+      { days: 7 },
       new Date("2026-07-09T12:00:00Z"),
     );
     expect(week.impact).toMatchObject({
@@ -143,7 +163,7 @@ describe("withSeoActionImpact", () => {
 
   it("does not read the store when no action is done", async () => {
     const open = [{ ...action(pageA), completedAt: undefined }];
-    expect(await withSeoActionImpact(actor, open)).toBe(open);
+    expect(await withSeoActionImpact(actor, open, visible)).toBe(open);
     expect(boundary.findMany).not.toHaveBeenCalled();
   });
 });

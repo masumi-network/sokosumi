@@ -17,11 +17,16 @@ const IMPACT_SERIES_AUDITS = 6;
  * Add the before and after of each done action from the daily rows of its page alone.
  * An action whose page has no such rows gets no impact: the audit's combined
  * statistics of several pages are never credited to one of them.
+ *
+ * The rows follow their audit Task: `visibleTasks` holds the Tasks the reader may
+ * see, so a member reads the rows of a public audit a colleague requested. The
+ * colleague's Google connection stays their own.
  */
 export async function withSeoActionImpact(
   actor: SeoActor,
   actions: ProjectSeoWorkspace["actions"],
-  days?: number,
+  visibleTasks: ReadonlySet<string>,
+  { days }: { days?: number } = {},
   now = new Date(),
 ): Promise<ProjectSeoWorkspace["actions"]> {
   if (!actions.some((action) => action.completedAt || action.verifiedAt))
@@ -30,8 +35,7 @@ export async function withSeoActionImpact(
     where: {
       ...seoOwnerWhere(actor),
       kind: AUDIT_PAGE_SERIES_KIND,
-      ownerId: actor.userId,
-      visibility: "PRIVATE",
+      sourceTaskId: { in: [...visibleTasks] },
     },
     orderBy: { observedAt: "desc" },
     take: IMPACT_SERIES_AUDITS,

@@ -14131,7 +14131,7 @@
         "retryPrevious": "Vorherige Anfrage wiederholen",
         "coverage": {
           "limitedScope": "Das Audit prüft weiterhin eine Stichprobe öffentlicher Seiten und ihrer internen Links. Klicks, Impressionen und Indexierungsdaten von Google fehlen dann.",
-          "privateConnection": "Das Audit nutzt deine Google-Verbindung nur für die freigegebene Search Console-Property. Deine Kontodaten bleiben privat.",
+          "privateConnection": "Das Audit nutzt deine Google-Verbindung nur für die freigegebene Search Console-Property. Alle, die das Audit sehen können, sehen seine Search Console-Ergebnisse. Deine Google-Verbindung und deine Kontodaten bleiben privat.",
           "withoutSearch": "Ohne Search Console",
           "withSearch": "Mit Search Console",
           "title": "Abdeckung durch die Search Console",

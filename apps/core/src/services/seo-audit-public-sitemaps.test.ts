@@ -15,7 +15,7 @@ const actor = {
   workspaceId: "work",
   owner: { kind: "audit", id: "audit" },
 } as SeoActor;
-it("requires an imported file key and a matching completed owner task before using a root", async () => {
+it("requires an imported file key and a matching completed public task before using a root", async () => {
   const root = "https://shop.test/maps/main.xml";
   const row = {
     sourceTaskId: "task",
@@ -51,10 +51,13 @@ it("requires an imported file key and a matching completed owner task before usi
     kind: "audit_full",
     source: "seo_coworker",
   });
-  expect(db.files.mock.calls[0]?.[0].where.task).toMatchObject({
+  // The reader need not own the Task: a colleague sees the same roots for a public audit.
+  expect(db.files.mock.calls[0]?.[0].where.task).toEqual({
+    id: { in: ["task", "wrong"] },
     workspaceId: "work",
-    ownerId: "human",
     status: "COMPLETED",
+    visibility: "PUBLIC",
+    archivedAt: null,
   });
   db.observations.mockResolvedValue([
     { ...row, sourceKey: "task-file:foreign" },

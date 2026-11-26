@@ -14131,7 +14131,7 @@
         "retryPrevious": "Retry previous request",
         "coverage": {
           "limitedScope": "The audit still samples public pages and their internal links. It will skip Search Console clicks, impressions and indexing data.",
-          "privateConnection": "The audit uses your Google connection only for the approved Search Console property. Your account details stay private.",
+          "privateConnection": "The audit uses your Google connection only for the approved Search Console property. Everyone who can see the audit sees its Search Console results. Your Google connection and account details stay private.",
           "withoutSearch": "Without Search Console",
           "withSearch": "Include Search Console",
           "title": "Search Console coverage",

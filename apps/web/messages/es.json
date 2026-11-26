@@ -14131,7 +14131,7 @@
         "retryPrevious": "Reintentar la solicitud anterior",
         "coverage": {
           "limitedScope": "La auditoría sigue revisando una muestra de páginas públicas y sus enlaces internos. Los clics, impresiones y resultados de indexación de Google no estarán disponibles.",
-          "privateConnection": "La auditoría usa tu conexión de Google solo para la propiedad aprobada de Search Console. Los datos de tu cuenta se mantienen privados.",
+          "privateConnection": "La auditoría usa tu conexión de Google solo para la propiedad aprobada de Search Console. Todas las personas que pueden ver la auditoría ven sus resultados de Search Console. Tu conexión de Google y los datos de tu cuenta se mantienen privados.",
           "withoutSearch": "Sin Search Console",
           "withSearch": "Incluir Search Console",
           "title": "Cobertura de Search Console",

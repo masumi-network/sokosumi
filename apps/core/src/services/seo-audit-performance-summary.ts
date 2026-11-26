@@ -27,7 +27,12 @@ function totals(data: NativeSeoMetrics, previous = false) {
   };
 }
 
-/** Read original run evidence for the human requester. The private snapshot is independent of dashboard date filters. */
+/**
+ * Read original run evidence for a human. The snapshot is independent of dashboard date filters.
+ * It follows its audit Task: the caller passes only Tasks the reader may see, so a member reads
+ * the snapshot of a public audit a colleague requested. `retryCandidates` stay the reader's own
+ * audits, because a retry reads Google through the reader's own connection.
+ */
 export async function readAuditPerformanceSummaries(
   actor: SeoActor,
   taskIds: string[],
@@ -43,8 +48,6 @@ export async function readAuditPerformanceSummaries(
       kind: AUDIT_PERFORMANCE_KIND,
       source: "search_console",
       sourceTaskId: { in: taskIds },
-      ownerId: actor.userId,
-      visibility: "PRIVATE",
     },
     select: { sourceTaskId: true, payload: true },
   });
