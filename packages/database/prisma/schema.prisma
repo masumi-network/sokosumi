@@ -3382,6 +3382,7 @@ model SokoBotAccountQuestion {
   /// The owner turn that answered it; its drafts may use it, no later turn.
   answeredTurnId    String?     @db.Uuid
 
+  @@unique([turnId, provider])
   @@index([sokoBotId, createdAt(sort: Desc)])
   @@map("soko_bot_account_question")
 }

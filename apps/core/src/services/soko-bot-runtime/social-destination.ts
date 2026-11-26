@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import { getSokoBotVersion } from "@sokosumi/soko-bot";
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { openAccountQuestion } from "@/lib/soko-bot/account-question";
 import {
@@ -212,33 +213,60 @@ export async function requireChosenSocialDestination(
       `The owner named ${labels(named)}. Create the post there, with that socialConnectionId and projectId.`,
     );
   }
-  const options = candidates.slice(0, SHOWN);
-  const optionIds = options.map((candidate) => candidate.id);
-  // A second refusal on this turn repeats the same question, not a new one.
-  const asked = await prisma.sokoBotAccountQuestion.findFirst({
-    where: {
-      turnId: authorized.turn.id,
-      provider,
-      destinationRoomId: turn.destinationRoomId,
-      optionIds: { equals: optionIds },
-    },
-    select: { id: true },
+  const question = await askOnce(authorized, {
+    provider,
+    destinationRoomId: turn.destinationRoomId,
+    optionIds: candidates.slice(0, SHOWN).map((candidate) => candidate.id),
   });
-  const question =
-    asked ??
-    (await prisma.sokoBotAccountQuestion.create({
+  const byId = new Map(
+    candidates.map((candidate) => [candidate.id, candidate]),
+  );
+  const options = question.optionIds.flatMap((id) => {
+    const option = byId.get(id);
+    return option ? [option] : [];
+  });
+  const more = candidates.length - options.length;
+  throw new SokoBotRefusedUnsentError(
+    `${ASK_WHICH_ACCOUNT}, and the owner has not named one. Account question ${question.id}, offered accounts: ${labels(options)}${more > 0 ? `; ${more} more are connected (the owner can name one by @handle)` : ""}. Ask the owner once which one, listing these, and draft nothing on this turn. After they answer, create the post with accountQuestionId ${question.id} and the socialConnectionId and projectId of the option they picked.`,
+  );
+}
+
+/**
+ * One question per asking turn and provider (a unique key): a second or
+ * concurrent refusal on the turn repeats the stored question and its options.
+ */
+async function askOnce(
+  authorized: AuthorizedSokoBotRuntime,
+  input: {
+    provider: string;
+    destinationRoomId: string | null;
+    optionIds: string[];
+  },
+): Promise<{ id: string; optionIds: string[] }> {
+  const key = {
+    turnId_provider: { turnId: authorized.turn.id, provider: input.provider },
+  };
+  const select = { id: true, optionIds: true } as const;
+  const asked = await prisma.sokoBotAccountQuestion.findUnique({
+    where: key,
+    select,
+  });
+  if (asked) return asked;
+  try {
+    return await prisma.sokoBotAccountQuestion.create({
       data: {
         sokoBotId: authorized.turn.sokoBotId,
         turnId: authorized.turn.id,
         requestedByUserId: authorized.turn.requestedByUserId,
-        destinationRoomId: turn.destinationRoomId,
-        provider,
-        optionIds,
+        ...input,
       },
-      select: { id: true },
-    }));
-  const more = candidates.length - options.length;
-  throw new SokoBotRefusedUnsentError(
-    `${ASK_WHICH_ACCOUNT}, and the owner has not named one. Account question ${question.id}, options in order: ${labels(options)}${more > 0 ? `; ${more} more are connected (the owner can name one by @handle)` : ""}. Ask the owner once which one, listing these, and draft nothing on this turn. After they answer, create the post with accountQuestionId ${question.id} and the socialConnectionId and projectId of the option they picked.`,
-  );
+      select,
+    });
+  } catch (error) {
+    if (!isPrismaUniqueViolation(error)) throw error;
+    return prisma.sokoBotAccountQuestion.findUniqueOrThrow({
+      where: key,
+      select,
+    });
+  }
 }

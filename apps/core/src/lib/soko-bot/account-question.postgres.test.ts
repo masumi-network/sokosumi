@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
+import type { Prisma } from "@sokosumi/database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
+import { withFixtureSchemas } from "@/test/split-layout";
 import { openAccountQuestion } from "./account-question";
 
 const enabled =
@@ -12,8 +14,8 @@ const WS = randomUUID();
 const BOT = randomUUID();
 const ROOM = randomUUID();
 const OTHER_ROOM = randomUUID();
-const A = randomUUID();
-const B = randomUUID();
+let A = "";
+let B = "";
 const HOUR = 60 * 60 * 1_000;
 
 async function turnAt(
@@ -41,6 +43,7 @@ async function turnAt(
 async function askedOn(
   turn: { id: string; createdAt: Date; destinationRoomId: string | null },
   delivery?: "PUBLISHED" | "SUPPRESSED",
+  reason?: string,
 ) {
   if (delivery && turn.destinationRoomId)
     await prisma.sokoBotDelivery.create({
@@ -49,6 +52,7 @@ async function askedOn(
         roomId: turn.destinationRoomId,
         destinationId: turn.destinationRoomId,
         status: delivery,
+        reason: reason ?? null,
       },
     });
   return prisma.sokoBotAccountQuestion.create({
@@ -58,7 +62,8 @@ async function askedOn(
       requestedByUserId: OWNER,
       destinationRoomId: turn.destinationRoomId,
       provider: "x",
-      optionIds: [A, B],
+      // Stored after the order the accounts were connected in.
+      optionIds: [B, A],
       createdAt: turn.createdAt,
     },
   });
@@ -72,26 +77,101 @@ const scope = (now: Date, roomId: string | null = null) => ({
   turnCreatedAt: now,
 });
 
+async function connect(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  handle: string,
+) {
+  const key = `fixture-${randomUUID()}`;
+  const connection = await tx.projectSocialConnection.create({
+    data: {
+      projectId,
+      provider: "x",
+      externalAccountId: key,
+      externalHandle: handle,
+      displayName: handle,
+      composioConnectedAccountId: key,
+      status: "active",
+      activeExternalAccountKey: key,
+      connectorUserId: OWNER,
+      connectedAt: new Date(),
+    },
+  });
+  return connection.id;
+}
+
+// Through the client, which knows which schema each table lives in, inside
+// the fixture search path that the Project triggers still need.
 beforeAll(async () => {
   if (!enabled) return;
-  await prisma.$executeRaw`INSERT INTO "user" (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${OWNER}, ${OWNER}, ${`${OWNER}@fixture.invalid`}, true, now(), now())`;
-  await prisma.$executeRaw`INSERT INTO workspace (id, "userId", "updatedAt") VALUES (${WS}::uuid, ${OWNER}, now())`;
-  await prisma.$executeRaw`INSERT INTO soko_bot (id, "userId", "workspaceId", "updatedAt") VALUES (${BOT}::uuid, ${OWNER}, ${WS}::uuid, now())`;
+  await withFixtureSchemas(async (tx) => {
+    await tx.user.create({
+      data: {
+        id: OWNER,
+        name: OWNER,
+        email: `${OWNER}@fixture.invalid`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    await tx.workspace.create({ data: { id: WS, userId: OWNER } });
+    await tx.sokoBot.create({
+      data: { id: BOT, userId: OWNER, workspaceId: WS },
+    });
+    const company = await tx.project.create({
+      data: { workspaceId: WS, name: "Company marketing" },
+    });
+    const founder = await tx.project.create({
+      data: { workspaceId: WS, name: "Founder notes" },
+    });
+    A = await connect(tx, company.id, "acme_hq");
+    B = await connect(tx, founder.id, "pat");
+  });
 });
 
 afterAll(async () => {
   if (!enabled) return;
-  await prisma.$executeRaw`DELETE FROM soko_bot WHERE id = ${BOT}::uuid`;
-  await prisma.$executeRaw`DELETE FROM workspace WHERE id = ${WS}::uuid`;
-  await prisma.$executeRaw`DELETE FROM "user" WHERE id = ${OWNER}`;
+  await withFixtureSchemas(async (tx) => {
+    await tx.projectSocialConnection.deleteMany({
+      where: { id: { in: [A, B] } },
+    });
+    await tx.project.deleteMany({ where: { workspaceId: WS } });
+    await tx.sokoBot.deleteMany({ where: { id: BOT } });
+    await tx.workspace.deleteMany({ where: { id: WS } });
+    await tx.user.deleteMany({ where: { id: OWNER } });
+  });
 });
 
 describe.skipIf(!enabled)("openAccountQuestion", () => {
-  it("finds a delivered question from an earlier turn in the same chat, with its options in order", async () => {
+  it("finds a delivered question from an earlier turn in the same chat, with its options in the stored order", async () => {
     const now = new Date();
     const asked = await askedOn(await turnAt(new Date(now.getTime() - HOUR)));
     const open = await openAccountQuestion(scope(now));
     expect(open?.id).toBe(asked.id);
+    expect(open?.options.map((option) => option.id)).toEqual([B, A]);
+    expect(open?.options.map((option) => option.project.name)).toEqual([
+      "Founder notes",
+      "Company marketing",
+    ]);
+    await prisma.sokoBotAccountQuestion.delete({ where: { id: asked.id } });
+  });
+
+  it("is open after the Personal Assistant page showed the reply (its room delivery suppressed for that page)", async () => {
+    const now = new Date();
+    const asked = await askedOn(
+      await turnAt(new Date(now.getTime() - HOUR), { roomId: ROOM }),
+      "SUPPRESSED",
+      "ASSISTANT_PAGE",
+    );
+    expect((await openAccountQuestion(scope(now, ROOM)))?.id).toBe(asked.id);
+    await prisma.sokoBotAccountQuestion.delete({ where: { id: asked.id } });
+  });
+
+  it("holds one question per asking turn and provider", async () => {
+    const turn = await turnAt(new Date(Date.now() - HOUR));
+    const asked = await askedOn(turn);
+    await expect(askedOn(turn)).rejects.toMatchObject({ code: "P2002" });
     await prisma.sokoBotAccountQuestion.delete({ where: { id: asked.id } });
   });
 

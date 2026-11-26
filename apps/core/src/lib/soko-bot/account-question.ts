@@ -34,7 +34,9 @@ export async function openAccountQuestion(
       },
       OR: [{ answeredTurnId: null }, { answeredTurnId: scope.turnId }],
       // Delivered: the reply that asked reached the chat (a room delivery
-      // that failed or was held back leaves the question unasked).
+      // that failed or was held back leaves the question unasked). The
+      // Personal Assistant page shows the turn's own answer, so its room
+      // delivery is recorded as suppressed for that page.
       turn: {
         status: "COMPLETED",
         finalAnswer: { not: null },
@@ -42,7 +44,12 @@ export async function openAccountQuestion(
           { deliveries: { none: {} } },
           {
             deliveries: {
-              some: { status: { in: ["PERSISTED", "PUBLISHED"] } },
+              some: {
+                OR: [
+                  { status: { in: ["PERSISTED", "PUBLISHED"] } },
+                  { status: "SUPPRESSED", reason: "ASSISTANT_PAGE" },
+                ],
+              },
             },
           },
         ],
@@ -77,9 +84,12 @@ export function accountQuestionHint(
 ): string {
   const options = question.options
     .map(
-      (option, index) =>
-        `${index + 1}. ${option.externalHandle ? `@${option.externalHandle.replace(/^@/, "")}` : "an account"} (Project "${option.project.name}", projectId ${option.projectId}, socialConnectionId ${option.id})`,
+      (option) =>
+        `${option.externalHandle ? `@${option.externalHandle.replace(/^@/, "")}` : "an account"} (Project "${option.project.name}", projectId ${option.projectId}, socialConnectionId ${option.id})`,
     )
     .join("; ");
-  return `You asked the owner which account a post should go on, and the question is open: accountQuestionId ${question.id}, options in the order you showed them: ${options}. If this message picks one, create the post with that accountQuestionId and the option's socialConnectionId and projectId. These ids are for the tool: never show them to the owner.`;
+  // Which option "the first one" or "the Sokosumi one" means is read from
+  // the reply the owner saw, in the history: Core stores what was offered,
+  // not how the reply put it.
+  return `You asked the owner which account a post should go on, and the question is open: accountQuestionId ${question.id}, offered accounts: ${options}. If this message picks one, match it to your last reply as the owner read it, then create the post with that accountQuestionId and the option's socialConnectionId and projectId. If it is unclear which one they mean, ask again. These ids are for the tool: never show them to the owner.`;
 }

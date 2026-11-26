@@ -6,6 +6,8 @@ const db = vi.hoisted(() => ({
   turnFindUnique: vi.fn(),
   questionCreate: vi.fn(),
   questionFindFirst: vi.fn(),
+  questionFindUnique: vi.fn(),
+  questionFindUniqueOrThrow: vi.fn(),
   questionUpdateMany: vi.fn(),
 }));
 
@@ -19,6 +21,8 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotAccountQuestion: {
       create: db.questionCreate,
       findFirst: db.questionFindFirst,
+      findUnique: db.questionFindUnique,
+      findUniqueOrThrow: db.questionFindUniqueOrThrow,
       updateMany: db.questionUpdateMany,
     },
   },
@@ -87,8 +91,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   db.connectionFindFirst.mockResolvedValue({ provider: "x" });
   db.connectionFindMany.mockResolvedValue(candidates);
-  db.questionCreate.mockResolvedValue({ id: QUESTION });
+  db.questionCreate.mockResolvedValue({
+    id: QUESTION,
+    optionIds: [COMPANY, PERSONAL],
+  });
   db.questionFindFirst.mockResolvedValue(null);
+  db.questionFindUnique.mockResolvedValue(null);
   db.questionUpdateMany.mockResolvedValue({ count: 1 });
 });
 
@@ -110,16 +118,35 @@ describe("requireChosenSocialDestination", () => {
     });
   });
 
-  it("asks once per turn: a second refusal repeats the same question", async () => {
+  it("asks once per turn: a second refusal repeats the stored question and its options", async () => {
     ownerSays("Write an X post about our launch.");
-    db.questionFindFirst.mockResolvedValueOnce({ id: QUESTION });
-    await expect(check(onPersonal)).rejects.toThrow(QUESTION);
-    expect(db.questionCreate).not.toHaveBeenCalled();
-    expect(db.questionFindFirst.mock.calls[0]?.[0].where).toMatchObject({
-      turnId: "turn-now",
-      provider: "x",
-      optionIds: { equals: [COMPANY, PERSONAL] },
+    db.questionFindUnique.mockResolvedValueOnce({
+      id: QUESTION,
+      optionIds: [PERSONAL, COMPANY],
     });
+    const refusal = check(onPersonal);
+    await expect(refusal).rejects.toThrow(
+      new RegExp(`Account question ${QUESTION}.*@pat .*@acme_hq `),
+    );
+    expect(db.questionCreate).not.toHaveBeenCalled();
+    expect(db.questionFindUnique.mock.calls[0]?.[0].where).toEqual({
+      turnId_provider: { turnId: "turn-now", provider: "x" },
+    });
+  });
+
+  it("two refusals at once share one question: the one that loses the unique key reuses the winner", async () => {
+    ownerSays("Write an X post about our launch.");
+    db.questionCreate.mockRejectedValueOnce(
+      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+    );
+    const WINNER = "01960001-0001-7001-8001-0000000000f2";
+    db.questionFindUniqueOrThrow.mockResolvedValueOnce({
+      id: WINNER,
+      optionIds: [COMPANY, PERSONAL],
+    });
+    await expect(check(onCompany)).rejects.toThrow(
+      `Account question ${WINNER}`,
+    );
   });
 
   it("skips the question when the request names the account or its only-account Project", async () => {

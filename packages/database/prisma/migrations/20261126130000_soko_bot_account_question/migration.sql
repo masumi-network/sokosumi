@@ -14,6 +14,9 @@ CREATE TABLE "soko_bot_account_question" (
 );
 
 -- CreateIndex
+CREATE UNIQUE INDEX "soko_bot_account_question_turnId_provider_key" ON "soko_bot_account_question"("turnId", "provider");
+
+-- CreateIndex
 CREATE INDEX "soko_bot_account_question_sokoBotId_createdAt_idx" ON "soko_bot_account_question"("sokoBotId", "createdAt" DESC);
 
 -- AddForeignKey
