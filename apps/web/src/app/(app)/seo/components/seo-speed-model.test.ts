@@ -213,6 +213,24 @@ it("keeps for the research panel the measurements that the speed table does not 
   expect(
     seoSpeedOutsideTable([redirected], { rows: [{ devices: [own] }] }),
   ).toEqual([redirected]);
+  // Review pass 27: the table shows the report's own read of an audited page with no redirect; the audit's
+  // measured lab read of that page has the same page, device and tested URL, and stays.
+  const audited = seoTestSpeedDevice({
+    pageUrl: "https://example.com/pricing",
+    testedUrl: "https://example.com/pricing",
+    lab: lab({ lcp: 1800, cls: 0.02 }),
+  });
+  const report = { ...audited, lab: { status: "quota" as const } };
+  expect(
+    seoSpeedOutsideTable([audited], { rows: [{ devices: [report] }] }),
+  ).toEqual([audited]);
+  // A copy of the shown read in another key order is the same read: it is hidden.
+  const copy = Object.fromEntries(
+    Object.entries(audited).reverse(),
+  ) as typeof audited;
+  expect(
+    seoSpeedOutsideTable([audited], { rows: [{ devices: [copy] }] }),
+  ).toEqual([]);
 });
 
 it("calls a small change steady and a slower INP worse", () => {
