@@ -6,6 +6,8 @@ export const COMPETITOR_CHECK_MODEL = SMALL_MODEL;
 
 /** One structured answer from the check's model, with what it cost. */
 export type AskCompetitorModel = <T>(input: {
+  /** What the check is, as the model-call ledger records it. */
+  label: string;
   system: string;
   prompt: string;
   schema: z.ZodType<T>;

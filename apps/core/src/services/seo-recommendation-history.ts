@@ -1,5 +1,6 @@
 import type { ProjectSeoObservation } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import type { z } from "zod";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
 import prisma from "@/lib/db/prisma";
@@ -58,7 +59,7 @@ export async function loadSeoReviewHistory(
   const seen = visible.filter((o) => o.kind === "audit_full").map((o) => o.id);
   return prisma.$queryRaw<DecisionObservation[]>`
     WITH eligible AS NOT MATERIALIZED (
-      SELECT o.id,o."observedAt",o."createdAt" FROM project_seo_observation o
+      SELECT o.id,o."observedAt",o."createdAt" FROM ${sharedTable("project_seo_observation")} o
       WHERE ${owner} AND o."ownerId" IS NULL AND o.kind='audit_full'
         AND o."pageIds" && ${pageIds}::uuid[] AND o.payload->'reviewSources'->0 IS NOT NULL ${end}
     ), recent_candidates AS (
@@ -72,7 +73,7 @@ export async function loadSeoReviewHistory(
     SELECT o.id,o."projectId",o."auditId",o."ownerId",o."scopeVersion",o."pageIds",o."observedAt",o."createdAt",
       CASE WHEN (SELECT count(*) FROM recent_candidates) > ${SEO_RESULT_LIMIT} THEN (SELECT min("observedAt") FROM recent) END AS "continuousSince",
       (SELECT jsonb_object_agg(field,o.payload->field) FROM unnest(${fields}::text[]) AS k(field) WHERE o.payload ? field) AS payload
-    FROM project_seo_observation o JOIN (SELECT id FROM recent UNION SELECT id FROM tracked) chosen USING (id)
+    FROM ${sharedTable("project_seo_observation")} o JOIN (SELECT id FROM recent UNION SELECT id FROM tracked) chosen USING (id)
     WHERE NOT (o.id=ANY(${seen}::uuid[]))`;
 }
 

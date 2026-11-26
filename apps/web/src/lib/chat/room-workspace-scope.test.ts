@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   isListedInWorkspace,
+  isOwnedByWorkspace,
   isRoomOfWorkspace,
   isShownInEveryWorkspace,
   type RoomWorkspaceScope,
@@ -141,5 +142,38 @@ describe("isListedInWorkspace", () => {
     expect(isRoomOfWorkspace({ ...channel({}), ...pinned }, "org-3")).toBe(
       false,
     );
+  });
+});
+
+describe("isOwnedByWorkspace", () => {
+  it.each([
+    ["its Organization's channel", channel({}), "org-1"],
+    [
+      "a workspace-less Direct in the personal workspace",
+      direct({ organizationId: null }),
+      null,
+    ],
+  ])("owns %s", (_name, room, workspaceId) => {
+    expect(isOwnedByWorkspace(room, workspaceId)).toBe(true);
+  });
+
+  it.each([
+    [
+      "an External channel hosted by another Organization",
+      channel({ discoverability: "external" }),
+      "org-2",
+    ],
+    [
+      "an External channel, from the personal workspace",
+      channel({ discoverability: "external" }),
+      null,
+    ],
+    [
+      "a workspace-less Direct, from an Organization's workspace",
+      direct({ organizationId: null }),
+      "org-1",
+    ],
+  ])("does not own %s", (_name, room, workspaceId) => {
+    expect(isOwnedByWorkspace(room, workspaceId)).toBe(false);
   });
 });

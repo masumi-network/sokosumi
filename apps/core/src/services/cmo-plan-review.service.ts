@@ -10,6 +10,7 @@ import {
   CMO_V20_STRATEGY_SKILL,
   CMO_V21_STRATEGY_SKILL,
   CMO_V22_STRATEGY_SKILL,
+  cmoWritesStrategyStep,
   type MarketingStrategyPlan,
 } from "@sokosumi/soko-bot";
 import {
@@ -18,6 +19,7 @@ import {
   type CmoNetworkRate,
   cmoJargonIn,
   cmoNetworkMonth,
+  cmoShapedVideoTarget,
   cmoShortVideoFormat,
   isCmoShortVideoFormat,
 } from "@sokosumi/utils";
@@ -354,10 +356,6 @@ export function cmoPlanProblems(
   );
   if (cmoShowsExamples(strategy)) {
     problems.push(...cmoExampleProblems(strategy, options));
-    if (pieces.some((entry) => entry.draft))
-      problems.push(
-        "the strategy holds drafts; leave them out, Core makes every post after the owner approves and pays.",
-      );
     problems.push(...storyProblems(pieces, options.claims === true));
     problems.push(...repeatedTitles(pieces));
   } else if (pieces.length > 0) {
@@ -367,10 +365,6 @@ export function cmoPlanProblems(
     if (formats.size < MIN_FORMATS)
       problems.push(
         `calendar uses ${formats.size} formats; use at least ${MIN_FORMATS}.`,
-      );
-    if (pieces.some((entry) => entry.draft))
-      problems.push(
-        "the strategy holds drafts; leave them out, you make every piece after the owner approves and pays.",
       );
     const hedged = pieces.filter((entry) =>
       /\b(check|read|compare)\b[^.!?\n]{0,30}\b(details|product page|fit details)\b/i.test(
@@ -486,6 +480,11 @@ export interface PlanReviewOptions {
    * its own rules whatever the version.
    */
   examplesOnly?: boolean;
+  /**
+   * Core writes the strategy in one step, checks it whole and repairs it
+   * once (cmo-v25): no finish or fix turns follow its strategy turns.
+   */
+  strategyStep?: boolean;
   /** The social networks the Project has connected, which are never left out. */
   connectedNetworks?: readonly string[];
 }
@@ -532,6 +531,7 @@ export function cmoStrategyRules(skills: readonly string[]): PlanReviewOptions {
     pillarFacts,
     industryTopics,
     examplesOnly,
+    strategyStep: cmoWritesStrategyStep(skills),
   };
 }
 
@@ -612,12 +612,14 @@ function askedForNothingProblems(strategy: MarketingStrategyPlan): string[] {
 }
 
 /**
- * The planned networks the Brand Brain shows no profile on, without the
- * "New:" that tells the owner to open the account first.
+ * The planned networks the Brand Brain shows no profile on and the business
+ * has not connected, without the "New:" that tells the owner to open the
+ * account first. A connected network is never "New:" (cmo-v14's skill).
  */
 export function cmoNewNetworkProblems(
   strategy: MarketingStrategyPlan,
   brain: BrandBrain,
+  connected: readonly string[] = [],
 ): string[] {
   const found = [
     ...(brain.channels ?? []),
@@ -627,7 +629,8 @@ export function cmoNewNetworkProblems(
   const unmarked = strategy.channels
     .filter((channel) => {
       const key = channel.channel.toLowerCase();
-      if (!CMO_LIVE_NETWORKS.includes(key)) return false;
+      if (!CMO_LIVE_NETWORKS.includes(key) || connected.includes(key))
+        return false;
       const known = [key, names[key]?.name.toLowerCase() ?? key];
       if (key === "x") known.push("twitter", "x (twitter)");
       return (
@@ -1478,16 +1481,20 @@ export const CMO_WEEKLY_EXTRA_REVIEWS = 4;
 /**
  * Whether a piece goes out on a network: its own, or one its talking video
  * is also shown on. Counted there too, so a network that takes only video
- * (YouTube) meets its cadence through the month's shared videos.
+ * (YouTube) meets its cadence through the month's shared videos. A shaped
+ * target (`instagram_feed`) goes out on its network (Instagram).
  */
-function goesOutOn(
+export function goesOutOn(
   entry: MarketingStrategyPlan["calendar"][number],
   channel: string,
 ): boolean {
   const key = channel.toLowerCase();
   return (
     entry.channel.toLowerCase() === key ||
-    (entry.alsoOn ?? []).some((network) => network.toLowerCase() === key)
+    (entry.alsoOn ?? []).some((name) => {
+      const network = name.toLowerCase();
+      return (cmoShapedVideoTarget(network)?.channel ?? network) === key;
+    })
   );
 }
 
@@ -1821,6 +1828,71 @@ function cadenceParts(
 }
 
 /**
+ * How far the calendar's approaches and pillars would sit from the plan's
+ * shares without one piece, summed: counts kept as pieces go, so a cut of a
+ * hundred pieces stays cheap.
+ */
+function shareDrifts(
+  plan: Pick<MarketingStrategyPlan, "mix" | "pillars">,
+  calendar: readonly Pick<
+    MarketingStrategyPlan["calendar"][number],
+    "approach" | "pillar"
+  >[],
+) {
+  const shares = [
+    ...plan.mix.map((part) => ({
+      key: `a:${part.approach}`,
+      share: part.share,
+    })),
+    ...plan.pillars.map((pillar) => ({
+      key: `p:${pillar.name}`,
+      share: pillar.share,
+    })),
+  ];
+  const keys = (
+    entry: Pick<
+      MarketingStrategyPlan["calendar"][number],
+      "approach" | "pillar"
+    >,
+  ) => [`a:${entry.approach}`, `p:${entry.pillar}`];
+  const counts = new Map<string, number>();
+  for (const entry of calendar)
+    for (const key of keys(entry)) counts.set(key, (counts.get(key) ?? 0) + 1);
+  let total = calendar.length;
+  return {
+    without(
+      entry: Pick<
+        MarketingStrategyPlan["calendar"][number],
+        "approach" | "pillar"
+      >,
+    ): number {
+      if (total <= 1) return 0;
+      const gone = keys(entry);
+      return shares.reduce(
+        (sum, { key, share }) =>
+          sum +
+          Math.abs(
+            ((counts.get(key) ?? 0) - (gone.includes(key) ? 1 : 0)) /
+              (total - 1) -
+              share / 100,
+          ),
+        0,
+      );
+    },
+    drop(
+      entry: Pick<
+        MarketingStrategyPlan["calendar"][number],
+        "approach" | "pillar"
+      >,
+    ) {
+      for (const key of keys(entry))
+        counts.set(key, (counts.get(key) ?? 0) - 1);
+      total -= 1;
+    },
+  };
+}
+
+/**
  * A changed cadence carried into the plan: the funnel's plays that said the
  * old cadence say the new one, and a calendar now over it loses its latest
  * unwritten pieces from its busiest days. A change once lowered X to two
@@ -1858,6 +1930,7 @@ export function cmoFollowCadenceChange(
     }),
   }));
   const dropped = new Set<string>();
+  const drifts = shareDrifts(plan, plan.calendar);
   for (const { key, high } of changed) {
     const count = plan.calendar.filter((entry) => goesOutOn(entry, key)).length;
     const removable = plan.calendar.filter(
@@ -1874,16 +1947,21 @@ export function cmoFollowCadenceChange(
       for (const entry of removable)
         if (!dropped.has(entry.id))
           perDay.set(entry.date, (perDay.get(entry.date) ?? 0) + 1);
-      const busiest = Math.max(0, ...perDay.values());
+      // The piece whose going keeps the mix and pillars nearest their
+      // shares, then the busiest day's latest.
       const last = removable
-        .filter(
-          (entry) =>
-            !dropped.has(entry.id) && perDay.get(entry.date) === busiest,
-        )
-        .sort((a, b) =>
-          `${b.date}${b.time ?? ""}`.localeCompare(`${a.date}${a.time ?? ""}`),
-        )[0];
+        .filter((entry) => !dropped.has(entry.id))
+        .map((entry) => ({ entry, drift: drifts.without(entry) }))
+        .sort(
+          (a, b) =>
+            a.drift - b.drift ||
+            (perDay.get(b.entry.date) ?? 0) - (perDay.get(a.entry.date) ?? 0) ||
+            `${b.entry.date}${b.entry.time ?? ""}`.localeCompare(
+              `${a.entry.date}${a.entry.time ?? ""}`,
+            ),
+        )[0]?.entry;
       if (!last) break;
+      drifts.drop(last);
       dropped.add(last.id);
     }
   }
@@ -2412,6 +2490,7 @@ export function cmoRejectedTerms(
   const known = rejectedByTurn.get(turnId);
   if (known) return known.then((found) => ({ ...found, costUsd: 0 }));
   const asked = ask({
+    label: "cmo-rejected-terms",
     system:
       "You read a business owner's request to their marketing lead and list what the owner says is not true or no longer wanted, as the words a marketing plan would use for it.",
     prompt: [
@@ -2566,6 +2645,7 @@ export async function cmoDistinctClaims(
   const answers = await Promise.all(
     batches.map((batch) =>
       ask({
+        label: "cmo-distinct-claims",
         system:
           "You give pieces of a marketing month their own point. Each claim is one short sentence in plain words a reader can agree or disagree with, in the language of the claims below, specific to the piece's title and brief. Use only facts the piece's title, brief and old claim state: never add a customer, a number, a quote or a result they do not name.",
         prompt: [
@@ -2625,6 +2705,7 @@ async function samePoint(
   const key = (index: number) => `c${index}`;
   try {
     const { output, costUsd } = await ask({
+      label: "cmo-same-point",
       system:
         "You read a marketing month's claims and find the points it makes too often. Two claims make the same point when a reader would say they say one thing, whatever the words or the network.",
       prompt: [
@@ -2699,6 +2780,7 @@ export async function cmoSpreadPoints(
   const answers = await Promise.all(
     batches.map((batch) =>
       ask({
+        label: "cmo-spread-points",
         system:
           "You move pieces of a marketing month onto points of their own. For each piece write a new title (at most 10 words, sentence case), a one-line brief and a claim (one short sentence in plain words a reader can agree or disagree with), within its pillar and its approach, in the language of its title. Use only the facts listed: never add a customer, a number, a quote or a result they do not name, and never build a piece on a complaint or a critical review of the business.",
         prompt: [
@@ -2896,6 +2978,7 @@ export async function cmoPillarFacts(
 ): Promise<{ pillars: CmoPillarFacts[]; costUsd: number }> {
   if (strategy.pillars.length === 0) return { pillars: [], costUsd: 0 };
   const answer = await ask({
+    label: "cmo-pillar-facts",
     system: [
       "You check a marketing plan's content pillars against what the business can actually say.",
       'First list the distinct facts in the Brand Brain a post could rest on: what the product does, a feature by its name, a price or plan, a number, a customer, a dated event, the founder\'s story, an audience it serves. List each once: one thing said in several places, or in other words, is one fact. A reassurance or trust line ("you approve what goes live", "no credit card needed") counts once at most. At most 40 facts, each at most 15 words.',
@@ -2965,6 +3048,7 @@ export async function cmoTopicPillarFacts(
 ): Promise<{ pillars: CmoPillarFacts[]; costUsd: number }> {
   if (strategy.pillars.length === 0) return { pillars: [], costUsd: 0 };
   const answer = await ask({
+    label: "cmo-topic-pillar-facts",
     system: [
       "You check a marketing plan's content pillars against research into the buyers' industry.",
       "For each pillar, by its id (p1, p2, …), give the ids of the research items (i1, i2, …) its posts could rest on: only items about that pillar's own topic, not items that could be squeezed in.",

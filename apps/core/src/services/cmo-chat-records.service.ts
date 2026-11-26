@@ -1,4 +1,5 @@
 import type { SokoBotTurnStatus } from "@sokosumi/database";
+import { isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { plainExcerpt } from "@/helpers/job-digest";
 import prisma from "@/lib/db/prisma";
@@ -242,7 +243,14 @@ async function listRuns(cuso: Target): Promise<CmoChatRecord[]> {
       },
     },
   });
-  return runs.map((run) => {
+  // A run that finished with nothing to say ("Nothing to add.") delivered
+  // through its own cards: a "Done" card for it says nothing.
+  const told = runs.filter(
+    (run) =>
+      run.status !== "COMPLETED" ||
+      !isSokoBotSilentAnswer(report(run.finalAnswer)),
+  );
+  return told.map((run) => {
     const state = runState(run.status);
     const words = state === "ready" ? report(run.finalAnswer) : null;
     const plan = planSchema.safeParse(run.toolCalls[0]?.input);

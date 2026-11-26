@@ -7,6 +7,7 @@ import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { ArrowUp, CalendarDays } from "lucide-react";
 import { useCallback, useRef, useState, useTransition } from "react";
+import { useAnalytics, useAppEvents } from "../../hooks/effects/use-analytics";
 import { useCmoAppInitialUrl } from "../../hooks/effects/use-cmo-app-initial-url";
 import { useCmoAppPoll } from "../../hooks/effects/use-cmo-app-poll";
 import { useEventListener } from "../../hooks/effects/use-event-listener";
@@ -19,7 +20,7 @@ import { pageLead } from "../../lib/page-lead";
 import {
   productionShare,
   productionSteps,
-  retryWhen,
+  stoppedNote,
   withoutPictureLine,
 } from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
@@ -27,7 +28,7 @@ import { buildThread, type ThreadItem } from "../../lib/thread";
 import { monthMade, needsYou } from "../../lib/today";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
-import { CusoAvatar, type Pose } from "../cuso";
+import { CusoFace } from "../cuso";
 import { HowIGotHere, Working } from "../cuso-trace";
 import { LocalStamp } from "../local-day";
 import { StatusText } from "../status";
@@ -45,7 +46,6 @@ import {
 } from "./cards";
 import { MadeInChat } from "./chat-work";
 import { type CompetitorActions, CompetitorsPage } from "./competitors-page";
-import { cusoMood } from "./cuso-status";
 import type { DraftActions, DraftResult, TikTokSettings } from "./draft-post";
 import { MessageText } from "./message-text";
 import { PageLead } from "./page-lead";
@@ -257,9 +257,11 @@ export function CmoApp({
   plans = [],
   manyCusos = false,
   mayHire = false,
-  actions,
+  actions: untracked,
 }: CmoAppProps) {
   const [overview, setOverview] = useState(initialOverview);
+  useAnalytics(overview);
+  const actions = useAppEvents(untracked, overview);
   const [messages, setMessages] = useState(initialMessages);
   const [work, setWork] = useState(initialWork);
   const [nav, setNav] = useState({
@@ -339,9 +341,7 @@ export function CmoApp({
   const threadLength = thread.length;
   // What Cuso is doing sits under the thread, so it scrolls into view too.
   const working =
-    overview.botStatus === "RUNNING"
-      ? `${overview.activity?.step}\n${overview.activity?.reasoning}`
-      : null;
+    overview.botStatus === "RUNNING" ? (overview.activity?.step ?? "") : null;
   useScrollIntoViewWhen(end, view === "chat" && threadLength > 0, {
     block: "end",
     resetKey: `${threadLength}:${working === null ? "idle" : `busy:${working}`}`,
@@ -496,7 +496,7 @@ export function CmoApp({
                   />
                 ))}
                 {overview.botStatus === "RUNNING" ? (
-                  <CusoSays pose="thinking">
+                  <CusoSays>
                     <Working activity={overview.activity} />
                   </CusoSays>
                 ) : null}
@@ -727,7 +727,6 @@ export function CmoApp({
         view={view}
         onSelect={go}
         needs={needsYou(overview).length}
-        pose={cusoMood(overview).art}
         manyCusos={manyCusos}
         signOut={actions.signOut}
       />
@@ -995,7 +994,7 @@ function ProductionCard({
           : planning
             ? "He plans every post your plan makes, topic by topic, then makes them. This takes a few minutes."
             : production.state === "stuck"
-              ? `${productionSteps(production, month.total)}. His last try made nothing new, so he tries the rest again ${retryWhen(production.retryAt, timeZone)}.`
+              ? stoppedNote(production, month.total, timeZone)
               : production.state === "blocked"
                 ? "Something on our side keeps him from starting. He tries again every ten minutes."
                 : notStarted
@@ -1018,15 +1017,13 @@ function ProductionCard({
 
 interface CusoSaysProps {
   at?: string;
-  /** Working shows him thinking; everything else he has already said. */
-  pose?: Pose;
   children: React.ReactNode;
 }
 
-function CusoSays({ at, pose = "done", children }: CusoSaysProps) {
+function CusoSays({ at, children }: CusoSaysProps) {
   return (
     <div className="msg">
-      <CusoAvatar pose={pose} size={36} />
+      <CusoFace size={36} />
       <div className="mbody">
         <MessageMeta author={AGENT_NAME} at={at} />
         {children}

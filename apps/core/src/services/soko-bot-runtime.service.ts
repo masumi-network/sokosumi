@@ -100,6 +100,12 @@ export interface SokoBotActionContext {
     actingUserId: string | null;
     /** The member who asked (ADR 0057); null when the bot started on its own. */
     requestedByUserId: string | null;
+    /** The user who authored the triggering chat message, when applicable. */
+    askedByUserId?: string | null;
+    /** Parent turn id when this turn is a child run (background run, wake, etc.). */
+    parentTurnId?: string | null;
+    /** The bot's pinned Project id when it is a Project bot (such as Cuso). */
+    botProjectId?: string | null;
     workspaceId: string;
     eveSessionId: string | null;
     // Required, not optional: both were silently dropped from authorize()'s
@@ -123,6 +129,8 @@ export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
   toolCallLimit: number;
   askedByKind?: SokoBotPacketAudience;
   reader: SokoBotTurnReader;
+  /** Jev's complexity label for a chat turn; Core-started turns have none. */
+  complexity?: string;
 }
 
 /**
@@ -178,6 +186,9 @@ export class SokoBotRefusedUnsentError extends SokoBotRuntimeValidationError {}
 
 /** The studio refused an image before sending it: nothing happened. */
 export class SokoBotImageRefusedError extends SokoBotRefusedUnsentError {}
+
+/** The tool's feature is off for this workspace: there is nothing to do. */
+export class SokoBotFeatureOffError extends SokoBotRefusedUnsentError {}
 
 export function isSokoBotDecisionTargetAllowed(
   toolName: string,

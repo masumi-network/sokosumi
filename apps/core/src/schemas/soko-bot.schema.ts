@@ -380,12 +380,58 @@ export const startSokoBotTurnResponseSchema = z
   })
   .openapi("StartSokoBotTurnResponse");
 
+const stopRuleEndsOnSchema = z
+  .preprocess(
+    (val) => (val instanceof Date ? val.toISOString() : val),
+    z.iso.datetime({ offset: true }),
+  )
+  .openapi({
+    example: "2026-12-31T23:59:59+01:00",
+    format: "date-time",
+  });
+
+export const sokoBotScheduleStopRuleInputSchema = z
+  .discriminatedUnion("mode", [
+    z.object({ mode: z.literal("never") }).strict(),
+    z
+      .object({
+        mode: z.literal("ends_on"),
+        scheduleId: z.string().trim().min(1).max(120).optional(),
+        endsOn: stopRuleEndsOnSchema,
+      })
+      .strict(),
+    z
+      .object({
+        mode: z.literal("ends_after_runs"),
+        scheduleId: z.string().trim().min(1).max(120).optional(),
+        maxRuns: z.number().int().min(1).max(10_000),
+      })
+      .strict(),
+    z
+      .object({
+        mode: z.literal("when_target_settled"),
+        scheduleId: z.string().trim().min(1).max(120).optional(),
+        targetKind: z.enum(["task", "job"]),
+        targetId: z.string().trim().min(1).max(120),
+      })
+      .strict(),
+    z
+      .object({
+        mode: z.literal("owner_authorized_stop"),
+        scheduleId: z.string().trim().min(1).max(120).optional(),
+        condition: z.string().trim().min(1).max(300),
+      })
+      .strict(),
+  ])
+  .openapi("SokoBotScheduleStopRuleInput");
+
 export const createSokoBotScheduleRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(120),
     timezone: z.string().trim().min(1).max(100),
     cronExpression: z.string().trim().min(1).max(120),
     prompt: z.string().trim().min(1).max(20_000),
+    stopRule: sokoBotScheduleStopRuleInputSchema.optional(),
   })
   .strict()
   .openapi("CreateSokoBotScheduleRequest");
@@ -397,6 +443,7 @@ export const updateSokoBotScheduleRequestSchema = z
     timezone: z.string().trim().min(1).max(100).optional(),
     cronExpression: z.string().trim().min(1).max(120).optional(),
     prompt: z.string().trim().min(1).max(20_000).optional(),
+    stopRule: sokoBotScheduleStopRuleInputSchema.optional(),
     run: z
       .object({
         originalAt: dateTimeSchema.openapi({
@@ -470,15 +517,39 @@ export const adminSokoBotListItemSchema = z
     pendingDecisionCount: z.number().int().nonnegative(),
     scheduleCount: z.number().int().nonnegative(),
     owner: z.union([adminSokoBotOwnerSchema, z.null()]),
+    /** One of our eval lanes' bots, not a customer's. */
+    evalLane: z.boolean(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })
   .openapi("AdminSokoBotListItem");
 
+/** Whether eval-lane bots count: left out by default, so totals are customers'. */
+export const adminEvalBotsFilterSchema = z
+  .enum(["exclude", "include", "only"])
+  .default("exclude")
+  .describe(
+    "Leave eval-lane bots out (default), include them, or show only them.",
+  );
+
+/** The fleet's counters over every bot the filter keeps, not one page. */
+export const adminSokoBotFleetSummarySchema = z
+  .object({
+    active: z.number().int().nonnegative(),
+    /** Active bots that did something in the last 7 days. */
+    activeRecently: z.number().int().nonnegative(),
+    pendingDecisions: z.number().int().nonnegative(),
+    /** Active bots that need an operator, most recently active first (≤ 50). */
+    attention: z.array(adminSokoBotListItemSchema),
+    attentionTotal: z.number().int().nonnegative(),
+  })
+  .openapi("AdminSokoBotFleetSummary");
+
 export const adminSokoBotListSchema = z
   .object({
     items: z.array(adminSokoBotListItemSchema),
     total: z.number().int().nonnegative(),
+    summary: adminSokoBotFleetSummarySchema,
   })
   .openapi("AdminSokoBotList");
 
@@ -696,8 +767,12 @@ export const adminSokoBotFleetDaysSchema = z
         messages: z.number().int(),
         turns: z.number().int(),
         totalTokens: z.number(),
+        /** Turn cost of customers' Soko Bots; eval lanes and lab runs left out. */
         costUsd: z.number(),
+        /** Turn cost of customers' Cusos (CMO.xyz); eval lanes and lab runs left out. */
         cmoCostUsd: z.number(),
+        /** Turn cost of eval-lane and behaviour-lab turns, both lines. */
+        evalCostUsd: z.number(),
       }),
     ),
   })
@@ -705,6 +780,7 @@ export const adminSokoBotFleetDaysSchema = z
 
 export const adminCmoSpendQuerySchema = z.object({
   days: z.coerce.number().int().min(1).max(365).default(30),
+  evals: adminEvalBotsFilterSchema,
 });
 
 export const adminCmoSpendSchema = z
@@ -714,6 +790,8 @@ export const adminCmoSpendSchema = z
       z.object({
         sokoBotId: z.string(),
         businessName: z.string(),
+        /** One of our eval lanes' Cusos, not a customer's. */
+        evalLane: z.boolean(),
         ownerEmail: z.string(),
         turns: z.number().int(),
         totalUsd: z.number(),

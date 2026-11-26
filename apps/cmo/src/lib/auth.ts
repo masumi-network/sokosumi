@@ -1,10 +1,6 @@
-import {
-  getUsersById,
-  type SignUpContext,
-  type User,
-} from "@sokosumi/core-client";
+import { getUsersById, type SignUpContext } from "@sokosumi/core-client";
 import { type Client, createClient } from "@sokosumi/core-client/client";
-import { joinFirstAndLastName, OAUTH_PROVIDER_SCOPES } from "@sokosumi/utils";
+import { OAUTH_PROVIDER_SCOPES } from "@sokosumi/utils";
 import type { AuthContext, BetterAuthPlugin } from "better-auth";
 import {
   APIError,
@@ -25,6 +21,7 @@ import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { unstable_rethrow } from "next/navigation";
 
 import { type CmoAuthConfig, readCmoAuthConfig } from "./auth-config";
+import { personName } from "./person-name";
 import { CMO_SIGN_IN_ERROR } from "./sign-in-errors";
 import { SIGNED_OUT_COOKIE } from "./signed-out";
 
@@ -66,7 +63,8 @@ function sokosumiSignInBody(
       : undefined;
   return {
     provider: SOKOSUMI_OAUTH_PROVIDER_ID,
-    callbackURL: "/",
+    // The app sends GA4 sign_up or login once it sees the marker.
+    callbackURL: "/?signed_in=1",
     errorCallbackURL: "/",
     ...(additionalParams ? { additionalParams } : {}),
   };
@@ -146,14 +144,6 @@ const recordUnansweredRefreshes = {
     };
   },
 } satisfies BetterAuthPlugin;
-
-/** The person's full name, or their display name when Sokosumi has no parts. */
-function personName(user: User): string {
-  return (
-    joinFirstAndLastName(user.firstName ?? "", user.lastName ?? "") ||
-    user.name.trim()
-  );
-}
 
 const coreClients = new Map<string, Client>();
 
@@ -497,6 +487,8 @@ export async function sokosumiSignInRedirect(
     const signUpContext: Record<string, string> = {};
     if (options.createAccount) {
       for (const [key, value] of new URL(request.url).searchParams) {
+        // GA4's cross-domain linker (`_gl`) is not part of the sign-up.
+        if (key === "_gl") continue;
         // Own keys only: `constructor` is inherited from Object.prototype.
         if (!Object.hasOwn(signUpContext, key)) signUpContext[key] = value;
       }

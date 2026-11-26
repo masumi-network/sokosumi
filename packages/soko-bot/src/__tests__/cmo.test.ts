@@ -15,7 +15,9 @@ import {
   SOKO_BOT_CMO_SCHEDULES,
 } from "../cmo.js";
 import {
+  isSokoBotCmoReadCapability,
   SOKO_BOT_CMO_CAPABILITIES,
+  SOKO_BOT_CMO_READ_CAPABILITIES,
   SOKO_BOT_COMPETITOR_CAPABILITIES,
 } from "../policy.js";
 import {
@@ -183,7 +185,7 @@ describe("CMO version", () => {
 
   // Owner, 2026-11-23: this week's changes in one version, the live test a rehire.
   it("makes cmo-v20 the version a new hire gets", () => {
-    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v20");
+    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v23");
   });
 
   it("has cmo-v8 build on cmo-v7 with claims, varied pictures and LinkedIn openings", () => {
@@ -428,7 +430,8 @@ describe("CMO version", () => {
   });
 
   it("gives CMO tools to Cuso on every route and to nobody else", () => {
-    const cmo = getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID);
+    // A version before the organized context, whose packet holds the reads.
+    const cmo = getSokoBotVersion("cmo-v22");
     const assistant = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
     // Cuso also always carries the competitor tools, routed or not, once.
     for (const routed of [
@@ -437,9 +440,19 @@ describe("CMO version", () => {
     ])
       expect(applyVersionCapabilities(cmo, routed)).toEqual([
         "read_memory",
-        ...SOKO_BOT_CMO_CAPABILITIES,
+        ...SOKO_BOT_CMO_CAPABILITIES.filter(
+          (capability) =>
+            !isSokoBotCmoReadCapability(capability) &&
+            capability !== "write_strategy",
+        ),
         ...SOKO_BOT_COMPETITOR_CAPABILITIES,
       ]);
+    // Only a version with an organized context reads the rest on demand.
+    expect(
+      applyVersionCapabilities(getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID), [
+        "read_memory",
+      ]),
+    ).toEqual(expect.arrayContaining([...SOKO_BOT_CMO_READ_CAPABILITIES]));
     // Another bot gets them only from its route; Core then asks whether a
     // Project it works in has the weekly check on.
     expect(
@@ -921,6 +934,46 @@ describe("CMO scenarios", () => {
       ),
     );
     expect(result.checks.filter((check) => !check.pass)).toEqual([]);
+  });
+});
+
+describe("a strategy change with more work", () => {
+  const scenario = CMO_SCENARIOS.find(
+    (entry) => entry.id === "cmo-change-then-drafts",
+  );
+  const turn = (drafts: number) => ({
+    status: "COMPLETED",
+    route: "MANAGE_WORK",
+    finalAnswer: "LinkedIn is weekly now, and three X drafts wait for you.",
+    toolCalls: [
+      { capability: "write_strategy", status: "COMPLETED", result: {} },
+      { capability: "save_strategy", status: "COMPLETED", result: {} },
+      ...Array.from({ length: drafts }, () => ({
+        capability: "create_social_post",
+        status: "COMPLETED",
+        result: {},
+      })),
+    ],
+    events: [],
+    delegations: [],
+    decisions: [],
+  });
+
+  it("fails a turn that ends after the strategy change", () => {
+    if (!scenario) throw new Error("missing scenario");
+    const failed = evaluateScenario(scenario, turn(0)).checks.filter(
+      (check) => !check.pass,
+    );
+    expect(failed.map((check) => check.label)).toEqual([
+      "Completes create_social_post at least 3 times",
+    ]);
+  });
+
+  it("passes the change and three saved drafts", () => {
+    if (!scenario) throw new Error("missing scenario");
+    expect(
+      evaluateScenario(scenario, turn(3)).checks.filter((check) => !check.pass),
+    ).toEqual([]);
   });
 });
 

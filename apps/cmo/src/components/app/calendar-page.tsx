@@ -21,7 +21,8 @@ import {
   formatHasVideo,
   formatName,
 } from "../../lib/channels";
-import { monthLabel } from "../../lib/strategy";
+import { planningLine } from "../../lib/production";
+import { monthAdCount } from "../../lib/strategy";
 import { dayIn, monthMade, waitingLine } from "../../lib/today";
 import { ChannelIcon } from "../channel-icon";
 import { EntrySheet } from "../entry-sheet";
@@ -219,6 +220,7 @@ export function CalendarPage({
   const waits = waitingLine(overview);
   // Posts only, the count Today and the chat say; ads are counted apart.
   const { ready, total } = monthMade(overview);
+  const ads = monthAdCount(live);
   const readable = shown.filter(made);
   const index = readable.findIndex((entry) => entry.id === openId);
   const open = index >= 0 ? readable[index] : undefined;
@@ -228,8 +230,13 @@ export function CalendarPage({
       {waiting}
       <div className="card cal-head">
         <p className="note num">
-          {monthLabel(live)} this month · {ready} ready
-          {ready < total ? ` · ${total - ready} being made` : ""}
+          {planningLine(overview.production) ?? (
+            <>
+              {ready} ready
+              {ready < total ? ` · ${total - ready} being made` : ""}
+            </>
+          )}
+          {ads > 0 ? ` · ${ads === 1 ? "1 ad" : `${ads} ads`}` : ""}
           {beyond.size > 0
             ? ` · ${beyond.size} more with a bigger plan, in Settings`
             : ""}

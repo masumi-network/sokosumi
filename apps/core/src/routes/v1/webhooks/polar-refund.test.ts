@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { PrismaRaw } from "@sokosumi/database/client";
 import { ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -171,9 +172,13 @@ describe("POST /v1/webhooks/polar on order.refunded", () => {
     const response = await post();
 
     expect(response.status).toBe(200);
-    const [sql, ...values] = m.prisma.$executeRaw.mock.calls[0] ?? [];
-    expect((sql as string[]).join("?")).toMatch(/INSERT INTO "polar_order"/);
-    expect(values).toEqual(["order_1", new Date("2026-11-20T09:00:00.000Z")]);
+    const [strings, ...values] = m.prisma.$executeRaw.mock.calls[0];
+    const query = PrismaRaw.sql(strings, ...values);
+    expect(query.sql).toContain('INSERT INTO "public"."polar_order"');
+    expect(query.values).toEqual([
+      "order_1",
+      new Date("2026-11-20T09:00:00.000Z"),
+    ]);
     expect(m.prisma.$queryRaw).not.toHaveBeenCalled();
     expect(writeOffs()).toEqual([]);
     expect(m.captureMessage).not.toHaveBeenCalled();

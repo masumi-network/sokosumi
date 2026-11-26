@@ -180,6 +180,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Cambiar espacio de trabajo",
+      "switchOrganization": "Cambiar de organización",
       "personalAccount": "Cuenta personal",
       "organizationsHeading": "Organizaciones",
       "createOrJoinOrganization": "Crear o unirse a una organización",
@@ -2275,7 +2276,7 @@
         },
         "files": "Archivos",
         "assignee": "Responsable",
-        "noAssignee": "Sin responsable",
+        "noAssignee": "Sin asignar",
         "memberFallback": "Miembro",
         "schedule": "Programación",
         "privateSchedule": "Programación privada",
@@ -2367,7 +2368,6 @@
         "untitledTask": "Tarea sin título",
         "saveError": "No se pudo guardar la tarea",
         "createError": "No se pudo crear «{name}». Tus datos siguen en el formulario.",
-        "back": "Atrás",
         "uploadFile": "Subir archivo",
         "uploadFileError": "No se pudo subir el archivo",
         "uploadingFile": "Uploading {fileName}",
@@ -2378,17 +2378,6 @@
         "openRunAt": "Configurar hora de inicio",
         "cancel": "Cancelar",
         "ctrl": "Ctrl",
-        "defaultBadge": "Predeterminado",
-        "modelLabel": "Modelo",
-        "hostingLabel": "Alojado en",
-        "taskStepTitle": "¿Qué debe hacer {name}?",
-        "noAgentsFound": "No se encontraron agentes.",
-        "tasksTitle": "Tareas listas para ejecutar",
-        "startFromScratch": "Empezar desde cero",
-        "startFromScratchHint": "Escribe tus propias instrucciones",
-        "previewExample": "Ver ejemplo",
-        "previewUse": "Usar esta tarea",
-        "previewEmpty": "Aún no hay salida de ejemplo disponible.",
         "taskCreated": "Tarea creada",
         "taskCreatedHint": "{status, select, DRAFT {Está como borrador en Pendiente. Nada empieza hasta que la pases a Listo.} QUEUED {Espera en Pendiente y empieza a la hora que elegiste.} other {Está en Por hacer, lista para empezar.}}",
         "goToTask": "Ir a la tarea",
@@ -2405,6 +2394,27 @@
           "saving": "Guardar la tarea",
           "keepOpen": "Mantén esto abierto hasta que diga Tarea creada."
         }
+      },
+      "Composer": {
+        "titlePlaceholder": "Título de la tarea",
+        "descriptionPlaceholder": "Añadir descripción…",
+        "dialogDescription": "Escribe la tarea, define sus propiedades y créala.",
+        "properties": "Propiedades de la tarea",
+        "assignee": "Responsable",
+        "assignTo": "Asignar a…",
+        "agents": "Agentes",
+        "templates": "Plantillas",
+        "templatesFrom": "Tareas listas de {name}",
+        "previewTemplate": "Vista previa: {title}",
+        "useTemplate": "Usar esta plantilla",
+        "noExample": "Todavía no hay un resultado de ejemplo.",
+        "createMore": "Crear más",
+        "expand": "Ampliar",
+        "collapse": "Reducir",
+        "discardTitle": "¿Descartar esta tarea?",
+        "discardDescription": "Se perderán el título y la descripción que escribiste.",
+        "keepEditing": "Seguir editando",
+        "discard": "Descartar"
       },
       "EditTask": {
         "title": "Editar Task",
@@ -2430,7 +2440,6 @@
         "noCoworkerMatches": "Ningún coworker coincide",
         "untitledTask": "Tarea sin título",
         "saveError": "No se pudo guardar la tarea",
-        "back": "Atrás",
         "uploadFile": "Subir archivo",
         "uploadFileError": "No se pudo subir el archivo",
         "uploadingFile": "Uploading {fileName}",
@@ -2717,7 +2726,7 @@
         "checkingTag": "En revisión",
         "label": "Etiquetas",
         "empty": "Sin etiquetas todavía",
-        "showAll": "Mostrar las {count} etiquetas",
+        "moreTags": "+{count} {count, plural, one {etiqueta más} other {etiquetas más}}",
         "noProject": "Sin proyecto",
         "openProject": "Abrir proyecto: {name}",
         "vocabulary": {
@@ -3783,10 +3792,18 @@
           "document": "DESIGN.md",
           "colors": "Colores",
           "typography": "Tipografía",
-          "frontMatter": "Front matter"
+          "frontMatter": "Front matter",
+          "downloadBrandKit": "Descargar kit de marca",
+          "brandKitFileName": "Kit de marca de {name}",
+          "brandKitArchive": {
+            "failed": "No se pudo descargar el kit de marca. Inténtalo de nuevo.",
+            "partial": "Se descargaron {included} de {total} archivos. No incluido: {names}{more, plural, =0 {} one { y # más} other { y # más}}. Inténtalo de nuevo para añadirlo.",
+            "empty": "Todavía no hay nada que descargar."
+          }
         },
         "bots": {
-          "title": "Bots de este proyecto"
+          "title": "Bots de este proyecto",
+          "empty": "Aún no hay bots para este proyecto. Un bot de proyecto ve las Tasks públicas del proyecto y todos hablan con él en una sala."
         }
       },
       "Newsletter": {
@@ -4695,7 +4712,27 @@
       "slideshowIncludes": "Incluye música y tu logo al final.",
       "costDetailShort": "solo se cobra cuando el vídeo está listo, en un minuto aproximadamente",
       "previewMetaSlideshow": "Sin voz: música y tus frases en pantalla",
-      "aiLabelHintShort": "Este vídeo tiene una voz o música generada. Se etiqueta como generado con IA al publicarlo."
+      "aiLabelHintShort": "Este vídeo tiene una voz o música generada. Se etiqueta como generado con IA al publicarlo.",
+      "shapes": {
+        "label": "Formatos",
+        "hint": "Pagas el primer formato. Cada formato más se corta gratis del mismo vídeo.",
+        "notForKind": "Un recorrido por la web se lee mal en cuadrado.",
+        "previewIn": "Vista previa en",
+        "onStage": "Formatos de este vídeo",
+        "making": "(se está cortando)",
+        "names": {
+          "9:16": "Vertical",
+          "4:5": "Feed",
+          "1:1": "Cuadrado",
+          "16:9": "Panorámico"
+        },
+        "where": {
+          "9:16": "TikTok, Instagram, YouTube",
+          "4:5": "Feed de Instagram y Facebook",
+          "1:1": "X, LinkedIn, Facebook",
+          "16:9": "YouTube, LinkedIn, X"
+        }
+      }
     },
     "Studio": {
       "back": "Volver al proyecto",
@@ -7047,6 +7084,8 @@
           "archived": "Archivado",
           "version": "Versión",
           "showDormant": "Mostrar sin uso y archivados ({count})",
+          "showEvals": "Mostrar bots de evals",
+          "evalBadge": "Eval",
           "chat": "Chat",
           "kindLabel": "Mostrar",
           "kind": {
@@ -7621,8 +7660,10 @@
           "usersTitle": "Personas que escribieron a un Soko Bot",
           "usersSub": "máximo {peak} en {days} días",
           "usersBar": "{day}: {users} personas, {messages} mensajes",
-          "costTitle": "Coste de modelo de Soko Bots",
-          "cmoCostTitle": "Coste de modelo de CMO.xyz",
+          "costTitle": "Coste por turno de Soko Bots",
+          "cmoCostTitle": "Coste por turno de CMO.xyz",
+          "evalCostTitle": "Coste por turno de evals y laboratorio",
+          "costScope": "Coste por turno: el coste de modelo del bucle, el enrutado, el juez y las comprobaciones dentro de un turno. Las lanes de evals y las ejecuciones de laboratorio solo cuentan en Evals. No incluye el trabajo fuera de un turno: las comprobaciones de estilo, sector e imagen de Cuso, el redactor del mes, imágenes y vídeo.",
           "costSub": "{total} en {days} días",
           "costBar": "{day}: {cost}",
           "today": "hoy",
@@ -7633,7 +7674,8 @@
           "turns": "Turnos",
           "tokens": "Tokens",
           "cost": "Soko Bots",
-          "cmoCost": "CMO.xyz"
+          "cmoCost": "CMO.xyz",
+          "evalCost": "Evals"
         },
         "Avatar": {
           "title": "Aspecto",
@@ -7878,6 +7920,9 @@
         "title": "Gasto de CMO",
         "description": "Lo que gastó cada bot CMO en su trabajo, lo que se cobró a su dueño y en qué: cada modelo, búsqueda web, Exa, gastos generales e imágenes.",
         "summary": "{bots, plural, one {# bot CMO gastó} other {# bots CMO gastaron}} {spent} y cobraron {charged} créditos.",
+        "showEvals": "Mostrar Cusos de evals",
+        "hideEvals": "Ocultar Cusos de evals",
+        "evalBadge": "Eval",
         "period": "Periodo",
         "days": "{days} días",
         "empty": "Ningún bot CMO trabajó en este periodo.",
@@ -8055,6 +8100,9 @@
         "trendBarTitle": "{rate} passed ({passed} of {scored})",
         "noRuns": "No eval run yet. Start one, or wait for the weekly run.",
         "wasRate": "was {rate}",
+        "costlier": "Costlier: {cost}, usually {usual}",
+        "slower": "Slower: {minutes} min, usually {usual} min",
+        "usageCounts": "{costlier} costlier, {slower} slower than usual",
         "noCasesMatch": "No case matches this filter.",
         "runTitle": "{trigger} run, {when}",
         "comparedWith": "Compared with the weekly run of {when}",
@@ -8119,6 +8167,9 @@
           "cmo": "CMO",
           "repeats": "Repeats",
           "repeatsHint": "The weekly run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
+          "sokoBotVersion": "Soko Bot version",
+          "cusoVersion": "Cuso version",
+          "defaultVersion": "Default ({version})",
           "cases": "Only these cases",
           "casesPlaceholder": "ambiguous-request, cmo-strategy-cal-com",
           "casesHint": "Leave empty to run every case of the suites.",
@@ -9353,11 +9404,9 @@
       },
       "Directory": {
         "title": "Agentes",
-        "subtitle": "Tus Soko Bots, tus Coworkers y agentes que puedes contratar.",
         "sokoBotsTitle": "Soko Bots",
         "sokoBotsNote": "Asistentes que trabajan para una persona, un proyecto o todo el equipo.",
         "sokoBotsUnavailable": "Ahora no se pueden cargar los Soko Bots. Vuelve a intentarlo en un momento.",
-        "manageSokoBots": "Gestionar Soko Bots",
         "createOwnBot": "Configura tu Soko Bot",
         "createOwnBotHint": "Tu propio asistente para correo, tareas y chats.",
         "coworkersTitle": "Coworkers",
@@ -9373,6 +9422,7 @@
         "noMatch": "Ningún agente coincide con tu búsqueda.",
         "found": "{count, plural, =0 {Ningún agente coincide} one {# agente coincide} other {# agentes coinciden}}",
         "byVendor": "de {vendor}",
+        "vendorLogo": "Logotipo de la empresa detrás de {agent}",
         "botFallbackName": "Soko Bot",
         "ownerYou": "Tuyo",
         "ownerYouAbout": "Ti",
@@ -9427,7 +9477,15 @@
         "aboutRuns": "Ejecuciones hasta ahora",
         "aboutAverageTime": "Tiempo medio",
         "aboutRisk": "Nivel de riesgo",
-        "yourJobs": "{count, plural, one {Tu # trabajo con este agente} other {Tus # trabajos con este agente}}"
+        "yourJobs": "{count, plural, one {Tu # trabajo con este agente} other {Tus # trabajos con este agente}}",
+        "groupPersonal": "Personales",
+        "groupShared": "Equipo y proyectos",
+        "messageName": "Escribir a {name}",
+        "chat": "Chat",
+        "chatName": "Chatear con {name}",
+        "giveTaskName": "Dar una tarea a {name}",
+        "startTask": "Iniciar una tarea",
+        "startTaskName": "Iniciar una tarea con {name}"
       }
     },
     "EmailVerificationNotice": {
@@ -9756,6 +9814,8 @@
     },
     "Channels": {
       "MobileNav": {
+        "backToRooms": "Volver a las salas",
+        "allChats": "Todos los chats",
         "tasks": "Tareas",
         "agents": "Agents",
         "chats": "Chats",
@@ -9812,7 +9872,8 @@
       "editChannel": "Edit channel",
       "send": "Send message",
       "noTopic": "No topic set.",
-      "aiAgentSender": "{name} (agente de IA)",
+      "coworkerSender": "{name} (Coworker)",
+      "sokoBotSender": "{name} (Soko Bot)",
       "coworkerBadge": "AI coworker",
       "personalAssistantBadge": "Asistente personal",
       "openDirectMessage": "Mensaje",
@@ -9844,6 +9905,7 @@
       },
       "Empty": {
         "noChannels": "No channels yet.",
+        "messageSomeone": "Iniciar un mensaje",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
         "peopleLoadFailedDescription": "Las personas a las que puedes escribir no están disponibles temporalmente. Inténtalo de nuevo en un momento.",
@@ -10410,7 +10472,6 @@
         "needsYouSection": "Te esperan",
         "catchUp": "Ponerse al día",
         "whileYouWereAway": "Mientras no estabas:",
-        "whileYouWereAwayTitle": "Mientras no estabas",
         "dismissCatchUp": "Ocultar resumen",
         "summarize": "Resumen",
         "summarizing": "Escribiendo tu resumen…",
@@ -11065,6 +11126,40 @@
           "saved": "Ajustes guardados",
           "saveFailed": "No se pudieron guardar los ajustes"
         }
+      },
+      "Crop": {
+        "open": "Recortar para redes",
+        "title": "Recortar para redes",
+        "description": "Elige un formato y arrastra el marco o mueve el control para colocar el recorte. Se guarda una copia junto al original; el original no cambia.",
+        "shapeLabel": "Formato",
+        "loading": "Cargando imagen…",
+        "loadError": "No se pudo cargar la imagen. Cierra e inténtalo de nuevo.",
+        "result": "Guarda {name}, {width, number} × {height, number} px",
+        "save": "Guardar copia",
+        "saved": "{name} guardado en Archivos",
+        "duplicate": "{name} ya existe. Cámbiale el nombre o elimínalo y vuelve a guardar.",
+        "saveError": "No se pudo guardar la copia. Inténtalo de nuevo.",
+        "shapes": {
+          "square": {
+            "name": "Cuadrado",
+            "hint": "1:1 · Instagram, Facebook"
+          },
+          "portrait": {
+            "name": "Vertical",
+            "hint": "4:5 · feed de Instagram"
+          },
+          "story": {
+            "name": "Historia",
+            "hint": "9:16 · stories, reels, TikTok"
+          },
+          "landscape": {
+            "name": "Horizontal",
+            "hint": "1.91:1 · LinkedIn, X, enlaces"
+          }
+        },
+        "tooLarge": "Las imágenes de más de 25 MB aún no se pueden recortar aquí. Descárgala y recórtala en tu dispositivo.",
+        "positionX": "Posición del recorte, de izquierda a derecha",
+        "positionY": "Posición del recorte, de arriba abajo"
       }
     },
     "SokoBot": {
@@ -11208,17 +11303,10 @@
         "mailAutoReadError": "No se pudo actualizar la gestión del correo",
         "followBoardError": "No se pudo actualizar el ajuste.",
         "teamStandupTitle": "Unirse al stand-up del equipo",
-        "teamStandupDescription": "Este asistente publica su propia actualización en el stand-up diario de tu organización, a partir de sus Tasks y publicaciones, nunca del correo ni del calendario.",
+        "teamStandupDescription": "Este asistente publica su propia actualización en el stand-up diario de tu organización por ti: lo que hicieron él y los Coworkers a los que diste Tasks, lo que sigue en marcha y lo que espera de ti. A partir de Tasks públicas y publicaciones, nunca del correo ni del calendario. Activado salvo que lo desactives.",
         "teamStandupError": "No se pudo actualizar el ajuste.",
         "archiveTitle": "Archivar Soko Bot",
         "archiveDescription": "Detiene todos los turnos y programaciones. Puedes crearlo de nuevo más tarde; el historial y la atribución se conservan.",
-        "archive": "Archivar",
-        "archiveConfirmTitle": "¿Archivar tu Soko Bot?",
-        "archiveConfirmDescription": "Los turnos en curso se cancelan y las programaciones se detienen. Puedes reactivarlo en cualquier momento desde esta página.",
-        "archiveCancel": "Conservar",
-        "archiveConfirm": "Archivar",
-        "archived": "Soko Bot archivado.",
-        "archiveError": "No se pudo archivar el Soko Bot.",
         "delete": "Eliminar",
         "deleteConfirm": "Eliminar para siempre",
         "deleteCancel": "Cancelar",
@@ -11228,8 +11316,6 @@
         "deleteError": "No se pudo eliminar tu Soko Bot.",
         "deleted": "Soko Bot eliminado.",
         "sharedArchiveDescription": "Detiene todos los turnos y programaciones para todos. Un propietario o administrador puede reactivarlo; el historial se conserva.",
-        "sharedArchiveConfirmTitle": "¿Archivar este bot compartido?",
-        "sharedArchiveConfirmDescription": "Se detiene para todos: los turnos en curso se cancelan y las programaciones se detienen. El historial se conserva.",
         "sharedDeleteConfirmTitle": "¿Eliminar este bot compartido?",
         "sharedDeleteConfirmDescription": "Esto no se puede deshacer. Su historial, memoria, programaciones y cuentas conectadas se borran para todos. Las tareas que creó se quedan donde están."
       },
@@ -11386,7 +11472,6 @@
         }
       },
       "Console": {
-        "tagline": "Tu gestor de proyectos personal. Delega trabajo, hace seguimiento y te mantiene al día — háblale en el chat.",
         "lastTurnFailed": "{name} no pudo terminar su última respuesta.",
         "lastActivity": "última actividad {time}",
         "adminView": "Vista de administrador",
@@ -11460,7 +11545,8 @@
           "Usage": "No se cargó el uso.",
           "help": "Las programaciones y el chat siguen funcionando.",
           "retry": "Reintentar"
-        }
+        },
+        "back": "Agentes"
       },
       "Avatar": {
         "edit": "Cambiar aspecto",
@@ -11664,49 +11750,36 @@
       "Unavailable": {
         "title": "No se pudieron cargar los asistentes de tu equipo",
         "description": "No se ha perdido nada. Vuelve a intentarlo en un momento.",
-        "retry": "Reintentar",
-        "placeholder": "Tu asistente aparecerá aquí cuando se cargue el equipo."
+        "retry": "Reintentar"
       },
-      "createAssistant": "Crea tu asistente",
-      "createAssistantHint": "Consigue un asistente que se encarga de tareas, hace seguimiento y te mantiene al día. Configurarlo lleva un minuto.",
-      "assistantFallback": "Asistente personal",
-      "chatError": "No se pudo abrir el chat.",
-      "manage": "Ajustes",
-      "teamDescriptionPersonal": "Este es tu espacio personal. Únete a una organización o crea una para ver compañeros aquí.",
-      "teamEmpty": "Aún no hay nadie más en este espacio de trabajo. Invita a tu equipo y sus asistentes aparecerán aquí.",
-      "inviteTeam": "Invita a tu equipo",
-      "disabled": "Soko Bot no está disponible temporalmente",
-      "noAssistantYou": "Aún no tienes asistente",
-      "chat": "Chat",
-      "teamSummary": "{bots, plural, one {# asistente} other {# asistentes}} · {people, plural, one {# persona} other {# personas}}",
-      "notSetUp": "Aún sin configurar",
-      "messageBot": "Escribir a {name}",
-      "lastActive": "Activo por última vez el {date}",
-      "notActiveYet": "Aún sin actividad",
-      "statsTasks": "{count, plural, one {# tarea} other {# tareas}}",
-      "statsMessages": "{count, plural, one {# mensaje} other {# mensajes}} en {days} días",
-      "assistantOf": "Asistente de",
-      "message": "Escribir",
-      "roleLine": "Delega trabajo, hace seguimiento y te mantiene al día.",
-      "heroCaption": "Soko Bots para todo tu equipo",
-      "heroTitle": "Los asistentes personales de tu equipo",
-      "chatWith": "Chatear con {name}",
-      "yourAssistantTitle": "Tu asistente",
-      "teamTitle": "Los asistentes de tu equipo",
-      "heroBody": "Cada persona tiene un asistente que trabaja su Taskboard con Coworkers, lee el correo y el calendario que conecta y la mantiene al día en el chat.",
+      "settings": "Ajustes",
+      "settingsName": "Ajustes de {name}",
+      "pause": "Pausar",
+      "resume": "Reanudar",
+      "pauseName": "Pausar {name}",
+      "resumeName": "Reanudar {name}",
+      "paused": "En pausa",
+      "pausedToast": "{name} está en pausa. Sigue respondiendo cuando le escriben.",
+      "resumed": "{name} vuelve a trabajar.",
+      "pauseError": "No se pudo pausar el Soko Bot.",
+      "resumeError": "No se pudo reanudar el Soko Bot.",
+      "archivedTitle": "Archivados",
+      "archivedOn": "Archivado el {date}",
+      "notSetUpTitle": "Aún sin configurar",
+      "invitePeople": "Invitar personas",
+      "teamEmpty": "Aún no hay nadie más en este espacio de trabajo. Invita a tu equipo y cada persona podrá configurar su propio Soko Bot.",
+      "Archive": {
+        "archive": "Archivar",
+        "sharedArchiveConfirmTitle": "¿Archivar este bot compartido?",
+        "archiveConfirmTitle": "¿Archivar tu Soko Bot?",
+        "sharedArchiveConfirmDescription": "Se detiene para todos: los turnos en curso se cancelan y las programaciones se detienen. El historial se conserva.",
+        "archiveConfirmDescription": "Los turnos en curso se cancelan y las programaciones se detienen. Vuelve a configurarlo cuando quieras para recuperarlo.",
+        "archiveCancel": "Conservar",
+        "archiveError": "No se pudo archivar el Soko Bot.",
+        "archived": "Soko Bot archivado.",
+        "archiveConfirm": "Archivar"
+      },
       "Shared": {
-        "title": "Bots compartidos",
-        "count": "{count, plural, one {# bot} other {# bots}}",
-        "countSplit": "{active, plural, one {# activo} other {# activos}} · {archived, plural, one {# archivado} other {# archivados}}",
-        "empty": "Aún no hay bots compartidos. Un bot compartido trabaja para un proyecto o para todo el espacio de trabajo, y todos hablan con él en una sala.",
-        "noneActive": "Ahora mismo no hay ningún bot compartido activo.",
-        "scopeWorkspace": "Trabaja para todo el espacio de trabajo",
-        "scopeProject": "Trabaja para un proyecto",
-        "scopeProjectNamed": "Trabaja para {project}",
-        "archived": "Archivado",
-        "archivedGroup": "Archivados",
-        "fallbackName": "Asistente compartido",
-        "openBot": "Ajustes de {name}",
         "Create": {
           "trigger": "Nuevo Soko Bot",
           "title": "Crear un Soko Bot",
@@ -11737,12 +11810,14 @@
         "Archived": {
           "title": "{name} está archivado",
           "description": "Un bot archivado ya no lee, no ejecuta sus programaciones ni responde en su sala. Su historial se conserva.",
-          "back": "Volver a Soko Bots",
-          "reactivate": "Reactivar",
-          "reactivated": "Soko Bot reactivado.",
-          "reactivateError": "No se pudo reactivar el Soko Bot."
+          "back": "Agentes",
+          "reactivate": "Restaurar",
+          "reactivateName": "Restaurar {name}",
+          "reactivated": "Soko Bot restaurado.",
+          "reactivateError": "No se pudo restaurar el Soko Bot."
         }
-      }
+      },
+      "moreName": "Más opciones de {name}"
     },
     "Calendar": {
       "Metadata": {
@@ -11892,7 +11967,7 @@
       "newTable": "Nueva tabla",
       "openAsTable": "Abrir como tabla",
       "loadingCsv": "Leyendo el CSV…",
-      "fileMissing": "No se pudo abrir el archivo. Ya no está en Archivos.",
+      "fileMissing": "No se pudo abrir el archivo. Ya no está disponible.",
       "createDescription": "Empieza con una tabla vacía o importa un archivo CSV.",
       "title": "Título",
       "description": "Descripción",
@@ -11903,13 +11978,11 @@
       "chooseCsv": "Elegir archivo CSV",
       "noFileChosen": "Ningún archivo seleccionado",
       "csvLimit": "Hasta 5 MB, 10.000 filas y 100 columnas. La primera fila contiene los nombres de las columnas.",
-      "mapping": "Asignar columnas y vista previa",
       "numberGuess": "Todas las celdas con contenido son números, por eso empieza como Número. Cámbialo si los dígitos son un código.",
       "columnName": "Nombre de columna",
       "type": "Tipo",
       "options": "Opciones (separadas por punto y coma)",
       "optionsFor": "Opciones de {column} (separadas por punto y coma)",
-      "preview": "{count, plural, one {Vista previa de # fila} other {Vista previa de # filas}}. Todos los valores se validan antes de importar.",
       "row": "Fila",
       "importProgress": "{count, plural, one {# fila importada} other {# filas importadas}}. Los lotes completados se conservan si se interrumpe.",
       "create": "Crear tabla",
@@ -12111,7 +12184,10 @@
         "add": "Añadir copia",
         "loadMore": "Mostrar más tablas",
         "loadMoreError": "No se pudieron cargar más tablas. Inténtalo de nuevo."
-      }
+      },
+      "rowCount": "{count, plural, one {# fila} other {# filas}}",
+      "columns": "Columnas",
+      "examples": "Ejemplos"
     },
     "ProjectScope": {
       "clearSearch": "Borrar búsqueda",
@@ -12257,7 +12333,8 @@
         "more": "Más acciones",
         "filter": "Filtrar",
         "kind": "Tipo",
-        "source": "Origen"
+        "source": "Origen",
+        "onX": "En X"
       },
       "bulk": {
         "label": "Contactos seleccionados",
@@ -12560,7 +12637,22 @@
         "restoreName": "Restaurar a {name}",
         "restored": "{name} restaurado",
         "restoreFailed": "No se pudo restaurar a {name}. El contacto sigue archivado.",
-        "archivedOn": "Archivado el {date}. Los contactos archivados no aparecen en listas ni búsquedas hasta que los restaures."
+        "archivedOn": "Archivado el {date}. Los contactos archivados no aparecen en listas ni búsquedas hasta que los restaures.",
+        "isYou": "Eres tú",
+        "isTeammate": "Es {name}, de tu equipo",
+        "thisIs": "Es…",
+        "thisIsMe": "Yo ({name})",
+        "thisIsNoOne": "Nadie del equipo",
+        "x": {
+          "mutual": "Se siguen mutuamente en X",
+          "follows": "Sigue a {name} en X",
+          "followed": "{name} sigue a esta persona en X"
+        },
+        "xYou": {
+          "mutual": "Se siguen mutuamente en X",
+          "follows": "Te sigue en X · tú no lo sigues",
+          "followed": "Lo sigues en X · no te sigue"
+        }
       },
       "stageGroups": {
         "general": "General",
@@ -12746,6 +12838,11 @@
           "lists": "Listas"
         }
       },
+      "xFollows": {
+        "FOLLOWS_YOU": "Sin seguir de vuelta",
+        "YOU_FOLLOW": "No te siguen de vuelta",
+        "MUTUAL": "Se siguen mutuamente"
+      },
       "linkedInImport": {
         "menu": "Importar contactos de LinkedIn",
         "title": "Importa tus contactos de LinkedIn",
@@ -12791,7 +12888,8 @@
         "nextStep": "Siguiente paso",
         "lastTouch": "Último contacto",
         "dataRoom": "Data room",
-        "cheque": "Ticket"
+        "cheque": "Ticket",
+        "nextAction": "Siguiente paso"
       },
       "stages": {
         "TO_RESEARCH": "Por investigar",
@@ -12861,6 +12959,7 @@
         "cost": "{perSearch} por búsqueda · {spent} de {cap} gastados este mes",
         "capReached": "El presupuesto de investigación de este mes se ha agotado. Sube FUNDRAISING_EXA_MONTHLY_CAP_USD en Core para seguir buscando.",
         "cancel": "Cancelar",
+        "running": "Leyendo páginas de fondos y noticias de rondas. Tarda unos minutos; deja esto abierto.",
         "run": "Buscar por {cost}"
       },
       "paths": {
@@ -12870,17 +12969,17 @@
         "noPathsYet": "Nadie del equipo los conoce todavía, ni a nadie del fondo ni de una empresa que hayan financiado.",
         "noPathsNoPortfolio": "Nadie del equipo los conoce todavía, ni a nadie del fondo. Investiga el portfolio para buscar una vía a través de un fundador al que hayan financiado.",
         "you": "Tú",
-        "direct": "{who} ya los conoce",
-        "viaFund": "{who} conoce a {through} ({role}) en {company}",
-        "viaPortfolio": "{who} conoce a {through} ({role}) en {company}, una empresa que financiaron",
-        "coldFund": "{through} ({role}) está en {company}, en Contactos, sin contacto todavía",
-        "coldPortfolio": "{through} ({role}) está en {company}, una empresa que financiaron; en Contactos, sin contacto todavía",
+        "direct": "{self, select, yes {Ya los conoces} other {{who} ya los conoce}}",
+        "viaFund": "{self, select, yes {Conoces a {through} en {company}} other {{who} conoce a {through} en {company}}}",
+        "viaPortfolio": "{self, select, yes {Conoces a {through} en {company}, una empresa que financiaron} other {{who} conoce a {through} en {company}, una empresa que financiaron}}",
+        "coldFund": "{through} está en {company}, en Contactos, sin contacto todavía",
+        "coldPortfolio": "{through} está en {company}, una empresa que financiaron; en Contactos, sin contacto todavía",
         "touches": "{count, plural, one {# contacto} other {# contactos}}",
         "noTouches": "Sin contacto todavía",
         "usePath": "Usar esta vía",
         "pathUsed": "Siguiente paso guardado. La fase pasó a Vía cálida donde era Por investigar.",
-        "nextStepDirect": "{who}: escribirles directamente, ya os conocéis",
-        "nextStepIntro": "Pedir a {who} que te presente a {investor} a través de {through}",
+        "nextStepDirect": "{self, select, yes {Escribirles directamente, ya os conocéis} other {{who}: escribirles directamente, ya se conocen}}",
+        "nextStepIntro": "{self, select, yes {Pedir a {through} que te presente a {investor}} other {Pedir a {who} que te presente a {investor} a través de {through}}}",
         "showMore": "Mostrar {count} más",
         "showFewer": "Mostrar menos",
         "portfolioTitle": "Portfolio de {fund}",
@@ -12893,9 +12992,12 @@
         "noExa": "Exa no está configurado en este servidor, así que la investigación está desactivada.",
         "noFund": "Añade primero el fondo a este contacto; la investigación busca el fondo.",
         "capReached": "El presupuesto de investigación de este mes se ha agotado.",
+        "researching": "Leyendo las páginas del portfolio del fondo y noticias de rondas. Uno o dos minutos.",
         "noPortfolio": "Aún no se ha investigado el portfolio.",
         "source": "Fuente",
-        "linkedinDirect": "{who} está conectado con ellos en LinkedIn",
+        "linkedinDirect": "{self, select, yes {Estás conectado con ellos en LinkedIn} other {{who} está conectado con ellos en LinkedIn}}",
+        "linkedinPortfolio": "{self, select, yes {Estás conectado con {through} en {company}, una empresa que financiaron, en LinkedIn} other {{who} está conectado con {through} en {company}, una empresa que financiaron, en LinkedIn}}",
+        "linkedinFund": "{self, select, yes {Estás conectado con {through} en {company} en LinkedIn} other {{who} está conectado con {through} en {company} en LinkedIn}}",
         "onLinkedIn": "conectados en LinkedIn",
         "importHint": "Importa tus contactos de LinkedIn en Contactos para encontrar más vías."
       },
@@ -12924,6 +13026,42 @@
         "openDrafts": "Abrir borradores de Gmail",
         "another": "Escribir otro",
         "lastDraft": "Último borrador “{subject}” · {when}"
+      },
+      "intro": {
+        "statusTitle": "Presentación",
+        "asked": "Pedido a {who} {when}",
+        "made": "Presentación hecha por {who} {when}",
+        "declinedBy": "{who} declinó; busca otra vía",
+        "declinedBefore": "({who} declinó antes)",
+        "askDirect": "Pide a {who}, conoce a {investor}",
+        "askFund": "Pide a {who} en {company}",
+        "askPortfolio": "Pide a {who}, {company} es una empresa que financiaron",
+        "via": "vía {who}",
+        "youKnow": "Los conoces; escríbeles directamente",
+        "noPath": "Aún no hay vía cálida",
+        "draftAsk": "Redactar la petición",
+        "introMade": "Presentación hecha",
+        "declined": "Declinó",
+        "meetingBooked": "Reunión fijada",
+        "passed": "Descartado",
+        "writeDraft": "Escribir borrador",
+        "dialogTitle": "Pedir a {who} una presentación a {investor}",
+        "dialogDescription": "Dos borradores van a tu Gmail: la petición a {who}, con una nota reenviable debajo, y esa nota por separado. No se envía nada.",
+        "weakTie": "Apenas conoces a {who}. Un buen correo en frío vale más que una presentación débil; considera otra vía o ponte al día antes.",
+        "inviteRoom": "Dar acceso a {investor} a «{room}» y enlazarlo en la nota",
+        "noteLabel": "Algo que mencionar",
+        "notePlaceholder": "p. ej. mencionar la alianza con Cardano",
+        "neverSends": "Sokosumi nunca envía. Lees ambos en Gmail y los envías tú.",
+        "cancel": "Cancelar",
+        "write": "Escribir ambos borradores",
+        "done": "Ambos borradores están en tu {mailbox}",
+        "failed": "No se pudieron escribir los borradores",
+        "askTo": "La petición, para {to}",
+        "noteTo": "La nota reenviable, para {to}",
+        "openDrafts": "Abrir borradores de Gmail",
+        "close": "Listo",
+        "noMailbox": "Los borradores van a tu propio Gmail a través de tu Soko Bot. Conecta Gmail allí primero.",
+        "connect": "Abrir Soko Bots"
       }
     },
     "Seo": {
@@ -15297,7 +15435,7 @@
     "TeamStandup": {
       "title": "Stand-up diario de agentes",
       "enabledLabel": "Hacer el stand-up",
-      "enabledHelp": "Cada día laborable cada agente publica su propia actualización en el canal Stand-up: qué hizo, qué sigue y qué espera a una persona. Hasta tres traspasos entre agentes siguen como respuestas. Una vez por semana, un Resumen semanal añade una línea por persona y por agente. Las líneas salen de Tasks, aprobaciones y publicaciones, nunca del correo ni de calendarios. Si no hay nada nuevo, no se publica nada.",
+      "enabledHelp": "Cada día laborable, cada Soko Bot publica su propia actualización en el canal Stand-up por su persona o equipo: lo que hicieron él y los Coworkers a los que dieron Tasks, lo que viene y lo que espera a una persona. Los Coworkers no publican nada propio. Hasta tres traspasos siguen como respuestas. Una vez por semana, un hilo de Resumen semanal añade una línea por persona y por agente. Las líneas salen de Tasks públicas, aprobaciones y publicaciones, nunca del correo ni de los calendarios. Todos los asistentes participan salvo que su propietario lo desactive. Si no hay nada nuevo, no se publica nada.",
       "timeLabel": "Hora",
       "timezoneLabel": "Zona horaria",
       "weekdaysLabel": "Días",

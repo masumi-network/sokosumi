@@ -95,7 +95,6 @@ const SECTION_PATHS = [
   "/organization",
   "/billing",
   "/developer",
-  "/chat/catch-up",
 ];
 
 /** List pages with their own data-backed field and chat rooms own their shortcuts. */

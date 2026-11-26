@@ -17,6 +17,7 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { EMBEDDING_MODEL } from "@/lib/embeddings";
 import { recordCoreWarning, tryUseLogger } from "@/lib/evlog";
+import { failOpen } from "@/lib/fail-open";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
 import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
@@ -198,6 +199,23 @@ export async function chargeCheck(
   if (costUsd <= 0) return;
   await new RuntimeEventLog(input.turnId, input.sessionId).append(
     runtimeEvent("step.completed", { modelId, usage: { costUsd } }),
+  );
+}
+
+/** A plan check that could not run; the save goes on without its gate. */
+function planCheckSkipped<T>(
+  fallback: T,
+  turnId: string,
+  check: string,
+): (error: unknown) => T {
+  return failOpen(
+    fallback,
+    { operation: "cmo_plan_review", turn: { id: turnId }, planCheck: check },
+    {
+      message: "A CMO plan check was skipped",
+      why: "The check threw, so the strategy was saved without that gate",
+      fix: "Read planCheck and the failure fields. Until it runs again, pillars may miss their industry topics or Brand Brain facts.",
+    },
   );
 }
 
@@ -396,22 +414,22 @@ export async function reviewCmoPlan(
     problems.push(...fit.problems);
     await chargeCheck(input, SOKO_BOT_JEV_MODEL, fit.costUsd);
   }
-  const bot = plan.planSent
-    ? await prisma.sokoBot.findUnique({
-        where: { id: authorized.turn.sokoBotId },
-        select: { projectId: true },
-      })
-    : null;
+  // Every save, a patch or the calendar too: the rules read the plan as
+  // saved, so a patch cannot drop a fix the last review asked for.
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: authorized.turn.sokoBotId },
+    select: { projectId: true },
+  });
   const brain = bot?.projectId
     ? parseBrandBrain((await getBrandBrain(bot.projectId))?.body)
     : null;
   if (rules.everyNetwork && brain)
-    problems.push(...cmoNewNetworkProblems(strategy, brain));
+    problems.push(...cmoNewNetworkProblems(strategy, brain, connectedNetworks));
   // cmo-v21: every pillar is an industry topic resting on the research.
   const topics =
     rules.industryTopics && plan.planSent && bot?.projectId
       ? await cmoIndustryPillarProblems(bot.projectId, strategy).catch(
-          () => null,
+          planCheckSkipped(null, authorized.turn.id, "industry_pillars"),
         )
       : null;
   if (topics) {
@@ -431,9 +449,13 @@ export async function reviewCmoPlan(
       brain,
       undefined,
       cmoSiteFacts(
-        (await readCmoSitePages(bot.projectId).catch(() => null))?.pages ?? [],
+        (
+          await readCmoSitePages(bot.projectId).catch(
+            planCheckSkipped(null, authorized.turn.id, "site_pages"),
+          )
+        )?.pages ?? [],
       ),
-    ).catch(() => null);
+    ).catch(planCheckSkipped(null, authorized.turn.id, "pillar_facts"));
     if (pillars) {
       await chargeCheck(input, COMPETITOR_CHECK_MODEL, pillars.costUsd);
       problems.push(...cmoPillarFactProblems(pillars.pillars));
@@ -769,7 +791,7 @@ export async function saveCmoRecord(
               : draftProblems.length > 0
                 ? {
                     problems: draftProblems,
-                    next: "Rewrite these drafts: a Social post (by its id) with update_social_post, any other piece with save_strategy part pieces.",
+                    next: "Rewrite these drafts: the Social posts (by their ids) together in one update_social_posts call, any other piece with save_strategy part pieces.",
                   }
                 : {}),
           },

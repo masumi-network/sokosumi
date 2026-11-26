@@ -283,6 +283,7 @@ export type AdminOrganizationOption = {
 export type AdminSokoBotList = {
     items: Array<AdminSokoBotListItem>;
     total: number;
+    summary: AdminSokoBotFleetSummary;
 };
 
 export type AdminSokoBotListItem = {
@@ -303,6 +304,7 @@ export type AdminSokoBotListItem = {
     pendingDecisionCount: number;
     scheduleCount: number;
     owner: AdminSokoBotOwner | null;
+    evalLane: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -320,6 +322,14 @@ export type AdminSokoBotOwner = {
     id: string;
     name: string | null;
     email: string;
+};
+
+export type AdminSokoBotFleetSummary = {
+    active: number;
+    activeRecently: number;
+    pendingDecisions: number;
+    attention: Array<AdminSokoBotListItem>;
+    attentionTotal: number;
 };
 
 export type AdminSokoBotQuality = {
@@ -521,6 +531,7 @@ export type AdminCmoSpend = {
     bots: Array<{
         sokoBotId: string;
         businessName: string;
+        evalLane: boolean;
         ownerEmail: string;
         turns: number;
         totalUsd: number;
@@ -579,6 +590,7 @@ export type AdminSokoBotFleetDays = {
         totalTokens: number;
         costUsd: number;
         cmoCostUsd: number;
+        evalCostUsd: number;
     }>;
 };
 
@@ -1761,6 +1773,9 @@ export type EvalRunReport = {
             pending?: number;
             skipped?: number;
         };
+        costlier: number;
+        slower: number;
+        passRate: number | null;
         passed: number;
         scored: number;
         open: number;
@@ -1780,6 +1795,12 @@ export type EvalCaseReport = {
     passRate: number | null;
     baselinePassRate: number | null;
     history: Array<number | null>;
+    costUsd: number | null;
+    usualCostUsd: number | null;
+    costlier: boolean;
+    durationMs: number | null;
+    usualDurationMs: number | null;
+    slower: boolean;
     results: Array<EvalResult>;
 };
 
@@ -4428,6 +4449,7 @@ export type ContactList = {
         listIds?: Array<string>;
         knownByUserId?: string;
         knownByMe?: boolean;
+        xFollow?: 'FOLLOWS_YOU' | 'YOU_FOLLOW' | 'MUTUAL';
         lastContactAfter?: Date;
         lastContactBefore?: Date;
         lastContactOlderThanDays?: number;
@@ -4543,6 +4565,7 @@ export type Contact = {
     channels: Array<ContactChannel>;
     lists: Array<ContactListRef>;
     knownBy: Array<ContactKnownBy>;
+    user: ContactPerson | null;
 };
 
 export type ContactScore = {
@@ -4643,6 +4666,8 @@ export type ContactListRef = {
 export type ContactKnownBy = ContactPerson & {
     interactionCount: number;
     lastInteractionAt: Date | null;
+    followsOnX: boolean;
+    followedOnX: boolean;
 };
 
 export type ContactPerson = {
@@ -4650,6 +4675,20 @@ export type ContactPerson = {
     name: string;
     image: string | null;
 };
+
+/**
+ * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+ */
+export const ContactXFollowState = {
+    FOLLOWS_YOU: 'FOLLOWS_YOU',
+    YOU_FOLLOW: 'YOU_FOLLOW',
+    MUTUAL: 'MUTUAL'
+} as const;
+
+/**
+ * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+ */
+export type ContactXFollowState = typeof ContactXFollowState[keyof typeof ContactXFollowState];
 
 export type ContactUpsertResult = {
     contact: Contact;
@@ -6376,6 +6415,8 @@ export type FundraisingProspect = {
     lastDraftAt: Date | null;
     lastDraftSubject: string | null;
     dataRoom: FundraisingDataRoomVisit | null;
+    intro: FundraisingIntro;
+    bestPath: FundraisingPath | null;
 };
 
 export const FundraisingStage = {
@@ -6405,6 +6446,52 @@ export type FundraisingDataRoomVisit = {
     revoked: boolean;
 };
 
+export type FundraisingIntro = {
+    via: FundraisingConnector | null;
+    askedAt: Date | null;
+    madeAt: Date | null;
+    declinedAt: Date | null;
+};
+
+export type FundraisingConnector = {
+    kind: 'contact' | 'teammate';
+    id: string;
+    name: string;
+    image: string | null;
+    email: string | null;
+};
+
+export type FundraisingPath = {
+    kind: FundraisingPathKind;
+    via: ContactPerson | null;
+    linkedIn: boolean;
+    through: {
+        id: string;
+        name: string;
+        role: string | null;
+        organization: string | null;
+        avatarUrl: string | null;
+        email: string | null;
+    } | null;
+    company: {
+        name: string;
+        round: string | null;
+        date: string | null;
+    } | null;
+    strength: number;
+    touches: number;
+    lastTouchAt: Date | null;
+};
+
+export const FundraisingPathKind = {
+    DIRECT: 'direct',
+    LINKEDIN: 'linkedin',
+    FUND: 'fund',
+    PORTFOLIO: 'portfolio'
+} as const;
+
+export type FundraisingPathKind = typeof FundraisingPathKind[keyof typeof FundraisingPathKind];
+
 export type FundraisingResearch = {
     monthUsd: number;
     capUsd: number;
@@ -6420,7 +6507,21 @@ export type FundraisingProspectUpdate = {
     committedUsd?: number | null;
     notes?: string | null;
     source?: string | null;
+    intro?: {
+        state: FundraisingIntroState;
+        viaContactId?: string;
+        viaUserId?: string;
+    };
 };
+
+export const FundraisingIntroState = {
+    ASKED: 'ASKED',
+    MADE: 'MADE',
+    DECLINED: 'DECLINED',
+    NULL: null
+} as const;
+
+export type FundraisingIntroState = typeof FundraisingIntroState[keyof typeof FundraisingIntroState];
 
 export type FundraisingFindResult = {
     found: number;
@@ -6456,37 +6557,6 @@ export type FundraisingPortfolioCompany = {
     fetchedAt: Date;
 };
 
-export type FundraisingPath = {
-    kind: FundraisingPathKind;
-    via: ContactPerson | null;
-    linkedIn: boolean;
-    through: {
-        id: string;
-        name: string;
-        role: string | null;
-        organization: string | null;
-        avatarUrl: string | null;
-        email: string | null;
-    } | null;
-    company: {
-        name: string;
-        round: string | null;
-        date: string | null;
-    } | null;
-    strength: number;
-    touches: number;
-    lastTouchAt: Date | null;
-};
-
-export const FundraisingPathKind = {
-    DIRECT: 'direct',
-    LINKEDIN: 'linkedin',
-    FUND: 'fund',
-    PORTFOLIO: 'portfolio'
-} as const;
-
-export type FundraisingPathKind = typeof FundraisingPathKind[keyof typeof FundraisingPathKind];
-
 export type FundraisingDraftResult = {
     to: string;
     subject: string;
@@ -6500,6 +6570,28 @@ export type FundraisingDraftResult = {
 export type FundraisingDraftInput = {
     kind: 'intro' | 'follow_up';
     viaContactId?: string;
+    inviteToRoomId?: string;
+    note?: string;
+};
+
+export type FundraisingIntroAskResult = {
+    ask: FundraisingMailDraft;
+    forwardable: FundraisingMailDraft;
+    provider: string;
+    roomLink: string | null;
+    prospect: FundraisingProspect;
+};
+
+export type FundraisingMailDraft = {
+    to: string;
+    subject: string;
+    body: string;
+    draftId: string;
+};
+
+export type FundraisingIntroAskInput = {
+    viaContactId?: string;
+    viaUserId?: string;
     inviteToRoomId?: string;
     note?: string;
 };
@@ -6904,6 +6996,8 @@ export type ProjectTalkingVideo = {
     broll: boolean;
     music: boolean;
     format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | null;
+    shape: '9:16' | '4:5' | '1:1' | '16:9';
+    sourceJobId: string | null;
 };
 
 export type ImageStudioRecentProjects = {
@@ -9517,6 +9611,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;
+            videoOfTalking?: boolean;
             story?: string;
             claim?: string;
             imageFileId?: string;
@@ -9554,7 +9649,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
         changes?: Array<string>;
         fitted?: Array<string>;
         monthWriter?: {
-            state: 'examples' | 'writing' | 'written';
+            state: 'examples' | 'writing' | 'written' | 'stopped';
             level?: 'steady' | 'active' | 'all_in';
             start?: string;
             attempts?: number;
@@ -9595,6 +9690,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 languageCode?: string;
                 alsoOn?: Array<string>;
                 videoOf?: string;
+                videoOfTalking?: boolean;
                 story?: string;
                 claim?: string;
                 imageFileId?: string;
@@ -9867,6 +9963,7 @@ export type MarketingStrategyRequest = {
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;
+            videoOfTalking?: boolean;
             story?: string;
             claim?: string;
             imageFileId?: string;
@@ -9904,7 +10001,7 @@ export type MarketingStrategyRequest = {
         changes?: Array<string>;
         fitted?: Array<string>;
         monthWriter?: {
-            state: 'examples' | 'writing' | 'written';
+            state: 'examples' | 'writing' | 'written' | 'stopped';
             level?: 'steady' | 'active' | 'all_in';
             start?: string;
             attempts?: number;
@@ -9945,6 +10042,7 @@ export type MarketingStrategyRequest = {
                 languageCode?: string;
                 alsoOn?: Array<string>;
                 videoOf?: string;
+                videoOfTalking?: boolean;
                 story?: string;
                 claim?: string;
                 imageFileId?: string;
@@ -11685,6 +11783,7 @@ export type SocialPost = {
         languageCode?: string;
         alsoOn?: Array<string>;
         videoOf?: string;
+        videoOfTalking?: boolean;
         story?: string;
         claim?: string;
     } | null;
@@ -12177,6 +12276,7 @@ export type CreateProjectTalkingVideoJobRequest = {
     siteShots?: boolean;
     broll?: boolean;
     music?: boolean;
+    shapes?: Array<'9:16' | '4:5' | '1:1' | '16:9'>;
     idempotencyKey: string;
 };
 
@@ -12188,6 +12288,7 @@ export type CreateProjectShortVideoJobRequest = {
     languageCode?: string;
     pictureAssetIds?: Array<string>;
     pictureFileIds?: Array<string>;
+    shapes?: Array<'9:16' | '4:5' | '1:1' | '16:9'>;
     idempotencyKey: string;
 };
 
@@ -15411,6 +15512,7 @@ export type CmoPlan = {
         languageCode?: string;
         alsoOn?: Array<string>;
         videoOf?: string;
+        videoOfTalking?: boolean;
         story?: string;
         claim?: string;
         imageFileId?: string;
@@ -15448,7 +15550,7 @@ export type CmoPlan = {
     changes?: Array<string>;
     fitted?: Array<string>;
     monthWriter?: {
-        state: 'examples' | 'writing' | 'written';
+        state: 'examples' | 'writing' | 'written' | 'stopped';
         level?: 'steady' | 'active' | 'all_in';
         start?: string;
         attempts?: number;
@@ -15489,6 +15591,7 @@ export type CmoPlan = {
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;
+            videoOfTalking?: boolean;
             story?: string;
             claim?: string;
             imageFileId?: string;
@@ -15638,6 +15741,10 @@ export type CmoProduction = {
      * When a stuck month's next production run starts. Null unless state is stuck.
      */
     retryAt: string | null;
+    /**
+     * A stuck month stopped because Core's month writer wrote nothing in the last run: a fault on our side, not Cuso's.
+     */
+    writerFailed: boolean;
     /**
      * cmo-v22: the posts the plan promises at least, and the month's posts made, gone out or paused by the owner. Null for a month Cuso wrote himself.
      */
@@ -16371,6 +16478,28 @@ export type CreateSokoBotScheduleRequest = {
     timezone: string;
     cronExpression: string;
     prompt: string;
+    stopRule?: SokoBotScheduleStopRuleInput;
+};
+
+export type SokoBotScheduleStopRuleInput = {
+    mode: 'never';
+} | {
+    mode: 'ends_on';
+    scheduleId?: string;
+    endsOn: Date;
+} | {
+    mode: 'ends_after_runs';
+    scheduleId?: string;
+    maxRuns: number;
+} | {
+    mode: 'when_target_settled';
+    scheduleId?: string;
+    targetKind: 'task' | 'job';
+    targetId: string;
+} | {
+    mode: 'owner_authorized_stop';
+    scheduleId?: string;
+    condition: string;
 };
 
 export type UpdateSokoBotScheduleRequest = {
@@ -16379,6 +16508,7 @@ export type UpdateSokoBotScheduleRequest = {
     timezone?: string;
     cronExpression?: string;
     prompt?: string;
+    stopRule?: SokoBotScheduleStopRuleInput;
     /**
      * Skip, move or restore one run; the cron stays as it is. Sent alone.
      */
@@ -19944,6 +20074,10 @@ export type ListAdminSokoBotsData = {
          * Personal Soko Bots, Cuso (CMO.xyz) bots, or both.
          */
         kind?: 'all' | 'assistant' | 'cmo';
+        /**
+         * Leave eval-lane bots out (default), include them, or show only them.
+         */
+        evals?: 'exclude' | 'include' | 'only';
     };
     url: '/admin/soko-bots';
 };
@@ -20933,6 +21067,10 @@ export type GetAdminCmoSpendData = {
     path?: never;
     query?: {
         days?: number;
+        /**
+         * Leave eval-lane bots out (default), include them, or show only them.
+         */
+        evals?: 'exclude' | 'include' | 'only';
     };
     url: '/admin/soko-bots/cmo-spend';
 };
@@ -37367,6 +37505,7 @@ export type PostContactListsData = {
             listIds?: Array<string>;
             knownByUserId?: string;
             knownByMe?: boolean;
+            xFollow?: 'FOLLOWS_YOU' | 'YOU_FOLLOW' | 'MUTUAL';
             lastContactAfter?: Date;
             lastContactBefore?: Date;
             lastContactOlderThanDays?: number;
@@ -37653,6 +37792,7 @@ export type PatchContactListsByIdData = {
             listIds?: Array<string>;
             knownByUserId?: string;
             knownByMe?: boolean;
+            xFollow?: 'FOLLOWS_YOU' | 'YOU_FOLLOW' | 'MUTUAL';
             lastContactAfter?: Date;
             lastContactBefore?: Date;
             lastContactOlderThanDays?: number;
@@ -38666,6 +38806,10 @@ export type GetContactsData = {
         listId?: string;
         knownByUserId?: string;
         knownByMe?: 'true' | 'false';
+        /**
+         * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+         */
+        xFollow?: ContactXFollowState;
         lastContactAfter?: Date;
         lastContactBefore?: Date;
         lastContactOlderThanDays?: number;
@@ -38983,6 +39127,10 @@ export type GetContactsExportCsvData = {
         listId?: string;
         knownByUserId?: string;
         knownByMe?: 'true' | 'false';
+        /**
+         * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+         */
+        xFollow?: ContactXFollowState;
         lastContactAfter?: Date;
         lastContactBefore?: Date;
         lastContactOlderThanDays?: number;
@@ -39140,6 +39288,10 @@ export type GetContactsMapData = {
         listId?: string;
         knownByUserId?: string;
         knownByMe?: 'true' | 'false';
+        /**
+         * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+         */
+        xFollow?: ContactXFollowState;
         lastContactAfter?: Date;
         lastContactBefore?: Date;
         lastContactOlderThanDays?: number;
@@ -41268,6 +41420,10 @@ export type GetContactsBreakdownData = {
         listId?: string;
         knownByUserId?: string;
         knownByMe?: 'true' | 'false';
+        /**
+         * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+         */
+        xFollow?: ContactXFollowState;
         lastContactAfter?: Date;
         lastContactBefore?: Date;
         lastContactOlderThanDays?: number;
@@ -42741,6 +42897,142 @@ export type PutContactsByIdImportanceResponses = {
 };
 
 export type PutContactsByIdImportanceResponse = PutContactsByIdImportanceResponses[keyof PutContactsByIdImportanceResponses];
+
+export type PutContactsByIdUserData = {
+    body?: {
+        userId: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/user';
+};
+
+export type PutContactsByIdUserErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact was merged
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a member of this workspace, or the contact is archived or not a person
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutContactsByIdUserError = PutContactsByIdUserErrors[keyof PutContactsByIdUserErrors];
+
+export type PutContactsByIdUserResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutContactsByIdUserResponse = PutContactsByIdUserResponses[keyof PutContactsByIdUserResponses];
 
 export type PostContactsByIdEnrichData = {
     body?: never;
@@ -53168,6 +53460,140 @@ export type PostFundraisingProspectsByContactIdDraftResponses = {
 };
 
 export type PostFundraisingProspectsByContactIdDraftResponse = PostFundraisingProspectsByContactIdDraftResponses[keyof PostFundraisingProspectsByContactIdDraftResponses];
+
+export type PostFundraisingProspectsByContactIdIntroAskData = {
+    body?: FundraisingIntroAskInput;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/fundraising/prospects/{contactId}/intro-ask';
+};
+
+export type PostFundraisingProspectsByContactIdIntroAskErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No mailbox, no connector, or no email address
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The model or the mailbox did not answer
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdIntroAskError = PostFundraisingProspectsByContactIdIntroAskErrors[keyof PostFundraisingProspectsByContactIdIntroAskErrors];
+
+export type PostFundraisingProspectsByContactIdIntroAskResponses = {
+    /**
+     * Drafts
+     */
+    200: {
+        data: FundraisingIntroAskResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdIntroAskResponse = PostFundraisingProspectsByContactIdIntroAskResponses[keyof PostFundraisingProspectsByContactIdIntroAskResponses];
 
 export type GetHistoryData = {
     body?: never;
@@ -93983,6 +94409,13 @@ export type StartCmoPlanCheckoutForProjectData = {
          * Where Polar's back link leads without paying: no success marker.
          */
         backUrl: string;
+        /**
+         * GA4 client and session id, only with the person's analytics consent; the paid order is reported to GA4 with them.
+         */
+        analytics?: {
+            clientId: string;
+            sessionId?: string;
+        };
     };
     path: {
         projectId: string;
@@ -96053,6 +96486,13 @@ export type RequestCmoStrategyForProjectResponse = RequestCmoStrategyForProjectR
 export type StartCmoTopUpForProjectData = {
     body?: {
         returnUrl: string;
+        /**
+         * GA4 client and session id, only with the person's analytics consent; the paid order is reported to GA4 with them.
+         */
+        analytics?: {
+            clientId: string;
+            sessionId?: string;
+        };
     };
     path: {
         projectId: string;

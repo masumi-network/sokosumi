@@ -24,6 +24,8 @@ const createRunSchema = z.object({
   suites: z.array(z.enum(["soko-bot", "cmo"])).min(1),
   repeats: z.number().int().min(1).max(3),
   caseIds: z.array(z.string().trim().min(1)).max(200).optional(),
+  sokoBotVersionId: z.string().trim().min(1).max(41).optional(),
+  cusoVersionId: z.string().trim().min(1).max(41).optional(),
 });
 
 function mapError(error: unknown): ActionError {
@@ -37,23 +39,24 @@ interface CreateRunParams extends AuthenticatedRequest {
   suites: unknown;
   repeats: unknown;
   caseIds?: unknown;
+  sokoBotVersionId?: unknown;
+  cusoVersionId?: unknown;
 }
 
 export const createAdminEvalRunAction = withSession<
   CreateRunParams,
   ActionResultDto<EvalRun, ActionError>
->(async ({ session, suites, repeats, caseIds }) => {
+>(async ({ session, ...input }) => {
   try {
     assertAdminSession(session);
-    const parsed = createRunSchema.safeParse({ suites, repeats, caseIds });
+    const parsed = createRunSchema.safeParse(input);
     if (!parsed.success) {
       return toActionResult(
         err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid input" }),
       );
     }
     const run = await adminEvalsService.createRun({
-      suites: parsed.data.suites,
-      repeats: parsed.data.repeats,
+      ...parsed.data,
       caseIds: parsed.data.caseIds?.length ? parsed.data.caseIds : undefined,
     });
     revalidatePath(ADMIN_EVALS_ROUTE);

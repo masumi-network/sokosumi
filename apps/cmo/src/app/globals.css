@@ -693,9 +693,13 @@ a.button {
   background: var(--stage);
 }
 
-/* In the chat he talks from Peach Blossom, the pink kept for him. */
-.msg .cuso-avatar {
-  background: var(--peach);
+/* His profile picture: the face on Iris, round wherever it shows. */
+.cuso-face {
+  display: block;
+  flex: none;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 /* Smaller than the circle, so the drawing's corners stay inside it. */
@@ -1553,15 +1557,6 @@ a.cuso-says:focus-visible {
 
 .working-why b {
   font-weight: 600;
-}
-
-/* While he works the line stays short; the fold under his reply has it all. */
-.working > .working-why,
-.ob-lead > .working-why {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 /* "How I got here": a fold under a reply. Quiet, since only its row opens. */
@@ -5589,17 +5584,6 @@ button.week-more {
   transform: scale(0.92);
 }
 
-/* Cuso's own tab: his pose for his state, on his light disc. */
-.tab-cuso {
-  width: 26px;
-  height: 26px;
-  padding: 2px;
-  border: var(--line-width-small) solid var(--line);
-  border-radius: 50%;
-  background: var(--stage);
-  object-fit: contain;
-}
-
 .tab-icon .count {
   position: absolute;
   top: -6px;
@@ -5998,4 +5982,43 @@ button.week-more {
   gap: var(--space-2);
   margin: 0;
   padding-left: 1.1em;
+}
+
+/* Analytics consent, the same choice and words as www.cmo.xyz's banner. */
+.cookie-panel {
+  position: fixed;
+  z-index: 1000;
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  max-width: 400px;
+  padding: 16px 20px 20px;
+  background: var(--card);
+  color: var(--foreground);
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.cookie-panel h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.cookie-panel p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.cookie-panel a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cookie-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
 }

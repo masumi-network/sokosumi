@@ -6,6 +6,7 @@ import {
   FileSourceScope,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable, sharedType } from "@sokosumi/database/sql-tables";
 import { normalizeFileResourceName } from "@sokosumi/utils";
 
 import {
@@ -390,16 +391,16 @@ async function findStaleTables(limit: number): Promise<StaleTable[]> {
       dt."workspaceId",
       w."userId" AS "ownerUserId",
       latest.sequence AS "latest"
-    FROM data_table dt
-    JOIN workspace w ON w.id = dt."workspaceId"
+    FROM ${sharedTable("data_table")} dt
+    JOIN ${sharedTable("workspace")} w ON w.id = dt."workspaceId"
     JOIN LATERAL (
       SELECT MAX(tc.sequence) AS sequence
-      FROM table_change tc
+      FROM ${sharedTable("table_change")} tc
       WHERE tc."tableId" = dt.id
     ) latest ON TRUE
-    LEFT JOIN file_resource fr
+    LEFT JOIN ${sharedTable("file_resource")} fr
       ON fr."workspaceId" = dt."workspaceId"
-      AND fr."sourceKind" = 'NATIVE_TABLE'::"FileSourceKind"
+      AND fr."sourceKind" = 'NATIVE_TABLE'::${sharedType("FileSourceKind")}
       AND fr."sourceId" = dt.id::text
     WHERE dt."archivedAt" IS NULL
       AND latest.sequence IS NOT NULL

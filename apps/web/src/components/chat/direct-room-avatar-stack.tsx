@@ -22,7 +22,7 @@ interface DirectRoomAvatarStackProps {
  * Avatar stack for sidebar DM rows. Purely presentational: the row link owns
  * navigation and the row is the direct itself, so no per-face hover card.
  *
- * Up to three 20px faces, overlapping. One face cannot say "several people
+ * Up to three 20px faces, with a 2px gap between them. One face cannot say "several people
  * are in here" — it reads as a direct with whoever that is — so a group row
  * keeps its stack and lets it widen the row's `SidebarRowSlot` to the right.
  * That is the one mark allowed to: the slot's left edge does not move, so the
@@ -67,7 +67,8 @@ export function DirectRoomAvatarStack({
   const participants = getDirectParticipants(room, currentUserId);
   const liveSokoBot = useLiveSokoBotStatus();
   // Former members are not here to be online, and their faces sit back.
-  const showsPresence = !room.isSelfDirect && !room.isReadOnly;
+  const showsPresence =
+    participants.length === 1 && !room.isSelfDirect && !room.isReadOnly;
 
   if (participants.length === 0) {
     return (
@@ -99,7 +100,7 @@ export function DirectRoomAvatarStack({
         return (
           <span
             key={`${participant.kind}-${participant.id}`}
-            className={cn("relative inline-flex", index > 0 && "-ml-1.5")}
+            className={cn("relative inline-flex", index > 0 && "ms-0.5")}
             // The first face on top, so its presence dot is not buried under
             // the one beside it.
             style={{ zIndex: participants.length - index }}

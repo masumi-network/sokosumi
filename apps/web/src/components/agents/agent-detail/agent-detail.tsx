@@ -2,16 +2,24 @@ import type { AgentReview } from "@sokosumi/core-client";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import { AgentBadgeCloud } from "@/components/agents/agent-badge-cloud";
 import { AgentIcon } from "@/components/agents/agent-icon";
+import { AgentVendor } from "@/components/agents/agent-vendor";
 import {
   AboutList,
   AgentProfile,
   AgentProfileSkeleton,
 } from "@/components/agents/directory/agent-profile";
+import { AGENTS_CARD_CLASS } from "@/components/agents/directory/agents-page-classes";
 import { RiskClassificationBadge } from "@/components/agents/risk-classification-badge";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import {
+  HOLDER_ITEM_CLASS,
+  HOLDER_ITEM_HOVER_CLASS,
+} from "@/components/ui/holder-surface";
+import {
+  getAgentAuthorResolvedImage,
   getAgentDescription,
   getAgentExampleOutputs,
   getAgentLegal,
@@ -22,6 +30,7 @@ import {
 } from "@/lib/helpers/agent";
 import type { AgentRatingStats, CoreAgentDto } from "@/lib/types/core-dto";
 import { isCoreAgentDetail } from "@/lib/types/core-dto";
+import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/utils/duration";
 
 import { AgentDetailExamples } from "./examples/examples";
@@ -85,7 +94,7 @@ function MarketplaceAbout({
   averageExecutionDuration,
 }: {
   agent: CoreAgentDto;
-  vendor: string | null;
+  vendor: ReactNode;
   executedJobsCount: number;
   averageExecutionDuration: number | null;
 }) {
@@ -125,6 +134,16 @@ function MarketplaceAbout({
 }
 
 /** A marketplace agent's profile, in the layout every agent shares. */
+/** Who makes the agent: the author logo first, then the author's name. */
+function vendorOf(agent: CoreAgentDto, alt: string) {
+  const name = getFullAgentAuthorName(agent);
+  const logo = getAgentAuthorResolvedImage(agent);
+  const byline = (label: string) => (
+    <AgentVendor logo={logo} label={label} alt={alt} />
+  );
+  return { name, byline, about: name || logo ? byline(name ?? "") : null };
+}
+
 export function AgentDetail({
   agent,
   executedJobsCount,
@@ -139,7 +158,7 @@ export function AgentDetail({
   const t = useTranslations("App.Agents.Directory");
   const tTaskDetail = useTranslations("App.Tasks.Detail");
   const name = getAgentName(agent);
-  const vendor = getFullAgentAuthorName(agent);
+  const vendor = vendorOf(agent, t("vendorLogo", { agent: name }));
   const description = getAgentDescription(agent);
   const tags = getAgentTags(agent);
   const examples = getAgentExampleOutputs(agent);
@@ -148,37 +167,45 @@ export function AgentDetail({
     <AgentProfile
       backLabel={t("backToAgents")}
       avatar={
-        <span className="border-border bg-card-background flex size-20 items-center justify-center rounded-2xl border">
+        <span className="border-border bg-card-background flex size-12 items-center justify-center rounded-xl border">
           <AgentIcon
             agent={{ name, icon: getAgentResolvedIcon(agent) }}
-            className="size-10"
+            className="size-6"
           />
         </span>
       }
       name={name}
       tag={t("external")}
-      byline={vendor ? t("byVendor", { vendor }) : t("aboutSourceExternal")}
+      byline={vendor.byline(
+        vendor.name
+          ? t("byVendor", { vendor: vendor.name })
+          : t("aboutSourceExternal"),
+      )}
       actions={<MarketplaceAgentActions agentId={agent.id} />}
       sections={[
         {
           id: "what",
           title: t("sectionWhat"),
           content: (
-            <div className="flex flex-col gap-6">
-              {description ? (
-                <ExpandableMarkdown
-                  content={description}
-                  className="text-foreground"
-                  expandLabel={tTaskDetail("expand")}
-                  collapseLabel={tTaskDetail("collapse")}
-                  fadeClassName="to-background"
-                />
+            <>
+              {description || tags.length > 0 ? (
+                <div className={cn(AGENTS_CARD_CLASS, "flex flex-col gap-4")}>
+                  {description ? (
+                    <ExpandableMarkdown
+                      content={description}
+                      className="text-foreground max-w-prose"
+                      expandLabel={tTaskDetail("expand")}
+                      collapseLabel={tTaskDetail("collapse")}
+                      fadeClassName="to-background"
+                    />
+                  ) : null}
+                  {tags.length > 0 ? <AgentBadgeCloud tags={tags} /> : null}
+                </div>
               ) : null}
-              {tags.length > 0 ? <AgentBadgeCloud tags={tags} /> : null}
               {examples.length > 0 ? (
                 <AgentDetailExamples exampleOutputs={examples} />
               ) : null}
-            </div>
+            </>
           ),
         },
         myJobsCount > 0 && {
@@ -187,7 +214,11 @@ export function AgentDetail({
           content: (
             <Link
               href={`/agents/${agent.id}/jobs`}
-              className="border-border hover:bg-accent focus-visible:ring-ring flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm transition-colors outline-none focus-visible:ring-2"
+              className={cn(
+                HOLDER_ITEM_CLASS,
+                HOLDER_ITEM_HOVER_CLASS,
+                "focus-visible:ring-ring flex items-center justify-between gap-3 px-4 py-3 text-sm outline-none focus-visible:ring-2",
+              )}
             >
               <span className="text-foreground font-medium">
                 {t("yourJobs", { count: myJobsCount })}
@@ -203,10 +234,10 @@ export function AgentDetail({
           id: "about",
           title: t("sectionAbout"),
           content: (
-            <div className="flex flex-col gap-8">
+            <>
               <MarketplaceAbout
                 agent={agent}
-                vendor={vendor}
+                vendor={vendor.about}
                 executedJobsCount={executedJobsCount}
                 averageExecutionDuration={averageExecutionDuration}
               />
@@ -220,7 +251,7 @@ export function AgentDetail({
                   existingRating={existingRating}
                 />
               ) : null}
-            </div>
+            </>
           ),
         },
       ]}

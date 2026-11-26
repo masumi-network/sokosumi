@@ -9,6 +9,7 @@ import {
   AboutList,
   AgentProfile,
   AgentProfileSkeleton,
+  ProfileText,
 } from "@/components/agents/directory/agent-profile";
 
 import { CoworkerActions, CoworkerOffers } from "./coworker-profile.client";
@@ -81,7 +82,7 @@ async function CoworkerProfile({
     <AgentProfile
       backLabel={t("backToAgents")}
       avatar={
-        <CoworkerAvatar coworker={coworker} className="size-20" sizes="80px" />
+        <CoworkerAvatar coworker={coworker} className="size-12" sizes="48px" />
       }
       name={coworker.name}
       byline={t("byVendor", { vendor: coworker.vendor.name })}
@@ -91,21 +92,19 @@ async function CoworkerProfile({
           id: "what",
           title: t("sectionWhat"),
           content: (
-            <div className="flex flex-col gap-6">
+            <>
               {coworker.description ? (
-                <p className="text-foreground text-sm leading-relaxed text-pretty">
-                  {coworker.description}
-                </p>
+                <ProfileText>{coworker.description}</ProfileText>
               ) : null}
               {offers.length > 0 ? (
-                <div className="flex flex-col gap-3">
-                  <h3 className="text-muted-foreground text-sm font-medium">
+                <>
+                  <h3 className="text-muted-foreground px-2 pt-2 text-xs font-medium">
                     {t("readyTasks")}
                   </h3>
                   <CoworkerOffers coworker={coworker} />
-                </div>
+                </>
               ) : null}
-            </div>
+            </>
           ),
         },
         {

@@ -185,6 +185,61 @@ describe("buildCmoBeatPacket", () => {
     expect(packet).toContain("workspace.marketing");
     expect(packet.length).toBeLessThan(5_000);
   });
+
+  it("dates the weekly review and lists only what went out last week", async () => {
+    // entry.fyi, 23 November: the review read December's drafts as last week.
+    const { buildCmoBeatPacket } = await import("./cmo-context.service");
+    cusoFind.mockResolvedValue({
+      userId: "user-1",
+      workspaceId: "ws-1",
+      projectId: "project-1",
+      businessName: "Acme",
+      websiteUrl: "https://acme.io",
+      goals: "More leads",
+      brandBrain: { summary: "Acme" },
+      updates: [],
+    });
+    seedStrategy(strategy, { approvedAt: new Date("2026-11-01T09:00:00Z") });
+    subscriptionFindFirst.mockResolvedValue(null);
+    connectionFindMany.mockResolvedValue([]);
+    postFindMany.mockResolvedValue([
+      {
+        id: "post-1",
+        provider: "x",
+        status: "PUBLISHED",
+        scheduledAt: new Date("2026-11-18T10:00:00Z"),
+        publishedAt: new Date("2026-11-18T10:00:05Z"),
+        publishedUrl: "https://x.com/acme/status/1",
+        text: "Shipped on Wednesday",
+      },
+    ]);
+
+    const { packet } = await buildCmoBeatPacket(
+      "bot-1",
+      new Date("2026-11-23T08:00:00Z"),
+      "cmo-weekly-review",
+    );
+
+    expect(packet).toContain(
+      "## Today: 2026-11-23. Last week: 2026-11-16 to 2026-11-22.",
+    );
+    expect(packet).toContain(
+      "## Social posts published last week (2026-11-16 to 2026-11-22)",
+    );
+    expect(packet).not.toContain("last 14 days");
+    expect(postFindMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          projectId: "project-1",
+          status: "PUBLISHED",
+          publishedAt: {
+            gte: new Date("2026-11-16T00:00:00Z"),
+            lt: new Date("2026-11-23T00:00:00Z"),
+          },
+        },
+      }),
+    );
+  });
 });
 
 describe("loadCmoMarketingContext", () => {

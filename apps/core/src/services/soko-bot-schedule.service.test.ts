@@ -183,20 +183,45 @@ describe("schedules of a shared bot", () => {
   const lockedFindUnique = vi.fn(async () => ({ ...locked, runChanges }));
   const changeUpsert = vi.fn();
   const changeDeleteMany = vi.fn();
+  const runUpdateMany = vi.fn().mockResolvedValue({ count: 0 });
   const scheduleCreate = vi.fn();
   const botFindUnique = vi.fn(async (args: { where: { id: string } }) => ({
     userId: BOT_OWNERS[args.where.id],
+    archivedAt: null,
+    status: "RUNNING",
+    adminPausedAt: null,
+    projectId: null,
+    versionId: null,
     workspace: { organizationId: "org_1" },
   }));
+  const workspaceFindFirst = vi.fn(
+    async (args?: {
+      where?: {
+        OR?: [
+          { userId?: string },
+          { organization?: { members?: { some?: { userId?: string } } } },
+        ];
+      };
+    }) => {
+      const userId = args?.where?.OR?.[0]?.userId;
+      if (userId && !members.has(userId)) {
+        return null;
+      }
+      return { id: WORKSPACE_ID, organizationId: null };
+    },
+  );
   const tx = {
     $queryRaw: queryRaw,
+    sokoBotScheduleRun: {
+      updateMany: runUpdateMany,
+    },
     sokoBotScheduleRunChange: {
       findMany: vi.fn(async () => runChanges),
       upsert: changeUpsert,
       deleteMany: changeDeleteMany,
     },
     sokoBot: { findFirst: botFindFirst, findUnique: botFindUnique },
-    workspace: { findFirst: vi.fn().mockResolvedValue({ id: WORKSPACE_ID }) },
+    workspace: { findFirst: workspaceFindFirst },
     sokoBotSchedule: {
       findFirst: scheduleFindFirst,
       findMany: scheduleFindMany,
@@ -550,6 +575,45 @@ describe("schedules of a shared bot", () => {
     ).resolves.toMatchObject({ enabled: false });
   });
 
+  it("keeps a built-in rhythm's name and prompt, for a person too: another job is its own schedule", async () => {
+    const rhythm = {
+      ...SHARED,
+      name: "End of day",
+      prompt: "End of day. What got done.",
+      systemKey: "end-of-day",
+    };
+    for (const change of [
+      { name: "End of day: CodePat runs + merged PRs" },
+      { prompt: "List today's CodePat runs and merged PRs." },
+    ]) {
+      scheduleFindFirst.mockResolvedValueOnce(rhythm);
+      await expect(
+        updateSokoBotSchedule(
+          { userId: "member_2", ...turnRef(SHARED), ...change },
+          tx,
+        ),
+      ).rejects.toThrow(
+        '"End of day" is a built-in rhythm: only its time, timezone and on/off change',
+      );
+    }
+    expect(scheduleUpdate).not.toHaveBeenCalled();
+
+    // The console sends the whole form back: unchanged values pass.
+    scheduleFindFirst.mockResolvedValueOnce(rhythm);
+    await expect(
+      updateSokoBotSchedule(
+        {
+          userId: "member_2",
+          ...turnRef(SHARED),
+          name: rhythm.name,
+          prompt: rhythm.prompt,
+          cronExpression: "0 19 * * 1-5",
+        },
+        tx,
+      ),
+    ).resolves.toBeDefined();
+  });
+
   it("lets any member with access edit and delete a schedule another member wrote", async () => {
     await expect(
       updateSokoBotSchedule(
@@ -766,6 +830,265 @@ describe("schedules of a shared bot", () => {
     it("leaves a personal schedule with its owner", async () => {
       await upsert(PERSONAL, "owner_1", { prompt: "New" });
       expect(storedRequester(PERSONAL)).toBeUndefined();
+    });
+  });
+
+  describe("persisted OwnerAuthority resolution", () => {
+    it("pre-allocates schedule id and persists resolved authority on create, upsert, and update", async () => {
+      const resolveCreate = vi.fn(({ scheduleId }) => ({
+        version: 1 as const,
+        grantId: "grant-1",
+        origin: "owner_chat" as const,
+        sokoBotId: SHARED_BOT_ID,
+        workspaceId: WORKSPACE_ID,
+        ownerUserId: "member_2",
+        rootTurnId: "turn-1",
+        targetScope: { kind: "workspace" as const },
+        scheduleId,
+        scope: "owner_writes" as const,
+        socialMode: "draft_only" as const,
+        stopRule: { mode: "ends_after_runs" as const, scheduleId, maxRuns: 2 },
+      }));
+      scheduleFindFirst.mockResolvedValueOnce(null);
+      await createSokoBotSchedule(
+        {
+          ...createInput("member_2", SHARED_BOT_ID),
+          resolveAuthority: resolveCreate,
+        },
+        tx,
+      );
+      const createData = scheduleCreate.mock.lastCall?.[0]?.data;
+      expect(typeof createData?.id).toBe("string");
+      expect(createData?.authority?.scheduleId).toBe(createData?.id);
+      expect(createData?.authority?.stopRule?.scheduleId).toBe(createData?.id);
+
+      const { OwnerAuthorityError } = await import("@sokosumi/soko-bot");
+      await expect(
+        updateSokoBotSchedule(
+          {
+            userId: "member_2",
+            ...turnRef(SHARED),
+            prompt: "Changed",
+            resolveAuthority: () => {
+              throw new OwnerAuthorityError("Only direct owner chat may edit");
+            },
+          },
+          tx,
+        ),
+      ).rejects.toThrow(SokoBotScheduleValidationError);
+    });
+
+    it("stops and fences unstarted occurrences immediately when setting or re-enabling an already-met ends_after_runs limit", async () => {
+      const makeRunsAuthority = (ownerUserId: string, maxRuns: number) => ({
+        version: 1 as const,
+        grantId: "01960001-0001-7001-8001-0000000000f1",
+        origin: "owner_ui" as const,
+        sokoBotId: SHARED_BOT_ID,
+        workspaceId: WORKSPACE_ID,
+        ownerUserId,
+        rootTurnId: null,
+        targetScope: { kind: "workspace" as const },
+        scheduleId: SHARED.id,
+        scope: "owner_writes" as const,
+        socialMode: "draft_only" as const,
+        stopRule: {
+          mode: "ends_after_runs" as const,
+          scheduleId: SHARED.id,
+          maxRuns,
+        },
+      });
+
+      // 1. Replacement member sets maxRuns=2 on an enabled shared schedule
+      //    already at completedRuns=2 (e.g. previous grantor left before run 2):
+      //    disables immediately and fences unstarted runs atomically.
+      const exhaustedRow = {
+        ...SHARED,
+        enabled: true,
+        completedRuns: 2,
+        authority: makeRunsAuthority("author_1", 2),
+      };
+      scheduleFindFirst.mockResolvedValueOnce(exhaustedRow as never);
+      locked = exhaustedRow;
+      runUpdateMany.mockClear();
+
+      const handedOff = await updateSokoBotSchedule(
+        {
+          userId: "member_2",
+          ...turnRef(SHARED),
+          resolveAuthority: () => makeRunsAuthority("member_2", 2),
+        },
+        tx,
+      );
+      expect(handedOff.enabled).toBe(false);
+      expect(scheduleUpdate.mock.lastCall?.[0]?.data).toMatchObject({
+        enabled: false,
+        authority: expect.objectContaining({ ownerUserId: "member_2" }),
+      });
+      expect(runUpdateMany).toHaveBeenCalledWith({
+        where: {
+          scheduleId: SHARED.id,
+          status: { in: ["PENDING", "CLAIMED"] },
+          turnId: null,
+        },
+        data: expect.objectContaining({
+          status: "DEAD_LETTER",
+          errorKind: "schedule_stop_rule_met",
+        }),
+      });
+
+      // 2. Re-enabling a disabled schedule that already reached maxRuns=2
+      //    keeps enabled=false and fences unstarted runs.
+      const disabledExhausted = {
+        ...SHARED,
+        enabled: false,
+        completedRuns: 2,
+        authority: makeRunsAuthority("member_2", 2),
+      };
+      scheduleFindFirst.mockResolvedValueOnce(disabledExhausted as never);
+      locked = disabledExhausted;
+      runUpdateMany.mockClear();
+
+      const reenabling = await updateSokoBotSchedule(
+        {
+          userId: "member_2",
+          ...turnRef(SHARED),
+          enabled: true,
+        },
+        tx,
+      );
+      expect(reenabling.enabled).toBe(false);
+      expect(runUpdateMany).toHaveBeenCalledTimes(1);
+
+      // 3. Re-enabling while raising maxRuns above completedRuns succeeds.
+      scheduleFindFirst.mockResolvedValueOnce(disabledExhausted as never);
+      locked = disabledExhausted;
+      runUpdateMany.mockClear();
+
+      const raised = await updateSokoBotSchedule(
+        {
+          userId: "member_2",
+          ...turnRef(SHARED),
+          enabled: true,
+          resolveAuthority: () => makeRunsAuthority("member_2", 4),
+        },
+        tx,
+      );
+      expect(raised.enabled).toBe(true);
+      expect(runUpdateMany).not.toHaveBeenCalled();
+
+      // 4. Upserting by name via createSokoBotSchedule onto a schedule already
+      //    at completedRuns=2 with maxRuns=2 keeps enabled=false and fences runs.
+      scheduleFindFirst.mockResolvedValueOnce({
+        id: SHARED.id,
+        authority: makeRunsAuthority("member_2", 2),
+        completedRuns: 2,
+      } as never);
+      runUpdateMany.mockClear();
+
+      const upserted = await createSokoBotSchedule(
+        {
+          ...createInput("member_2", SHARED_BOT_ID),
+          name: SHARED.name,
+        },
+        tx,
+      );
+      expect(upserted.enabled).toBe(false);
+      expect(runUpdateMany).toHaveBeenCalledTimes(1);
+
+      // 5. Metadata-only chat rename (resolveAuthority returns undefined) with
+      //    an expired grant or departed grantor must NOT disable the schedule
+      //    or cancel queued occurrences.
+      const expiredAuthority = {
+        ...makeRunsAuthority("author_1", 2),
+        expiresAt: "2020-01-01T00:00:00.000Z",
+      };
+      const expiredActive = {
+        ...SHARED,
+        enabled: true,
+        completedRuns: 2,
+        authority: expiredAuthority,
+      };
+      scheduleFindFirst.mockResolvedValueOnce(expiredActive as never);
+      locked = expiredActive;
+      runUpdateMany.mockClear();
+
+      const renamed = await updateSokoBotSchedule(
+        {
+          userId: "member_2",
+          ...turnRef(SHARED),
+          name: "Renamed digest",
+          resolveAuthority: () => undefined,
+        },
+        tx,
+      );
+      expect(renamed.enabled).toBe(true);
+      expect(scheduleUpdate.mock.lastCall?.[0]?.data).not.toHaveProperty(
+        "enabled",
+      );
+      expect(runUpdateMany).not.toHaveBeenCalled();
+
+      // 6. Re-enabling or same-name upserting a schedule whose saved count
+      //    grant is expired or whose grantor departed must NOT apply that
+      //    stale stop rule or fence queued runs.
+      const expiredDisabled = {
+        ...SHARED,
+        enabled: false,
+        completedRuns: 2,
+        authority: expiredAuthority,
+      };
+      scheduleFindFirst.mockResolvedValueOnce(expiredDisabled as never);
+      locked = expiredDisabled;
+      runUpdateMany.mockClear();
+
+      const reenabledExpired = await updateSokoBotSchedule(
+        {
+          userId: "member_2",
+          ...turnRef(SHARED),
+          enabled: true,
+        },
+        tx,
+      );
+      expect(reenabledExpired.enabled).toBe(true);
+      expect(runUpdateMany).not.toHaveBeenCalled();
+
+      members.delete("author_1");
+      const departedRow = {
+        ...SHARED,
+        enabled: false,
+        completedRuns: 2,
+        authority: makeRunsAuthority("author_1", 2),
+      };
+      scheduleFindFirst.mockResolvedValueOnce(departedRow as never);
+      locked = departedRow;
+      runUpdateMany.mockClear();
+
+      const reenabledDeparted = await updateSokoBotSchedule(
+        {
+          userId: "member_2",
+          ...turnRef(SHARED),
+          enabled: true,
+        },
+        tx,
+      );
+      expect(reenabledDeparted.enabled).toBe(true);
+      expect(runUpdateMany).not.toHaveBeenCalled();
+
+      scheduleFindFirst.mockResolvedValueOnce({
+        id: SHARED.id,
+        authority: expiredAuthority,
+        completedRuns: 2,
+      } as never);
+      runUpdateMany.mockClear();
+
+      const upsertedExpired = await createSokoBotSchedule(
+        {
+          ...createInput("member_2", SHARED_BOT_ID),
+          name: SHARED.name,
+        },
+        tx,
+      );
+      expect(upsertedExpired.enabled).toBe(true);
+      expect(runUpdateMany).not.toHaveBeenCalled();
     });
   });
 });

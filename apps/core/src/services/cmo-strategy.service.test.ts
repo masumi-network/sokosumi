@@ -1650,6 +1650,71 @@ describe("saving versions", () => {
     ]);
   });
 
+  // cmo-v23 (ADR 0080): a chat or rhythm sees no calendar window, so a whole
+  // calendar it sends must not drop pieces it never read.
+  it("keeps every unsent entry for a turn that worked without the calendar", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    turnFindUnique.mockResolvedValue({
+      versionId: "cmo-v23",
+      clientTurnId: "chat:1",
+      source: "CHAT",
+      userMessage: "",
+    });
+    const far = {
+      id: "d",
+      date: "2026-12-01",
+      channel: "linkedin",
+      title: "December",
+      format: "post",
+      status: "idea" as const,
+    };
+    seedStrategy({ ...strategy, calendar: [...strategy.calendar, far] });
+    const saved = await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { ...strategy, calendar: [strategy.calendar[0]!] },
+      { turnId: "turn-1", now: new Date("2026-10-07T12:00:00Z") },
+    );
+    expect(
+      plan(saved)
+        .calendar.map((entry) => entry.id)
+        .sort(),
+    ).toEqual(
+      strategy.calendar
+        .map((entry) => entry.id)
+        .concat("d")
+        .sort(),
+    );
+  });
+
+  it("keeps a strategy turn's window on cmo-v23", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    turnFindUnique.mockResolvedValue({
+      versionId: "cmo-v23",
+      clientTurnId: "cmo:strategy:bot-1:1",
+      source: "EVENT",
+      userMessage: "",
+    });
+    const far = {
+      id: "d",
+      date: "2026-12-01",
+      channel: "linkedin",
+      title: "December",
+      format: "post",
+      status: "idea" as const,
+    };
+    seedStrategy({ ...strategy, calendar: [...strategy.calendar, far] });
+    const saved = await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { ...strategy, calendar: [strategy.calendar[0]!] },
+      { turnId: "turn-1", now: new Date("2026-10-07T12:00:00Z") },
+    );
+    expect(plan(saved).calendar.map((entry) => entry.id)).toEqual([
+      "b",
+      "a",
+      "d",
+    ]);
+  });
+
   it("keeps what a save leaves out, so a plan can arrive in short calls", async () => {
     cusoFind.mockResolvedValue(HIRE);
     seedStrategy(strategy);
@@ -2169,6 +2234,26 @@ describe("a patch", () => {
     // The entry as it was, so the screen can strike it through.
     expect(after.patched).toEqual([{ id: "e7", was: before.calendar[6] }]);
     expect(after.changes).toEqual(["Piece seven is calmer."]);
+  });
+
+  it("never stores a draft Cuso sends before approval, so the review never asks for what a patch cannot undo", async () => {
+    const first = await written();
+    const before = planOf(first);
+    const drafted = {
+      ...before.calendar[6]!,
+      title: "A calmer piece seven",
+      draft: "Written before the owner approved.",
+    };
+
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { calendar: [drafted] },
+      { turnId: "turn-2", part: "patch", rules: true },
+    );
+
+    const after = planOf(strategyRows.find((row) => row.id !== first.id)!);
+    expect(after.calendar[6]!.title).toBe("A calmer piece seven");
+    expect(after.calendar.some((entry) => "draft" in entry)).toBe(false);
   });
 
   it("keeps how an entry was across a turn's saves, even when sent again", async () => {

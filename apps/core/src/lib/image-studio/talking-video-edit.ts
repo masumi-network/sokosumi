@@ -5,9 +5,12 @@ import path from "node:path";
 import {
   SHORT_VIDEO_TEXT_FORMATS,
   type ShortVideoFormat,
+  type VideoShape,
 } from "@sokosumi/utils";
 
 import { CAPTION_FONT_FAMILY, captionFontsDir, runFfmpeg } from "@/lib/ffmpeg";
+
+import { VIDEO_LAYOUTS, type VideoLayout } from "./video-layout";
 
 /**
  * The edit every talking video gets after its presenter clip comes back:
@@ -96,17 +99,9 @@ function sentenceShot(sentence: number, sentences: number): EditShot {
   return sentence % 2 === 1 ? "over-page" : "page";
 }
 
-const FRAME = { width: 1080, height: 1920 } as const;
-/**
- * TikTok's in-feed layout keeps this part of a 1080 x 1920 video clear of its
- * own caption, buttons and top bar (from TikTok's in-feed ad templates).
- */
-export const TIKTOK_SAFE_AREA = {
-  left: 120,
-  right: 960,
-  top: 240,
-  bottom: 1260,
-} as const;
+export const TIKTOK_SAFE_AREA = VIDEO_LAYOUTS["9:16"].safe;
+/** Every presenter clip is made, and its photo framed, at this size. */
+const PRESENTER_CLIP = { width: 1080, height: 1920 } as const;
 
 /** A silence longer than this between two words is cut out. */
 const MAX_PAUSE_SECONDS = 0.3;
@@ -486,23 +481,8 @@ function assText(text: string): string {
     .trim();
 }
 
-/** Where the logo sits on the end card, and the line under it. */
-const END_CARD_LOGO_CENTRE = 800;
-const END_CARD_TEXT_TOP = 1010;
 /** The logo is fitted into this box before it is placed. */
 export const END_CARD_LOGO_BOX = { width: 640, height: 320 } as const;
-/**
- * The presenter over a page: scaled down and stood on the bottom edge, below
- * the page's first screen. At 800 x 1422 the head covered the site's
- * headline (NMKR's hero ran to y 940 to 1290 of a 1080-wide capture).
- */
-const OVER_PAGE_PRESENTER = { width: 540, height: 960 } as const;
-/**
- * The page behind the presenter, shrunk so its first 1280 pixels (where a
- * site's hero headline sits) show above the presenter's head, over a blurred
- * copy of itself that fills the sides.
- */
-const OVER_PAGE_PAGE = { width: 810, height: 1440 } as const;
 /** Pixels a second the page drifts behind the presenter, and pans alone. */
 const OVER_PAGE_DRIFT = 24;
 const PAGE_PAN = 70;
@@ -516,17 +496,19 @@ const SPOKEN = "&H0000E6FF";
 
 /**
  * The captions and the hook line as an ASS subtitle file. Captions sit just
- * above the bottom of TikTok's safe area and wrap inside its sides; the hook
- * line sits at its top.
+ * above the bottom of the layout's safe area and wrap inside its sides; the
+ * hook line sits at its top.
  */
 export function talkingVideoSubtitles(
   plan: TalkingVideoEditPlan,
   hookLine: string | null,
   /** The line under the logo on the end card, and whether the card is dark. */
   endCard: { text: string; dark: boolean } | null = null,
+  layout: VideoLayout = VIDEO_LAYOUTS["9:16"],
 ): string {
-  const { left, right, top, bottom } = TIKTOK_SAFE_AREA;
-  const sideMargin = Math.max(left, FRAME.width - right);
+  const { frame, text: sizes } = layout;
+  const { left, right, top, bottom } = layout.safe;
+  const sideMargin = Math.max(left, frame.width - right);
   const style = (
     name: string,
     values: {
@@ -574,25 +556,25 @@ export function talkingVideoSubtitles(
   return [
     "[Script Info]",
     "ScriptType: v4.00+",
-    `PlayResX: ${FRAME.width}`,
-    `PlayResY: ${FRAME.height}`,
+    `PlayResX: ${frame.width}`,
+    `PlayResY: ${frame.height}`,
     "WrapStyle: 0",
     "ScaledBorderAndShadow: yes",
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
     style("Caption", {
-      size: 100,
+      size: sizes.caption,
       colour: WHITE,
       outlineColour: INK,
       ...(plan.captionBox
         ? { borderStyle: 3, outline: 14 }
         : { borderStyle: 1, outline: 8 }),
       alignment: 2,
-      marginV: FRAME.height - bottom + 30,
+      marginV: frame.height - bottom + 30,
     }),
     style("Hook", {
-      size: 58,
+      size: sizes.hook,
       colour: INK,
       outlineColour: WHITE,
       borderStyle: 3,
@@ -602,7 +584,7 @@ export function talkingVideoSubtitles(
     }),
     // A short's own words: a label over a picture, or a list point's number.
     style("Label", {
-      size: 80,
+      size: sizes.label,
       colour: INK,
       outlineColour: WHITE,
       borderStyle: 3,
@@ -611,7 +593,7 @@ export function talkingVideoSubtitles(
       marginV: top + 50,
     }),
     style("Number", {
-      size: 200,
+      size: sizes.number,
       colour: SPOKEN,
       outlineColour: INK,
       borderStyle: 1,
@@ -620,13 +602,13 @@ export function talkingVideoSubtitles(
       marginV: top + 20,
     }),
     style("Card", {
-      size: 64,
+      size: sizes.card,
       colour: endCard?.dark === false ? INK : WHITE,
       outlineColour: endCard?.dark === false ? WHITE : INK,
       borderStyle: 1,
       outline: 0,
       alignment: 8,
-      marginV: END_CARD_TEXT_TOP,
+      marginV: layout.endCard.textTop,
     }),
     "",
     "[Events]",
@@ -649,11 +631,11 @@ export interface TalkingVideoEditFiles {
   subtitles: string;
   fontsDir: string;
   output: string;
-  /** A screenshot of the brand's page, 1080 wide and at least 1920 high. */
+  /** A screenshot of the brand's page, at least the frame's width and height. */
   page?: string;
   /** The clip's matte: white where the presenter is. Same frames as `clip`. */
   alpha?: string;
-  /** A short's pictures, each 1080 x 1920. */
+  /** A short's pictures, each the size of the frame. */
   pictures?: string[];
   /** The colour of a card with no picture behind it, as `0xRRGGBB`. */
   cardColour?: string;
@@ -663,10 +645,13 @@ export interface TalkingVideoEditFiles {
   broll?: string;
   /** An instrumental bed, looped under the whole video. */
   music?: string;
+  /** Designed stills over the cut, each a transparent PNG the frame's size. */
+  cards?: { png: string; start: number; end: number }[];
 }
 
-/** A picture is drawn this much larger than the frame, to pan across. */
-const PICTURE_PAN = { width: 1188, height: 2112 } as const;
+/** A card fades in and out over this long. */
+const CARD_FADE_SECONDS = 0.25;
+
 /** Music under a voice is a bed; without one, it carries the short. */
 const MUSIC_UNDER_WORDS_VOLUME = 0.9;
 
@@ -696,14 +681,16 @@ function availableShot(cut: EditCut, files: TalkingVideoEditFiles): EditShot {
 export function talkingVideoEditArgs(
   plan: TalkingVideoEditPlan,
   files: TalkingVideoEditFiles,
+  layout: VideoLayout = VIDEO_LAYOUTS["9:16"],
 ): string[] {
+  const { frame, overPage, picturePan } = layout;
   const inputs: string[] = [];
   let inputCount = 0;
   const addInput = (...args: string[]) => {
     inputs.push(...args);
     return inputCount++;
   };
-  const size = `${FRAME.width}:${FRAME.height}`;
+  const size = `${frame.width}:${frame.height}`;
   const sound =
     "aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo";
   const graph: string[] = [];
@@ -723,20 +710,39 @@ export function talkingVideoEditArgs(
         );
     const clip = audio;
     const shot = availableShot(cut, files);
-    if (shot === "camera") {
-      const width = 2 * Math.round(FRAME.width / cut.zoom / 2);
-      const height = 2 * Math.round(FRAME.height / cut.zoom / 2);
-      // Punched in from the top, where the presenter's face is.
+    if (shot === "camera" && layout.camera === "pillar") {
+      const width = 2 * Math.round(PRESENTER_CLIP.width / cut.zoom / 2);
+      const height = 2 * Math.round(PRESENTER_CLIP.height / cut.zoom / 2);
       graph.push(
-        `[${clip}:v]scale=${size},crop=${width}:${height}:(iw-ow)/2:0,scale=${size},setsar=1,fps=30[v${index}]`,
+        `[${clip}:v]scale=${PRESENTER_CLIP.width}:${PRESENTER_CLIP.height},crop=${width}:${height}:(iw-ow)/2:0,split[ca${index}][cf${index}]`,
+        `[ca${index}]scale=${size}:force_original_aspect_ratio=increase,crop=${size},boxblur=24,drawbox=c=black@0.25:t=fill,setsar=1[cb${index}]`,
+        `[cf${index}]scale=-2:${frame.height}[cp${index}]`,
+        `[cb${index}][cp${index}]overlay=(W-w)/2:0,setsar=1,fps=30[v${index}]`,
+      );
+    } else if (shot === "camera") {
+      const width = 2 * Math.round(frame.width / cut.zoom / 2);
+      const height = 2 * Math.round(frame.height / cut.zoom / 2);
+      // Punched in from the layout's top, where the presenter's face is.
+      graph.push(
+        `[${clip}:v]scale=${PRESENTER_CLIP.width}:${PRESENTER_CLIP.height},crop=${width}:${height}:(iw-ow)/2:${layout.cameraTop},scale=${size},setsar=1,fps=30[v${index}]`,
       );
     } else if (shot === "broll") {
       const broll = addInput(
         ...(files.clip ? [] : ["-stream_loop", "-1"]),
         ...["-t", seconds, "-i", files.broll!],
       );
+      // A vertical clip in a widescreen frame is shown whole, like the presenter.
       graph.push(
-        `[${broll}:v]scale=${size}:force_original_aspect_ratio=increase,crop=${size},setsar=1,fps=30[v${index}]`,
+        ...(layout.camera === "pillar"
+          ? [
+              `[${broll}:v]split[ra${index}][rf${index}]`,
+              `[ra${index}]scale=${size}:force_original_aspect_ratio=increase,crop=${size},boxblur=24,drawbox=c=black@0.25:t=fill,setsar=1[rb${index}]`,
+              `[rf${index}]scale=-2:${frame.height}[rp${index}]`,
+              `[rb${index}][rp${index}]overlay=(W-w)/2:0,setsar=1,fps=30[v${index}]`,
+            ]
+          : [
+              `[${broll}:v]scale=${size}:force_original_aspect_ratio=increase,crop=${size},setsar=1,fps=30[v${index}]`,
+            ]),
       );
     } else if (shot === "picture") {
       const picture = addInput(
@@ -747,21 +753,21 @@ export function talkingVideoEditArgs(
       // Every other picture pans up instead of down.
       const along = index % 2 === 0 ? `t/${seconds}` : `(1-t/${seconds})`;
       graph.push(
-        `[${picture}:v]scale=${PICTURE_PAN.width}:${PICTURE_PAN.height},crop=${size}:(iw-ow)/2:'(ih-oh)*${along}',setsar=1,fps=30[v${index}]`,
+        `[${picture}:v]scale=${picturePan.width}:${picturePan.height},crop=${size}:(iw-ow)/2:'(ih-oh)*${along}',setsar=1,fps=30[v${index}]`,
       );
     } else if (shot === "card") {
       const card = addInput(
         ...["-f", "lavfi", "-t", seconds],
         ...[
           "-i",
-          `color=c=${files.cardColour ?? "0x101010"}:s=${FRAME.width}x${FRAME.height}:r=30`,
+          `color=c=${files.cardColour ?? "0x101010"}:s=${frame.width}x${frame.height}:r=30`,
         ],
       );
       graph.push(`[${card}:v]setsar=1,fps=30[v${index}]`);
     } else if (shot === "page" && cut.zoom < 1) {
       const page = addInput(...still, "-i", files.page!);
-      const width = 2 * Math.round((FRAME.width * cut.zoom) / 2);
-      const height = 2 * Math.round((FRAME.height * cut.zoom) / 2);
+      const width = 2 * Math.round((frame.width * cut.zoom) / 2);
+      const height = 2 * Math.round((frame.height * cut.zoom) / 2);
       graph.push(
         `[${page}:v]split[pa${index}][pf${index}]`,
         `[pa${index}]crop=${size}:0:${cut.pageFrom ?? PAGE_PAN_FROM},boxblur=24,drawbox=c=black@0.35:t=fill,setsar=1[pb${index}]`,
@@ -770,24 +776,24 @@ export function talkingVideoEditArgs(
       );
     } else if (shot === "page") {
       const page = addInput(...still, "-i", files.page!);
-      const width = 2 * Math.round(FRAME.width / cut.zoom / 2);
-      const height = 2 * Math.round(FRAME.height / cut.zoom / 2);
+      const width = 2 * Math.round(frame.width / cut.zoom / 2);
+      const height = 2 * Math.round(frame.height / cut.zoom / 2);
       graph.push(
         `[${page}:v]crop=${width}:${height}:(iw-ow)/2:'min(ih-oh,${cut.pageFrom ?? PAGE_PAN_FROM}+${PAGE_PAN}*t)',scale=${size},setsar=1,fps=30[v${index}]`,
       );
     } else {
       const alpha = addInput(...seek, "-i", files.alpha!);
       const page = addInput(...still, "-i", files.page!);
-      const person = `${OVER_PAGE_PRESENTER.width}:${OVER_PAGE_PRESENTER.height}`;
+      const person = `${overPage.presenter.width}:${overPage.presenter.height}`;
       graph.push(
         `[${clip}:v]scale=${person}[p${index}]`,
         `[${alpha}:v]scale=${person},format=gray[m${index}]`,
         `[p${index}][m${index}]alphamerge[c${index}]`,
         `[${page}:v]split[pa${index}][pf${index}]`,
         `[pa${index}]crop=${size}:0:0,boxblur=24,setsar=1[pb${index}]`,
-        `[pf${index}]scale=${OVER_PAGE_PAGE.width}:-2,crop=${OVER_PAGE_PAGE.width}:${OVER_PAGE_PAGE.height}:0:'min(ih-oh,${OVER_PAGE_DRIFT}*t)'[pt${index}]`,
-        `[pb${index}][pt${index}]overlay=(W-w)/2:0[b${index}]`,
-        `[b${index}][c${index}]overlay=(W-w)/2:H-h:shortest=1,setsar=1,fps=30[v${index}]`,
+        `[pf${index}]scale=${overPage.page.width}:-2,crop=${overPage.page.width}:${overPage.page.height}:0:'min(ih-oh,${OVER_PAGE_DRIFT}*t)'[pt${index}]`,
+        `[pb${index}][pt${index}]overlay=${overPage.pageX}:0[b${index}]`,
+        `[b${index}][c${index}]overlay=${overPage.presenterX}:H-h:shortest=1,setsar=1,fps=30[v${index}]`,
       );
     }
     graph.push(`[${audio}:a]${sound}[a${index}]`);
@@ -799,7 +805,7 @@ export function talkingVideoEditArgs(
     const colour = files.endCard.dark ? "0x101010" : "0xFFFFFF";
     const card = addInput(
       ...["-f", "lavfi", "-t", seconds],
-      ...["-i", `color=c=${colour}:s=${FRAME.width}x${FRAME.height}:r=30`],
+      ...["-i", `color=c=${colour}:s=${frame.width}x${frame.height}:r=30`],
     );
     const logo = addInput(
       ...["-loop", "1", "-framerate", "30", "-t", seconds],
@@ -810,7 +816,7 @@ export function talkingVideoEditArgs(
       ...["-i", "anullsrc=r=44100:cl=stereo"],
     );
     graph.push(
-      `[${card}:v][${logo}:v]overlay=(W-w)/2:${END_CARD_LOGO_CENTRE}-h/2:shortest=1,setsar=1,fps=30[vcard]`,
+      `[${card}:v][${logo}:v]overlay=(W-w)/2:${layout.endCard.logoCentre}-h/2:shortest=1,setsar=1,fps=30[vcard]`,
       `[${silence}:a]${sound}[acard]`,
     );
     parts.push("[vcard][acard]");
@@ -829,8 +835,27 @@ export function talkingVideoEditArgs(
   }
   // As loud as the feeds play their own videos (about -14 LUFS).
   graph.push(`[mix]loudnorm=I=${LOUDNESS_LUFS}:TP=-1.5:LRA=11,${sound}[audio]`);
+  // Each card fades in and out over the cut, under the captions.
+  let picture = "cut";
+  (files.cards ?? []).forEach((card, index) => {
+    // A card shows within the video: never before it starts or after it ends.
+    const start = Math.max(0, card.start);
+    const end = Math.min(card.end, plan.durationSeconds);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return;
+    if (end - start < 2 * CARD_FADE_SECONDS) return;
+    const still = addInput(
+      ...["-loop", "1", "-framerate", "30", "-t", end.toFixed(3)],
+      ...["-i", card.png],
+    );
+    const fade = Math.min(CARD_FADE_SECONDS, (end - start) / 2).toFixed(3);
+    graph.push(
+      `[${still}:v]format=rgba,fade=t=in:st=${start.toFixed(3)}:d=${fade}:alpha=1,fade=t=out:st=${(end - Number(fade)).toFixed(3)}:d=${fade}:alpha=1[k${index}]`,
+      `[${picture}][k${index}]overlay=0:0:enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'[over${index}]`,
+    );
+    picture = `over${index}`;
+  });
   graph.push(
-    `[cut]ass=${filterPath(files.subtitles)}:fontsdir=${filterPath(files.fontsDir)}[video]`,
+    `[${picture}]ass=${filterPath(files.subtitles)}:fontsdir=${filterPath(files.fontsDir)}[video]`,
   );
   return [
     ...inputs,
@@ -849,12 +874,16 @@ const EDIT_TIMEOUT_MS = 110_000;
 
 /** What both kinds of edit can lay over their shots. */
 interface EditExtras {
+  /** The shape the video is cut in; vertical when not given. */
+  shape?: VideoShape;
   /** A PNG of the logo fitted to `END_CARD_LOGO_BOX`, and the line under it. */
   endCard?: { logo: Uint8Array; dark: boolean; text: string };
   /** A generated clip for the hook. */
   broll?: Uint8Array;
   /** A generated instrumental, laid under the voice. */
   music?: Uint8Array;
+  /** Designed stills over the cut (`renderVideoCards`), in the shape's frame. */
+  cards?: { png: Uint8Array; start: number; end: number }[];
 }
 
 export interface TalkingVideoEditInput extends EditExtras {
@@ -875,9 +904,9 @@ export interface ShortVideoEditInput extends Omit<EditExtras, "broll"> {
   /** The voice's length, or the words' reading time. */
   seconds: number;
   hookLine: string | null;
-  /** The brand's pictures, each a 1080 x 1920 JPEG. */
+  /** The brand's pictures, each a JPEG the size of the shape's frame. */
   pictures: Uint8Array[];
-  /** A screenshot of the brand's page, 1080 wide and at least 1920 high. */
+  /** A screenshot of the brand's page, at least the frame's width and height. */
   page?: Uint8Array;
   /** A card with no picture behind it, as `0xRRGGBB`. */
   cardColour?: string;
@@ -901,6 +930,7 @@ async function renderEdit(
     cardColour?: string;
   },
 ): Promise<EditResult> {
+  const layout = VIDEO_LAYOUTS[sources.shape ?? "9:16"];
   const dir = await mkdtemp(path.join(tmpdir(), "talking-video-"));
   try {
     const pictures = (sources.pictures ?? []).map(
@@ -918,33 +948,50 @@ async function renderEdit(
         (name, index) =>
           [name, sources.pictures![index]] as [string, Uint8Array],
       ),
+      ...(sources.cards ?? []).map(
+        (card, index) =>
+          [`card-${index}.png`, card.png] as [string, Uint8Array],
+      ),
     ];
     await Promise.all([
       writeFile(
         path.join(dir, "captions.ass"),
-        talkingVideoSubtitles(plan, hookLine, sources.endCard ?? null),
+        talkingVideoSubtitles(plan, hookLine, sources.endCard ?? null, layout),
       ),
       ...named.flatMap(([name, bytes]) =>
         name && bytes ? [writeFile(path.join(dir, name), bytes)] : [],
       ),
     ]);
     await runFfmpeg(
-      talkingVideoEditArgs(plan, {
-        subtitles: "captions.ass",
-        fontsDir: await captionFontsDir(),
-        output: "edited.mp4",
-        ...(sources.clip ? { clip: "clip.mp4" } : {}),
-        ...(sources.voice ? { voice: "voice.mp3" } : {}),
-        ...(sources.alpha ? { alpha: "alpha.mp4" } : {}),
-        ...(sources.page ? { page: "page.jpg" } : {}),
-        ...(pictures.length ? { pictures } : {}),
-        ...(sources.cardColour ? { cardColour: sources.cardColour } : {}),
-        ...(sources.endCard
-          ? { endCard: { logo: "logo.png", dark: sources.endCard.dark } }
-          : {}),
-        ...(sources.broll ? { broll: "broll.mp4" } : {}),
-        ...(sources.music ? { music: "music.wav" } : {}),
-      }),
+      talkingVideoEditArgs(
+        plan,
+        {
+          subtitles: "captions.ass",
+          fontsDir: await captionFontsDir(),
+          output: "edited.mp4",
+          ...(sources.clip ? { clip: "clip.mp4" } : {}),
+          ...(sources.voice ? { voice: "voice.mp3" } : {}),
+          ...(sources.alpha ? { alpha: "alpha.mp4" } : {}),
+          ...(sources.page ? { page: "page.jpg" } : {}),
+          ...(pictures.length ? { pictures } : {}),
+          ...(sources.cardColour ? { cardColour: sources.cardColour } : {}),
+          ...(sources.endCard
+            ? { endCard: { logo: "logo.png", dark: sources.endCard.dark } }
+            : {}),
+          ...(sources.broll ? { broll: "broll.mp4" } : {}),
+          ...(sources.music ? { music: "music.wav" } : {}),
+          ...(sources.cards?.length
+            ? {
+                cards: sources.cards.map(({ start, end }, index) => ({
+                  png: `card-${index}.png`,
+                  start,
+                  end,
+                })),
+              }
+            : {}),
+        },
+        layout,
+      ),
       { cwd: dir, timeoutMs: EDIT_TIMEOUT_MS },
     );
     return {

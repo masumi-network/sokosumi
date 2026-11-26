@@ -103,11 +103,11 @@ describe("Settings: the time zone", () => {
 });
 
 describe("Settings: the CMO subscription", () => {
-  it("shows the tier, the interval, the renewal date and the credits left", () => {
+  it("shows the tier, what it gives and costs, the renewal date and the credits left", () => {
     const text = settings(SUBSCRIBED);
 
     expect(text).toContain("Growth");
-    expect(text).toContain("billed monthly");
+    expect(text).toContain("25,000 credits a month, $500 a month");
     expect(text).toContain("Renews on 13 January 2027.");
     expect(text).toContain("8,400");
     expect(text).toContain("credits available");
@@ -116,7 +116,7 @@ describe("Settings: the CMO subscription", () => {
 
   it("says yearly for a yearly plan", () => {
     expect(settings({ ...SUBSCRIBED, interval: "year" })).toContain(
-      "billed yearly",
+      "25,000 credits a month, $5,000 a year",
     );
   });
 

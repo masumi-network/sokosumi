@@ -30,7 +30,6 @@ export function buildNewTaskFormLabels(
     statusReady: tNewTask("statusReady"),
     untitledTask: tNewTask("untitledTask"),
     saveError: tNewTask("saveError"),
-    back: tNewTask("back"),
     uploadFile: tNewTask("uploadFile"),
     uploadFileError: tNewTask("uploadFileError"),
     uploadingFile: getTaskAttachmentUploadLabelTemplate(

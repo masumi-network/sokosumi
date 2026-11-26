@@ -9,15 +9,20 @@
  * that an older subscription payload leaves a newer stored state alone.
  * Fixtures are committed, so both connections see them, and deleted after.
  */
+
 import { randomUUID } from "node:crypto";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { createPrismaClient } from "@sokosumi/database/client";
+import {
+  createSqlTables,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { ok } from "neverthrow";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler";
 import type { EnvVariables } from "@/lib/hono";
+import { testSchemaNames } from "@/test/split-layout";
 
 import router from "./index";
 
@@ -30,11 +35,21 @@ vi.mock("@/lib/auth", () => ({
   auth: { api: { getSession: vi.fn(), verifyApiKey: vi.fn() } },
 }));
 
+const { sharedTable } = createSqlTables(sqlTableLayoutFromEnv(process.env));
+
 const url = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
-const db = enabled && url ? createPrismaClient(url) : null;
+const schemas = testSchemaNames();
+const db =
+  enabled && url
+    ? createPrismaClient(url, { schema: schemas.DATABASE_SCHEMA_SHARED })
+    : null;
+const mainnet =
+  enabled && url
+    ? createPrismaClient(url, { schema: schemas.DATABASE_SCHEMA_MAINNET })
+    : null;
 
 const ORGANIZATION = `org-${randomUUID()}`;
 const WORKSPACE = randomUUID();
@@ -108,8 +123,8 @@ async function deliver(event: unknown): Promise<number> {
 }
 
 async function bucketsOf(orderId: string) {
-  if (!db) throw new Error("Missing integration database");
-  return await db.creditBucket.findMany({
+  if (!mainnet) throw new Error("Missing integration database");
+  return await mainnet.creditBucket.findMany({
     where: { referenceId: `${orderId}:0` },
     select: { amount: true, organizationId: true, projectId: true },
   });
@@ -118,9 +133,9 @@ async function bucketsOf(orderId: string) {
 describe.skipIf(!db)("POST /v1/webhooks/polar against PostgreSQL", () => {
   beforeAll(async () => {
     if (!db) return;
-    await db.$executeRaw`INSERT INTO "organization" ("id", "name", "slug", "createdAt") VALUES (${ORGANIZATION}, 'Polar Org', ${ORGANIZATION}, NOW())`;
-    await db.$executeRaw`INSERT INTO "workspace" ("id", "createdAt", "updatedAt", "userId", "organizationId") VALUES (${WORKSPACE}::uuid, NOW(), NOW(), NULL, ${ORGANIZATION})`;
-    await db.$executeRaw`INSERT INTO "project" ("id", "createdAt", "updatedAt", "workspaceId", "name") VALUES (${PROJECT}::uuid, NOW(), NOW(), ${WORKSPACE}::uuid, 'Cuso project')`;
+    await db.$executeRaw`INSERT INTO ${sharedTable("organization")} ("id", "name", "slug", "createdAt") VALUES (${ORGANIZATION}, 'Polar Org', ${ORGANIZATION}, NOW())`;
+    await db.$executeRaw`INSERT INTO ${sharedTable("workspace")} ("id", "createdAt", "updatedAt", "userId", "organizationId") VALUES (${WORKSPACE}::uuid, NOW(), NOW(), NULL, ${ORGANIZATION})`;
+    await db.$executeRaw`INSERT INTO ${sharedTable("project")} ("id", "createdAt", "updatedAt", "workspaceId", "name") VALUES (${PROJECT}::uuid, NOW(), NOW(), ${WORKSPACE}::uuid, 'Cuso project')`;
     // A live Cuso: credits are granted only to his Project.
     await db.sokoBot.create({
       data: {
@@ -136,13 +151,14 @@ describe.skipIf(!db)("POST /v1/webhooks/polar against PostgreSQL", () => {
   afterAll(async () => {
     if (!db) return;
     // Buckets and the subscription row go with their transaction and Project.
-    await db.transaction.deleteMany({
+    await mainnet?.transaction.deleteMany({
       where: { organizationId: ORGANIZATION },
     });
-    await db.$executeRaw`DELETE FROM "project" WHERE "id" = ${PROJECT}::uuid`;
-    await db.$executeRaw`DELETE FROM "workspace" WHERE "id" = ${WORKSPACE}::uuid`;
-    await db.$executeRaw`DELETE FROM "organization" WHERE "id" = ${ORGANIZATION}`;
+    await db.$executeRaw`DELETE FROM ${sharedTable("project")} WHERE "id" = ${PROJECT}::uuid`;
+    await db.$executeRaw`DELETE FROM ${sharedTable("workspace")} WHERE "id" = ${WORKSPACE}::uuid`;
+    await db.$executeRaw`DELETE FROM ${sharedTable("organization")} WHERE "id" = ${ORGANIZATION}`;
     await db.$disconnect();
+    await mainnet?.$disconnect();
   });
 
   it("grants one bucket when the same order is delivered twice at once", async () => {

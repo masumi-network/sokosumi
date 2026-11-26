@@ -1,4 +1,5 @@
 import { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   CMO_SOKO_BOT_VERSION_IDS,
   createEmptySokoBotMemory,
@@ -9,6 +10,7 @@ import { conflict, forbidden } from "@/helpers/error";
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
 import { memberSokoBot } from "@/helpers/soko-bot-resolver";
+import { CUSO_FACE_URL, isCusoVersion } from "@/lib/cuso-face";
 import prisma from "@/lib/db/prisma";
 import { recordCoreError } from "@/lib/evlog";
 import { giveNewSokoBotAvatar } from "@/services/soko-bot-avatar-code.service";
@@ -70,7 +72,7 @@ async function touchOpenProject(
   workspaceId: string,
 ): Promise<boolean> {
   const open = await tx.$queryRaw<{ id: string }[]>`
-    UPDATE "project" SET "closedAt" = "closedAt"
+    UPDATE ${sharedTable("project")} SET "closedAt" = "closedAt"
     WHERE "id" = ${projectId}::uuid
       AND "workspaceId" = ${workspaceId}::uuid
       AND "closingAt" IS NULL
@@ -105,7 +107,7 @@ export async function createSharedSokoBot(
   const created = await client.$transaction(
     async (tx) => {
       await tx.$queryRaw`
-        SELECT "id" FROM "organization"
+        SELECT "id" FROM ${sharedTable("organization")}
         WHERE "id" = ${organizationId}
         FOR NO KEY UPDATE
       `;
@@ -113,7 +115,7 @@ export async function createSharedSokoBot(
       // Project, so taking the bot insert's workspace key share later would
       // deadlock against it.
       await tx.$queryRaw`
-        SELECT 1 FROM "workspace"
+        SELECT 1 FROM ${sharedTable("workspace")}
         WHERE "id" = ${input.workspaceId}::uuid
         FOR KEY SHARE
       `;
@@ -122,7 +124,7 @@ export async function createSharedSokoBot(
       // 20261016100200 migration comment says it does not): the row locks make
       // a delete wait for this commit, so its trigger then removes the leaver.
       const members = await tx.$queryRaw<{ userId: string }[]>`
-        SELECT "userId" FROM "member"
+        SELECT "userId" FROM ${sharedTable("member")}
         WHERE "organizationId" = ${organizationId}
         ORDER BY "createdAt"
         FOR KEY SHARE
@@ -169,6 +171,9 @@ export async function createSharedSokoBot(
           workspaceId: input.workspaceId,
           name,
           versionId,
+          ...(isCusoVersion(versionId)
+            ? { avatarImageUrl: CUSO_FACE_URL }
+            : {}),
           ...(input.avatarSeed !== undefined
             ? { avatarSeed: input.avatarSeed }
             : {}),
@@ -223,8 +228,10 @@ export async function createSharedSokoBot(
     { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
   );
   // Outside the transaction: it uploads to Blob.
-  const look = await giveNewSokoBotAvatar(created.id, input.avatarCode);
-  if (look) Object.assign(created, look);
+  if (!isCusoVersion(versionId)) {
+    const look = await giveNewSokoBotAvatar(created.id, input.avatarCode);
+    if (look) Object.assign(created, look);
+  }
   // Shared bots get their built-in rhythms switched off; a member turns them on.
   const { ensureSystemSchedules } = await import(
     "@/services/soko-bot-proactive.service"

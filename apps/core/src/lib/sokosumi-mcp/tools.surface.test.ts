@@ -1016,6 +1016,7 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   },
   contacts_delete_interaction: { id: CONTACT, interactionId: OTHER },
   contacts_set_importance: { id: CONTACT, body: { importance: 80 } },
+  contacts_set_user: { id: CONTACT, body: { userId: null } },
   contacts_enrich: { id: CONTACT },
   contacts_activity: { id: CONTACT },
   contacts_list_lists: {},

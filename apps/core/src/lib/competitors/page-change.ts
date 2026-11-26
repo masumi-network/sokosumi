@@ -76,6 +76,7 @@ export async function readPageChange(
   let answer: { output: PageChangeVerdict; costUsd: number };
   try {
     answer = await ask({
+      label: "competitor-page-change",
       system: SYSTEM,
       schema: verdictSchema,
       prompt: JSON.stringify({

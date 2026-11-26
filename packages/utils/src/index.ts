@@ -163,11 +163,18 @@ export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-type
 export {
   CMO_CHANNELS,
   CMO_OWNER_CONFIRMED_CHANNELS,
+  CMO_SHAPED_VIDEO_TARGETS,
   CMO_SHORT_VIDEO_FORMATS,
+  CMO_VIDEO_SHAPES_SKILL,
   type CmoChannelKey,
+  type CmoShapedVideoTarget,
+  cmoOfferedFormats,
+  cmoShapedVideoTarget,
   cmoShortVideoFormat,
+  cmoVideoShape,
   isCmoChannelFormat,
   isCmoOwnerConfirmedChannel,
+  isCmoShapedVideoFormat,
   isCmoShortVideoFormat,
   isCmoTalkingFormat,
   normalizeCmoChannelFormat,
@@ -180,6 +187,13 @@ export {
   readCmoCompetitorWeek,
 } from "./cmo-competitor-week.js";
 export { withoutSokosumiLinks } from "./cmo-links.js";
+export {
+  CMO_PIECE_CREDITS,
+  CMO_PLAN_CREDITS,
+  CMO_PLAN_CREDITS_KEPT,
+  cmoMonthPieceBudget,
+  cmoPieceCredits,
+} from "./cmo-month-credits.js";
 export {
   CMO_PLAIN_WORDS,
   cmoJargonIn,
@@ -215,8 +229,10 @@ export {
   CONTACT_REPLY_WAIT_DAYS,
   CONTACT_SORT_FIELDS,
   CONTACT_STAGES,
+  CONTACT_X_FOLLOWS,
   type ContactChannelType,
   type ContactFilter,
+  type ContactXFollowState,
   calendarDateSchema,
   companyListInputSchema,
   companyListMembersSchema,
@@ -297,6 +313,7 @@ export {
   buildUserDriveFolderMarkerPathname,
   buildUserDriveFolderPrefix,
   clampDriveFileName,
+  DRIVE_FILE_MAX_NAME_LENGTH,
   DRIVE_OWNER_PREFIX_PATTERN,
   driveFolderPathFromSourceId,
   isDriveFolderMarker,
@@ -767,6 +784,20 @@ export {
   type VideoLength,
   type VideoPriceFigures,
 } from "./video-credits.js";
+export {
+  DEFAULT_VIDEO_SHAPE,
+  VIDEO_KINDS,
+  VIDEO_RECIPES,
+  VIDEO_SHAPE_FRAMES,
+  VIDEO_SHAPE_LABELS,
+  VIDEO_SHAPES,
+  type VideoKind,
+  type VideoRecipe,
+  type VideoRecipeNeeds,
+  type VideoShape,
+  videoRecipeFor,
+  videoShapesFor,
+} from "./video-recipes.js";
 export {
   isEmptyOrValidWebsiteUrl,
   isValidHttpUrl,

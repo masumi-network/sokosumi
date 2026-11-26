@@ -1,4 +1,4 @@
-import type { Prisma } from "@sokosumi/database";
+import { Prisma } from "@sokosumi/database";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { Network } from "@/lib/network";
@@ -67,6 +67,33 @@ describe("createNetworkScope", () => {
     );
   });
 
+  it("opens a Network transaction on the Network's client, with the retry", async () => {
+    const { createNetworkScope } = await import("./network-scope");
+    const tx = { side: "mainnet transaction" };
+    const $transaction = vi
+      .fn()
+      .mockRejectedValueOnce(
+        Object.assign(new Error("lost"), { code: "P2034" }),
+      )
+      .mockImplementation((run: (tx: unknown) => unknown) => run(tx));
+    networkPrisma.mockReturnValue({ $transaction });
+    const callback = vi.fn().mockResolvedValue("result");
+
+    const result = await createNetworkScope("mainnet").netTransaction(
+      callback,
+      "Conflict message",
+      Prisma.TransactionIsolationLevel.Serializable,
+    );
+
+    expect(result).toBe("result");
+    expect(networkPrisma).toHaveBeenCalledExactlyOnceWith("mainnet");
+    expect($transaction).toHaveBeenCalledTimes(2);
+    expect($transaction).toHaveBeenLastCalledWith(expect.any(Function), {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    });
+    expect(callback).toHaveBeenCalledExactlyOnceWith(tx);
+  });
+
   it("refuses Preprod while Preprod is off, and an unknown Network", async () => {
     const { createNetworkScope } = await import("./network-scope");
 
@@ -127,4 +154,18 @@ export function _wrongSidesDoNotCompile(
   void networkDb.$transaction;
   // @ts-expect-error neither side opens a transaction itself
   void sharedDb.$transaction;
+
+  // A transaction from the scope is narrowed like its clients.
+  void scope.netTransaction(async (tx) => {
+    takesNetworkDb(tx);
+    // @ts-expect-error a shared model in a Network transaction
+    await tx.user.findMany();
+  }, "conflict");
+  void scope.sharedTransaction(async (tx) => {
+    takesSharedDb(tx);
+    // @ts-expect-error a Network model in a shared-side transaction
+    await tx.job.findMany();
+    // @ts-expect-error a shared-side transaction is not the Network side
+    takesNetworkDb(tx);
+  }, "conflict");
 }

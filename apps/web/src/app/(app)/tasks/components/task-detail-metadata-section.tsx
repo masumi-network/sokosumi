@@ -16,6 +16,7 @@ import { TaskMetadataParticipantsRow } from "@/app/tasks/components/task-metadat
 import { TaskMetadataProjectField } from "@/app/tasks/components/task-metadata-project-field";
 import { TaskTagCatalogProvider } from "@/app/tasks/components/task-tag-catalog";
 import { TaskTagSection } from "@/app/tasks/components/task-tags";
+import { buildTaskColumnLabels } from "@/app/tasks/components/tasks-view-labels";
 import {
   taskFormAssigneeId,
   withCurrentTaskAssigneeOption,
@@ -240,6 +241,7 @@ export async function TaskMetadataSection({
         statusFieldLabels={{
           status: t("status"),
           statusLabels,
+          columnLabels: buildTaskColumnLabels(tTasks),
           changeStatus: t("actions.changeStatus"),
           noStatusMatches: t("actions.noStatusMatches"),
           reopenToReadyCommentRequired: t(

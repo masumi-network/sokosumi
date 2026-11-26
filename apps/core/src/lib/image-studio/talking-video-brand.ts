@@ -15,41 +15,53 @@ import { END_CARD_LOGO_BOX } from "./talking-video-edit";
 const FRAME = { width: 1080, height: 1920 } as const;
 /** A phone-shaped page, three device pixels to one: 1080 wide like the video. */
 const PHONE = { width: 360, height: 640, scale: 3, screens: 3 } as const;
+/**
+ * A desktop page for a widescreen video, one and a half device pixels to
+ * one: 1920 wide like the frame.
+ */
+const DESKTOP_PAGE = { width: 1280, height: 720, scale: 1.5, screens: 3 };
+const WIDE_FRAME = { width: 1920, height: 1080 } as const;
 const CAPTURE_TIMEOUT_MS = 40_000;
 const LOGO_TIMEOUT_MS = 15_000;
 const MAX_LOGO_BYTES = 5_000_000;
 
 /**
  * The site's first screens as a phone shows them, as a JPEG 1080 wide and at
- * least 1920 high. Null when the page does not load in time.
+ * least 1920 high, or as a desktop shows them, 1920 wide and at least 1080
+ * high. Null when the page does not load in time.
  */
 export async function captureTalkingVideoSitePage(
   websiteUrl: string,
+  device: "phone" | "desktop" = "phone",
 ): Promise<Uint8Array | null> {
+  const desktop = device === "desktop";
   const capture = await Promise.race([
-    withBrowser((browser) => capturePage(browser, websiteUrl, PHONE)).catch(
-      () => null,
-    ),
+    withBrowser((browser) =>
+      capturePage(browser, websiteUrl, desktop ? DESKTOP_PAGE : PHONE),
+    ).catch(() => null),
     new Promise<null>((resolve) =>
       setTimeout(() => resolve(null), CAPTURE_TIMEOUT_MS),
     ),
   ]);
   if (!capture) return null;
   try {
-    return await fitSitePage(capture.screenshot);
+    return await fitSitePage(capture.screenshot, desktop ? WIDE_FRAME : FRAME);
   } catch {
     return null;
   }
 }
 
 /** A page shorter than the frame is stood on its own background colour. */
-export async function fitSitePage(screenshot: Uint8Array): Promise<Uint8Array> {
-  const resized = sharp(screenshot).resize({ width: FRAME.width });
+export async function fitSitePage(
+  screenshot: Uint8Array,
+  frame: { width: number; height: number } = FRAME,
+): Promise<Uint8Array> {
+  const resized = sharp(screenshot).resize({ width: frame.width });
   const { height = 0 } = await sharp(await resized.toBuffer()).metadata();
   const { dominant } = await sharp(screenshot).stats();
   return await resized
     .extend({
-      bottom: Math.max(0, FRAME.height - height),
+      bottom: Math.max(0, frame.height - height),
       background: dominant,
     })
     .jpeg({ quality: 88 })

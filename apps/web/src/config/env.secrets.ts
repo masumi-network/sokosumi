@@ -5,9 +5,8 @@ import { studioRouterTrialSchema } from "../../agents/image-studio/agent/lib/rou
 
 /**
  * Official `@sparticuz/chromium-min` 158 x64 pack for Vercel PDF export.
- * puppeteer / puppeteer-core 25.18.1 target Chrome 157.0.8103.78.
- * Sparticuz publishes no 154–157 pack (153.0.0, then 158.0.0), so the
- * downloadable binary is Chromium 158.
+ * puppeteer / puppeteer-core 25.19.0 target Chrome 158.0.8127.36.
+ * Sparticuz publishes 158.0.0, the same Chrome major.
  */
 export const DEFAULT_CHROMIUM_EXECUTABLE_URL =
   "https://github.com/Sparticuz/chromium/releases/download/v158.0.0/chromium-v158.0.0-pack.x64.tar";

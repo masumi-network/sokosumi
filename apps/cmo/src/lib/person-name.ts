@@ -1,5 +1,7 @@
+import type { User } from "@sokosumi/core-client";
 import {
   isFirstAndLastNameWithinLimit,
+  joinFirstAndLastName,
   USER_NAME_MAX_LENGTH,
 } from "@sokosumi/utils";
 
@@ -36,4 +38,12 @@ export function isValidPersonName(
   lastName: string,
 ): boolean {
   return Object.keys(personNameErrors(firstName, lastName)).length === 0;
+}
+
+/** The person's full name, or their display name when Sokosumi has no parts. */
+export function personName(user: User): string {
+  return (
+    joinFirstAndLastName(user.firstName ?? "", user.lastName ?? "") ||
+    user.name.trim()
+  );
 }

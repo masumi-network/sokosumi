@@ -133,6 +133,7 @@ export async function pickCompetitors(
   costUsd: number;
 }> {
   const { output, costUsd } = await ask({
+    label: "competitor-suggest",
     system: SYSTEM,
     schema: picksSchema,
     prompt: JSON.stringify({

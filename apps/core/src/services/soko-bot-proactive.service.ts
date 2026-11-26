@@ -13,10 +13,13 @@ import {
 import { buildChatMessagePreview } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   MAIL_TRIAGE_GUIDE,
   triagedMailLines,
@@ -34,6 +37,7 @@ import {
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
 import { listChatOpenLoops } from "@/services/chat-signal-views.service";
 import { calendarPeopleBlock } from "@/services/contacts-context.service";
+import { raiseBlock } from "@/services/fundraising-brief.service";
 import {
   activityStats,
   activityStatsLines,
@@ -49,7 +53,14 @@ import {
   dueSoonBlock,
   RHYTHM_KEYS,
   type RhythmBot,
+  rhythmInputFailed,
 } from "@/services/soko-bot-rhythms.service";
+import {
+  MAX_X_DMS_PER_PACKET,
+  ownerXDms,
+  triageXDms,
+  X_DM_GUIDE,
+} from "@/services/soko-bot-x-dms.service";
 
 const HOUR_MS = 60 * 60 * 1_000;
 const STANDUP_MAIL_LIMIT = 40;
@@ -67,6 +78,34 @@ export function localDayStart(now: Date, timeZone: string): Date {
       .toZonedDateTimeISO(timeZone)
       .startOfDay().epochMilliseconds,
   );
+}
+
+/**
+ * Built-in rhythms and the mailbox watch rest after this many days with no
+ * chat. In the week to 2026-11-25, 80 of the 106 bots woken by schedules had
+ * none for 14 days. The next chat wakes them again.
+ */
+export const SOKO_BOT_IDLE_PAUSE_DAYS = 14;
+
+/** No chat for {@link SOKO_BOT_IDLE_PAUSE_DAYS} days, and not newly made. */
+export async function isIdleSokoBot(
+  sokoBotId: string,
+  now: Date,
+): Promise<boolean> {
+  const since = new Date(
+    now.getTime() - SOKO_BOT_IDLE_PAUSE_DAYS * 24 * HOUR_MS,
+  );
+  const [bot, chat] = await Promise.all([
+    prisma.sokoBot.findUnique({
+      where: { id: sokoBotId },
+      select: { createdAt: true },
+    }),
+    prisma.sokoBotTurn.findFirst({
+      where: { sokoBotId, source: "CHAT", createdAt: { gte: since } },
+      select: { id: true },
+    }),
+  ]);
+  return !!bot && bot.createdAt < since && !chat;
 }
 
 export interface ProactiveGate {
@@ -185,7 +224,23 @@ export async function ensureSystemSchedules(bot: {
           nextRunAt,
         },
       })
-      .catch(() => undefined); // raced by another tick: the unique key holds
+      .catch((error: unknown) => {
+        // Raced by another tick: the unique key holds.
+        if (isPrismaUniqueViolation(error)) return;
+        recordCoreWarning(
+          {
+            operation: "soko_bot_system_schedules",
+            sokoBot: { id: bot.id },
+            systemKey: schedule.key,
+          },
+          {
+            message: "A Soko Bot built-in rhythm was not created",
+            why: "Creating the schedule failed for a reason other than a race",
+            fix: "The next tick tries again; read the failure fields if it repeats, since the bot runs without this rhythm until then.",
+            details: { failure: messageSafeErrorFields(error) },
+          },
+        );
+      });
   }
 }
 
@@ -561,7 +616,16 @@ export async function buildSystemBeatMessage(input: {
   }
   if (input.key === "standup") {
     lines.push(...(await dueSoonBlock(bot, now)));
-    lines.push(...(await chatOpenLoopsBlock(bot, now).catch(() => [])));
+    lines.push(
+      ...(await chatOpenLoopsBlock(bot, now).catch(
+        rhythmInputFailed([], bot.id, "chat_open_loops"),
+      )),
+    );
+    lines.push(
+      ...(await raiseBlock(bot, now).catch(
+        rhythmInputFailed([], bot.id, "raise"),
+      )),
+    );
     const events: SokoBotCalendarEvent[] = [];
     for (const integration of await activeIntegrationsForBot(
       bot.id,
@@ -572,7 +636,7 @@ export async function buildSystemBeatMessage(input: {
           from: new Date(now.getTime() - HOUR_MS),
           to: new Date(now.getTime() + 36 * HOUR_MS),
           limit: 15,
-        }).catch(() => [])),
+        }).catch(rhythmInputFailed([], bot.id, "calendar"))),
       );
     }
     if (events.length > 0) {
@@ -596,7 +660,7 @@ export async function buildSystemBeatMessage(input: {
           workspaceId: bot.workspaceId,
           attendees: events.slice(0, 15).flatMap((event) => event.attendees),
           timeZone: bot.ingestTimezone,
-        }).catch(() => [])),
+        }).catch(rhythmInputFailed([], bot.id, "calendar_people"))),
       );
     }
     const mail: SokoBotInboxMessage[] = [];
@@ -605,7 +669,7 @@ export async function buildSystemBeatMessage(input: {
       const received = await fetchInboxMessages(integration, {
         since: dayAgo,
         limit: STANDUP_MAIL_LIMIT,
-      }).catch(() => []);
+      }).catch(rhythmInputFailed([], bot.id, "mail"));
       mail.push(...(await withOwnerReplies(integration, received, dayAgo)));
     }
     if (mail.length > 0) {
@@ -625,6 +689,28 @@ export async function buildSystemBeatMessage(input: {
         }),
       );
     }
+    const version = bot.userId
+      ? await prisma.sokoBot.findUnique({
+          where: { id: bot.id },
+          select: { versionId: true },
+        })
+      : null;
+    const xDms = await ownerXDms(
+      { ...bot, versionId: version?.versionId ?? null },
+      { briefing: true, since: dayAgo },
+    );
+    const xMessages = await triageXDms(bot.id, xDms.messages, "standup");
+    if (xMessages.length > 0)
+      lines.push(
+        X_DM_GUIDE,
+        "",
+        ...triagedMailLines({
+          timeZone: bot.ingestTimezone,
+          mail: xMessages,
+          limit: MAX_X_DMS_PER_PACKET,
+          title: "X direct messages",
+        }),
+      );
   }
   {
     const items = await findAttentionItems({ ...bot, now });

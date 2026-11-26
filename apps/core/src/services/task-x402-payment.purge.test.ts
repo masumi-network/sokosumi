@@ -1,25 +1,32 @@
 import { X402_MAX_TIMEOUT_SECONDS } from "@sokosumi/masumi/schemas";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { paymentFindManyMock, paymentUpdateManyMock } = vi.hoisted(() => ({
-  paymentFindManyMock: vi.fn(),
-  paymentUpdateManyMock: vi.fn(),
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
-    taskX402Payment: {
-      findMany: paymentFindManyMock,
-      updateMany: paymentUpdateManyMock,
-    },
-  },
-}));
+import type { NetworkDb } from "@/lib/db/network-scope";
 
 import {
-  purgeExpiredTaskX402PaymentHeaders,
+  purgeExpiredTaskX402PaymentHeaders as purgeOn,
   X402_HEADER_PURGE_BATCH_SIZE,
   X402_UNDATED_HEADER_TTL_MS,
 } from "./task-x402-payment.purge";
+
+const paymentFindManyMock = vi.fn();
+const paymentUpdateManyMock = vi.fn();
+/** The two delegates the purge uses, checked against their Prisma types. */
+const taskX402Payment: Pick<
+  NetworkDb["taskX402Payment"],
+  "findMany" | "updateMany"
+> = {
+  findMany: paymentFindManyMock,
+  updateMany: paymentUpdateManyMock,
+};
+/** The Network side the purge is handed: the one model it uses. */
+const networkDb = { taskX402Payment } as NetworkDb;
+
+function purgeExpiredTaskX402PaymentHeaders(
+  options?: Parameters<typeof purgeOn>[1],
+) {
+  return purgeOn(networkDb, options);
+}
 
 const NOW = new Date("2026-06-01T12:00:00.000Z");
 const UNDATED_CUTOFF = new Date(NOW.getTime() - X402_UNDATED_HEADER_TTL_MS);

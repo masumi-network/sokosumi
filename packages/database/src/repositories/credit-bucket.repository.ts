@@ -1,3 +1,4 @@
+import { randomUUIDv7 } from "node:crypto";
 import {
   CreditBucketReferenceType,
   Prisma,
@@ -11,7 +12,8 @@ import {
   creditBucketSpendOrderSql,
   resolveCreditBucketScopeContext,
 } from "../helpers/credit-bucket-scope.js";
-import { netTable, sharedTable } from "../sql-tables.js";
+import { netTable, sharedTable, type TableNetwork } from "../sql-tables.js";
+import type { SharedDb } from "../types/shared-db.js";
 
 export interface Consumption {
   bucketId: string;
@@ -298,13 +300,15 @@ export const creditBucketRepository = {
    * FIFO consume in list order until `cents` is covered. Throws if
    * insufficient. A null user with an organization consumes the Organization
    * pool with no member and no Seat (ADR 0057). With a Project it draws that
-   * Project's credits first, then the pool (ADR 0067).
+   * Project's credits first, then the pool (ADR 0067). The buckets are those
+   * of `network`.
    */
   async prepareConsumption(
+    network: TableNetwork,
     userId: string | null,
     organizationId: string | null,
     cents: bigint,
-    tx: Prisma.TransactionClient,
+    tx: SharedDb,
     options: CreditBucketProjectOption = {},
   ): Promise<Consumption[]> {
     if (cents <= BigInt(0)) {
@@ -313,6 +317,7 @@ export const creditBucketRepository = {
 
     const now = new Date();
     const buckets = await getFifoBucketsToCoverSpend(
+      network,
       userId,
       organizationId,
       now,
@@ -347,6 +352,43 @@ export const creditBucketRepository = {
 
     return consumptions;
   },
+
+  /**
+   * Records a spend on `network`: the credit transaction and one consumption
+   * per bucket `prepareConsumption` chose. Raw SQL, so it also runs on a
+   * transaction of the shared side. It sets `id` (UUID v7) and the timestamps
+   * itself, as Prisma did: one instant of this process for every row. The
+   * user and the Organization are written as ids. Returns the transaction's id.
+   */
+  async recordSpend(
+    network: TableNetwork,
+    spend: {
+      userId: string | null;
+      organizationId: string | null;
+      cents: bigint;
+      consumptions: readonly Consumption[];
+    },
+    tx: SharedDb,
+  ): Promise<string> {
+    const id = randomUUIDv7();
+    const now = new Date();
+    await tx.$executeRaw`
+      INSERT INTO ${netTable(network, "Transaction")}
+        (id, "createdAt", "updatedAt", amount, "userId", "organizationId")
+      VALUES (${id}, ${now}, ${now}, ${-spend.cents}, ${spend.userId}, ${spend.organizationId})
+    `;
+    const ids = spend.consumptions.map(() => randomUUIDv7());
+    const amounts = spend.consumptions.map(({ amount }) => amount);
+    const bucketIds = spend.consumptions.map(({ bucketId }) => bucketId);
+    await tx.$executeRaw`
+      INSERT INTO ${netTable(network, "credit_consumption")}
+        (id, "createdAt", amount, "bucketId", "transactionId")
+      SELECT c.id, ${now}::timestamp(3), c.amount, c."bucketId", ${id}::text
+      FROM unnest(${ids}::text[], ${amounts}::bigint[], ${bucketIds}::text[])
+        AS c(id, amount, "bucketId")
+    `;
+    return id;
+  },
 };
 
 async function sumAvailableCents(
@@ -373,11 +415,12 @@ async function sumAvailableCents(
 }
 
 async function getFifoBucketsToCoverSpend(
+  network: TableNetwork,
   userId: string | null,
   organizationId: string | null,
   now: Date,
   cents: bigint,
-  tx: Prisma.TransactionClient,
+  tx: SharedDb,
   options: CreditBucketProjectOption,
 ): Promise<Array<{ id: string; available: bigint }>> {
   const scopeContext = await resolveCreditBucketScopeContext(
@@ -398,8 +441,8 @@ async function getFifoBucketsToCoverSpend(
         cb."expiresAt",
         cb."createdAt",
         cb."projectId"
-      FROM ${netTable("mainnet", "credit_bucket")} cb
-      LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
+      FROM ${netTable(network, "credit_bucket")} cb
+      LEFT JOIN ${netTable(network, "credit_consumption")} cc ON cc."bucketId" = cb.id
       WHERE ${where}
         AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
         AND ${creditBucketActivatesAtOrBeforeSql(now)}

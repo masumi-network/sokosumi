@@ -37,7 +37,9 @@ const {
   advanceMedia,
   turnCount,
   subscriptionFindFirst,
+  toolCallFindMany,
 } = vi.hoisted(() => ({
+  toolCallFindMany: vi.fn(async () => []),
   listMediaJobs: vi.fn(),
   advanceMedia: vi.fn(),
   turnCount: vi.fn(),
@@ -72,6 +74,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: turnFindFirst,
       count: turnCount,
     },
+    sokoBotToolCall: { findMany: toolCallFindMany },
     sokoBot: {
       findUniqueOrThrow: botFindUniqueOrThrow,
       findUnique: botFindUnique,
@@ -134,6 +137,27 @@ vi.mock("@/services/cmo-media-maker.service", async (importOriginal) => ({
 vi.mock("@/services/brand-brain.service", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/services/brand-brain.service")>()),
   getBrandBrain,
+}));
+// The sync's steps before its Cusos; each has its own tests.
+vi.mock("@/services/cmo-strategy.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/cmo-strategy.service")>()),
+  resumeCmoMonthFinishes: vi.fn(async () => undefined),
+}));
+vi.mock("@/services/cmo-brand-media.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/cmo-brand-media.service")
+  >()),
+  scheduleMissingCmoBrandIndex: vi.fn(async () => false),
+}));
+vi.mock("@/services/cmo-site-pages.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/cmo-site-pages.service")
+  >()),
+  scheduleCmoSitePages: vi.fn(async () => undefined),
+}));
+vi.mock("@/services/cmo-industry.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/cmo-industry.service")>()),
+  scheduleCmoIndustry: vi.fn(async () => undefined),
 }));
 
 import {
@@ -1248,6 +1272,7 @@ describe("syncCmoProduction", () => {
     const now = new Date("2026-11-18T21:00:00Z");
     await expect(syncCmoProduction(() => true, now)).resolves.toEqual({
       checked: 1,
+      skipped: 0,
     });
     expect(keepCusoFirstCompetitorCheck).toHaveBeenCalledWith(cuso, now);
   });
@@ -1272,7 +1297,11 @@ describe("syncCmoProduction", () => {
     cmoRunnerUserId.mockRejectedValue(
       new Error("Plan SENTINEL-PLAN launch week could not be read"),
     );
-    await expect(syncCmoProduction()).resolves.toEqual({ checked: 0 });
+    // Skipped Cusos are the run's failed work, never its idleness.
+    await expect(syncCmoProduction()).resolves.toEqual({
+      checked: 0,
+      skipped: 2,
+    });
     expect(warnings.map((warning) => warning.event.sokoBot)).toEqual(
       expect.arrayContaining([{ id: "bot-1" }, { id: "bot-2" }]),
     );

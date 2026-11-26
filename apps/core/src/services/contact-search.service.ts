@@ -5,12 +5,14 @@
  * the background and ranks queries against them.
  */
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { unprocessableEntity } from "@/helpers/error";
 import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import { vectorLiteral } from "@/lib/contacts/embeddings";
 import prisma from "@/lib/db/prisma";
 import { type EmbedTexts, embedTexts } from "@/lib/embeddings";
 import { recordCoreError } from "@/lib/evlog";
+import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 export const CONTACT_SEARCH_MODES = ["both", "words", "meaning"] as const;
@@ -53,7 +55,11 @@ export async function rankContacts(
     maxPerMethod?: number;
   } = {},
 ): Promise<RankedContact[]> {
-  const mode = options.mode ?? "both";
+  // A plan run has no meaning matches (stored vectors are the Gateway's), so
+  // a meaning-only search matches by words rather than returning nothing.
+  const asked = options.mode ?? "both";
+  const mode =
+    asked === "meaning" && localChatGptPlanEnabled() ? "words" : asked;
   const max = options.maxPerMethod ?? MAX_PER_METHOD;
   // One more than allowed, to tell a full result from a cut one.
   const perMethod = max + 1;
@@ -67,8 +73,8 @@ export async function rankContacts(
   // Not materialized, so each method's predicate reaches its index.
   const base = PrismaRaw.sql`
     SELECT cs."contactId", cs."document", cs."search_vector", cs."embedding"
-    FROM "contact_search" cs
-    JOIN "contact" c ON c."id" = cs."contactId"
+    FROM ${sharedTable("contact_search")} cs
+    JOIN ${sharedTable("contact")} c ON c."id" = cs."contactId"
     WHERE cs."workspaceId" = ${workspaceId}::uuid
       AND c."mergedIntoId" IS NULL
       AND ${archived}
@@ -153,6 +159,9 @@ async function embedQuery(
   query: string,
   embed: EmbedTexts = embedTexts,
 ): Promise<string | null> {
+  // Stored vectors come from the Gateway model: a plan run's local vectors
+  // are a different method, so the search matches by text only.
+  if (localChatGptPlanEnabled()) return null;
   try {
     const [embedding] = (await embed([query.toLowerCase()])).embeddings;
     return embedding ? vectorLiteral(embedding) : null;
@@ -186,13 +195,15 @@ export async function embedStaleContacts(
     shouldContinue?: () => boolean;
   } = {},
 ): Promise<{ embedded: number; costUsd: number }> {
+  // A plan run never stores its local vectors next to the Gateway's.
+  if (localChatGptPlanEnabled()) return { embedded: 0, costUsd: 0 };
   const embed = options.embed ?? embedTexts;
   const stale = await prisma.$queryRaw<
     { contactId: string; document: string; hash: string }[]
   >`
     SELECT cs."contactId"::text AS "contactId", cs."document", md5(cs."document") AS hash
-    FROM "contact_search" cs
-    JOIN "contact" c ON c."id" = cs."contactId"
+    FROM ${sharedTable("contact_search")} cs
+    JOIN ${sharedTable("contact")} c ON c."id" = cs."contactId"
     WHERE cs."workspaceId" = ${workspaceId}::uuid
       AND c."mergedIntoId" IS NULL
       AND c."archivedAt" IS NULL
@@ -214,7 +225,7 @@ export async function embedStaleContacts(
     if (done.length === 0) continue;
     // One statement per batch; a document changed meanwhile stays stale.
     embedded += await prisma.$executeRaw`
-      UPDATE "contact_search" cs
+      UPDATE ${sharedTable("contact_search")} cs
       SET "embedding" = v.vector::vector, "embeddedHash" = v.hash
       FROM unnest(
         ${done.map((row) => row.contactId)}::uuid[],
@@ -233,8 +244,8 @@ export async function workspacesWithStaleEmbeddings(
 ): Promise<string[]> {
   const rows = await prisma.$queryRaw<{ workspaceId: string }[]>`
     SELECT DISTINCT cs."workspaceId"::text AS "workspaceId"
-    FROM "contact_search" cs
-    JOIN "contact" c ON c."id" = cs."contactId"
+    FROM ${sharedTable("contact_search")} cs
+    JOIN ${sharedTable("contact")} c ON c."id" = cs."contactId"
     WHERE c."mergedIntoId" IS NULL
       AND c."archivedAt" IS NULL
       AND cs."embeddedHash" IS DISTINCT FROM md5(cs."document")

@@ -2667,8 +2667,12 @@ model SokoBot {
   /// default: an assistant that only watches what it created misses most of
   /// what its owner is actually working on.
   followWholeBoard    Boolean   @default(true)
-  /// The owner put this bot in the organization's daily stand-up.
+  /// Unused: the old opt-in switch, superseded by `leftTeamStandupAt`. Kept
+  /// so a running deployment still reads it during a deploy; drop it later.
   joinsTeamStandup    Boolean   @default(false)
+  /// When a member took this bot out of the daily stand-up; null = it joins
+  /// (on by default, so every live bot speaks without a row written for it).
+  leftTeamStandupAt   DateTime?
   /// Kill switch for everything the bot starts on its own (rhythms, ingest, nudges).
   proactivePaused     Boolean   @default(false)
   /// Max self-started turns per local day; beyond it the syncs skip the bot.
@@ -3243,6 +3247,9 @@ model SokoBotDelegation {
   followUp       String?
   /// The EVENT turn that carried `followUp`; set once, so a plan runs once.
   followUpTurnId String? @db.Uuid
+  /// The owner's own limits for `followUp` ({ images?, maxCredits? }):
+  /// the turn that carries it out may make no more images or spend no more.
+  followUpAllows Json?
 
   @@unique([turnId, toolCallId])
   @@index([taskId])
@@ -3366,9 +3373,15 @@ model SokoBotSchedule {
   /// their chat tools. Empty for built-ins and console schedules written
   /// before 2026-11-16, which Jev classifies on every run.
   capabilityNames     String[]  @default([])
+  /// Core-owned OwnerAuthority envelope bound to this schedule (ADR:
+  /// neon-arch-owner-authority). Null for legacy schedules created before
+  /// OwnerAuthority persistence.
+  authority           Json?
   nextRunAt           DateTime
   lastRunAt           DateTime?
   consecutiveFailures Int       @default(0)
+  /// Durable count of distinct completed runs; survives the 7-day run retention purge.
+  completedRuns       Int       @default(0)
 
   /// The Task or Job this schedule follows. Core removes the schedule once
   /// that work finishes; the result itself wakes the bot through the events sync.

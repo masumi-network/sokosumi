@@ -265,6 +265,7 @@ function mountTaskEventRoute(
           task,
           credits,
           masumiPayment,
+          scope: c.var.networkScope,
           tx,
         });
         cents = settled.cents;

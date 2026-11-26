@@ -31,6 +31,7 @@ import {
   findX402ReadySource,
   getX402ReadySources,
 } from "@/helpers/x402-readiness";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { requireSeparateAuditPurchaseAllowed } from "@/lib/seo/audit-settlement";
@@ -80,6 +81,8 @@ export interface PayTaskX402Input {
   paymentRequired: unknown;
   /** Caller's pre-charge ceiling in credits — see the request schema. */
   maxCredits?: number;
+  /** The Network whose credits the payment spends. */
+  networkScope: NetworkScope;
 }
 
 export type PayTaskX402Result =
@@ -343,6 +346,7 @@ async function runX402ChargePhase(
         projectId: task.projectId,
         cents,
         currentStatus: task.status,
+        scope: input.networkScope,
         tx,
       });
 

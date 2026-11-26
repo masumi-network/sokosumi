@@ -7,7 +7,11 @@ import {
 } from "@sokosumi/soko-bot";
 import { cmoMonthAtLevel } from "@sokosumi/utils";
 import { isProjectSocialProvider } from "@/config/social-providers";
-import { cmoReportMessageWhere } from "@/helpers/cmo-report-card";
+import {
+  CMO_REPORT_KEY,
+  CMO_REPORT_MESSAGE_PREFIX,
+  cmoReportMessageWhere,
+} from "@/helpers/cmo-report-card";
 import { jsonInput } from "@/helpers/prisma-json";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
@@ -74,6 +78,7 @@ import {
   startCmoMonthCalendarCase,
 } from "./eval-cmo-month-calendar";
 import { clearCmoSeoReport, prepareCmoSeoReport } from "./eval-cmo-seo-report";
+import { prepareCmoWeeklyReview } from "./eval-cmo-weekly-review";
 import {
   evalInfrastructureFailure,
   infrastructureCaseOutcome,
@@ -191,10 +196,19 @@ function brand(name: string) {
 /** The lane's Cuso Project pointed at the brand, with nothing an earlier case left. */
 async function pointCusoAt(
   lane: EvalLaneRecord,
-  brand: { url: string },
+  brand: { url: string; websiteOnly?: boolean },
   brandBrain: unknown,
 ) {
   const projectId = lane.cusoProjectId;
+  // Month cases leave stand-in accounts connected; a business with only a
+  // website has none, or Cuso rightly reads them as accounts it has.
+  await prisma.projectSocialConnection.updateMany({
+    where: {
+      projectId,
+      externalAccountId: { startsWith: `eval-${lane.lane}-cuso-` },
+    },
+    data: { status: brand.websiteOnly ? "disconnected" : "active" },
+  });
   await prisma.project.update({
     where: { id: projectId },
     data: {
@@ -467,6 +481,59 @@ async function prepareCmoChat(lane: EvalLaneRecord, known: boolean) {
   });
 }
 
+/** Last week's weekly review, then three newer daily reports above it. */
+const EVAL_REPORTS = [
+  {
+    daysAgo: 8,
+    report: {
+      kind: "weekly",
+      headline: "LinkedIn carried the week",
+      done: ["Published 9 posts on LinkedIn and X"],
+      upNext: ["Open more LinkedIn posts with a customer's number"],
+      changes: [],
+      results:
+        "LinkedIn posts reached 4,210 people; X reached 380. Posts that opened with a customer's number got twice the clicks of the others.",
+      verdict: "test",
+      learnings: [
+        "Posts that open with a customer's number get twice the clicks.",
+      ],
+    },
+  },
+  ...[3, 2, 1].map((daysAgo) => ({
+    daysAgo,
+    report: {
+      kind: "daily",
+      headline: "Today's posts are scheduled",
+      done: ["Checked today's posts", "No new comments"],
+      upNext: [],
+      changes: [],
+    },
+  })),
+] as const;
+
+export async function seedCmoReports(lane: EvalLaneRecord): Promise<void> {
+  const room = await prisma.chatRoom.findFirst({
+    where: { sharedSokoBot: { id: lane.cusoBotId } },
+    select: { id: true },
+  });
+  if (!room) throw new Error("The lane's Cuso has no room for reports");
+  await prisma.chatRoomMessage.deleteMany({
+    where: cmoReportMessageWhere(lane.cusoBotId),
+  });
+  const now = Date.now();
+  for (const [index, { daysAgo, report }] of EVAL_REPORTS.entries())
+    await prisma.chatRoomMessage.create({
+      data: {
+        roomId: room.id,
+        clientMessageId: `${CMO_REPORT_MESSAGE_PREFIX}eval:${lane.lane}:${index}`,
+        senderSokoBotId: lane.cusoBotId,
+        createdAt: new Date(now - daysAgo * DAY_MS),
+        content: report.headline,
+        metadata: { [CMO_REPORT_KEY]: jsonInput(report) },
+      },
+    });
+}
+
 /**
  * Sets the lane up for a Cuso chat case. For the replies case: a published
  * Instagram post with the eval comments under it. The post has no external
@@ -487,6 +554,14 @@ export async function prepareCmoChatCase(
     return prepareCompetitorCase(lane, setup);
   }
   await prepareCmoChat(lane, setup !== "cmo-new-client");
+  if (setup === "cmo-report") {
+    await seedCmoReports(lane);
+    return {};
+  }
+  if (setup === "cmo-weekly-review") {
+    await prepareCmoWeeklyReview(lane);
+    return {};
+  }
   if (
     setup === "cmo-competitor-ads" ||
     setup === "cmo-competitor-landing-page"

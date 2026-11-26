@@ -41,11 +41,33 @@ describe("claimsAction", () => {
     expectCoreLogWhys(
       "warn",
       "Could not check a Soko Bot reply for unconfirmed claims",
+      [
+        "Jev, the judging model, failed or timed out",
+        "Jev, the judging model, failed or timed out",
+      ],
+    );
+    evaluateMock
+      .mockRejectedValueOnce(new Error("timeout"))
+      .mockRejectedValueOnce(new Error("timeout"));
+    await expect(claimsAction("Here is the draft.")).resolves.toBeNull();
+    evaluateMock
+      .mockResolvedValueOnce({ answers: {} })
+      .mockResolvedValueOnce({ answers: {} });
+    await expect(claimsAction("Here is the draft.")).resolves.toBeNull();
+  });
+
+  it("asks once more when the first check fails", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Could not check a Soko Bot reply for unconfirmed claims",
       ["Jev, the judging model, failed or timed out"],
     );
-    evaluateMock.mockRejectedValueOnce(new Error("timeout"));
-    await expect(claimsAction("Here is the draft.")).resolves.toBeNull();
-    evaluateMock.mockResolvedValueOnce({ answers: {} });
-    await expect(claimsAction("Here is the draft.")).resolves.toBeNull();
+    evaluateMock
+      .mockRejectedValueOnce(new Error("timeout"))
+      .mockResolvedValueOnce({
+        answers: { claimsAction: { probability: 0.1 } },
+      });
+    await expect(claimsAction("Here is the draft.")).resolves.toBe(false);
+    expect(evaluateMock).toHaveBeenCalledTimes(2);
   });
 });

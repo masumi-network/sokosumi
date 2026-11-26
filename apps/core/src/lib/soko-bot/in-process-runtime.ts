@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { SokoBotRuntimeEvent } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
+  getSokoBotVersion,
   type IndexedRuntimeEvent,
   type RuntimeCancelInput,
   type RuntimeEventStreamInput,
@@ -16,7 +17,7 @@ import {
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
-import { stepCountIs, type ToolSet, tool } from "ai";
+import { type ToolSet, tool } from "ai";
 import { reportAiGatewayBudgetFailure } from "@/lib/ai-gateway-budget";
 import {
   aiGatewayBudgetScope,
@@ -38,18 +39,20 @@ import {
 import { SokoBotReconciliationLeaseLostError } from "@/lib/soko-bot/reconciliation-lease";
 import { SETTLEMENT_TRIGGER_EVENT_TYPES } from "@/lib/soko-bot/runtime-stream";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
+import { streamModelCall } from "@/lib/soko-bot/stream-model-call";
 import {
-  modelReasoningSummaryOptions,
-  stepReasoningSummary,
-  streamModelCall,
-} from "@/lib/soko-bot/stream-model-call";
-import { modelUserMessage } from "@/lib/soko-bot/turn-model-context";
+  modelUserMessage,
+  withReplyLanguage,
+} from "@/lib/soko-bot/turn-model-context";
+import { runTurnLoop, type TurnLoopInput } from "@/soko-bot-runner/loop";
+import { runCoreWebTool } from "./core-web-tools";
 import {
   evaluationBinding,
+  evaluationHistory,
   prepareEvaluationStep,
   withEvaluationTurn,
 } from "./evaluation-dispatch";
-import { runInProcessWebTool } from "./in-process-web-tools";
+import { estimateInputTokens, turnTokenBudget } from "./turn-budget";
 import {
   announceTurn,
   closeTurn,
@@ -59,14 +62,14 @@ import {
   RuntimeEventLog,
   runTurnTool,
   runtimeEvent,
-  SOKO_BOT_MAX_STEPS,
+  sokoBotInputTokenBudget,
+  sokoBotMaxSteps,
 } from "./turn-loop";
 import {
-  endedByTool,
+  partMessage,
   partTools,
   TURN_PART_MAX_MS,
   TURN_PART_MAX_STEPS,
-  toolEndedTurn,
   withPartHandOvers,
 } from "./turn-parts";
 
@@ -84,19 +87,42 @@ const MIN_TURN_BUDGET_MS = 1_000;
  * How long this turn may run here: until its own deadline, as in the
  * sandbox, but on Vercel no longer than one invocation can live.
  */
-async function turnBudgetMs(turnId: string): Promise<number> {
+async function turnBudget(turnId: string): Promise<{
+  ms: number;
+  inputTokens: number;
+  maxSteps: number;
+  background: boolean;
+}> {
   const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: turnId },
-    select: { deadlineAt: true },
+    select: {
+      createdAt: true,
+      deadlineAt: true,
+      source: true,
+      versionId: true,
+      parentTurnId: true,
+    },
   });
   const untilDeadline =
     turn.deadlineAt.getTime() - (await databaseNow()).getTime();
-  return Math.max(
-    MIN_TURN_BUDGET_MS,
-    process.env.VERCEL
-      ? Math.min(VERCEL_TURN_BUDGET_MS, untilDeadline)
-      : untilDeadline,
-  );
+  const background = Boolean(turn.parentTurnId);
+  return {
+    background,
+    maxSteps: sokoBotMaxSteps(
+      turn.deadlineAt.getTime() - turn.createdAt.getTime(),
+    ),
+    ms: Math.max(
+      MIN_TURN_BUDGET_MS,
+      process.env.VERCEL
+        ? Math.min(VERCEL_TURN_BUDGET_MS, untilDeadline)
+        : untilDeadline,
+    ),
+    inputTokens: sokoBotInputTokenBudget({
+      source: turn.source,
+      cmo: getSokoBotVersion(turn.versionId).profile === "cmo",
+      background,
+    }),
+  };
 }
 
 /** Runs one turn to completion, recording everything the drain needs. */
@@ -107,13 +133,24 @@ async function runTurn(
   const log = new RuntimeEventLog(input.turnId, sessionId);
 
   try {
-    const budgetMs = await turnBudgetMs(input.turnId);
+    const {
+      ms: budgetMs,
+      inputTokens: inputTokenBudget,
+      maxSteps,
+      background,
+    } = await turnBudget(input.turnId);
+    const deadline = Date.now() + budgetMs;
     const abortSignal = AbortSignal.timeout(budgetMs);
     await announceTurn(log, input.message);
-    const turn = await prepareTurn(sessionId, input.turnId, {
-      sandbox: false,
-      web: true,
-    });
+    const [turn, replyLanguage] = await withReplyLanguage(
+      input.turnId,
+      prepareTurn(sessionId, input.turnId, { sandbox: false, web: true }),
+    );
+    // One allowance for the turn's parts and its main loop together.
+    const budget = turnTokenBudget(
+      inputTokenBudget,
+      estimateInputTokens(turn.system, input.message),
+    );
 
     const tools: ToolSet = {};
     for (const capability of turn.capabilities) {
@@ -136,15 +173,12 @@ async function runTurn(
             throw new Error("Soko Bot turn deadline reached");
           }
           if (capability === "web_search" || capability === "web_fetch") {
-            return runInProcessWebTool({
+            return runCoreWebTool({
               sessionId,
               turnId: input.turnId,
               capability,
               toolCallId: options.toolCallId,
               toolInput,
-              model: turn.model,
-              inferenceRegion: turn.inferenceRegion,
-              purpose,
             });
           }
           return runTurnTool({
@@ -160,45 +194,35 @@ async function runTurn(
     // The drain reads the model from `step.started` and meters usage from
     // `step.completed`; billing depends on both, so emit them per step.
     const purpose = await loadSokoBotTurnPurpose(input.turnId);
-    const runModel = async (
-      message: string,
-      maxSteps: number,
-      signal: AbortSignal,
-      offered: ToolSet = tools,
-    ) => {
+    const request = sokoBotModelRequest({
+      role: "agent",
+      model: turn.model,
+      inferenceRegion: turn.inferenceRegion,
+      purpose,
+    });
+    const callModel: typeof streamModelCall = async (options) => {
       await log.append(runtimeEvent("step.started", { modelId: turn.model }));
-      const request = sokoBotModelRequest({
-        role: "agent",
-        model: turn.model,
-        inferenceRegion: turn.inferenceRegion,
-        purpose,
-      });
       const result = await withEvaluationTurn(input.turnId, () =>
         streamModelCall({
+          ...options,
           ...request,
-          // The provider's reasoning summary, as the sandbox runner asks for.
           providerOptions: {
-            ...modelReasoningSummaryOptions(turn.model),
+            ...options.providerOptions,
             ...request.providerOptions,
+            openai: {
+              ...options.providerOptions?.openai,
+              ...turn.reasoningEffort.openai,
+            },
           },
-          system: turn.system,
-          messages: [{ role: "user", content: message }],
           telemetry: modelCallTelemetryFor("soko-bot-agent"),
-          tools: offered,
-          prepareStep: prepareEvaluationStep,
-          stopWhen: [stepCountIs(maxSteps), endedByTool],
-          abortSignal: signal,
+          prepareStep: (step) =>
+            prepareEvaluationStep(step) ?? options.prepareStep?.(step) ?? {},
           async onStepFinish(step) {
             assertSokoBotInferenceRegion(step.providerMetadata, {
               model: turn.model,
               role: "agent",
             });
-            const reasoning = stepReasoningSummary(step);
-            if (reasoning) {
-              await log.append(
-                runtimeEvent("reasoning.completed", { text: reasoning }),
-              );
-            }
+            await options.onStepFinish?.(step);
             await log.append(
               runtimeEvent("step.completed", {
                 modelId: turn.model,
@@ -236,32 +260,55 @@ async function runTurn(
         model: turn.model,
         role: "agent",
       });
-      // A model can answer in one step and end on an empty one; `text` is
-      // only the last step's.
-      const text =
-        toolEndedTurn(result.steps) ??
-        (result.text ||
-          (result.steps.findLast((step) => step.text.trim())?.text ?? ""));
-      return { text, finishReason: result.finishReason };
+      return result;
     };
 
+    const loop: Omit<TurnLoopInput, "message"> = {
+      model: turn.model,
+      system: turn.system,
+      tools,
+      shortForms: turn.shortForms,
+      budget,
+      maxSteps,
+      deadline,
+      background,
+      stopped: abortSignal,
+      async onReasoning(text) {
+        await log.append(runtimeEvent("reasoning.completed", { text }));
+      },
+      ...(evaluationBinding() && { historyAfterRound: evaluationHistory }),
+    };
     // On Vercel the budget is one invocation: parts may use at most half of
     // it, so the turn still has time to write from their hand-overs.
     const partMs = Math.min(TURN_PART_MAX_MS, budgetMs / 2);
     const userMessage = await withPartHandOvers(
-      await modelUserMessage(turn, input.message),
+      await modelUserMessage(turn, input.message, replyLanguage),
       turn.parts,
       async (part) =>
         (
-          await runModel(
-            part.message,
-            TURN_PART_MAX_STEPS,
-            AbortSignal.any([abortSignal, AbortSignal.timeout(partMs)]),
-            partTools(tools, part),
+          await runTurnLoop(
+            {
+              ...loop,
+              message: partMessage(turn.preamble, part),
+              tools: partTools(tools, part),
+              maxSteps: TURN_PART_MAX_STEPS,
+              part: true,
+              background: false,
+              deadline: Math.min(deadline, Date.now() + partMs),
+            },
+            callModel,
           )
         ).text,
     );
-    const result = await runModel(userMessage, SOKO_BOT_MAX_STEPS, abortSignal);
+    const result = await runTurnLoop(
+      {
+        ...loop,
+        message: userMessage,
+        cacheKey: turn.cacheKey,
+        fullCacheKey: turn.fullCacheKey,
+      },
+      callModel,
+    );
     await finishTurn({
       log,
       turnId: input.turnId,

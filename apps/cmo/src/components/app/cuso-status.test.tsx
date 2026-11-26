@@ -39,6 +39,7 @@ const production = (
   beyondPlan: [],
   withoutPicture: [],
   retryAt: null,
+  writerFailed: false,
   floor: null,
   ...patch,
 });
@@ -96,7 +97,7 @@ const cases = [
       updates: [report("2026-11-01T09:00:00Z")],
     },
     pose: "done",
-    art: "done",
+    art: "correct",
     line: null,
   },
 ];

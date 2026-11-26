@@ -21,8 +21,9 @@ function stripComments(source: string): string {
 
 describe("mobile tab destinations Instant Nav contract", () => {
   const pages = [
-    "(welcome)/page.tsx",
+    "(welcome)/home-page.tsx",
     "chat/page.tsx",
+    "chat/rooms/page.tsx",
     "you/page.tsx",
     "you/developer/page.tsx",
     "you/help/page.tsx",
@@ -30,8 +31,8 @@ describe("mobile tab destinations Instant Nav contract", () => {
   ] as const;
 
   const loadingShells = [
-    "(welcome)/loading.tsx",
     "chat/loading.tsx",
+    "chat/rooms/loading.tsx",
     "you/loading.tsx",
     "you/developer/loading.tsx",
     "you/help/loading.tsx",
@@ -57,15 +58,15 @@ describe("mobile tab destinations Instant Nav contract", () => {
     });
   }
 
-  it("(welcome)/loading.tsx default export returns ChatHomePageSkeleton", () => {
-    const code = stripComments(readApp("(welcome)/loading.tsx"));
+  it("chat/loading.tsx default export returns ChatHomePageSkeleton", () => {
+    const code = stripComments(readApp("chat/loading.tsx"));
     expect(code).toMatch(
       /export\s+default\s+function[\s\S]*?return\s+<\s*ChatHomePageSkeleton\s*\/>/,
     );
   });
 
-  it("chat/loading.tsx default export returns ChatChatsPageSkeletonHost", () => {
-    const code = stripComments(readApp("chat/loading.tsx"));
+  it("chat/rooms/loading.tsx default export returns ChatChatsPageSkeletonHost", () => {
+    const code = stripComments(readApp("chat/rooms/loading.tsx"));
     expect(code).toMatch(
       /export\s+default\s+function[\s\S]*?return\s+<\s*ChatChatsPageSkeletonHost\s*\/>/,
     );

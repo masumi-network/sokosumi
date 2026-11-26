@@ -62,12 +62,15 @@ export function NameSetup({ saveName, signOut }: NameSetupProps) {
             <SubmitButton className="button" formAction={formAction}>
               Continue
             </SubmitButton>
+          </div>
+          {/* Leaving is possible, not the second choice of the first screen. */}
+          <div className="actions">
             <SubmitButton
-              className="button button-secondary"
+              className="button button-ghost button-small"
               formAction={signOut}
               formNoValidate
             >
-              Sign out
+              Not you? Sign out
             </SubmitButton>
           </div>
         </form>

@@ -1,3 +1,4 @@
+import { ACTION_LABELS } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
 import {
   ACTION_CAPABILITIES,
@@ -5,6 +6,15 @@ import {
   EXTERNAL_EFFECT_CAPABILITIES,
   externalActionReceipt,
 } from "./action-receipts";
+
+describe("Task Schedule actions", () => {
+  it("count as actions with a label, so the reply can claim them", () => {
+    for (const capability of ["save_task_schedule", "delete_task_schedule"]) {
+      expect(ACTION_CAPABILITIES.has(capability)).toBe(true);
+      expect(ACTION_LABELS[capability]).toMatch(/Task Schedule/);
+    }
+  });
+});
 
 describe("external action receipts", () => {
   it("classifies social mutations separately from authorized reads", () => {

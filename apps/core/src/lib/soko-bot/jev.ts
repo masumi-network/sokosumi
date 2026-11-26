@@ -1,6 +1,8 @@
 import { experimental_evaluate, gateway } from "ai";
 import { z } from "zod";
 import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
+import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
+import { evaluateOnChatGptPlan } from "@/lib/local-chatgpt-plan-stand-ins";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
 
 import { gatewayCostUsd } from "./gateway-cost";
@@ -53,15 +55,22 @@ export async function evaluateWithJev(options: {
   /** Confidence-based suggestions require the model's reported probability for its choice. */
   requireChoiceProbability?: boolean;
 }): Promise<{ answers: Map<string, JevAnswer>; costUsd: number }> {
-  const result = await experimental_evaluate({
-    model: gateway.evaluationModel(SOKO_BOT_JEV_MODEL),
-    // Clipped text can end in half an emoji, which the Gateway refuses.
-    state: wellFormed(options.state),
-    questions: options.questions,
-    abortSignal: AbortSignal.timeout(options.timeoutMs),
-    maxRetries: 1,
-    providerOptions: JEV_PROVIDER_OPTIONS,
-  }).catch(rethrowAiGatewayFailure);
+  const result: { answers?: unknown; providerMetadata?: unknown } =
+    localChatGptPlanEnabled()
+      ? await evaluateOnChatGptPlan({
+          state: options.state,
+          questions: options.questions,
+          abortSignal: AbortSignal.timeout(options.timeoutMs),
+        })
+      : await experimental_evaluate({
+          model: gateway.evaluationModel(SOKO_BOT_JEV_MODEL),
+          // Clipped text can end in half an emoji, which the Gateway refuses.
+          state: wellFormed(options.state),
+          questions: options.questions,
+          abortSignal: AbortSignal.timeout(options.timeoutMs),
+          maxRetries: 1,
+          providerOptions: JEV_PROVIDER_OPTIONS,
+        }).catch(rethrowAiGatewayFailure);
   const answers = new Map<string, JevAnswer>();
   for (const [key, raw] of Object.entries(
     (result.answers ?? {}) as Record<string, unknown>,

@@ -613,7 +613,7 @@ export function cmoRewriteMessage(input: {
       : []),
     "",
     "Keep each piece's id, date, time, approach and campaign; keep its picture unless it shows something the new words no longer say, and keep a scheduled post scheduled.",
-    "A Social post (by its id): get_social_post for its revision, then update_social_post. Any other piece: save_strategy part pieces with that entry's id and its new draft.",
+    "A Social post (by its id): get_social_post for its revision, then update_social_posts with every post to fix in one call. Any other piece: save_strategy part pieces with that entry's id and its new draft.",
     "",
     `Pieces (${input.pieces.length}):`,
     ...input.pieces.map(

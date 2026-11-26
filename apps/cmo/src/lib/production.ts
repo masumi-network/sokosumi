@@ -30,6 +30,33 @@ export function productionSteps(
     : words;
 }
 
+/**
+ * Whether Core gave up writing the month: its writer used every try, so it is
+ * stuck on our side with no next run, and nothing tries again on its own.
+ */
+export function monthGivenUp(production: Production): boolean {
+  return (
+    production.state === "stuck" &&
+    production.writerFailed &&
+    production.retryAt === null
+  );
+}
+
+/** The note under a stopped month: why it stopped and what happens next. */
+export function stoppedNote(
+  production: Production,
+  monthTotal: number,
+  timeZone: string,
+): string {
+  if (monthGivenUp(production))
+    return "He couldn't finish this month's posts. Our team has been told, and he won't try again on his own.";
+  const steps = productionSteps(production, monthTotal);
+  const when = retryWhen(production.retryAt, timeZone);
+  return production.writerFailed
+    ? `${steps}. Something on our side stopped him. We're fixing it, and he tries again ${when}.`
+    : `${steps}. His last try made nothing new, so he tries the rest again ${when}.`;
+}
+
 /** "at 14:30", or "tomorrow at 09:10": when a stopped month's next run starts. */
 export function retryWhen(
   retryAt: string | null,
@@ -58,4 +85,16 @@ export function withoutPictureLine(production: Production): string | null {
   return count === 1
     ? "1 post has no picture: none he made fit your brand, so it stays a draft."
     : `${count} posts have no picture: none he made fit your brand, so they stay drafts.`;
+}
+
+/**
+ * While Core plans a paid cmo-v22 month, the calendar holds only the
+ * strategy's example posts: what Today and the Calendar say instead of
+ * counting them as the month. Null once the month is written.
+ */
+export function planningLine(production: Production): string | null {
+  if (production.state !== "planning") return null;
+  return production.floor
+    ? `At least ${production.floor.promised.toLocaleString("en-US")} posts are being planned.`
+    : "Your month is being planned.";
 }

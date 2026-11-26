@@ -177,6 +177,11 @@ export const cmoProductionSchema = z
       .describe(
         "When a stuck month's next production run starts. Null unless state is stuck.",
       ),
+    writerFailed: z
+      .boolean()
+      .describe(
+        "A stuck month stopped because Core's month writer wrote nothing in the last run: a fault on our side, not Cuso's.",
+      ),
     floor: z
       .union([
         z.object({
@@ -226,6 +231,20 @@ export const cmoSubscriptionPlanSchema = z
     currency: z.string(),
   })
   .openapi("CmoSubscriptionPlan");
+
+/**
+ * CMO.xyz's GA4 ids for a checkout, sent only when the person allowed
+ * analytics: the paid order is reported to GA4 with them.
+ */
+export const cmoCheckoutAnalyticsSchema = z
+  .object({
+    clientId: z.string().regex(/^\d+\.\d+$/),
+    sessionId: z.string().regex(/^\d+$/).optional(),
+  })
+  .optional()
+  .describe(
+    "GA4 client and session id, only with the person's analytics consent; the paid order is reported to GA4 with them.",
+  );
 
 /** The Project of the Cuso a CMO route acts on. */
 export const cmoProjectParamsSchema = z.object({

@@ -138,14 +138,25 @@ export async function reportCmoUpdate(
   const clientMessageId = `${CMO_REPORT_MESSAGE_PREFIX}${input.turnId}:${input.toolCallId}`;
   // One card per turn and kind: a turn that reports again (a run nudged to
   // check its work) rewrites its card instead of posting the news twice.
+  // A background run this turn started already carded the same work: the
+  // turn rewrites that card rather than relaying it as a second one.
+  const runs = await db.sokoBotTurn.findMany({
+    where: { parentTurnId: input.turnId },
+    select: { id: true },
+  });
+  const runPrefixes = runs.map(
+    (run) => `${CMO_REPORT_MESSAGE_PREFIX}${run.id}:`,
+  );
   const earlier = (
     await db.chatRoomMessage.findMany({
       where: {
         roomId,
         deletedAt: null,
-        clientMessageId: {
-          startsWith: `${CMO_REPORT_MESSAGE_PREFIX}${input.turnId}:`,
-        },
+        OR: [input.turnId, ...runs.map((run) => run.id)].map((turnId) => ({
+          clientMessageId: {
+            startsWith: `${CMO_REPORT_MESSAGE_PREFIX}${turnId}:`,
+          },
+        })),
       },
       orderBy: { createdAt: "desc" },
       select: { id: true, clientMessageId: true, metadata: true },
@@ -153,7 +164,10 @@ export async function reportCmoUpdate(
   ).find(
     (message) =>
       message.clientMessageId !== clientMessageId &&
-      readCmoReport(message.metadata)?.kind === update.kind,
+      (runPrefixes.some((prefix) =>
+        message.clientMessageId?.startsWith(prefix),
+      ) ||
+        readCmoReport(message.metadata)?.kind === update.kind),
   );
   const id = earlier?.id ?? randomUUID();
   const at = new Date();

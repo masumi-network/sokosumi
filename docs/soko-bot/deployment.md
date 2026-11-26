@@ -71,11 +71,10 @@ Optional, per network:
   (`openai/gpt-6-luna`), has no EU region on the Gateway either, so it is a
   second owner-approved exception (2026-09-29), for the agent role only:
   owner prompts, Tasks and mail are processed by OpenAI outside the EU, with
-  zero data retention and no prompt training. One call is the exception: the
-  web search itself, which Perplexity runs through the Gateway, carries only
-  the search terms and keeps no prompt training but not zero retention, which
-  Perplexity does not offer. The search terms are written by the model and can
-  quote the owner's request. EU-pinned versions (v20, on
+  zero data retention and no prompt training. Web search is not a model call:
+  Core sends the search terms straight to Exa, as `search_exa` does. The
+  search terms are written by the model and can quote the owner's request.
+  EU-pinned versions (v20, on
   Gemini 3.8) stay available, and the lab judge and preview evaluation runs
   stay EU-only. The policy lives in `apps/core/src/lib/soko-bot/model-policy.ts`.
 - `SOKO_BOT_JUDGE_MODEL` — the behaviour lab's judge, Claude Opus 5.5 in the EU

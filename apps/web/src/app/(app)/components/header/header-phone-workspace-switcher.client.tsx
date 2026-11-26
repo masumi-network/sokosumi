@@ -3,6 +3,7 @@
 import { useChromePathname } from "@/app/chat/components/room-cache-provider";
 import { projectPageSection } from "@/app/components/project-scope/project-scope-href";
 import WorkspaceSwitcherMenu from "@/app/components/workspace-switcher/workspace-switcher-menu.client";
+import { cn } from "@/lib/utils";
 
 /**
  * The phone's top-bar Workspace switcher. On a project's own pages the scope
@@ -11,9 +12,14 @@ import WorkspaceSwitcherMenu from "@/app/components/workspace-switcher/workspace
  */
 export function HeaderPhoneWorkspaceSwitcher() {
   const pathname = useChromePathname();
-  if (projectPageSection(pathname) !== null) return null;
+  const onProject = projectPageSection(pathname) !== null;
   return (
-    <div className="flex md:hidden">
+    <div
+      className={cn(
+        "hidden md:sidebar-hidden:flex",
+        !onProject && "max-md:flex",
+      )}
+    >
       <WorkspaceSwitcherMenu placement="topBar" />
     </div>
   );

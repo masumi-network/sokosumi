@@ -129,6 +129,29 @@ describe("TaskStatusPicker", () => {
     expect(new Set(paths).size).toBe(paths.length);
   });
 
+  it("finds a status by the board column it sits in", async () => {
+    const user = userEvent.setup();
+    renderPicker({
+      labels: {
+        ...labels,
+        columnLabels: {
+          backlog: "Backlog",
+          todo: "Todo",
+          "in-progress": "In progress",
+          "input-required": "Input required",
+          done: "Done",
+        },
+      },
+    });
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    await user.keyboard("In progress");
+
+    const options = screen.getAllByRole("option");
+    expect(options).toHaveLength(1);
+    expect(options[0]).toHaveTextContent("Running");
+  });
+
   it("picks an option with its number key while the list is open", async () => {
     const user = userEvent.setup();
     const { onSelect } = renderPicker();

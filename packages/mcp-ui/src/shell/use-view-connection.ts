@@ -15,6 +15,10 @@ export type ConnectionState = {
   host: McpUiHostContext;
   /** The tool call's arguments, once the host sends them. */
   input?: Record<string, unknown>;
+  /** A tool the last rerun named that the server does not offer. */
+  missingTool?: string;
+  /** The HTTP status in the last rerun's error result, until one succeeds. */
+  refreshStatus?: number;
 } & (
   | { status: "loading" }
   | { status: "result"; result: ToolResult }
@@ -24,13 +28,31 @@ export type ConnectionState = {
 /**
  * Calls a server tool through the host. A result `accept` takes replaces the
  * shown one, keeping its `_meta` (such as Core's `webBaseUrl`, which only the
- * show tool adds) under the new result's own.
+ * show tool adds) under the new result's own. When the server does not offer
+ * the tool (its toolset is off), the state names it in `missingTool`; an
+ * error result's HTTP status (Core's `structuredContent.status`) is in
+ * `refreshStatus`.
  */
 export type Rerun = (
   name: string,
   args: Record<string, unknown>,
   accept: (result: ToolResult) => boolean,
 ) => Promise<boolean>;
+
+/**
+ * Whether a failed call is Core's answer to a tool outside the server's
+ * toolsets: `Unknown tool: <name>` (`server.ts`), as a thrown protocol error
+ * or, from some hosts, as an error result's whole text.
+ */
+export function isUnknownTool(failure: unknown, name: string): boolean {
+  const answer = `Unknown tool: ${name}`;
+  if (failure instanceof Error) return failure.message.endsWith(answer);
+  if (!failure || typeof failure !== "object") return false;
+  const { content } = failure as Partial<ToolResult>;
+  return (content ?? []).some(
+    (block) => block.type === "text" && block.text.trim().endsWith(answer),
+  );
+}
 
 export function systemTheme(): McpUiTheme {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches
@@ -95,13 +117,30 @@ export function useViewConnection(
 
   const rerun = useCallback<Rerun>(
     async (name, args, accept) => {
+      const missing = (failure: unknown) => {
+        if (isUnknownTool(failure, name)) {
+          update((previous) => ({ ...previous, missingTool: name }));
+        }
+        return false;
+      };
       try {
         const result = await app.callServerTool({ name, arguments: args });
-        if (result.isError || !accept(result)) return false;
+        if (result.isError) {
+          const { status } = (result.structuredContent ?? {}) as {
+            status?: unknown;
+          };
+          if (typeof status === "number") {
+            update((previous) => ({ ...previous, refreshStatus: status }));
+          }
+          return missing(result);
+        }
+        if (!accept(result)) return false;
         update((previous) =>
           previous.status === "result"
             ? {
                 ...previous,
+                missingTool: undefined,
+                refreshStatus: undefined,
                 result: {
                   ...result,
                   _meta: { ...previous.result._meta, ...result._meta },
@@ -110,8 +149,8 @@ export function useViewConnection(
             : previous,
         );
         return true;
-      } catch {
-        return false;
+      } catch (error) {
+        return missing(error);
       }
     },
     [app, update],

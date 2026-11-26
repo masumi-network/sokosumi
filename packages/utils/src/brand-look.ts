@@ -185,11 +185,17 @@ function designMdRoleColors(content: string): string[] | null {
 const STATUS_ROLE =
   /(?:^|-)(?:error|danger|destructive|warning|success|info|positive|negative|alert)(?:-|$)/i;
 
+/** A status colour itself, not the ink or container that goes with it. */
+const STATUS_COLOUR =
+  /^(?:error|danger|destructive|warning|success|info|positive|negative|alert)$/i;
+
 /** The palette's roles in order, each with the names a DESIGN.md gives it. */
 const PALETTE_ROLES: readonly (readonly string[])[] = [
   ["primary"],
   ["secondary"],
-  ["accent"],
+  // A Material-style DESIGN.md has no accent role: its accent is the
+  // primary container (entry.fyi's acid-lime #d6f46a).
+  ["accent", "primary-container"],
   ["tertiary"],
   ["background", "surface"],
   ["on-background", "on-surface", "text", "foreground"],
@@ -209,20 +215,29 @@ export function designMdPalette(content: string, limit = 5): string[] {
     /^colors:[ \t]*\r?\n((?:[ \t][^\n]*(?:\n|(?![\s\S])))+)/m,
   )?.[1];
   if (!block) return brandColors(content, limit);
-  const entries = [
+  const all = [
     ...block.matchAll(/^[ \t]+([\w-]+):[ \t]*["']?(#[0-9a-fA-F]{3,6})\b/gm),
   ].flatMap((match) => {
     const hex = normalizeHex(match[2] ?? "");
-    return hex && !STATUS_ROLE.test(match[1] ?? "")
-      ? [{ role: (match[1] ?? "").toLowerCase(), hex }]
-      : [];
+    return hex ? [{ role: (match[1] ?? "").toLowerCase(), hex }] : [];
   });
+  // A role that reuses a status colour is that status: entry.fyi's tertiary
+  // is its error red, and its pictures were refused for leaving it out.
+  const status = new Set(
+    all.filter((entry) => STATUS_COLOUR.test(entry.role)).map((e) => e.hex),
+  );
+  const entries = all.filter(
+    (entry) => !STATUS_ROLE.test(entry.role) && !status.has(entry.hex),
+  );
   const named = PALETTE_ROLES.flatMap((names, index) => {
     const hex = names
       .map((name) => entries.find((entry) => entry.role === name)?.hex)
       .find((found) => found !== undefined);
-    // A grey tertiary is a surface shade, not a brand colour.
-    return hex && !(index === 3 && isNeutral(hex)) ? [hex] : [];
+    // A grey tertiary is a surface shade and a grey container a tint, not
+    // brand colours.
+    return hex && !((index === 2 || index === 3) && isNeutral(hex))
+      ? [hex]
+      : [];
   });
   const chosen = entries.some((entry) =>
     ["primary", "secondary", "accent"].includes(entry.role),

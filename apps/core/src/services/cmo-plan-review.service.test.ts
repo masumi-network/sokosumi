@@ -46,9 +46,27 @@ import {
   cmoWeekGaps,
   cmoWithOwnerPace,
   funnelStageProblems,
+  goesOutOn,
   mixProblems,
   pillarProblems,
 } from "./cmo-plan-review.service";
+
+describe("goesOutOn", () => {
+  it("counts a video's other shapes on their networks", () => {
+    const entry = {
+      id: "v1",
+      date: "2026-11-30",
+      channel: "tiktok",
+      format: "video",
+      title: "Roasted this morning",
+      status: "idea",
+      alsoOn: ["instagram_feed", "youtube_video", "x"],
+    } as MarketingStrategyPlan["calendar"][number];
+    for (const network of ["tiktok", "instagram", "youtube", "x"])
+      expect(goesOutOn(entry, network), network).toBe(true);
+    expect(goesOutOn(entry, "linkedin")).toBe(false);
+  });
+});
 
 /**
  * Texts naming one topic say one thing; every other text gets a direction
@@ -177,7 +195,6 @@ describe("cmoPlanProblems", () => {
     expect(problems.join("\n")).toMatch(/funnel has 1 stages/);
     expect(problems.join("\n")).toMatch(/objective's metric, "Intro calls"/);
     expect(problems.join("\n")).toMatch(/uses 1 formats/);
-    expect(problems.join("\n")).toMatch(/holds drafts/);
   });
 
   it("leaves the hard rules to the save, so it never sends Cuso back for them", () => {
@@ -1342,6 +1359,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: false,
       industryTopics: false,
       examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-weekly"])).toEqual({
       weekly: true,
@@ -1355,6 +1373,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: false,
       industryTopics: false,
       examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-part-patch"])).toEqual({
       weekly: true,
@@ -1368,6 +1387,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: false,
       industryTopics: false,
       examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-channel-fit"])).toEqual({
       weekly: true,
@@ -1381,6 +1401,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: false,
       industryTopics: false,
       examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-plain-words"])).toEqual({
       weekly: true,
@@ -1394,6 +1415,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: false,
       industryTopics: false,
       examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-v20"])).toEqual({
       weekly: true,
@@ -1407,6 +1429,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: true,
       industryTopics: false,
       examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-v21"])).toEqual({
       weekly: true,
@@ -1420,6 +1443,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: true,
       industryTopics: true,
       examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-v22"])).toEqual({
       weekly: true,
@@ -1433,7 +1457,12 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: true,
       industryTopics: true,
       examplesOnly: true,
+      strategyStep: false,
     });
+    expect(
+      cmoStrategyRules(["cmo-strategy-v22", "cmo-core-writes-strategy"])
+        .strategyStep,
+    ).toBe(true);
     expect(cmoStrategyRules(["cmo-strategy-patches"])).toEqual({
       weekly: false,
       aida: false,
@@ -1446,6 +1475,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: false,
       industryTopics: false,
       examplesOnly: false,
+      strategyStep: false,
     });
   });
 
@@ -1583,6 +1613,16 @@ describe("a network the Brand Brain shows no profile on", () => {
     ).toEqual([
       'the Brand Brain shows no profile on instagram; start its why with "New:" and say the owner opens the account.',
     ]);
+  });
+
+  it("never asks for New: on a network the business connected", () => {
+    expect(
+      cmoNewNetworkProblems(
+        plan({ channels: [on("instagram", "Teams look at product shots.")] }),
+        brain,
+        ["instagram"],
+      ),
+    ).toEqual([]);
   });
 });
 
@@ -2122,6 +2162,7 @@ describe("claims", () => {
       pillarFacts: false,
       industryTopics: false,
       examplesOnly: false,
+      strategyStep: false,
     });
     const strategy = plan({
       calendar: [
@@ -2456,6 +2497,67 @@ describe("cmoFollowCadenceChange", () => {
 
   it("leaves a calendar alone when no cadence changed", () => {
     expect(cmoFollowCadenceChange(before, before)).toBe(before);
+  });
+
+  // cmo-change-request on mainnet, 2026-11-25: LinkedIn cut to once a week
+  // left the month off its mix, and the save was refused for it.
+  it("cuts the pieces that keep the mix and pillars at their shares", () => {
+    const piece = (
+      id: string,
+      key: string,
+      index: number,
+      approach: "educational" | "product-led",
+    ) => ({
+      ...entry(id, key, "post"),
+      date: day(index),
+      approach,
+      pillar: approach === "educational" ? "Teach" : "Show",
+    });
+    const mixed = plan({
+      channels: [channel("x", "3 a week"), channel("linkedin", "3 a week")],
+      mix: [
+        { approach: "educational", share: 50, why: "Teach" },
+        { approach: "product-led", share: 50, why: "Show" },
+      ],
+      pillars: [
+        { name: "Teach", share: 50, why: "i1 i2 i3" },
+        { name: "Show", share: 50, why: "i4 i5 i6" },
+      ],
+      calendar: [
+        ...Array.from({ length: 12 }, (_, index) =>
+          piece(
+            `x-${index}`,
+            "x",
+            index,
+            index < 4 ? "educational" : "product-led",
+          ),
+        ),
+        // The latest LinkedIn pieces teach: cutting by date alone keeps
+        // only the product ones.
+        ...Array.from({ length: 12 }, (_, index) =>
+          piece(
+            `li-${index}`,
+            "linkedin",
+            index * 2,
+            index < 4 ? "product-led" : "educational",
+          ),
+        ),
+      ],
+    });
+    const cut = cmoFollowCadenceChange(
+      plan({
+        ...mixed,
+        channels: [channel("x", "3 a week"), channel("linkedin", "1 a week")],
+      }),
+      mixed,
+    );
+    expect(
+      cut.calendar.filter((item) => item.channel === "linkedin"),
+    ).toHaveLength(4);
+    const taught = cut.calendar.filter(
+      (item) => item.approach === "educational",
+    );
+    expect(taught.length / cut.calendar.length).toBe(0.5);
   });
 });
 

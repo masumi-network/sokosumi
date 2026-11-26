@@ -23,6 +23,7 @@ import { appendFile } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline";
 
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { put } from "@vercel/blob";
 import { gateway, generateText, Output } from "ai";
 import pLimit from "p-limit";
@@ -31,6 +32,7 @@ import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { vectorLiteral } from "../src/lib/contacts/embeddings";
 import prisma from "../src/lib/db/prisma";
 import { embedTexts } from "../src/lib/embeddings";
+import { localChatGptPlanEnabled } from "../src/lib/local-chatgpt-plan";
 import type { ReferenceDescription } from "../src/lib/reference-library/description";
 import {
   clipDescription,
@@ -280,6 +282,12 @@ function searchText(row: Described): string {
  * described image; rows already there are left alone.
  */
 async function load(root: string): Promise<void> {
+  // Stored vectors must come from the Gateway model; a plan run's local
+  // vectors are another method (and size), so nothing is written.
+  if (localChatGptPlanEnabled())
+    throw new Error(
+      "Loading references stores Gateway embeddings; run it without the ChatGPT plan.",
+    );
   const manifest = new Map(readManifests(root).map((row) => [row.path, row]));
   const uploaded = new Map(
     (
@@ -350,7 +358,7 @@ async function load(root: string): Promise<void> {
     }
     if (ids.length > 0) {
       await prisma.$executeRaw`
-        UPDATE "reference_image" AS image SET "embedding" = given.embedding::vector
+        UPDATE ${sharedTable("reference_image")} AS image SET "embedding" = given.embedding::vector
         FROM unnest(${ids}::uuid[], ${vectors}::text[]) AS given(id, embedding)
         WHERE image."id" = given.id`;
     }

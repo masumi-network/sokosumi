@@ -361,7 +361,7 @@ export function describeCmoStep(
       url: null,
     };
   }
-  if (capability === "save_strategy") {
+  if (capability === "save_strategy" || capability === "write_strategy") {
     return { kind: "strategy", label: "Writing your strategy", url: null };
   }
   if (capability === "list_project_social_accounts") {
@@ -522,9 +522,6 @@ export async function retryCmoOnboarding(
   return startCmoResearch(cuso, userId);
 }
 
-/** Social posts Cuso planned that have not gone out. */
-const UNSENT_POST_STATUSES = ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] as const;
-
 /**
  * The owner's time zone for this Cuso: his routines keep their local times
  * ("every day at 09:00") and move to the new zone, next runs included.
@@ -546,8 +543,8 @@ export async function setCmoTimeZone(
 
 /**
  * Lets this person hire Cuso again for another website: the Cuso they work
- * with is archived (his running work stops) and his posts that have not gone
- * out are canceled. His organization, Project and Files stay in Sokosumi.
+ * with is archived, which stops his running work and cancels his posts that
+ * have not gone out. His organization, Project and Files stay in Sokosumi.
  * Only an organization owner or admin may (the archive checks).
  */
 export async function startCmoOver(target: CusoTarget): Promise<void> {
@@ -577,43 +574,6 @@ export async function startCmoOver(target: CusoTarget): Promise<void> {
       data: { name: `${CUSO_NAME} · ${cuso.businessName}`.slice(0, 80) },
     });
   }
-  const posts = await prisma.socialPost.findMany({
-    where: {
-      projectId: cuso.projectId,
-      status: { in: [...UNSENT_POST_STATUSES] },
-    },
-    select: { id: true, revision: true },
-  });
-  const { cancelSocialPost } = await import("@/services/social-posts.service");
-  const leftPosts: {
-    id: string;
-    failure: ReturnType<typeof messageSafeErrorFields>;
-  }[] = [];
-  for (const post of posts) {
-    await cancelSocialPost({
-      projectId: cuso.projectId,
-      workspaceId: cuso.workspaceId,
-      userId,
-      postId: post.id,
-      revision: post.revision,
-    }).catch((error) => {
-      // A post's error can quote its text, so only its name and code.
-      leftPosts.push({
-        id: post.id,
-        failure: messageSafeErrorFields(error),
-      });
-    });
-  }
-  if (leftPosts.length > 0)
-    recordCoreWarning(
-      { operation: "cmo_start_over", project: { id: cuso.projectId } },
-      {
-        message: "Starting over left Social posts unsent but not cancelled",
-        why: "Cancelling the posts failed",
-        fix: "Cancel the posts listed under socialPosts in the Social queue, or they may still publish.",
-      },
-      { socialPosts: leftPosts },
-    );
 }
 
 /**

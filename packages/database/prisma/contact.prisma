@@ -123,6 +123,10 @@ model Contact {
   createdByUserId    String?
   /// Soko Bot that created the contact, kept after the bot is gone.
   createdBySokoBotId String?      @db.Uuid
+  /// The workspace member this contact is: set by hand, or by capture from a
+  /// member's email address or own X account.
+  userId             String?
+  user               User?        @relation("ContactUser", fields: [userId], references: [id], onDelete: SetNull)
   /// Optimistic concurrency for edits; derived fields do not bump it.
   version            Int          @default(1)
   archivedAt         DateTime?
@@ -138,12 +142,15 @@ model Contact {
   webLookups            ContactPeopleSearch[]
   search                ContactSearch?
   fundraising           FundraisingProspect?
+  fundraisingIntrosVia  FundraisingProspect[]         @relation("FundraisingIntroVia")
   portfolioOf           FundraisingPortfolioCompany[]
   linkedInConnections   ContactLinkedInConnection[]
 
   notDuplicateOf ContactNotDuplicate[] @relation("NotDuplicateContact")
   notDuplicateTo ContactNotDuplicate[] @relation("NotDuplicateOther")
+  xFollows       ContactXFollow[]
 
+  @@unique([workspaceId, userId])
   @@index([workspaceId, archivedAt, updatedAt, id])
   @@index([workspaceId, lastContactAt])
   @@index([workspaceId, name])
@@ -482,6 +489,25 @@ model ContactNotDuplicate {
   @@map("contact_not_duplicate")
 }
 
+/// How a contact and a teammate are linked on X, from that teammate's
+/// follower and following walks. A walk only sets a side: an unfollow is not
+/// noticed.
+model ContactXFollow {
+  contactId      String   @db.Uuid
+  contact        Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation("ContactXFollowUser", fields: [userId], references: [id], onDelete: Cascade)
+  /// They follow the teammate.
+  followsUser    Boolean  @default(false)
+  /// The teammate follows them.
+  followedByUser Boolean  @default(false)
+  updatedAt      DateTime @updatedAt
+
+  @@id([contactId, userId])
+  @@index([userId])
+  @@map("contact_x_follow")
+}
+
 /// A named, shared list of companies, like `ContactList` for people. Always
 /// manual: people and bots add and remove companies.
 model ContactCompanyList {
@@ -520,13 +546,13 @@ model ContactCompanyListMember {
 /// export. One row per teammate and contact; `connectedOn` is LinkedIn's date.
 /// Warm paths read it: the teammate can ask this person for an introduction.
 model ContactLinkedInConnection {
-  workspaceId String   @db.Uuid
-  contactId   String   @db.Uuid
-  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  workspaceId String    @db.Uuid
+  contactId   String    @db.Uuid
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
   userId      String
-  user        User     @relation("ContactLinkedInConnectionUser", fields: [userId], references: [id], onDelete: Cascade)
+  user        User      @relation("ContactLinkedInConnectionUser", fields: [userId], references: [id], onDelete: Cascade)
   connectedOn DateTime? @db.Date
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   @@id([contactId, userId])
   @@index([workspaceId, userId])

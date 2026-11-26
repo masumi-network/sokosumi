@@ -6,6 +6,7 @@ import type {
   Prisma,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import slugify from "slugify";
 import {
   conflict,
@@ -664,7 +665,7 @@ async function createSubscriberChunk(
     // Suppressed rows remain untouched; only fill missing links on current subscriptions.
     if (existing.length)
       await tx.$executeRaw(PrismaRaw.sql`
-        UPDATE "newsletter_subscriber" AS subscriber
+        UPDATE ${sharedTable("newsletter_subscriber")} AS subscriber
         SET "contactId" = links."contactId"
         FROM (VALUES ${PrismaRaw.join([...contacts].map(([email, contact]) => PrismaRaw.sql`(${email}, ${contact.id}::uuid)`))}) AS links(email, "contactId")
         WHERE subscriber."newsletterId" = ${newsletter.id}::uuid

@@ -145,6 +145,29 @@ describe("pageLead", () => {
     });
   });
 
+  it("says what is being planned, not the examples, while a paid month is planned", () => {
+    const overview = cmoOverview({
+      ...month([
+        entry("a", "linkedin", "draft"),
+        entry("b", "x", "draft"),
+        entry("c", "instagram", "draft"),
+        entry("d", "tiktok", "draft"),
+      ]),
+    });
+    const planning = {
+      ...overview,
+      production: {
+        ...overview.production,
+        state: "planning" as const,
+        floor: { promised: 356, made: 0 },
+      },
+    };
+    expect(pageLead("calendar", planning, NOW)).toEqual({
+      kicker: "Calendar · November",
+      title: "At least 356 posts are being planned.",
+    });
+  });
+
   it("dates the approval on Strategy and leaves its goal the headline", () => {
     expect(pageLead("strategy", cmoOverview(approved), NOW)).toEqual({
       kicker: "Strategy · approved 2 Nov",

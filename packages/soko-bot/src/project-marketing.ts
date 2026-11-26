@@ -517,6 +517,12 @@ export const cmoCalendarEntrySchema = z.object({
    */
   videoOf: z.string().max(64).optional(),
   /**
+   * On a post in another shape (cmo-video-shapes): true when the video it
+   * shows is a talking video, false when it is a short or an animated
+   * picture. Set by Core; Cuso never sends it.
+   */
+  videoOfTalking: z.boolean().optional(),
+  /**
    * The one real moment the piece is built on, from the Brand Brain: a
    * customer and what they did, a launch, a number, a decision.
    */
@@ -587,6 +593,7 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
   languageCode: true,
   alsoOn: true,
   videoOf: true,
+  videoOfTalking: true,
   story: true,
   claim: true,
 });
@@ -1015,12 +1022,14 @@ export const cmoPreviewSchema = z.object({
 
 /**
  * Where Core's calendar for a cmo-v22 month stands: examples before payment,
- * writing while Core writes it, written once it holds the plan's month.
+ * writing while Core writes it, written once it holds the plan's month,
+ * stopped when every try for the plan's level ended short.
  */
 export const CMO_MONTH_WRITER_STATES = [
   "examples",
   "writing",
   "written",
+  "stopped",
 ] as const;
 
 export const cmoMonthWriterSchema = z.object({

@@ -116,6 +116,8 @@ describe("EntrySheet PostPreview", () => {
     expect(videoAfter).toBe(videoBefore);
     expect(host.querySelector("textarea")).toBeNull();
     expect(host.textContent).toContain("Updated copy.");
+    // The save is acknowledged where the owner pressed it.
+    expect(host.querySelector('[role="status"]')?.textContent).toBe("Saved.");
 
     // Reopening the editor shows the saved words, not the previous ones.
     const editAgainButton = [...host.querySelectorAll("button")].find(

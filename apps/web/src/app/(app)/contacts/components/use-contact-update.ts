@@ -68,6 +68,23 @@ export function useImportanceUpdate() {
 }
 
 /**
+ * Says which workspace member a contact is, or no one. Another contact linked
+ * to that member lets go, so the loaded rows reload too.
+ */
+export function useContactUser() {
+  const t = useTranslations("App.Contacts");
+  const cache = useQueryClient();
+  return async function setUser(contact: Contact, userId: string | null) {
+    try {
+      writeContact(cache, await contactsService.setUser(contact.id, userId));
+      await refreshContacts(cache, contact.id);
+    } catch (error) {
+      toast.error(coreErrorOf(error).message ?? t("errors.saveFailed"));
+    }
+  };
+}
+
+/**
  * Saves fields on the version the reader saw. The row changes at once; a
  * stale version (someone else saved first) reloads the contact and says so,
  * any other failure puts the old values back.

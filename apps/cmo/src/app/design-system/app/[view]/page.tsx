@@ -33,9 +33,11 @@ export default async function AppViewPage({
           state === "loading" ||
           state === "blocked" ||
           state === "stuck" ||
+          state === "stopped" ||
           state === "busy" ||
           state === "quiet" ||
-          state === "upgraded"
+          state === "upgraded" ||
+          state === "planning"
             ? state
             : undefined
         }

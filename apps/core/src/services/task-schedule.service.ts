@@ -46,6 +46,7 @@ import {
   SCHEDULE_ASSIGNEE_VENDOR,
   type ScheduleActor,
   type ScheduleWithAssigneeVendor,
+  scheduleActorOf,
   type TaskScheduleView,
   toScheduleDomainActor,
   toTaskScheduleView,
@@ -132,7 +133,7 @@ export async function canCreateTaskSchedules(
 }
 
 export async function createTaskSchedule(
-  vars: RouteVars,
+  vars: RouteVars | ScheduleActor,
   input: CreateTaskScheduleRequest,
   seoMonitor?: {
     origin: "interactive" | "cmo-subscription";
@@ -143,7 +144,7 @@ export async function createTaskSchedule(
     ) => Promise<void>;
   },
 ): Promise<TaskScheduleView> {
-  const actor = await resolveScheduleActor(vars);
+  const actor = await scheduleActorOf(vars);
   const domainActor = toScheduleDomainActor(actor);
   const creator = { ownerId: actor.userId, ...creatorFields(domainActor) };
   const { operationId, ...request } = input;
@@ -289,11 +290,11 @@ function throwRevisionConflict(): never {
  * created keep their values, and a new rule counts from now.
  */
 export async function updateTaskSchedule(
-  vars: RouteVars,
+  vars: RouteVars | ScheduleActor,
   id: string,
   input: UpdateTaskScheduleRequest,
 ): Promise<TaskScheduleView> {
-  const actor = await resolveScheduleActor(vars);
+  const actor = await scheduleActorOf(vars);
   if (input.rule) validateTaskScheduleRule(input.rule);
 
   return await prisma.$transaction(async (tx) => {
@@ -439,11 +440,11 @@ const STATE_ACTIONS: Record<
  * Owner makes the member resuming it its Owner.
  */
 export async function changeTaskScheduleState(
-  vars: RouteVars,
+  vars: RouteVars | ScheduleActor,
   id: string,
   action: TaskScheduleStateAction,
 ): Promise<TaskScheduleView> {
-  const actor = await resolveScheduleActor(vars);
+  const actor = await scheduleActorOf(vars);
 
   return await prisma.$transaction(async (tx) => {
     const current = await findReadableSchedule(actor, id, tx);
@@ -734,10 +735,10 @@ export async function runTaskScheduleNow(
  * owner or admin (ADR 0057).
  */
 export async function deleteTaskSchedule(
-  vars: RouteVars,
+  vars: RouteVars | ScheduleActor,
   id: string,
 ): Promise<void> {
-  const actor = await resolveScheduleActor(vars);
+  const actor = await scheduleActorOf(vars);
   await prisma.$transaction(async (tx) => {
     const current = await findReadableSchedule(actor, id, tx);
     requireScheduleWriteAccess(actor, current);

@@ -1256,11 +1256,15 @@ export const AdminSokoBotListSchema = {
         total: {
             type: 'integer',
             minimum: 0
+        },
+        summary: {
+            $ref: '#/components/schemas/AdminSokoBotFleetSummary'
         }
     },
     required: [
         'items',
-        'total'
+        'total',
+        'summary'
     ]
 } as const;
 
@@ -1366,6 +1370,9 @@ export const AdminSokoBotListItemSchema = {
                 }
             ]
         },
+        evalLane: {
+            type: 'boolean'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -1395,6 +1402,7 @@ export const AdminSokoBotListItemSchema = {
         'pendingDecisionCount',
         'scheduleCount',
         'owner',
+        'evalLane',
         'createdAt',
         'updatedAt'
     ]
@@ -1431,6 +1439,41 @@ export const AdminSokoBotOwnerSchema = {
         'id',
         'name',
         'email'
+    ]
+} as const;
+
+export const AdminSokoBotFleetSummarySchema = {
+    type: 'object',
+    properties: {
+        active: {
+            type: 'integer',
+            minimum: 0
+        },
+        activeRecently: {
+            type: 'integer',
+            minimum: 0
+        },
+        pendingDecisions: {
+            type: 'integer',
+            minimum: 0
+        },
+        attention: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdminSokoBotListItem'
+            }
+        },
+        attentionTotal: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'active',
+        'activeRecently',
+        'pendingDecisions',
+        'attention',
+        'attentionTotal'
     ]
 } as const;
 
@@ -2300,6 +2343,9 @@ export const AdminCmoSpendSchema = {
                     businessName: {
                         type: 'string'
                     },
+                    evalLane: {
+                        type: 'boolean'
+                    },
                     ownerEmail: {
                         type: 'string'
                     },
@@ -2419,6 +2465,7 @@ export const AdminCmoSpendSchema = {
                 required: [
                     'sokoBotId',
                     'businessName',
+                    'evalLane',
                     'ownerEmail',
                     'turns',
                     'totalUsd',
@@ -2551,6 +2598,9 @@ export const AdminSokoBotFleetDaysSchema = {
                     },
                     cmoCostUsd: {
                         type: 'number'
+                    },
+                    evalCostUsd: {
+                        type: 'number'
                     }
                 },
                 required: [
@@ -2560,7 +2610,8 @@ export const AdminSokoBotFleetDaysSchema = {
                     'turns',
                     'totalTokens',
                     'costUsd',
-                    'cmoCostUsd'
+                    'cmoCostUsd',
+                    'evalCostUsd'
                 ]
             }
         }
@@ -7320,6 +7371,18 @@ export const EvalRunReportSchema = {
                         }
                     }
                 },
+                costlier: {
+                    type: 'integer'
+                },
+                slower: {
+                    type: 'integer'
+                },
+                passRate: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
                 passed: {
                     type: 'integer'
                 },
@@ -7335,6 +7398,9 @@ export const EvalRunReportSchema = {
             },
             required: [
                 'counts',
+                'costlier',
+                'slower',
+                'passRate',
                 'passed',
                 'scored',
                 'open',
@@ -7405,6 +7471,36 @@ export const EvalCaseReportSchema = {
                 ]
             }
         },
+        costUsd: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        usualCostUsd: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        costlier: {
+            type: 'boolean'
+        },
+        durationMs: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        usualDurationMs: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        slower: {
+            type: 'boolean'
+        },
         results: {
             type: 'array',
             items: {
@@ -7423,6 +7519,12 @@ export const EvalCaseReportSchema = {
         'passRate',
         'baselinePassRate',
         'history',
+        'costUsd',
+        'usualCostUsd',
+        'costlier',
+        'durationMs',
+        'usualDurationMs',
+        'slower',
         'results'
     ]
 } as const;
@@ -16110,6 +16212,14 @@ export const ContactListSchema = {
                         knownByMe: {
                             type: 'boolean'
                         },
+                        xFollow: {
+                            type: 'string',
+                            enum: [
+                                'FOLLOWS_YOU',
+                                'YOU_FOLLOW',
+                                'MUTUAL'
+                            ]
+                        },
                         lastContactAfter: {
                             type: 'string',
                             format: 'date-time'
@@ -16594,6 +16704,16 @@ export const ContactSchema = {
             items: {
                 $ref: '#/components/schemas/ContactKnownBy'
             }
+        },
+        user: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactPerson'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -16626,7 +16746,8 @@ export const ContactSchema = {
         'updatedAt',
         'channels',
         'lists',
-        'knownBy'
+        'knownBy',
+        'user'
     ]
 } as const;
 
@@ -16846,11 +16967,19 @@ export const ContactKnownBySchema = {
                     ],
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z'
+                },
+                followsOnX: {
+                    type: 'boolean'
+                },
+                followedOnX: {
+                    type: 'boolean'
                 }
             },
             required: [
                 'interactionCount',
-                'lastInteractionAt'
+                'lastInteractionAt',
+                'followsOnX',
+                'followedOnX'
             ]
         }
     ]
@@ -16877,6 +17006,16 @@ export const ContactPersonSchema = {
         'name',
         'image'
     ]
+} as const;
+
+export const ContactXFollowStateSchema = {
+    type: 'string',
+    enum: [
+        'FOLLOWS_YOU',
+        'YOU_FOLLOW',
+        'MUTUAL'
+    ],
+    description: 'How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don\'t follow back) or MUTUAL.'
 } as const;
 
 export const ContactUpsertResultSchema = {
@@ -22629,6 +22768,19 @@ export const FundraisingProspectSchema = {
                     type: 'null'
                 }
             ]
+        },
+        intro: {
+            $ref: '#/components/schemas/FundraisingIntro'
+        },
+        bestPath: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/FundraisingPath'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -22643,7 +22795,9 @@ export const FundraisingProspectSchema = {
         'source',
         'lastDraftAt',
         'lastDraftSubject',
-        'dataRoom'
+        'dataRoom',
+        'intro',
+        'bestPath'
     ]
 } as const;
 
@@ -22730,6 +22884,229 @@ export const FundraisingDataRoomVisitSchema = {
     ]
 } as const;
 
+export const FundraisingIntroSchema = {
+    type: 'object',
+    properties: {
+        via: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/FundraisingConnector'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        askedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        madeAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        declinedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'via',
+        'askedAt',
+        'madeAt',
+        'declinedAt'
+    ]
+} as const;
+
+export const FundraisingConnectorSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'contact',
+                'teammate'
+            ]
+        },
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        email: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'kind',
+        'id',
+        'name',
+        'image',
+        'email'
+    ]
+} as const;
+
+export const FundraisingPathSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            $ref: '#/components/schemas/FundraisingPathKind'
+        },
+        via: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactPerson'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        linkedIn: {
+            type: 'boolean'
+        },
+        through: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        name: {
+                            type: 'string'
+                        },
+                        role: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        organization: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        avatarUrl: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        email: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'role',
+                        'organization',
+                        'avatarUrl',
+                        'email'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        company: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        name: {
+                            type: 'string'
+                        },
+                        round: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        date: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'name',
+                        'round',
+                        'date'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        strength: {
+            type: 'integer'
+        },
+        touches: {
+            type: 'integer'
+        },
+        lastTouchAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'kind',
+        'via',
+        'linkedIn',
+        'through',
+        'company',
+        'strength',
+        'touches',
+        'lastTouchAt'
+    ]
+} as const;
+
+export const FundraisingPathKindSchema = {
+    type: 'string',
+    enum: [
+        'direct',
+        'linkedin',
+        'fund',
+        'portfolio'
+    ]
+} as const;
+
 export const FundraisingResearchSchema = {
     type: 'object',
     properties: {
@@ -22801,8 +23178,40 @@ export const FundraisingProspectUpdateSchema = {
                 'null'
             ],
             maxLength: 120
+        },
+        intro: {
+            type: 'object',
+            properties: {
+                state: {
+                    $ref: '#/components/schemas/FundraisingIntroState'
+                },
+                viaContactId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                viaUserId: {
+                    type: 'string',
+                    minLength: 1
+                }
+            },
+            required: [
+                'state'
+            ]
         }
     }
+} as const;
+
+export const FundraisingIntroStateSchema = {
+    type: [
+        'string',
+        'null'
+    ],
+    enum: [
+        'ASKED',
+        'MADE',
+        'DECLINED',
+        null
+    ]
 } as const;
 
 export const FundraisingFindResultSchema = {
@@ -22968,145 +23377,6 @@ export const FundraisingPortfolioCompanySchema = {
     ]
 } as const;
 
-export const FundraisingPathSchema = {
-    type: 'object',
-    properties: {
-        kind: {
-            $ref: '#/components/schemas/FundraisingPathKind'
-        },
-        via: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/ContactPerson'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        linkedIn: {
-            type: 'boolean'
-        },
-        through: {
-            anyOf: [
-                {
-                    type: 'object',
-                    properties: {
-                        id: {
-                            type: 'string',
-                            format: 'uuid'
-                        },
-                        name: {
-                            type: 'string'
-                        },
-                        role: {
-                            type: [
-                                'string',
-                                'null'
-                            ]
-                        },
-                        organization: {
-                            type: [
-                                'string',
-                                'null'
-                            ]
-                        },
-                        avatarUrl: {
-                            type: [
-                                'string',
-                                'null'
-                            ]
-                        },
-                        email: {
-                            type: [
-                                'string',
-                                'null'
-                            ]
-                        }
-                    },
-                    required: [
-                        'id',
-                        'name',
-                        'role',
-                        'organization',
-                        'avatarUrl',
-                        'email'
-                    ]
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        company: {
-            anyOf: [
-                {
-                    type: 'object',
-                    properties: {
-                        name: {
-                            type: 'string'
-                        },
-                        round: {
-                            type: [
-                                'string',
-                                'null'
-                            ]
-                        },
-                        date: {
-                            type: [
-                                'string',
-                                'null'
-                            ]
-                        }
-                    },
-                    required: [
-                        'name',
-                        'round',
-                        'date'
-                    ]
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        strength: {
-            type: 'integer'
-        },
-        touches: {
-            type: 'integer'
-        },
-        lastTouchAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'kind',
-        'via',
-        'linkedIn',
-        'through',
-        'company',
-        'strength',
-        'touches',
-        'lastTouchAt'
-    ]
-} as const;
-
-export const FundraisingPathKindSchema = {
-    type: 'string',
-    enum: [
-        'direct',
-        'linkedin',
-        'fund',
-        'portfolio'
-    ]
-} as const;
-
 export const FundraisingDraftResultSchema = {
     type: 'object',
     properties: {
@@ -23172,6 +23442,83 @@ export const FundraisingDraftInputSchema = {
     required: [
         'kind'
     ]
+} as const;
+
+export const FundraisingIntroAskResultSchema = {
+    type: 'object',
+    properties: {
+        ask: {
+            $ref: '#/components/schemas/FundraisingMailDraft'
+        },
+        forwardable: {
+            $ref: '#/components/schemas/FundraisingMailDraft'
+        },
+        provider: {
+            type: 'string'
+        },
+        roomLink: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        prospect: {
+            $ref: '#/components/schemas/FundraisingProspect'
+        }
+    },
+    required: [
+        'ask',
+        'forwardable',
+        'provider',
+        'roomLink',
+        'prospect'
+    ]
+} as const;
+
+export const FundraisingMailDraftSchema = {
+    type: 'object',
+    properties: {
+        to: {
+            type: 'string'
+        },
+        subject: {
+            type: 'string'
+        },
+        body: {
+            type: 'string'
+        },
+        draftId: {
+            type: 'string'
+        }
+    },
+    required: [
+        'to',
+        'subject',
+        'body',
+        'draftId'
+    ]
+} as const;
+
+export const FundraisingIntroAskInputSchema = {
+    type: 'object',
+    properties: {
+        viaContactId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        viaUserId: {
+            type: 'string',
+            minLength: 1
+        },
+        inviteToRoomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        note: {
+            type: 'string',
+            maxLength: 1000
+        }
+    }
 } as const;
 
 export const HistoryListSchema = {
@@ -24766,6 +25113,21 @@ export const ProjectTalkingVideoSchema = {
                     type: 'null'
                 }
             ]
+        },
+        shape: {
+            type: 'string',
+            enum: [
+                '9:16',
+                '4:5',
+                '1:1',
+                '16:9'
+            ]
+        },
+        sourceJobId: {
+            type: [
+                'string',
+                'null'
+            ]
         }
     },
     required: [
@@ -24775,7 +25137,9 @@ export const ProjectTalkingVideoSchema = {
         'siteShots',
         'broll',
         'music',
-        'format'
+        'format',
+        'shape',
+        'sourceJobId'
     ]
 } as const;
 
@@ -35232,6 +35596,9 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         maxLength: 64
                                     },
+                                    videoOfTalking: {
+                                        type: 'boolean'
+                                    },
                                     story: {
                                         type: 'string',
                                         minLength: 1,
@@ -35479,7 +35846,8 @@ export const MarketingStrategySchema = {
                                     enum: [
                                         'examples',
                                         'writing',
-                                        'written'
+                                        'written',
+                                        'stopped'
                                     ]
                                 },
                                 level: {
@@ -35703,6 +36071,9 @@ export const MarketingStrategySchema = {
                                             videoOf: {
                                                 type: 'string',
                                                 maxLength: 64
+                                            },
+                                            videoOfTalking: {
+                                                type: 'boolean'
                                             },
                                             story: {
                                                 type: 'string',
@@ -37271,6 +37642,9 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 maxLength: 64
                             },
+                            videoOfTalking: {
+                                type: 'boolean'
+                            },
                             story: {
                                 type: 'string',
                                 minLength: 1,
@@ -37518,7 +37892,8 @@ export const MarketingStrategyRequestSchema = {
                             enum: [
                                 'examples',
                                 'writing',
-                                'written'
+                                'written',
+                                'stopped'
                             ]
                         },
                         level: {
@@ -37742,6 +38117,9 @@ export const MarketingStrategyRequestSchema = {
                                     videoOf: {
                                         type: 'string',
                                         maxLength: 64
+                                    },
+                                    videoOfTalking: {
+                                        type: 'boolean'
                                     },
                                     story: {
                                         type: 'string',
@@ -44177,6 +44555,9 @@ export const SocialPostSchema = {
                     type: 'string',
                     maxLength: 64
                 },
+                videoOfTalking: {
+                    type: 'boolean'
+                },
                 story: {
                     type: 'string',
                     minLength: 1,
@@ -46210,6 +46591,20 @@ export const CreateProjectTalkingVideoJobRequestSchema = {
             type: 'boolean',
             default: false
         },
+        shapes: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    '9:16',
+                    '4:5',
+                    '1:1',
+                    '16:9'
+                ]
+            },
+            minItems: 1,
+            maxItems: 4
+        },
         idempotencyKey: {
             type: 'string',
             minLength: 8,
@@ -46293,6 +46688,20 @@ export const CreateProjectShortVideoJobRequestSchema = {
             },
             maxItems: 6,
             default: []
+        },
+        shapes: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    '9:16',
+                    '4:5',
+                    '1:1',
+                    '16:9'
+                ]
+            },
+            minItems: 1,
+            maxItems: 4
         },
         idempotencyKey: {
             type: 'string',
@@ -62757,6 +63166,9 @@ export const CmoPlanSchema = {
                         type: 'string',
                         maxLength: 64
                     },
+                    videoOfTalking: {
+                        type: 'boolean'
+                    },
                     story: {
                         type: 'string',
                         minLength: 1,
@@ -63004,7 +63416,8 @@ export const CmoPlanSchema = {
                     enum: [
                         'examples',
                         'writing',
-                        'written'
+                        'written',
+                        'stopped'
                     ]
                 },
                 level: {
@@ -63228,6 +63641,9 @@ export const CmoPlanSchema = {
                             videoOf: {
                                 type: 'string',
                                 maxLength: 64
+                            },
+                            videoOfTalking: {
+                                type: 'boolean'
                             },
                             story: {
                                 type: 'string',
@@ -63865,6 +64281,10 @@ export const CmoProductionSchema = {
             ],
             description: 'When a stuck month\'s next production run starts. Null unless state is stuck.'
         },
+        writerFailed: {
+            type: 'boolean',
+            description: 'A stuck month stopped because Core\'s month writer wrote nothing in the last run: a fault on our side, not Cuso\'s.'
+        },
         floor: {
             anyOf: [
                 {
@@ -63902,6 +64322,7 @@ export const CmoProductionSchema = {
         'beyondPlan',
         'withoutPicture',
         'retryAt',
+        'writerFailed',
         'floor'
     ],
     description: 'After approval Cuso makes the whole month at once: how many of its pieces are made.'
@@ -66724,6 +67145,9 @@ export const CreateSokoBotScheduleRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 20000
+        },
+        stopRule: {
+            $ref: '#/components/schemas/SokoBotScheduleStopRuleInput'
         }
     },
     required: [
@@ -66733,6 +67157,138 @@ export const CreateSokoBotScheduleRequestSchema = {
         'prompt'
     ],
     additionalProperties: false
+} as const;
+
+export const SokoBotScheduleStopRuleInputSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'never'
+                    ]
+                }
+            },
+            required: [
+                'mode'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'ends_on'
+                    ]
+                },
+                scheduleId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                },
+                endsOn: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-12-31T23:59:59+01:00'
+                }
+            },
+            required: [
+                'mode',
+                'endsOn'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'ends_after_runs'
+                    ]
+                },
+                scheduleId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                },
+                maxRuns: {
+                    type: 'integer',
+                    minimum: 1,
+                    maximum: 10000
+                }
+            },
+            required: [
+                'mode',
+                'maxRuns'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'when_target_settled'
+                    ]
+                },
+                scheduleId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                },
+                targetKind: {
+                    type: 'string',
+                    enum: [
+                        'task',
+                        'job'
+                    ]
+                },
+                targetId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                }
+            },
+            required: [
+                'mode',
+                'targetKind',
+                'targetId'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'owner_authorized_stop'
+                    ]
+                },
+                scheduleId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                },
+                condition: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 300
+                }
+            },
+            required: [
+                'mode',
+                'condition'
+            ],
+            additionalProperties: false
+        }
+    ]
 } as const;
 
 export const UpdateSokoBotScheduleRequestSchema = {
@@ -66760,6 +67316,9 @@ export const UpdateSokoBotScheduleRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 20000
+        },
+        stopRule: {
+            $ref: '#/components/schemas/SokoBotScheduleStopRuleInput'
         },
         run: {
             type: 'object',

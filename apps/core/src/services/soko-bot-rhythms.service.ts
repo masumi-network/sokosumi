@@ -1,9 +1,11 @@
+import { Prisma } from "@sokosumi/database";
 import type {
   SokoBotCalendarEvent,
   SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
 import { parseSokoBotMemory, upcomingFollowUps } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
+import { failOpen } from "@/lib/fail-open";
 import {
   foreignTasksBlock,
   memoryTasks,
@@ -55,6 +57,31 @@ export const RHYTHM_KEYS = new Set([
   "dreaming",
 ]);
 
+/**
+ * A rhythm's input (an account's calendar or mail, a block of the packet)
+ * that failed to load; the rhythm runs without it, which would otherwise read
+ * as an empty day.
+ */
+export function rhythmInputFailed<T>(
+  fallback: T,
+  botId: string,
+  input: string,
+): (error: unknown) => T {
+  return failOpen(
+    fallback,
+    {
+      operation: "soko_bot_rhythm",
+      sokoBot: { id: botId },
+      rhythmInput: input,
+    },
+    {
+      message: "A Soko Bot rhythm ran without one of its inputs",
+      why: "Loading the input threw, so the rhythm saw it as empty",
+      fix: "Read rhythmInput and the failure fields; an integration that keeps failing needs reconnecting.",
+    },
+  );
+}
+
 async function calendar(
   bot: RhythmBot,
   from: Date,
@@ -67,7 +94,7 @@ async function calendar(
   for (const integration of integrations)
     events.push(
       ...(await fetchCalendarEvents(integration, { from, to, limit }).catch(
-        () => [],
+        rhythmInputFailed([], bot.id, "calendar"),
       )),
     );
   return events.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
@@ -94,7 +121,7 @@ async function mail(
       query: integration.provider.id === "gmail" ? options.query : undefined,
       since: options.since,
       limit: options.limit,
-    }).catch(() => []);
+    }).catch(rhythmInputFailed([], bot.id, "mail"));
     messages.push(
       ...(options.replies && options.since
         ? await withOwnerReplies(integration, fetched, options.since)
@@ -415,6 +442,56 @@ async function dreamSince(bot: RhythmBot, now: Date): Promise<Date> {
 }
 
 /**
+ * Only people's words and failures teach the dream anything. Scheduled and
+ * inbox turns run every day (the last dream is one), so counting them made
+ * every bot dream every night.
+ */
+export function hasDreamMaterial(
+  turns: ReadonlyArray<DreamTurn>,
+  failedTools: number,
+  staleLines: number,
+): boolean {
+  return staleLines > 0 || failedTools > 0 || turns.some(teachesTheDream);
+}
+
+/** A reviewer's verdict worth learning from; a passing one teaches nothing. */
+const MEANINGFUL_VERDICTS = ["weak", "fail"] as const;
+
+interface DreamTurn {
+  source: string;
+  status: string;
+  ownerFeedback: number | null;
+  qualityVerdict?: unknown;
+}
+
+/**
+ * The one rule for which turns a dream learns from, as code; the query
+ * below asks the database the same.
+ */
+function teachesTheDream(turn: DreamTurn): boolean {
+  const verdict = (turn.qualityVerdict as { verdict?: unknown } | null)
+    ?.verdict;
+  return (
+    turn.source === "CHAT" ||
+    turn.ownerFeedback != null ||
+    turn.status === "FAILED" ||
+    (MEANINGFUL_VERDICTS as readonly unknown[]).includes(verdict)
+  );
+}
+
+/** {@link teachesTheDream} as a filter. */
+const TEACHES_THE_DREAM = {
+  OR: [
+    { source: "CHAT" },
+    { ownerFeedback: { not: null } },
+    { status: "FAILED" },
+    ...MEANINGFUL_VERDICTS.map((verdict) => ({
+      qualityVerdict: { path: ["verdict"], equals: verdict },
+    })),
+  ],
+} satisfies Prisma.SokoBotTurnWhereInput;
+
+/**
  * What the bot did since its last dream, for it to learn from: its chats
  * (what was asked, what it answered, the owner's thumbs), failed turns,
  * failing tools grouped so a repeat shows, answers the judge found weak, and
@@ -427,22 +504,36 @@ export async function dreaming(
   now: Date,
 ): Promise<RhythmPacket> {
   const since = await dreamSince(bot, now);
-  const [turns, failedTools, saved, stale] = await Promise.all([
+  const turnFields = {
+    createdAt: true,
+    source: true,
+    status: true,
+    userMessage: true,
+    finalAnswer: true,
+    errorKind: true,
+    ownerFeedback: true,
+    qualityVerdict: true,
+    backgroundTitle: true,
+  } as const;
+  const [turns, learnable, failedTools, saved, stale] = await Promise.all([
     prisma.sokoBotTurn.findMany({
       where: { sokoBotId: bot.id, createdAt: { gte: since } },
       orderBy: { createdAt: "desc" },
       take: DREAM_MAX_TURNS,
-      select: {
-        createdAt: true,
-        source: true,
-        status: true,
-        userMessage: true,
-        finalAnswer: true,
-        errorKind: true,
-        ownerFeedback: true,
-        qualityVerdict: true,
-        backgroundTitle: true,
+      select: turnFields,
+    }),
+    // Read apart from the newest turns: a hundred routine turns after one
+    // chat pushed it out of that list, the dream skipped, and the skip moved
+    // the watermark past the chat for good.
+    prisma.sokoBotTurn.findMany({
+      where: {
+        sokoBotId: bot.id,
+        createdAt: { gte: since },
+        ...TEACHES_THE_DREAM,
       },
+      orderBy: { createdAt: "desc" },
+      take: DREAM_MAX_TURNS,
+      select: turnFields,
     }),
     prisma.sokoBotToolCall.findMany({
       where: {
@@ -465,7 +556,7 @@ export async function dreaming(
     }),
     staleMemoryLines(bot, now),
   ]);
-  if (turns.length === 0 && stale.length === 0)
+  if (!hasDreamMaterial(learnable, failedTools.length, stale.length))
     return { lines: [], skip: true };
 
   const at = (date: Date) =>
@@ -477,14 +568,14 @@ export async function dreaming(
     }).format(date);
   const count = (source: string) =>
     turns.filter((turn) => turn.source === source).length;
-  const failed = turns.filter((turn) => turn.status === "FAILED");
+  const failed = learnable.filter((turn) => turn.status === "FAILED");
   const lines: string[] = [
     `## Since ${at(since)} (${bot.ingestTimezone})`,
     `${turns.length} turns: ${count("CHAT")} chats, ${count("INGEST")} inbox checks, ${count("SCHEDULE")} scheduled, ${count("EVENT")} Task events; ${failed.length} failed.`,
     "",
   ];
 
-  const chats = turns
+  const chats = learnable
     .filter((turn) => turn.source === "CHAT")
     .slice(0, DREAM_MAX_CHATS)
     .reverse();
@@ -504,7 +595,7 @@ export async function dreaming(
     lines.push("");
   }
 
-  const weak = turns.flatMap((turn) => {
+  const weak = learnable.flatMap((turn) => {
     const verdict = turn.qualityVerdict as {
       verdict?: string;
       issues?: string[];

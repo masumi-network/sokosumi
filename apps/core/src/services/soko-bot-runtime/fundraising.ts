@@ -8,6 +8,7 @@ import { SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
 import { contactDetailHref } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import prisma from "@/lib/db/prisma";
+import { type ExaAgentRunInput, runExaAgent } from "@/lib/exa-agent";
 import {
   type FundraisingActor,
   fundraisingEnabled,
@@ -21,6 +22,7 @@ import { findInvestors } from "@/services/fundraising-research.service";
 import {
   type AuthorizedSokoBotRuntime,
   type ExecuteSokoBotToolInput,
+  SokoBotFeatureOffError,
   SokoBotRefusedUnsentError,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
@@ -52,7 +54,7 @@ function toMs(value: unknown): number | null {
   return null;
 }
 
-async function fundraisingActor(
+export async function fundraisingActor(
   authorized: AuthorizedSokoBotRuntime,
 ): Promise<FundraisingActor> {
   if (!actsForOwner(authorized))
@@ -68,7 +70,7 @@ async function fundraisingActor(
   });
   const organizationId = workspace?.organizationId ?? null;
   if (!organizationId || !fundraisingEnabled(organizationId))
-    throw new SokoBotRefusedUnsentError(
+    throw new SokoBotFeatureOffError(
       "Fundraising is not on for this workspace, so there is no raise to read. Say so; do not guess at investors.",
     );
   return {
@@ -88,6 +90,13 @@ export async function executeFundraisingTool(
   if (!isFundraisingCapability(capability))
     throw new SokoBotRuntimeValidationError("Not a fundraising tool");
   const actor = await fundraisingActor(authorized);
+  let dispatched = false;
+  const researchProvider = {
+    run(request: ExaAgentRunInput) {
+      dispatched = true;
+      return runExaAgent(request);
+    },
+  };
   try {
     if (capability === "fundraising_pipeline") {
       const filter = SOKO_BOT_TOOL_INPUT_SCHEMAS.fundraising_pipeline.parse(
@@ -102,6 +111,14 @@ export async function executeFundraisingTool(
           (p) =>
             !filter.openedDataRoom ||
             (p.dataRoom !== null && p.dataRoom.firstVisitAt !== null),
+        )
+        .filter(
+          (p) =>
+            !filter.introPending ||
+            (p.intro.via !== null &&
+              p.intro.askedAt !== null &&
+              p.intro.madeAt === null &&
+              p.intro.declinedAt === null),
         )
         .filter((p) => {
           if (!filter.needsFollowUp) return true;
@@ -136,6 +153,23 @@ export async function executeFundraisingTool(
           lastDraft: p.lastDraftAt
             ? { at: p.lastDraftAt, subject: p.lastDraftSubject }
             : null,
+          intro: p.intro.via
+            ? {
+                via: p.intro.via.name,
+                askedAt: p.intro.askedAt,
+                madeAt: p.intro.madeAt,
+                declinedAt: p.intro.declinedAt,
+              }
+            : null,
+          bestPath: p.bestPath
+            ? {
+                kind: p.bestPath.kind,
+                via: p.bestPath.via?.name ?? null,
+                through: p.bestPath.through?.name ?? null,
+                company: p.bestPath.company?.name ?? null,
+                strength: p.bestPath.strength,
+              }
+            : null,
           dataRoom: p.dataRoom
             ? {
                 room: p.dataRoom.roomTitle,
@@ -156,7 +190,7 @@ export async function executeFundraisingTool(
       const { contactId, research } =
         SOKO_BOT_TOOL_INPUT_SCHEMAS.investor_warm_paths.parse(input.input);
       const result = research
-        ? await researchPortfolio(actor, contactId)
+        ? await researchPortfolio(actor, contactId, researchProvider)
         : await warmPaths(actor, contactId);
       const answer = {
         contactId,
@@ -199,7 +233,7 @@ export async function executeFundraisingTool(
     const search = SOKO_BOT_TOOL_INPUT_SCHEMAS.find_investors.parse(
       input.input,
     );
-    const result = await findInvestors(actor, search);
+    const result = await findInvestors(actor, search, researchProvider);
     return runtime.commitReceipt(
       authorized,
       input.toolCallId,
@@ -213,7 +247,7 @@ export async function executeFundraisingTool(
       },
     );
   } catch (error) {
-    if (error instanceof HTTPException && error.status < 500)
+    if (!dispatched && error instanceof HTTPException && error.status < 500)
       throw new SokoBotRefusedUnsentError(error.message);
     throw error;
   }

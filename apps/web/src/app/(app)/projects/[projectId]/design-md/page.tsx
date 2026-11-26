@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
+import { BrandKitDownloadButton } from "@/app/projects/components/brand-kit-download-button";
 import { DesignMdDocument } from "@/app/projects/components/design-md-document";
 import {
   ProjectBrandCard,
@@ -89,6 +90,15 @@ export default async function ProjectDesignPage({
             readOnly={project.cmo}
             projectId={project.id}
             websiteUrl={project.websiteUrl}
+            headerAction={
+              loaded && "markdown" in loaded ? (
+                <BrandKitDownloadButton
+                  projectName={project.name}
+                  markdown={loaded.markdown}
+                  logoUrl={project.logo}
+                />
+              ) : null
+            }
           />
 
           {/* With no DESIGN.md the brand section above already says so and

@@ -1,9 +1,9 @@
 import type { Transport } from "@modelcontextprotocol/client";
 import type { App, McpUiDisplayMode } from "@modelcontextprotocol/ext-apps";
 import type { ReactNode } from "react";
-import type { z } from "zod";
-import { type MessageKey, t } from "./text.ts";
-import { Message, Skeleton } from "./ui.tsx";
+import { z } from "zod";
+import { isUnderBase, type MessageKey, t } from "./text.ts";
+import { Message, PrimaryButton, Skeleton } from "./ui.tsx";
 import {
   type ConnectionState,
   useViewConnection,
@@ -11,6 +11,8 @@ import {
 
 export interface ViewContext {
   app: App;
+  /** The tool call's arguments, once the host sends them. */
+  input?: Record<string, unknown>;
   /** BCP 47 locale and IANA time zone from the host, for `formatDateTime`. */
   locale?: string;
   timeZone?: string;
@@ -25,6 +27,16 @@ export interface ViewContext {
    * call server tools or has not sent the arguments.
    */
   refresh?: () => Promise<boolean>;
+  /**
+   * The refresh tool, once the server answered that it does not offer it:
+   * its toolset is off. A view says which toolset to add.
+   */
+  missingTool?: string;
+  /**
+   * The HTTP status Core put on the last refresh's error result, such as 404,
+   * until a refresh succeeds.
+   */
+  refreshStatus?: number;
 }
 
 export interface ShellProps<T> {
@@ -43,8 +55,18 @@ export interface ShellProps<T> {
 type ViewState<T> =
   | { kind: "loading" }
   | { kind: "error" }
+  | { kind: "approval"; webUrl?: string }
   | { kind: "empty" }
   | { kind: "ready"; data: T; webBaseUrl?: string };
+
+const PersonApproval = z.object({
+  kind: z.literal("person_approval_required"),
+  details: z.object({ webUrl: z.string() }).partial().nullish(),
+});
+
+const SokosumiMeta = z.object({
+  sokosumi: z.object({ webBaseUrl: z.string() }),
+});
 
 function resolve<T>(
   connection: ConnectionState,
@@ -52,22 +74,24 @@ function resolve<T>(
   isEmpty?: (data: T) => boolean,
 ): ViewState<T> {
   if (connection.status === "loading") return { kind: "loading" };
-  if (connection.status === "failed" || connection.result.isError) {
-    return { kind: "error" };
+  if (connection.status === "failed") return { kind: "error" };
+  const { result } = connection;
+  const webBaseUrl = SokosumiMeta.safeParse(result._meta).data?.sokosumi
+    .webBaseUrl;
+  if (result.isError) {
+    // Only a person may take this step (ADR 0077): send them to Sokosumi.
+    const approval = PersonApproval.safeParse(result.structuredContent).data;
+    if (!approval) return { kind: "error" };
+    const webUrl = approval.details?.webUrl;
+    return {
+      kind: "approval",
+      webUrl: webUrl && isUnderBase(webUrl, webBaseUrl) ? webUrl : undefined,
+    };
   }
-  const parsed = schema.safeParse(connection.result.structuredContent);
+  const parsed = schema.safeParse(result.structuredContent);
   if (!parsed.success) return { kind: "error" };
   if (isEmpty?.(parsed.data)) return { kind: "empty" };
-  const meta = connection.result._meta?.sokosumi;
-  const webBaseUrl =
-    meta && typeof meta === "object" && "webBaseUrl" in meta
-      ? meta.webBaseUrl
-      : undefined;
-  return {
-    kind: "ready",
-    data: parsed.data,
-    webBaseUrl: typeof webBaseUrl === "string" ? webBaseUrl : undefined,
-  };
+  return { kind: "ready", data: parsed.data, webBaseUrl };
 }
 
 /**
@@ -102,19 +126,51 @@ export function Shell<T>({
       {view.kind === "error" && (
         <Message title={t("shell.error.title")} body={t("shell.error.body")} />
       )}
+      {view.kind === "approval" && (
+        <PersonStep app={app} webUrl={view.webUrl} />
+      )}
       {view.kind === "empty" && (
         <Message title={t(empty.title)} body={t(empty.body)} />
       )}
       {view.kind === "ready" &&
         children(view.data, {
           app,
+          input,
           locale: host.locale,
           timeZone: host.timeZone,
           webBaseUrl: view.webBaseUrl,
           displayMode: host.displayMode,
           availableDisplayModes: host.availableDisplayModes,
           refresh,
+          missingTool: connection.missingTool,
+          refreshStatus: connection.refreshStatus,
         })}
     </main>
+  );
+}
+
+/** A step only a person takes (ADR 0077): no control here, a link to Sokosumi. */
+function PersonStep({ app, webUrl }: { app: App; webUrl?: string }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <Message
+        title={t("shell.approval.title")}
+        body={t("shell.approval.body")}
+      />
+      {webUrl && (
+        <PrimaryButton
+          onClick={() =>
+            app.openLink({ url: webUrl }).catch((error: unknown) =>
+              app.sendLog({
+                level: "warning",
+                data: `ui/open-link failed: ${String(error)}`,
+              }),
+            )
+          }
+        >
+          {t("shell.approval.open")}
+        </PrimaryButton>
+      )}
+    </div>
   );
 }

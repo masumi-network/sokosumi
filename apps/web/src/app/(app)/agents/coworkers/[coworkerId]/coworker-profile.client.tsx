@@ -1,7 +1,6 @@
 "use client";
 
 import type { Coworker } from "@sokosumi/core-client";
-import { ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -19,16 +18,15 @@ import { Button } from "@/components/ui/button";
 
 type Offer = NonNullable<NonNullable<Coworker["metadata"]>["offers"]>[number];
 
-/** Give a task (primary) and, when the coworker chats, Message. */
+/** Give a task and, when the coworker chats, Chat. */
 export function CoworkerActions({ coworker }: { coworker: Coworker }) {
   const t = useTranslations("App.Agents.Directory");
   const openNewTask = useNewTaskOpener({ assigneeId: coworker.id });
   return (
     <OpenCoworkerRoomProvider>
       {openNewTask ? (
-        <Button type="button" variant="primary" onClick={openNewTask}>
+        <Button type="button" size="sm" onClick={openNewTask}>
           {t("giveTask")}
-          <ArrowRight aria-hidden className="size-4" />
         </Button>
       ) : null}
       {coworkerCanChat(coworker) ? (
@@ -36,6 +34,7 @@ export function CoworkerActions({ coworker }: { coworker: Coworker }) {
           coworkerId={coworker.id}
           coworkerName={coworker.name}
           variant="outline"
+          className="h-8 gap-1.5 px-3"
         />
       ) : null}
     </OpenCoworkerRoomProvider>
@@ -58,7 +57,7 @@ export function CoworkerOffers({ coworker }: { coworker: Coworker }) {
 
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {offers.map((offer) => (
           <OfferCard
             key={offer.title}

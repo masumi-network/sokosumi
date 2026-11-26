@@ -6,6 +6,7 @@ import { createError } from "evlog";
 import type { Context } from "hono";
 
 import { getEnv } from "@/config/env";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import {
   createCoreLogger,
   emitCoreError,
@@ -13,9 +14,16 @@ import {
   logCoreWarning,
   runAsBackgroundWork,
 } from "@/lib/evlog";
+import type { Network } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { AcquiredSyncLock } from "@/services/sync-lock.service";
 import { syncLockService } from "@/services/sync-lock.service";
+import {
+  cronStillRunning,
+  flushCronMonitor,
+  reportCronIdleness,
+  startCronMonitor,
+} from "./monitor.js";
 
 export interface SyncExecutionContext {
   abortSignal: AbortSignal;
@@ -32,9 +40,26 @@ export interface SyncRunContext extends SyncExecutionContext {
    * with `logCoreWarning`. A failure it survives is its own error event.
    */
   log: Pick<RequestLogger, "set" | "warn" | "getContext">;
+  /**
+   * The items this run took on: those it `done` and those that `failed`.
+   * A run whose every item failed is a failed run of its cron monitor; a
+   * run with neither is idle, which only `idleRunsAlert` watches.
+   */
+  reportWork: (work: { done: number; failed?: number }) => void;
 }
 
-type SyncOperation = (context: SyncRunContext) => Promise<void>;
+/**
+ * What the operation of a cron that declared its Network gets: also that
+ * Network's scope. The work may keep the scope after the response; it opens a
+ * transaction itself when it needs one, and the transaction ends with it.
+ */
+export interface NetworkSyncRunContext extends SyncRunContext {
+  scope: NetworkScope;
+}
+
+type SyncOperation<Context = SyncRunContext> = (
+  context: Context,
+) => Promise<void>;
 
 /**
  * What the run's event keeps of an error its sync throws. `cause` (redacted)
@@ -45,6 +70,20 @@ type SyncOperation = (context: SyncRunContext) => Promise<void>;
  */
 export interface SyncRequestOptions {
   errorDetail?: "cause" | "safe-fields";
+  /**
+   * For a sync that always has work in production: this many runs in a row
+   * that report no work (`reportWork`) open a Sentry issue on the cron's
+   * idle monitor. Failed runs stay on the run monitor.
+   */
+  idleRunsAlert?: number;
+  /** Never here: a variable or a spread that carries a Network is not these options. */
+  network?: never;
+}
+
+/** The Network a cron works on, declared where it is registered. */
+export interface NetworkSyncRequestOptions
+  extends Omit<SyncRequestOptions, "network"> {
+  network: Network;
 }
 const MIN_SYNC_TIMEOUT_MS = 1000;
 
@@ -120,11 +159,25 @@ function getSyncTimeoutMs(): number {
 function runBackgroundSync(
   lock: AcquiredSyncLock,
   syncOperation: SyncOperation,
-  errorDetail: NonNullable<SyncRequestOptions["errorDetail"]>,
+  {
+    path,
+    errorDetail,
+    idleRunsAlert,
+  }: {
+    path: string;
+    errorDetail: NonNullable<SyncRequestOptions["errorDetail"]>;
+    idleRunsAlert?: number;
+  },
 ): Promise<void> {
   return (async () => {
     const timeoutMs = getSyncTimeoutMs();
     const deadlineMs = Date.now() + timeoutMs;
+    const monitor = startCronMonitor({
+      path,
+      lockKey: lock.key,
+      maxRuntimeMs: timeoutMs,
+    });
+    const work = { done: 0, failed: 0 };
     const cancellationController = new AbortController();
     // One standalone event per run: its outcome, the lock, and the sync's
     // own counts (`context.log`). The request's event is already emitted.
@@ -167,15 +220,21 @@ function runBackgroundSync(
         );
       },
       log,
+      reportWork: ({ done, failed = 0 }) => {
+        work.done += done;
+        work.failed += failed;
+      },
     };
 
     const startedAt = Date.now();
+    let failed = false;
     try {
       await syncOperation(context);
       log.set({
         sync: { outcome: context.shouldContinue() ? "completed" : "cancelled" },
       });
     } catch (error) {
+      failed = true;
       log.set({ sync: { outcome: "failed" } });
       // The route says whether its errors can carry user content.
       const keepsCause = errorDetail === "cause";
@@ -206,20 +265,70 @@ function runBackgroundSync(
           fix: "If it repeats, the sync runs past LOCK_TIMEOUT and two runs overlap; its run events show where the time goes.",
         });
       }
+      // Every item it took on failed: a failed run, never an idle one.
+      const workFailed = work.failed > 0 && work.done === 0;
+      const idle = work.done === 0 && work.failed === 0;
+      log.set({ sync: { work, ...(workFailed ? { workFailed } : {}) } });
       log.emit();
+      monitor?.finish(failed || workFailed ? "error" : "ok");
+      // Only an observed run counts toward idleness: one that threw says
+      // nothing about whether there was work, yet still checks in.
+      if (idleRunsAlert !== undefined)
+        reportCronIdleness({
+          path,
+          lockKey: lock.key,
+          idle: !failed && idle,
+          idleRunsAlert,
+        });
+      await flushCronMonitor();
     }
   })();
 }
 
+/**
+ * A cron that works on a Network declares it as `network`; its operation gets
+ * that Network's scope as `context.scope`. Without the option the handler
+ * hands it no scope.
+ */
+export async function handleSyncRequest(
+  c: Context,
+  lockKey: string,
+  syncOperation: SyncOperation<NetworkSyncRunContext>,
+  options: NetworkSyncRequestOptions,
+): Promise<Response>;
 export async function handleSyncRequest(
   c: Context,
   lockKey: string,
   syncOperation: SyncOperation,
-  { errorDetail = "safe-fields" }: SyncRequestOptions = {},
+  options?: SyncRequestOptions,
+): Promise<Response>;
+export async function handleSyncRequest(
+  c: Context,
+  lockKey: string,
+  syncOperation: SyncOperation | SyncOperation<NetworkSyncRunContext>,
+  {
+    errorDetail = "safe-fields",
+    idleRunsAlert,
+    network,
+  }: SyncRequestOptions | NetworkSyncRequestOptions = {},
 ): Promise<Response> {
   const unauthorized = authenticateCronSecret(c);
   if (unauthorized) {
     return unauthorized;
+  }
+
+  // Before the lock: a Network that is off throws here and holds nothing.
+  // Imported here, so a cron without a Network does not load the clients'
+  // module through this handler.
+  let run: SyncOperation;
+  if (network === undefined) {
+    // Known safe: `network?: never` on the plain options leaves only the
+    // plain overload without a Network, and its operation asks for no scope.
+    run = syncOperation as SyncOperation;
+  } else {
+    const { createNetworkScope } = await import("@/lib/db/network-scope");
+    const scope = createNetworkScope(network);
+    run = (context) => syncOperation({ ...context, scope });
   }
 
   let acquiredLock: AcquiredSyncLock;
@@ -227,6 +336,9 @@ export async function handleSyncRequest(
     acquiredLock = await syncLockService.acquireLock(lockKey);
   } catch (error) {
     if (error instanceof Error && error.message === "LOCK_IS_LOCKED") {
+      cronStillRunning(c.req.path, lockKey, idleRunsAlert);
+      // Sent before the function may freeze, as a run's check-ins are.
+      waitUntil(flushCronMonitor());
       return new Response(
         JSON.stringify({ message: "Syncing already in progress" }),
         {
@@ -251,7 +363,12 @@ export async function handleSyncRequest(
   // event the run sends, its services' included, carries `syncRunId`, which
   // ties them to this run when runs overlap.
   const backgroundPromise = runAsBackgroundWork(
-    () => runBackgroundSync(acquiredLock, syncOperation, errorDetail),
+    () =>
+      runBackgroundSync(acquiredLock, run, {
+        path: c.req.path,
+        errorDetail,
+        ...(idleRunsAlert ? { idleRunsAlert } : {}),
+      }),
     { syncRunId: randomUUID() },
   );
   waitUntil(backgroundPromise);

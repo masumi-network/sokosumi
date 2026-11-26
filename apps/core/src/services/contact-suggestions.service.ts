@@ -25,6 +25,7 @@ import {
 import { createTaskEventTransaction } from "@/helpers/task-credits";
 import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { companyDomain } from "@/lib/contacts/capture-filters";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { ExaUnavailableError, searchExa } from "@/lib/soko-bot/exa";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
@@ -161,6 +162,7 @@ async function askModel(system: string, prompt: string) {
   });
   const result = await generateText({
     ...request,
+    telemetry: { functionId: "contact-suggestions" },
     providerOptions: {
       ...request.providerOptions,
       google: { thinkingConfig: { thinkingLevel: "low" } },
@@ -418,6 +420,7 @@ export async function findPeopleForList(
       userId: owner.userId,
       organizationId: owner.organizationId,
       cents,
+      scope: createNetworkScope("mainnet"),
       tx,
     });
     const run = await tx.contactPeopleSearch.create({
@@ -659,6 +662,7 @@ export async function enrichContactFromWeb(
       userId: owner.userId,
       organizationId: owner.organizationId,
       cents: convertCreditsToCents(credits),
+      scope: createNetworkScope("mainnet"),
       tx,
     });
     await tx.contactPeopleSearch.create({

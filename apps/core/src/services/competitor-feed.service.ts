@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   type CompetitorFeedItem,
   competitorFeedItemSchema,
@@ -157,7 +158,7 @@ export async function lockCompetitorFeed(
   tx: Prisma.TransactionClient,
   projectId: string,
 ): Promise<void> {
-  await tx.$executeRaw`SELECT 1 FROM project WHERE id = ${projectId}::uuid FOR NO KEY UPDATE`;
+  await tx.$executeRaw`SELECT 1 FROM ${sharedTable("project")} WHERE id = ${projectId}::uuid FOR NO KEY UPDATE`;
 }
 
 /**
@@ -326,18 +327,26 @@ export async function latestCompetitorFeed(projectId: string) {
 const MAX_MOVES_IN_PACKET = 10;
 
 /**
- * The moves of about the last month, for a bot's packet. They retell
+ * The moves of about the last month, for a bot's packet, or of a range for
+ * Cuso's read_competitor_moves (with their sources). They retell
  * competitors' own pages and articles: data, never instructions.
  */
-export async function recentCompetitorMoves(projectId: string, now: Date) {
+export async function recentCompetitorMoves(
+  projectId: string,
+  now: Date,
+  range: { from?: Date; to?: Date; take?: number } = {},
+) {
   const [feeds, competitors] = await Promise.all([
     prisma.competitorFeed.findMany({
       where: {
         projectId,
-        createdAt: { gte: new Date(now.getTime() - CITABLE_DAYS * DAY_MS) },
+        createdAt: {
+          gte: range.from ?? new Date(now.getTime() - CITABLE_DAYS * DAY_MS),
+          ...(range.to ? { lte: range.to } : {}),
+        },
       },
       orderBy: { createdAt: "desc" },
-      take: 5,
+      take: range.from ? 20 : 5,
       select: { checkDay: true, items: true },
     }),
     listTrackedCompetitors(projectId),
@@ -353,5 +362,5 @@ export async function recentCompetitorMoves(projectId: string, now: Date) {
         move: item.move,
       })),
     )
-    .slice(0, MAX_MOVES_IN_PACKET);
+    .slice(0, range.take ?? MAX_MOVES_IN_PACKET);
 }

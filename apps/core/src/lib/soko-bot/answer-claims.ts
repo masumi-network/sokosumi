@@ -25,7 +25,7 @@ export async function claimsAction(
 }
 
 const STANDUP_CLAIMS =
-  "The text is an assistant's update in its team's daily stand-up. confirmedChanges is its record since the last stand-up: what it did, what is running, what is open and what waits on whom. Does the update say the assistant did, made, sent, posted, finished, is working on or is waiting on something that is not in confirmedChanges, or give a number, name or Task the record does not have? Shortened or reworded Task names and counts that match the record are fine. Saying it finished nothing, or what it plans next from the open items, is fine.";
+  "The text is an assistant's update in its team's daily stand-up. confirmedChanges is its record since the last stand-up: what it did, what it handed out that is running, what is open, what waits on whom, and what the Coworkers (other AI agents) on its person's Tasks finished or are still on. Does the update say the assistant did, made, sent, posted, finished, is working on or is waiting on something that is not in confirmedChanges, or give a number, name or Task the record does not have? Shortened, reworded or translated Task names and counts that match the record are fine, and so is saying a Coworker or Task waits on the person the record names. Saying it finished nothing, or what it plans next from the open items, is fine.";
 
 /** Whether a stand-up update claims work its record does not show; null when the check failed. */
 export async function standupClaimsUnrecordedWork(
@@ -35,7 +35,19 @@ export async function standupClaimsUnrecordedWork(
   return askClaims(text, record, STANDUP_CLAIMS);
 }
 
+/** One retry: a single slow or failed Jev call left a whole reply unchecked. */
 async function askClaims(
+  text: string,
+  confirmedChanges: readonly string[],
+  question: string,
+): Promise<boolean | null> {
+  return (
+    (await askClaimsOnce(text, confirmedChanges, question)) ??
+    askClaimsOnce(text, confirmedChanges, question)
+  );
+}
+
+async function askClaimsOnce(
   text: string,
   confirmedChanges: readonly string[],
   question: string,
@@ -60,7 +72,7 @@ async function askClaims(
       {
         message: "Could not check a Soko Bot reply for unconfirmed claims",
         why: "Jev, the judging model, failed or timed out",
-        fix: "Nothing: the reply is held back and the owner is told why.",
+        fix: "Nothing: Core asks once more, then shows the reply with a note that it could not be checked.",
       },
       { failure: messageSafeErrorFields(error) },
     );

@@ -124,6 +124,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       agentId: body.agentId,
       paymentRequired: body.paymentRequired,
       maxCredits: body.maxCredits,
+      networkScope: c.var.networkScope,
     });
 
     if (result.outcome === "out_of_credits") {

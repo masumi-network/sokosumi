@@ -2,6 +2,7 @@
 import type {
   FundraisingPath,
   FundraisingPaths,
+  FundraisingPipeline,
   FundraisingProspect,
 } from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -19,10 +20,13 @@ import { Button } from "@/components/ui/button";
 import { fundraisingService } from "@/lib/services/fundraising.client";
 import { cn } from "@/lib/utils";
 import { useScopedQuery } from "@/queries/scoped-queries";
+import { pathConnector } from "../fundraising-view";
+import { useMeId } from "../me-context";
 import {
   useFundraisingOrganization,
   useProspectUpdate,
 } from "../use-fundraising";
+import { type AskRequest, IntroAskDialog } from "./intro-cell";
 
 const PATHS_SHOWN = 6;
 const PORTFOLIO_SHOWN = 5;
@@ -47,11 +51,23 @@ function StrengthBar({ value }: { value: number }) {
 export function WarmPaths({
   prospect,
   now,
+  pipeline,
 }: {
   prospect: FundraisingProspect;
   now: Date;
+  pipeline: FundraisingPipeline;
 }) {
   const t = useTranslations("App.Fundraising.paths");
+  const me = useMeId();
+  const selfOf = (path: FundraisingPath) =>
+    path.via && path.via.id !== me ? "no" : "yes";
+  const whoOf = (path: FundraisingPath) => path.via?.name ?? "";
+  const throughOf = (path: FundraisingPath) =>
+    path.through
+      ? path.through.role
+        ? `${path.through.name} (${path.through.role})`
+        : path.through.name
+      : "";
   const format = useFormatter();
   const cache = useQueryClient();
   const organizationId = useFundraisingOrganization();
@@ -91,12 +107,21 @@ export function WarmPaths({
     }
   }
 
+  const [ask, setAsk] = useState<AskRequest | null>(null);
+
   async function usePath(path: FundraisingPath) {
-    const who = path.via?.name ?? t("you");
+    const connector = pathConnector(path, me);
+    if (connector) {
+      setAsk({ connector, strength: path.strength });
+      return;
+    }
+    const who = whoOf(path);
+    const self = selfOf(path);
     const nextStep =
       path.kind === "direct"
-        ? t("nextStepDirect", { who })
+        ? t("nextStepDirect", { self, who })
         : t("nextStepIntro", {
+            self,
             who,
             through: path.through?.name ?? "",
             investor: prospect.contact.name,
@@ -155,10 +180,11 @@ export function WarmPaths({
                   <div className="min-w-0 flex-1">
                     <p className="text-pretty">
                       {path.kind === "direct"
-                        ? t("direct", { who: path.via?.name ?? t("you") })
+                        ? t("direct", { self: selfOf(path), who: whoOf(path) })
                         : path.kind === "linkedin"
                           ? t("linkedinDirect", {
-                              who: path.via?.name ?? t("you"),
+                              self: selfOf(path),
+                              who: whoOf(path),
                             })
                           : path.via
                             ? t(
@@ -170,9 +196,9 @@ export function WarmPaths({
                                     ? "linkedinFund"
                                     : "linkedinPortfolio",
                                 {
-                                  who: path.via.name,
-                                  through: path.through?.name ?? "",
-                                  role: path.through?.role ?? "",
+                                  self: selfOf(path),
+                                  who: whoOf(path),
+                                  through: throughOf(path),
                                   company: path.company?.name ?? "",
                                 },
                               )
@@ -181,8 +207,7 @@ export function WarmPaths({
                                   ? "coldFund"
                                   : "coldPortfolio",
                                 {
-                                  through: path.through?.name ?? "",
-                                  role: path.through?.role ?? "",
+                                  through: throughOf(path),
                                   company: path.company?.name ?? "",
                                 },
                               )}
@@ -236,7 +261,7 @@ export function WarmPaths({
         )}
       </div>
 
-      <div className="grid gap-1.5">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs font-medium">
             {fundName
@@ -318,9 +343,19 @@ export function WarmPaths({
             ) : null}
           </ul>
         ) : data ? (
-          <p className="text-muted-foreground text-sm">{t("noPortfolio")}</p>
+          <p className="text-muted-foreground text-sm">
+            {researching ? t("researching") : t("noPortfolio")}
+          </p>
         ) : null}
       </div>
+      {ask ? (
+        <IntroAskDialog
+          prospect={prospect}
+          pipeline={pipeline}
+          ask={ask}
+          onClose={() => setAsk(null)}
+        />
+      ) : null}
     </div>
   );
 }

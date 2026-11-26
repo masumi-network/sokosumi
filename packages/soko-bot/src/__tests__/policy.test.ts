@@ -9,6 +9,7 @@ import {
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_ROUTES,
+  SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
 } from "../policy.js";
@@ -126,6 +127,11 @@ describe("Soko Bot route capability ceilings", () => {
           SOKO_BOT_BOT_TO_BOT_CAPABILITIES as readonly string[],
         ).not.toContain(read);
       }
+  });
+
+  it("never writes or removes a Task Schedule after reading a page or running a shell", () => {
+    for (const write of ["save_task_schedule", "delete_task_schedule"])
+      expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).toContain(write);
   });
 
   it("creates and changes ad campaigns only on MANAGE_WORK, and never from a page's instructions", () => {
@@ -269,6 +275,44 @@ describe("Soko Bot route capability ceilings", () => {
       expect(
         SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES as readonly string[],
       ).toContain(write);
+  });
+
+  it("allows owner-directed tainted social draft creation and edits while keeping edit/schedule/cancel/publish in the outward exclusion set", () => {
+    // Creating a new draft may be inherited by delegated follow-ups and used on
+    // owner-directed tainted turns (it always waits for approval).
+    expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).toContain(
+      "create_social_post",
+    );
+    expect(SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES).toContain(
+      "create_social_post",
+    );
+    expect(
+      SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES as readonly string[],
+    ).not.toContain("create_social_post");
+
+    // Editing unapproved drafts is allowed on owner-directed tainted chats
+    // (checked via SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES before OUTWARD, and
+    // draft-gated in social.ts), while both edit tools stay in OUTWARD so
+    // delegated follow-up grants never inherit them.
+    for (const draftEdit of [
+      "update_social_post",
+      "update_social_posts",
+    ] as const) {
+      expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).toContain(draftEdit);
+      expect(SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES).toContain(draftEdit);
+      expect(SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES).toContain(draftEdit);
+    }
+    for (const outwardWrite of [
+      "schedule_social_post",
+      "cancel_social_post",
+      "publish_social_post",
+    ] as const) {
+      expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).toContain(outwardWrite);
+      expect(SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES).toContain(outwardWrite);
+      expect(
+        SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES as readonly string[],
+      ).not.toContain(outwardWrite);
+    }
   });
 
   it("has no newsletter tool that approves, schedules or sends", () => {

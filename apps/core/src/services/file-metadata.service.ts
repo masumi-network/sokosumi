@@ -6,6 +6,7 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { FILE_TAGS_PER_RESOURCE_MAX } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import {
@@ -110,14 +111,14 @@ export async function loadEditableResource(input: {
   >(PrismaRaw.sql`
     SELECT fr.id, fr."workspaceId", fr."metadataRevision", fr."contentRevision",
       (
-        SELECT fes.id FROM file_evidence_scope fes
+        SELECT fes.id FROM ${sharedTable("file_evidence_scope")} fes
         WHERE fes."workspaceId" = fr."workspaceId"
           AND fes."sourceKind" = fr."sourceKind"
           AND fes."sourceScope" = fr."sourceScope"
           AND fes."sourceId" = COALESCE(fr."ownerUserId", fr."ownerOrganizationId")
         LIMIT 1
       ) AS "evidenceScopeId"
-    FROM file_resource fr
+    FROM ${sharedTable("file_resource")} fr
     WHERE ${authorized} AND fr.id = ${input.resourceId}::uuid
     LIMIT 1
   `);

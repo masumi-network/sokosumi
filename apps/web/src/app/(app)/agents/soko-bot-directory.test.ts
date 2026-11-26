@@ -65,7 +65,7 @@ describe("loadBotDirectory", () => {
         {
           userId: "u-cid",
           name: "Cid",
-          image: null,
+          image: "https://example.com/cid.png",
           role: null,
           isYou: false,
           bot: personalBot("nova", "RUNNING", null),
@@ -102,9 +102,12 @@ describe("loadBotDirectory", () => {
     expect(directory.workspaceName).toBe("Acme");
     expect(directory.hasOwnBot).toBe(true);
     expect(directory.bots.map((bot) => [bot.id, bot.owner])).toEqual([
-      ["juno", { kind: "you" }],
-      ["nova", { kind: "person", name: "Cid" }],
-      ["milo", { kind: "person", name: "Bob" }],
+      ["juno", { kind: "you", name: "Me", image: null }],
+      [
+        "nova",
+        { kind: "person", name: "Cid", image: "https://example.com/cid.png" },
+      ],
+      ["milo", { kind: "person", name: "Bob", image: null }],
       ["shared", { kind: "team" }],
       ["proj", { kind: "project", name: "Launch" }],
     ]);

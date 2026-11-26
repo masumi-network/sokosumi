@@ -14,6 +14,7 @@ import {
   logCoreWarning,
   runAsBackgroundWork,
 } from "@/lib/evlog";
+import { failOpen } from "@/lib/fail-open";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
@@ -465,7 +466,7 @@ export async function registerWatch(
     waiting: true,
     watchId: watch.id,
     until: watch.expiresAt,
-    note: "Waiting in the background. End your turn now and say in one sentence what happens once it is done; the follow-up posts its answer in this chat.",
+    note: "Waiting in the background. Finish any other step you can do now, then end your turn and say in one sentence what happens once it is done; the follow-up posts its answer in this chat.",
   };
 }
 
@@ -580,14 +581,41 @@ export async function syncSokoBotWatches(input: {
   for (const watch of watches) {
     if (!input.shouldContinue()) break;
     result.checked += 1;
-    const done = await watchOutcome(watch).catch(() => null);
+    const done = await watchOutcome(watch).catch(
+      failOpen(
+        null,
+        {
+          operation: "soko_bot_watch",
+          watch: { id: watch.id, kind: watch.kind },
+        },
+        {
+          message: "A Soko Bot background check could not be read",
+          why: "Checking the watch threw, so it counted as not done yet",
+          fix: "The next sync checks it again until it expires; read the failure fields if it repeats.",
+        },
+      ),
+    );
     const timedOut = !done && watch.expiresAt <= new Date();
     if (!done && !timedOut) continue;
     // A wait that ran out still hands over what was said so far.
     const outcome =
       done ??
       (watch.kind === "chat_reply"
-        ? await chatReplyOutcome(watch, { partial: true }).catch(() => null)
+        ? await chatReplyOutcome(watch, { partial: true }).catch(
+            failOpen(
+              null,
+              {
+                operation: "soko_bot_watch",
+                watch: { id: watch.id, kind: watch.kind },
+              },
+              {
+                message:
+                  "A Soko Bot background check expired without its partial reply",
+                why: "Reading what was said so far threw",
+                fix: "The watch expires without the partial reply; read the failure fields.",
+              },
+            ),
+          )
         : null);
     if (!outcome && watch.kind === "app_connected") {
       await prisma.sokoBotWatch.updateMany({

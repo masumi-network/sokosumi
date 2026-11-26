@@ -31,6 +31,12 @@ export interface SokoBotVersion {
   systemPrompt: string;
   skills: readonly string[];
   /**
+   * The system prompt carries an index of the skills and only those the turn
+   * always needs in full (`skill-index.ts`); the bot reads the rest with
+   * read_skill. Omitted: every skill in full on every turn, as before.
+   */
+  skillsOnDemand?: true;
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.

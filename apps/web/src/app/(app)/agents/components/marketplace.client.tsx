@@ -6,6 +6,7 @@ import { useQueryState } from "nuqs";
 import { useMemo } from "react";
 
 import { AgentIcon } from "@/components/agents/agent-icon";
+import { AgentVendor } from "@/components/agents/agent-vendor";
 import {
   AGENT_TILE_GRID_CLASS,
   AgentTile,
@@ -13,10 +14,13 @@ import {
 import { Input } from "@/components/ui/input";
 import type { CatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
 import {
+  getAgentAuthorResolvedImage,
   getAgentResolvedIcon,
   getShortAgentAuthorName,
 } from "@/lib/helpers/agent";
 import { rankPageItems } from "@/lib/utils/page-search";
+
+import { MarketplaceCardAction } from "./card-actions.client";
 
 function agentHref(agent: CatalogBrowseAgent): string | null {
   return agent.kind === "cardano" ? `/agents/${agent.id}` : agent.externalUrl;
@@ -46,9 +50,16 @@ export function Marketplace({ agents }: { agents: CatalogBrowseAgent[] }) {
     [agents, query],
   );
 
-  function meta(agent: CatalogBrowseAgent): string {
+  function meta(agent: CatalogBrowseAgent) {
     const vendor = getShortAgentAuthorName(agent);
-    return vendor ? t("byVendor", { vendor }) : t("aboutSourceExternal");
+    return (
+      <AgentVendor
+        logo={getAgentAuthorResolvedImage(agent)}
+        label={vendor ? t("byVendor", { vendor }) : t("aboutSourceExternal")}
+        alt={t("vendorLogo", { agent: agent.name })}
+        size="sm"
+      />
+    );
   }
 
   return (
@@ -95,6 +106,14 @@ export function Marketplace({ agents }: { agents: CatalogBrowseAgent[] }) {
                 name={agent.name}
                 purpose={agent.summary ?? agent.description}
                 meta={meta(agent)}
+                action={
+                  agent.kind === "cardano" ? (
+                    <MarketplaceCardAction
+                      agentId={agent.id}
+                      agentName={agent.name}
+                    />
+                  ) : undefined
+                }
               />
             </li>
           ))}

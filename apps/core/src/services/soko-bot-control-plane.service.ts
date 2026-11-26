@@ -6,6 +6,7 @@ import {
   SokoBotTurnStatus,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   applyVersionCapabilities,
   CMO_PRODUCTION_TURN_PREFIX,
@@ -19,6 +20,7 @@ import {
   isSokoBotCompetitorCapability,
   isSokoBotNewsletterCapability,
   limitSokoBotWrites,
+  type OwnerAuthorityStopRuleInput,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
@@ -48,6 +50,7 @@ import {
 } from "@/helpers/cuso-project-credits";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { jsonInput } from "@/helpers/prisma-json";
+import { cancelUnpublishedSocialPosts } from "@/helpers/social-post-quote";
 import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import {
   assertSokoBotManagement,
@@ -80,6 +83,7 @@ import {
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { evalWorkspaceIds } from "@/lib/evals/eval-guard";
 import {
   createCoreLogger,
   emitCoreWarning,
@@ -148,7 +152,10 @@ import type {
   SokoBotTurnStartResult,
   StartSokoBotTurnInput,
 } from "@/lib/soko-bot/turn-start";
-import { ONBOARDING_TURN_PREFIX } from "@/services/cmo-cuso.service";
+import {
+  LIVE_CUSO_WHERE,
+  ONBOARDING_TURN_PREFIX,
+} from "@/services/cmo-cuso.service";
 import { competitorChecksOnFor } from "@/services/competitors.service";
 import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
 import { isNewsletterDraftAvailable } from "@/services/newsletter-draft.service";
@@ -172,10 +179,13 @@ import {
   sokoBotOutcomeSummary,
 } from "@/services/soko-bot-outcome.service";
 import { isAnnouncementBot } from "@/services/soko-bot-runtime/dispatch-announcements";
+import { resolveUiScheduleAuthority } from "@/services/soko-bot-runtime/schedule-scope";
 import {
   type CreateSokoBotScheduleInput,
   createSokoBotSchedule,
   deleteSokoBotSchedule,
+  isPlatformTurnFailure,
+  recordCompletedScheduleRun,
   SokoBotScheduleNotFoundError,
   SokoBotScheduleValidationError,
   type UpdateSokoBotScheduleInput,
@@ -246,6 +256,22 @@ async function translateScheduleErrors<T>(run: () => Promise<T>): Promise<T> {
 export class SokoBotIdempotencyConflictError extends Error {}
 export class SokoBotRetryableStartError extends Error {}
 export class SokoBotStartAbortedError extends Error {}
+
+/**
+ * A mention closed before its turn started (its case or its asker gave up on
+ * it) starts nothing: no classification, no charge, no late answer.
+ */
+async function requireOpenMention(
+  client: Pick<Prisma.TransactionClient, "chatRoomMention">,
+  mentionId: string,
+) {
+  const mention = await client.chatRoomMention.findUnique({
+    where: { id: mentionId },
+    select: { status: true },
+  });
+  if (mention?.status === "failed")
+    throw new SokoBotStartAbortedError("The mention is no longer open");
+}
 
 function observedStartResult(
   turn: SokoBotTurn,
@@ -709,6 +735,26 @@ function storedContinuation(classification: unknown): string | null {
   return typeof continuation === "string" ? continuation : null;
 }
 
+/**
+ * The live bots a fleet move takes, oldest id first. Eval lanes pick their
+ * own version per run, so they are left out, and in this same query: a lane
+ * made a moment ago is never moved because of a list read earlier.
+ */
+export async function fleetBotsToMove(
+  fromVersionId?: string,
+): Promise<{ id: string; versionId: string | null }[]> {
+  return prisma.$queryRaw<{ id: string; versionId: string | null }[]>`
+    SELECT b."id", b."versionId"
+    FROM ${sharedTable("soko_bot")} b
+    WHERE b."archivedAt" IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM ${sharedTable("eval_lane")} e WHERE e."workspaceId" = b."workspaceId"
+      )
+      ${fromVersionId ? PrismaRaw.sql`AND b."versionId" = ${fromVersionId}` : PrismaRaw.empty}
+    ORDER BY b."id" ASC
+  `;
+}
+
 export class SokoBotControlPlane {
   constructor(
     private readonly runtime: SokoBotRuntime = getSokoBotRuntime(),
@@ -820,7 +866,7 @@ export class SokoBotControlPlane {
             SELECT "id", clock_timestamp() AT TIME ZONE 'UTC' AS stamp
             FROM (
               SELECT "id"
-              FROM "soko_bot_turn"
+              FROM ${sharedTable("soko_bot_turn")}
               WHERE "id" = ${turnId}::uuid
                 AND "leaseToken" = ${leaseToken}
                 AND "status"::text IN (${PrismaRaw.join(ACTIVE_TURN_STATUSES)})
@@ -828,7 +874,7 @@ export class SokoBotControlPlane {
               FOR NO KEY UPDATE
             ) AS held_turn
           )
-          UPDATE "soko_bot_turn" AS turn
+          UPDATE ${sharedTable("soko_bot_turn")} AS turn
           SET "reconcilerHeartbeatAt" = renewal.stamp,
               "leaseExpiresAt" = renewal.stamp + ${TURN_LEASE_MS} * interval '1 millisecond',
               "updatedAt" = renewal.stamp
@@ -883,7 +929,16 @@ export class SokoBotControlPlane {
           ...sokoBotScheduleActingUserWhere(input.userId),
           workspaceId: input.workspaceId,
         },
-        OR: [{ turnId: null }, { turnId }],
+        // Allow idempotent replay of an already-bound turn, or binding an
+        // unstarted run on an enabled schedule or one-time schedule retry;
+        // never bind a new turn onto a disabled recurring schedule.
+        OR: [
+          { turnId },
+          {
+            turnId: null,
+            schedule: { OR: [{ enabled: true }, { runOnce: true }] },
+          },
+        ],
       },
       data: { turnId },
     });
@@ -1231,7 +1286,7 @@ export class SokoBotControlPlane {
       await serializableTransaction(async (tx) => {
         await tx.$queryRaw`
           SELECT "id"
-          FROM "soko_bot"
+          FROM ${sharedTable("soko_bot")}
           WHERE "id" = ${bot.id}::uuid
           FOR UPDATE
         `;
@@ -1362,11 +1417,11 @@ export class SokoBotControlPlane {
     const claimed = await prisma.$transaction(async (tx) => {
       // Pause and archive lock the bot before they touch a turn.
       await tx.$queryRaw`
-        SELECT "id" FROM "soko_bot" WHERE "id" = ${turn.sokoBotId}::uuid FOR UPDATE
+        SELECT "id" FROM ${sharedTable("soko_bot")} WHERE "id" = ${turn.sokoBotId}::uuid FOR UPDATE
       `;
       // Foreground settlement can already hold the turn and need the bot.
       const locked = await tx.$queryRaw<{ id: string }[]>`
-        SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${turn.id}::uuid
+        SELECT "id" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${turn.id}::uuid
         FOR NO KEY UPDATE SKIP LOCKED
       `;
       if (!locked.length) return null;
@@ -1394,7 +1449,7 @@ export class SokoBotControlPlane {
       if (!count) return null;
       // Make a serializable pause/archive with an older snapshot retry its check.
       await tx.$executeRaw`
-        UPDATE "soko_bot" SET "updatedAt" = "updatedAt" WHERE "id" = ${turn.sokoBotId}::uuid
+        UPDATE ${sharedTable("soko_bot")} SET "updatedAt" = "updatedAt" WHERE "id" = ${turn.sokoBotId}::uuid
       `;
       return tx.sokoBot.findUniqueOrThrow({ where: { id: turn.sokoBotId } });
     });
@@ -1920,13 +1975,16 @@ export class SokoBotControlPlane {
               : {}),
           },
         });
+        // A turn the platform failed says nothing about its schedule.
         if (scheduleRunUpdate.count === 1) {
-          await tx.sokoBotSchedule.update({
-            where: { id: scheduleRun.scheduleId },
-            data: completed
-              ? { consecutiveFailures: 0 }
-              : { consecutiveFailures: { increment: 1 } },
-          });
+          if (completed) {
+            await recordCompletedScheduleRun(tx, scheduleRun.scheduleId, now);
+          } else if (!isPlatformTurnFailure(errorKind ?? null)) {
+            await tx.sokoBotSchedule.update({
+              where: { id: scheduleRun.scheduleId },
+              data: { consecutiveFailures: { increment: 1 } },
+            });
+          }
         }
       }
       return true;
@@ -2023,7 +2081,7 @@ export class SokoBotControlPlane {
     const leaseToken = randomUUID();
     const claimed = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`
-        SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${turnId}::uuid
+        SELECT "id" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${turnId}::uuid
         FOR NO KEY UPDATE
       `;
       const now = await databaseNow(tx);
@@ -2281,6 +2339,9 @@ export class SokoBotControlPlane {
       input.versionId ?? bot.versionId,
       isSharedSokoBot(bot),
     );
+
+    if (input.chat?.mentionId)
+      await requireOpenMention(prisma, input.chat.mentionId);
 
     try {
       await requireSokoBotTurnFunding(input.userId, bot.id);
@@ -2679,6 +2740,9 @@ export class SokoBotControlPlane {
       classification: classification.classification,
       personAsked,
       capturedPreference,
+      turnMessage: input.chat?.said ?? input.chat?.classifyMessage ?? message,
+      previousReply:
+        previousTurn?.status === "COMPLETED" ? previousTurn.finalAnswer : null,
       audience: askedByTeammate ? "TEAMMATE" : "OWNER",
       askedByKind: input.chat?.askedByBot
         ? "ASSISTANT"
@@ -2710,7 +2774,7 @@ export class SokoBotControlPlane {
       const reservation = await serializableTransaction(async (tx) => {
         await tx.$queryRaw`
           SELECT "id"
-          FROM "soko_bot"
+          FROM ${sharedTable("soko_bot")}
           WHERE "id" = ${bot.id}::uuid
           FOR UPDATE
         `;
@@ -2795,6 +2859,9 @@ export class SokoBotControlPlane {
           if (active)
             throw new SokoBotTurnInProgressError("Soko Bot is already working");
         }
+        // Again here: it may have closed while this start waited for the bot.
+        if (input.chat?.mentionId)
+          await requireOpenMention(tx, input.chat.mentionId);
         const memoryVersion = context.packet.memory.version;
         const memoryRevision = requireContextMemoryRevision(
           memoryVersion,
@@ -2942,7 +3009,8 @@ export class SokoBotControlPlane {
               where: {
                 id: { in: occurrence.followUpDelegationIds },
                 followUp: { not: null },
-                followUpTurnId: null,
+                // A retry takes the plan over only from the turn that failed.
+                followUpTurnId: occurrence.followUpRetryOfTurnId ?? null,
                 turn: { sokoBotId: bot.id, workspaceId: input.workspaceId },
               },
               data: { followUpTurnId: created.id },
@@ -3182,7 +3250,7 @@ export class SokoBotControlPlane {
       await serializableTransaction(async (tx) => {
         await tx.$queryRaw`
           SELECT "id"
-          FROM "soko_bot"
+          FROM ${sharedTable("soko_bot")}
           WHERE "id" = ${bot.id}::uuid
           FOR UPDATE
         `;
@@ -3432,7 +3500,7 @@ export class SokoBotControlPlane {
     const leaseToken = randomUUID();
     const updated = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`
-        SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${turnId}::uuid
+        SELECT "id" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${turnId}::uuid
         FOR NO KEY UPDATE
       `;
       const now = await databaseNow(tx);
@@ -4045,9 +4113,15 @@ export class SokoBotControlPlane {
    * moves every matching bot in the database.
    */
   async versionUsage(): Promise<{ versionId: string; count: number }[]> {
+    // Eval lanes pick their own version per run; they are not the fleet.
+    const evalWorkspaces = await evalWorkspaceIds();
     const rows = await prisma.sokoBot.groupBy({
       by: ["versionId"],
-      where: { archivedAt: null, versionId: { not: null } },
+      where: {
+        archivedAt: null,
+        versionId: { not: null },
+        workspaceId: { notIn: evalWorkspaces },
+      },
       _count: { _all: true },
     });
     return rows
@@ -4115,14 +4189,7 @@ export class SokoBotControlPlane {
       }
       return pinned;
     };
-    const bots = await prisma.sokoBot.findMany({
-      where: {
-        archivedAt: null,
-        ...(input.fromVersionId ? { versionId: input.fromVersionId } : {}),
-      },
-      select: { id: true, versionId: true },
-      orderBy: { id: "asc" },
-    });
+    const bots = await fleetBotsToMove(input.fromVersionId);
     // One base per run, not one supplied by the caller. A caller-supplied id
     // would make a retry replay each bot's recorded outcome, which is exactly
     // backwards: the bots worth retrying are the ones that failed.
@@ -4210,22 +4277,44 @@ export class SokoBotControlPlane {
   }
 
   /** A person writing a schedule in the console; see PERSON_SCHEDULE_CAPABILITIES. */
-  async createSchedule(input: CreateSokoBotScheduleInput) {
+  async createSchedule(
+    input: CreateSokoBotScheduleInput & {
+      stopRule?: OwnerAuthorityStopRuleInput;
+    },
+  ) {
+    const { stopRule, ...rest } = input;
     return translateScheduleErrors(() =>
       createSokoBotSchedule({
-        ...input,
+        ...rest,
         capabilityNames: PERSON_SCHEDULE_CAPABILITIES,
+        resolveAuthority:
+          rest.resolveAuthority ??
+          (rest.userId !== null
+            ? resolveUiScheduleAuthority(rest.userId, stopRule)
+            : undefined),
       }),
     );
   }
 
-  async updateSchedule(input: UpdateSokoBotScheduleInput) {
+  async updateSchedule(
+    input: UpdateSokoBotScheduleInput & {
+      stopRule?: OwnerAuthorityStopRuleInput;
+    },
+  ) {
+    const { stopRule, ...rest } = input;
+    const resolveAuthority =
+      rest.resolveAuthority ??
+      (rest.userId !== null && stopRule !== undefined
+        ? resolveUiScheduleAuthority(rest.userId, stopRule)
+        : undefined);
     return translateScheduleErrors(() =>
-      updateSokoBotSchedule(
-        input.prompt === undefined
-          ? input
-          : { ...input, capabilityNames: PERSON_SCHEDULE_CAPABILITIES },
-      ),
+      updateSokoBotSchedule({
+        ...rest,
+        ...(rest.prompt === undefined
+          ? {}
+          : { capabilityNames: PERSON_SCHEDULE_CAPABILITIES }),
+        ...(resolveAuthority ? { resolveAuthority } : {}),
+      }),
     );
   }
 
@@ -4246,9 +4335,18 @@ export class SokoBotControlPlane {
       cursor?: string;
       take?: number;
       kind?: "all" | "assistant" | "cmo";
+      evals?: "exclude" | "include" | "only";
     } = {},
   ) {
     const take = Math.min(Math.max(options.take ?? 50, 1), 100);
+    const evalWorkspaces = await evalWorkspaceIds();
+    const evals = options.evals ?? "exclude";
+    const evalWhere: Prisma.SokoBotWhereInput =
+      evals === "exclude"
+        ? { workspaceId: { notIn: evalWorkspaces } }
+        : evals === "only"
+          ? { workspaceId: { in: evalWorkspaces } }
+          : {};
     const term = query?.trim();
     const idTerm =
       term &&
@@ -4273,10 +4371,15 @@ export class SokoBotControlPlane {
               ],
             }
           : {};
+    const fleetWhere: Prisma.SokoBotWhereInput = {
+      deletedAt: null,
+      AND: [kindWhere, evalWhere],
+    };
     const where: Prisma.SokoBotWhereInput = {
       deletedAt: null,
       AND: [
         kindWhere,
+        evalWhere,
         term
           ? {
               OR: [
@@ -4299,50 +4402,101 @@ export class SokoBotControlPlane {
           : {},
       ],
     };
-    const [items, total] = await prisma.$transaction([
-      prisma.sokoBot.findMany({
-        where,
-        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-        take: take + 1,
-        ...(options.cursor
-          ? { cursor: { id: options.cursor }, skip: 1 }
-          : undefined),
-        include: {
-          user: { select: { id: true, name: true, email: true } },
-          createdByUser: { select: { id: true, name: true, email: true } },
-          workspace: { select: { organizationId: true } },
-          _count: {
-            select: {
-              turns: true,
-              // Auto-accepted actions leave ACCEPTED rows; only PENDING waits.
-              pendingDecisions: { where: { status: "PENDING" } },
-              schedules: true,
-            },
-          },
+    const include = {
+      user: { select: { id: true, name: true, email: true } },
+      createdByUser: { select: { id: true, name: true, email: true } },
+      workspace: { select: { organizationId: true } },
+      _count: {
+        select: {
+          turns: true,
+          // Auto-accepted actions leave ACCEPTED rows; only PENDING waits.
+          pendingDecisions: { where: { status: "PENDING" as const } },
+          schedules: true,
         },
+      },
+    } satisfies Prisma.SokoBotInclude;
+    const active: Prisma.SokoBotWhereInput = {
+      AND: [fleetWhere, { archivedAt: null }],
+    };
+    const recentSince = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [items, total, activeCount, activeRecently, pendingDecisions] =
+      await prisma.$transaction([
+        prisma.sokoBot.findMany({
+          where,
+          orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+          take: take + 1,
+          ...(options.cursor
+            ? { cursor: { id: options.cursor }, skip: 1 }
+            : undefined),
+          include,
+        }),
+        prisma.sokoBot.count({ where }),
+        prisma.sokoBot.count({ where: active }),
+        prisma.sokoBot.count({
+          where: { AND: [active, { lastActivityAt: { gte: recentSince } }] },
+        }),
+        prisma.sokoBotPendingDecision.count({
+          where: { status: "PENDING", sokoBot: active },
+        }),
+      ]);
+    // The same bots as attentionReasons in Web: errored, paused, failing, waiting.
+    const needsOperator: Prisma.SokoBotWhereInput = {
+      AND: [
+        active,
+        {
+          OR: [
+            { status: { in: ["ERROR", "PAUSED"] } },
+            { consecutiveTurnFailures: { gt: 0 } },
+            { pendingDecisions: { some: { status: "PENDING" } } },
+          ],
+        },
+      ],
+    };
+    const [attention, attentionTotal] = await prisma.$transaction([
+      prisma.sokoBot.findMany({
+        where: needsOperator,
+        orderBy: [
+          { lastActivityAt: { sort: "desc", nulls: "last" } },
+          { id: "desc" },
+        ],
+        take: 50,
+        include,
       }),
-      prisma.sokoBot.count({ where }),
+      prisma.sokoBot.count({ where: needsOperator }),
     ]);
     const hasMore = items.length > take;
-    if (hasMore) items.pop();
+    const page = items.slice(0, take);
+    const evalSet = new Set(evalWorkspaces);
     const outOfCredits = await sokoBotIdsOutOfCredits(
-      items.map((bot) => ({
+      [...page, ...attention].map((bot) => ({
         id: bot.id,
         userId: bot.userId,
         organizationId: bot.workspace.organizationId,
         projectId: bot.projectId,
       })),
     );
+    const listed = <T extends (typeof items)[number]>({
+      workspace: _workspace,
+      ...bot
+    }: T) => ({
+      ...bot,
+      kind: cmoVersionIds.includes(bot.versionId ?? "")
+        ? ("cmo" as const)
+        : ("assistant" as const),
+      outOfCredits: outOfCredits.has(bot.id),
+      evalLane: evalSet.has(bot.workspaceId),
+    });
     return {
-      items: items.map(({ workspace: _workspace, ...bot }) => ({
-        ...bot,
-        kind: cmoVersionIds.includes(bot.versionId ?? "")
-          ? ("cmo" as const)
-          : ("assistant" as const),
-        outOfCredits: outOfCredits.has(bot.id),
-      })),
+      items: page.map(listed),
       total,
       hasMore,
+      summary: {
+        active: activeCount,
+        activeRecently,
+        pendingDecisions,
+        attention: attention.map(listed),
+        attentionTotal,
+      },
     };
   }
 
@@ -4626,7 +4780,7 @@ export class SokoBotControlPlane {
         active = await serializableTransaction(async (tx) => {
           await tx.$queryRaw`
             SELECT "id"
-            FROM "soko_bot"
+            FROM ${sharedTable("soko_bot")}
             WHERE "id" = ${bot.id}::uuid
             FOR UPDATE
           `;
@@ -4707,7 +4861,7 @@ export class SokoBotControlPlane {
         await serializableTransaction(async (tx) => {
           await tx.$queryRaw`
             SELECT "id"
-            FROM "soko_bot"
+            FROM ${sharedTable("soko_bot")}
             WHERE "id" = ${bot.id}::uuid
             FOR UPDATE
           `;
@@ -4854,7 +5008,7 @@ export class SokoBotControlPlane {
         resetPreparation = await serializableTransaction(async (tx) => {
           await tx.$queryRaw`
             SELECT "id"
-            FROM "soko_bot"
+            FROM ${sharedTable("soko_bot")}
             WHERE "id" = ${bot.id}::uuid
             FOR UPDATE
           `;
@@ -4987,7 +5141,7 @@ export class SokoBotControlPlane {
         await serializableTransaction(async (tx) => {
           await tx.$queryRaw`
             SELECT "id"
-            FROM "soko_bot"
+            FROM ${sharedTable("soko_bot")}
             WHERE "id" = ${bot.id}::uuid
             FOR UPDATE
           `;
@@ -5240,11 +5394,12 @@ export class SokoBotControlPlane {
     };
   }
 
+  /** Returns how many of Cuso's unsent posts the archive canceled. */
   async archive(
     userId: string,
     workspaceId: string,
     selector: SokoBotSelector = ME_SOKO_BOT,
-  ): Promise<void> {
+  ): Promise<number> {
     // Polar stops charging for a live Cuso before he is archived (ADR 0068).
     // It is called here, once, because the transaction below is retried; the
     // role check runs first so only someone who may archive ends it. A
@@ -5261,7 +5416,7 @@ export class SokoBotControlPlane {
       if (bot.archivedAt) return null;
       await tx.$queryRaw`
         SELECT "id"
-        FROM "soko_bot"
+        FROM ${sharedTable("soko_bot")}
         WHERE "id" = ${bot.id}::uuid
         FOR UPDATE
       `;
@@ -5294,6 +5449,19 @@ export class SokoBotControlPlane {
           },
         });
       }
+      // An archived Cuso's Project no longer holds its posts, so they would
+      // still publish: cancel them, as a deletion does (#7121).
+      const cuso = await tx.sokoBot.findFirst({
+        where: { id: bot.id, ...LIVE_CUSO_WHERE },
+        select: { projectId: true },
+      });
+      const canceledPosts = cuso?.projectId
+        ? await cancelUnpublishedSocialPosts(
+            tx,
+            { projectId: cuso.projectId },
+            ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"],
+          )
+        : 0;
       // Start over archives through here, so it forfeits too (ADR 0067).
       await forfeitCusoProjectCredits(bot.id, tx);
       await tx.sokoBot.update({
@@ -5314,12 +5482,12 @@ export class SokoBotControlPlane {
       await tx.chatRoomSokoBotMember.deleteMany({
         where: { sokoBotId: bot.id },
       });
-      return { activeTurn, mentionMessageIds };
+      return { activeTurn, mentionMessageIds, canceledPosts };
     }, "Soko Bot archive collided with active work");
     await revokeSubscriptionsLeftByEnding(candidate?.projectId ?? null);
-    if (!archived) return;
+    if (!archived) return 0;
     await publishChatRoomMentionStatuses(archived.mentionMessageIds);
-    if (!archived.activeTurn) return;
+    if (!archived.activeTurn) return archived.canceledPosts;
     try {
       await this.deliverRuntimeCancellation(archived.activeTurn);
     } catch (error) {
@@ -5339,6 +5507,7 @@ export class SokoBotControlPlane {
         },
       );
     }
+    return archived.canceledPosts;
   }
 }
 

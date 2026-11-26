@@ -21,7 +21,9 @@ const {
   styleTraits,
   picks,
   pickBest,
+  requestVideoShape,
 } = vi.hoisted(() => ({
+  requestVideoShape: vi.fn(async () => true),
   jobFindMany: vi.fn(),
   jobCount: vi.fn(),
   postFindUnique: vi.fn(),
@@ -93,9 +95,16 @@ vi.mock("@/lib/image-studio/fal-catalog-refresh", () => ({
   ensureImageCatalogFresh: vi.fn(),
 }));
 vi.mock("@/services/image-studio-jobs.service", () => ({
+  CMO_MONTH_JOB_KEY_PREFIX: "cmo-media",
   createImageJob,
   createVideoJob,
   createTalkingVideoJob,
+  requestVideoShape,
+  NOT_A_VIDEO_SHAPE_JOB: {
+    NOT: { idempotencyKey: { startsWith: "video-shape:" } },
+  },
+  videoShapeJobKey: (sourceJobId: string, shape: string) =>
+    `video-shape:${sourceJobId}:${shape}`,
   downloadStudioFileReference: async () => ({
     bytes: await (await import("sharp"))
       .default({
@@ -186,6 +195,7 @@ import {
   cmoPickModel,
   cmoPictureOutdated,
   cmoPictureStyleProblem,
+  cmoPieceIsTalking,
   cmoPieceSlides,
   cmoShortPictures,
   cmoShotForPiece,
@@ -1321,6 +1331,137 @@ describe("advanceCmoMedia", () => {
         }),
       ]);
     });
+
+    describe("in each network's shape", () => {
+      const linkedin = {
+        ...reel,
+        id: "linkedin",
+        socialPostId: "linkedin",
+        channel: "linkedin",
+      };
+      const x = {
+        ...reel,
+        id: "reel@x",
+        socialPostId: "reel@x",
+        channel: "x",
+        format: "video",
+        videoOf: "reel",
+        videoOfTalking: true,
+      };
+
+      beforeEach(() => {
+        jobFindMany.mockResolvedValue([
+          {
+            id: "job-1",
+            idempotencyKey: `cmo-media:version-1:video:0:talking:${key}:1`,
+            status: "SUCCEEDED",
+            prompt: script,
+            asset: { id: "asset-vertical" },
+          },
+        ]);
+        ensureDriveFile.mockImplementation(async ({ assetId }) => ({
+          id: `file-${assetId}`,
+          name: `${assetId}.mp4`,
+          pathname: `drive/${assetId}.mp4`,
+          mimeType: "video/mp4",
+          size: 10,
+        }));
+        postFindUnique.mockImplementation(async ({ where }) => ({
+          id: where.id,
+          provider: "linkedin",
+          text: "One link instead of five emails.",
+          media: [],
+          revision: 1,
+          status: "DRAFT",
+          scheduledAt: null,
+          planning: { title: "Booking link" },
+        }));
+        updateSocialPost.mockResolvedValue({
+          media: [{ pathname: "drive/x.mp4" }],
+          revision: 2,
+        });
+      });
+
+      it("asks Core to cut the shapes it lacks and waits, while the Reel takes the vertical video", async () => {
+        jobs.findUnique.mockResolvedValue(null);
+
+        await advanceCmoMedia(context, [reel, linkedin, x]);
+
+        expect(requestVideoShape.mock.calls).toEqual([
+          ["job-1", "4:5"],
+          ["job-1", "16:9"],
+        ]);
+        expect(
+          updateSocialPost.mock.calls.map(([input]) => input.postId),
+        ).toEqual(["reel"]);
+      });
+
+      it("puts each finished shape on its own post", async () => {
+        jobs.findUnique.mockImplementation(async ({ where }) => {
+          const shape = where.projectId_idempotencyKey.idempotencyKey
+            .split(":")
+            .slice(2)
+            .join(":");
+          return {
+            id: `cut-${shape}`,
+            status: "SUCCEEDED",
+            asset: { id: `asset-${shape}` },
+          };
+        });
+
+        await advanceCmoMedia(context, [reel, linkedin, x]);
+
+        expect(requestVideoShape).not.toHaveBeenCalled();
+        expect(
+          ensureDriveFile.mock.calls.map(([input]) => input.assetId),
+        ).toEqual(["asset-vertical", "asset-4:5", "asset-16:9"]);
+      });
+
+      it("posts the vertical video when its shape could not be cut", async () => {
+        jobs.findUnique.mockResolvedValue({
+          id: "cut",
+          status: "FAILED",
+          asset: null,
+        });
+
+        await advanceCmoMedia(context, [linkedin]);
+
+        expect(ensureDriveFile.mock.calls[0]?.[0].assetId).toBe(
+          "asset-vertical",
+        );
+      });
+
+      it("posts the video itself when Core says it needs no cut", async () => {
+        jobs.findUnique.mockResolvedValue(null);
+        requestVideoShape.mockResolvedValueOnce(false);
+
+        await advanceCmoMedia(context, [linkedin]);
+
+        expect(ensureDriveFile.mock.calls[0]?.[0].assetId).toBe(
+          "asset-vertical",
+        );
+      });
+
+      it("leaves free shape cuts out of the month's job slots", async () => {
+        jobs.findUnique.mockResolvedValue(null);
+
+        await advanceCmoMedia(context, [linkedin]);
+
+        expect(jobCount).toHaveBeenCalledWith({
+          where: expect.objectContaining({
+            NOT: { idempotencyKey: { startsWith: "video-shape:" } },
+          }),
+        });
+      });
+    });
+  });
+
+  it("takes a video's other shapes for its source's kind, not its own format", () => {
+    const xVideo = { channel: "x", format: "video" };
+    expect(cmoPieceIsTalking({ ...xVideo, videoOfTalking: true })).toBe(true);
+    // A short's or an animated picture's copy, also before shortFormat is set.
+    expect(cmoPieceIsTalking({ ...xVideo, videoOfTalking: false })).toBe(false);
+    expect(cmoPieceIsTalking(xVideo)).toBe(false);
   });
 
   it("puts a TikTok's one video on its Reel and Short, starting nothing of their own", async () => {

@@ -90,6 +90,8 @@ interface ProjectBrandCardProps {
   websiteUrl?: string | null;
   /** A CMO Project: CMO writes its DESIGN.md, so the card only opens it. */
   readOnly?: boolean;
+  /** A page's own action on the whole brand, shown beside the menu once a DESIGN.md exists. */
+  headerAction?: ReactNode;
 }
 
 const ProjectBrandDashboardContext =
@@ -221,6 +223,7 @@ export function ProjectBrandCard({
   projectId,
   websiteUrl,
   readOnly = false,
+  headerAction,
 }: ProjectBrandCardProps) {
   const t = useTranslations("App.Projects.Detail");
   const { designMd, failure, generation, setDesignMd } =
@@ -333,73 +336,78 @@ export function ProjectBrandCard({
           </h2>
           {/* Without a DESIGN.md the actions are buttons below, not a menu. */}
           {designMd ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  // Negative margin: the 32px button must not make this row
-                  // taller than its heading, or the heading sits lower than
-                  // every other section heading on the page.
-                  className="hit-area -my-2 size-8"
-                  aria-label={t("brandCard.moreActions")}
-                >
-                  <MoreHorizontal className="size-4" aria-hidden />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {readOnly ? null : (
-                  <DropdownMenuItem
-                    disabled={!hasWebsite || menuBusy}
-                    onSelect={() => {
-                      handleGenerate();
-                    }}
+            // Half the menu button's negative margin: the row grows 4px, so a
+            // 32px action keeps a gap above the status badge below it.
+            <div className="-my-1 flex items-center gap-2">
+              {headerAction}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    // Negative margin: the 32px button must not make this row
+                    // taller than its heading, or the heading sits lower than
+                    // every other section heading on the page.
+                    className="hit-area -my-2 size-8"
+                    aria-label={t("brandCard.moreActions")}
                   >
-                    {generation.isRunning ? (
-                      <Loader2
-                        className="size-4 animate-spin motion-reduce:animate-pulse"
-                        aria-hidden
-                      />
-                    ) : (
-                      <RefreshCw className="size-4" aria-hidden />
-                    )}
-                    {t("brandCard.generate")}
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem asChild>
-                  <a
-                    href={designMd.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink className="size-4" aria-hidden />
-                    {t("brandCard.open")}
-                  </a>
-                </DropdownMenuItem>
-                {readOnly ? null : (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <Link href={`/projects/${projectId}/design-md/edit`}>
-                        <FileText className="size-4" aria-hidden />
-                        {t("brandCard.edit")}
-                      </Link>
-                    </DropdownMenuItem>
+                    <MoreHorizontal className="size-4" aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {readOnly ? null : (
                     <DropdownMenuItem
-                      variant="destructive"
-                      disabled={menuBusy}
-                      onSelect={(event) => {
-                        event.preventDefault();
-                        setIsRemoveDialogOpen(true);
+                      disabled={!hasWebsite || menuBusy}
+                      onSelect={() => {
+                        handleGenerate();
                       }}
                     >
-                      <Trash2 className="size-4" aria-hidden />
-                      {t("brandCard.remove")}
+                      {generation.isRunning ? (
+                        <Loader2
+                          className="size-4 animate-spin motion-reduce:animate-pulse"
+                          aria-hidden
+                        />
+                      ) : (
+                        <RefreshCw className="size-4" aria-hidden />
+                      )}
+                      {t("brandCard.generate")}
                     </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  )}
+                  <DropdownMenuItem asChild>
+                    <a
+                      href={designMd.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="size-4" aria-hidden />
+                      {t("brandCard.open")}
+                    </a>
+                  </DropdownMenuItem>
+                  {readOnly ? null : (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/projects/${projectId}/design-md/edit`}>
+                          <FileText className="size-4" aria-hidden />
+                          {t("brandCard.edit")}
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        disabled={menuBusy}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          setIsRemoveDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="size-4" aria-hidden />
+                        {t("brandCard.remove")}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           ) : null}
         </div>
 

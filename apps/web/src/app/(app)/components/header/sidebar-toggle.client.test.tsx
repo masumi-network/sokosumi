@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let isMobile = false;
-const presence = vi.fn(() => ({ showUnreadDot: false, unreadRoomCount: 0 }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
 
 vi.mock("@/hooks/effects/use-mobile", () => ({
   useIsMobile: () => isMobile,
@@ -15,10 +15,6 @@ vi.mock("next-intl", () => ({
       hide: "Hide sidebar",
       unreadChats: "Unread chats",
     })[key] ?? key,
-}));
-
-vi.mock("@/app/chat/components/use-chat-tab-unread-presence", () => ({
-  useChatTabUnreadPresence: () => presence(),
 }));
 
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -36,8 +32,6 @@ function renderToggle({ open = true }: { open?: boolean } = {}) {
 describe("SidebarToggle", () => {
   beforeEach(() => {
     isMobile = false;
-    presence.mockReset();
-    presence.mockReturnValue({ showUnreadDot: false, unreadRoomCount: 0 });
     document.cookie =
       "sidebar_state=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   });
@@ -68,32 +62,6 @@ describe("SidebarToggle", () => {
     expect(screen.getByRole("button", { name: "Hide sidebar" })).toBeTruthy();
   });
 
-  it("carries the unread dot while the sidebar is hidden and a chat is unread", () => {
-    presence.mockReturnValue({ showUnreadDot: true, unreadRoomCount: 2 });
-    renderToggle({ open: false });
-
-    const toggle = screen.getByRole("button", { name: "Show sidebar" });
-    expect(toggle).toHaveAccessibleDescription("Unread chats");
-  });
-
-  it("shows no dot while hidden with nothing unread", () => {
-    renderToggle({ open: false });
-
-    expect(
-      screen.getByRole("button", { name: "Show sidebar" }),
-    ).not.toHaveTextContent("Unread chats");
-  });
-
-  it("does not read unread presence while the sidebar is open", () => {
-    presence.mockReturnValue({ showUnreadDot: true, unreadRoomCount: 2 });
-    renderToggle();
-
-    expect(
-      screen.getByRole("button", { name: "Hide sidebar" }),
-    ).not.toHaveTextContent("Unread chats");
-    expect(presence).not.toHaveBeenCalled();
-  });
-
   it("shows what it does and its shortcut in a tooltip on keyboard focus", async () => {
     renderToggle();
     const toggle = screen.getByRole("button", { name: "Hide sidebar" });
@@ -108,23 +76,13 @@ describe("SidebarToggle", () => {
     expect(within(tooltip).getByText("Ctrl+B").tagName).toBe("KBD");
   });
 
-  // Shown only while the sidebar is hidden, by CSS rather than state: the boot
-  // script hides the sidebar before React hydrates, so the button must already
-  // be on that first frame.
-  it("shows only while the sidebar is hidden, from md", () => {
-    renderToggle();
-    const classes = screen
-      .getByRole("button", { name: "Hide sidebar", hidden: true })
-      .className.split(/\s+/);
-
-    expect(classes).toContain("hidden");
-    expect(classes).toContain("md:sidebar-hidden:inline-flex");
-  });
-
-  it("is desktop only: the phone opens its sheet elsewhere", () => {
+  it("opens the contextual drawer on mobile", () => {
     isMobile = true;
     renderToggle();
 
-    expect(screen.queryByRole("button")).toBeNull();
+    const toggle = screen.getByRole("button", { name: "Show sidebar" });
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(toggle).toHaveAccessibleName("Hide sidebar");
   });
 });
