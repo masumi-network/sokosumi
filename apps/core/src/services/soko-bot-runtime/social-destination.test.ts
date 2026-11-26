@@ -5,7 +5,7 @@ const db = vi.hoisted(() => ({
   connectionFindMany: vi.fn(),
   turnFindUnique: vi.fn(),
   questionCreate: vi.fn(),
-  questionFindUnique: vi.fn(),
+  questionFindFirst: vi.fn(),
   questionUpdateMany: vi.fn(),
 }));
 
@@ -18,32 +18,36 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotTurn: { findUniqueOrThrow: db.turnFindUnique },
     sokoBotAccountQuestion: {
       create: db.questionCreate,
-      findUnique: db.questionFindUnique,
+      findFirst: db.questionFindFirst,
       updateMany: db.questionUpdateMany,
     },
   },
 }));
 
+import type { Prisma } from "@sokosumi/database";
 import type { AuthorizedSokoBotRuntime } from "../soko-bot-runtime.service";
 import {
   ASK_WHICH_ACCOUNT,
+  claimAccountQuestion,
   requireChosenSocialDestination,
 } from "./social-destination";
 
 const COMPANY = "01960001-0001-7001-8001-0000000000a1";
 const PERSONAL = "01960001-0001-7001-8001-0000000000a2";
 const QUESTION = "01960001-0001-7001-8001-0000000000f1";
-const ASKED_AT = new Date("2026-11-26T09:00:00Z");
 const NOW = new Date("2026-11-26T10:00:00Z");
+const ROOM = "01960001-0001-7001-8001-0000000000c1";
 const candidates = [
   {
     id: COMPANY,
     externalHandle: "acme_hq",
+    projectId: "p1",
     project: { id: "p1", name: "Company marketing" },
   },
   {
     id: PERSONAL,
     externalHandle: "pat",
+    projectId: "p2",
     project: { id: "p2", name: "Founder notes" },
   },
 ];
@@ -66,24 +70,11 @@ function turn(overrides: Record<string, unknown> = {}) {
   } as unknown as AuthorizedSokoBotRuntime;
 }
 
-function ownerSays(message: string) {
+function ownerSays(message: string, destinationRoomId: string | null = null) {
   db.turnFindUnique.mockResolvedValue({
     userMessage: message,
     createdAt: NOW,
-    destinationRoomId: null,
-  });
-}
-
-function openQuestion(overrides: Record<string, unknown> = {}) {
-  db.questionFindUnique.mockResolvedValue({
-    id: QUESTION,
-    sokoBotId: "bot",
-    requestedByUserId: "owner",
-    turnId: "turn-asked",
-    createdAt: ASKED_AT,
-    optionIds: [COMPANY, PERSONAL],
-    answeredTurnId: null,
-    ...overrides,
+    destinationRoomId,
   });
 }
 
@@ -97,12 +88,13 @@ beforeEach(() => {
   db.connectionFindFirst.mockResolvedValue({ provider: "x" });
   db.connectionFindMany.mockResolvedValue(candidates);
   db.questionCreate.mockResolvedValue({ id: QUESTION });
+  db.questionFindFirst.mockResolvedValue(null);
   db.questionUpdateMany.mockResolvedValue({ count: 1 });
 });
 
 describe("requireChosenSocialDestination", () => {
   it("records a question with its ordered options and refuses the first draft", async () => {
-    ownerSays("Write an X post about our launch.");
+    ownerSays("Write an X post about our launch.", ROOM);
     const refusal = check(onCompany);
     await expect(refusal).rejects.toThrow(ASK_WHICH_ACCOUNT);
     await expect(refusal).rejects.toThrow(
@@ -112,8 +104,21 @@ describe("requireChosenSocialDestination", () => {
       sokoBotId: "bot",
       turnId: "turn-now",
       requestedByUserId: "owner",
+      destinationRoomId: ROOM,
       provider: "x",
       optionIds: [COMPANY, PERSONAL],
+    });
+  });
+
+  it("asks once per turn: a second refusal repeats the same question", async () => {
+    ownerSays("Write an X post about our launch.");
+    db.questionFindFirst.mockResolvedValueOnce({ id: QUESTION });
+    await expect(check(onPersonal)).rejects.toThrow(QUESTION);
+    expect(db.questionCreate).not.toHaveBeenCalled();
+    expect(db.questionFindFirst.mock.calls[0]?.[0].where).toMatchObject({
+      turnId: "turn-now",
+      provider: "x",
+      optionIds: { equals: [COMPANY, PERSONAL] },
     });
   });
 
@@ -124,7 +129,7 @@ describe("requireChosenSocialDestination", () => {
       "Draft it for Founder notes.",
     ]) {
       ownerSays(message);
-      await expect(check(onPersonal)).resolves.toBeUndefined();
+      await expect(check(onPersonal)).resolves.toEqual({});
       await expect(check(onCompany)).rejects.toThrow(/owner named @pat /);
     }
     expect(db.questionCreate).not.toHaveBeenCalled();
@@ -153,77 +158,79 @@ describe("requireChosenSocialDestination", () => {
     await expect(check(onCompany)).rejects.toThrow(ASK_WHICH_ACCOUNT);
   });
 
-  it("accepts the answer on a later owner turn, only among the options", async () => {
-    openQuestion();
-    db.turnFindUnique.mockResolvedValue({ createdAt: NOW });
-    await expect(answer(PERSONAL, "p2")).resolves.toBeUndefined();
-    expect(db.questionUpdateMany.mock.calls[0]?.[0].data).toEqual({
-      answeredTurnId: "turn-now",
+  it("checks an answer against the question open in this chat, and claims nothing yet", async () => {
+    ownerSays("Personal", ROOM);
+    db.questionFindFirst.mockResolvedValue({
+      id: QUESTION,
+      optionIds: [COMPANY, PERSONAL],
     });
-    // The answering turn may draft on several options.
-    openQuestion({ answeredTurnId: "turn-now" });
-    await expect(answer(COMPANY, "p1")).resolves.toBeUndefined();
-    openQuestion({ optionIds: [COMPANY] });
+    await expect(answer(PERSONAL, "p2")).resolves.toEqual({
+      answersQuestionId: QUESTION,
+    });
+    const [{ where }] = db.questionFindFirst.mock.calls[0];
+    expect(where).toMatchObject({
+      id: QUESTION,
+      sokoBotId: "bot",
+      requestedByUserId: "owner",
+      destinationRoomId: ROOM,
+      turnId: { not: "turn-now" },
+      createdAt: { lt: NOW },
+    });
+    expect(where.turn.status).toBe("COMPLETED");
+    // The draft's save claims it, so a failed draft leaves it open.
+    expect(db.questionUpdateMany).not.toHaveBeenCalled();
+    db.connectionFindMany.mockResolvedValue([candidates[0]]);
     await expect(answer(PERSONAL, "p2")).rejects.toThrow(
       /option the owner picked/,
     );
   });
 
-  it("refuses an answer that is not open on this turn", async () => {
-    db.turnFindUnique.mockResolvedValue({ createdAt: NOW });
-    for (const closed of [
-      { turnId: "turn-now" },
-      { createdAt: NOW },
-      { requestedByUserId: "someone-else" },
-      { sokoBotId: "another-bot" },
-      { answeredTurnId: "turn-earlier" },
-      { createdAt: new Date(NOW.getTime() - 25 * 60 * 60 * 1000) },
-    ]) {
-      openQuestion(closed);
-      await expect(answer(PERSONAL, "p2")).rejects.toThrow(/not open/);
-    }
-    db.questionFindUnique.mockResolvedValue(null);
+  it("refuses an answer to a question not open in this chat", async () => {
+    ownerSays("Personal");
+    db.questionFindFirst.mockResolvedValue(null);
     await expect(answer(PERSONAL, "p2")).rejects.toThrow(/not open/);
-  });
-
-  it("lets one turn claim an answer when two race", async () => {
-    openQuestion();
-    db.turnFindUnique.mockResolvedValue({ createdAt: NOW });
-    db.questionUpdateMany.mockResolvedValue({ count: 0 });
-    await expect(answer(PERSONAL, "p2")).rejects.toThrow(/just answered/);
-  });
-
-  it("shows at most ten options, and names the rest by count", async () => {
-    const many = Array.from({ length: 12 }, (_, index) => ({
-      id: `01960001-0001-7001-8001-0000000004${String(index).padStart(2, "0")}`,
-      externalHandle: `brand_${index}`,
-      project: { id: `p${index}`, name: `Brand ${index}` },
-    }));
-    db.connectionFindMany.mockResolvedValue(many);
-    ownerSays("Write an X post.");
-    await expect(
-      check({ projectId: "p0", socialConnectionId: many[0]?.id ?? "" }),
-    ).rejects.toThrow(/2 more are connected/);
-    expect(db.questionCreate.mock.calls[0]?.[0].data.optionIds).toHaveLength(
-      10,
-    );
-    ownerSays("Post it on @brand_11.");
-    await expect(
-      check({ projectId: "p11", socialConnectionId: many[11]?.id ?? "" }),
-    ).resolves.toBeUndefined();
   });
 
   it("asks nothing with one fitting account, on a turn the owner did not type, or for Cuso", async () => {
     ownerSays("Write an X post.");
     db.connectionFindMany.mockResolvedValueOnce([candidates[0]]);
-    await expect(check(onCompany)).resolves.toBeUndefined();
+    await expect(check(onCompany)).resolves.toEqual({});
     for (const other of [
       turn({ source: "SCHEDULE" }),
       turn({ versionId: "cmo-v23" }),
     ])
       await expect(
         requireChosenSocialDestination(other, onCompany),
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual({});
     expect(db.questionCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe("claimAccountQuestion", () => {
+  const tx = (count: number) =>
+    ({
+      sokoBotAccountQuestion: {
+        updateMany: vi.fn().mockResolvedValue({ count }),
+      },
+    }) as unknown as Prisma.TransactionClient;
+
+  it("takes the question for this turn; the same turn may take it again", async () => {
+    const client = tx(1);
+    await claimAccountQuestion(client, QUESTION, "turn-now");
+    expect(
+      vi.mocked(client.sokoBotAccountQuestion.updateMany).mock.calls[0]?.[0],
+    ).toEqual({
+      where: {
+        id: QUESTION,
+        OR: [{ answeredTurnId: null }, { answeredTurnId: "turn-now" }],
+      },
+      data: { answeredTurnId: "turn-now" },
+    });
+  });
+
+  it("refuses, so the draft rolls back, when another turn took it", async () => {
+    await expect(
+      claimAccountQuestion(tx(0), QUESTION, "turn-now"),
+    ).rejects.toThrow(/another turn/);
   });
 });

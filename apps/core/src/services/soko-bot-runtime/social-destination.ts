@@ -1,5 +1,7 @@
+import type { Prisma } from "@sokosumi/database";
 import { getSokoBotVersion } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
+import { openAccountQuestion } from "@/lib/soko-bot/account-question";
 import {
   type AuthorizedSokoBotRuntime,
   SokoBotRefusedUnsentError,
@@ -18,8 +20,6 @@ import {
 
 /** Starts the refusal that records a question. */
 export const ASK_WHICH_ACCOUNT = "Several accounts could take this post";
-/** An unanswered question stays open this long. */
-const OPEN_MS = 24 * 60 * 60 * 1_000;
 const SHOWN = 10;
 
 interface Candidate {
@@ -95,45 +95,57 @@ function ownersOwnChat(authorized: AuthorizedSokoBotRuntime): boolean {
 }
 
 /**
- * Accepts the pick only for an open question of this bot and owner, asked
- * before this turn (so the owner has written since), whose options hold it.
- * The turn that answers may draft on several of its options.
+ * Accepts the pick only for a question still open in this chat (delivered
+ * on an earlier turn, same room, owner and bot, not used by another turn)
+ * whose options hold it. Nothing is claimed here: the draft's own save
+ * claims it (claimAccountQuestion), so a draft that fails leaves it open.
  */
 async function acceptAnswer(
   authorized: AuthorizedSokoBotRuntime,
   questionId: string,
   pick: string | null | undefined,
-): Promise<void> {
-  const [question, current] = await Promise.all([
-    prisma.sokoBotAccountQuestion.findUnique({ where: { id: questionId } }),
-    prisma.sokoBotTurn.findUniqueOrThrow({
-      where: { id: authorized.turn.id },
-      select: { createdAt: true },
-    }),
-  ]);
-  const open =
-    question !== null &&
-    question.sokoBotId === authorized.turn.sokoBotId &&
-    question.requestedByUserId === authorized.turn.requestedByUserId &&
-    question.turnId !== authorized.turn.id &&
-    question.createdAt < current.createdAt &&
-    current.createdAt.getTime() - question.createdAt.getTime() < OPEN_MS &&
-    (question.answeredTurnId === null ||
-      question.answeredTurnId === authorized.turn.id);
-  if (!open)
-    throw new SokoBotRefusedUnsentError(
-      "That account question is not open on this turn: it was asked on this same turn, by someone else, more than a day ago, or already answered. Create the post without accountQuestionId to ask again.",
-    );
-  if (!pick || !question.optionIds.includes(pick))
-    throw new SokoBotRefusedUnsentError(
-      `Pass the socialConnectionId of the option the owner picked: one of ${question.optionIds.join(", ")}.`,
-    );
-  const claimed = await prisma.sokoBotAccountQuestion.updateMany({
-    where: {
-      id: question.id,
-      OR: [{ answeredTurnId: null }, { answeredTurnId: authorized.turn.id }],
+): Promise<string> {
+  const current = await prisma.sokoBotTurn.findUniqueOrThrow({
+    where: { id: authorized.turn.id },
+    select: { createdAt: true, destinationRoomId: true },
+  });
+  const question = await openAccountQuestion(
+    {
+      sokoBotId: authorized.turn.sokoBotId,
+      requestedByUserId: authorized.turn.requestedByUserId,
+      destinationRoomId: current.destinationRoomId,
+      turnId: authorized.turn.id,
+      turnCreatedAt: current.createdAt,
     },
-    data: { answeredTurnId: authorized.turn.id },
+    questionId,
+  );
+  if (!question)
+    throw new SokoBotRefusedUnsentError(
+      "That account question is not open in this chat: it was not delivered, was asked on this turn, in another room or more than a day ago, or another turn used it. Create the post without accountQuestionId to ask again.",
+    );
+  if (!pick || !question.options.some((option) => option.id === pick))
+    throw new SokoBotRefusedUnsentError(
+      `Pass the socialConnectionId of the option the owner picked: one of ${question.options.map((option) => option.id).join(", ")}.`,
+    );
+  return question.id;
+}
+
+/**
+ * Inside the transaction that saves the draft: the answering turn takes the
+ * question, so a second turn cannot reuse it, and the same turn may draft
+ * on several of its options. A draft that rolls back leaves it open.
+ */
+export async function claimAccountQuestion(
+  tx: Prisma.TransactionClient,
+  questionId: string,
+  turnId: string,
+): Promise<void> {
+  const claimed = await tx.sokoBotAccountQuestion.updateMany({
+    where: {
+      id: questionId,
+      OR: [{ answeredTurnId: null }, { answeredTurnId: turnId }],
+    },
+    data: { answeredTurnId: turnId },
   });
   if (claimed.count === 0)
     throw new SokoBotRefusedUnsentError(
@@ -148,16 +160,18 @@ export async function requireChosenSocialDestination(
     socialConnectionId?: string | null;
     accountQuestionId?: string;
   },
-): Promise<void> {
-  if (!ownersOwnChat(authorized)) return;
+): Promise<{ answersQuestionId?: string }> {
+  if (!ownersOwnChat(authorized)) return {};
   // Cuso posts for his one Project, on the accounts its plan names.
-  if (getSokoBotVersion(authorized.turn.versionId).profile === "cmo") return;
+  if (getSokoBotVersion(authorized.turn.versionId).profile === "cmo") return {};
   if (params.accountQuestionId)
-    return acceptAnswer(
-      authorized,
-      params.accountQuestionId,
-      params.socialConnectionId,
-    );
+    return {
+      answersQuestionId: await acceptAnswer(
+        authorized,
+        params.accountQuestionId,
+        params.socialConnectionId,
+      ),
+    };
   const picked = params.socialConnectionId
     ? await prisma.projectSocialConnection.findFirst({
         where: { id: params.socialConnectionId, projectId: params.projectId },
@@ -185,7 +199,7 @@ export async function requireChosenSocialDestination(
       },
     },
   );
-  if (candidates.length < 2) return;
+  if (candidates.length < 2) return {};
   const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: authorized.turn.id },
     select: { userMessage: true, destinationRoomId: true },
@@ -193,23 +207,36 @@ export async function requireChosenSocialDestination(
   const named = namedIn(turn.userMessage, candidates);
   if (named.length > 0) {
     if (named.some((candidate) => candidate.id === params.socialConnectionId))
-      return;
+      return {};
     throw new SokoBotRefusedUnsentError(
       `The owner named ${labels(named)}. Create the post there, with that socialConnectionId and projectId.`,
     );
   }
   const options = candidates.slice(0, SHOWN);
-  const question = await prisma.sokoBotAccountQuestion.create({
-    data: {
-      sokoBotId: authorized.turn.sokoBotId,
+  const optionIds = options.map((candidate) => candidate.id);
+  // A second refusal on this turn repeats the same question, not a new one.
+  const asked = await prisma.sokoBotAccountQuestion.findFirst({
+    where: {
       turnId: authorized.turn.id,
-      requestedByUserId: authorized.turn.requestedByUserId,
-      destinationRoomId: turn.destinationRoomId,
       provider,
-      optionIds: options.map((candidate) => candidate.id),
+      destinationRoomId: turn.destinationRoomId,
+      optionIds: { equals: optionIds },
     },
     select: { id: true },
   });
+  const question =
+    asked ??
+    (await prisma.sokoBotAccountQuestion.create({
+      data: {
+        sokoBotId: authorized.turn.sokoBotId,
+        turnId: authorized.turn.id,
+        requestedByUserId: authorized.turn.requestedByUserId,
+        destinationRoomId: turn.destinationRoomId,
+        provider,
+        optionIds,
+      },
+      select: { id: true },
+    }));
   const more = candidates.length - options.length;
   throw new SokoBotRefusedUnsentError(
     `${ASK_WHICH_ACCOUNT}, and the owner has not named one. Account question ${question.id}, options in order: ${labels(options)}${more > 0 ? `; ${more} more are connected (the owner can name one by @handle)` : ""}. Ask the owner once which one, listing these, and draft nothing on this turn. After they answer, create the post with accountQuestionId ${question.id} and the socialConnectionId and projectId of the option they picked.`,
