@@ -1193,8 +1193,9 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       const memo: Record<string, string[]> = {};
       expect(await fireTaskSchedule(schedule.id, memo)).toBeNull();
       const [releasedId] = memo.releasedTask ?? [];
+      // Names only a read of the seeded board yields.
       const report =
-        "Last week: two Tasks finished, one is stuck on a review, none waits on you.";
+        "Last week Mira finished Compare EU invoicing tools. Draft the partner FAQ is stuck; Pick the webinar date waits on you.";
       // An earlier case's report on the same Task, and a bare status change.
       await prisma.taskEvent.create({
         data: {
@@ -1208,7 +1209,12 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       await prisma.taskEvent.create({
         data: { taskId: releasedId!, coworkerId, status: "RUNNING" },
       });
-      const delivered = { kind: "delivered", label: "report" } as const;
+      // The Monday report journey's own delivery outcome.
+      const delivered = OWNER_JOURNEYS.find(
+        (journey) => journey.id === "owner-weekly-report-schedule",
+      )!
+        .steps.flatMap((step) => step.outcomes ?? [])
+        .find((outcome) => outcome.kind === "delivered")!;
       const step = (answer: string | null) => ({
         ...graded(memo),
         stepStartedAt,
@@ -1227,6 +1233,16 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
         pass: false,
         actual: "nothing delivered in this step",
       });
+      // A promise, or a summary that names nothing on the board, is no report.
+      for (const reply of [
+        "I'll pull the report together Monday, stay tuned!",
+        "Last week: two Tasks finished, one is stuck on a review, one waits on you.",
+      ])
+        expect(
+          await outcomeCheck(delivered, { ...step(reply), memo: {} }),
+        ).toMatchObject({
+          pass: false,
+        });
       await prisma.taskEvent.create({
         data: {
           taskId: releasedId!,

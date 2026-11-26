@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { minimumEvalRepeats, selectEvalCases } from "../eval-cases";
+import { outcomeProblems } from "./holdout";
 import {
   attachedMadeMedia,
   createdTableIds,
@@ -34,6 +35,22 @@ describe("owner journeys", () => {
     expect(new Set(ids).size).toBe(ids.length);
     for (const journey of OWNER_JOURNEYS)
       expect(journey.steps[0]?.kind, journey.id).toBe("owner");
+  });
+
+  it("says what content every delivery needs, so a promise can't pass", () => {
+    const problems = OWNER_JOURNEYS.flatMap((journey) =>
+      journey.steps.flatMap((step) =>
+        (step.outcomes ?? []).flatMap((outcome) =>
+          outcomeProblems(outcome).map(
+            (problem) => `${journey.id}: ${problem}`,
+          ),
+        ),
+      ),
+    );
+    expect(problems).toEqual([]);
+    expect(outcomeProblems({ kind: "delivered", label: "report" })).toEqual([
+      'delivered "report" must say what content it needs (textMatches)',
+    ]);
   });
 
   it("gives Cuso journeys a Cuso world and Soko Bot journeys none", () => {

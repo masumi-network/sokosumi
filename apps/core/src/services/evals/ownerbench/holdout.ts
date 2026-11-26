@@ -126,8 +126,24 @@ export function holdoutProblems(raw: unknown, index: number): string[] {
     for (const outcome of step?.outcomes ?? [])
       if (!OUTCOME_KINDS.has(outcome?.kind))
         problems.push(`${where}: unknown outcome "${String(outcome?.kind)}"`);
+      else
+        problems.push(
+          ...outcomeProblems(outcome).map((problem) => `${where}: ${problem}`),
+        );
   });
   return problems;
+}
+
+/**
+ * What is wrong with one outcome of any journey, dev or held out. A delivery
+ * with no content to find passes any reply long enough, a promise included.
+ */
+export function outcomeProblems(outcome: JourneyOutcome): string[] {
+  if (outcome.kind === "delivered" && !outcome.textMatches?.length)
+    return [
+      `delivered "${outcome.label}" must say what content it needs (textMatches)`,
+    ];
+  return [];
 }
 
 /** A JSON array, or a module's `HELDOUT_JOURNEYS` (run under tsx for TypeScript). */

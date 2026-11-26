@@ -320,7 +320,7 @@ export type JourneyPrepare =
 /** A Task the `tasks` prepare seeds for the owner. */
 export interface FixtureTask {
   name: string;
-  status: "READY" | "RUNNING" | "INPUT_REQUIRED";
+  status: "READY" | "RUNNING" | "INPUT_REQUIRED" | "COMPLETED";
   /** Mira, the owner, or nobody. */
   assignee?: "Mira" | "owner";
   createdDaysAgo: number;
@@ -432,6 +432,32 @@ const NEVER_SENT: JourneyOutcome = {
 const MAKES_SCHEDULE = ["create_schedule", "save_task_schedule"];
 const EDITS_SCHEDULE = ["update_schedule", "save_task_schedule"];
 const ENDS_SCHEDULE = ["delete_schedule", "delete_task_schedule"];
+
+/** The Monday report's board, on Mira: finished last week, stuck, waiting on the owner. */
+const WEEKLY_BOARD: readonly FixtureTask[] = [
+  {
+    name: "Compare EU invoicing tools",
+    status: "COMPLETED",
+    assignee: "Mira",
+    createdDaysAgo: 9,
+    touchedDaysAgo: 3,
+  },
+  {
+    name: "Draft the partner FAQ",
+    status: "RUNNING",
+    assignee: "Mira",
+    createdDaysAgo: 14,
+    touchedDaysAgo: 9,
+  },
+  {
+    name: "Pick the webinar date",
+    status: "INPUT_REQUIRED",
+    assignee: "Mira",
+    createdDaysAgo: 4,
+    touchedDaysAgo: 1,
+    question: "Tuesday or Thursday for the webinar?",
+  },
+];
 
 const CUSO_NEVER_SENT: JourneyOutcome = {
   kind: "nothingSent",
@@ -728,6 +754,10 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
     title: "Monday report schedule, run, then changed",
     intent:
       "A recurring report: the schedule carries the full brief, its run reports from real data, and an edit changes the same schedule.",
+    // The board the report reads: one Task Mira finished last week, one
+    // stuck for days, one waiting on the owner's answer.
+    prepare: ["tasks"],
+    fixtures: { tasks: WEEKLY_BOARD },
     steps: [
       {
         kind: "owner",
@@ -766,7 +796,12 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
             count: 1,
             identity: "unchanged",
           },
-          { kind: "delivered", label: "The run delivers the report" },
+          {
+            kind: "delivered",
+            label: "The run delivers a report from the real board",
+            // Only a board read knows these: what was finished and what waits on the owner.
+            textMatches: ["invoicing", "webinar"],
+          },
         ],
       },
       {
