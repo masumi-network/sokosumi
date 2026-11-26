@@ -1,7 +1,8 @@
 /**
  * Get initials from a name string.
  * Takes the first character of each word (up to 2 characters total), or the
- * first two characters of a single-word name.
+ * first two characters of a single-word name. Words that start with
+ * punctuation, such as "(Beta)", are skipped.
  *
  * @param name - The name to extract initials from
  * @returns The initials in uppercase (max 2 characters), or "?" if the name is empty
@@ -17,7 +18,14 @@ export function getInitials(name: string): string {
     return "?";
   }
 
-  const parts = trimmedName.split(/\s+/);
+  // A word like "(Beta)" or "-" is a label, not part of the name.
+  const parts = trimmedName
+    .split(/\s+/)
+    .filter((part) => /^[\p{L}\p{N}]/u.test(part));
+  if (parts.length === 0) {
+    const letters = trimmedName.replace(/[^\p{L}\p{N}]/gu, "");
+    return letters ? letters.slice(0, 2).toUpperCase() : "?";
+  }
   const letters =
     parts.length === 1
       ? parts[0].slice(0, 2)

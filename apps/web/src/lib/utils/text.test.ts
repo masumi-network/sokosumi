@@ -12,6 +12,12 @@ describe("getInitials", () => {
     expect(getInitials("  Jane ")).toBe("JA");
   });
 
+  it("skips words that start with punctuation", () => {
+    expect(getInitials("Themis (Beta)")).toBe("TH");
+    expect(getInitials("Ada - Ops")).toBe("AO");
+    expect(getInitials("@sam")).toBe("SA");
+  });
+
   it("returns a placeholder for an empty name", () => {
     expect(getInitials("")).toBe("?");
     expect(getInitials("   ")).toBe("?");
