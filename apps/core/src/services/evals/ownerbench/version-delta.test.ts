@@ -63,19 +63,40 @@ describe("versionDelta", () => {
     const overfit = versionDeltaBySet(
       both("FAILED", "PASSED"),
       both("PASSED", "FAILED"),
+      ["owner-a"],
     );
     expect(overfit.dev.meetsBar).toBe(true);
     expect(overfit.holdout?.meetsBar).toBe(false);
     expect(overfit.meetsBar).toBe(false);
     expect(
-      versionDeltaBySet(both("PASSED", "PASSED"), both("PASSED", "PASSED"))
-        .meetsBar,
+      versionDeltaBySet(both("PASSED", "PASSED"), both("PASSED", "PASSED"), [
+        "owner-a",
+      ]).meetsBar,
     ).toBe(true);
     const devOnly = report({ "owner-a": ["PASSED", 2, 100] });
-    expect(versionDeltaBySet(devOnly, devOnly)).toMatchObject({
+    expect(versionDeltaBySet(devOnly, devOnly, ["owner-a"])).toMatchObject({
       holdout: null,
       meetsBar: false,
     });
+  });
+
+  it("fails the bar on a subset of the dev journeys, both runs agreeing", () => {
+    const subset = report({ "owner-a": ["PASSED", 2, 100] });
+    expect(versionDelta(subset, subset, ["owner-a", "owner-b"]).meetsBar).toBe(
+      false,
+    );
+  });
+
+  it("fails the bar when one journey of several has no token count", () => {
+    const base = report({
+      "owner-a": ["PASSED", 2, 100],
+      "owner-b": ["PASSED", 2, 100],
+    });
+    const candidate = report({
+      "owner-a": ["PASSED", 2, 90],
+      "owner-b": ["PASSED", 2, null],
+    });
+    expect(versionDelta(base, candidate).meetsBar).toBe(false);
   });
 
   it("fails the bar on more tokens per turn, a missing journey or no token counts", () => {

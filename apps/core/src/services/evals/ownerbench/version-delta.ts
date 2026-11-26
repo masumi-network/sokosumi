@@ -83,18 +83,29 @@ function totals(
 export function versionDeltaBySet(
   baseline: ParityReport,
   candidate: ParityReport,
+  /** Every dev journey; the dev bar needs all of them scored in both runs. */
+  devJourneyIds: readonly string[],
 ): { dev: VersionDelta; holdout: VersionDelta | null; meetsBar: boolean } {
   const only = (report: ParityReport, holdout: boolean): ParityReport => ({
     cases: report.cases.filter(
       (evalCase) => evalCase.caseId.startsWith(HOLDOUT_PREFIX) === holdout,
     ),
   });
-  const dev = versionDelta(only(baseline, false), only(candidate, false));
+  const dev = versionDelta(
+    only(baseline, false),
+    only(candidate, false),
+    devJourneyIds,
+  );
+  const baselineHoldout = only(baseline, true).cases.map(
+    (evalCase) => evalCase.caseId,
+  );
   const hasHoldout = [baseline, candidate].every(
     (report) => only(report, true).cases.length > 0,
   );
+  // The held-out file isn't in the repository: its journeys are whatever the
+  // baseline ran, and the candidate must have run every one of them.
   const holdout = hasHoldout
-    ? versionDelta(only(baseline, true), only(candidate, true))
+    ? versionDelta(only(baseline, true), only(candidate, true), baselineHoldout)
     : null;
   return {
     dev,
@@ -106,6 +117,8 @@ export function versionDeltaBySet(
 export function versionDelta(
   baseline: ParityReport,
   candidate: ParityReport,
+  /** Journeys both runs must have scored; a subset can't meet the bar. */
+  required: readonly string[] = [],
 ): VersionDelta {
   const byCase = (report: ParityReport) =>
     new Map(
@@ -144,6 +157,14 @@ export function versionDelta(
     candidate: cand,
     meetsBar:
       shared.length === ids.length &&
+      required.every((id) => shared.some((row) => row.caseId === id)) &&
+      // Every journey measured its tokens on both sides: one missing count
+      // would leave the average to the others.
+      shared.every(
+        (row) =>
+          row.baseline?.inputTokensPerTurn != null &&
+          row.candidate?.inputTokensPerTurn != null,
+      ) &&
       cand.passed >= base.passed &&
       cand.stepsPassed >= base.stepsPassed &&
       !rows.some((row) => row.regressed) &&

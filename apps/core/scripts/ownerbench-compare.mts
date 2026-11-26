@@ -11,6 +11,7 @@
  * Each file is `evals:local --plan --ownerbench [--holdout FILE] --json-out FILE`.
  */
 import { readFile } from "node:fs/promises";
+import { OWNER_JOURNEYS } from "../src/services/evals/ownerbench/journeys";
 import type { ParityReport } from "../src/services/evals/ownerbench/parity";
 import {
   type VersionDelta,
@@ -27,6 +28,7 @@ const read = async (path: string) =>
 const sets = versionDeltaBySet(
   await read(baselinePath),
   await read(candidatePath),
+  OWNER_JOURNEYS.map((journey) => journey.id),
 );
 
 function print(name: string, delta: VersionDelta) {
