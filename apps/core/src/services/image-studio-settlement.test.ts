@@ -69,6 +69,8 @@ vi.mock("@/lib/db/prisma", () => {
       findUnique: jobFindUniqueMock,
       findUniqueOrThrow: vi.fn(),
       findMany: jobFindManyMock,
+      // No shape of a delivered video waits to be cut.
+      findFirst: vi.fn().mockResolvedValue(null),
       update: jobUpdateMock,
       updateMany: jobUpdateManyMock,
       count: vi.fn(),
