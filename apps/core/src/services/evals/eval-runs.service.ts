@@ -55,7 +55,10 @@ import {
   minimumEvalRepeats,
   selectEvalCases,
 } from "./eval-cases";
-import { stopPendingAfterBudgetError } from "./eval-infrastructure";
+import {
+  guardOrganizer,
+  stopPendingAfterBudgetError,
+} from "./eval-infrastructure";
 import {
   defaultEvalVersions,
   EVAL_LANE_COUNT,
@@ -349,9 +352,10 @@ async function turnsCost(turnIds: readonly string[]) {
 
 async function finish(
   resultId: string,
-  outcome: CaseOutcome,
+  polled: CaseOutcome,
   startedAt: Date | null,
 ) {
+  const outcome = await guardOrganizer(polled);
   const turnId = outcome.turnIds.at(0);
   await prisma.evalResult.update({
     where: { id: resultId },

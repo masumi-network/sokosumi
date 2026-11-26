@@ -93,6 +93,7 @@ import {
 import {
   type EvalInfrastructureFailure,
   infrastructureCaseOutcome,
+  judgeUnlessExcluded,
 } from "./eval-infrastructure";
 import {
   type EvalLaneRecord,
@@ -495,27 +496,29 @@ async function pollScenario(
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;
   }
-  const judged = await judgeEvalScenarioTurn(
-    turnId,
-    scenario,
-    context.judgeModel,
-  ).catch((error: unknown) => {
-    // The eval cron, or an admin's tick request.
-    recordCoreWarning(
-      { operation: "eval_tick" },
-      {
-        message:
-          "Could not judge an eval turn, so it is scored by its checks alone",
-        why: "Judging the turn threw",
+  const graded = await judgeUnlessExcluded([turnId], scenarioOutput(turn), () =>
+    judgeEvalScenarioTurn(turnId, scenario, context.judgeModel).catch(
+      (error: unknown) => {
+        // The eval cron, or an admin's tick request.
+        recordCoreWarning(
+          { operation: "eval_tick" },
+          {
+            message:
+              "Could not judge an eval turn, so it is scored by its checks alone",
+            why: "Judging the turn threw",
+          },
+          // An array: one tick judges a turn per lane. Only safe fields: the
+          // judge reads the turn's messages, and its error can quote them.
+          {
+            evalJudgeFailures: [{ turnId, ...messageSafeErrorFields(error) }],
+          },
+        );
+        return null;
       },
-      // An array: one tick judges a turn per lane. Only safe fields: the
-      // judge reads the turn's messages, and its error can quote them.
-      {
-        evalJudgeFailures: [{ turnId, ...messageSafeErrorFields(error) }],
-      },
-    );
-    return null;
-  });
+    ),
+  );
+  if ("excluded" in graded) return { kind: "done", outcome: graded.excluded };
+  const judged = graded.judged;
   const passed =
     result.passed === result.total && judged?.verdict.verdict !== "fail";
   return {
@@ -632,27 +635,31 @@ async function a2aOutcome(
   result.passed += extra.filter((check) => check.pass).length;
   const roomLog = await a2aRoomLog(lane, context.startedAt, scope);
   await closeA2aWorld(lane);
-  const judged = await judgeEvalChain(
-    turnIds,
-    scenario,
-    roomLog,
-    context.judgeModel,
-  ).catch((error: unknown) => {
-    recordCoreWarning(
-      { operation: "eval_tick" },
-      {
-        message:
-          "Could not judge an eval chain, so it is scored by its checks alone",
-        why: "Judging the chain threw",
-      },
-      {
-        evalJudgeFailures: [
-          { turnId: turnIds.at(-1), ...messageSafeErrorFields(error) },
-        ],
-      },
-    );
-    return null;
-  });
+  const graded = await judgeUnlessExcluded(
+    scope.turnIds,
+    { ...output, roomLog },
+    () =>
+      judgeEvalChain(turnIds, scenario, roomLog, context.judgeModel).catch(
+        (error: unknown) => {
+          recordCoreWarning(
+            { operation: "eval_tick" },
+            {
+              message:
+                "Could not judge an eval chain, so it is scored by its checks alone",
+              why: "Judging the chain threw",
+            },
+            {
+              evalJudgeFailures: [
+                { turnId: turnIds.at(-1), ...messageSafeErrorFields(error) },
+              ],
+            },
+          );
+          return null;
+        },
+      ),
+  );
+  if ("excluded" in graded) return graded.excluded;
+  const judged = graded.judged;
   const passed =
     result.passed === result.total && judged?.verdict.verdict !== "fail";
   return {
