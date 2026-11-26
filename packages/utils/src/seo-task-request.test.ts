@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   editSeoTaskProse,
+  hasSeoTaskRequest,
   hideSeoAuditRequest,
   removeSeoTaskRequest,
   seoTaskDescription,
@@ -105,5 +106,31 @@ describe("editSeoTaskProse", () => {
 
   it("passes text without a request line to the edit whole", () => {
     expect(editSeoTaskProse("a [BRIEFING.md](https://x) b", edit)).toBe("a  b");
+  });
+});
+
+describe("hasSeoTaskRequest", () => {
+  it.each([
+    [
+      "a seo_job line",
+      seoTaskDescription("Summary", "seo_job", packet),
+      "seo_job",
+      true,
+    ],
+    [
+      "a seo_audit line, asked for seo_job",
+      seoTaskDescription("Summary", "seo_audit", packet),
+      "seo_job",
+      false,
+    ],
+    [
+      "prose that starts with the marker",
+      "seo_job: fix titles",
+      "seo_job",
+      false,
+    ],
+    ["no text", null, "seo_job", false],
+  ] as const)("%s", (_name, text, marker, expected) => {
+    expect(hasSeoTaskRequest(text, marker)).toBe(expected);
   });
 });

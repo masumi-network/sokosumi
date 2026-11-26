@@ -60,6 +60,16 @@ export function removeSeoTaskRequest(
   return kept.length === lines.length ? markdown : kept.join("\n").trim();
 }
 
+/** True when the description holds a request line of this marker (a JSON object). */
+export function hasSeoTaskRequest(
+  markdown: string | null | undefined,
+  marker: SeoTaskMarker,
+): boolean {
+  return (
+    Boolean(markdown) && removeSeoTaskRequest(markdown!, [marker]) !== markdown
+  );
+}
+
 /**
  * Text for a person: a full audit's request line holds the owner's price
  * terms, which only the SEO worker reads. A focused check's line stays.

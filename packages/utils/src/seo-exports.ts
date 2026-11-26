@@ -80,6 +80,7 @@ export {
 } from "./seo-statistics-notes.js";
 export {
   editSeoTaskProse,
+  hasSeoTaskRequest,
   hideSeoAuditRequest,
   removeSeoTaskRequest,
   type SeoTaskMarker,

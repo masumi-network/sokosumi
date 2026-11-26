@@ -111,6 +111,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
     newTaskWizard,
     handleDuplicate,
     handleRepeat,
+    canRepeat,
     handleSendToChat,
     canMutateTask,
     statusActions,
@@ -196,7 +197,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
               </DropdownMenuItem>
             ) : null}
 
-            {taskBlueprint ? (
+            {canRepeat ? (
               <DropdownMenuItem
                 disabled={actionsDisabled || isRepeatLoading}
                 onSelect={handleRepeat}

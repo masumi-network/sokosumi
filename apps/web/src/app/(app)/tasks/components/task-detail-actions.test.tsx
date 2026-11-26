@@ -2495,6 +2495,27 @@ describe("TaskDetailActions", () => {
     });
   });
 
+  describe("Repeat of a focused SEO check", () => {
+    it("is not offered for a Task with a seo_job line", async () => {
+      const user = userEvent.setup();
+      renderActions({
+        taskBlueprint: {
+          name: "Focused check",
+          description: 'Check titles.\n\nseo_job: {"version":1}',
+          projectId: null,
+          visibility: "PUBLIC" as const,
+          assigneeId: "coworker-1",
+          assigneeSokoBotId: null,
+          assigneeUserId: null,
+        },
+      });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+      expect(screen.queryByRole("menuitem", { name: "repeat" })).toBeNull();
+    });
+  });
+
   describe("Duplicate", () => {
     const blueprint = {
       name: "Weekly report",

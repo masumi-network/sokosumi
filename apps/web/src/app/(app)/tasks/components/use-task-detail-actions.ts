@@ -8,6 +8,7 @@ import type {
 import { type TaskLink, TaskStatus } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
+  hasSeoTaskRequest,
   isTaskArchivableStatus,
   isTaskEditableStatus,
   type TaskAssigneeKind,
@@ -289,6 +290,11 @@ export function useTaskDetailActions({
     [taskLinks],
   );
   const canRemoveRelated = canManageRelations && removableTaskLinks.length > 0;
+  // A focused SEO check starts only from its audit: the global executor refuses
+  // a Repeat of its `seo_job:` line, so the menu does not offer one.
+  const canRepeat =
+    taskBlueprint !== undefined &&
+    !hasSeoTaskRequest(taskBlueprint.description, "seo_job");
   const hasOverflowMenuActions =
     taskBlueprint !== undefined ||
     sendToChat !== undefined ||
@@ -564,6 +570,7 @@ export function useTaskDetailActions({
     newTaskWizard,
     handleDuplicate,
     handleRepeat,
+    canRepeat,
     handleSendToChat,
     canMutateTask,
     statusActions,
