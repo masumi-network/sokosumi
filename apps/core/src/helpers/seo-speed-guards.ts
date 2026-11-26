@@ -23,12 +23,13 @@ export function speedPageUrl(value: unknown) {
  * A URL that speed data can hold. A digit run in a path is no card number (an ISBN-13 can pass that
  * checksum), so the URL gets the credential checks only. The checks read the URL as written and its
  * decoded path: `sk%5Flive%5F...` is a key too. A public URL has no query and no fragment delimiter:
- * `/page#` is `/page` again.
+ * `/page#` and `/page?` are `/page` again.
  */
 export function publicSpeedUrl(value: unknown): value is string {
   if (
     typeof value !== "string" ||
     value.includes("#") ||
+    value.includes("?") ||
     !publicExplorationUrl(value)
   )
     return false;
@@ -42,16 +43,29 @@ export function publicSpeedUrl(value: unknown): value is string {
   }
 }
 
+/**
+ * Public text without private or credential material, as written and percent-decoded. Each run of %XX
+ * groups is decoded on its own: a lone "%" elsewhere ("50% less") does not stop the decoding. A run that is
+ * no UTF-8 text is not public: its other groups would be checked only as written.
+ */
+function publicText(text: string) {
+  let decoded: string;
+  try {
+    decoded = text.replace(/(?:%[0-9a-fA-F]{2})+/g, decodeURIComponent);
+  } catch {
+    return false;
+  }
+  return [text, decoded].every(
+    (form) =>
+      publicExplorationText(form) && !containsSokoBotSensitiveMaterial(form),
+  );
+}
+
 /** The worker's free text, trimmed. Undefined: the text is too long or holds private or credential material. */
 export function publicSpeedText(value: unknown, max: number) {
   if (typeof value !== "string") return undefined;
   const text = value.trim();
-  return text &&
-    text.length <= max &&
-    publicExplorationText(text) &&
-    !containsSokoBotSensitiveMaterial(text)
-    ? text
-    : undefined;
+  return text && text.length <= max && publicText(text) ? text : undefined;
 }
 
 /**
@@ -74,33 +88,19 @@ export function speedFieldUrl(value: unknown) {
 
 /**
  * The Lighthouse version of a lab measurement: digits and dots, with an optional short pre-release suffix,
- * and no credential material. Null: any other value. The measurement stays.
+ * and no credential or card material (a digit run passes the form). Null: any other value. The measurement stays.
  */
 export function speedLighthouseVersion(value: unknown) {
   return typeof value === "string" &&
     value.length <= 32 &&
     /^\d[\d.]*(?:-[a-zA-Z0-9.-]+)?$/.test(value) &&
-    !containsSokoBotCredentialMaterial(value)
+    !containsSokoBotSensitiveMaterial(value)
     ? value
     : null;
 }
 
-/** Public text without private or credential material, as written and percent-decoded. */
-function publicInsightText(text: unknown) {
-  if (typeof text !== "string") return false;
-  // Each run of %XX groups on its own: a lone "%" elsewhere ("50% less") does not stop the decoding.
-  const decoded = text.replace(/(?:%[0-9a-fA-F]{2})+/g, (run) => {
-    try {
-      return decodeURIComponent(run);
-    } catch {
-      return run;
-    }
-  });
-  return [text, decoded].every(
-    (form) =>
-      publicExplorationText(form) && !containsSokoBotSensitiveMaterial(form),
-  );
-}
+const publicInsightText = (text: unknown) =>
+  typeof text === "string" && publicText(text);
 
 /** A lab insight whose id, group (when given), title, detail and action are public text. */
 export function publicSpeedInsight(value: unknown) {
