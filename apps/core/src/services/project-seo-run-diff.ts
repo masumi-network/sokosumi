@@ -311,11 +311,16 @@ function readsEveryUrl(
 ) {
   if (!PAGE_RULE_KINDS.has(payload.kind)) return true;
   if (!payload.checks.length) {
-    // Such a check read a page only where it holds a usable rank for that page.
+    // Such a check read a page only where it holds a usable rank or an issue finding for that page.
     const ranked = new Set(
-      payload.keywords
-        .filter((row) => row.positionStatus !== "unavailable")
-        .map((row) => normalizeSeoUrl(row.pageUrl)),
+      [
+        ...payload.keywords.filter(
+          (row) => row.positionStatus !== "unavailable",
+        ),
+        ...payload.findings.filter((row) =>
+          SEO_ISSUE_SEVERITIES.has(row.severity),
+        ),
+      ].map((row) => normalizeSeoUrl(row.pageUrl)),
     );
     return [...selectedUrls].every((url) => ranked.has(normalizeSeoUrl(url)));
   }

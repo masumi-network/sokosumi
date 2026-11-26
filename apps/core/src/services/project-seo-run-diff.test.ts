@@ -765,6 +765,21 @@ describe("withSeoRunDiffs edge cases", () => {
     expect(diff).toMatchObject({ newCount: 0, notCheckedBefore: 1 });
   });
 
+  it("reads a page check that stored findings without rows by the pages of its issues", () => {
+    const diff = diffOf([
+      source(
+        8,
+        result([check("pass", { rowId: "A" })], { rulebookVersion: "r2" }),
+      ),
+      source(1, result([findingOnly({ rowId: "A" })])),
+    ]);
+    expect(diff).toMatchObject({
+      comparable: true,
+      fixedCount: 1,
+      rulebookChange: { compared: 1, other: 0 },
+    });
+  });
+
   it("counts no new issue from a finding without a device or a row that fired", () => {
     const diff = diffOf([
       source(
