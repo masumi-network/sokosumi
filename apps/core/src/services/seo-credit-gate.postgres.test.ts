@@ -897,7 +897,13 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
           calls: 3,
           microUsd: 4_000_000,
         },
-        { model: "local-direct", provider: null, calls: 1, microUsd: null },
+        // A surrogate pair is storable text and must not drop the detail.
+        {
+          model: `local-${String.fromCodePoint(0x1f50d)}`,
+          provider: null,
+          calls: 1,
+          microUsd: null,
+        },
       ],
       dataForSeo: [
         {

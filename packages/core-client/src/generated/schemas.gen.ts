@@ -498,7 +498,8 @@ export const SeoFullAuditCostDetailSchema = {
                     model: {
                         type: 'string',
                         minLength: 1,
-                        maxLength: 200
+                        maxLength: 200,
+                        description: '1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.'
                     },
                     provider: {
                         type: [
@@ -506,11 +507,13 @@ export const SeoFullAuditCostDetailSchema = {
                             'null'
                         ],
                         minLength: 1,
-                        maxLength: 200
+                        maxLength: 200,
+                        description: '1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.'
                     },
                     calls: {
                         type: 'integer',
-                        minimum: 0
+                        minimum: 0,
+                        maximum: 9007199254740991
                     },
                     microUsd: {
                         type: [
@@ -539,11 +542,13 @@ export const SeoFullAuditCostDetailSchema = {
                     endpoint: {
                         type: 'string',
                         minLength: 1,
-                        maxLength: 200
+                        maxLength: 200,
+                        description: '1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.'
                     },
                     reads: {
                         type: 'integer',
-                        minimum: 0
+                        minimum: 0,
+                        maximum: 9007199254740991
                     },
                     microUsd: {
                         type: 'integer',
@@ -568,7 +573,8 @@ export const SeoFullAuditCostDetailSchema = {
                     step: {
                         type: 'string',
                         minLength: 1,
-                        maxLength: 200
+                        maxLength: 200,
+                        description: '1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.'
                     },
                     modelMicroUsd: {
                         type: 'integer',

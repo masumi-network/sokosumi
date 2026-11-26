@@ -46,13 +46,18 @@ const SEO_COST_DETAIL_MAX_TEXT = 200;
 const SEO_COST_DETAIL_MAX_MICRO_USD = 1_000_000_000_000;
 /** PostgreSQL jsonb cannot store NUL or an unpaired surrogate; such text would fail the settlement write. */
 const UNSTORABLE_TEXT = /[\0\p{Cs}]/u;
-const count = z.number().int().nonnegative();
+const count = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const detailMicroUsd = microUsd.max(SEO_COST_DETAIL_MAX_MICRO_USD);
 const detailText = z
   .string()
   .min(1)
   .max(SEO_COST_DETAIL_MAX_TEXT)
-  .refine((text) => !UNSTORABLE_TEXT.test(text));
+  .refine((text) => !UNSTORABLE_TEXT.test(text))
+  // A refine is not published, so the description states the rule for clients.
+  .openapi({
+    description:
+      "1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.",
+  });
 const detailRows = <T extends z.ZodType>(row: T) =>
   z.array(row).max(SEO_COST_DETAIL_MAX_ROWS);
 

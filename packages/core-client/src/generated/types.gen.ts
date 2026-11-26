@@ -102,17 +102,29 @@ export type AdminSeoAlerts = {
 export type SeoFullAuditCostDetail = {
     version: 1;
     models: Array<{
+        /**
+         * 1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.
+         */
         model: string;
+        /**
+         * 1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.
+         */
         provider: string | null;
         calls: number;
         microUsd: number | null;
     }>;
     dataForSeo: Array<{
+        /**
+         * 1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.
+         */
         endpoint: string;
         reads: number;
         microUsd: number;
     }>;
     steps: Array<{
+        /**
+         * 1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.
+         */
         step: string;
         modelMicroUsd: number;
         dataForSeoMicroUsd: number;
