@@ -59,10 +59,16 @@ describe.runIf(ON_POSTGRES)("shared trigger bodies", () => {
       );
     });
 
-    it("finds the same digests when the session quotes every identifier", async () => {
-      expect(
-        await refusal(BODIES_SQL, "SET LOCAL quote_all_identifiers = on"),
-      ).toBe(await refusal(BODIES_SQL));
+    // The split script already applied the file, so every digest differs
+    // from the migrated one and the refusal lists all of them.
+    it.each([
+      "SET LOCAL quote_all_identifiers = on",
+      "SET LOCAL extra_float_digits = -6",
+    ])("finds the same digests after %s", async (setting) => {
+      const control = await refusal(BODIES_SQL);
+
+      expect(control).toContain("a migration changed this function:");
+      expect(await refusal(BODIES_SQL, setting)).toBe(control);
     });
   });
 });

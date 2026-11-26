@@ -47,11 +47,13 @@ BEGIN
   -- arguments and return type, and what else CREATE OR REPLACE sets again:
   -- parallel safety, cost, rows, leakproof and the support function. A window
   -- function is refused below (`prokind`).
+  -- Cost and rows are `real`: as numeric their text does not follow the
+  -- session's `extra_float_digits`.
   FOR fn IN
     SELECT 'shared.' || listed.signature AS signature, listed.digest, p.proname, p.prokind,
       md5(concat_ws(E'\n', p.prosrc, l.lanname, p.provolatile, p.proisstrict, p.prosecdef, p.proconfig,
         pg_get_function_arguments(p.oid), pg_get_function_result(p.oid),
-        p.proparallel, p.procost, p.prorows, p.proleakproof, p.prosupport)) AS found
+        p.proparallel, p.procost::numeric, p.prorows::numeric, p.proleakproof, p.prosupport)) AS found
     -- A function replaced below without a line here is not compared with its
     -- migration. This guard cannot find one: `shared` also holds functions
     -- this file does not replace (the split script's waiting list).
