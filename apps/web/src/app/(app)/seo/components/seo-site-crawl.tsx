@@ -192,15 +192,7 @@ function undecidedLines(row: Undecided, t: T) {
     : [];
   if (row.reasons.length) return [...row.reasons, ...left];
   if (left.length) return left;
-  return [
-    t(
-      row.check === "noindexInSitemap"
-        ? "noSitemapPage"
-        : row.check === "javascript"
-          ? "olderReport"
-          : "missing",
-    ),
-  ];
+  return [t(row.empty)];
 }
 
 /** A check the crawl could not decide: a dash, no number, and why. It never reads as a pass. */
@@ -331,6 +323,11 @@ function FoundRow({ row, site, t }: { row: Found; site: string | null; t: T }) {
           />
           {row.candidates && (
             <p className="text-xs text-muted-foreground">{t("candidates")}</p>
+          )}
+          {row.reasons.length > 0 && (
+            <p className="max-w-prose text-xs text-muted-foreground">
+              {row.reasons.map(sentence).join(" ")}
+            </p>
           )}
         </div>
       </details>

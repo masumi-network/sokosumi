@@ -54,6 +54,8 @@ export type SeoCrawlRow =
       items: SeoCrawlItem[];
       /** Entries of the check the crawl could not judge, next to the ones it found. */
       notDetermined: number;
+      /** The bot's reasons the check may have missed more. */
+      reasons: string[];
       /** Orphans only: a script may add a link to a listed page. */
       candidates?: boolean;
     }
@@ -64,8 +66,13 @@ export type SeoCrawlRow =
       reasons: string[];
       /** Entries left out when the bot gave no reason: the view says how many. */
       notDetermined: number;
+      /** Why the check has no result, when the bot gave no reason and left nothing out. */
+      empty: SeoCrawlEmpty;
     }
   | { check: SeoCrawlCheck; state: "clear" };
+
+/** missing: the report has no result; noSitemapPage: the sitemap names no page on the site; olderReport: the report predates the check. */
+export type SeoCrawlEmpty = "missing" | "noSitemapPage" | "olderReport";
 
 export type SeoCrawlView =
   | { state: "not crawled"; reason: string }
@@ -86,12 +93,18 @@ const GAP_CHECKS: {
   item: (item: string) => boolean;
 }[] = [
   {
+    // A crawl that stopped early, or left links unfollowed, did not check each linked page.
     check: ["brokenLinks", "redirectChains"],
-    item: (item) => item === "Broken internal links",
+    item: (item) =>
+      item === "Broken internal links" ||
+      item === "Pages past where the crawl stopped" ||
+      (item.startsWith("At least ") &&
+        item.endsWith(" the crawl did not follow")),
   },
   { check: ["orphans"], item: (item) => item === "Orphan pages" },
   {
-    check: ["noindexInSitemap"],
+    // Both sitemap checks read only the sitemap URLs the bot got.
+    check: ["noindexInSitemap", "orphans"],
     item: (item) => item === "Some sitemap URLs",
   },
   {
@@ -149,7 +162,7 @@ function read(crawl: Crawled, check: SeoCrawlCheck): Reading {
               url: true,
               count: chain.linkedFrom,
               ...(chain.kind !== "chain" && { kind: chain.kind }),
-              urls: chain.hops.slice(1).map((hop) => hop.url),
+              urls: chainUrls(chain),
             })),
           }
         : { missing: true };
@@ -161,7 +174,9 @@ function read(crawl: Crawled, check: SeoCrawlCheck): Reading {
       return pc
         ? {
             found: pc.duplicateTitles.total,
-            notDetermined: pc.duplicateTitles.notDetermined,
+            // Pages left out of the title checks are in no comparison either.
+            notDetermined:
+              pc.duplicateTitles.notDetermined + pc.pages - pc.checked,
             items: pc.duplicateTitles.groups.map((group) => ({
               label: group.text,
               url: false,
@@ -217,6 +232,13 @@ function read(crawl: Crawled, check: SeoCrawlCheck): Reading {
   }
 }
 
+/** A chain's hops after its start, and the URL it ends on when the crawl did not fetch that one. */
+function chainUrls(chain: NonNullable<Crawled["links"]>["chains"][number]) {
+  const hops = chain.hops.map((hop) => hop.url);
+  if (chain.final && chain.final !== hops.at(-1)) hops.push(chain.final);
+  return hops.slice(1);
+}
+
 function noindex(pc: PageChecks | null): Reading {
   const list = pc?.noindexInSitemap;
   if (!list) return { missing: true };
@@ -247,6 +269,14 @@ function reasonsFor(crawl: Crawled, check: SeoCrawlCheck) {
   );
 }
 
+function emptyReason(crawl: Crawled, check: SeoCrawlCheck): SeoCrawlEmpty {
+  // The page checks ran and read no sitemap URL of this site.
+  if (check === "noindexInSitemap" && crawl.pageChecks) return "noSitemapPage";
+  // A report from before the crawl's JavaScript reads.
+  if (check === "javascript" && !crawl.javascript) return "olderReport";
+  return "missing";
+}
+
 /**
  * The site crawl as a ledger: each check found problems, could not decide, or found none.
  * A check stays "not determined" whenever the crawl left entries out and found nothing: an empty list is no pass.
@@ -258,6 +288,7 @@ export function seoSiteCrawlView(
   if (crawl.state === "not crawled") return crawl;
   const rows = SEO_CRAWL_CHECKS.map((check): SeoCrawlRow => {
     const reading = read(crawl, check);
+    const reasons = reasonsFor(crawl, check);
     if ("found" in reading && reading.found > 0)
       return {
         check,
@@ -266,15 +297,21 @@ export function seoSiteCrawlView(
         total: reading.found,
         items: reading.items,
         notDetermined: reading.notDetermined,
+        reasons,
         ...(check === "orphans" &&
           crawl.orphans?.state === "found" && {
             candidates: crawl.orphans.candidates,
           }),
       };
-    const reasons = reasonsFor(crawl, check);
     const left = "found" in reading ? reading.notDetermined : 0;
     if ("missing" in reading || left > 0 || reasons.length > 0)
-      return { check, state: "not determined", reasons, notDetermined: left };
+      return {
+        check,
+        state: "not determined",
+        reasons,
+        notDetermined: left,
+        empty: emptyReason(crawl, check),
+      };
     return { check, state: "clear" };
   });
   const found = rows.filter((row) => row.state === "found");

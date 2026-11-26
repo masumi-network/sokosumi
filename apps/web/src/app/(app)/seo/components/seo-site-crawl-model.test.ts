@@ -87,13 +87,10 @@ describe("site crawl ledger", () => {
       badCanonicals: 2,
       missingTitle: 8,
       missingH1: 8,
+      // The pages left out of the title checks, compared with none.
+      duplicateTitles: 8,
     });
-    expect(result.clear).toEqual([
-      "redirectChains",
-      "duplicateTitles",
-      "orphans",
-      "javascript",
-    ]);
+    expect(result.clear).toEqual(["redirectChains", "orphans", "javascript"]);
   });
 
   it("keeps a check without a section undecided, with the bot's reasons for it", () => {
@@ -122,8 +119,78 @@ describe("site crawl ledger", () => {
       state: "not determined",
       reasons: [],
       notDetermined: 0,
+      empty: "noSitemapPage",
     });
     expect(result.otherGaps).toEqual([]);
+  });
+
+  it("says a check is missing when the report has no page checks at all", () => {
+    const crawl = cleanCrawl();
+    crawl.pageChecks = null;
+    expect(row(crawl, "noindexInSitemap")).toMatchObject({ empty: "missing" });
+  });
+
+  it("does not pass link and sitemap checks the crawl could not finish", () => {
+    const crawl = cleanCrawl();
+    crawl.stop = "page cap";
+    crawl.gaps = [
+      { item: "Pages past where the crawl stopped", reason: "the page cap" },
+      { item: "Some sitemap URLs", reason: "a sitemap read failed" },
+    ];
+    const result = view(crawl);
+    expect(row(crawl, "brokenLinks")).toMatchObject({
+      state: "not determined",
+      reasons: ["the page cap"],
+    });
+    expect(row(crawl, "redirectChains")).toMatchObject({
+      reasons: ["the page cap"],
+    });
+    expect(row(crawl, "orphans")).toMatchObject({
+      reasons: ["a sitemap read failed"],
+    });
+    expect(row(crawl, "noindexInSitemap")).toMatchObject({
+      reasons: ["a sitemap read failed"],
+    });
+    expect(result.otherGaps).toEqual([]);
+  });
+
+  it("keeps the bot's reasons on a check that found problems", () => {
+    const crawl = cleanCrawl();
+    crawl.pageChecks!.noindexInSitemap = {
+      urls: [`${SITE}/draft`],
+      total: 1,
+      sitemapUrls: 1,
+      checked: 1,
+    };
+    crawl.gaps = [
+      { item: "Some sitemap URLs", reason: "a sitemap read failed" },
+    ];
+    expect(row(crawl, "noindexInSitemap")).toMatchObject({
+      state: "found",
+      reasons: ["a sitemap read failed"],
+    });
+  });
+
+  it("ends a redirect chain on its final URL when the crawl did not fetch it", () => {
+    const crawl = cleanCrawl();
+    crawl.links!.chains = [
+      {
+        start: `${SITE}/a`,
+        kind: "chain",
+        hops: [
+          { url: `${SITE}/a`, status: 301 },
+          { url: `${SITE}/b`, status: 301 },
+        ],
+        final: "https://other.test/c",
+        linkedFrom: 1,
+      },
+    ];
+    crawl.links!.chainsTotal = 1;
+    const found = row(crawl, "redirectChains");
+    expect(found?.state === "found" && found.items[0]?.urls).toEqual([
+      `${SITE}/b`,
+      "https://other.test/c",
+    ]);
   });
 
   it("counts the shell pages of a JavaScript group it could not decide", () => {

@@ -15784,7 +15784,7 @@
         "status": "Status {status}",
         "from": "Linked from",
         "kind": {
-          "javascript": "Only in the rendered page",
+          "javascript": "Reached through JavaScript",
           "loop": "Loop",
           "tooManyHops": "Too many hops",
           "targetNot2xx": "Canonical target is not 2xx",
