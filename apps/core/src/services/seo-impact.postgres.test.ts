@@ -414,6 +414,52 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     ]);
   });
 
+  it.each([
+    { outcome: "failed read", after: DAY_MS },
+    { outcome: "give-up", after: IMPACT_CRAWL_WAIT_DAYS * DAY_MS },
+  ])(
+    "keeps a crawl over a newer tick's $outcome that writes later",
+    async ({ after }) => {
+      const pageUrl = "https://battery-sensei.app/pricing";
+      const { id } = await doneChange(pageUrl);
+      // Recorded now, so the ticks below run past the wait between inspections.
+      await syncSeoImpact();
+      lastCrawl.set(pageUrl, "2026-11-22T08:00:00Z");
+      const { promise: newerAsked, resolve: askNewer } =
+        Promise.withResolvers<void>();
+      const { promise: crawlStored, resolve: storeCrawl } =
+        Promise.withResolvers<void>();
+      // The newer tick's read fails once the older tick stored the crawl.
+      beforeAnswer.mockImplementationOnce(async () => {
+        askNewer();
+        await crawlStored;
+        throw new Error("URL Inspection timed out");
+      });
+      expectCoreLog(
+        "warn",
+        "SEO impact tracking could not read Search Console.",
+      );
+      const olderAt = new Date(Date.now() + after);
+      const newerAt = new Date(olderAt.getTime() + HOUR_MS);
+
+      const newer = syncSeoImpact(undefined, newerAt);
+      await newerAsked;
+      const crawling = await syncSeoImpact(undefined, olderAt);
+      storeCrawl();
+
+      expect(crawling).toMatchObject({ crawled: 1 });
+      expect(await newer).toMatchObject({ crawled: 0, notMeasurable: 0 });
+      expect(await rowsOf(id)).toMatchObject([
+        {
+          state: "waiting_window",
+          reason: null,
+          crawledAt: expect.any(Date),
+          lastInspectedAt: olderAt,
+        },
+      ]);
+    },
+  );
+
   it("counts a page given up once when two ticks inspect it at once", async () => {
     await doneChange("https://battery-sensei.app/pricing");
     // Recorded now, so the ticks below run past its wait.
