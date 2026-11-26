@@ -40,10 +40,10 @@ export function AgentsSectionNav() {
   };
 
   function jump(event: MouseEvent<HTMLAnchorElement>, id: string) {
-    const heading = document.getElementById(id);
-    if (!heading) return;
     // A native hash jump would push a history entry Next.js cannot restore.
     event.preventDefault();
+    const heading = document.getElementById(id);
+    if (!heading) return;
     heading.scrollIntoView({
       block: "start",
       behavior: matchesMediaQuery(REDUCED_MOTION_MEDIA_QUERY)

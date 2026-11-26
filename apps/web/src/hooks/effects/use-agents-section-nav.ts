@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from "react";
 
+import { useIsMobile } from "./use-mobile";
+
+/** Marks a section still streaming in; its heading already carries the id. */
+const LOADING_SELECTOR = "[data-agents-section-loading]";
+
+/** How long a return keeps re-placing its section while sections stream in. */
+const RESTORE_MS = 10_000;
+
 /** The nearest ancestor that scrolls: the app's `main` on phones. */
 function scrollParent(element: HTMLElement): HTMLElement {
   for (let node = element.parentElement; node; node = node.parentElement) {
@@ -25,22 +33,28 @@ export function writeAgentsSectionHash(id: string, first: string): void {
 /**
  * The phone-only section bar on the Agents page. Returns the section the
  * reader is in: the last whose heading passed the bar, or the last one once
- * the page is scrolled to the end. On a return to the page (Back from a
- * profile shows it again), scrolls back to the section the hash names.
- * Does nothing while the bar is hidden (from `md`), so desktop keeps its
- * plain scrolling.
+ * the page is scrolled to the end.
+ *
+ * On a return to the page (Back from a profile, a reload, a shared link),
+ * scrolls to the section the hash names, and keeps it in place while the
+ * sections above it stream in, until they all have or the reader scrolls.
+ *
+ * Runs below `md` only, and follows the breakpoint: from `md` the bar is
+ * hidden and desktop keeps its plain scrolling.
  */
 export function useAgentsSectionNav(
   nav: HTMLElement | null,
   ids: readonly string[],
 ): string | undefined {
+  const isMobile = useIsMobile();
   const [current, setCurrent] = useState<string | undefined>(ids[0]);
   const key = ids.join(" ");
 
   useEffect(() => {
-    if (!nav || nav.getClientRects().length === 0) return;
+    if (!nav || !isMobile) return;
+    const bar = nav;
     const sectionIds = key.split(" ");
-    const scroller = scrollParent(nav);
+    const scroller = scrollParent(bar);
 
     function read(): string | undefined {
       const present = sectionIds.filter((id) => document.getElementById(id));
@@ -50,8 +64,7 @@ export function useAgentsSectionNav(
       ) {
         return present.at(-1);
       }
-      // nav is non-null: the effect returned early otherwise.
-      const line = (nav as HTMLElement).getBoundingClientRect().bottom + 16;
+      const line = bar.getBoundingClientRect().bottom + 16;
       let found = present[0];
       for (const id of present) {
         const heading = document.getElementById(id);
@@ -60,9 +73,32 @@ export function useAgentsSectionNav(
       return found;
     }
 
-    const target = window.location.hash.slice(1);
-    if (sectionIds.includes(target)) {
-      document.getElementById(target)?.scrollIntoView({ block: "start" });
+    const hashTarget = window.location.hash.slice(1);
+    let restoring: string | null = sectionIds.includes(hashTarget)
+      ? hashTarget
+      : null;
+    const observer = new MutationObserver(place);
+    const deadline = window.setTimeout(stopRestoring, RESTORE_MS);
+
+    function stopRestoring() {
+      restoring = null;
+      observer.disconnect();
+      window.clearTimeout(deadline);
+    }
+
+    // Scrolls to the hash's section; done once nothing above it still loads.
+    function place() {
+      if (!restoring) return;
+      const heading = document.getElementById(restoring);
+      if (heading) heading.scrollIntoView({ block: "start" });
+      if (heading && !scroller.querySelector(LOADING_SELECTOR)) stopRestoring();
+    }
+
+    if (restoring) {
+      observer.observe(scroller, { childList: true, subtree: true });
+      place();
+    } else {
+      stopRestoring();
     }
     setCurrent(read());
 
@@ -73,15 +109,25 @@ export function useAgentsSectionNav(
         const next = read();
         if (!next) return;
         setCurrent(next);
-        writeAgentsSectionHash(next, sectionIds[0]);
+        // A return still placing its section owns the hash until done.
+        if (!restoring) writeAgentsSectionHash(next, sectionIds[0]);
       });
     }
-    scroller.addEventListener("scroll", onScroll, { passive: true });
+    // The reader taking over (touch, wheel, keys) ends a return's placing.
+    const listening = new AbortController();
+    const options = { passive: true, signal: listening.signal };
+    scroller.addEventListener("scroll", onScroll, options);
+    scroller.addEventListener("pointerdown", stopRestoring, options);
+    scroller.addEventListener("wheel", stopRestoring, options);
+    scroller.addEventListener("touchstart", stopRestoring, options);
+    scroller.addEventListener("keydown", stopRestoring, options);
     return () => {
+      listening.abort();
+      observer.disconnect();
+      window.clearTimeout(deadline);
       cancelAnimationFrame(frame);
-      scroller.removeEventListener("scroll", onScroll);
     };
-  }, [nav, key]);
+  }, [nav, key, isMobile]);
 
   return current;
 }

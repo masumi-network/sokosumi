@@ -230,4 +230,82 @@ describe("getLastKnownAgentName", () => {
 
     await expect(getLastKnownAgentName("agent-1")).resolves.toBeNull();
   });
+
+  it("treats a blank name as no name", async () => {
+    getAgentJobsMock.mockResolvedValueOnce({
+      data: [{ id: "job-newest" }],
+      meta: { pagination: { nextCursor: null, total: 1 } },
+    });
+    getJobByIdMock.mockResolvedValueOnce({
+      data: { agent: { id: "agent-1", name: "   ", overrideName: " " } },
+    });
+
+    const { getLastKnownAgentName } = await import("./get-cached-my-jobs");
+
+    await expect(getLastKnownAgentName("agent-1")).resolves.toBeNull();
+  });
+
+  it("falls back to the base name when the override is blank", async () => {
+    getAgentJobsMock.mockResolvedValueOnce({
+      data: [{ id: "job-newest" }],
+      meta: { pagination: { nextCursor: null, total: 1 } },
+    });
+    getJobByIdMock.mockResolvedValueOnce({
+      data: { agent: { id: "agent-1", name: " Research ", overrideName: " " } },
+    });
+
+    const { getLastKnownAgentName } = await import("./get-cached-my-jobs");
+
+    await expect(getLastKnownAgentName("agent-1")).resolves.toBe("Research");
+  });
+
+  it("takes the name from an older job when newer ones have none", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    getAgentJobsMock.mockResolvedValueOnce({
+      data: [{ id: "job-1" }, { id: "job-2" }, { id: "job-3" }],
+      meta: { pagination: { nextCursor: null, total: 3 } },
+    });
+    getJobByIdMock
+      .mockRejectedValueOnce(new CoreApiRequestError("gone", { status: 404 }))
+      .mockResolvedValueOnce({ data: { agent: { id: "agent-1", name: "" } } })
+      .mockResolvedValueOnce({
+        data: { agent: { id: "agent-1", name: "Web Research" } },
+      });
+
+    const { getLastKnownAgentName } = await import("./get-cached-my-jobs");
+
+    await expect(getLastKnownAgentName("agent-1")).resolves.toBe(
+      "Web Research",
+    );
+    expect(getJobByIdMock.mock.calls.map(([id]) => id)).toEqual([
+      "job-1",
+      "job-2",
+      "job-3",
+    ]);
+  });
+
+  it("reads at most a few jobs, however many the viewer has", async () => {
+    const { LAST_KNOWN_NAME_JOB_READS, getLastKnownAgentName } = await import(
+      "./get-cached-my-jobs"
+    );
+    getAgentJobsMock.mockResolvedValueOnce({
+      data: Array.from({ length: 20 }, (_, index) => ({ id: `job-${index}` })),
+      meta: { pagination: { nextCursor: "job-19", total: 45 } },
+    });
+    getJobByIdMock.mockResolvedValue({
+      data: { agent: { id: "agent-1", name: "" } },
+    });
+
+    await expect(getLastKnownAgentName("agent-1")).resolves.toBeNull();
+    expect(getJobByIdMock).toHaveBeenCalledTimes(LAST_KNOWN_NAME_JOB_READS);
+  });
+
+  it("knows no name when the jobs list fails", async () => {
+    getAgentJobsMock.mockRejectedValueOnce(new Error("down"));
+
+    const { getLastKnownAgentName } = await import("./get-cached-my-jobs");
+
+    await expect(getLastKnownAgentName("agent-1")).resolves.toBeNull();
+    expect(getJobByIdMock).not.toHaveBeenCalled();
+  });
 });

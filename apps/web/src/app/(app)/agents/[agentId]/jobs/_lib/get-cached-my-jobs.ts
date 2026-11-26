@@ -2,7 +2,6 @@ import type { JobSummary } from "@sokosumi/core-client";
 import { unstable_rethrow } from "next/navigation";
 import { cache } from "react";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import { getAgentName } from "@/lib/helpers/agent";
 
 const PAGE_SIZE = 20;
 
@@ -62,21 +61,46 @@ export async function getOwnedAgentJobsCount(agentId: string): Promise<number> {
   }
 }
 
+/** Most job reads one jobs page may spend looking for a delisted agent's name. */
+export const LAST_KNOWN_NAME_JOB_READS = 3;
+
 /**
- * A delisted agent's name as the viewer's newest own job recorded it, so its
- * jobs page can still say whose jobs these are. Reads only the viewer's own
- * job, which they may open anyway. Null when they have none or Core refuses.
+ * A delisted agent's name as the viewer's own jobs recorded it, so its jobs
+ * page can still say whose jobs these are.
+ *
+ * Data contract: a job summary (the jobs list) carries no agent name, so
+ * the name comes from job detail (`GET /v1/jobs/:id`, `agent.overrideName`
+ * else `agent.name`), which Core resolves even for an agent that left the
+ * catalog. Only the viewer's own jobs from the list already loaded are read,
+ * newest first, and a job is used only when its agent is this agent and its
+ * name is not blank.
+ *
+ * Limit: at most `LAST_KNOWN_NAME_JOB_READS` reads, in parallel, and the
+ * newest job that names the agent wins. When none of those newest jobs
+ * carries a name, the page says "Unavailable agent", even if an older job
+ * outside that window would have one.
  */
 export const getLastKnownAgentName = cache(
   async (agentId: string): Promise<string | null> => {
+    let jobs: JobSummary[];
     try {
-      const [newest] = (await getCachedMyJobs(agentId)).jobs;
-      if (!newest) return null;
-      const { data } = await coreClient.getJobById(newest.id);
-      return data.agent.id === agentId ? getAgentName(data.agent) : null;
+      ({ jobs } = await getCachedMyJobs(agentId));
     } catch (error) {
       unstable_rethrow(error);
       return null;
     }
+    const names = await Promise.all(
+      jobs.slice(0, LAST_KNOWN_NAME_JOB_READS).map(async (job) => {
+        try {
+          const { agent } = (await coreClient.getJobById(job.id)).data;
+          if (agent.id !== agentId) return null;
+          return agent.overrideName?.trim() || agent.name.trim() || null;
+        } catch (error) {
+          unstable_rethrow(error);
+          return null;
+        }
+      }),
+    );
+    return names.find((name) => name !== null) ?? null;
   },
 );

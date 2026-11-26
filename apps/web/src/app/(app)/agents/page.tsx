@@ -24,7 +24,10 @@ import {
   AgentsSectionLink,
   AgentsTag,
 } from "@/components/agents/directory/agents-page";
-import { AGENTS_PAGE_CLASS } from "@/components/agents/directory/agents-page-classes";
+import {
+  AGENTS_PAGE_CLASS,
+  AGENTS_SECTION_HEADING_CLASS,
+} from "@/components/agents/directory/agents-page-classes";
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { BotFace } from "@/components/soko-bot/bot-face";
 import {
@@ -379,11 +382,16 @@ async function MarketplaceSection() {
   );
 }
 
-function SectionFallback({ title }: { title: string }) {
+/**
+ * Keeps the section's heading id while it streams in, so the phone section
+ * bar can jump to it and a return can find it; the marker tells the bar it
+ * may still move.
+ */
+function SectionFallback({ id, title }: { id: string; title: string }) {
   return (
-    <section className="flex flex-col gap-4">
+    <section data-agents-section-loading className="flex flex-col gap-4">
       <div className="flex flex-col gap-1 px-1">
-        <h2 className="text-foreground text-lg font-semibold tracking-tight">
+        <h2 id={id} tabIndex={-1} className={AGENTS_SECTION_HEADING_CLASS}>
           {title}
         </h2>
         <Skeleton className="h-4 w-64" />
@@ -407,13 +415,28 @@ export default async function AgentsPage() {
       <RefreshPrefetchedPage />
       <h1 className="sr-only">{t("title")}</h1>
       <AgentsSectionNav />
-      <Suspense fallback={<SectionFallback title={t("sokoBotsTitle")} />}>
+      <Suspense
+        fallback={
+          <SectionFallback id="agents-soko-bots" title={t("sokoBotsTitle")} />
+        }
+      >
         <SokoBotsSection />
       </Suspense>
-      <Suspense fallback={<SectionFallback title={t("coworkersTitle")} />}>
+      <Suspense
+        fallback={
+          <SectionFallback id="agents-coworkers" title={t("coworkersTitle")} />
+        }
+      >
         <CoworkersSection />
       </Suspense>
-      <Suspense fallback={<SectionFallback title={t("marketplaceTitle")} />}>
+      <Suspense
+        fallback={
+          <SectionFallback
+            id="agents-marketplace"
+            title={t("marketplaceTitle")}
+          />
+        }
+      >
         <MarketplaceSection />
       </Suspense>
     </div>
