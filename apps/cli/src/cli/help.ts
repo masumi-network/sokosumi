@@ -263,7 +263,10 @@ Commands that call one Core operation, such as jobs events, tasks files and task
 Account, organizations and workspaces:
   Commands on your own account take the literal me: sokosumi workspaces credits me, sokosumi workspaces create me --input-json '{"kind":"personal"}'.
   An action with no body still needs one: sokosumi organizations deny-vendor-grant ORGANIZATION_ID GRANT_ID --input-json '{}'.
-  Organization commands take the organization id from workspaces list. Owner and admin commands answer 403 for other members.
+  workspaces list shows each workspace's workspaceId and organizationId. WORKSPACE_ID is the workspaceId: workspaces get,
+  ad-data-consent, set-ad-data-consent, social-statistics, calendar-labels, and the workspaceId in users set-preferred-workspace.
+  ORGANIZATION_ID is the organizationId: organizations and workspaces check commands. calendar-labels on an organization
+  Workspace also needs --organization-slug. Owner and admin commands answer 403 for other members.
   Billing, account deletion, sessions and OAuth consents stay in Sokosumi Web.
 
 Drive:

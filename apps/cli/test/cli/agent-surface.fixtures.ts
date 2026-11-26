@@ -492,10 +492,10 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
     argv: [...API, "developer", "task", "task-1"],
   },
   "GET /users/{id}/organizations": {
-    argv: [...API, "workspaces", "list", "--json"],
+    argv: [...API, "organizations", "list", "me"],
   },
   "GET /users/{id}/workspaces": {
-    argv: [...API, "workspaces", "list", "--personal", "--json"],
+    argv: [...API, "workspaces", "list", "--json"],
   },
   "GET /organizations/{id}/members/me/seat": {
     argv: [...API, "workspaces", "check", "org-1", "--json"],
