@@ -228,6 +228,23 @@ export {
   type SokoBotSeoCapability,
 } from "./seo.js";
 export {
+  buildStepFocusBundles,
+  isStepFocus,
+  isStepFocusWriteCapability,
+  STEP_FOCUS_INSPECT_CAPABILITIES,
+  STEP_FOCUS_OPTIONS,
+  STEP_FOCUS_VERIFY_CAPABILITIES,
+  type StepFocus,
+  type StepFocusBundles,
+  type StepFocusDecisionOutcome,
+  type StepFocusDecisionReceipt,
+  type StepFocusDecisionSource,
+  type StepFocusJevState,
+  type StepFocusPlanSummary,
+  type StepFocusRecentStep,
+  type StepFocusValidation,
+} from "./step-focus.js";
+export {
   SOKO_BOT_TASK_STATUSES,
   type SokoBotFollowUpAllows,
   sokoBotArchiveTaskInputSchema,

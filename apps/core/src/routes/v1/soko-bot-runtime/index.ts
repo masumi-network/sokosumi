@@ -1,5 +1,8 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
-import { SOKO_BOT_TURN_TOKEN_HEADER } from "@sokosumi/soko-bot";
+import {
+  SOKO_BOT_TURN_TOKEN_HEADER,
+  STEP_FOCUS_OPTIONS,
+} from "@sokosumi/soko-bot";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { badRequest, unauthorized, unprocessableEntity } from "@/helpers/error";
@@ -21,6 +24,8 @@ import {
   runSandboxTool,
   sandboxFileSource,
   sandboxPlanNote,
+  sandboxRecordStepFocusOutcome,
+  sandboxSelectStepFocus,
   startSandboxTurn,
 } from "@/services/soko-bot-sandbox-turn.service";
 
@@ -57,6 +62,58 @@ const completeSchema = z.object({
 });
 /** A draft answer for the done check; none asks for the open steps. */
 const planSchema = z.object({ draft: z.string().max(200_000).optional() });
+const stepFocusOptionSchema = z.enum(STEP_FOCUS_OPTIONS);
+const stepFocusToolStatusSchema = z.enum([
+  "ok",
+  "error",
+  "disallowed_by_focus",
+]);
+const stepFocusRequestSchema = z.object({
+  stepIndex: z.number().int().nonnegative().max(1_000),
+  roundIndex: z.number().int().nonnegative().max(100),
+  stepsInRound: z.number().int().nonnegative().max(1_000),
+  stepsRemaining: z.number().int().nonnegative().max(1_000),
+  recentSteps: z
+    .array(
+      z.object({
+        stepIndex: z.number().int().nonnegative(),
+        focus: stepFocusOptionSchema.nullable(),
+        tools: z
+          .array(
+            z.object({
+              name: z.string().min(1).max(80),
+              kind: z.enum(["read", "write"]),
+              status: stepFocusToolStatusSchema,
+            }),
+          )
+          .max(20),
+        hadText: z.boolean(),
+      }),
+    )
+    .max(12),
+  hasAttemptedWrite: z.boolean(),
+  consecutiveInspect: z.number().int().nonnegative().max(1_000),
+  consecutiveVerify: z.number().int().nonnegative().max(1_000),
+  justExpandedShortForm: z.boolean(),
+});
+const stepFocusOutcomeSchema = z.object({
+  decisionId: z.string().min(1).max(120),
+  stepIndex: z.number().int().nonnegative().max(1_000),
+  appliedFocus: stepFocusOptionSchema,
+  usedFallback: z.boolean(),
+  finishReason: z.string().max(64),
+  toolCalls: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(80),
+        status: stepFocusToolStatusSchema,
+      }),
+    )
+    .max(50),
+  inputTokens: z.number().int().nonnegative(),
+  outputTokens: z.number().int().nonnegative(),
+  cacheReadTokens: z.number().int().nonnegative(),
+});
 /** One model step's reasoning summary, as the provider returned it. */
 const reasoningSchema = z.object({ text: z.string().min(1).max(20_000) });
 const failSchema = z.object({
@@ -124,6 +181,23 @@ app.post("/turns/:turnId/plan", async (c) =>
     ),
   }),
 );
+
+app.post("/turns/:turnId/step-focus", async (c) =>
+  c.json({
+    decision: await sandboxSelectStepFocus(
+      c.get("turn"),
+      await parseJsonBody(c, stepFocusRequestSchema),
+    ),
+  }),
+);
+
+app.post("/turns/:turnId/step-focus/outcome", async (c) => {
+  await sandboxRecordStepFocusOutcome(
+    c.get("turn"),
+    await parseJsonBody(c, stepFocusOutcomeSchema),
+  );
+  return c.json({ ok: true });
+});
 
 app.post("/turns/:turnId/uploads", async (c) =>
   c.json(

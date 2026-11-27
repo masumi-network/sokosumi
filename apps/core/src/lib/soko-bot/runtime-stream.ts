@@ -10,6 +10,8 @@ export const SETTLEMENT_TRIGGER_EVENT_TYPES = new Set([
 
 const TRANSIENT_RUNTIME_EVENT_TYPES = new Set([
   "action.partial",
+  "decision.step_focus",
+  "decision.step_focus.outcome",
   "message.appended",
   "reasoning.appended",
 ]);

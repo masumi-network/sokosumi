@@ -202,7 +202,14 @@ async function waitingOnOthers(
 }
 
 /** A receipt's outcome as Core recorded it, and what the bot should do. */
-type ReceiptOutcome = "done" | "started" | "not done" | "unconfirmed";
+export type ReceiptOutcome = "done" | "started" | "not done" | "unconfirmed";
+
+export interface TurnReceiptSummary {
+  capability: string;
+  label: string;
+  outcome: ReceiptOutcome;
+  line: string;
+}
 
 interface SaveReceipt {
   capability: string;
@@ -355,6 +362,46 @@ const OUTCOME_WORDS: Record<ReceiptOutcome, string> = {
   unconfirmed: "Core could not confirm whether it happened",
 };
 
+/**
+ * Authoritative Core receipts for change tools called during this turn,
+ * shared with the step-focus verify bundle so verification reads the same
+ * receipt truth as the done check.
+ */
+export async function summarizeTurnReceipts(
+  turnId: string,
+): Promise<TurnReceiptSummary[]> {
+  // Read all change-tool receipts on the turn so later writes or failures
+  // past receipt #20 are never dropped before verification or Jev selection.
+  const calls = await prisma.sokoBotToolCall.findMany({
+    where: {
+      turnId,
+      status: { in: ["COMPLETED", "FAILED"] },
+      capability: { in: [...changeTools()] },
+    },
+    orderBy: { createdAt: "asc" },
+    select: {
+      capability: true,
+      status: true,
+      disposition: true,
+      targetId: true,
+      result: true,
+    },
+  });
+  return Promise.all(
+    calls.map(async (call) => {
+      const label = receiptLabel(call.targetId, call.result);
+      const outcome: ReceiptOutcome =
+        call.status === "FAILED" ? "not done" : await receiptOutcome(call);
+      return {
+        capability: call.capability,
+        label,
+        outcome,
+        line: `${call.capability}${label ? ` (${label})` : ""}: ${OUTCOME_WORDS[outcome]}`,
+      };
+    }),
+  );
+}
+
 /** The saves the plan does not show yet, and what to do about them. */
 function savedNote(saves: readonly SaveReceipt[], revision: number): string {
   if (!saves.length) return "";
@@ -379,6 +426,10 @@ function asksOwner(draft: string): boolean {
  * The turn still stops on the owner: a decision nobody has answered, or a
  * refusal no later call of the same tool made good.
  */
+export async function hasTurnOwnerBlocker(turnId: string): Promise<boolean> {
+  return ownerBlocker(turnId);
+}
+
 async function ownerBlocker(turnId: string): Promise<boolean> {
   const decision = await prisma.sokoBotPendingDecision.findFirst({
     where: { turnId, status: "PENDING" },

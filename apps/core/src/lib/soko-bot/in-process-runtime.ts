@@ -53,6 +53,7 @@ import {
   prepareEvaluationStep,
   withEvaluationTurn,
 } from "./evaluation-dispatch";
+import { recordTurnStepFocusOutcome, selectTurnStepFocus } from "./step-focus";
 import { estimateInputTokens, turnTokenBudget } from "./turn-budget";
 import {
   announceTurn,
@@ -320,6 +321,27 @@ async function runTurn(
                   }),
                 openSteps: () => openStepsNote(input.turnId),
                 changeTools: changeTools(),
+              },
+            }
+          : {}),
+        ...(turn.stepFocus && !evaluationBinding()
+          ? {
+              stepFocus: {
+                selectStep: (stepRequest) =>
+                  selectTurnStepFocus({
+                    turnId: input.turnId,
+                    sessionId,
+                    sandbox: false,
+                    ...stepRequest,
+                  }),
+                recordOutcome: (outcome) =>
+                  recordTurnStepFocusOutcome({
+                    turnId: input.turnId,
+                    sessionId,
+                    outcome,
+                  }),
+                cacheKeys: turn.focusCacheKeys,
+                fullCacheKeys: turn.focusFullCacheKeys,
               },
             }
           : {}),

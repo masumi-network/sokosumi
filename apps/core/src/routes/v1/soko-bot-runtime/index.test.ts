@@ -18,6 +18,9 @@ const service = vi.hoisted(() => ({
   recordSandboxReasoning: vi.fn(),
   runSandboxTool: vi.fn(),
   sandboxFileSource: vi.fn(),
+  sandboxPlanNote: vi.fn(),
+  sandboxRecordStepFocusOutcome: vi.fn(),
+  sandboxSelectStepFocus: vi.fn(),
   startSandboxTurn: vi.fn(),
 }));
 // PostgreSQL's clock is the test clock here, unless a test takes it down.
@@ -176,6 +179,77 @@ describe("POST /turns/:turnId/reasoning", () => {
 
   it("refuses an empty summary", async () => {
     const response = await post("/reasoning", { text: "" });
+
+    expect(response.status).toBe(400);
+  });
+});
+
+describe("POST /turns/:turnId/step-focus and /step-focus/outcome", () => {
+  it("delegates step-focus selection and outcome recording to Core", async () => {
+    const decision = {
+      decisionId: "focus_1",
+      appliedFocus: "inspect" as const,
+      usedFallback: false,
+      allowedTools: ["list_tasks"],
+      toolChoice: "auto" as const,
+      verifyNote: null,
+      verifyNoteKey: null,
+    };
+    service.sandboxSelectStepFocus.mockResolvedValueOnce(decision);
+
+    const selectResponse = await post("/step-focus", {
+      stepIndex: 0,
+      roundIndex: 0,
+      stepsInRound: 0,
+      stepsRemaining: 20,
+      recentSteps: [],
+      hasAttemptedWrite: false,
+      consecutiveInspect: 0,
+      consecutiveVerify: 0,
+      justExpandedShortForm: false,
+    });
+
+    expect(selectResponse.status).toBe(200);
+    expect(await selectResponse.json()).toEqual({ decision });
+    expect(service.sandboxSelectStepFocus).toHaveBeenCalledWith(
+      expect.objectContaining({ turnId: TURN_ID, sessionId: SESSION_ID }),
+      expect.objectContaining({ stepIndex: 0, roundIndex: 0 }),
+    );
+
+    const outcomeResponse = await post("/step-focus/outcome", {
+      decisionId: "focus_1",
+      stepIndex: 0,
+      appliedFocus: "inspect",
+      usedFallback: false,
+      finishReason: "tool-calls",
+      toolCalls: [{ name: "list_tasks", status: "ok" }],
+      inputTokens: 1200,
+      outputTokens: 80,
+      cacheReadTokens: 900,
+    });
+
+    expect(outcomeResponse.status).toBe(200);
+    expect(service.sandboxRecordStepFocusOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({ turnId: TURN_ID, sessionId: SESSION_ID }),
+      expect.objectContaining({
+        decisionId: "focus_1",
+        appliedFocus: "inspect",
+      }),
+    );
+  });
+
+  it("rejects an invalid focus value in step-focus/outcome", async () => {
+    const response = await post("/step-focus/outcome", {
+      decisionId: "focus_1",
+      stepIndex: 0,
+      appliedFocus: "invalid_focus",
+      usedFallback: false,
+      finishReason: "stop",
+      toolCalls: [],
+      inputTokens: 10,
+      outputTokens: 5,
+      cacheReadTokens: 0,
+    });
 
     expect(response.status).toBe(400);
   });

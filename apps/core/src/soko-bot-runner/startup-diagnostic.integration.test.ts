@@ -32,6 +32,9 @@ const service = vi.hoisted(() => ({
   recordSandboxActionResult: vi.fn(),
   runSandboxTool: vi.fn(),
   sandboxFileSource: vi.fn(),
+  sandboxPlanNote: vi.fn(),
+  sandboxRecordStepFocusOutcome: vi.fn(),
+  sandboxSelectStepFocus: vi.fn(),
   startSandboxTurn: vi.fn(),
 }));
 // PostgreSQL's clock is the test clock here.

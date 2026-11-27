@@ -44,6 +44,14 @@ export interface SokoBotVersion {
    */
   planLoop?: true;
   /**
+   * Experimental step focus selector: before each agent step, Core asks Jev
+   * to pick inspect / act / verify / answer from a host-filtered menu and
+   * narrows the step's callable tools to that focus's bundle (answer gets no
+   * tools; verify carries read tools and Core's receipts). Selection never
+   * grants permission: Core's grant and OwnerAuthority gates remain authoritative.
+   */
+  stepFocus?: true;
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.

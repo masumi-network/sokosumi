@@ -3,6 +3,7 @@ import type { Prisma } from "@sokosumi/database";
 import {
   ACTION_LABELS,
   applyVersionCapabilities,
+  buildStepFocusBundles,
   CMO_SHORT_FORM_TOOLS,
   type CmoShortFormTool,
   cmoHighlightsTools,
@@ -17,6 +18,7 @@ import {
   SOKO_BOT_PLAN_LOOP_UPDATE_PLAN_DESCRIPTION,
   type SokoBotCapability,
   type SokoBotVersion,
+  type StepFocus,
   sokoBotIdentity,
   sokoBotToolDescription,
 } from "@sokosumi/soko-bot";
@@ -362,6 +364,12 @@ export interface PreparedTurn {
    * (cmo-v24); the runtime then offers the full tool for the rest of it.
    */
   shortForms: readonly CmoShortFormTool[];
+  /** Per-step focus selector enabled on this turn (`stepFocus` experiment). */
+  stepFocus: boolean;
+  /** Per-focus prompt cache keys (when `skillsOnDemand` and `stepFocus` are both on). */
+  focusCacheKeys?: Partial<Record<StepFocus, string>>;
+  /** Per-focus prompt cache keys after short-form save tools expand. */
+  focusFullCacheKeys?: Partial<Record<StepFocus, string>>;
 }
 
 /**
@@ -575,6 +583,37 @@ export async function prepareTurn(
   const fullCacheKey = stable
     ? promptCacheKey(version.id, system, capabilities, [])
     : null;
+  const stepFocus =
+    version.stepFocus === true &&
+    !meetingPrep &&
+    authorized.askedByKind !== "ASSISTANT";
+  let focusCacheKeys: Partial<Record<StepFocus, string>> | undefined;
+  let focusFullCacheKeys: Partial<Record<StepFocus, string>> | undefined;
+  if (stable && stepFocus) {
+    const bundles = buildStepFocusBundles(
+      capabilities,
+      authorized.grant.capabilities,
+    );
+    const shortFor = (toolsList: readonly SokoBotCapability[]) =>
+      shortForms.filter((name) => toolsList.includes(name));
+    focusCacheKeys = {
+      inspect: promptCacheKey(version.id, system, bundles.inspect, []),
+      act: promptCacheKey(
+        version.id,
+        system,
+        bundles.act,
+        shortFor(bundles.act),
+      ),
+      verify: promptCacheKey(version.id, system, bundles.verify, []),
+      answer: promptCacheKey(version.id, system, [], []),
+    };
+    focusFullCacheKeys = {
+      inspect: focusCacheKeys.inspect,
+      act: promptCacheKey(version.id, system, bundles.act, []),
+      verify: focusCacheKeys.verify,
+      answer: focusCacheKeys.answer,
+    };
+  }
   if (context.version.preloadedSkills)
     await new RuntimeEventLog(turnId, sessionId).append(
       runtimeEvent(SKILLS_PRELOADED_EVENT, {
@@ -629,6 +668,9 @@ export async function prepareTurn(
       complexity: authorized.complexity,
     }),
     shortForms,
+    stepFocus,
+    ...(focusCacheKeys ? { focusCacheKeys } : {}),
+    ...(focusFullCacheKeys ? { focusFullCacheKeys } : {}),
   };
 }
 
