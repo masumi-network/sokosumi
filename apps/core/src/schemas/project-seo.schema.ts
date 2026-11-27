@@ -20,6 +20,7 @@ import {
   seoAnalysisKindSchema,
   seoSeveritySchema,
 } from "./seo-analysis-enums.schema";
+import { seoSnapshotIdSchema } from "./seo-site-crawl.schema";
 
 export { seoSeveritySchema } from "./seo-analysis-enums.schema";
 
@@ -679,6 +680,8 @@ export const projectSeoWorkspaceSchema = z
       canRequestAnalysis: z.boolean(),
       canUsePaidSearchData: z.boolean().optional(),
       canCreateMonitor: z.boolean().optional(),
+      /** The crawl a crawl continuation would go on from, as its `continues`: null when none can start. */
+      continueCrawlFrom: seoSnapshotIdSchema.nullable().optional(),
       canSyncMetrics: z.boolean(),
     }),
   })

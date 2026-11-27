@@ -50296,6 +50296,13 @@ export const ProjectSeoWorkspaceSchema = {
                 canCreateMonitor: {
                     type: 'boolean'
                 },
+                continueCrawlFrom: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    pattern: '^[0-9a-f]{64}$'
+                },
                 canSyncMetrics: {
                     type: 'boolean'
                 }
@@ -58472,6 +58479,63 @@ export const SeoBriefSuggestionSchema = {
     },
     required: [
         'action'
+    ],
+    additionalProperties: false
+} as const;
+
+export const RequestSeoCrawlNextSchema = {
+    type: 'object',
+    properties: {
+        continues: {
+            type: 'string',
+            pattern: '^[0-9a-f]{64}$'
+        },
+        price: {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'cost_plus'
+                    ]
+                },
+                version: {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                minimumCredits: {
+                    type: 'number',
+                    enum: [
+                        100
+                    ]
+                },
+                markupPercent: {
+                    type: 'number',
+                    enum: [
+                        50
+                    ]
+                }
+            },
+            required: [
+                'kind',
+                'version',
+                'minimumCredits',
+                'markupPercent'
+            ],
+            additionalProperties: false
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 128
+        }
+    },
+    required: [
+        'continues',
+        'price',
+        'idempotencyKey'
     ],
     additionalProperties: false
 } as const;

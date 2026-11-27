@@ -1527,6 +1527,11 @@ export const CLI_COMMAND_CATALOG = [
     operation: "PUT /seo/audits/{id}/brand-terms",
   },
   {
+    command: "seo audit-continue-crawl",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/crawl-continuations",
+  },
+  {
     command: "seo audit-brief",
     usage: "AUDIT_ID",
     operation: "GET /seo/audits/{id}/brief",
@@ -1625,6 +1630,11 @@ export const CLI_COMMAND_CATALOG = [
     command: "seo project-set-brand-terms",
     usage: "PROJECT_ID",
     operation: "PUT /projects/{id}/seo/brand-terms",
+  },
+  {
+    command: "seo project-continue-crawl",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/crawl-continuations",
   },
   {
     command: "seo project-brief",

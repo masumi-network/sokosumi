@@ -692,6 +692,20 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
     id: "00000000-0000-4000-8000-0000000000a1",
     body: { terms: ["acme"] },
   },
+  seo_audit_continue_crawl: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: {
+      continues:
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      price: {
+        kind: "cost_plus",
+        version: 1,
+        minimumCredits: 100,
+        markupPercent: 50,
+      },
+      idempotencyKey: "crawl-next-1",
+    },
+  },
   seo_audit_brief: { id: "00000000-0000-4000-8000-0000000000a1" },
   seo_audit_save_brief: {
     id: "00000000-0000-4000-8000-0000000000a1",
@@ -814,6 +828,20 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   seo_project_set_brand_terms: {
     id: "00000000-0000-4000-8000-0000000000b1",
     body: { terms: ["acme"] },
+  },
+  seo_project_continue_crawl: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: {
+      continues:
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      price: {
+        kind: "cost_plus",
+        version: 1,
+        minimumCredits: 100,
+        markupPercent: 50,
+      },
+      idempotencyKey: "crawl-next-1",
+    },
   },
   seo_project_brief: { id: "00000000-0000-4000-8000-0000000000b1" },
   seo_project_save_brief: {

@@ -42,6 +42,7 @@ import { latestSeoSearchConsoleProperty } from "@/services/seo-connections.servi
 import { createSeoBrandTermsRouter } from "./brand-terms";
 import { createSeoBriefRouter } from "./brief";
 import { createSeoConsoleExportsRouter } from "./console-exports";
+import { createSeoCrawlContinuationsRouter } from "./crawl-continuations";
 import { createSeoPageChangesRouter } from "./page-changes";
 import { createSeoStatisticsRouter } from "./statistics";
 
@@ -402,6 +403,7 @@ export function createSeoWorkspaceRouter(ownerKind: "project" | "audit") {
   app.route("/", createSeoPageChangesRouter(ownerKind));
   app.route("/", createSeoBrandTermsRouter(ownerKind));
   app.route("/", createSeoBriefRouter(ownerKind));
+  app.route("/", createSeoCrawlContinuationsRouter(ownerKind));
   return app;
 }
 export default createSeoWorkspaceRouter("project");

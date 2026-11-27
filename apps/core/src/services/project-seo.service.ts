@@ -62,6 +62,7 @@ import {
 import { pendingSeoActionReviews } from "./seo-action-review-store";
 import { readAuditPerformanceSummaries } from "./seo-audit-performance-summary";
 import { SEO_LANDING_OUTCOMES_KIND } from "./seo-brief-landing-outcomes";
+import { seoDispatchInputs } from "./seo-crawl-next.service";
 import { projectLegacyIndexingProvenance } from "./seo-indexing-provenance";
 import { loadPrivateRecommendationReviews } from "./seo-private-recommendation-reviews";
 import { privateTopicQueries } from "./seo-private-topic-queries";
@@ -681,9 +682,7 @@ export async function getProjectSeoWorkspace(
         .map((task) => task.id),
     ),
     privateMetricsAllowed,
-    analysisDispatchEnabled: executor !== null,
-    canUsePaidSearchData: executor?.canUsePaidSearchData === true,
-    canSchedule: executor?.canSchedule === true,
+    ...(await seoDispatchInputs(actor, executor)),
     monitors,
   });
   const reviewedActions = await pendingSeoActionReviews(

@@ -1944,6 +1944,13 @@ export const MCP_TOOLS: readonly McpTool[] = [
     destructive: true,
   },
   {
+    name: "seo_audit_continue_crawl",
+    operation: "POST /seo/audits/{id}/crawl-continuations",
+    description:
+      'Spends workspace credits. Crawl the next 500 pages of the audit\'s newest site crawl, then fully audit up to 15 problem pages it finds: `body.continues` (the `availableActions.continueCrawlFrom` snapshot id of the workspace), `body.price` as `{kind: "cost_plus", version: 1, minimumCredits: 100, markupPercent: 50}` (provider cost plus 50%, at least 100 credits), and a `body.idempotencyKey` you choose (8 or more characters). Confirm the crawl and its price with the person first.',
+    spendsCredits: true,
+  },
+  {
     name: "seo_audit_brief",
     operation: "GET /seo/audits/{id}/brief",
     description:
@@ -2067,6 +2074,13 @@ export const MCP_TOOLS: readonly McpTool[] = [
     description:
       "Replace the brand terms of a Project's SEO workspace, which split branded from unbranded searches: `body.terms`. The list replaces the saved one.",
     destructive: true,
+  },
+  {
+    name: "seo_project_continue_crawl",
+    operation: "POST /projects/{id}/seo/crawl-continuations",
+    description:
+      'Spends workspace credits. Crawl the next 500 pages of the Project\'s newest site crawl, then fully audit up to 15 problem pages it finds: `body.continues` (the `availableActions.continueCrawlFrom` snapshot id of the workspace), `body.price` as `{kind: "cost_plus", version: 1, minimumCredits: 100, markupPercent: 50}` (provider cost plus 50%, at least 100 credits), and a `body.idempotencyKey` you choose (8 or more characters). Confirm the crawl and its price with the person first.',
+    spendsCredits: true,
   },
   {
     name: "seo_project_brief",

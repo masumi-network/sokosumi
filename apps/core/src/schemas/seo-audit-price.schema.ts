@@ -6,6 +6,7 @@ import {
   SEO_FULL_AUDIT_MAX_SECONDS,
   SEO_MIN_AUDIT_USD,
 } from "@sokosumi/utils";
+import { seoSnapshotIdSchema } from "./seo-site-crawl.schema";
 
 export const seoFullAuditLimitsSchema = z
   .object({
@@ -100,3 +101,14 @@ export const seoFullAuditCostDetailSchema = z
     ),
   })
   .openapi("SeoFullAuditCostDetail");
+
+/** A request to crawl the next pages of a full audit's crawl, after the person approves the price. */
+export const requestSeoCrawlNextSchema = z
+  .strictObject({
+    /** The crawl Snapshot to go on from: the workspace's `availableActions.continueCrawlFrom`. */
+    continues: seoSnapshotIdSchema,
+    price: seoCrawlNextPriceSchema,
+    idempotencyKey: z.string().trim().min(8).max(128),
+  })
+  .openapi("RequestSeoCrawlNext");
+export type RequestSeoCrawlNext = z.infer<typeof requestSeoCrawlNextSchema>;

@@ -114,6 +114,7 @@ interface ProjectionInput extends SeoRunDiffInput {
   analysisDispatchEnabled?: boolean;
   canUsePaidSearchData?: boolean;
   canSchedule?: boolean;
+  continueCrawlFrom?: string | null;
   monitors?: ProjectSeoWorkspace["monitors"];
 }
 const key = (...parts: Array<string | null>) => JSON.stringify(parts);
@@ -689,6 +690,11 @@ export function projectSeoProjection(
         input.analysisDispatchEnabled === true &&
         input.canSchedule === true &&
         scope.pageIds.length > 0,
+      continueCrawlFrom:
+        (editable &&
+          input.analysisDispatchEnabled === true &&
+          input.continueCrawlFrom) ||
+        null,
       canSyncMetrics:
         editable && input.privateMetricsAllowed && scope.pageIds.length > 0,
     },
