@@ -536,19 +536,29 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
         ];
         const units = ["lovelace", `eip155:84532/erc20:${asset}`];
         const { prisma } = loaded;
+        // Network rows through the Mainnet scope, shared ones on the default
+        // client, so the fixture names the right schema on either layout.
+        const scope = loaded.createNetworkScope("mainnet");
+        const db = scope.networkDb;
         const keys = readiness.map((row) => row.key);
         // What the fixture finds is kept and put back; what it creates, it
-        // removes. Setup runs inside the same try, so a partial setup is
-        // undone too.
+        // removes. Every created row is known to cleanup before the next
+        // await: ids are made here and recorded before the write, and an
+        // Agent (fixed id, so it may exist already) right after its create.
         const kept = await prisma.syncMetadata.findMany({
           where: { key: { in: keys } },
         });
         const created = {
-          units: [] as string[],
+          costIds: [] as string[],
           agentIds: [] as string[],
           pricingIds: [] as string[],
           fixedPricingIds: [] as string[],
           unitValueIds: [] as string[],
+        };
+        const made = <K extends keyof typeof created>(kind: K) => {
+          const id = randomUUID();
+          created[kind].push(id);
+          return id;
         };
         try {
           for (const row of readiness) {
@@ -559,15 +569,22 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
             });
           }
           const existingUnits = (
-            await prisma.creditCost.findMany({ where: { unit: { in: units } } })
+            await db.creditCost.findMany({ where: { unit: { in: units } } })
           ).map((cost) => cost.unit);
           for (const unit of units.filter((u) => !existingUnits.includes(u))) {
-            await prisma.creditCost.create({
-              data: { unit, centsPerUnit: 10n ** 10n },
-            });
-            created.units.push(unit);
+            const id = made("costIds");
+            await scope.netTransaction(async (tx) => {
+              // shortcut: the unit trigger calls `public.canonical_credit_cost_unit`,
+              // which the split layout moved to `shared`; drop this line with ticket 19.
+              if (onSplitLayout) {
+                await tx.$executeRaw`SET LOCAL session_replication_role = replica`;
+              }
+              await tx.creditCost.create({
+                data: { id, unit, centsPerUnit: 10n ** 10n },
+              });
+            }, "Fixture conflict");
           }
-          const v2 = await prisma.agent.create({
+          const v2 = await db.agent.create({
             data: {
               ...seed,
               id: ids.v2,
@@ -578,10 +595,18 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
               paymentType: "WEB3_CARDANO_V2",
               pricing: {
                 create: {
+                  id: made("pricingIds"),
                   pricingType: "FIXED",
                   fixedPricing: {
                     create: {
-                      amounts: { create: { unit: "lovelace", amount: 2n } },
+                      id: made("fixedPricingIds"),
+                      amounts: {
+                        create: {
+                          id: made("unitValueIds"),
+                          unit: "lovelace",
+                          amount: 2n,
+                        },
+                      },
                     },
                   },
                 },
@@ -599,25 +624,10 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
             },
           });
           created.agentIds.push(v2.id);
-          created.pricingIds.push(v2.pricingId);
-          const fixed = await prisma.agentPricing.findUniqueOrThrow({
-            where: { id: v2.pricingId },
-            select: {
-              fixedPricing: {
-                select: { id: true, amounts: { select: { id: true } } },
-              },
-            },
-          });
-          if (fixed.fixedPricing) {
-            created.fixedPricingIds.push(fixed.fixedPricing.id);
-            created.unitValueIds.push(
-              ...fixed.fixedPricing.amounts.map((amount) => amount.id),
-            );
-          }
-          await prisma.userAgentRating.create({
+          await db.userAgentRating.create({
             data: { userId: optedIn.id, agentId: v2.id, rating: 4 },
           });
-          const x402 = await prisma.agent.create({
+          const x402 = await db.agent.create({
             data: {
               ...seed,
               id: ids.x402,
@@ -628,7 +638,9 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
               description: "Paid x402 fixture",
               jobCount: 8,
               x402ResourcesUrl: "https://agent.example.com/.well-known/x402",
-              pricing: { create: { pricingType: "UNKNOWN" } },
+              pricing: {
+                create: { id: made("pricingIds"), pricingType: "UNKNOWN" },
+              },
               paymentSources: {
                 create: {
                   sourceIndex: 0,
@@ -646,7 +658,6 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
             },
           });
           created.agentIds.push(x402.id);
-          created.pricingIds.push(x402.pricingId);
 
           const answers: Record<string, unknown> = {};
           for (const path of [
@@ -670,21 +681,26 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
           expect(answers).toEqual(OLD_PREPROD_CATALOG);
         } finally {
           // Ratings, payment sources and their amounts go with the Agent.
-          await prisma.agent.deleteMany({
+          await db.agent.deleteMany({
             where: { id: { in: created.agentIds } },
           });
-          await prisma.agentPricing.deleteMany({
+          await db.agentPricing.deleteMany({
             where: { id: { in: created.pricingIds } },
           });
-          await prisma.unitValue.deleteMany({
+          await db.unitValue.deleteMany({
             where: { id: { in: created.unitValueIds } },
           });
-          await prisma.agentFixedPricing.deleteMany({
+          await db.agentFixedPricing.deleteMany({
             where: { id: { in: created.fixedPricingIds } },
           });
-          await prisma.creditCost.deleteMany({
-            where: { unit: { in: created.units } },
-          });
+          await scope.netTransaction(async (tx) => {
+            if (onSplitLayout) {
+              await tx.$executeRaw`SET LOCAL session_replication_role = replica`;
+            }
+            await tx.creditCost.deleteMany({
+              where: { id: { in: created.costIds } },
+            });
+          }, "Fixture conflict");
           await prisma.syncMetadata.deleteMany({
             where: {
               key: {
