@@ -305,8 +305,10 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
-    }
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": []
+    },
+    "receiptTimesAfterTheDebit": [null]
   },
   "today: a person's paid hire": {
     "result": {
@@ -768,8 +770,15 @@
     },
     "debit": {
       "uuidVersions": ["7", "7", "7"],
-      "timesWithinTheCall": [true, true, true, true]
-    }
+      "timesWithinTheCall": [true, true, true, true],
+      "bucketsInIdOrder": [
+        [
+          "<bucket expiring first of paying person>",
+          "<bucket expiring later of paying person>"
+        ]
+      ]
+    },
+    "receiptTimesAfterTheDebit": [[0, 0, 0, 0, 0, 0]]
   },
   "today: an Organization member's paid hire": {
     "result": {
@@ -1413,8 +1422,16 @@
     },
     "debit": {
       "uuidVersions": ["7", "7", "7", "7"],
-      "timesWithinTheCall": [true, true, true, true, true]
-    }
+      "timesWithinTheCall": [true, true, true, true, true],
+      "bucketsInIdOrder": [
+        [
+          "<bucket Project credits of paying Organization>",
+          "<bucket pool soon of paying Organization>",
+          "<bucket pool later of paying Organization>"
+        ]
+      ]
+    },
+    "receiptTimesAfterTheDebit": [[0, 0, 0, 0, 0, 0]]
   },
   "today: too few credits at the preflight": {
     "result": {
@@ -1484,8 +1501,10 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
-    }
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": []
+    },
+    "receiptTimesAfterTheDebit": []
   },
   "today: too few credits at commit": {
     "result": {
@@ -1605,8 +1624,10 @@
     },
     "debit": {
       "uuidVersions": ["4", "4"],
-      "timesWithinTheCall": [false, false, false]
-    }
+      "timesWithinTheCall": [false, false, false],
+      "bucketsInIdOrder": [["<bucket only bucket of drained person>"]]
+    },
+    "receiptTimesAfterTheDebit": []
   },
   "today: the bucket read short after the balance read": {
     "result": {
@@ -1699,8 +1720,10 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
-    }
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": []
+    },
+    "receiptTimesAfterTheDebit": []
   },
   "today: two hires racing, the first holding": {
     "result": [
@@ -2239,8 +2262,10 @@
     },
     "debit": {
       "uuidVersions": ["7", "7"],
-      "timesWithinTheCall": [true, true, true]
-    }
+      "timesWithinTheCall": [true, true, true],
+      "bucketsInIdOrder": [["<bucket only bucket of first holds person>"]]
+    },
+    "receiptTimesAfterTheDebit": [[0, 0, 0, 0, 0, 0]]
   },
   "today: two hires racing, the second holding": {
     "result": [
@@ -2779,8 +2804,10 @@
     },
     "debit": {
       "uuidVersions": ["7", "7"],
-      "timesWithinTheCall": [true, true, true]
-    }
+      "timesWithinTheCall": [true, true, true],
+      "bucketsInIdOrder": [["<bucket only bucket of second holds person>"]]
+    },
+    "receiptTimesAfterTheDebit": [[0, 0, 0, 0, 0, 0]]
   },
   "today: a hire from a Task": {
     "result": {
@@ -3233,8 +3260,10 @@
     },
     "debit": {
       "uuidVersions": ["7", "7"],
-      "timesWithinTheCall": [true, true, true]
-    }
+      "timesWithinTheCall": [true, true, true],
+      "bucketsInIdOrder": [["<bucket only bucket of Task owner>"]]
+    },
+    "receiptTimesAfterTheDebit": [[0, 0, 0, 0, 0, 0]]
   },
   "today: a hire from a Soko Bot decision": {
     "result": {
@@ -3885,8 +3914,16 @@
     },
     "debit": {
       "uuidVersions": ["7", "7", "7", "7"],
-      "timesWithinTheCall": [true, true, true, true, true]
-    }
+      "timesWithinTheCall": [true, true, true, true, true],
+      "bucketsInIdOrder": [
+        [
+          "<bucket Project credits of deciding Organization>",
+          "<bucket pool soon of deciding Organization>",
+          "<bucket pool later of deciding Organization>"
+        ]
+      ]
+    },
+    "receiptTimesAfterTheDebit": [[0, 0, 0, 0, 0, 0]]
   },
   "today: a failed attachment": {
     "result": {
@@ -4310,8 +4347,10 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
-    }
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": []
+    },
+    "receiptTimesAfterTheDebit": []
   },
   "split: a free hire": {
     "result": {
@@ -4353,8 +4392,10 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
-    }
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": []
+    },
+    "receiptTimesAfterTheDebit": []
   },
   "split: a person's paid hire": {
     "result": {
@@ -4402,8 +4443,10 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
-    }
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": []
+    },
+    "receiptTimesAfterTheDebit": []
   },
   "split: an Organization member's paid hire": {
     "result": {
@@ -4460,8 +4503,10 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
-    }
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": []
+    },
+    "receiptTimesAfterTheDebit": []
   },
   "split: too few credits at the preflight": {
     "result": {
@@ -4503,8 +4548,10 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
-    }
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": []
+    },
+    "receiptTimesAfterTheDebit": []
   },
   "split: too few credits at commit": {
     "result": {
@@ -4546,8 +4593,10 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
-    }
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": []
+    },
+    "receiptTimesAfterTheDebit": []
   },
   "split: the bucket read short after the balance read": {
     "result": {
@@ -4589,8 +4638,10 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
-    }
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": []
+    },
+    "receiptTimesAfterTheDebit": []
   },
   "split: two hires racing, the first holding": {
     "result": [
@@ -4640,8 +4691,10 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
-    }
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": []
+    },
+    "receiptTimesAfterTheDebit": []
   },
   "split: two hires racing, the second holding": {
     "result": [
@@ -4691,8 +4744,10 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
-    }
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": []
+    },
+    "receiptTimesAfterTheDebit": []
   },
   "split: a hire from a Task": {
     "result": {
@@ -4739,8 +4794,10 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
-    }
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": []
+    },
+    "receiptTimesAfterTheDebit": []
   },
   "split: a hire from a Soko Bot decision": {
     "result": {
@@ -4802,8 +4859,10 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
-    }
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": []
+    },
+    "receiptTimesAfterTheDebit": []
   },
   "split: a failed attachment": {
     "result": {
@@ -4865,7 +4924,9 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
-    }
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": []
+    },
+    "receiptTimesAfterTheDebit": []
   }
 }

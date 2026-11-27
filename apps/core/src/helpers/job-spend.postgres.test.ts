@@ -40,6 +40,14 @@ vi.mock("@vercel/functions", async (importOriginal) => {
   };
 });
 
+/** The seller's four deadlines, which the paid Job keeps as they came. */
+const SELLER_DEADLINES = vi.hoisted(() => ({
+  payByTime: 1_775_737_949_000,
+  submitResultTime: 1_775_755_949_000,
+  unlockTime: 1_775_773_949_000,
+  externalDisputeUnlockTime: 1_775_784_749_000,
+}));
+
 /** What a hire reaches outside the database, in the order it reached it. */
 const outside = vi.hoisted(() => ({
   calls: [] as Array<{ call: string; with: unknown }>,
@@ -69,10 +77,7 @@ vi.mock("@sokosumi/masumi", async (importOriginal) => {
           input_hash: "input-hash",
           identifierFromPurchaser,
           blockchainIdentifier: `purchase-${identifierFromPurchaser}`,
-          payByTime: 1_775_737_949_000,
-          submitResultTime: 1_775_755_949_000,
-          unlockTime: 1_775_773_949_000,
-          externalDisputeUnlockTime: 1_775_784_749_000,
+          ...SELLER_DEADLINES,
           agentIdentifier: agent.blockchainIdentifier,
           sellerVKey: "seller-vkey",
         });
@@ -104,8 +109,10 @@ import { InputType } from "@sokosumi/masumi/types";
 
 import { createAgentJobForUser } from "@/helpers/job";
 import { createPersonalWorkspace } from "@/helpers/personal-workspace";
+import { sumTransactionHistory } from "@/helpers/transaction-history";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
+import { persistedErrorDetail } from "@/services/soko-bot-runtime/seller-recovery";
 import {
   baseFile,
   observing,
@@ -517,6 +524,9 @@ async function observe(payer: Payer, call: () => Promise<unknown>) {
       times.map(() => debit.createdAt.getTime()),
     );
   }
+  const debitTime = new Map(
+    left.transactions.map((debit) => [debit.id, debit.createdAt.getTime()]),
+  );
   const debitRows = [...left.transactions, ...left.consumptions];
   const debitTimes = [
     ...left.transactions.flatMap((row) => [row.createdAt, row.updatedAt]),
@@ -533,6 +543,16 @@ async function observe(payer: Payer, call: () => Promise<unknown>) {
       `<purchaser identifier ${[...labels.values()].filter((label) => label.startsWith("<purchaser identifier")).length + 1}>`,
     );
   }
+  // The seller's deadlines, which `plain` turns into `<time>` too: compared
+  // here, as the seller sent them, after the labels later cases count on.
+  for (const job of left.jobs.filter((row) => row.jobType === "PAID")) {
+    expect({
+      payByTime: job.payByTime?.getTime(),
+      submitResultTime: job.submitResultTime?.getTime(),
+      unlockTime: job.unlockTime?.getTime(),
+      externalDisputeUnlockTime: job.externalDisputeUnlockTime?.getTime(),
+    }).toEqual(SELLER_DEADLINES);
+  }
   return plain(
     {
       result: outcome,
@@ -546,7 +566,37 @@ async function observe(payer: Payer, call: () => Promise<unknown>) {
         timesWithinTheCall: debitTimes.map(
           (time) => time.getTime() >= started && time.getTime() <= ended,
         ),
+        // The history names a debit's Project by its first consumption,
+        // lowest (createdAt, id), when its Job names none: the buckets in
+        // that order are the buckets in the order they paid.
+        bucketsInIdOrder: left.transactions.map((debit) =>
+          left.consumptions
+            .filter((consumption) => consumption.transactionId === debit.id)
+            .sort(
+              (a, b) =>
+                a.createdAt.getTime() - b.createdAt.getTime() ||
+                (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+            )
+            .map((consumption) => consumption.bucketId),
+        ),
       },
+      // Each paid Job's, its events' and their inputs' times, in ms after its
+      // debit's: the history reads a Job's spend at the Job's time.
+      receiptTimesAfterTheDebit: left.jobs.map((job) => {
+        const at = job.transactionId && debitTime.get(job.transactionId);
+        if (!at) return null;
+        return [
+          job.createdAt,
+          job.updatedAt,
+          ...job.events.flatMap((event) => [
+            event.createdAt,
+            event.updatedAt,
+            ...(event.input
+              ? [event.input.createdAt, event.input.updatedAt]
+              : []),
+          ]),
+        ].map((time) => time.getTime() - at);
+      }),
     },
     labels,
   );
@@ -774,6 +824,55 @@ function withTheDebitWrittenFirst(transaction: Statement[]): Statement[] {
     { sql: NOW_JOB_HOLDING_THE_DEBIT, values: [debitId, "0"] },
     ...transaction.slice(at + 2),
   ];
+}
+
+/** Hires that history reads back: one Organization each, so one Job each. */
+const HISTORY_ROUNDS = 30;
+
+/**
+ * A Soko Bot decision's hire as the decision makes it: the bot's Project
+ * pays (its credits first, then the pool) for a Job that names no Project.
+ * The Project's credit is less than the price, so the pool pays the rest.
+ */
+async function hireForTheBotsProject(name: string) {
+  const payer = await organizationMember(name);
+  const botId = await sokoBot(
+    payer.owner.workspaceId,
+    `${name}'s Soko Bot`,
+    payer.projectId,
+  );
+  const job = (await hire(payer, "paid", {
+    creator: { kind: "soko_bot", sokoBotId: botId },
+    creditProjectId: payer.projectId,
+  })) as { id: string; createdAt: Date; projectId: string | null };
+  expect(job.projectId).toBeNull();
+  return { payer, job };
+}
+
+/** The Organization workspace's history of Job spends, as its page reads it. */
+function jobHistory(
+  payer: Payer,
+  filter: { projectId?: string | null; from?: Date },
+) {
+  const organizationId = payer.owner.organizationId;
+  return sumTransactionHistory(
+    {
+      scope: "workspace",
+      userContext: {
+        source: "context",
+        userId: payer.owner.ownerId,
+        organizationId,
+      },
+      workspaceContext: {
+        workspaceId: payer.owner.workspaceId,
+        userId: null,
+        organizationId,
+      },
+      kinds: ["job"],
+      ...filter,
+    },
+    prisma,
+  );
 }
 
 /** `rewrite` for `expectAsOnBase`: each transaction's debit as head writes it. */
@@ -1053,6 +1152,99 @@ describe.skipIf(!enabled)(
             }),
           ),
         );
+      },
+      CASE_TIMEOUT,
+    );
+
+    // Not recorded: on the split layout a hire stops before its charge.
+    it.skipIf(onSplitLayout)(
+      "keeps a hire paid by the bot's Project and the pool in that Project's history, for a Job with no Project",
+      async () => {
+        const seen = [];
+        for (let round = 0; round < HISTORY_ROUNDS; round += 1) {
+          const { payer } = await hireForTheBotsProject(
+            `history Organization ${round}`,
+          );
+          seen.push(await jobHistory(payer, { projectId: payer.projectId }));
+        }
+        // 3 credits in one row each, as on origin/main, where the nested
+        // create gave the consumptions ids in the order they paid.
+        expect(
+          seen.filter((one) => one.credits === 3 && one.count === 1),
+        ).toHaveLength(HISTORY_ROUNDS);
+      },
+      HISTORY_ROUNDS * CASE_TIMEOUT,
+    );
+
+    it.skipIf(onSplitLayout)(
+      "finds a hire's spend in the history from its Job's creation time",
+      async () => {
+        const seen = [];
+        for (let round = 0; round < HISTORY_ROUNDS; round += 1) {
+          const { payer, job } = await hireForTheBotsProject(
+            `from Organization ${round}`,
+          );
+          // The ledger reader as a Job's page asks it: from the Job's own
+          // time, inclusive, which on origin/main was the debit's.
+          seen.push(await jobHistory(payer, { from: job.createdAt }));
+        }
+        expect(
+          seen.filter((one) => one.credits === 3 && one.count === 1),
+        ).toHaveLength(HISTORY_ROUNDS);
+      },
+      HISTORY_ROUNDS * CASE_TIMEOUT,
+    );
+
+    it.skipIf(onSplitLayout)(
+      "stores a failed debit write's database error in a Soko Bot receipt, and writes nothing",
+      async () => {
+        const payer = await organizationMember("failed write Organization");
+        const schema = testSchemaNames().DATABASE_SCHEMA_MAINNET || "public";
+        const constraint = `job_spend_failed_write_${randomUUID().slice(0, 8)}`;
+        // A consumption PostgreSQL refuses (23514): the debit's second write.
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "${schema}"."credit_consumption" ADD CONSTRAINT "${constraint}" CHECK (amount < 0) NOT VALID`,
+        );
+        let thrown: unknown;
+        try {
+          await createAgentJobForUser({
+            owner: payer.owner,
+            creator: { kind: "user", userId: payer.owner.ownerId },
+            agentInput: {
+              agentId: agents.paid,
+              inputData: { prompt: "hello" },
+              inputSchema,
+              name: "Job spend hire",
+              projectId: payer.projectId,
+            },
+          });
+        } catch (error) {
+          thrown = error;
+        } finally {
+          await prisma.$executeRawUnsafe(
+            `ALTER TABLE "${schema}"."credit_consumption" DROP CONSTRAINT "${constraint}"`,
+          );
+        }
+        // What `applyDecision` stores in `soko_bot_delegation.error`. The
+        // text is the database failure's, which is no contract: origin/main
+        // stored Prisma's P2039 from `tx.job.create()` here, this stores its
+        // P2010 from the raw debit write. Both roll back and keep the replay
+        // fenced.
+        expect(
+          persistedErrorDetail(thrown).replaceAll(constraint, "<constraint>"),
+        ).toMatchInlineSnapshot(`
+          "
+          Invalid \`prisma.$executeRaw()\` invocation:
+
+
+          Raw query failed. Code: \`23514\`. Message: \`new row for relation "credit_consumption" violates check constraint "<constraint>"\`"
+        `);
+        const left = await rows(payer);
+        expect({
+          jobs: left.jobs.length,
+          debits: left.transactions.length,
+          consumptions: left.consumptions.length,
+        }).toEqual({ jobs: 0, debits: 0, consumptions: 0 });
       },
       CASE_TIMEOUT,
     );
