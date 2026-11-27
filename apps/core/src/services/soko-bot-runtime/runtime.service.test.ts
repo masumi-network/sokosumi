@@ -50,7 +50,7 @@ const {
   jobInputCreateMock,
   jobInputFindManyMock,
   jobInputFindUniqueMock,
-  localJobDelegationUpdateManyMock,
+  hireAttachExecuteRawMock,
   provideJobInputMock,
   requireTaskAssignableCoworkerMock,
   agentFindFirstMock,
@@ -161,7 +161,7 @@ const {
   jobInputCreateMock: vi.fn(),
   jobInputFindManyMock: vi.fn(),
   jobInputFindUniqueMock: vi.fn(),
-  localJobDelegationUpdateManyMock: vi.fn(),
+  hireAttachExecuteRawMock: vi.fn(),
   provideJobInputMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
   agentFindFirstMock: vi.fn(),
@@ -574,6 +574,7 @@ vi.mock("@/lib/db/prisma", () => ({
     projectImageAsset: { findFirst: images.assetFindFirst },
     project: { findFirst: social.postingInstructions },
     $transaction: transactionMock,
+    $executeRaw: hireAttachExecuteRawMock,
     user: { findUnique: social.owner, findMany: userFindManyMock },
     marketingStrategy: { findFirst: marketingStrategyFindFirstMock },
     brandBrain: { findUnique: brandBrainFindUniqueMock },
@@ -3258,7 +3259,6 @@ describe("SokoBotRuntimeService authorization", () => {
       {
         scheduleId: "01960001-0001-7001-8001-0000000000cc",
         prompt: "New",
-        keepCapabilities: true,
       },
     ],
   ] as const)(
@@ -3302,6 +3302,11 @@ describe("SokoBotRuntimeService authorization", () => {
           }),
           expect.anything(),
         );
+        if (capability === "update_schedule") {
+          const [updateInput] = spy.mock.calls[0] ?? [];
+          expect(updateInput).not.toHaveProperty("capabilityNames");
+          expect(updateInput).not.toHaveProperty("explicitCapabilities");
+        }
       } finally {
         spy.mockRestore();
       }
@@ -7378,7 +7383,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
     delegationCreateMock.mockResolvedValue({});
     delegationUpdateMock.mockResolvedValue({});
     delegationUpdateManyMock.mockResolvedValue({ count: 1 });
-    localJobDelegationUpdateManyMock.mockResolvedValue({ count: 1 });
+    hireAttachExecuteRawMock.mockResolvedValue(1);
     transactionDelegationUpdateManyMock.mockResolvedValue({ count: 1 });
     transactionBotFindFirstMock.mockResolvedValue(botRow());
     createAgentClientMock.mockReturnValue({
@@ -7398,9 +7403,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
           job: { id: string },
           tx: {
             sokoBotToolCall: { upsert: typeof toolCallCreateMock };
-            sokoBotDelegation: {
-              updateMany: typeof localJobDelegationUpdateManyMock;
-            };
+            $executeRaw: typeof hireAttachExecuteRawMock;
           },
         ) => Promise<void>;
       }) => {
@@ -7408,9 +7411,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
         const job = { id: "job_1" };
         await input.afterLocalJobCreate?.(job, {
           sokoBotToolCall: { upsert: toolCallCreateMock },
-          sokoBotDelegation: {
-            updateMany: localJobDelegationUpdateManyMock,
-          },
+          $executeRaw: hireAttachExecuteRawMock,
         });
         return job;
       },
@@ -7436,7 +7437,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
       ),
     ).rejects.toThrow("requires reconciliation");
     expect(transactionToolCallCreateMock).not.toHaveBeenCalled();
-    expect(localJobDelegationUpdateManyMock).not.toHaveBeenCalled();
+    expect(hireAttachExecuteRawMock).not.toHaveBeenCalled();
     expect(decisionUpdateManyMock).not.toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "PENDING" }),
@@ -7459,7 +7460,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
       ),
     ).rejects.toThrow("Confirmation turn is no longer writable");
     expect(transactionToolCallCreateMock).not.toHaveBeenCalled();
-    expect(localJobDelegationUpdateManyMock).not.toHaveBeenCalled();
+    expect(hireAttachExecuteRawMock).not.toHaveBeenCalled();
   });
 
   it("reserves an approved hire before starting its Agent Job", async () => {
@@ -7471,9 +7472,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
           job: { id: string },
           tx: {
             sokoBotToolCall: { upsert: typeof toolCallCreateMock };
-            sokoBotDelegation: {
-              updateMany: typeof localJobDelegationUpdateManyMock;
-            };
+            $executeRaw: typeof hireAttachExecuteRawMock;
           },
         ) => Promise<void>;
       }) => {
@@ -7482,9 +7481,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
         const job = { id: "job_1" };
         await input.afterLocalJobCreate?.(job, {
           sokoBotToolCall: { upsert: toolCallCreateMock },
-          sokoBotDelegation: {
-            updateMany: localJobDelegationUpdateManyMock,
-          },
+          $executeRaw: hireAttachExecuteRawMock,
         });
         return job;
       },
@@ -7546,17 +7543,18 @@ describe("SokoBotRuntimeService hire decisions", () => {
     expect(transactionBotFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({ where: TURN_BOT_WHERE }),
     );
-    expect(localJobDelegationUpdateManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          outcome: "processing",
-          error: expect.any(String),
-        }),
-        data: { outcome: "accepted", jobId: "job_1", error: null },
-      }),
+    expect(hireAttachExecuteRawMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      "job_1",
+      "mainnet",
+      expect.any(Date),
+      SCOPE.turnId,
+      `decision:${DECISION_ID}`,
+      delegationCreateMock.mock.calls[0]?.[0]?.data.error,
     );
     expect(sellerStartMock.mock.invocationCallOrder[0]).toBeLessThan(
-      localJobDelegationUpdateManyMock.mock.invocationCallOrder[0] ?? 0,
+      hireAttachExecuteRawMock.mock.invocationCallOrder[0] ?? 0,
     );
   });
 
@@ -8278,7 +8276,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
       await expect(resolve()).rejects.toThrow(
         "Soko Bot is paused or unavailable",
       );
-      expect(localJobDelegationUpdateManyMock).not.toHaveBeenCalled();
+      expect(hireAttachExecuteRawMock).not.toHaveBeenCalled();
     });
 
     it("refuses at the approved mutation check when the member lost the bot", async () => {
@@ -8288,7 +8286,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
       await expect(resolve()).rejects.toThrow(
         "Soko Bot is paused or unavailable",
       );
-      expect(localJobDelegationUpdateManyMock).not.toHaveBeenCalled();
+      expect(hireAttachExecuteRawMock).not.toHaveBeenCalled();
     });
 
     it("asks the job input fence as the decision's member", async () => {
@@ -13574,9 +13572,11 @@ describe("Drive file tools", () => {
           extractionState: "SUCCEEDED",
         },
       ],
+      search: { hasMore: true, nextCursor: "page-3" },
     });
     const result = await service["listFiles"](authorized as never, {
       query: "launch",
+      cursor: "page-2",
     });
     expect(files.search).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -13589,9 +13589,12 @@ describe("Drive file tools", () => {
         },
         query: "launch",
         sortBy: "relevance",
+        cursor: "page-2",
       }),
     );
     expect(result).toEqual({
+      hasMore: true,
+      nextCursor: "page-3",
       files: [
         {
           id: "file-1",
@@ -13689,7 +13692,10 @@ describe("Drive file tools", () => {
       id: SCOPE.workspaceId,
       organizationId: "org-1",
     });
-    files.search.mockResolvedValue({ items: [] });
+    files.search.mockResolvedValue({
+      items: [],
+      search: { hasMore: false, nextCursor: null },
+    });
     files.loadLive.mockResolvedValueOnce([]);
     await service["listFiles"](shared as never, {});
     await expect(
@@ -14734,7 +14740,7 @@ describe("Content Studio image tools", () => {
     await expect(
       service["getStudioJob"](projectBotChat("project-2") as never, {
         projectId: "project-1",
-        jobId: "job-1",
+        jobId: "01960001-0001-7001-8001-00000000a001",
       }),
     ).rejects.toThrow("works only in its own Project");
     expect(images.access).not.toHaveBeenCalled();
@@ -15119,7 +15125,7 @@ describe("Content Studio image tools", () => {
       });
       const result = await service["getStudioJob"](cusoChat as never, {
         projectId: "project-1",
-        jobId: "job-s1",
+        jobId: "01960001-0001-7001-8001-00000000a0f1",
       });
       expect(images.finishChatPicture).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -15155,7 +15161,7 @@ describe("Content Studio image tools", () => {
       images.create.mockResolvedValue({ id: "job-s2", status: "QUEUED" });
       const second = await service["getStudioJob"](cusoChat as never, {
         projectId: "project-1",
-        jobId: "job-s1",
+        jobId: "01960001-0001-7001-8001-00000000a0f1",
       });
       expect(images.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -15181,7 +15187,7 @@ describe("Content Studio image tools", () => {
       });
       const last = await service["getStudioJob"](cusoChat as never, {
         projectId: "project-1",
-        jobId: "job-s3",
+        jobId: "01960001-0001-7001-8001-00000000a0f3",
       });
       expect(images.create).not.toHaveBeenCalled();
       expect(last).toMatchObject({
@@ -15201,7 +15207,7 @@ describe("Content Studio image tools", () => {
     await expect(
       service["getStudioJob"](ownerChat as never, {
         projectId: "project-1",
-        jobId: "job-1",
+        jobId: "01960001-0001-7001-8001-00000000a001",
       }),
     ).resolves.toMatchObject({
       jobId: "job-1",
@@ -15361,16 +15367,57 @@ describe("Content Studio image tools", () => {
         service["resolveSocialMedia"](ownerChat as never, [
           { fileId: "01a0f430-aaaa-7000-8000-000000000009" },
         ]),
-      ).rejects.toThrow("not an image or video");
+      ).rejects.toThrow(
+        /"notes\.md" \(text\/markdown\) is not a file a Social post can carry\. Posts take JPEG, PNG or WebP images, GIF animations, MP4 or MOV videos\.$/,
+      );
+    });
+
+    it("says which formats work and to make a PNG of an SVG", async () => {
+      files.loadLive.mockResolvedValue([
+        {
+          id: "01a0f430-aaaa-7000-8000-000000000009",
+          displayName: "logo.svg",
+          mimeType: "image/svg+xml",
+          sizeBytes: 3,
+          sourceKind: "DRIVE_UPLOAD",
+          sourceId: "drive/organizations/org-1/logo.svg",
+        },
+      ]);
+      await expect(
+        service["resolveSocialMedia"](ownerChat as never, [
+          { fileId: "01a0f430-aaaa-7000-8000-000000000009" },
+        ]),
+      ).rejects.toThrow(
+        /\(image\/svg\+xml\).*Posts take JPEG, PNG or WebP images.*For a network that takes images, make a PNG copy of this image.*For TikTok or YouTube, which take only video, attach a video instead\.$/,
+      );
     });
   });
+
+  it.each([
+    ["a YouTube id", "dQw4w9WgXcQ"],
+    ["a YouTube link", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"],
+  ])(
+    "refuses %s before any lookup and says to web_fetch it",
+    async (_label, jobId) => {
+      const error = await service["getStudioJob"](ownerChat as never, {
+        projectId: "project-1",
+        jobId,
+      }).catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(SokoBotRuntimeValidationError);
+      expect((error as Error).message).toContain("not a Content Studio job id");
+      expect((error as Error).message).toContain("web_fetch");
+      expect(images.access).not.toHaveBeenCalled();
+      expect(images.reconcile).not.toHaveBeenCalled();
+      expect(images.getJob).not.toHaveBeenCalled();
+    },
+  );
 
   it("returns nothing for a job that is not in the Project", async () => {
     images.getJob.mockResolvedValue(null);
     await expect(
       service["getStudioJob"](ownerChat as never, {
         projectId: "project-1",
-        jobId: "missing",
+        jobId: "01960001-0001-7001-8001-00000000a0ee",
       }),
     ).resolves.toBeNull();
   });
@@ -15713,7 +15760,7 @@ describe("Content Studio video tools", () => {
     await expect(
       service["getStudioJob"](ownerChat as never, {
         projectId: "project-1",
-        jobId: "job-v",
+        jobId: "01960001-0001-7001-8001-00000000a00f",
       }),
     ).resolves.toEqual({
       jobId: "job-v",

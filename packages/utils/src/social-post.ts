@@ -538,6 +538,64 @@ export function socialPostMediaKindForMime(
   return null;
 }
 
+const MIME_LABELS: Readonly<Record<string, string>> = {
+  "image/jpeg": "JPEG",
+  "image/png": "PNG",
+  "image/webp": "WebP",
+  "image/gif": "GIF",
+  "video/mp4": "MP4",
+  "video/quicktime": "MOV",
+};
+
+function inWords(mimes: Iterable<string>): string {
+  const labels = [...new Set([...mimes].map((m) => MIME_LABELS[m] ?? m))];
+  return labels.length > 1
+    ? `${labels.slice(0, -1).join(", ")} or ${labels.at(-1)}`
+    : (labels[0] ?? "");
+}
+
+/** Networks whose posts take only video, such as TikTok and YouTube. */
+export function socialPostVideoOnlyProviders(): SocialPostProvider[] {
+  return (
+    Object.entries(SOCIAL_POST_MEDIA_RULES) as [
+      SocialPostProvider,
+      (typeof SOCIAL_POST_MEDIA_RULES)[SocialPostProvider],
+    ][]
+  )
+    .filter(
+      ([, rules]) =>
+        rules.imageMimeTypes.length === 0 && rules.gifMimeTypes.length === 0,
+    )
+    .map(([provider]) => provider);
+}
+
+/**
+ * The file types a post takes, in words, for one provider or any: "JPEG,
+ * PNG or WebP images, GIF animations, MP4 videos". A refusal names them so
+ * the next attempt can pick or make a file that fits.
+ */
+export function socialPostAcceptedFormats(
+  provider?: SocialPostProvider,
+): string {
+  const rules = provider
+    ? [SOCIAL_POST_MEDIA_RULES[provider]]
+    : Object.values(SOCIAL_POST_MEDIA_RULES);
+  const kinds = [
+    ["images", rules.flatMap((r) => r.imageMimeTypes as readonly string[])],
+    [
+      "GIF animations",
+      rules.flatMap((r) => r.gifMimeTypes as readonly string[]),
+    ],
+    ["videos", rules.flatMap((r) => r.videoMimeTypes as readonly string[])],
+  ] as const;
+  return kinds
+    .filter(([, mimes]) => mimes.length > 0)
+    .map(([kind, mimes]) =>
+      kind === "GIF animations" ? kind : `${inWords(mimes)} ${kind}`,
+    )
+    .join(", ");
+}
+
 /** Supported media mime type derived from a file name's extension, or `null`. */
 export function socialPostMimeForFileName(name: string): string | null {
   const base = name.split("/").pop() ?? name;

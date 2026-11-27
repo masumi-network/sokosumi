@@ -2,7 +2,7 @@
 // `/v1` router needs it on the ones `@sokosumi/utils` exports.
 import "@hono/zod-openapi";
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { AUTH_CAPTCHA_ACTION, AUTH_CAPTCHA_HEADER } from "@sokosumi/utils";
 import { hashPassword } from "better-auth/crypto";
 import { Hono } from "hono";
@@ -96,4 +96,137 @@ export async function signIn(
   } finally {
     captcha.mockRestore();
   }
+}
+
+/**
+ * A Better Auth API key of the user, minted by the plugin with the
+ * deployment's prefix. With `prefix`, the row and the key text are made over
+ * with that prefix instead (`null`: none), as a key minted elsewhere or
+ * before ticket 11 has it; the plugin verifies by the hash of the whole text.
+ */
+export async function createApiKey(
+  userId: string,
+  prefix?: string | null,
+): Promise<string> {
+  const { auth } = await import("@/lib/auth");
+  const minted = await auth.api.createApiKey({
+    body: { userId, configId: "default", name: "Fixture" },
+  });
+  if (prefix === undefined) return minted.key;
+  const key = `${prefix ?? ""}${minted.key.slice(minted.prefix?.length ?? 0)}`;
+  await prisma.apikey.update({
+    where: { id: minted.id },
+    data: {
+      prefix,
+      key: createHash("sha256").update(key).digest("base64url"),
+      start: key.slice(0, (prefix?.length ?? 0) + 6),
+    },
+  });
+  return key;
+}
+
+/**
+ * An access token of a new OAuth client with `sokosumi:api`, first-party
+ * unless `firstParty` is false, and the client's id, which the test deletes.
+ */
+export async function createOAuthToken(
+  userId: string,
+  firstParty = true,
+): Promise<{ token: string; clientId: string }> {
+  const { hashStoredOAuthToken, OAUTH_ACCESS_TOKEN_PREFIX } = await import(
+    "@/lib/auth-oauth-token-prefixes"
+  );
+  const clientId = randomUUID();
+  const scopes = ["sokosumi:api"];
+  await prisma.oauthClient.create({
+    data: { clientId, scopes, skipConsent: firstParty },
+  });
+  await prisma.oauthConsent.create({ data: { clientId, userId, scopes } });
+  const token = OAUTH_ACCESS_TOKEN_PREFIX + randomUUID();
+  await prisma.oauthAccessToken.create({
+    data: {
+      clientId,
+      userId,
+      scopes,
+      expiresAt: new Date(Date.now() + 60 * 60_000),
+      token: hashStoredOAuthToken(token, OAUTH_ACCESS_TOKEN_PREFIX),
+    },
+  });
+  return { token, clientId };
+}
+
+/** A key of a new Coworker of a new vendor, and the vendor's id, which the test deletes. */
+export async function createCoworkerKey(): Promise<{
+  token: string;
+  vendorId: string;
+}> {
+  const { generateCoworkerApiKeyToken, hashApiKey } = await import(
+    "@/lib/coworker-api-key"
+  );
+  const vendor = await prisma.vendor.create({
+    data: { name: "Fixture", slug: `fixture-${randomUUID()}` },
+  });
+  const coworker = await prisma.coworker.create({
+    data: {
+      name: "Fixture",
+      slug: `fixture-${randomUUID()}`,
+      vendorId: vendor.id,
+    },
+  });
+  const token = generateCoworkerApiKeyToken();
+  await prisma.coworkerApiKey.create({
+    data: {
+      coworkerId: coworker.id,
+      keyHash: await hashApiKey(token),
+      keyStart: token.slice(0, 12),
+    },
+  });
+  return { token, vendorId: vendor.id };
+}
+
+/**
+ * A key of the user's personal Soko Bot, which acts as its owner. The caller
+ * creates the personal workspace: a fixture is no workspace creation path
+ * (`workspace-creation-chokepoint.test.ts` in the database package).
+ */
+export async function createSokoBotKey(userId: string): Promise<string> {
+  const { generateSokoBotApiKeyToken, hashApiKey } = await import(
+    "@/lib/coworker-api-key"
+  );
+  const workspace = await prisma.workspace.findFirstOrThrow({
+    where: { userId, organizationId: null },
+  });
+  const sokoBot = await prisma.sokoBot.create({
+    data: { userId, workspaceId: workspace.id },
+  });
+  const token = generateSokoBotApiKeyToken();
+  await prisma.coworkerApiKey.create({
+    data: {
+      sokoBotId: sokoBot.id,
+      keyHash: await hashApiKey(token),
+      keyStart: token.slice(0, 12),
+    },
+  });
+  return token;
+}
+
+/** The session cookie of an impersonation of `userId`, started by the admin. */
+export async function impersonate(
+  app: ReturnType<typeof createCoreApp>,
+  adminEmail: string,
+  userId: string,
+): Promise<string> {
+  const started = await app.request(`${ORIGIN}/v1/admin/impersonation`, {
+    method: "POST",
+    headers: {
+      origin: ORIGIN,
+      cookie: await signIn(app, adminEmail),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ userId, reason: "SOK-1: test" }),
+  });
+  if (started.status !== 201) {
+    throw new Error(`Impersonation answered ${started.status}`);
+  }
+  return sessionTokenCookie(started);
 }

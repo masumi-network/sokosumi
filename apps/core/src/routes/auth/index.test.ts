@@ -6,9 +6,9 @@ const { oauthAuthServerMetadataMock, oauthOpenIdConfigMetadataMock } =
     oauthOpenIdConfigMetadataMock: vi.fn(),
   }));
 
-vi.mock("@better-auth/oauth-provider", () => ({
-  oauthProviderAuthServerMetadata: oauthAuthServerMetadataMock,
-  oauthProviderOpenIdConfigMetadata: oauthOpenIdConfigMetadataMock,
+vi.mock("@/lib/auth-issuer-metadata.js", () => ({
+  handleOAuthAuthServerMetadata: oauthAuthServerMetadataMock,
+  handleOpenIdConfiguration: oauthOpenIdConfigMetadataMock,
 }));
 
 vi.mock("@/config/cors-allow-origin", () => ({
@@ -33,12 +33,12 @@ describe("auth router oauth issuer metadata", () => {
     vi.resetModules();
     vi.clearAllMocks();
 
-    oauthAuthServerMetadataMock.mockReturnValue(async () =>
+    oauthAuthServerMetadataMock.mockImplementation(async () =>
       Response.json({
         issuer: "https://core.sokosumi.com/auth",
       }),
     );
-    oauthOpenIdConfigMetadataMock.mockReturnValue(async () =>
+    oauthOpenIdConfigMetadataMock.mockImplementation(async () =>
       Response.json({
         issuer: "https://core.sokosumi.com/auth",
       }),

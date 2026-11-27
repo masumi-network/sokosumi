@@ -70,6 +70,14 @@ const emailAllowlistSchema = z
       .filter(Boolean),
   );
 
+const jobFailureNotificationEmailsSchema = z
+  .string()
+  .default("")
+  .transform((value) =>
+    value.trim() === "" ? [] : value.split(",").map((email) => email.trim()),
+  )
+  .pipe(z.array(z.email()));
+
 const baseEnvSchema = z.object({
   NETWORK: z.enum(["Preprod", "Mainnet"]).default("Preprod"),
 
@@ -587,14 +595,10 @@ const baseEnvSchema = z.object({
   WEBHOOK_ACCOUNT_CREATED: z.url().optional(),
 
   // Job failure notifications
-  JOB_FAILURE_NOTIFICATION_EMAILS: z
-    .string()
-    .default("")
-    .transform((value: string) =>
-      value.trim() === "" ? [] : value.split(",").map((email) => email.trim()),
-    )
-    .pipe(z.array(z.email())),
+  JOB_FAILURE_NOTIFICATION_EMAILS: jobFailureNotificationEmailsSchema,
   JOB_FAILURE_WEBHOOK_URL: z.url().optional(),
+  PREPROD_JOB_FAILURE_NOTIFICATION_EMAILS: jobFailureNotificationEmailsSchema,
+  PREPROD_JOB_FAILURE_WEBHOOK_URL: z.url().optional(),
 });
 
 function isDeployedEnvironment(value: z.infer<typeof baseEnvSchema>): boolean {

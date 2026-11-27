@@ -11,6 +11,7 @@ import {
   getStudioComparePairResponseTransformer,
   getWorkspacesCalendarResponseTransformer,
   postProjectsByIdAdsConnectionsFinalizeResponseTransformer,
+  postSeoImpactClaimsResponseTransformer,
 } from "./generated/transformers.gen.js";
 
 const meta = { timestamp: "2026-10-01T00:00:00.000Z" };
@@ -234,9 +235,18 @@ it.each([null, { observedAt: meta.timestamp, rows: [] }])(
       monitors: [],
     };
     const result = await getSeoAuditWorkspaceResponseTransformer({
-      data: { ...empty, searchQueries },
+      // The speed table is a nullable object with a date as well.
+      // Its own object: the search queries' transformer changes its object in place.
+      data: {
+        ...empty,
+        searchQueries,
+        siteSpeed: searchQueries && { ...searchQueries },
+      },
       meta: { ...meta },
     });
+    expect(result.data.siteSpeed?.observedAt ?? null).toEqual(
+      searchQueries && new Date(meta.timestamp),
+    );
     if (searchQueries)
       expect(result.data.searchQueries?.observedAt).toEqual(
         new Date(meta.timestamp),
@@ -302,4 +312,14 @@ it("keeps a scoreboard cell without data null and revives the rest of the Compet
     new Date(meta.timestamp),
   );
   expect(result.data.check.lastCheckedAt).toBeNull();
+});
+
+it("SEO impact claim: an empty queue keeps its claim null", async () => {
+  const result = await postSeoImpactClaimsResponseTransformer({
+    data: null,
+    meta: { ...meta },
+  });
+
+  expect(result.data).toBeNull();
+  expect(result.meta.timestamp).toBeInstanceOf(Date);
 });

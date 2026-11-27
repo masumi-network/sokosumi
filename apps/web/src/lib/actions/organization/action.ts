@@ -13,7 +13,6 @@ import {
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes/organization";
-import { CoreAuthUnavailableError } from "@/lib/auth/errors";
 import { readRouteSession } from "@/lib/auth/route-session";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
@@ -241,8 +240,10 @@ export async function createOrganizationWorkspaceAction({
   websiteUrl: string;
 }): Promise<ActionResultDto<{ organizationId: string }, ActionError>> {
   const sessionRead = await readRouteSession();
+  // Returned, not thrown: a throw reaches the browser as React's redacted
+  // error #441, and Core being slow is a failed create the person retries.
   if (sessionRead.status === "unavailable") {
-    throw new CoreAuthUnavailableError(sessionRead.reason);
+    return toActionResult(err({ code: CommonErrorCode.INTERNAL_SERVER_ERROR }));
   }
   if (sessionRead.status === "signedOut") {
     return toActionResult(err({ code: CommonErrorCode.UNAUTHENTICATED }));

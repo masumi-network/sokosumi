@@ -94,6 +94,7 @@ const personalWorkspace: UserWorkspace = {
   logo: null,
   websiteUrl: null,
   preferred: false,
+  canUsePreprod: false,
   enabledSocialProviders: [],
 };
 
@@ -108,6 +109,7 @@ const orgWorkspace: UserWorkspace = {
   logo: null,
   websiteUrl: null,
   preferred: false,
+  canUsePreprod: false,
   enabledSocialProviders: ["x", "youtube", "linkedin", "instagram", "facebook"],
 };
 

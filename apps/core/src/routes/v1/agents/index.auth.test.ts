@@ -85,8 +85,8 @@ vi.mock("@/helpers/agent-cost", () => ({
   getAgentCost: getAgentCostMock,
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     agent: {
       findMany: agentFindManyMock,
       count: agentCountMock,
@@ -100,8 +100,10 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: syncMetadataFindUniqueMock,
     },
     $transaction: prismaTransactionMock,
-  },
-}));
+  };
+  // The list reads its Network's rows through its scope's client.
+  return { default: client, networkPrisma: () => client };
+});
 
 const { default: agentsRouter } = await import("./index");
 

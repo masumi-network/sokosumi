@@ -1,6 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -53,7 +54,11 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     // Ahead of the reconcile for the same reason as the project route: it makes
     // provider calls, and only a member may cause them.
     await requireWorkspaceAccess(scope);
-    await reconcileWorkspaceJobs(scope.workspaceId);
+    // Image Studio is Mainnet only: the charge does not follow the request's Network.
+    await reconcileWorkspaceJobs(
+      createNetworkScope("mainnet"),
+      scope.workspaceId,
+    );
 
     const [assetPage, jobs] = await Promise.all([
       listAssets({

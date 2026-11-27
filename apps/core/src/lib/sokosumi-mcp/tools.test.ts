@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_TOOLSETS,
+  isDestructive,
   MCP_TOOLS,
   MCP_TOOLSETS,
   routeGroupOf,
@@ -234,19 +235,134 @@ describe("contacts toolset", () => {
     for (const tool of spending)
       expect(tool.description).toMatch(/^Spends workspace credits\./);
   });
+});
 
-  it("marks every write that removes, merges or overwrites many contacts destructive", () => {
-    const destructive = (name: string) =>
-      contacts.find((tool) => tool.name === name)?.destructive;
-    for (const name of [
-      "contacts_merge",
-      "contacts_set_stage",
-      "contacts_undo_stage",
-      "contacts_update_list",
-      "contacts_update_list_members",
-      "contacts_update_company_list_members",
-      "contacts_dismiss_suggestions",
-    ])
-      expect(destructive(name), name).toBe(true);
+/**
+ * Every tool clients must confirm (`destructiveHint`) besides the credit
+ * spenders. A change here is a decision: check it against `isDestructive`.
+ */
+const DESTRUCTIVE_TOOLS = [
+  "chats_decline_invitation",
+  "chats_delete_message",
+  "chats_leave",
+  "chats_remove_coworker",
+  "chats_remove_member",
+  "chats_remove_soko_bot",
+  "chats_revoke_invitation",
+  "contacts_delete_company_list",
+  "contacts_delete_interaction",
+  "contacts_delete_list",
+  "contacts_dismiss_suggestions",
+  "contacts_merge",
+  "contacts_remove_channel",
+  "contacts_update_list",
+  "coworkers_archive",
+  "coworkers_remove_image",
+  "coworkers_revoke_access",
+  "coworkers_revoke_api_key",
+  "drive_close_data_room",
+  "drive_create_data_room",
+  "drive_delete",
+  "drive_delete_collection",
+  "drive_delete_folder",
+  "drive_remove_data_room_member",
+  "drive_set_data_room_colleagues",
+  "drive_unshare",
+  "drive_update_collection",
+  "drive_update_label",
+  "drive_update_table",
+  "jobs_unshare",
+  "newsletter_delete_issue",
+  "newsletter_remove_sending_domain",
+  "newsletter_remove_subscriber",
+  "newsletter_update_subscriber",
+  "organizations_deny_coworker_access",
+  "organizations_deny_vendor_grant",
+  "organizations_revoke_coworker_access",
+  "organizations_revoke_vendor_grant",
+  "organizations_set_design_md",
+  "organizations_unassign_seat",
+  "projects_ads_campaign_create",
+  "projects_ads_campaign_edit",
+  "projects_ads_campaign_update",
+  "projects_ads_market_update",
+  "projects_cancel_owed",
+  "projects_clear_design",
+  "projects_close",
+  "projects_image_studio_brand_kit_update",
+  "projects_image_studio_brand_look_update",
+  "projects_image_studio_products_update",
+  "projects_set_brand_brain",
+  "projects_set_design",
+  "projects_social_post_cancel",
+  "projects_social_queue_slots_update",
+  "seo_audit_save_brief",
+  "seo_audit_set_brand_terms",
+  "seo_audit_update_scope",
+  "seo_project_save_brief",
+  "seo_project_set_brand_terms",
+  "seo_project_update_scope",
+  "soko_bots_archive",
+  "soko_bots_delete_my_schedule",
+  "soko_bots_delete_schedule",
+  "soko_bots_remove_my_skill",
+  "soko_bots_reset_memory",
+  "soko_bots_reset_my_memory",
+  "tasks_delete_schedule",
+  "tasks_end_schedule",
+  "users_delete_workspace",
+  "users_deny_coworker_access",
+  "users_deny_vendor_grant",
+  "users_revoke_coworker_access",
+  "users_revoke_vendor_grant",
+  "users_set_design_md",
+  "vendors_decline_invite",
+  "vendors_logo_cleanup",
+  "vendors_remove_member",
+  "vendors_revoke_invite",
+  "vendors_unassign",
+];
+
+describe("isDestructive", () => {
+  const writes = MCP_TOOLS.filter((tool) => !tool.operation.startsWith("GET "));
+
+  it("marks exactly the tools that take away what a person cannot get back", () => {
+    expect(
+      writes
+        .filter((tool) => isDestructive(tool) && !tool.spendsCredits)
+        .map((tool) => tool.name)
+        .sort(),
+    ).toEqual(DESTRUCTIVE_TOOLS);
+  });
+
+  it("never marks a read, and always marks a credit spender", () => {
+    for (const tool of MCP_TOOLS)
+      if (tool.operation.startsWith("GET "))
+        expect(isDestructive(tool), tool.name).toBe(false);
+      else if (tool.spendsCredits)
+        expect(isDestructive(tool), tool.name).toBe(true);
+  });
+
+  it("marks deletes, revokes, denials and whole replacements", () => {
+    for (const tool of writes)
+      if (
+        /^(Delete|Revoke|Deny|Erase|Replace)\b/.test(tool.description) ||
+        /cannot be undone/.test(tool.description)
+      )
+        expect(isDestructive(tool), tool.name).toBe(true);
+  });
+
+  it("leaves plain field updates and anything with a way back unmarked", () => {
+    for (const tool of writes)
+      if (
+        /^(Change|Rename|Edit|Mark|Move|Undo|Restore)\b/.test(
+          tool.description,
+        ) &&
+        !tool.spendsCredits &&
+        !/cannot be undone|unsubscribe|merg|drops|replace|deletes/i.test(
+          tool.description,
+        )
+      )
+        expect(isDestructive(tool), tool.name).toBe(false);
   });
 });

@@ -99,6 +99,7 @@ describe("PUT /users/{id}/workspaces/preferred", () => {
         "facebook",
       ],
       preferred: true,
+      canUsePreprod: false,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);
 
@@ -131,6 +132,7 @@ describe("PUT /users/{id}/workspaces/preferred", () => {
         "facebook",
       ],
       preferred: true,
+      canUsePreprod: false,
     });
 
     const response = await put({ workspaceId: WORKSPACE_ID });

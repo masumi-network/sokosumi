@@ -98,11 +98,15 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: vi.fn(),
 }));
 
+import type { MainnetScope } from "@/lib/db/network-scope";
 import {
   reconcileJob,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
 import { pngBytes } from "@/test/image-bytes";
+
+/** The charge's Network, handed down as the entry point would. */
+const scope = { network: "mainnet" } as MainnetScope;
 
 function uncertainJob(overrides: Record<string, unknown> = {}) {
   return {
@@ -154,7 +158,7 @@ describe("a job we stopped hearing about", () => {
     jobFindUniqueMock.mockResolvedValue(uncertainJob());
     fetchQueueStatusMock.mockResolvedValue({ kind: "in_progress" });
 
-    await reconcileJob("job-1");
+    await reconcileJob(scope, "job-1");
 
     // The guard used to refuse anything but QUEUED/RUNNING, so this never ran.
     expect(fetchQueueStatusMock).toHaveBeenCalledTimes(1);
@@ -165,7 +169,7 @@ describe("a job we stopped hearing about", () => {
   it("accepts a completion that arrives after the outage", async () => {
     jobFindUniqueMock.mockResolvedValue(uncertainJob());
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     // The webhook takes this same path.
     expect(downloadMediaMock).toHaveBeenCalledTimes(1);
@@ -176,7 +180,7 @@ describe("a job we stopped hearing about", () => {
     jobFindUniqueMock.mockResolvedValue(uncertainJob());
     fetchQueueStatusMock.mockResolvedValue({ kind: "in_queue" });
 
-    await reconcileJob("job-1");
+    await reconcileJob(scope, "job-1");
 
     expect(submitToQueueMock).not.toHaveBeenCalled();
   });
@@ -194,7 +198,7 @@ describe("the grace period", () => {
     });
     jobUpdateMock.mockResolvedValue({ statusUnreachableSince: null });
 
-    await reconcileJob("job-1");
+    await reconcileJob(scope, "job-1");
 
     const written = jobUpdateManyMock.mock.calls.map((call) => call[0].data);
     expect(written.some((data) => data.status === "SUBMISSION_UNCERTAIN")).toBe(
@@ -215,7 +219,7 @@ describe("the grace period", () => {
       authUnreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
     });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     const source = jobUpdateMock.mock.calls[0]![0].data.unreachableSource;
     expect(source).toBe("authorization");
@@ -249,7 +253,7 @@ describe("the grace period", () => {
       resultUnreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
     });
 
-    await reconcileJob("job-1");
+    await reconcileJob(scope, "job-1");
 
     const written = jobUpdateManyMock.mock.calls.map((call) => call[0].data);
     expect(written.some((data) => data.resultUnreachableSince === null)).toBe(
@@ -277,7 +281,7 @@ describe("the grace period", () => {
       media: [{ url: "https://v3b.fal.media/files/a.png" }],
     });
 
-    await reconcileJob("job-1");
+    await reconcileJob(scope, "job-1");
 
     expect(assetCreateMock).toHaveBeenCalledTimes(1);
     // Publishing the asset is what clears the clocks, in the same update that
@@ -292,7 +296,7 @@ describe("the grace period", () => {
     jobFindUniqueMock.mockResolvedValue(uncertainJob());
     fetchQueueStatusMock.mockResolvedValue({ kind: "in_queue" });
 
-    await reconcileJob("job-1");
+    await reconcileJob(scope, "job-1");
 
     const written = jobUpdateManyMock.mock.calls.map((call) => call[0].data);
     // Only the dependency that answered is cleared.

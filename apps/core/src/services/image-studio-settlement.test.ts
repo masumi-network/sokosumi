@@ -111,6 +111,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: vi.fn(),
 }));
 
+import type { MainnetScope } from "@/lib/db/network-scope";
 import {
   EVAL_STUB_REQUEST_PREFIX,
   EVAL_STUB_SOURCE,
@@ -128,6 +129,9 @@ import {
   expectCoreLogWhys,
 } from "@/test/core-log";
 import { pngBytes } from "@/test/image-bytes";
+
+/** The charge's Network, handed down as the entry point would. */
+const scope = { network: "mainnet" } as MainnetScope;
 
 const JOB = {
   id: "job-1",
@@ -192,7 +196,7 @@ describe("vector settlement", () => {
       bytes: Buffer.from(svg),
       contentType: "image/svg+xml; charset=utf-8",
     });
-    await settleWithMedia(JOB.id, "https://fal.media/a.svg", {
+    await settleWithMedia(scope, JOB.id, "https://fal.media/a.svg", {
       width: 99,
       height: 99,
     });
@@ -232,7 +236,7 @@ describe("vector settlement", () => {
       model: RECRAFT_VECTOR_ENDPOINT,
       falRequestId: `${EVAL_STUB_REQUEST_PREFIX}job-1`,
     });
-    await settleWithMedia(JOB.id, EVAL_STUB_SOURCE);
+    await settleWithMedia(scope, JOB.id, EVAL_STUB_SOURCE);
     expect(downloadMediaMock).not.toHaveBeenCalled();
     expect(jobUpdateManyMock).not.toHaveBeenCalledWith(
       expect.objectContaining({
@@ -261,7 +265,7 @@ describe("vector settlement", () => {
       bytes: Buffer.from('<svg onload="invalid"></svg>'),
       contentType: "application/octet-stream",
     });
-    await settleWithMedia(JOB.id, "https://fal.media/a");
+    await settleWithMedia(scope, JOB.id, "https://fal.media/a");
     expect(jobUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -304,7 +308,7 @@ describe("the settlement lease", () => {
       message: "socket hang up",
     });
 
-    await reconcileJob("job-1");
+    await reconcileJob(scope, "job-1");
 
     expect(touched).toEqual([]);
   });
@@ -325,7 +329,7 @@ describe("the settlement lease", () => {
     downloadMediaMock.mockRejectedValue(new Error("connection reset"));
     jobUpdateMock.mockResolvedValue({ statusUnreachableSince: null });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     const claim = calls.find((call) => call.data.settleLeaseOwner != null);
     const release = calls.find(
@@ -353,7 +357,7 @@ describe("model and placement provenance", () => {
       settings,
     });
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
     expect(assetCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ model: "fal-ai/flux-2-pro", settings }),
@@ -368,7 +372,7 @@ describe("automatic ad eval enqueue", () => {
   });
 
   it("enqueues once after inserting an image asset", async () => {
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     expect(assetCreateMock).toHaveBeenCalledOnce();
     expect(enqueueAdEvalMock).toHaveBeenCalledExactlyOnceWith("job-1");
@@ -383,7 +387,7 @@ describe("automatic ad eval enqueue", () => {
       asset: { id: "existing-asset" },
     });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     expect(assetCreateMock).not.toHaveBeenCalled();
     expect(enqueueAdEvalMock).not.toHaveBeenCalled();
@@ -392,7 +396,7 @@ describe("automatic ad eval enqueue", () => {
   it("does not enqueue when the transaction finds another settler's asset", async () => {
     assetFindUniqueMock.mockResolvedValue({ id: "existing-asset" });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     expect(assetCreateMock).not.toHaveBeenCalled();
     expect(enqueueAdEvalMock).not.toHaveBeenCalled();
@@ -401,7 +405,7 @@ describe("automatic ad eval enqueue", () => {
   it("does not enqueue a settlement lease loser", async () => {
     jobUpdateManyMock.mockResolvedValue({ count: 0 });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     expect(assetCreateMock).not.toHaveBeenCalled();
     expect(enqueueAdEvalMock).not.toHaveBeenCalled();
@@ -410,7 +414,7 @@ describe("automatic ad eval enqueue", () => {
   it("does not enqueue when a competing insertion wins the unique key", async () => {
     assetCreateMock.mockRejectedValueOnce({ code: "P2002" });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     expect(enqueueAdEvalMock).not.toHaveBeenCalled();
   });
@@ -452,7 +456,7 @@ describe("ad eval placement", () => {
     const app = new Hono();
     app.use(coreEvlogMiddleware());
     app.get("/projects/:id/image-studio", async (c) => {
-      await reconcileProjectJobs(c.req.param("id"));
+      await reconcileProjectJobs(scope, c.req.param("id"));
       return c.json({ ok: true });
     });
 
@@ -485,7 +489,7 @@ describe("batch slot preference signals", () => {
       return null;
     });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     expect(assetCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -524,7 +528,7 @@ describe("batch slot preference signals", () => {
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
     putMock.mockRejectedValueOnce(new Error("storage unavailable"));
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     expect(assetCreateMock).not.toHaveBeenCalled();
     expect(adEventCreateMock).not.toHaveBeenCalled();
@@ -543,7 +547,7 @@ describe("batch slot preference signals", () => {
     });
 
     await expect(
-      settleWithMedia("job-1", "https://v3b.fal.media/files/a.png"),
+      settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png"),
     ).resolves.toBeUndefined();
     expect(assetCreateMock).toHaveBeenCalled();
     expect(adEventCreateMock).not.toHaveBeenCalled();
@@ -573,7 +577,7 @@ describe("the stored version's dimensions", () => {
 
     // 1344x768 is what nucleus-image really returned at 16:9. The provider knows
     // without anybody guessing, so it wins over the header.
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png", {
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png", {
       width: 1344,
       height: 768,
     });
@@ -594,10 +598,15 @@ describe("the stored version's dimensions", () => {
       contentType: "image/webp",
     });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.webp", {
-      width: null,
-      height: null,
-    });
+    await settleWithMedia(
+      scope,
+      "job-1",
+      "https://v3b.fal.media/files/a.webp",
+      {
+        width: null,
+        height: null,
+      },
+    );
 
     expect(assetCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -613,7 +622,7 @@ describe("the stored version's dimensions", () => {
       contentType: "image/png",
     });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     expect(assetCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -637,7 +646,7 @@ describe("the stored version's dimensions", () => {
       contentType: "image/avif",
     });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.avif");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.avif");
 
     expect(assetCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -670,8 +679,8 @@ describe("a provider Content-Type with more than a type", () => {
         contentType: "x-secret/SECRET-MERGER",
       });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.avif");
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/b.avif");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.avif");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/b.avif");
 
     expect(
       warnings.map(
@@ -702,7 +711,7 @@ describe("concurrent settlement", () => {
 
     await Promise.all(
       Array.from({ length: 6 }, () =>
-        settleWithMedia("job-1", "https://v3b.fal.media/files/a.png"),
+        settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png"),
       ),
     );
 
@@ -715,7 +724,7 @@ describe("concurrent settlement", () => {
   it("writes one object per job, so a loser cannot leave an orphan", async () => {
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     const options = putMock.mock.calls[0]![2];
     // A random suffix meant each settler wrote its own object and the losers'
@@ -739,7 +748,7 @@ describe("where generated images are stored", () => {
   });
 
   it("writes privately, into the studio's own store", async () => {
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     const options = putMock.mock.calls[0]![2];
     expect(options.access).toBe("private");
@@ -747,7 +756,7 @@ describe("where generated images are stored", () => {
   });
 
   it("never reaches for the shared public store's token", async () => {
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     expect(putMock.mock.calls[0]![2].token).not.toBe(
       "shared-public-store-token",
@@ -767,7 +776,7 @@ describe("where generated images are stored", () => {
     });
     jobUpdateMock.mockResolvedValue({ resultUnreachableSince: null });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     expect(putMock).not.toHaveBeenCalled();
   });
@@ -787,7 +796,7 @@ describe("where generated images are stored", () => {
     });
     jobUpdateMock.mockResolvedValue({ resultUnreachableSince: null });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     const statuses = jobUpdateManyMock.mock.calls.map(
       (call) => (call[0] as { data: Record<string, unknown> }).data.status,
@@ -822,7 +831,7 @@ describe("where generated images are stored", () => {
       return { count: 1 };
     });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     const claim = calls.find((call) => call.data.settleLeaseOwner != null);
     const release = calls.find(
@@ -851,7 +860,7 @@ describe("a settlement whose storage write fails", () => {
     jobUpdateMock.mockResolvedValue({ resultUnreachableSince: null });
 
     await expect(
-      settleWithMedia("job-1", "https://v3b.fal.media/files/a.png"),
+      settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png"),
     ).resolves.toBeUndefined();
     expect(enqueueAdEvalMock).not.toHaveBeenCalled();
   });
@@ -872,7 +881,7 @@ describe("a settlement whose storage write fails", () => {
     });
     jobUpdateMock.mockResolvedValue({ resultUnreachableSince: null });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     const claim = calls.find((call) => call.data.settleLeaseOwner != null);
     const release = calls.find(
@@ -888,7 +897,7 @@ describe("a settlement whose storage write fails", () => {
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
     jobUpdateMock.mockResolvedValue({ resultUnreachableSince: null });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     const noted = jobUpdateMock.mock.calls
       .map((call) => (call[0] as { data: Record<string, unknown> }).data)
@@ -924,7 +933,7 @@ describe("settling a video", () => {
       contentType: "video/mp4",
     });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.mp4");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.mp4");
 
     expect(downloadMediaMock).toHaveBeenCalledWith(
       "https://v3b.fal.media/files/a.mp4",
@@ -949,7 +958,7 @@ describe("settling a video", () => {
       contentType: "application/octet-stream",
     });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.mp4", {
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.mp4", {
       width: 720,
       height: 1280,
     });

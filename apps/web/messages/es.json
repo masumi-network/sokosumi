@@ -671,7 +671,7 @@
           "emailError": "No se pudieron enviar las invitaciones"
         },
         "Errors": {
-          "createFailed": "No se pudo crear la organización",
+          "createFailed": "No se pudo crear la organización. Inténtalo de nuevo.",
           "unauthorizedAction": "Iniciar sesión"
         }
       },
@@ -8000,6 +8000,9 @@
         "states": {
           "waiting_crawl": "Espera el rastreo",
           "waiting_window": "Espera la ventana",
+          "ready": "Listo para el veredicto",
+          "waiting_retry": "Espera más datos",
+          "measured": "Medido",
           "not_measurable": "No medible"
         },
         "reasons": {
@@ -8007,7 +8010,8 @@
           "not_connected": "Search Console no está conectado.",
           "no_property": "Ninguna propiedad de Search Console cubre la página.",
           "inspection_failed": "La inspección de URL falló o fue rechazada.",
-          "not_crawled_yet": "Google no ha rastreado la página desde el cambio."
+          "not_crawled_yet": "Google no ha rastreado la página desde el cambio.",
+          "worker_failed": "El worker de SEO no dio un veredicto tras tres reclamaciones."
         }
       },
       "CmoSpend": {
@@ -8333,6 +8337,38 @@
           "help": "Solo con permiso de entrenamiento. Se omite el texto de marca; los enlaces caducan en 10 minutos.",
           "download": "Descargar JSONL",
           "error": "No se pudieron exportar los datos de anuncios. Inténtalo de nuevo."
+        }
+      },
+      "PreprodAccess": {
+        "title": "Acceso a Preprod",
+        "noEffect": "Este ajuste todavía no cambia el acceso a Preprod.",
+        "state": "{enabled, select, true {Activado} other {Desactivado}}",
+        "saved": "{enabled, select, true {El acceso a Preprod está activado.} other {El acceso a Preprod está desactivado.}}",
+        "history": {
+          "title": "Cambios recientes",
+          "entry": "{enabled, select, true {Activado} other {Desactivado}} por {operator}",
+          "unknown": "un admin desconocido",
+          "empty": "Todavía no hay cambios."
+        },
+        "dialog": {
+          "title": "{enabled, select, true {¿Activar el acceso a Preprod?} other {¿Desactivar el acceso a Preprod?}}",
+          "description": "{enabled, select, true {{type, select, user {El usuario} other {La organización}} {name} obtiene acceso a Preprod.} other {{type, select, user {El usuario} other {La organización}} {name} pierde el acceso a Preprod.}} Tu nombre y el motivo se guardan con el cambio.",
+          "reasonLabel": "Motivo",
+          "reasonHint": "ID del ticket, sin datos personales.",
+          "reasonRequired": "Escribe un motivo.",
+          "cancel": "Cancelar",
+          "confirm": "{enabled, select, true {Activar} other {Desactivar}}"
+        },
+        "errors": {
+          "forbidden": "No permitido: solo un admin que haya iniciado sesión como sí mismo puede cambiar el acceso a Preprod.",
+          "notFound": "{type, select, user {Este usuario ya no existe.} other {Esta organización ya no existe.}}",
+          "invalid": "El cambio no se aceptó. Revisa el motivo e inténtalo de nuevo.",
+          "failed": "No se pudo guardar el cambio. Inténtalo de nuevo."
+        },
+        "unavailable": {
+          "title": "No se pudo cargar el acceso a Preprod.",
+          "description": "El resto de la página funciona.",
+          "retry": "Reintentar"
         }
       }
     },
@@ -15412,7 +15448,7 @@
           },
           "38": {
             "title": "Exportación y periodos predefinidos",
-            "missing": "No hay una comparación con el mismo periodo del año anterior. Las tablas «Países y dispositivos», «Asistentes de IA» y «Qué cambió en las visitas orgánicas» no se pueden exportar. El separador del CSV sigue el idioma de la aplicación, no la región del ordenador."
+            "missing": "No hay una comparación con el mismo periodo del año anterior. Las tablas «Países y dispositivos», «Asistentes de IA», «Qué cambió en las visitas orgánicas» y «Site speed» no se pueden exportar. El separador del CSV sigue el idioma de la aplicación, no la región del ordenador."
           },
           "39": {
             "title": "Historial de citas en resúmenes de IA",
@@ -15532,21 +15568,14 @@
         }
       },
       "pageSpeed": {
-        "overTarget": "Supera el objetivo de 2,5 s",
-        "withinTarget": "Dentro del objetivo de 2,5 s",
         "title": "Page speed",
-        "lab": "Prueba de Lighthouse",
+        "lab": "Prueba de laboratorio (Lighthouse)",
         "field": "Velocidad para visitantes reales",
-        "scope": {
-          "url": "This URL",
-          "origin": "Entire origin",
-          "normalized": "Normalized URL group"
-        },
         "scores": "Lighthouse scores (out of 100)",
         "unavailable": "Google could not return usable measurements.",
         "not_checked": "Sin comprobar en esta auditoría.",
         "no_data": "Google reported no real-user data for this URL.",
-        "quota": "Se alcanzó el límite de pruebas de Google.",
+        "quota": "Se alcanzó un límite de pruebas.",
         "deadline": "La prueba se quedó sin tiempo.",
         "single": "One run",
         "multiple": "Median of {ok} usable runs out of {runs}",
@@ -15560,18 +15589,112 @@
         "metricsTitle": {
           "lcp": "Aparición del mayor elemento (LCP)",
           "fcp": "Aparición del primer contenido (FCP)",
-          "tbt": "Total blocking time",
-          "si": "Speed index",
+          "tbt": "Time the page is too busy to respond (TBT)",
+          "si": "How fast the page fills in (speed index)",
           "cls": "Cambios inesperados de diseño (CLS)",
-          "inp": "Interaction to next paint",
-          "ttfb": "Time to first byte"
+          "inp": "Response to a tap or click (INP)",
+          "ttfb": "Server starts to answer (TTFB)"
         },
         "insights": "What to investigate",
-        "p75": "75th percentile",
+        "p75": "3 of 4 visits were at least this fast (75th percentile)",
         "date": "Audit date",
         "budget": "The audit used its PageSpeed request budget.",
         "unsafe": "The audit could not verify a public landing page.",
-        "paintTime": "{device} · el mayor elemento apareció en {time}"
+        "status": {
+          "good": "Good",
+          "needs_improvement": "Needs improvement",
+          "poor": "Poor",
+          "too_little_data": "Too little data"
+        },
+        "limit": "Good: up to {good} · poor: over {poor}",
+        "vitals": "Each status compares the value with Google’s limits (Core Web Vitals).",
+        "source": {
+          "field": "Real visitors",
+          "fieldOrigin": "Real visitors, whole site",
+          "fieldGroup": "Real visitors, group of similar pages",
+          "lab": "Lab test",
+          "mixed": "Differs by device"
+        },
+        "caveat": {
+          "origin": "Google has too few visits to this page alone. These values are for the whole site, so they do not describe this page.",
+          "normalized": "These values are for a group of similar addresses, so they can differ for this page."
+        },
+        "labNote": "A lab test loads the page once on a simulated device. It shows what to fix, but real visitors can see other values.",
+        "labNoInp": "A lab test cannot measure the response to taps and clicks.",
+        "labVersion": "Lighthouse {version}",
+        "auditedPage": "La auditoría probó {url}. Esa dirección lleva a esta página.",
+        "noReadable": "Ninguna medición legible.",
+        "verdict": {
+          "pass": "Within all limits",
+          "passOn": "Within all limits on {devices}",
+          "over": "Over a limit: {metrics}",
+          "unknown": "Not known"
+        },
+        "metricShort": {
+          "lcp": "loading (LCP)",
+          "inp": "response (INP)",
+          "cls": "layout shifts (CLS)"
+        }
+      },
+      "siteSpeed": {
+        "title": "Site speed",
+        "description": "How fast the main pages load, measured against Google’s limits.",
+        "column": {
+          "page": "Page",
+          "tier": "Check",
+          "devices": "Devices",
+          "status": "Speed",
+          "source": "Measured by",
+          "trend": "Trend"
+        },
+        "tier": {
+          "full": "Full check",
+          "reduced": "Short check, one device",
+          "none": "Not checked"
+        },
+        "audited": "Page of this audit",
+        "cause": {
+          "action": "Added because it is on the path to the site's main action",
+          "keyword": "Added because it ranks for a tracked keyword",
+          "template": "Added as an example of a page type",
+          "entry": "Added because visitors often arrive here",
+          "risk": "Added because it is likely to be slow"
+        },
+        "showMore": "Show {count} more pages",
+        "trend": {
+          "better": "Getting better",
+          "worse": "Getting worse",
+          "steady": "Steady",
+          "none": "No trend yet"
+        },
+        "trendTitle": "Real visitors, week by week",
+        "trendText": "{metric}: {first} in the 28 days to {firstDate}, {last} in the 28 days to {lastDate}.",
+        "trendLimit": "The dashed line is the good limit: {good}.",
+        "trendWeek": "28 days to {date}: {value}",
+        "trendWeekNone": "28 days to {date}: no data",
+        "noTrend": {
+          "incompatible_population": "Earlier weeks measured a different group of visits, so they cannot be compared.",
+          "unavailable": "Earlier weeks could not be read or verified.",
+          "legacy_unverified": "This audit could not verify that the earlier weeks measured the same group of visits. Run a new audit to check for a trend.",
+          "too_few": "Too few weeks with data to show a trend.",
+          "no_series": "No weekly chart is available for this measurement."
+        },
+        "deviceReason": {
+          "crux-url": "Short check on {device}: {share} of the page loads Google measured for this address or similar addresses were on it.",
+          "crux-origin": "Short check on {device}: {share} of the page loads Google measured for the site were on it.",
+          "page-type": "Short check on {device}, the usual device for this kind of page.",
+          "default": "Short check on {device}, the default device.",
+          "unknown": "Short check on {device}.",
+          "stopped": "The default device is {device}: the check found no device shares before it stopped."
+        },
+        "mix": "Page loads: {phone} phone · {desktop} desktop · {tablet} tablet",
+        "notChecked": "Pages not checked: {count}. {reason}",
+        "gap": {
+          "limit": "The audit checks a limited number of pages for speed.",
+          "deadline": "The audit ran out of time.",
+          "quota": "A CrUX rate limit was reached.",
+          "other": "The speed test did not finish."
+        }
       }
     },
     "AdDataConsent": {

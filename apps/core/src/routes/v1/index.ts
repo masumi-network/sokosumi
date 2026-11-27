@@ -4,6 +4,11 @@ import { cors } from "hono/cors";
 
 import { TIME } from "@/config/constants.js";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin.js";
+import { NETWORKS } from "@/lib/network";
+import {
+  NETWORK_HEADER,
+  requestNetworkMiddleware,
+} from "@/middleware/network-scope";
 import impersonationRouter from "./admin/impersonation/index.js";
 import adminRouter from "./admin/index.js";
 import agentsRouter from "./agents/index.js";
@@ -39,6 +44,7 @@ import publicNewslettersRouter from "./public/newsletters/index.js";
 import realtimeRouter from "./realtime/index.js";
 import registryAgentsRouter from "./registry/agents/index.js";
 import seoRouter from "./seo/index.js";
+import seoImpactRouter from "./seo-impact/index.js";
 import shareRouter from "./share/index.js";
 import sokoBotRuntimeRouter from "./soko-bot-runtime/index.js";
 import sokoBotsRouter from "./soko-bots/index.js";
@@ -107,6 +113,19 @@ app.openAPIRegistry.registerComponent("parameters", "SokosumiClient", {
   },
 });
 
+app.openAPIRegistry.registerComponent("parameters", "SokosumiNetwork", {
+  name: NETWORK_HEADER,
+  in: "header",
+  description:
+    "The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace. While Preprod is switched on, a Preprod API key (`soko_preprod_`) is for Preprod without the header, and an API key whose Network the header contradicts gets 403 with `kind: api_key_network_mismatch` on Network data; while it is off, every API key is for Mainnet, as without a prefix. Operations on shared data are never refused because of the Network.",
+  required: false,
+  schema: {
+    type: "string",
+    enum: [...NETWORKS],
+    example: "mainnet",
+  },
+});
+
 const apiCors = cors({
   origin: (origin) => resolveCorsAllowOrigin(origin),
   allowHeaders: [
@@ -117,6 +136,7 @@ const apiCors = cors({
     "X-Context-User-Id",
     "X-Context-Organization-Id",
     CALENDAR_CLIENT_VERSION_HEADER,
+    NETWORK_HEADER,
   ],
   allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   exposeHeaders: ["Content-Length"],
@@ -125,7 +145,7 @@ const apiCors = cors({
 });
 const newsletterSignupCors = cors({
   origin: "*",
-  allowHeaders: ["Content-Type"],
+  allowHeaders: ["Content-Type", NETWORK_HEADER],
   allowMethods: ["POST", "OPTIONS"],
   maxAge: TIME.CORS_MAX_AGE,
 });
@@ -135,6 +155,8 @@ app.use("*", (c, next) => {
     /^\/(?:v1\/)?public\/newsletters\/[^/]+\/subscribe\/?$/.test(c.req.path);
   return (signup ? newsletterSignupCors : apiCors)(c, next);
 });
+// After CORS, so a browser can read the 400.
+app.use("*", requestNetworkMiddleware);
 
 app.doc31("/openapi.json", {
   openapi: "3.1.0",
@@ -142,7 +164,7 @@ app.doc31("/openapi.json", {
     version: "1.0.0",
     title: "Sokosumi API",
     description:
-      "Sokosumi API documentation.\n\nEvery operation can also answer 426 `client_update_required` to an outdated Apple build (see the `X-Sokosumi-Client` parameter), and a path or method Core does not serve answers 404 `route_not_found`.",
+      "Sokosumi API documentation.\n\nEvery operation can also answer 426 `client_update_required` to an outdated Apple build (see the `X-Sokosumi-Client` parameter), 400 `network_unknown` to an `X-Sokosumi-Network` value that names no Network (see the `X-Sokosumi-Network` parameter), and a path or method Core does not serve answers 404 `route_not_found`.",
   },
   servers: [
     {
@@ -184,6 +206,7 @@ app.route("/organization-invite-links", organizationInviteLinksRouter);
 app.route("/chat-room-invite-links", chatRoomInviteLinksRouter);
 app.route("/projects", projectsRouter);
 app.route("/seo", seoRouter);
+app.route("/seo-impact", seoImpactRouter);
 app.route("/public/newsletter", publicNewsletterRouter);
 app.route("/public/newsletters", publicNewslettersRouter);
 app.route("/jobs", jobsRouter);

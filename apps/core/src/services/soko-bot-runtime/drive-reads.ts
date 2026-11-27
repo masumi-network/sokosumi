@@ -32,24 +32,26 @@ import { TASK_TEXT_MAX_CHARS } from "./task-policy";
 export async function listFiles(
   runtime: RuntimeOperations,
   authorized: AuthorizedSokoBotRuntime,
-  input: { query?: string; limit?: number },
+  input: { query?: string; limit?: number; cursor?: string },
 ) {
   const drive = await runtime.ownerDrive(authorized);
   // Files from before the catalog are adopted on visits, as the Drive
   // search route does; a failure here must not fail the search.
   await adoptDriveStoreIfPending(drive.key);
   const query = input.query?.trim() || null;
-  const { items } = await searchFiles({
+  const { items, search } = await searchFiles({
     workspaceId: drive.key.workspaceId,
     actor: drive.actor,
     query,
     filters: {},
     sortBy: query ? "relevance" : "modified",
     sortOrder: "desc",
-    cursor: null,
+    cursor: input.cursor ?? null,
     limit: input.limit ?? 20,
   });
   return {
+    hasMore: search.hasMore,
+    nextCursor: search.hasMore ? search.nextCursor : null,
     files: items.map((file) => ({
       id: file.id,
       name: file.displayName,

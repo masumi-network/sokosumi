@@ -2,6 +2,7 @@ import { membershipAgeOrderBy } from "@sokosumi/database";
 import { workspaceRepository } from "@sokosumi/database/repositories";
 import {
   getOrganizationMetadata,
+  hasAdminRole,
   socialProvidersForWorkspace,
 } from "@sokosumi/utils";
 
@@ -9,12 +10,44 @@ import { socialProviderWorkspace } from "@/config/social-providers";
 import { notFound } from "@/helpers/error";
 import { pendingOrganizationInvitationsWhere } from "@/helpers/invitation";
 import prisma from "@/lib/db/prisma";
+import { isPreprodOn } from "@/lib/network";
 import { memberRoleSchema } from "@/schemas/domain-enums.schema";
 import type {
   UserWorkspace,
   UserWorkspaces,
 } from "@/schemas/user-workspace.schema";
 import { pickActiveOrganizationId } from "@/services/preferred-workspace.service";
+
+function preprodAccessForRole(preprodOn: boolean, role: string | undefined) {
+  const admin = preprodOn && hasAdminRole(role);
+  return (preprodEnabled: boolean | undefined) =>
+    preprodOn && (admin || preprodEnabled === true);
+}
+
+/** A user API key can be used in any of its owner's workspaces. */
+export async function canUserUsePreprod(userId: string): Promise<boolean> {
+  const preprodOn = isPreprodOn();
+  if (!preprodOn) return false;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      role: true,
+      preprodEnabled: true,
+      members: {
+        where: { organization: { preprodEnabled: true } },
+        take: 1,
+        select: { id: true },
+      },
+    },
+  });
+  if (!user) return false;
+
+  const canUsePreprod = preprodAccessForRole(preprodOn, user.role);
+  return (
+    canUsePreprod(user.preprodEnabled) || canUsePreprod(user.members.length > 0)
+  );
+}
 
 /**
  * The workspaces a person can act in (personal first, then organizations),
@@ -25,12 +58,15 @@ import { pickActiveOrganizationId } from "@/services/preferred-workspace.service
 export async function listUserWorkspaces(
   userId: string,
 ): Promise<UserWorkspaces> {
+  // While Preprod is off no workspace can use it, so nothing more is read.
+  const preprodOn = isPreprodOn();
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
       name: true,
       email: true,
       preferredOrganizationId: true,
+      ...(preprodOn && { role: true, preprodEnabled: true }),
     },
   });
   if (!user) {
@@ -57,6 +93,7 @@ export async function listUserWorkspaces(
               metadata: true,
               workspace: { select: { id: true } },
               _count: { select: { members: true } },
+              ...(preprodOn && { preprodEnabled: true }),
             },
           },
         },
@@ -71,6 +108,10 @@ export async function listUserWorkspaces(
     hasPersonalWorkspace: personalWorkspace !== null,
     organizationIds: memberships.map(({ organization }) => organization.id),
   });
+
+  // The listed person's role, not the caller's: a Coworker listing its
+  // context user gets that user's answer.
+  const canUsePreprod = preprodAccessForRole(preprodOn, user.role);
 
   const workspaces: UserWorkspace[] = [];
 
@@ -91,6 +132,7 @@ export async function listUserWorkspaces(
       logo: null,
       websiteUrl: null,
       preferred: preferredOrganizationId === null,
+      canUsePreprod: canUsePreprod(user.preprodEnabled),
     });
   }
 
@@ -118,6 +160,7 @@ export async function listUserWorkspaces(
       logo: organization.logo,
       websiteUrl: getOrganizationMetadata(organization.metadata).url,
       preferred: organization.id === preferredOrganizationId,
+      canUsePreprod: canUsePreprod(organization.preprodEnabled),
     });
   }
 

@@ -162,13 +162,24 @@ vi.mock("@sokosumi/net", async (importOriginal) => ({
   ssrfSafeFetch: ssrfSafeFetchMock,
 }));
 
+import type {
+  createNetworkScope,
+  MainnetScope,
+  NetworkScope,
+} from "@/lib/db/network-scope";
 import { imageModel } from "@/lib/image-studio/catalog";
 import { STUDIO_PROMPT_ASSEMBLY_VERSION } from "@/lib/image-studio/studio-brand";
 import {
   createImageJob,
+  failImageJob,
   readProviderSize,
   reconcileJob,
+  reconcileProjectJobs,
+  reconcileStaleJobs,
+  reconcileWorkspaceJobs,
   recoverUnclaimedReservations,
+  requestCancel,
+  settleWithMedia,
   sweepStalledSubmissions,
 } from "@/services/image-studio-jobs.service";
 import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
@@ -325,7 +336,7 @@ describe("image studio job submission", () => {
       jobFindUniqueMock.mockResolvedValue(
         jobRow({ status: "QUEUED", falRequestId: "eval-stub:job-1" }),
       );
-      await reconcileJob("job-1");
+      await reconcileJob({ network: "mainnet" } as MainnetScope, "job-1");
       expect(fetchQueueStatusMock).not.toHaveBeenCalled();
     });
   });
@@ -1472,3 +1483,56 @@ describe("readProviderSize", () => {
     expect(readProviderSize({ width: 10.5, height: 10 })).toBeNull();
   });
 });
+
+/**
+ * Never called: `tsc` checks it. Image Studio is Mainnet only, so its
+ * settlement takes a scope the type checker knows is Mainnet's: a request's
+ * scope, which may name Preprod, and a Preprod scope must not compile.
+ */
+export function _settlementTakesOnlyMainnet(
+  create: typeof createNetworkScope,
+  requestScope: NetworkScope,
+) {
+  const mainnet: MainnetScope = create("mainnet");
+  const preprod = create("preprod");
+  const cancel = { jobId: "j", projectId: "p", workspaceId: "w", userId: "u" };
+  const stale = { olderThanMs: 1, limit: 1 };
+
+  void settleWithMedia(mainnet, "j", "u");
+  void failImageJob(mainnet, "j", "unknown");
+  void reconcileJob(mainnet, "j");
+  void reconcileProjectJobs(mainnet, "p");
+  void reconcileWorkspaceJobs(mainnet, "w");
+  void reconcileStaleJobs({ scope: mainnet, ...stale });
+  void requestCancel({ scope: mainnet, ...cancel });
+
+  // @ts-expect-error a request's scope may name Preprod
+  void settleWithMedia(requestScope, "j", "u");
+  // @ts-expect-error a request's scope may name Preprod
+  void failImageJob(requestScope, "j", "unknown");
+  // @ts-expect-error a request's scope may name Preprod
+  void reconcileJob(requestScope, "j");
+  // @ts-expect-error a request's scope may name Preprod
+  void reconcileProjectJobs(requestScope, "p");
+  // @ts-expect-error a request's scope may name Preprod
+  void reconcileWorkspaceJobs(requestScope, "w");
+  // @ts-expect-error a request's scope may name Preprod
+  void reconcileStaleJobs({ scope: requestScope, ...stale });
+  // @ts-expect-error a request's scope may name Preprod
+  void requestCancel({ scope: requestScope, ...cancel });
+
+  // @ts-expect-error a Preprod scope
+  void settleWithMedia(preprod, "j", "u");
+  // @ts-expect-error a Preprod scope
+  void failImageJob(preprod, "j", "unknown");
+  // @ts-expect-error a Preprod scope
+  void reconcileJob(preprod, "j");
+  // @ts-expect-error a Preprod scope
+  void reconcileProjectJobs(preprod, "p");
+  // @ts-expect-error a Preprod scope
+  void reconcileWorkspaceJobs(preprod, "w");
+  // @ts-expect-error a Preprod scope
+  void reconcileStaleJobs({ scope: preprod, ...stale });
+  // @ts-expect-error a Preprod scope
+  void requestCancel({ scope: preprod, ...cancel });
+}
