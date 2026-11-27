@@ -1,4 +1,5 @@
 import type { ExaSearchResult } from "@/lib/soko-bot/exa";
+import { cmoPathWebPages } from "./cmo-path/sites";
 import { INVESTOR_FIXTURE, investorLine } from "./ownerbench/journeys";
 
 /**
@@ -185,7 +186,10 @@ export function evalSocialProfile(network: string, url: string) {
 
 /** web_fetch in an eval lane: the page, or a 404 for an address it lacks. */
 export function evalWebFetch(input: { url: string; maxChars?: number }) {
-  const page = BY_KEY.get(pageKey(input.url));
+  const key = pageKey(input.url);
+  const page =
+    BY_KEY.get(key) ??
+    cmoPathWebPages().find((candidate) => pageKey(candidate.url) === key);
   if (!page)
     return {
       url: input.url,
@@ -216,10 +220,11 @@ export function evalWebSearch(
   numResults: number,
 ): ExaSearchResult["results"] {
   const wanted = words(query);
-  return PAGES.map((page) => {
-    const have = words(`${page.title} ${page.text}`);
-    return { page, score: [...wanted].filter((w) => have.has(w)).length };
-  })
+  return [...PAGES, ...cmoPathWebPages()]
+    .map((page) => {
+      const have = words(`${page.title} ${page.text}`);
+      return { page, score: [...wanted].filter((w) => have.has(w)).length };
+    })
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score || a.page.url.localeCompare(b.page.url))
     .slice(0, numResults)

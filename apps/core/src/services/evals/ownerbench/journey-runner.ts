@@ -173,7 +173,7 @@ async function startStep(
  * mentions it, answered through the chat route's own dispatch (the owner in
  * Cuso's home room, a teammate in the room they share with the owner's bot).
  */
-async function askInRoom(
+export async function askInRoom(
   roomId: string,
   senderUserId: string,
   botId: string,

@@ -9,7 +9,6 @@ import { head, list } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
 import type { Browser } from "puppeteer-core";
 import { z } from "zod";
-
 import prisma from "@/lib/db/prisma";
 import { driveOwnerOf } from "@/lib/drive-blob";
 import { emitCoreWarning, runAsBackgroundWork } from "@/lib/evlog";
@@ -37,6 +36,7 @@ import {
   cusoDrive,
   saveCusoProjectFile,
 } from "@/services/cuso-project-files.service";
+import { cmoPathSiteResponse } from "@/services/evals/cmo-path/sites";
 
 /** Where the material lands: the Project's files, in this Drive folder. */
 export const CMO_BRAND_MEDIA_FOLDER = "Brand research";
@@ -715,9 +715,11 @@ async function downloadPicture(
   image: SiteImage,
 ): Promise<{ body: Buffer; contentType: string } | null> {
   try {
-    const response = await ssrfSafeFetch(image.url, {
-      maxResponseBytes: MAX_PICTURE_BYTES,
-    });
+    const response =
+      cmoPathSiteResponse(image.url) ??
+      (await ssrfSafeFetch(image.url, {
+        maxResponseBytes: MAX_PICTURE_BYTES,
+      }));
     const contentType = (response.headers.get("content-type") ?? "")
       .split(";")[0]
       ?.trim();

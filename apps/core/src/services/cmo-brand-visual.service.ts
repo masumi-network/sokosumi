@@ -5,7 +5,6 @@ import {
   designMdPalette,
 } from "@sokosumi/utils";
 import sharp from "sharp";
-
 import { getEnv } from "@/config/env";
 import { type BrandVisual, readBrandVisual } from "@/lib/brand-visual";
 import prisma from "@/lib/db/prisma";
@@ -25,6 +24,7 @@ import {
   cusoDrive,
   saveCusoProjectFile,
 } from "@/services/cuso-project-files.service";
+import { cmoPathSiteResponse } from "@/services/evals/cmo-path/sites";
 
 /** The brand's look as CMO shows it, read from the Project. */
 export interface CmoBrandVisual {
@@ -277,10 +277,13 @@ export async function saveCmoBrandLogo(
   for (const [key, name] of Object.entries(CMO_BRAND_LOGO_FILES)) {
     const url = logo[key as keyof typeof CMO_BRAND_LOGO_FILES];
     if (!url) continue;
-    const png = await ssrfSafeFetch(url, {
-      signal: AbortSignal.timeout(LOGO_TIMEOUT_MS),
-      maxResponseBytes: MAX_LOGO_BYTES,
-    })
+    const png = await Promise.resolve(
+      cmoPathSiteResponse(url) ??
+        ssrfSafeFetch(url, {
+          signal: AbortSignal.timeout(LOGO_TIMEOUT_MS),
+          maxResponseBytes: MAX_LOGO_BYTES,
+        }),
+    )
       .then(async (response) =>
         response.ok ? logoPng(Buffer.from(await response.arrayBuffer())) : null,
       )

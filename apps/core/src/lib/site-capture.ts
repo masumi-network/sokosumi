@@ -2,6 +2,7 @@ import { ssrfSafeFetch, ssrfSafeStreamFetch } from "@sokosumi/net";
 import type { Browser, HTTPRequest, HTTPResponse, Page } from "puppeteer-core";
 
 import { getEnv } from "@/config/env";
+import { cmoPathSiteResponse } from "@/services/evals/cmo-path/sites";
 
 /** What one page looked like: its screenshot and the pictures on it. */
 export interface PageCapture {
@@ -318,7 +319,8 @@ async function guardRequest(
     return;
   }
   try {
-    const fetchOnce = () =>
+    const fetchOnce = async () =>
+      cmoPathSiteResponse(url) ??
       ssrfSafeFetch(url, {
         method,
         maxResponseBytes: MAX_RESOURCE_BYTES,
@@ -356,6 +358,8 @@ async function guardRequest(
  * its styles. Falls back to the address given.
  */
 export async function finalUrl(url: string): Promise<string> {
+  // A fictional eval brand's site never redirects.
+  if (cmoPathSiteResponse(url)) return url;
   let current = url;
   try {
     for (let hop = 0; hop < 5; hop++) {
