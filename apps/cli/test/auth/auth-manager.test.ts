@@ -68,8 +68,9 @@ test("refreshes an expired OAuth session and persists the new token", async () =
     },
   ]);
 });
-test("refresh falls back to the client id stored at login", async () => {
+test("refresh uses the client id stored at login and keeps it", async () => {
   let refreshRequest: RefreshTokenRequest | undefined;
+  const writes: OAuthCredentials[] = [];
   const manager = new AuthManager({
     credentialStore: {
       read: () => ({
@@ -78,7 +79,9 @@ test("refresh falls back to the client id stored at login", async () => {
         expiresAt: "2020-01-01T00:00:00.000Z",
         clientId: "stored-client",
       }),
-      write: () => {},
+      write: (credentials) => {
+        writes.push(credentials);
+      },
       clear: () => {},
     },
     apiKeyStore: emptyApiKeyStore,
@@ -86,16 +89,17 @@ test("refresh falls back to the client id stored at login", async () => {
       refreshRequest = request;
       return { authToken: "fresh-access-token" };
     },
-    environment: {},
+    environment: { SOKOSUMI_OAUTH_CLIENT_ID: "env-client" },
   });
 
   const token = await manager.getAuthTokenAsync({
     authBaseUrl: "https://core.example.test/auth",
-    clientId: "",
+    clientId: "other-client",
   });
 
   assert.equal(token, "fresh-access-token");
   assert.equal(refreshRequest?.clientId, "stored-client");
+  assert.equal(writes[0]?.clientId, "stored-client");
 });
 
 test("hosted OAuth refresh uses the resolved first-party client", async () => {

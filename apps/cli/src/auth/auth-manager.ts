@@ -11,7 +11,7 @@ export interface OAuthCredentials {
   refreshToken?: string | null;
   tokenType?: string;
   expiresAt?: string | null;
-  /** The OAuth client the tokens were issued to; refresh falls back to it. */
+  /** The OAuth client the tokens were issued to; refresh always uses it. */
   clientId?: string;
 }
 
@@ -210,10 +210,11 @@ export class AuthManager {
 
     const stored = this.storedCredentials();
     const refreshToken = stored?.refreshToken || null;
+    // A refresh token only works with the client it was issued to.
     const resolvedClientId = String(
-      clientId ||
+      stored?.clientId ||
+        clientId ||
         environment.SOKOSUMI_OAUTH_CLIENT_ID ||
-        stored?.clientId ||
         "",
     ).trim();
     if (!refreshToken || !resolvedClientId) return null;

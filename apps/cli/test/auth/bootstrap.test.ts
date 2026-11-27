@@ -381,7 +381,10 @@ test("requireAuthenticatedSession names the client id for an unknown custom host
     (error: unknown) => {
       assert.ok(error instanceof CliError);
       assert.equal(error.code, "AUTH_REQUIRED");
-      assert.match(error.message, /--client-id/);
+      assert.match(
+        error.message,
+        /sokosumi --api-url https:\/\/core\.example\.test --client-id <id> auth login/,
+      );
       assert.match(error.message, /SOKOSUMI_OAUTH_CLIENT_ID/);
       return true;
     },
