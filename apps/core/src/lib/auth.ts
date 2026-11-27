@@ -1,4 +1,4 @@
-import { apiKey } from "@better-auth/api-key";
+import { API_KEY_ERROR_CODES, apiKey } from "@better-auth/api-key";
 import { i18n } from "@better-auth/i18n";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { passkey } from "@better-auth/passkey";
@@ -18,6 +18,7 @@ import {
 import { authTranslations } from "@sokosumi/masumi/auth";
 import {
   betterAuthUserAdditionalFields,
+  CORE_API_ERROR_KINDS,
   getEmailLocale,
   OAUTH_PROVIDER_SCOPES,
   OAUTH_SCOPE_MCP,
@@ -25,7 +26,11 @@ import {
   resolveBetterAuthCookiePrefix,
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import {
+  APIError,
+  createAuthMiddleware,
+  getSessionFromCtx,
+} from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import {
   admin,
@@ -58,6 +63,7 @@ import {
 } from "@/helpers/design-md-metadata-auth";
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
+import { canUserUsePreprod } from "@/helpers/user-workspaces";
 import prisma from "@/lib/db/prisma";
 import { runAsBackgroundWork } from "@/lib/evlog";
 import {
@@ -116,6 +122,7 @@ import {
   betterAuthLogger,
   captureBetterAuthOAuthErrorURL,
 } from "./evlog-library-logs";
+import { isPreprodOn, NETWORKS } from "./network";
 import {
   networkFromUserApiKeyPrefix,
   USER_API_KEY_PREFIXES,
@@ -132,6 +139,7 @@ const env = getEnv();
 const userApiKeyPrefix = isExplicitPreprod(env)
   ? undefined
   : USER_API_KEY_PREFIXES.mainnet;
+const apiKeyNetwork = z.enum(NETWORKS).optional();
 const apiKeyListBody = z.looseObject({
   apiKeys: z.array(z.looseObject({ prefix: z.string().nullable() })),
 });
@@ -408,12 +416,45 @@ export const auth = betterAuth({
       if (
         ctx.path === "/api-key/create" &&
         typeof ctx.body === "object" &&
-        ctx.body !== null &&
-        Object.hasOwn(ctx.body, "prefix")
+        ctx.body !== null
       ) {
-        throw new APIError("BAD_REQUEST", {
-          message: "The API key prefix is set by the server.",
-        });
+        if (Object.hasOwn(ctx.body, "prefix")) {
+          throw new APIError("BAD_REQUEST", {
+            message: "The API key prefix is set by the server.",
+          });
+        }
+        const network = apiKeyNetwork.safeParse(ctx.body.network);
+        if (!network.success) {
+          throw new APIError("BAD_REQUEST", {
+            message: "Network must be mainnet or preprod.",
+          });
+        }
+        if (network.data === "preprod") {
+          if (!isPreprodOn()) {
+            throw new APIError("FORBIDDEN", {
+              kind: CORE_API_ERROR_KINDS.PREPROD_OFF,
+              message: "Preprod is switched off",
+            });
+          }
+          const session = await getSessionFromCtx(ctx, {
+            disableCookieCache: true,
+          });
+          if (!session?.user.id) {
+            throw APIError.from(
+              "UNAUTHORIZED",
+              API_KEY_ERROR_CODES.UNAUTHORIZED_SESSION,
+            );
+          }
+          if (!(await canUserUsePreprod(session.user.id))) {
+            throw new APIError("FORBIDDEN", {
+              kind: CORE_API_ERROR_KINDS.PREPROD_ACCESS_REQUIRED,
+              message: "You have no Preprod access",
+            });
+          }
+          return {
+            context: { body: { prefix: USER_API_KEY_PREFIXES.preprod } },
+          };
+        }
       }
 
       if (ctx.path === "/update-user") {

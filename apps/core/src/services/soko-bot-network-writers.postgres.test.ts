@@ -1,9 +1,19 @@
+import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { netType } from "@sokosumi/database/sql-tables";
+import type { Prisma } from "@sokosumi/database";
+import {
+  createSqlTables,
+  netType,
+  sharedTable,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
 import type { JobWithListSummaryRelations } from "@sokosumi/database/types/job";
 import type { SokoBotCapability } from "@sokosumi/soko-bot";
 import { err } from "neverthrow";
+import { escapeLiteral } from "pg";
 import { afterAll, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { createAgentJobForUser } from "@/helpers/job";
@@ -95,6 +105,7 @@ async function seedLiveTurn(
       requestedByUserId: userId,
       workspaceId,
       source: "CHAT",
+      network: "mainnet",
       status: "RUNNING",
       clientTurnId: randomUUID(),
       userMessage: "Fixture turn",
@@ -152,6 +163,131 @@ function tool(turnId: string, capability: SokoBotCapability, input: unknown) {
   return { result, toolCallId };
 }
 
+async function seedHireDecision(status: "PENDING" | "PROCESSING" = "PENDING") {
+  const fixture = await seedBot();
+  const { userId, workspaceId, bot } = fixture;
+  const turn = await seedLiveTurn(fixture, ["hire_agent", "provide_job_input"]);
+  const { networkDb, networkTable } = createNetworkScope("mainnet");
+  const agent = await networkDb.agent.create({
+    data: {
+      blockchainIdentifier: randomUUID(),
+      name: "Agent",
+      isShown: true,
+      lastUptimeCheck: new Date(),
+      uptimeCount: 1,
+      uptimeCheckCount: 1,
+      pricing: { create: { pricingType: "FREE" } },
+    },
+  });
+  const jobId = randomUUID();
+  onTestFinished(async () => {
+    await withFixtureSchemas(
+      (tx) => tx.$executeRaw`
+      DELETE FROM ${networkTable("Job")} WHERE "id" = ${jobId}
+    `,
+    );
+    await networkDb.agent.delete({ where: { id: agent.id } });
+    await networkDb.agentPricing.delete({ where: { id: agent.pricingId } });
+  });
+  const decision = await prisma.sokoBotPendingDecision.create({
+    data: {
+      turnId: turn.id,
+      sokoBotId: bot.id,
+      workspaceId,
+      requestedByUserId: userId,
+      toolName: "hire_agent",
+      status,
+      reason: "Fixture",
+      proposal: {
+        agentId: agent.id,
+        inputSchema: { input_data: [] },
+        inputData: {},
+        maxCredits: 10,
+      },
+      expiresAt: new Date(Date.now() + 60_000),
+    },
+  });
+  const reservation = () =>
+    prisma.sokoBotDelegation.findUniqueOrThrow({
+      where: {
+        turnId_toolCallId: {
+          turnId: turn.id,
+          toolCallId: `decision:${decision.id}`,
+        },
+      },
+    });
+  const createJob = async (tx: Prisma.TransactionClient) => {
+    await tx.$executeRaw`
+      INSERT INTO ${networkTable("Job")} (
+        "id", "updatedAt", "agentId", "workspaceId", "ownerId", "agentJobId", "jobType")
+      VALUES (${jobId}, NOW(), ${agent.id}, ${workspaceId}::uuid, ${userId},
+        'seller-job', 'FREE'::${netType("mainnet", "JobType")})
+    `;
+  };
+  return {
+    userId,
+    workspaceId,
+    bot,
+    turn,
+    decision,
+    jobId,
+    networkDb,
+    networkTable,
+    reservation,
+    createJob,
+  };
+}
+
+const execFileAsync = promisify(execFile);
+
+async function setupNetworkGate(turnId: string, workspaceId: string) {
+  const schema = `hire_gate_${randomUUID().replaceAll("-", "")}`;
+  const env = {
+    ...process.env,
+    DATABASE_URL_UNPOOLED: process.env.DATABASE_URL,
+    DATABASE_SCHEMA_SHARED: schema,
+    DATABASE_SCHEMA_MAINNET: "hire_gate_mainnet",
+    DATABASE_SCHEMA_PREPROD: "hire_gate_preprod",
+    NETWORK_PREPROD_ENABLED: "false",
+  };
+  const { sharedTable: view } = createSqlTables(sqlTableLayoutFromEnv(env));
+  // The CLI connects separately. Filter its reads to this hire's committed
+  // rows so the gate can also run in workers that have other test fixtures.
+  await withFixtureSchemas(async (tx) => {
+    await tx.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
+    await tx.$executeRawUnsafe(`
+      CREATE VIEW ${view("soko_bot_turn").sql} AS
+      SELECT "network" FROM ${sharedTable("soko_bot_turn").sql}
+      WHERE "id" = ${escapeLiteral(turnId)}
+    `);
+    await tx.$executeRawUnsafe(`
+      CREATE VIEW ${view("soko_bot_delegation").sql} AS
+      SELECT "network", "jobId" FROM ${sharedTable("soko_bot_delegation").sql}
+      WHERE "turnId" = ${escapeLiteral(turnId)}
+    `);
+    await tx.$executeRawUnsafe(`
+      CREATE VIEW ${view("soko_bot_schedule").sql} AS
+      SELECT "network", "jobId" FROM ${sharedTable("soko_bot_schedule").sql}
+      WHERE "workspaceId" = ${escapeLiteral(workspaceId)}
+    `);
+  });
+  onTestFinished(async () => {
+    await prisma.$executeRawUnsafe(`DROP SCHEMA "${schema}" CASCADE`);
+  });
+
+  return () =>
+    execFileAsync(
+      process.execPath,
+      ["--import", "tsx", "scripts/count-soko-bot-network-catch-up.ts"],
+      {
+        cwd: fileURLToPath(
+          new URL("../../../../packages/database/", import.meta.url),
+        ),
+        env,
+      },
+    );
+}
+
 describe.skipIf(!enabled)("Soko Bot Network writers", () => {
   afterAll(async () => {
     vi.restoreAllMocks();
@@ -203,60 +339,18 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
   );
 
   it("tags hire reservation, Job attachment and provision of Job input", async () => {
-    const fixture = await seedBot();
-    const { userId, workspaceId, bot } = fixture;
-    const turn = await seedLiveTurn(fixture, [
-      "hire_agent",
-      "provide_job_input",
-    ]);
-    const { networkDb, networkTable } = createNetworkScope("mainnet");
-    const agent = await networkDb.agent.create({
-      data: {
-        blockchainIdentifier: randomUUID(),
-        name: "Agent",
-        isShown: true,
-        lastUptimeCheck: new Date(),
-        uptimeCount: 1,
-        uptimeCheckCount: 1,
-        pricing: { create: { pricingType: "FREE" } },
-      },
-    });
-    const jobId = randomUUID();
-    onTestFinished(async () => {
-      await withFixtureSchemas(
-        (tx) => tx.$executeRaw`
-        DELETE FROM ${networkTable("Job")} WHERE "id" = ${jobId}
-      `,
-      );
-      await networkDb.agent.delete({ where: { id: agent.id } });
-      await networkDb.agentPricing.delete({ where: { id: agent.pricingId } });
-    });
-    const decision = await prisma.sokoBotPendingDecision.create({
-      data: {
-        turnId: turn.id,
-        sokoBotId: bot.id,
-        workspaceId,
-        requestedByUserId: userId,
-        toolName: "hire_agent",
-        reason: "Fixture",
-        proposal: {
-          agentId: agent.id,
-          inputSchema: { input_data: [] },
-          inputData: {},
-          maxCredits: 10,
-        },
-        expiresAt: new Date(Date.now() + 60_000),
-      },
-    });
-    const reservation = () =>
-      prisma.sokoBotDelegation.findUniqueOrThrow({
-        where: {
-          turnId_toolCallId: {
-            turnId: turn.id,
-            toolCallId: `decision:${decision.id}`,
-          },
-        },
-      });
+    const {
+      userId,
+      workspaceId,
+      bot,
+      turn,
+      decision,
+      jobId,
+      networkDb,
+      networkTable,
+      reservation,
+      createJob,
+    } = await seedHireDecision();
     vi.mocked(createAgentJobForUser).mockImplementationOnce(async (input) => {
       await input.beforeSellerStart?.();
       expect(await reservation()).toMatchObject({
@@ -268,12 +362,7 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
       // reaches the real Core attachment callback.
       const job = { id: jobId } as JobWithListSummaryRelations;
       await withFixtureSchemas(async (tx) => {
-        await tx.$executeRaw`
-          INSERT INTO ${networkTable("Job")} (
-            "id", "updatedAt", "agentId", "workspaceId", "ownerId", "agentJobId", "jobType")
-          VALUES (${job.id}, NOW(), ${agent.id}, ${workspaceId}::uuid, ${userId},
-            'seller-job', 'FREE'::${netType("mainnet", "JobType")})
-        `;
+        await createJob(tx);
         await input.afterLocalJobCreate?.(job, tx);
       });
       return job;
@@ -333,6 +422,84 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
       jobId,
       outcome: "failed",
     });
+  });
+
+  describe.each(["attach", "recover"] as const)("hire %s", (mode) => {
+    it.each([
+      [null, "mainnet"],
+      ["mainnet", "mainnet"],
+      ["preprod", "preprod"],
+    ] as const)(
+      "accepts a reservation with Network %s as %s",
+      async (network, expected) => {
+        const recovering = mode === "recover";
+        const {
+          userId,
+          workspaceId,
+          turn,
+          decision,
+          jobId,
+          reservation,
+          createJob,
+        } = await seedHireDecision(recovering ? "PROCESSING" : "PENDING");
+        if (recovering) await withFixtureSchemas(createJob);
+        await prisma.sokoBotDelegation.create({
+          data: {
+            turnId: turn.id,
+            toolCallId: `decision:${decision.id}`,
+            kind: "JOB",
+            action: "hire_agent",
+            outcome: recovering ? "processing" : "failed",
+            jobId: recovering ? jobId : null,
+            network,
+          },
+        });
+
+        if (!recovering) {
+          vi.mocked(createAgentJobForUser).mockImplementationOnce(
+            async (input) => {
+              await input.beforeSellerStart?.();
+              const job = { id: jobId } as JobWithListSummaryRelations;
+              await withFixtureSchemas(async (tx) => {
+                await createJob(tx);
+                await input.afterLocalJobCreate?.(job, tx);
+              });
+              return job;
+            },
+          );
+        }
+
+        const count =
+          network === null
+            ? await setupNetworkGate(turn.id, workspaceId)
+            : undefined;
+        if (count && recovering) {
+          await expect(count()).rejects.toMatchObject({
+            code: 1,
+            stdout:
+              "soko_bot_turn: 0\nsoko_bot_delegation: 1\nsoko_bot_schedule: 0\n",
+          });
+        }
+        await expect(
+          sokoBotRuntimeService.resolveDecision(userId, decision.id, true),
+        ).resolves.toMatchObject({
+          status: "ACCEPTED",
+          resultingEntityId: jobId,
+        });
+        expect(await reservation()).toMatchObject({
+          jobId,
+          network: expected,
+          outcome: "accepted",
+        });
+        if (count) {
+          await expect(count()).resolves.toMatchObject({
+            stdout:
+              "soko_bot_turn: 0\nsoko_bot_delegation: 0\nsoko_bot_schedule: 0\n",
+          });
+        }
+      },
+      20_000,
+    );
   });
 
   it("tags the Task delegation and the spawned Task adopted in bulk", async () => {

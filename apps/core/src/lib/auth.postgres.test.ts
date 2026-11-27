@@ -19,8 +19,12 @@ import { type AuthVariables, authMiddleware } from "@/middleware/auth";
 import mountCoworkerKeyCreate from "@/routes/v1/coworkers/[id]/api-keys/post";
 import { mountSokoBotApiKeyRoutes } from "@/routes/v1/soko-bots/api-keys";
 import { causeMessage, expectCoreLog } from "@/test/core-log";
+import { onSplitLayout } from "@/test/split-layout";
 
-vi.hoisted(() => vi.stubEnv("NETWORK", "Mainnet"));
+vi.hoisted(() => {
+  vi.stubEnv("NETWORK", "Mainnet");
+  vi.stubEnv("NETWORK_PREPROD_ENABLED", "false");
+});
 
 vi.mock("@vercel/functions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@vercel/functions")>()),
@@ -66,6 +70,7 @@ const apiKeyUserId = randomUUID();
 const apiKeyEmail = `api-key-${apiKeyUserId}@example.test`;
 const apiKeyPassword = "fixture-api-key-password";
 const captchaHeaders = { [AUTH_CAPTCHA_HEADER]: "fixture-turnstile-token" };
+const SETUP_TIMEOUT = 60_000;
 
 function passCaptcha() {
   return vi
@@ -90,11 +95,45 @@ function post(
   );
 }
 
-async function signInApiKeyUser(instance = auth) {
+async function createApiKeyUser({
+  id,
+  email,
+  name,
+  role,
+  preprodEnabled = false,
+}: {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  preprodEnabled?: boolean;
+}) {
+  await prisma.user.create({
+    data: {
+      id,
+      email,
+      name,
+      role,
+      preprodEnabled,
+      emailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      accounts: {
+        create: {
+          accountId: id,
+          providerId: "credential",
+          password: await hashPassword(apiKeyPassword),
+        },
+      },
+    },
+  });
+}
+
+async function signInApiKeyUser(instance = auth, email = apiKeyEmail) {
   const captcha = passCaptcha();
   const signedIn = await post(
     "/sign-in/email",
-    { email: apiKeyEmail, password: apiKeyPassword },
+    { email, password: apiKeyPassword },
     captchaHeaders,
     instance,
   ).finally(() => captcha.mockRestore());
@@ -103,6 +142,28 @@ async function signInApiKeyUser(instance = auth) {
     .getSetCookie()
     .map((header) => header.split(";", 1)[0])
     .join("; ");
+}
+
+function listApiKeys(cookie: string, instance = auth) {
+  return instance.handler(
+    new Request(`${origin}/auth/api-key/list`, { headers: { cookie } }),
+  );
+}
+
+async function expectCreateRefused(
+  userId: string,
+  cookie: string,
+  body: object,
+  status: number,
+  error: object,
+  instance = auth,
+) {
+  const where = { referenceId: userId };
+  const count = await prisma.apikey.count({ where });
+  const response = await post("/api-key/create", body, { cookie }, instance);
+  expect(response.status).toBe(status);
+  expect(await response.json()).toMatchObject(error);
+  expect(await prisma.apikey.count({ where })).toBe(count);
 }
 
 function requestWithKey(key: string) {
@@ -279,72 +340,91 @@ describe.runIf(enabled)("Core Better Auth with PostgreSQL", () => {
     let cookie: string;
 
     beforeAll(async () => {
-      await prisma.user.create({
-        data: {
-          id: apiKeyUserId,
-          name: "API Key Fixture",
-          email: apiKeyEmail,
-          emailVerified: true,
-          role: "admin",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          accounts: {
-            create: {
-              accountId: apiKeyUserId,
-              providerId: "credential",
-              password: await hashPassword(apiKeyPassword),
-            },
-          },
-        },
+      await createApiKeyUser({
+        id: apiKeyUserId,
+        name: "API Key Fixture",
+        email: apiKeyEmail,
+        role: "admin",
       });
       cookie = await signInApiKeyUser();
-    });
+    }, SETUP_TIMEOUT);
 
-    it("mints a Mainnet key, stores six random characters and authenticates it", async () => {
-      const response = await post(
-        "/api-key/create",
-        { name: "Mainnet" },
-        {
-          cookie,
-        },
-      );
-      expect(response.status).toBe(200);
-      const { id, key } = await response.json();
-      expect(key).toMatch(/^soko_mainnet_[a-zA-Z]{64}$/);
-      const row = await prisma.apikey.findUniqueOrThrow({ where: { id } });
-      expect(row).toMatchObject({
-        referenceId: apiKeyUserId,
-        prefix: "soko_mainnet_",
-        start: key.slice(0, 19),
-        key: keyHash(key),
-      });
+    it.each([{ name: "Mainnet" }, { name: "Mainnet", network: "mainnet" }])(
+      "mints and authenticates a Mainnet key for %j",
+      async (body) => {
+        const userFind = vi.spyOn(prisma.user, "findUnique");
+        const response = await post("/api-key/create", body, { cookie });
+        expect(response.status).toBe(200);
+        expect(userFind).not.toHaveBeenCalled();
+        const { id, key } = await response.json();
+        expect(key).toMatch(/^soko_mainnet_[a-zA-Z]{64}$/);
+        const row = await prisma.apikey.findUniqueOrThrow({ where: { id } });
+        expect(row).toMatchObject({
+          referenceId: apiKeyUserId,
+          prefix: "soko_mainnet_",
+          start: key.slice(0, 19),
+          key: keyHash(key),
+        });
 
-      const accepted = await requestWithKey(key);
-      expect(accepted.status).toBe(200);
-      expect(await accepted.json()).toMatchObject({
-        actor: "user",
-        userId: apiKeyUserId,
-        authenticationMethod: "api_key",
-      });
-    });
+        const accepted = await requestWithKey(key);
+        expect(accepted.status).toBe(200);
+        expect(await accepted.json()).toMatchObject({
+          actor: "user",
+          userId: apiKeyUserId,
+          authenticationMethod: "api_key",
+        });
+      },
+    );
 
     it.each(["soko_preprod_", "soko_mainnet_", "custom_", "", null, 0])(
       "refuses a caller-supplied prefix %j without writing a row",
       async (prefix) => {
-        const where = { referenceId: apiKeyUserId };
-        const count = await prisma.apikey.count({ where });
-        const response = await post(
-          "/api-key/create",
+        await expectCreateRefused(
+          apiKeyUserId,
+          cookie,
           { name: "Rejected key", prefix },
-          { cookie },
+          400,
+          { message: "The API key prefix is set by the server." },
         );
-        expect(response.status).toBe(400);
-        expect(await response.json()).toMatchObject({
-          message: "The API key prefix is set by the server.",
-        });
-        expect(await prisma.apikey.count({ where })).toBe(count);
       },
     );
+
+    it("refuses a caller-supplied prefix alongside a Network", async () => {
+      await expectCreateRefused(
+        apiKeyUserId,
+        cookie,
+        { name: "Rejected key", prefix: "custom_", network: "preprod" },
+        400,
+        { message: "The API key prefix is set by the server." },
+      );
+    });
+
+    it.each(
+      ["unknown", "Mainnet", "", null, 0, false, ["preprod"]].map(
+        (network) => ({ network }),
+      ),
+    )(
+      "refuses an invalid Network in %j without writing a row",
+      async ({ network }) => {
+        await expectCreateRefused(
+          apiKeyUserId,
+          cookie,
+          { name: "Rejected key", network },
+          400,
+          { message: "Network must be mainnet or preprod." },
+        );
+      },
+    );
+
+    it("refuses Preprod while switched off, even for an admin", async () => {
+      await expectCreateRefused(
+        apiKeyUserId,
+        cookie,
+        { name: "Rejected key", network: "preprod" },
+        403,
+        { kind: "preprod_off" },
+      );
+    });
 
     it("authenticates previously stored keys and lists the Network from the stored prefix", async () => {
       const suffix = "a".repeat(64);
@@ -380,9 +460,7 @@ describe.runIf(enabled)("Core Better Auth with PostgreSQL", () => {
         });
       }
 
-      const response = await auth.handler(
-        new Request(`${origin}/auth/api-key/list`, { headers: { cookie } }),
-      );
+      const response = await listApiKeys(cookie);
       expect(response.status).toBe(200);
       const { apiKeys, total } = await response.json();
       expect(total).toBe(apiKeys.length);
@@ -474,27 +552,220 @@ describe.runIf(enabled)("Core Better Auth with PostgreSQL", () => {
       }
     });
 
-    it("keeps explicitly Preprod minting unprefixed with six stored characters", async () => {
-      vi.stubEnv("NETWORK", "Preprod");
-      vi.resetModules();
-      try {
-        const { auth: preprodAuth } = await import("./auth");
-        const cookie = await signInApiKeyUser(preprodAuth);
+    it(
+      "keeps explicitly Preprod minting unprefixed with six stored characters",
+      async () => {
+        vi.stubEnv("NETWORK", "Preprod");
+        vi.resetModules();
+        try {
+          const { auth: preprodAuth } = await import("./auth");
+          const cookie = await signInApiKeyUser(preprodAuth);
+          for (const body of [
+            { name: "Preprod deployment" },
+            { name: "Preprod deployment", network: "mainnet" },
+          ]) {
+            const response = await post(
+              "/api-key/create",
+              body,
+              { cookie },
+              preprodAuth,
+            );
+            expect(response.status).toBe(200);
+            const { id, key } = await response.json();
+            expect(key).toMatch(/^[a-zA-Z]{64}$/);
+            const row = await prisma.apikey.findUniqueOrThrow({
+              where: { id },
+            });
+            expect(row).toMatchObject({ prefix: null, start: key.slice(0, 6) });
+          }
+          await expectCreateRefused(
+            apiKeyUserId,
+            cookie,
+            { name: "Rejected key", network: "preprod" },
+            403,
+            { kind: "preprod_off" },
+            preprodAuth,
+          );
+        } finally {
+          vi.stubEnv("NETWORK", "Mainnet");
+          vi.resetModules();
+        }
+      },
+      SETUP_TIMEOUT,
+    );
+
+    describe.runIf(onSplitLayout)("with Preprod switched on", () => {
+      let enabledAuth: typeof auth;
+      let enabledCookie: string;
+      let optedInOrganizationId: string;
+      let otherOrganizationId: string;
+      const organizationSlug = (preprodEnabled: boolean) =>
+        `api-key-access-${preprodEnabled}-${apiKeyUserId}`;
+      const people = [
+        { name: "plain user", role: "user" },
+        {
+          name: "member of a non-opted-in organization",
+          role: "user",
+          organization: false,
+        },
+        { name: "platform admin", role: "admin", allowed: true },
+        { name: "opted-in user", role: "user", optedIn: true, allowed: true },
+        {
+          name: "member of an opted-in organization",
+          role: "user",
+          organization: true,
+          allowed: true,
+        },
+      ];
+      const userIds: string[] = [];
+
+      beforeAll(async () => {
+        vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
+        vi.resetModules();
+        try {
+          ({ auth: enabledAuth } = await import("./auth"));
+          enabledCookie = await signInApiKeyUser(enabledAuth);
+        } finally {
+          vi.stubEnv("NETWORK_PREPROD_ENABLED", "false");
+        }
+        const [optedIn, other] = await Promise.all(
+          [true, false].map((preprodEnabled) =>
+            prisma.organization.create({
+              data: {
+                name: "API key access fixture",
+                slug: organizationSlug(preprodEnabled),
+                preprodEnabled,
+              },
+            }),
+          ),
+        );
+        optedInOrganizationId = optedIn.id;
+        otherOrganizationId = other.id;
+      }, SETUP_TIMEOUT);
+
+      afterAll(async () => {
+        await prisma.apikey.deleteMany({
+          where: { referenceId: { in: userIds } },
+        });
+        await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+        await prisma.organization.deleteMany({
+          where: {
+            slug: {
+              in: [organizationSlug(true), organizationSlug(false)],
+            },
+          },
+        });
+        vi.resetModules();
+      });
+
+      it.each(people)(
+        "enforces Preprod access for $name",
+        async ({ name, role, organization, optedIn, allowed }) => {
+          const id = randomUUID();
+          const email = `api-key-${id}@example.test`;
+          userIds.push(id);
+          await createApiKeyUser({
+            id,
+            email,
+            name,
+            role,
+            preprodEnabled: optedIn,
+          });
+          if (organization !== undefined) {
+            await prisma.member.create({
+              data: {
+                userId: id,
+                organizationId: otherOrganizationId,
+                createdAt: new Date(0),
+              },
+            });
+          }
+          if (organization) {
+            await prisma.member.create({
+              data: { userId: id, organizationId: optedInOrganizationId },
+            });
+          }
+          const cookie = await signInApiKeyUser(enabledAuth, email);
+          if (organization) {
+            const session = await prisma.session.findFirstOrThrow({
+              where: { userId: id },
+              select: { activeOrganizationId: true },
+            });
+            expect(session.activeOrganizationId).toBe(otherOrganizationId);
+          }
+          const body = { name: "Preprod key", network: "preprod" };
+          if (!allowed) {
+            await expectCreateRefused(
+              id,
+              cookie,
+              body,
+              403,
+              { kind: "preprod_access_required" },
+              enabledAuth,
+            );
+            return;
+          }
+
+          const response = await post(
+            "/api-key/create",
+            body,
+            { cookie },
+            enabledAuth,
+          );
+          expect(response.status).toBe(200);
+          const {
+            id: keyId,
+            key,
+            name: keyName,
+            prefix,
+          } = await response.json();
+          expect(keyName).toBe(body.name);
+          expect(key).toMatch(/^soko_preprod_[a-zA-Z]{64}$/);
+          expect(prefix).toBe("soko_preprod_");
+          const row = await prisma.apikey.findUniqueOrThrow({
+            where: { id: keyId },
+          });
+          expect(row).toMatchObject({
+            referenceId: id,
+            prefix,
+            start: key.slice(0, 19),
+            key: keyHash(key),
+          });
+
+          const listed = await listApiKeys(cookie, enabledAuth);
+          expect(listed.status).toBe(200);
+          const { apiKeys } = await listed.json();
+          expect(apiKeys).toMatchObject([
+            { id: keyId, prefix, network: "preprod" },
+          ]);
+        },
+      );
+
+      it("reads access only for a Preprod create", async () => {
+        const userFind = vi.spyOn(prisma.user, "findUnique");
+        for (const body of [
+          { name: "Default" },
+          { name: "Explicit", network: "mainnet" },
+        ]) {
+          const response = await post(
+            "/api-key/create",
+            body,
+            { cookie: enabledCookie },
+            enabledAuth,
+          );
+          expect(response.status).toBe(200);
+          expect((await response.json()).prefix).toBe("soko_mainnet_");
+          expect(userFind).not.toHaveBeenCalled();
+        }
         const response = await post(
           "/api-key/create",
-          { name: "Preprod deployment" },
-          { cookie },
-          preprodAuth,
+          { name: "Explicit", network: "preprod" },
+          { cookie: enabledCookie },
+          enabledAuth,
         );
         expect(response.status).toBe(200);
-        const { id, key } = await response.json();
-        expect(key).toMatch(/^[a-zA-Z]{64}$/);
-        const row = await prisma.apikey.findUniqueOrThrow({ where: { id } });
-        expect(row).toMatchObject({ prefix: null, start: key.slice(0, 6) });
-      } finally {
-        vi.stubEnv("NETWORK", "Mainnet");
-        vi.resetModules();
-      }
+        expect(userFind).toHaveBeenCalledTimes(1);
+      });
     });
   });
 });

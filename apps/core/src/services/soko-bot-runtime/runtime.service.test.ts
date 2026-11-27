@@ -50,7 +50,7 @@ const {
   jobInputCreateMock,
   jobInputFindManyMock,
   jobInputFindUniqueMock,
-  localJobDelegationUpdateManyMock,
+  hireAttachExecuteRawMock,
   provideJobInputMock,
   requireTaskAssignableCoworkerMock,
   agentFindFirstMock,
@@ -161,7 +161,7 @@ const {
   jobInputCreateMock: vi.fn(),
   jobInputFindManyMock: vi.fn(),
   jobInputFindUniqueMock: vi.fn(),
-  localJobDelegationUpdateManyMock: vi.fn(),
+  hireAttachExecuteRawMock: vi.fn(),
   provideJobInputMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
   agentFindFirstMock: vi.fn(),
@@ -574,6 +574,7 @@ vi.mock("@/lib/db/prisma", () => ({
     projectImageAsset: { findFirst: images.assetFindFirst },
     project: { findFirst: social.postingInstructions },
     $transaction: transactionMock,
+    $executeRaw: hireAttachExecuteRawMock,
     user: { findUnique: social.owner, findMany: userFindManyMock },
     marketingStrategy: { findFirst: marketingStrategyFindFirstMock },
     brandBrain: { findUnique: brandBrainFindUniqueMock },
@@ -7382,7 +7383,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
     delegationCreateMock.mockResolvedValue({});
     delegationUpdateMock.mockResolvedValue({});
     delegationUpdateManyMock.mockResolvedValue({ count: 1 });
-    localJobDelegationUpdateManyMock.mockResolvedValue({ count: 1 });
+    hireAttachExecuteRawMock.mockResolvedValue(1);
     transactionDelegationUpdateManyMock.mockResolvedValue({ count: 1 });
     transactionBotFindFirstMock.mockResolvedValue(botRow());
     createAgentClientMock.mockReturnValue({
@@ -7402,9 +7403,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
           job: { id: string },
           tx: {
             sokoBotToolCall: { upsert: typeof toolCallCreateMock };
-            sokoBotDelegation: {
-              updateMany: typeof localJobDelegationUpdateManyMock;
-            };
+            $executeRaw: typeof hireAttachExecuteRawMock;
           },
         ) => Promise<void>;
       }) => {
@@ -7412,9 +7411,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
         const job = { id: "job_1" };
         await input.afterLocalJobCreate?.(job, {
           sokoBotToolCall: { upsert: toolCallCreateMock },
-          sokoBotDelegation: {
-            updateMany: localJobDelegationUpdateManyMock,
-          },
+          $executeRaw: hireAttachExecuteRawMock,
         });
         return job;
       },
@@ -7440,7 +7437,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
       ),
     ).rejects.toThrow("requires reconciliation");
     expect(transactionToolCallCreateMock).not.toHaveBeenCalled();
-    expect(localJobDelegationUpdateManyMock).not.toHaveBeenCalled();
+    expect(hireAttachExecuteRawMock).not.toHaveBeenCalled();
     expect(decisionUpdateManyMock).not.toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "PENDING" }),
@@ -7463,7 +7460,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
       ),
     ).rejects.toThrow("Confirmation turn is no longer writable");
     expect(transactionToolCallCreateMock).not.toHaveBeenCalled();
-    expect(localJobDelegationUpdateManyMock).not.toHaveBeenCalled();
+    expect(hireAttachExecuteRawMock).not.toHaveBeenCalled();
   });
 
   it("reserves an approved hire before starting its Agent Job", async () => {
@@ -7475,9 +7472,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
           job: { id: string },
           tx: {
             sokoBotToolCall: { upsert: typeof toolCallCreateMock };
-            sokoBotDelegation: {
-              updateMany: typeof localJobDelegationUpdateManyMock;
-            };
+            $executeRaw: typeof hireAttachExecuteRawMock;
           },
         ) => Promise<void>;
       }) => {
@@ -7486,9 +7481,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
         const job = { id: "job_1" };
         await input.afterLocalJobCreate?.(job, {
           sokoBotToolCall: { upsert: toolCallCreateMock },
-          sokoBotDelegation: {
-            updateMany: localJobDelegationUpdateManyMock,
-          },
+          $executeRaw: hireAttachExecuteRawMock,
         });
         return job;
       },
@@ -7550,17 +7543,18 @@ describe("SokoBotRuntimeService hire decisions", () => {
     expect(transactionBotFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({ where: TURN_BOT_WHERE }),
     );
-    expect(localJobDelegationUpdateManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          outcome: "processing",
-          error: expect.any(String),
-        }),
-        data: { outcome: "accepted", jobId: "job_1", error: null },
-      }),
+    expect(hireAttachExecuteRawMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      "job_1",
+      "mainnet",
+      expect.any(Date),
+      SCOPE.turnId,
+      `decision:${DECISION_ID}`,
+      delegationCreateMock.mock.calls[0]?.[0]?.data.error,
     );
     expect(sellerStartMock.mock.invocationCallOrder[0]).toBeLessThan(
-      localJobDelegationUpdateManyMock.mock.invocationCallOrder[0] ?? 0,
+      hireAttachExecuteRawMock.mock.invocationCallOrder[0] ?? 0,
     );
   });
 
@@ -8282,7 +8276,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
       await expect(resolve()).rejects.toThrow(
         "Soko Bot is paused or unavailable",
       );
-      expect(localJobDelegationUpdateManyMock).not.toHaveBeenCalled();
+      expect(hireAttachExecuteRawMock).not.toHaveBeenCalled();
     });
 
     it("refuses at the approved mutation check when the member lost the bot", async () => {
@@ -8292,7 +8286,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
       await expect(resolve()).rejects.toThrow(
         "Soko Bot is paused or unavailable",
       );
-      expect(localJobDelegationUpdateManyMock).not.toHaveBeenCalled();
+      expect(hireAttachExecuteRawMock).not.toHaveBeenCalled();
     });
 
     it("asks the job input fence as the decision's member", async () => {
