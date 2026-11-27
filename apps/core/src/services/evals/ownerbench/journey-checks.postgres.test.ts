@@ -573,21 +573,34 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       });
     const [first, second] = [await turn(), await turn()];
     let at = Date.now();
-    const call = (turnId: string, capability: string, status: string) =>
+    const call = (
+      turnId: string,
+      capability: string,
+      status: string,
+      input: object = {},
+    ) =>
       prisma.sokoBotToolCall.create({
         data: {
           turnId,
           toolCallId: randomUUID(),
           capability,
           inputHash: randomUUID(),
+          input,
           status: status as "FAILED" | "COMPLETED",
           createdAt: new Date((at += 1_000)),
         },
       });
+    const move = {
+      scheduleName: "Monday report",
+      cronExpression: "30 7 * * 1",
+    };
     try {
-      // Refused with a hint, then the right call on the same thing.
-      await call(first.id, "update_schedule", "FAILED");
-      await call(first.id, "create_schedule", "COMPLETED");
+      // Refused with a hint, then the same change on the same schedule.
+      await call(first.id, "update_schedule", "FAILED", move);
+      await call(first.id, "update_schedule", "COMPLETED", {
+        ...move,
+        keepCapabilities: true,
+      });
       // Refused, and nothing on posts works later in this turn.
       await call(first.id, "create_social_post", "FAILED");
       // A working call in another turn does not make it good.
