@@ -7,6 +7,7 @@ const m = vi.hoisted(() => ({
   generateText: vi.fn(),
   append: vi.fn(),
   turnFindUnique: vi.fn(),
+  toolCallFindMany: vi.fn(),
   readCmoProduction: vi.fn(),
   findStyleReferences: vi.fn(),
   getSocialPost: vi.fn(),
@@ -35,6 +36,7 @@ vi.mock("@/lib/soko-bot/turn-loop", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: { findUnique: m.turnFindUnique },
+    sokoBotToolCall: { findMany: m.toolCallFindMany },
     referenceImage: { findMany: m.referenceFindMany },
   },
 }));
@@ -84,6 +86,7 @@ vi.mock("@/services/social-posts.service", () => ({
 
 import {
   cmoChunkProof,
+  cmoHandedBackIds,
   cmoMonthWriterBudgetMs,
   cmoShortOf,
   cmoWriterChunks,
@@ -174,6 +177,7 @@ beforeEach(() => {
   m.turnFindUnique.mockResolvedValue({
     clientTurnId: "cmo:production:bot-1:1:1:0",
   });
+  m.toolCallFindMany.mockResolvedValue([]);
   m.getSocialPost.mockResolvedValue({ revision: 3 });
   m.draftProblems.mockResolvedValue({ problems: [], costUsd: 0 });
   m.findStyleReferences.mockResolvedValue([
@@ -454,6 +458,108 @@ describe("writeCmoMonthPieces", () => {
       },
     ]);
     expect(result.left).toBe(0);
+    expect(result.next).toContain("Fix each refused piece yourself");
+    expect(result.next).toContain("at most 10 a call");
+    expect(result.next).not.toContain("in one");
+  });
+
+  it("moves past the pieces it handed back earlier in the turn", async () => {
+    const month = Array.from({ length: 40 }, (_, index) =>
+      piece(`p${index + 1}`),
+    );
+    const handedBack = month.slice(0, 30);
+    m.toolCallFindMany.mockResolvedValue([
+      {
+        result: {
+          refused: handedBack.map((each) => ({ id: each.id, reason: "x" })),
+        },
+      },
+    ]);
+    m.readCmoProduction
+      .mockResolvedValueOnce({
+        strategy,
+        pending: month,
+        failedMedia: new Set(),
+      })
+      .mockResolvedValue({
+        strategy,
+        pending: handedBack,
+        failedMedia: new Set(),
+      });
+    const named = (id: string, prompt: string) =>
+      new RegExp(`\\b${id}\\b`).test(prompt);
+    m.generateText.mockImplementation(
+      async ({ prompt }: { prompt: string }) => ({
+        output: {
+          pieces: month
+            .filter((each) => named(each.id, prompt))
+            .map((each) => written(each.id)),
+        },
+      }),
+    );
+    const result = await writeCmoMonthPieces(
+      runtime() as never,
+      input,
+      authorized,
+    );
+
+    const prompts = m.generateText.mock.calls.map(
+      (call) => (call[0] as { prompt: string }).prompt,
+    );
+    expect(prompts.some((prompt) => named("p5", prompt))).toBe(false);
+    expect(prompts.some((prompt) => named("p31", prompt))).toBe(true);
+    expect(result.written).toBe(10);
+    expect(result.left).toBe(0);
+    expect(result.next).toContain("Fix each refused piece yourself");
+  });
+
+  it("keeps a 30-piece receipt's handed-back ids when its row is cut to 16 KB", async () => {
+    const { persistedToolResult } = await import(
+      "@/lib/soko-bot/persisted-value"
+    );
+    const ids = Array.from(
+      { length: 30 },
+      (_, n) => `0193f0c2-7d1e-7a00-8000-${String(n).padStart(12, "0")}`,
+    );
+    const receipt = {
+      written: 0,
+      handedBack: ids,
+      refused: ids.map((id, n) => ({
+        id,
+        title: `Ein Beitrag über Ökosysteme 日本語のタイトル ${n}`,
+        reason:
+          "Rewrite the post: Dieser Beitrag sagt fast dasselbe wie ein anderer, 同じ書き出しです。 ".repeat(
+            4,
+          ),
+      })),
+      left: 0,
+      next: "Fix each refused piece yourself.",
+    };
+    const stored = persistedToolResult(receipt, "write_month_pieces");
+
+    expect(Buffer.byteLength(JSON.stringify(receipt))).toBeGreaterThan(16_384);
+    expect((stored as { truncated?: boolean }).truncated).toBe(true);
+    expect(cmoHandedBackIds(stored)).toEqual(ids);
+  });
+
+  it("says what is Cuso's when only handed-back pieces are left", async () => {
+    const month = [piece("p1"), piece("p2")];
+    m.toolCallFindMany.mockResolvedValue([
+      { result: { refused: [{ id: "p1" }, { id: "p2" }] } },
+    ]);
+    m.readCmoProduction.mockResolvedValue({
+      strategy,
+      pending: month,
+      failedMedia: new Set(),
+    });
+    const result = await writeCmoMonthPieces(
+      runtime() as never,
+      input,
+      authorized,
+    );
+
+    expect(m.generateText).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ written: 0, left: 0 });
     expect(result.next).toContain("Fix each refused piece yourself");
   });
 

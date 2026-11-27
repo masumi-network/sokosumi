@@ -6,8 +6,10 @@ import {
   getSokoBotVersion,
   isSokoBotSandboxCapability,
   type ScenarioCheck,
+  SOKO_BOT_PLAYBOOKS_SKILL,
   type SokoBotJudgeVerdict,
   type SokoBotScenario,
+  sokoBotReadsPlaybooks,
   WRITING_SKILLS,
 } from "@sokosumi/soko-bot";
 import { databaseNow } from "@/lib/db/database-now";
@@ -86,11 +88,19 @@ import {
   shortFormChecks,
 } from "./eval-cmo-short-forms";
 import { CMO_SKILL_CASE_IDS, skillChecks } from "./eval-cmo-skills";
+import {
+  cmoStrategyRequestChecks,
+  STRATEGY_REQUEST_CASE_IDS,
+} from "./eval-cmo-strategy-request";
 import { CMO_CORRECTION_CASE_ID, correctionChecks } from "./eval-cmo-variety";
 import {
   CMO_WEEKLY_REVIEW_CASE_ID,
   weeklyReviewChecks,
 } from "./eval-cmo-weekly-review";
+import {
+  isContextOnDemandCase,
+  prepareContextOnDemandCase,
+} from "./eval-context-on-demand";
 import {
   type EvalInfrastructureFailure,
   infrastructureCaseOutcome,
@@ -239,7 +249,8 @@ async function lacksPlaybooks(
     where: { id: sokoBotId },
     select: { versionId: true },
   });
-  return !cmoReadsPlaybooks(getSokoBotVersion(bot.versionId).skills);
+  const { skills } = getSokoBotVersion(bot.versionId);
+  return !cmoReadsPlaybooks(skills) && !sokoBotReadsPlaybooks(skills);
 }
 
 async function startScenario(
@@ -275,11 +286,13 @@ async function startScenario(
     }
   }
   if (await botIsBusy(sokoBotId)) return { kind: "busy" };
-  if (bot === "cuso" && (await lacksPlaybooks(scenario, sokoBotId)))
+  if (await lacksPlaybooks(scenario, sokoBotId))
     return {
       kind: "done",
       outcome: skipped(
-        `Needs a Cuso version with the playbooks (${CMO_PLAYBOOKS_SKILL})`,
+        bot === "cuso"
+          ? `Needs a Cuso version with the playbooks (${CMO_PLAYBOOKS_SKILL})`
+          : `Needs a Soko Bot version with the playbooks (${SOKO_BOT_PLAYBOOKS_SKILL})`,
       ),
     };
   let state: Record<string, unknown> = prepare
@@ -301,6 +314,8 @@ async function startScenario(
     await prepareSokoBotCompetitorCase(lane);
   if (bot === "soko-bot" && isSchedulesCase(scenario.id))
     await prepareSchedulesCase(lane, scenario.id);
+  if (bot === "soko-bot" && isContextOnDemandCase(scenario.id))
+    await prepareContextOnDemandCase(lane, scenario.id);
   if (bot === "soko-bot" && isA2aScenario(scenario))
     state = { ...state, ...(await prepareA2aCase(lane, scenario)) };
   if (seoCase) {
@@ -470,6 +485,12 @@ async function pollScenario(
   }
   if (scenario.id === CHANGE_THEN_DRAFTS_CASE_ID) {
     const extra = await cmoChangeThenDraftsChecks(lane, context.startedAt);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (STRATEGY_REQUEST_CASE_IDS.includes(scenario.id)) {
+    const extra = await cmoStrategyRequestChecks(scenario.id, lane, turnId);
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;

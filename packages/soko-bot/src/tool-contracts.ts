@@ -857,6 +857,24 @@ export const sokoBotDeleteTaskScheduleInputSchema = z
   .object({ scheduleId: z.string().uuid() })
   .strict();
 
+/** What `read_context` reads beyond a small packet (v38). */
+export const SOKO_BOT_CONTEXT_SECTIONS = [
+  "conversation",
+  "projects",
+  "jobs",
+] as const;
+
+export const sokoBotReadContextInputSchema = z
+  .object({
+    section: z.enum(SOKO_BOT_CONTEXT_SECTIONS),
+    /** Words to match: a message or answer, a Project name, a Job name. */
+    query: z.string().trim().min(1).max(200).optional(),
+    /** The `next` a previous read returned, to page back. */
+    cursor: z.string().min(1).max(120).optional(),
+    limit: z.number().int().min(1).max(25).optional(),
+  })
+  .strict();
+
 export const sokoBotSearchInboxInputSchema = z.object({
   /** Free-text search (sender, subject, words). Provider search syntax works (e.g. Gmail `from:x newer_than:2d`). */
   query: z.string().max(500).optional(),
@@ -1988,6 +2006,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   get_job_status: sokoBotJobIdInputSchema,
   provide_job_input: sokoBotProvideJobInputSchema,
   read_memory: emptyInputSchema,
+  read_context: sokoBotReadContextInputSchema,
   update_memory: sokoBotMemoryUpdateInputSchema,
   list_schedules: sokoBotListSchedulesInputSchema,
   save_task_schedule: sokoBotSaveTaskScheduleInputSchema,
@@ -2319,6 +2338,8 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   provide_job_input:
     "Send the input an Agent Job is waiting for; applied right away.",
   read_memory: "Read canonical short-term Soko Bot memory.",
+  read_context:
+    "Read what your context packet's map counts but does not show. section conversation: earlier messages of this conversation and what you answered, newest first (query: words to find; a long message shows the part around them). projects: every Project you can see, with its summary and open Task count (query: words of its name or summary). jobs: marketplace Agent Jobs with their status, newest first (query: a name); get_job_status reads one in full. A result with next has more: pass it as cursor to read the next page. Tasks are list_tasks, Coworkers find_coworkers.",
   update_memory:
     "Replace bounded canonical memory file with durable working context.",
   list_schedules:

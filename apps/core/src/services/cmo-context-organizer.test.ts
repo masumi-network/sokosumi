@@ -536,6 +536,20 @@ describe("organizeCmoContext with tool highlights (cmo-v24)", () => {
     ).toBe(CMO_KIND_TOOLS.chat.join(", "));
   });
 
+  it("names write_strategy first when Core writes the strategy (cmo-v26)", async () => {
+    const context = await organizeCmoContext({
+      sources: sources(),
+      turn: chat("Drop Instagram from the plan."),
+      now: NOW,
+      picker: answering(0.9),
+      highlights: true,
+      strategyStep: true,
+    });
+    expect(
+      (context.core as { toolsForThisTurn?: string }).toolsForThisTurn,
+    ).toBe(["write_strategy", ...CMO_KIND_TOOLS.chat].join(", "));
+  });
+
   it("gives a question short save tools and a change request the full ones", async () => {
     const question = await organizeCmoContext({
       sources: sources(),

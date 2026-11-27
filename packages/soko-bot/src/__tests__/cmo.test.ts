@@ -977,6 +977,58 @@ describe("a strategy change with more work", () => {
   });
 });
 
+describe("a strategy request with a clear part and an open part", () => {
+  const find = (id: string) => {
+    const scenario = CMO_SCENARIOS.find((entry) => entry.id === id);
+    if (!scenario) throw new Error(`missing ${id}`);
+    return scenario;
+  };
+  const turn = (finalAnswer: string, saved: boolean) => ({
+    status: "COMPLETED",
+    route: "MANAGE_WORK",
+    finalAnswer,
+    toolCalls: saved
+      ? [{ capability: "write_strategy", status: "COMPLETED", result: {} }]
+      : [],
+    events: [],
+    delegations: [],
+    decisions: [],
+  });
+  const failed = (id: string, answer: string, saved: boolean) =>
+    evaluateScenario(find(id), turn(answer, saved))
+      .checks.filter((check) => !check.pass)
+      .map((check) => check.label);
+
+  it("needs the clear change saved and a question about the open part", () => {
+    const id = "cmo-mixed-clear-and-open";
+    expect(
+      failed(
+        id,
+        "LinkedIn is twice a week now. Should X lead with demos?",
+        true,
+      ),
+    ).toEqual([]);
+    expect(failed(id, "LinkedIn is twice a week now.", true)).toHaveLength(1);
+    expect(
+      failed(id, "Should X lead with demos, and LinkedIn too?", false),
+    ).toHaveLength(1);
+  });
+
+  it("needs a saved change when the owner leaves the choice to Cuso", () => {
+    const id = "cmo-owner-delegates-choice";
+    expect(
+      failed(
+        id,
+        "I moved two posts a week to LinkedIn, where buyers are.",
+        true,
+      ),
+    ).toEqual([]);
+    expect(
+      failed(id, "Which network should I move posts to?", false),
+    ).toHaveLength(1);
+  });
+});
+
 describe("Brand Brain research", () => {
   it("looks for the brand's own story, prices on shop pages, and keeps sister brands out of competitors", async () => {
     const { CMO_SKILLS } = await import("../versions/cmo-skills.js");

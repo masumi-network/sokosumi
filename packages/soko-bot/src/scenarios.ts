@@ -1298,6 +1298,23 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "soko-bot-landing-page-playbook",
+    title: "Reads the landing-page playbook before writing a page",
+    intent:
+      "Writes landing-page copy from the landing-page playbook (v39), with the owner's facts only, and asks for what is missing instead of inventing it.",
+    prompt:
+      "Write the copy for a one-page landing page for our new offer: we plan team offsites in Lisbon for 10 to 40 people, venue, food and one workshop day included, from 900 EUR per person. Headline, sections and the button text.",
+    rubric:
+      "The bot read the landing-page playbook (read_skill landing-page) before writing and followed it: a clear headline that says what the offer is and for whom, sections in a sensible order, one call to action. Every fact comes from the prompt (Lisbon, 10 to 40 people, venue, food, one workshop day, from 900 EUR per person); proof it does not have (reviews, client logos, numbers) is asked for or left out, never invented, and no [bracket] placeholders are left in the copy. It writes the copy in the answer and creates nothing.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED", "CLARIFY"],
+      readsSkills: ["landing-page"],
+      forbiddenTools: ["create_task", "hire_agent", "create_social_post"],
+      answerAvoids: "\\[[^\\]]{2,40}\\]",
+      noDelegations: true,
+    },
+  },
+  {
     id: "fundraising-pipeline-off",
     title: "Reads the raise from Fundraising, and says when there is none",
     intent:
@@ -2679,6 +2696,39 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       routes: ["MANAGE_WORK", "MIXED"],
       tools: ["save_strategy"],
       forbiddenTools: ["create_task", "publish_social_post", "hire_agent"],
+    },
+  },
+  {
+    id: "cmo-mixed-clear-and-open",
+    title: "Makes the clear change and asks about the open one",
+    intent:
+      "One message holds a clear strategy change and one that leaves the change to guess: Cuso makes the clear one in the same turn and asks one question about the other, which stays as it was.",
+    prompt:
+      "Post on LinkedIn twice a week instead of three times from now on, and make our X posts better.",
+    rubric:
+      "Cuso saves LinkedIn at twice a week (write_strategy with the change, or save_strategy) in this turn, and asks the owner one question about what 'better' should mean for X, offering his best guess. X's entries, cadence and format stay as they were. Asking about LinkedIn too, leaving LinkedIn unchanged, or rewriting X on his own guess fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      anyTools: ["save_strategy", "write_strategy"],
+      asksQuestion: true,
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
+    },
+  },
+  {
+    id: "cmo-owner-delegates-choice",
+    title: "Decides when the owner leaves the choice to him",
+    intent:
+      "The owner asks for a change and leaves its details to Cuso: he decides, makes the change in the same turn and says what he chose, instead of asking back.",
+    prompt:
+      "Move some of our posting toward the network that fits our audience best. You decide which one and by how much.",
+    rubric:
+      "Cuso picks one network and a new cadence himself, saves the change (write_strategy with the change, or save_strategy) in this turn, and tells the owner in plain words which network he chose, how often it now posts and why, from the Brand Brain and the strategy. He invents no numbers or results. Asking the owner to choose the network or the amount, or changing nothing, fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      anyTools: ["save_strategy", "write_strategy"],
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
     },
   },
   {
