@@ -18,6 +18,7 @@ const CRAWL_ONLY_RULEBOOK = "crawl";
 const UNREADABLE_PAGE = "Sokosumi could not read the page's audit report";
 const UNCHECKED_PAGE =
   "The page's audit lists no issue, but not every check of the page passed";
+const OTHER_RUN = "The page's audit report is not the one this run made";
 
 const crawlNextReport = z.object({
   kind: z.literal("crawl_next"),
@@ -26,6 +27,10 @@ const crawlNextReport = z.object({
     /** The crawl this run went on from, and the crawl of its new pages: both must be the Report's own. */
     parent: seoSnapshotIdSchema,
     crawl: seoSnapshotIdSchema,
+    /** The pages this run audited, each with the page Snapshot its Report must name. */
+    pages: z
+      .array(z.object({ url: z.string(), snapshotId: z.string() }))
+      .max(SEO_CRAWL_NEXT_MAX_AUDITS),
     skipped: z
       .array(z.object({ url: z.string(), reason: z.string() }))
       .max(SEO_CRAWL_NEXT_MAX_AUDITS),
@@ -35,6 +40,7 @@ const crawlNextReport = z.object({
       z.object({
         url: z.string(),
         pickedFor: z.array(z.string()).max(10),
+        snapshotId: z.string(),
         report: z.unknown(),
       }),
     )
@@ -84,6 +90,16 @@ export function parseCrawlNextArtifact(
             auditedSeoPageKey(page.url)
         )
           return { page };
+        // The run's own audit of the page: one of another run would show its findings as this paid one's.
+        const ran = report.head.pages.find(
+          (entry) => pageKey(entry.url) === pageKey(page.url),
+        );
+        if (
+          ran?.snapshotId !== page.snapshotId ||
+          (page.report as { snapshotId?: unknown } | null)?.snapshotId !==
+            page.snapshotId
+        )
+          return { page, reason: OTHER_RUN };
         // No finding is "No issues" only when each check of the page passed: a blocked or not checked one had no data.
         if (
           !payload.findings.length &&
@@ -136,10 +152,11 @@ export function parseCrawlNextArtifact(
     siteCrawl.snapshotId === siteCrawl.continues
   )
     throw badRequest("The crawl continuation has no readable crawl");
-  // A Report whose parts name different crawls could put a paid crawl on another branch of the chain.
+  // A Report whose parts name different crawls, or two start pages, could put a paid crawl on another branch of the chain.
   if (
     report.head.parent !== report.request.continues ||
-    report.head.crawl !== siteCrawl.snapshotId
+    report.head.crawl !== siteCrawl.snapshotId ||
+    pageKey(report.request.url) !== pageKey(siteCrawl.startUrl)
   )
     throw badRequest("The crawl continuation names two different crawls");
   const pages = audited.flatMap(({ payload }) => (payload ? [payload] : []));

@@ -586,14 +586,25 @@ const crawlNextReport = (more: Record<string, unknown> = {}) => {
       crawl: CHILD,
       candidates: 3,
       pick: "agent",
-      pages: [],
+      pages: [
+        {
+          url: page.request.url,
+          pickedFor: ["missing title"],
+          snapshotId: page.snapshotId,
+        },
+        {
+          url: `${SITE}/broken`,
+          pickedFor: ["broken link"],
+          snapshotId: "f".repeat(64),
+        },
+      ],
       skipped: [{ url: `${SITE}/slow`, reason: "the page Run timed out" }],
     },
     pages: [
       {
         url: page.request.url,
         pickedFor: ["missing title"],
-        snapshotId: "e".repeat(64),
+        snapshotId: page.snapshotId,
         report: page,
       },
       {
@@ -670,6 +681,44 @@ describe("imported crawl continuation", () => {
       expect(() => parsePublicSeoArtifact(crawlNextReport({ head }))).toThrow(
         "names two different crawls",
       );
+  });
+
+  it("refuses a continuation whose request names another start page than its crawl", () => {
+    for (const url of ["https://other.example/", "not a url"])
+      expect(() =>
+        parsePublicSeoArtifact(
+          crawlNextReport({
+            request: { url, mode: "crawl_next", continues: PARENT },
+          }),
+        ),
+      ).toThrow("names two different crawls");
+  });
+
+  it("skips a page audit that is not the one this run made, and keeps the crawl", () => {
+    const report = crawlNextReport();
+    const audit = report.pages[0]!;
+    const other = "9".repeat(64);
+    for (const page of [
+      // An older audit of the same page, from another run.
+      { ...audit, report: { ...audit.report, snapshotId: other } },
+      // An envelope that names another Snapshot than the run's head.
+      {
+        ...audit,
+        snapshotId: other,
+        report: { ...audit.report, snapshotId: other },
+      },
+    ]) {
+      const crawl = parsePublicSeoArtifact({
+        ...report,
+        pages: [page],
+      }).siteCrawl;
+      if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+      expect(crawl.deepAudit?.pages).toEqual([]);
+      expect(crawl.deepAudit?.skipped).toContainEqual({
+        url: audit.url,
+        reason: "The page's audit report is not the one this run made",
+      });
+    }
   });
 
   it("refuses a continuation whose crawl it cannot read, as it holds nothing else", () => {
