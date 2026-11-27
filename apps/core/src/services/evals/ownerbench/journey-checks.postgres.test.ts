@@ -10,6 +10,7 @@ import { randomUUID } from "node:crypto";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { jsonInput } from "@/helpers/prisma-json";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
 import { searchFiles } from "@/services/file-search.service";
@@ -1147,6 +1148,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       taskIds: string[];
     }> {
       const built = await new ContextPacketBuilder().build({
+        networkScope: createNetworkScope("mainnet"),
         userId,
         sokoBotId: botId,
         workspaceId,

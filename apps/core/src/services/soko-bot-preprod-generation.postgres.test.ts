@@ -427,14 +427,20 @@ describe.skipIf(!enabled)(
       }
     });
 
-    // The turn insert stamps from its input alone, which needs no Preprod
-    // flag. On the split layout the classifier and the context packet still
-    // read Agent, Job and Project-to-Job through the shared client (ticket 30).
+    // The turn insert stamps from its input alone. This public-layout fixture
+    // bypasses admission and supplies public catalog tables. On the split
+    // layout the classifier and packet still read Job and Project-to-Job
+    // through the shared client (ticket 30).
     it.skipIf(onSplitLayout)(
-      "stamps the current generation on a Preprod turn (on the split layout this waits for ticket 30: startTurn reads Agent through the shared client)",
+      "stamps the current generation on a Preprod turn (on the split layout this waits for ticket 30: startTurn reads Job through the shared client)",
       async () => {
         const fixture = await seed();
         await writeControl("open", "3");
+        const networkScopes = await import("@/lib/db/network-scope");
+        const scope = networkScopes.createNetworkScope("mainnet");
+        vi.spyOn(networkScopes, "createNetworkScope")
+          .mockReturnValueOnce(scope)
+          .mockReturnValueOnce(scope);
         const session = (
           await import("@/lib/soko-bot/factory")
         ).getSokoBotRuntime();
