@@ -30,13 +30,6 @@ export interface VideoCardBrand {
   font: string | null;
 }
 
-/** A card over the cut, from `start` to `end` seconds. */
-export interface TimedVideoCard {
-  png: Uint8Array;
-  start: number;
-  end: number;
-}
-
 const HEX = /^#[0-9a-f]{6}$/i;
 /** Ink on a light accent, white on a dark one. */
 const INK = "#101010";

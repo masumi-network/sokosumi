@@ -6399,6 +6399,89 @@ export const StripeSubscriptionStatusSchema = {
     description: 'Stripe subscription lifecycle status'
 } as const;
 
+export const AdminPreprodAccessSchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean'
+        },
+        changes: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    createdAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    enabled: {
+                        type: 'boolean'
+                    },
+                    reason: {
+                        type: 'string'
+                    },
+                    operator: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string'
+                            },
+                            name: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                description: 'Null when the admin\'s account no longer exists'
+                            }
+                        },
+                        required: [
+                            'id',
+                            'name'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'createdAt',
+                    'enabled',
+                    'reason',
+                    'operator'
+                ]
+            },
+            description: 'The 20 most recent changes, newest first'
+        }
+    },
+    required: [
+        'enabled',
+        'changes'
+    ]
+} as const;
+
+export const SetAdminPreprodAccessBodySchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean',
+            description: 'Whether the user or Organization may use Preprod'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500,
+            description: 'Why access is switched: a ticket id, no personal details. Kept with the change after the account is deleted.',
+            example: 'SOK-123'
+        }
+    },
+    required: [
+        'enabled',
+        'reason'
+    ]
+} as const;
+
 export const AdminMatchedChannelOptionSchema = {
     type: 'object',
     properties: {
