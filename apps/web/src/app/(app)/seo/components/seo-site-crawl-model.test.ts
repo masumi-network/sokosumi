@@ -332,6 +332,24 @@ describe("site crawl ledger", () => {
       });
   });
 
+  it("clears no check of what a script sets on a page the crawl read as raw HTML", () => {
+    const crawl = cleanCrawl();
+    crawl.gaps = [
+      { item: "Pages with a script read as raw HTML", reason: "no script ran" },
+    ];
+    crawl.links!.broken = [
+      { target: `${SITE}/old`, status: 404, linkedFrom: 3, sources: [] },
+    ];
+    crawl.links!.brokenTotal = 1;
+    const result = view(crawl);
+    expect([...result.clear].sort()).toEqual(
+      ["javascript", "missingH1", "missingTitle", "orphans"].sort(),
+    );
+    expect(result.otherGaps).toEqual([]);
+    // A problem the crawl found still shows.
+    expect(row(crawl, "brokenLinks")).toMatchObject({ state: "found" });
+  });
+
   it("keeps why a site was not crawled, and shows nothing for a report without a crawl", () => {
     expect(
       seoSiteCrawlView({ state: "not crawled", reason: "robots.txt" }),

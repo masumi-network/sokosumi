@@ -130,6 +130,18 @@ const GAP_CHECKS: {
   // Core's last gap when the crawl gave more than it stores: a dropped gap may be about any check.
   { check: [...SEO_CRAWL_CHECKS], item: (item) => item === "More gaps" },
   { check: ["duplicateTitles"], item: (item) => item === "Duplicate titles" },
+  {
+    // Core's gap for pages with a script the crawl did not run: a script there may add a noindex, a canonical, a
+    // title or a link. It adds no missing title or h1 a check found.
+    check: [
+      "noindexInSitemap",
+      "badCanonicals",
+      "duplicateTitles",
+      "brokenLinks",
+      "redirectChains",
+    ],
+    item: (item) => item === "Pages with a script read as raw HTML",
+  },
   { check: ["orphans"], item: (item) => item === "Orphan pages" },
   {
     // Both sitemap checks read only the sitemap URLs the bot got.
