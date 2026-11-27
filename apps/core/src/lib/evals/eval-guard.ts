@@ -58,6 +58,24 @@ export async function isEvalWorkspace(workspaceId: string): Promise<boolean> {
 }
 
 /**
+ * Read now, in the caller's transaction: a guard that keeps a lane from
+ * sending must see a lane another Core process registered a moment ago,
+ * which the cache above can miss for a minute.
+ */
+export async function isEvalWorkspaceNow(
+  db: Pick<typeof prisma, "evalLane">,
+  workspaceId: string,
+): Promise<boolean> {
+  if (typeof db.evalLane?.findUnique !== "function") return false;
+  return (
+    (await db.evalLane.findUnique({
+      where: { workspaceId },
+      select: { lane: true },
+    })) !== null
+  );
+}
+
+/**
  * An eval lane's Cuso stands in for a paying customer: the CMO subscription
  * gate lets him work on the lane's credits (ADR 0068).
  */

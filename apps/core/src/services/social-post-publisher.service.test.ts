@@ -44,9 +44,11 @@ const {
   resolveXSubscriptionTypeMock,
   recordAdEventsMock,
   evalLaneFindManyMock,
+  evalLaneFindUniqueMock,
 } = vi.hoisted(() => ({
   publishingAccessMock: vi.fn(),
   evalLaneFindManyMock: vi.fn(),
+  evalLaneFindUniqueMock: vi.fn(),
   attemptFindFirstMock: vi.fn(),
   attemptAggregateMock: vi.fn(),
   attemptCreateMock: vi.fn(),
@@ -104,7 +106,10 @@ vi.mock("@/lib/db/prisma", () => ({
       update: attemptUpdateMock,
     },
     socialPostThreadPart: { update: threadPartUpdateMock },
-    evalLane: { findMany: evalLaneFindManyMock },
+    evalLane: {
+      findMany: evalLaneFindManyMock,
+      findUnique: evalLaneFindUniqueMock,
+    },
   },
 }));
 
@@ -226,6 +231,7 @@ describe("social post publisher service", () => {
     vi.resetAllMocks();
     vi.useFakeTimers();
     evalLaneFindManyMock.mockResolvedValue([]);
+    evalLaneFindUniqueMock.mockResolvedValue(null);
     vi.setSystemTime(NOW);
     resolveXSubscriptionTypeMock.mockImplementation(
       async (connection) => connection.subscriptionType ?? null,
@@ -2071,11 +2077,11 @@ describe("social post publisher service", () => {
     },
   );
 
-  it("publishes now in an eval lane's workspace only on a stand-in account", async () => {
+  it("publishes now in an eval lane's workspace only on a stand-in account, even a lane this process has not cached", async () => {
+    // The cached lane list (another process registered the lane) has none.
     forgetEvalWorkspaces();
-    evalLaneFindManyMock.mockResolvedValue([
-      { workspaceId: WORKSPACE_ID, cusoProjectId: null },
-    ]);
+    evalLaneFindManyMock.mockResolvedValue([]);
+    evalLaneFindUniqueMock.mockResolvedValue({ lane: 3 });
     const draft = (composioConnectedAccountId: string) => ({
       ...duePost,
       status: "DRAFT",
@@ -2103,7 +2109,9 @@ describe("social post publisher service", () => {
     expect(publishXPostMock).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ connectedAccountId: "eval:3:x" }),
     );
-    forgetEvalWorkspaces();
+    expect(evalLaneFindUniqueMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { workspaceId: WORKSPACE_ID } }),
+    );
   });
 
   it("fails a due post on our own TikTok app outside utxo's workspace, unsent", async () => {

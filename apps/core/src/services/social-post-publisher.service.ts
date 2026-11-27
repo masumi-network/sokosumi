@@ -57,7 +57,7 @@ import {
 } from "@/helpers/social-post-quote";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { evalWorkspaceIds, isEvalWorkspace } from "@/lib/evals/eval-guard";
+import { evalWorkspaceIds, isEvalWorkspaceNow } from "@/lib/evals/eval-guard";
 import {
   EVAL_CONNECTED_ACCOUNT_PREFIX,
   isEvalSocialAccount,
@@ -1418,7 +1418,7 @@ export async function publishSocialPostNow(
       }
       // An eval lane publishes on its stand-in accounts only, never a real one.
       if (
-        (await isEvalWorkspace(input.workspaceId)) &&
+        (await isEvalWorkspaceNow(tx, input.workspaceId)) &&
         !(
           post.socialConnection &&
           isEvalSocialAccount(post.socialConnection.composioConnectedAccountId)
