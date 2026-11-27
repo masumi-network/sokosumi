@@ -1,6 +1,12 @@
 import type { ChatRoom, Member } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CreateChannelDialog } from "./create-channel-dialog";
@@ -375,6 +381,10 @@ describe("CreateChannelDialog", () => {
     expect(link).toHaveValue("launch-plans");
     expect(link).toHaveAccessibleDescription("slugHelp");
 
+    // A browser fires blur before focus lands on the next field; Link must
+    // still be there at that moment, or focus falls out of the dialog.
+    fireEvent.blur(link);
+    expect(link).toBeInTheDocument();
     await user.tab();
     expect(screen.getByLabelText("topicLabel")).toHaveFocus();
     expect(screen.queryByLabelText("slugLabel")).toBeNull();

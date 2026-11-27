@@ -99,7 +99,9 @@ export function CreateChannelDialog({
   // While a new link is checked, the field keeps the last answer's shape
   // instead of closing and reopening on every keystroke.
   const [settled, setSettled] = useState(availability);
-  // A field the person is in stays put; it closes after focus moves on.
+  // A field the person is in stays put. It closes only once focus has landed
+  // elsewhere in the dialog: a blur-time close would unmount it before the
+  // browser moves focus on, and focus would fall out of the form.
   const [linkFocused, setLinkFocused] = useState(false);
   if (availability !== "unknown" && availability !== settled) {
     setSettled(availability);
@@ -263,6 +265,9 @@ export function CreateChannelDialog({
       <DialogContent
         className="app-scrollbar max-h-[calc(100dvh-2rem)] gap-6 overflow-y-auto shadow-none sm:max-w-lg"
         {...(isCreateStep ? { "aria-describedby": undefined } : {})}
+        onFocus={(event) =>
+          setLinkFocused(event.target.id === "create-channel-slug")
+        }
       >
         <DialogHeader className={cn(isCreateStep && "gap-1.5")}>
           <DialogTitle>
@@ -390,8 +395,6 @@ export function CreateChannelDialog({
                   <Input
                     ref={linkInputRef}
                     id="create-channel-slug"
-                    onFocus={() => setLinkFocused(true)}
-                    onBlur={() => setLinkFocused(false)}
                     value={wizard.slug}
                     onChange={(event) =>
                       setWizard(setSlug(wizard, event.target.value))
