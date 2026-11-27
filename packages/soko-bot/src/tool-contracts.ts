@@ -2266,7 +2266,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     TALKING_VIDEO_COST.broll +
     " credits). Only for a request the owner made in this chat. It takes a few minutes: call wait_for with its jobId and end your turn; get_video tells you where it stands.",
   get_video:
-    "Check a video started with generate_video or generate_talking_video: its status and, once it is ready, a link to it in Content Studio and a copy in the owner's Files (fileId, link). Use that fileId as the video in create_social_post or update_social_post.",
+    "Check a video started with generate_video or generate_talking_video: its status and, once it is ready, a link to it in Content Studio and a copy in the owner's Files (fileId, link). Use that fileId as the video in create_social_post or update_social_post. It takes only the jobId those tools returned; for a YouTube or other web video, web_fetch its link instead.",
   read_file:
     "Read the text Sokosumi extracted from a Drive file, by id from list_files. Says so when the file has no text yet (still being processed, or an image or unsupported type).",
   upload_file:
