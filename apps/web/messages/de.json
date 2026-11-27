@@ -180,7 +180,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Arbeitsbereich wechseln",
-      "switchOrganization": "Organisation wechseln",
+      "switchWorkspaceCurrent": "Arbeitsbereich wechseln (aktuell: {name})",
       "personalAccount": "Persönlicher Account",
       "organizationsHeading": "Organisationen",
       "createOrJoinOrganization": "Organisation erstellen oder beitreten",

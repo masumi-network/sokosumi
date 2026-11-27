@@ -355,9 +355,43 @@ for (const { name, ...viewport } of PROJECTS) {
       await saved.screenshot({
         path: `${RESULTS_DIR}onboarding-${name}-5-home.png`,
       });
-      // They picked Personal, so the switcher says Personal, not their name.
+      // Every composer tool shows: on a phone Home's padding once pushed
+      // "Add a skill" out of the toolbar's visible width.
+      const skillShown = await saved
+        .getByRole("main")
+        .getByRole("button", { name: "Add a skill" })
+        .evaluate((button) => {
+          const bar = button.parentElement?.getBoundingClientRect();
+          const box = button.getBoundingClientRect();
+          return !!bar && box.left >= bar.left && box.right <= bar.right + 1;
+        });
+      assert.ok(skillShown, "Add a skill shows inside the composer toolbar");
       const showSidebar = saved.getByRole("button", { name: "Show sidebar" });
+      if (viewport.width >= 768 && (await showSidebar.isVisible())) {
+        // With the sidebar folded, the rail's workspace button is a face
+        // alone; its name says what it does and which workspace is on.
+        await saved
+          .getByRole("button", {
+            name: "Switch workspace (current: Personal)",
+            exact: true,
+          })
+          .waitFor();
+      }
+      // They picked Personal, so the switcher says Personal, not their name.
       if (await showSidebar.isVisible()) await showSidebar.click();
+      // The bot's own row and the phone's All chats sit on the same column
+      // as the rows around them, not 8px further in.
+      const rowLeft = (selector: string) =>
+        saved
+          .locator(`[data-sidebar="menu-button"]${selector}`)
+          .filter({ visible: true })
+          .first()
+          .evaluate((el) => Math.round(el.getBoundingClientRect().left));
+      const homeLeft = await rowLeft('[href$="/chat"]');
+      assert.equal(await rowLeft('[href$="/personal-assistant"]'), homeLeft);
+      if (viewport.width < 768) {
+        assert.equal(await rowLeft('[href$="/chat/rooms"]'), homeLeft);
+      }
       await saved
         .getByRole("button", { name: "Personal", exact: true })
         .click();

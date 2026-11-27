@@ -62,19 +62,27 @@ export interface SidebarSokoBotLive extends SidebarSokoBotAvatar {
  */
 export default function PersonalAssistantNav({
   bot = null,
+  nested = false,
 }: {
   bot?: SidebarSokoBotLive | null;
+  /**
+   * Inside a section that is already a sidebar group (Direct messages): the
+   * row takes that group's padding, so its slot stays on the Direct rows'.
+   */
+  nested?: boolean;
 }) {
   // Session memory for Instant `/chat` (SOK-903): mount means the row is shown.
   usePersonalAssistantChromeVisible();
 
+  const menu = (
+    <SidebarMenu className="gap-0">
+      {bot ? <LiveSokoBotRow bot={bot} /> : <StaticSokoBotsRow />}
+    </SidebarMenu>
+  );
+  if (nested) return menu;
   return (
     <SidebarGroup className="w-full">
-      <SidebarGroupContent>
-        <SidebarMenu className="gap-0">
-          {bot ? <LiveSokoBotRow bot={bot} /> : <StaticSokoBotsRow />}
-        </SidebarMenu>
-      </SidebarGroupContent>
+      <SidebarGroupContent>{menu}</SidebarGroupContent>
     </SidebarGroup>
   );
 }

@@ -34,8 +34,10 @@ const loadYourBot = cache(async (): Promise<SidebarSokoBotLive | null> => {
   }
 });
 
-async function WithBot() {
-  return <PersonalAssistantNavClient bot={await loadYourBot()} />;
+async function WithBot({ nested }: { nested: boolean }) {
+  return (
+    <PersonalAssistantNavClient bot={await loadYourBot()} nested={nested} />
+  );
 }
 
 /**
@@ -43,10 +45,15 @@ async function WithBot() {
  * waits on Core. Hidden without Soko Bot beta access: the route 404s for
  * everyone else, so an entry pointing at it would only be a dead end.
  */
-export default function PersonalAssistantNav() {
+export default function PersonalAssistantNav({
+  nested = false,
+}: {
+  /** Rendered inside the chat list's Direct messages section. */
+  nested?: boolean;
+}) {
   return (
-    <Suspense fallback={<PersonalAssistantNavClient />}>
-      <WithBot />
+    <Suspense fallback={<PersonalAssistantNavClient nested={nested} />}>
+      <WithBot nested={nested} />
     </Suspense>
   );
 }
