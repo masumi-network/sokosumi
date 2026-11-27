@@ -2,6 +2,7 @@ import type { AdminPreprodAccess } from "@sokosumi/core-client";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import { startTransition } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -283,6 +284,32 @@ describe("PreprodAccessSection", () => {
     expect(toastSuccessMock).toHaveBeenCalledWith("Preprod access is off.");
     expect(theSwitch()).not.toBeChecked();
     expect(theSwitch()).toHaveFocus();
+  });
+
+  it("returns focus to the switch after a successful change while the page is still rendering again", async () => {
+    // Next applies the action's refreshed page in a transition React joins to
+    // the section's, so the section is still pending when the dialog closes.
+    const refreshedPage = Promise.withResolvers<void>();
+    setAdminPreprodAccessActionMock.mockImplementation(async () => {
+      startTransition(async () => {
+        await refreshedPage.promise;
+      });
+      return { ok: true, value: ON_AFTER_SWITCH };
+    });
+    const user = userEvent.setup();
+    render(section(OFF_NO_HISTORY));
+    const dialog = await openDialog(user);
+
+    await submitReason(user, dialog, "SOK-3");
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(theSwitch()).toHaveFocus();
+    await act(async () => {
+      refreshedPage.resolve();
+      await refreshedPage.promise;
+    });
   });
 
   it.each([
