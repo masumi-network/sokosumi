@@ -33,6 +33,7 @@ describe("createAblyClientTokenRequest", () => {
       roomIds: ["room_1"],
       organizationIds: ["org_1"],
       workspaceIds: [],
+      preprodJobWorkspaceIds: [],
       clientInstanceId: "abcdef0123456789",
     });
 

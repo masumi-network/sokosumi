@@ -128,6 +128,7 @@ describe("JobsList empty state", () => {
         jobsNextCursor={null}
         userId="user-1"
         agentId="agent-1"
+        workspaceId="workspace-1"
       />,
     );
   }

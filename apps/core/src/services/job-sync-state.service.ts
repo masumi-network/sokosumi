@@ -271,9 +271,11 @@ export async function finalizeJobSyncResult(
 
   try {
     await publishJobStatusData({
-      agentId: updatedJob.agentId,
+      network: JOB_SYNC_NETWORK,
+      workspaceId: updatedJob.workspaceId,
       userId: ownerId,
       jobId: updatedJob.id,
+      agentId: updatedJob.agentId,
       jobStatus: updatedJob.status,
       jobStatusSettled: updatedJob.jobStatusSettled,
     });
