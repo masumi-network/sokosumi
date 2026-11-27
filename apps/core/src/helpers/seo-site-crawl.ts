@@ -125,7 +125,29 @@ const botCrawl = z.object({
 });
 type BotCanonicals = z.infer<typeof botCrawl>["pageChecks"] & {};
 
-const gapList = z.array(z.object({ item: z.string(), reason: z.string() }));
+const gapEntry = z.object({ item: z.string(), reason: z.string() });
+
+/**
+ * A Report's gaps, read one by one. An entry Sokosumi cannot read may be about any check, so it stands as a gap
+ * that leaves every check undecided.
+ */
+function readGaps(list: unknown, prefix: string) {
+  if (list === undefined) return [];
+  const rows: unknown[] = Array.isArray(list) ? list : [list];
+  const read = rows.flatMap((row) => {
+    const gap = gapEntry.safeParse(row);
+    return gap.success ? [gap.data] : [];
+  });
+  const unreadable = rows.length - read.length;
+  if (!unreadable) return read;
+  return [
+    ...read,
+    {
+      item: `${prefix}${MORE_GAPS}`,
+      reason: `the Report holds ${unreadable} gap${unreadable === 1 ? "" : "s"} Sokosumi cannot read, so no check can be clear`,
+    },
+  ];
+}
 const urls = (list: { pages: { url: string }[]; total: number }) => ({
   urls: list.pages.map((p) => p.url),
   total: list.total,
@@ -174,8 +196,7 @@ function badCanonicals(c: BotCanonicals["canonicals"], noHead: number) {
  */
 export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
   const report = object(raw);
-  const gaps = gapList.safeParse(report?.couldNotSee);
-  const couldNotSee = gaps.success ? gaps.data : [];
+  const couldNotSee = readGaps(report?.couldNotSee, CRAWL_PREFIX);
   if (report?.crawl === undefined) {
     const missing = couldNotSee.find((gap) => gap.item === CRAWL_ITEM);
     if (!missing || object(report?.request)?.crawl === false) return undefined;

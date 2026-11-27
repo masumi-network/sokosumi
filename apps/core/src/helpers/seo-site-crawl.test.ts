@@ -260,6 +260,27 @@ describe("imported site crawl", () => {
     });
   });
 
+  it("keeps the readable gaps of a Report with an unreadable one, and clears no check", () => {
+    const crawl = stored(
+      siteReport({
+        crawl: botCrawl(),
+        couldNotSee: [
+          { item: "Site crawl: Some sitemap URLs", reason: "not read" },
+          { item: 7 },
+        ],
+      }),
+    );
+    if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+    expect(crawl.gaps.slice(-2)).toEqual([
+      { item: "Some sitemap URLs", reason: "not read" },
+      {
+        item: "More gaps",
+        reason:
+          "the Report holds 1 gap Sokosumi cannot read, so no check can be clear",
+      },
+    ]);
+  });
+
   it("keeps only text PostgreSQL can store", () => {
     // A cut inside a surrogate pair, and a NUL: jsonb refuses both, and the whole import with them.
     const crawl = stored(
