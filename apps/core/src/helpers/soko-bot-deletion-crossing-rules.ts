@@ -10,6 +10,7 @@ import {
 } from "@/helpers/user-deletion-crossing-rules";
 import type prisma from "@/lib/db/prisma";
 import { networksThatAreOn } from "@/lib/network";
+import vercelConfig from "../../vercel.json" with { type: "json" };
 
 /**
  * The keys of `src/lib/db/crossing-keys.ts` owned by the Soko Bot deletion and
@@ -107,32 +108,25 @@ export async function deleteProjectWithNetworkRows(
   return applyRulesAfterDelete(tx, candidates);
 }
 
-/** Attempts of `deleteProjectInTransaction`, each with Prisma's 5 s budget. */
-export const PROJECT_DELETION_ATTEMPTS = 4;
+/**
+ * Core's function duration (`apps/core/vercel.json`), the longest the
+ * request that runs the clean-up can last.
+ */
+const CORE_INVOCATION_MS =
+  vercelConfig.functions["dist/index.js"].maxDuration * 1000;
 
 /**
- * `deleteProjectWithNetworkRows` in its own transaction. The single delete it
- * replaced waited on a row lock as long as another writer held it; a
- * transaction expires after 5 s instead (P2028), rolled back, so it starts
- * over with a fresh budget. After the last attempt the error is thrown, as
- * the delete's own error was.
+ * `deleteProjectWithNetworkRows` in one transaction. The single delete it
+ * replaced waited on a row lock for as long as its request ran; Prisma's
+ * default 5 s budget would roll back and give up the lock's place in the
+ * queue, so the budget, connection wait included, is the invocation's.
  */
-export async function deleteProjectInTransaction(
+export function deleteProjectInTransaction(
   client: Pick<typeof prisma, "$transaction">,
   projectId: string,
 ): Promise<RuleCounts> {
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      return await client.$transaction((tx) =>
-        deleteProjectWithNetworkRows(tx, projectId),
-      );
-    } catch (error) {
-      const expired =
-        typeof error === "object" &&
-        error !== null &&
-        "code" in error &&
-        error.code === "P2028";
-      if (!expired || attempt >= PROJECT_DELETION_ATTEMPTS) throw error;
-    }
-  }
+  return client.$transaction(
+    (tx) => deleteProjectWithNetworkRows(tx, projectId),
+    { maxWait: CORE_INVOCATION_MS, timeout: CORE_INVOCATION_MS },
+  );
 }
