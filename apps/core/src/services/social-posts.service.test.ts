@@ -3623,7 +3623,8 @@ describe("social posts service", () => {
         }),
       ).rejects.toMatchObject({
         status: 400,
-        message: 'Media file "launch.png" is not a file type X accepts',
+        message:
+          'Media file "launch.png" is not a file type X accepts. It takes JPEG, PNG or WebP images, GIF animations, MP4 videos',
       });
       await expect(
         createSocialPost({
@@ -3636,7 +3637,8 @@ describe("social posts service", () => {
         }),
       ).rejects.toMatchObject({
         status: 400,
-        message: 'Media file "loop.gif" is not a file type X accepts',
+        message:
+          'Media file "loop.gif" is not a file type X accepts. It takes JPEG, PNG or WebP images, GIF animations, MP4 videos',
       });
     });
 

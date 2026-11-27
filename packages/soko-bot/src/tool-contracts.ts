@@ -245,6 +245,8 @@ export const sokoBotListFilesInputSchema = z.object({
   /** Words to find in file names and contents; omit to list the newest. */
   query: z.string().max(200).optional(),
   limit: z.number().int().min(1).max(20).optional(),
+  /** nextCursor from the previous page, with the same query. */
+  cursor: z.string().min(1).max(4_000).optional(),
 });
 
 export const sokoBotReadFileInputSchema = z
@@ -2241,7 +2243,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   update_project:
     "Rename a Project or change its briefing or website. briefing replaces the whole text, so read it from your context first and keep what still holds; null clears it. Closing or deleting a Project stays with a person on the Project page.",
   list_files:
-    "Search the owner\u2019s Drive by words in file names and contents, or list the newest files. Content Studio images are there once get_image has reported them ready. Returns each file\u2019s id, name, type, size, last change, category, tags, folder and a matching passage. Use it to find an existing document before writing a new one.",
+    "Search the owner\u2019s Drive by words in file names and contents, or list the newest files. Content Studio images are there once get_image has reported them ready. Returns each file\u2019s id, name, type, size, last change, category, tags, folder and a matching passage, at most 20 a page: when hasMore is true, call it again with the same query and cursor set to nextCursor. Use it to find an existing document before writing a new one.",
   generate_image:
     "Generate an image in a Project's Content Studio from a prompt. It spends the owner's credits: set maxCredits, and it refuses when the image would cost more. Only for a request the owner made in this chat. To show a real product, pass up to four of the owner's image Files as referenceFileIds (a product photo) and say in the prompt what to keep from them. For Studio images use Gemini Pro (gemini-pro), or Ideogram v3 (ideogram-v3) for text-heavy images. When using a library style, pass styleReferenceId and leave model out so Core applies the style. Generation takes a minute: to act on the result (post it, use it in a social post), call wait_for with its jobId and end your turn; get_image tells you where it stands now.",
   get_image:
