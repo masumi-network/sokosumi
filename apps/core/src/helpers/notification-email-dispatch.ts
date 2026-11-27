@@ -188,6 +188,7 @@ async function alreadyEmailed(
       userId: notification.userId,
       kind: notification.kind,
       referenceId: notification.referenceId,
+      network: notification.network,
       ...(notification.kind === NotificationKind.CHAT ? {} : { inApp: true }),
       isRead: false,
       emailId: { not: null },
@@ -306,7 +307,10 @@ async function dispatchNotificationEmailRevision(
   let unpersistedScheduledEmailId: string | null = null;
   let refresh: Notification | null = null;
   try {
-    if (isFollowUpMessageKey(notification.messageKey)) {
+    if (
+      notification.network === "preprod" ||
+      isFollowUpMessageKey(notification.messageKey)
+    ) {
       return;
     }
 

@@ -53,10 +53,8 @@ vi.mock("@/lib/db/prisma", () => ({
     task: {
       findMany: taskFindManyMock,
     },
-    job: {
-      findMany: jobFindManyMock,
-    },
   },
+  networkPrisma: () => ({ job: { findMany: jobFindManyMock } }),
 }));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
@@ -169,7 +167,10 @@ describe("GET /notifications", () => {
       now: new Date("2026-11-26T12:00:00Z"),
     });
     onTestFinished(() => void vi.useRealTimers());
-    const items: Record<string, unknown>[] = [];
+    const bodies: {
+      data: Record<string, unknown>[];
+      meta: Record<string, unknown>;
+    }[] = [];
     for (const network of [null, "mainnet"]) {
       notificationFindManyMock
         .mockResolvedValueOnce([])
@@ -180,11 +181,19 @@ describe("GET /notifications", () => {
       expect(response.status).toBe(200);
       const body = (await response.json()) as {
         data: Record<string, unknown>[];
+        meta: Record<string, unknown>;
       };
-      items.push(...body.data);
+      delete body.meta.requestId;
+      bodies.push(body);
     }
-    expect(items.map((item) => item.network)).toEqual([null, "mainnet"]);
-    expect({ ...items[1], network: null }).toEqual(items[0]);
+    const [untagged, tagged] = bodies;
+    expect(bodies.map((body) => body.data.map((item) => item.network))).toEqual(
+      [[null], ["mainnet"]],
+    );
+    expect({
+      ...tagged,
+      data: tagged.data.map((item) => ({ ...item, network: null })),
+    }).toEqual(untagged);
   });
 
   it("applies kind and isRead filters", async () => {
