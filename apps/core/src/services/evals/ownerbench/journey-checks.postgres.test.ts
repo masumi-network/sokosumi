@@ -1126,7 +1126,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
           createdAt,
         },
       });
-      // A released Task carries the member who owns the schedule, not the bot.
+      // This fixture covers a Task whose bot provenance comes from its schedule.
       return (
         await prisma.task.create({
           data: {
@@ -1221,6 +1221,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
             sokoBotId: botId,
             cusoProjectId: projectId,
           });
+          // CI gives each worker its own database for this global scan.
           await taskScheduleReleaseService.releaseDueSchedules({
             abortSignal: new AbortController().signal,
             deadlineMs: Infinity,
@@ -1237,6 +1238,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
             where: { scheduleId: schedule.id },
             select: { id: true, createdAt: true, creatorSokoBotId: true },
           });
+          // These assertions expose the false verdict if the reset lets a Task through.
           for (const task of leaked) {
             expect(task.createdAt).toEqual(createdAt);
             expect(task.creatorSokoBotId).toBe(botId);
@@ -1476,9 +1478,16 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
 
     it("fails a case whose opening packet carries another case's Task", async () => {
       const leaked = await runCase("delegated", earlierAt);
+      // The cutoff comes from the leaked Task's own stored createdAt, one
+      // millisecond later, so it can never land on or before the insert.
+      const { createdAt } = await prisma.task.findUniqueOrThrow({
+        where: { id: leaked },
+        select: { createdAt: true },
+      });
+      const startedAt = new Date(createdAt.getTime() + 1);
       const { turnId, taskIds } = await openingTurn();
       expect(taskIds).toContain(leaked);
-      expect(await earlierCaseTasksCheck(turnId, cutoff)).toMatchObject({
+      expect(await earlierCaseTasksCheck(turnId, startedAt)).toMatchObject({
         pass: false,
         actual: expect.stringContaining("Earlier case's delegation"),
       });
