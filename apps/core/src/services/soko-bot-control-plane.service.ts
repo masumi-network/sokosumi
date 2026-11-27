@@ -2751,13 +2751,11 @@ export class SokoBotControlPlane {
             chainDepth: input.chat?.chainDepth,
           })
         : false;
-    const cmoNonOwnerTeammate = isFlaggedCmoBot && !cmoProjectOwner;
     // A mute or standing instruction the owner typed is saved before the turn
     // reads memory, whether or not the model would have thought to.
     const capturedPreference =
       personAsked &&
       !askedByTeammate &&
-      !cmoNonOwnerTeammate &&
       (classification.classification.signals?.statesPreference ?? 0) >=
         MIN_PREFERENCE_CONFIDENCE
         ? await capturePreference({
@@ -2771,7 +2769,6 @@ export class SokoBotControlPlane {
       (input.source ?? "CHAT") === "CHAT" &&
       personAsked &&
       !askedByTeammate &&
-      !cmoNonOwnerTeammate &&
       !input.chat?.askedByBot
         ? await openAccountQuestion({
             sokoBotId: bot.id,

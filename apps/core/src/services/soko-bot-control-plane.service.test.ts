@@ -2871,14 +2871,27 @@ describe("SokoBotControlPlane lifecycle", () => {
       });
       expect(capturePreferenceMock).toHaveBeenCalledTimes(1);
 
-      // 2. Second workspace member (ordinary MEMBER, not hirer) on same flagged version -> stays TEAMMATE, no owner preference capture.
+      // 2. An active org admin who did not hire Cuso keeps standing brand preference capture
+      // on both control and owner-framed versions (ADR 0061) while speaker framing stays TEAMMATE.
+      for (const versionId of ["cmo-v25", "cmo-v25-owner-flag"]) {
+        const adminRes = await runTurn({
+          versionId,
+          speakerId: "user_admin",
+          memberRole: "admin",
+        });
+        expect(adminRes.buildArg.cmoProjectOwner).toBeUndefined();
+        expect(capturePreferenceMock).toHaveBeenCalledTimes(1);
+      }
+
+      // 3. Second workspace member (ordinary MEMBER, not hirer) on same flagged version ->
+      // speaker framing stays TEAMMATE while shared brand preference capture remains intact.
       const teammateRes = await runTurn({
         versionId: "cmo-v25-owner-flag",
         speakerId: "user_hannah",
         memberRole: "member",
       });
       expect(teammateRes.buildArg.cmoProjectOwner).toBeUndefined();
-      expect(capturePreferenceMock).not.toHaveBeenCalled();
+      expect(capturePreferenceMock).toHaveBeenCalledTimes(1);
 
       // 3. Flag-off control CMO version -> cmoProjectOwner absent, zero member query.
       const controlRes = await runTurn({
