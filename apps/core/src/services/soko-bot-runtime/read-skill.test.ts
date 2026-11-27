@@ -66,6 +66,28 @@ describe("read_skill", () => {
       readSkill(authorized("v36"), { skill: "cmo-strategy-v22" }),
     ).rejects.toThrow(/No skill/);
   });
+
+  it("returns E1-patched skills on read_skill only when e1Prompts is enabled", async () => {
+    const v36 = getSokoBotVersion("v36");
+    resolveSokoBotVersion.mockResolvedValueOnce(v36);
+    const legacy = await readSkill(authorized("v36"), {
+      skill: "long-and-chained-work-follow-ups",
+    });
+    expect(legacy.content).toContain("sleep 120");
+
+    resolveSokoBotVersion.mockResolvedValueOnce({ ...v36, e1Prompts: true });
+    const patched = await readSkill(authorized("v36"), {
+      skill: "long-and-chained-work-follow-ups",
+    });
+    expect(patched.content).not.toContain("sleep 120");
+    expect(patched.content).toContain("durable wakes");
+
+    resolveSokoBotVersion.mockResolvedValueOnce({ ...v36, e1Prompts: true });
+    const social = await readSkill(authorized("v36"), {
+      skill: "social-posting-instructions",
+    });
+    expect(social.content).toContain("unscheduled proposals");
+  });
 });
 
 describe("skillOccasions", () => {
