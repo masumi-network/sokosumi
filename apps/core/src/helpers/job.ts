@@ -163,13 +163,23 @@ async function createPaidJob(
   tx: Prisma.TransactionClient,
 ): Promise<JobWithListSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
+  // An empty id is no payer: the debit was connected only to a present owner
+  // and Organization, so an empty one is null, for the read and the write.
+  const userId = input.ownerId || null;
+  const organizationId = input.organizationId || null;
   const consumptions = await creditBucketRepository.prepareConsumption(
     "mainnet",
-    input.ownerId,
-    input.organizationId,
+    userId,
+    organizationId,
     cost.cents,
     tx,
     { projectId: resolveCreditProjectId(input) },
+  );
+  // The debit first, then the Job that links it, in the same transaction.
+  const transactionId = await creditBucketRepository.recordSpend(
+    "mainnet",
+    { userId, organizationId, cents: cost.cents, consumptions },
+    tx,
   );
 
   const job = await tx.job.create({
@@ -202,25 +212,7 @@ async function createPaidJob(
           },
         },
       },
-      transaction: {
-        create: {
-          amount: -cost.cents,
-          ...(input.ownerId && {
-            user: { connect: { id: input.ownerId } },
-          }),
-          ...(input.organizationId && {
-            organization: { connect: { id: input.organizationId } },
-          }),
-          creditConsumptions: {
-            createMany: {
-              data: consumptions.map((consumption) => ({
-                bucketId: consumption.bucketId,
-                amount: consumption.amount,
-              })),
-            },
-          },
-        },
-      },
+      transaction: { connect: { id: transactionId } },
       name: input.name,
       payByTime: new Date(agentJobResponse.payByTime),
       externalDisputeUnlockTime: new Date(

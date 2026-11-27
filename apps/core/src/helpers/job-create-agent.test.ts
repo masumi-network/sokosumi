@@ -15,6 +15,7 @@ const {
   createAgentClientMock,
   createPurchaseMock,
   creditBucketPrepareConsumptionMock,
+  creditBucketRecordSpendMock,
   generateJobNameMock,
   getAgentCostMock,
   getCardanoV2ReadySourcesMock,
@@ -31,6 +32,7 @@ const {
   createAgentClientMock: vi.fn(),
   createPurchaseMock: vi.fn(),
   creditBucketPrepareConsumptionMock: vi.fn(),
+  creditBucketRecordSpendMock: vi.fn(),
   generateJobNameMock: vi.fn(),
   getAgentCostMock: vi.fn(),
   getCardanoV2ReadySourcesMock: vi.fn(),
@@ -131,6 +133,7 @@ vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
     getBalance: getBalanceMock,
     prepareConsumption: creditBucketPrepareConsumptionMock,
+    recordSpend: creditBucketRecordSpendMock,
   },
   jobPurchaseRepository: {
     createJobPurchase: vi.fn().mockResolvedValue({ id: "purchase_1" }),
@@ -272,6 +275,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     ]);
     calculateCentsFromMasumiAmountStringsMock.mockReturnValue(BigInt(2));
     creditBucketPrepareConsumptionMock.mockResolvedValue([]);
+    creditBucketRecordSpendMock.mockResolvedValue("debit_1");
     // A PurchaseFailure shape, not a bare string: registerJobPurchase retries
     // an `ambiguous` verdict, and these tests assert the payload the node
     // receives rather than the retry policy, which has its own tests.
@@ -470,10 +474,18 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
         expect.anything(),
         { projectId: null },
       );
+      expect(creditBucketRecordSpendMock).toHaveBeenCalledWith(
+        "mainnet",
+        {
+          userId: "user_1",
+          organizationId: "org_1",
+          cents: BigInt(5),
+          consumptions: [],
+        },
+        expect.anything(),
+      );
       const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
-      expect(data.transaction.create.user).toEqual({
-        connect: { id: "user_1" },
-      });
+      expect(data.transaction).toEqual({ connect: { id: "debit_1" } });
       expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
         userId: "user_1",
         organizationId: "org_1",
@@ -514,10 +526,17 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
     expect(data.owner).toBeUndefined();
     expect(data.creatorSokoBot).toEqual({ connect: { id: "bot_1" } });
-    expect(data.transaction.create.user).toBeUndefined();
-    expect(data.transaction.create.organization).toEqual({
-      connect: { id: "org_1" },
-    });
+    expect(creditBucketRecordSpendMock).toHaveBeenCalledWith(
+      "mainnet",
+      {
+        userId: null,
+        organizationId: "org_1",
+        cents: BigInt(5),
+        consumptions: [],
+      },
+      expect.anything(),
+    );
+    expect(data.transaction).toEqual({ connect: { id: "debit_1" } });
     expect(requireAssignedOrganizationSeat).not.toHaveBeenCalled();
     expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
       "mainnet",
@@ -526,6 +545,41 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       BigInt(5),
       expect.anything(),
       { projectId: null },
+    );
+  });
+
+  it("reads and writes the debit of an empty Owner id as no Owner", async () => {
+    // Decided 2026-11-27: an empty id is not a payer. The nested debit
+    // connected only a present Owner, so its row held no user.
+    agentFindFirstMock.mockResolvedValue(createPaidV1AgentRecord());
+    getAgentCostMock.mockReturnValue({ cents: BigInt(5) });
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: sellerResponding(paidV1JobResponse),
+    });
+
+    await createAgentJobForUser(
+      createInput({
+        owner: {
+          ownerId: "",
+          organizationId: "org_1",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+        },
+        creator: { kind: "soko_bot", sokoBotId: "bot_1" },
+      }),
+    );
+
+    expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
+      "mainnet",
+      null,
+      "org_1",
+      BigInt(5),
+      expect.anything(),
+      { projectId: null },
+    );
+    expect(creditBucketRecordSpendMock).toHaveBeenCalledWith(
+      "mainnet",
+      expect.objectContaining({ userId: null, organizationId: "org_1" }),
+      expect.anything(),
     );
   });
 

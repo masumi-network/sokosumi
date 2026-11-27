@@ -667,11 +667,114 @@ async function race(name: string, holder: 0 | 1) {
   }
 }
 
-/**
- * `rewrite` for `expectAsOnBase`: the debit's statements as head writes
- * them. Until the debit's statements change, head is the base.
+/*
+ * The one difference from `origin/main`, statement by statement. There the
+ * debit was nested in the Job's create: a read of each row it connects (the
+ * Organization when there is one, then the owner when there is one), the
+ * insert of the debit with those columns only, and its consumptions; then
+ * the Job's own reads and its insert, which binds the debit's id.
  */
-const asOnHead = (transactions: Statement[][]) => transactions;
+const MAIN_CONNECT_ORGANIZATION =
+  'SELECT "public"."organization"."id" FROM "public"."organization" WHERE ("public"."organization"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3';
+const MAIN_CONNECT_USER =
+  'SELECT "public"."user"."id" FROM "public"."user" WHERE ("public"."user"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3';
+const MAIN_INSERT_DEBIT =
+  /^INSERT INTO "public"\."Transaction" \("id","createdAt","updatedAt","amount"((?:,"userId")?)((?:,"organizationId")?)\) VALUES \(\$1,\$2,\$3,\$4(?:,\$5)?(?:,\$6)?\) RETURNING "public"\."Transaction"\."id"$/;
+const mainInsertConsumptions = (count: number) =>
+  `INSERT INTO "public"."credit_consumption" ("id","createdAt","amount","bucketId","transactionId") VALUES ${Array.from(
+    { length: count },
+    (_unused, row) =>
+      `(${[1, 2, 3, 4, 5].map((column) => `$${row * 5 + column}`).join(",")})`,
+  ).join(", ")}`;
+/*
+ * Now the credit bucket repository's `recordSpend` writes the debit first,
+ * in two statements of raw SQL, and the Job connects it by id: Prisma reads
+ * the debit, then looks for a Job that already holds it (the link is one to
+ * one). The Job's own reads and insert follow unchanged.
+ */
+const NOW_INSERT_DEBIT =
+  'INSERT INTO "public"."Transaction" (id, "createdAt", "updatedAt", amount, "userId", "organizationId") VALUES ($1, $2, $3, $4, $5, $6)';
+const NOW_INSERT_CONSUMPTIONS =
+  'INSERT INTO "public"."credit_consumption" (id, "createdAt", amount, "bucketId", "transactionId") SELECT c.id, $1::timestamp(3), c.amount, c."bucketId", $2::text FROM unnest($3::text[], $4::bigint[], $5::text[]) AS c(id, amount, "bucketId")';
+const NOW_CONNECT_DEBIT =
+  'SELECT "public"."Transaction"."id" FROM "public"."Transaction" WHERE ("public"."Transaction"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3';
+const NOW_JOB_HOLDING_THE_DEBIT =
+  'SELECT "public"."Job"."id", "public"."Job"."transactionId" FROM "public"."Job" WHERE (1=1 AND "public"."Job"."transactionId" IN ($1)) OFFSET $2';
+
+/**
+ * A transaction recorded on `origin/main`, with its debit written as head
+ * writes it: the same values in the same place, every other statement
+ * untouched. It refuses a debit that is not exactly the statements above. A
+ * debit whose insert failed (a lost race) ends at the insert on both.
+ */
+function withTheDebitWrittenFirst(transaction: Statement[]): Statement[] {
+  const at = transaction.findIndex(({ sql }) => MAIN_INSERT_DEBIT.test(sql));
+  if (at === -1) return transaction;
+  const debit = transaction[at];
+  const columns = debit?.sql.match(MAIN_INSERT_DEBIT);
+  if (!debit || !columns) throw new Error("A debit is cut");
+  const [debitId, createdAt, updatedAt, amount, ...payer] = debit.values;
+  const userId = columns[1] ? payer.shift() : null;
+  const organizationId = columns[2] ? payer.shift() : null;
+  const connects = [
+    ...(organizationId === null
+      ? []
+      : [
+          {
+            sql: MAIN_CONNECT_ORGANIZATION,
+            values: [organizationId, "1", "0"],
+          },
+        ]),
+    ...(userId === null
+      ? []
+      : [{ sql: MAIN_CONNECT_USER, values: [userId, "1", "0"] }]),
+  ];
+  const from = at - connects.length;
+  expect(transaction.slice(from, at)).toEqual(connects);
+  const nowDebit = {
+    sql: NOW_INSERT_DEBIT,
+    values: [debitId, createdAt, updatedAt, amount, userId, organizationId],
+  };
+  if (/^ROLLBACK\b/.test(transaction[at + 1]?.sql ?? "")) {
+    return [
+      ...transaction.slice(0, from),
+      nowDebit,
+      ...transaction.slice(at + 1),
+    ];
+  }
+  const consumptions = transaction[at + 1];
+  if (!consumptions) throw new Error("A debit is cut");
+  const written = Array.from(
+    { length: consumptions.values.length / 5 },
+    (_unused, row) => consumptions.values.slice(row * 5, row * 5 + 5),
+  );
+  expect(consumptions.sql).toBe(mainInsertConsumptions(written.length));
+  // One time and one debit for every consumption, as the one statement binds.
+  expect(written.map((row) => [row[1], row[4]])).toEqual(
+    written.map(() => [createdAt, debitId]),
+  );
+  return [
+    ...transaction.slice(0, from),
+    nowDebit,
+    {
+      sql: NOW_INSERT_CONSUMPTIONS,
+      values: [
+        createdAt,
+        debitId,
+        written.map((row) => row[0]),
+        written.map((row) => row[2]),
+        written.map((row) => row[3]),
+      ],
+    },
+    { sql: NOW_CONNECT_DEBIT, values: [debitId, "1", "0"] },
+    { sql: NOW_JOB_HOLDING_THE_DEBIT, values: [debitId, "0"] },
+    ...transaction.slice(at + 2),
+  ];
+}
+
+/** `rewrite` for `expectAsOnBase`: each transaction's debit as head writes it. */
+const asOnHead = (transactions: Statement[][]) =>
+  transactions.map(withTheDebitWrittenFirst);
 
 describe.skipIf(!enabled)(
   "a Job hire's charge, as on origin/main (PostgreSQL)",
