@@ -5,6 +5,15 @@ It requires Node.js 26 and packages `dist` and `skills`. The binary is `sokosumi
 Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
 [VERIFIED: local documentation audit, 2026-09-30] This audit did not check registry publication or package installation.
 
+## Upgrading from 1.x
+
+2.0.0 changes four things that scripts written for 1.x may rely on:
+
+- `workspaces list` now lists every Workspace, including the personal one. Rows have `workspaceId, kind, name, organizationId, slug, role, preferred`; `createdAt` and `logo` are gone. Read `workspaceId`, filter on `kind == "organization"` for organizations, or use `organizations list me` for the old list.
+- `coworkers me` is removed. Use `runtime me --coworker-id ID` with that Coworker's stored key.
+- Node.js 26 is required (`engines.node` is `26.x`).
+- `coworkers api-key --name` is an error: use `--api-key-name NAME`. `runtime receipt` needs `--coworker-id ID` and refuses `--organization-slug`; to read a receipt as yourself, use `tasks receipt TASK_ID`.
+
 ## Product direction
 
 [CORRECTION, REPORTED: user product direction, 2026-09-27]
