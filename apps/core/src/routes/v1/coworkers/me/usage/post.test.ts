@@ -62,7 +62,10 @@ vi.mock("@vercel/functions", () => ({
   }),
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => ({
+  InsufficientBalanceError: (
+    await importOriginal<typeof import("@sokosumi/database/repositories")>()
+  ).InsufficientBalanceError,
   creditBucketRepository: {
     prepareConsumption: prepareConsumptionMock,
     recordSpend: recordSpendMock,
