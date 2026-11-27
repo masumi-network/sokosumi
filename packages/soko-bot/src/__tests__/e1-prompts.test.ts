@@ -76,6 +76,9 @@ describe("e1Prompts version flag", () => {
     expect(prompt).toContain(
       "call `update_plan` up front to list every requested deliverable and constraint before executing",
     );
+    expect(prompt).toContain(
+      "mark external actions and retrieved artifacts done only from confirmed tool results, and mark reply-only writing or analysis steps done once you have written them for the reply",
+    );
     expect(prompt).not.toContain(E1_CUSO_CHANGE_SCOPE_SECTION);
     expect(prompt).toContain(
       "Your owner's mail, calendar, files, memory, pending decisions, and costs are theirs to share",
@@ -100,7 +103,17 @@ describe("e1Prompts version flag", () => {
       "Never put a review deadline or unrequested suggested date into `scheduledAt`",
     );
     expect(social.content).toContain("unscheduled proposals");
-    expect(social.content).toContain("never SVG — social platforms reject SVG");
+    // Still-image request: raster format, never SVG.
+    expect(social.content).toContain(
+      "for still images, generate a raster image with `generate_image` (or attach PNG/JPEG/WebP), never SVG",
+    );
+    // Video request / video-only destination: preserve requested media type, never substitute a still image.
+    expect(social.content).toContain(
+      "for videos, generate or attach a supported video format (never substitute a still image for a requested video or a video-only destination)",
+    );
+    expect(social.content).toContain(
+      "regenerate or convert it into a supported format of that same media type",
+    );
 
     const resultCards = getSokoBotSkillForVersion("result-cards", e1);
     expect(resultCards.content).not.toContain(
