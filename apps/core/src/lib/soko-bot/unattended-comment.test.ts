@@ -54,6 +54,46 @@ describe("unattendedChaseRefusal", () => {
     ).resolves.toBeNull();
   });
 
+  it("on a Task its Coworker turned down, points at the owner's options instead", async () => {
+    askJevMock.mockResolvedValue(new Map([["chases", 0.9]]));
+    const refusal = await unattendedChaseRefusal({
+      turn: event,
+      comment: "Please resume this same task when available.",
+      shared: false,
+      declined: async () => true,
+    });
+    expect(refusal).toMatch(/Coworker set it FAILED/);
+    expect(refusal).toMatch(/another Coworker \(find_coworkers\)/);
+    expect(refusal).toMatch(/create_schedule with runAt/);
+    expect(refusal).not.toMatch(/status update/);
+  });
+
+  it("keeps the chase refusal when the Task was not turned down", async () => {
+    askJevMock.mockResolvedValue(new Map([["chases", 0.9]]));
+    await expect(
+      unattendedChaseRefusal({
+        turn: event,
+        comment: chase,
+        shared: false,
+        declined: async () => false,
+      }),
+    ).resolves.toMatch(/chases people for a status update/);
+  });
+
+  it("asks whether the Task was turned down only when it holds a comment back", async () => {
+    askJevMock.mockResolvedValue(new Map([["chases", 0.1]]));
+    const declined = vi.fn(async () => true);
+    await expect(
+      unattendedChaseRefusal({
+        turn: event,
+        comment: "The key is in the vault.",
+        shared: false,
+        declined,
+      }),
+    ).resolves.toBeNull();
+    expect(declined).not.toHaveBeenCalled();
+  });
+
   it("points a shared bot at its room", async () => {
     askJevMock.mockResolvedValue(new Map([["chases", 0.9]]));
     await expect(

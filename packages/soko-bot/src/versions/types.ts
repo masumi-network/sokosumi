@@ -44,6 +44,12 @@ export interface SokoBotVersion {
    */
   planLoop?: true;
   /**
+   * E13 (test versions only): when a Coworker declines a Task or is at
+   * capacity, the bot offers the owner options instead of ending "blocked",
+   * and Core's refusal of a comment asking them to resume says so.
+   */
+  declineOptions?: true;
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.

@@ -4,6 +4,7 @@ import { createAgentClient } from "@sokosumi/masumi";
 import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import {
   sokoBotAgentIdInputSchema as agentIdInputSchema,
+  getSokoBotVersion,
   sokoBotJobIdInputSchema as jobIdInputSchema,
   sokoBotProvideJobInputSchema as provideJobInputSchema,
   sokoBotReplyToTaskInputSchema as replyToTaskInputSchema,
@@ -28,6 +29,23 @@ import { findHireableAgents } from "./agents";
 import { latestEventAt, repeatedPollRefusal } from "./delegated-poll";
 import { type RuntimeOperations } from "./operations";
 import { setTaskParent } from "./task-parent";
+
+/**
+ * Whether the Task's own Coworker turned it down: read through Core's Task
+ * scope (workspace, reader, archive rules), FAILED, assigned to a Coworker,
+ * and that Coworker set the latest FAILED. A Task a person, a bot or the
+ * system failed is not a decline.
+ */
+async function coworkerDeclined(
+  runtime: RuntimeOperations,
+  authorized: AuthorizedSokoBotRuntime,
+  taskId: string,
+): Promise<boolean> {
+  const task = await runtime.readTask(authorized, taskId);
+  if (task?.status !== "FAILED" || !task.assigneeCoworkerId) return false;
+  const failed = task.events.findLast((event) => event.status === "FAILED");
+  return failed?.author.coworkerId === task.assigneeCoworkerId;
+}
 
 export async function dispatchTasksTools(
   runtime: RuntimeOperations,
@@ -97,6 +115,9 @@ export async function dispatchTasksTools(
         turn: authorized.turn,
         comment: reply.comment,
         shared: !!authorized.reader.sharedScope,
+        declined: getSokoBotVersion(authorized.turn.versionId).declineOptions
+          ? () => coworkerDeclined(runtime, authorized, reply.taskId)
+          : undefined,
       });
       if (chaseRefusal) throw new SokoBotRuntimeValidationError(chaseRefusal);
       const replied = await runtime.replyToTask(

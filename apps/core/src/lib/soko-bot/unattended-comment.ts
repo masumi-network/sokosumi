@@ -24,6 +24,11 @@ export async function unattendedChaseRefusal(input: {
   comment: string;
   /** A shared bot answers to the team in its room, not an owner. */
   shared: boolean;
+  /**
+   * E13 versions: whether the Task's Coworker turned it down (it is FAILED),
+   * asked only once a comment is held back.
+   */
+  declined?: () => Promise<boolean>;
 }): Promise<string | null> {
   if (input.turn.source === "CHAT" && input.turn.chainDepth === 0) return null;
   let probability: number | undefined;
@@ -50,5 +55,7 @@ export async function unattendedChaseRefusal(input: {
   if (probability === undefined || probability < MIN_CHASE_PROBABILITY)
     return null;
   const audience = input.shared ? "the team in your shared room" : "your owner";
+  if (await input.declined?.())
+    return `Not posted: this Task's Coworker set it FAILED, so asking them to take it up again repeats a request they turned down. Read their reason with get_task_status. If information you hold would fix it, reply with that information. If they declined or are busy, tell ${audience} what they said and offer options: another Coworker (find_coworkers), doing it yourself, or waiting until the date they gave with a check set for it (create_schedule with runAt).`;
   return `Not posted: this comment chases people for a status update, and nobody asked you to. Read the Task with get_task_status and tell ${audience} what changed instead; drop the follow-up from memory once it is answered.`;
 }
