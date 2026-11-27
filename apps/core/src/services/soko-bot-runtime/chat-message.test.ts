@@ -74,6 +74,7 @@ const authorized = (turn: Record<string, unknown> = {}, extra = {}) =>
       sokoBotId: "bot-1",
       workspaceId: "ws-1",
       actingUserId: "robin",
+      requestedByUserId: "robin",
       chainDepth: 0,
       source: "CHAT",
       ...turn,
@@ -160,6 +161,51 @@ describe("unknownPersonRefusal", () => {
         "Juno",
       ),
     ).toMatch(/Tell the owner you would reach it there\.$/);
+  });
+
+  it("names a room only to someone in it (Neon/Codex: requester visibility)", async () => {
+    // The bot is in #Launch team; the person asking is not.
+    db.chatRoom.findMany
+      .mockResolvedValueOnce([
+        { id: "launch", name: "Launch team", groupName: null },
+      ])
+      .mockResolvedValueOnce([]);
+    const refusal = await unknownPersonRefusal(
+      runtime as never,
+      authorized(
+        { askedByUserId: "hannah" },
+        { grant: { capabilities: ["open_direct_chat", "post_chat"] } },
+      ),
+      "#Launch team",
+    );
+    expect(refusal).not.toContain("Launch team (room)");
+    expect(refusal).toMatch(/^No member of this organization matches/);
+    expect(db.chatRoom.findMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["launch"] },
+        userMembers: { some: { userId: "hannah" } },
+      },
+      select: { id: true },
+    });
+  });
+
+  it("suggests no tool a teammate's request may not use on a personal bot", async () => {
+    const refusal = await unknownPersonRefusal(
+      runtime as never,
+      authorized(
+        { askedByUserId: "hannah" },
+        {
+          askedByKind: "TEAMMATE",
+          grant: {
+            capabilities: ["open_direct_chat", "send_message", "ask_coworker"],
+          },
+        },
+      ),
+      "Mira",
+    );
+    expect(refusal).toBe(
+      '"Mira" is Mira (Coworker), not a member of this organization. Tell the person who asked that you would reach it there.',
+    );
   });
 
   it("asks which recipient was meant when a Coworker and an assistant share a name", async () => {

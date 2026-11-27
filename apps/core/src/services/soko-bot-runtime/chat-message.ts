@@ -264,18 +264,30 @@ export async function unknownPersonRefusal(
   authorized: AuthorizedSokoBotRuntime,
   person: string,
 ): Promise<string> {
-  const notPeople = matching(
+  const found = matching(
     await directory(runtime, authorized, searchWords(person)),
     person,
   ).filter((recipient) => recipient.kind !== "person");
+  // The directory is the bot's: a room is named only to someone in it.
+  const visibleRooms = await roomsVisibleTo(
+    authorized.turn.askedByUserId ?? authorized.turn.requestedByUserId,
+    found.flatMap((recipient) =>
+      recipient.kind === "room" ? [recipient.roomId] : [],
+    ),
+  );
+  const notPeople = found.filter(
+    (recipient) =>
+      recipient.kind !== "room" || visibleRooms.has(recipient.roomId),
+  );
   // With two candidates, any tool would pick one of them for the owner.
   if (notPeople.length > 1)
     return `"${person}" is not a member of this organization; it could be ${notPeople.map(describe).join(", or ")}. Ask the owner which one they mean.`;
   if (notPeople.length === 1)
-    return `"${person}" is ${describe(notPeople[0]!)}, not a member of this organization. ${reachInstead(
-      notPeople[0]!.kind,
-      authorized.grant.capabilities,
-    )}`;
+    return `"${person}" is ${describe(notPeople[0]!)}, not a member of this organization. ${
+      mayMessageOthers(authorized)
+        ? reachInstead(notPeople[0]!.kind, authorized.grant.capabilities)
+        : "Tell the person who asked that you would reach it there."
+    }`;
   const people = (await directory(runtime, authorized)).filter(
     (recipient) => recipient.kind === "person",
   );
@@ -287,6 +299,28 @@ export async function unknownPersonRefusal(
           .join("; ")}.`
       : "There are no other members."
   } If it is none of them, ask the owner who they mean.`;
+}
+
+/** Who may have the bot message others: sendMessage's own rule. */
+function mayMessageOthers(authorized: AuthorizedSokoBotRuntime): boolean {
+  return (
+    authorized.askedByKind !== "ASSISTANT" &&
+    (Boolean(authorized.reader.sharedScope) ||
+      authorized.askedByKind === "OWNER")
+  );
+}
+
+/** The rooms among `roomIds` the person asking is in; none for nobody. */
+async function roomsVisibleTo(
+  userId: string | null | undefined,
+  roomIds: string[],
+): Promise<Set<string>> {
+  if (!userId || roomIds.length === 0) return new Set();
+  const rooms = await prisma.chatRoom.findMany({
+    where: { id: { in: roomIds }, userMembers: { some: { userId } } },
+    select: { id: true },
+  });
+  return new Set(rooms.map((room) => room.id));
 }
 
 /** How to reach a recipient that is not a person, with a tool this turn has. */
