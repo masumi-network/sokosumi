@@ -77,6 +77,12 @@ const enabled =
   process.env.DATABASE_URL?.startsWith("postgres");
 
 const ORIGIN = "https://example.com";
+/**
+ * A suite's setup reloads Core's modules: the first fresh import of the whole
+ * app took 3.9 s alone on a 12-core machine and 14 s with the suite run on 24
+ * workers, past Vitest's 10 s hook limit, as on CI's runner.
+ */
+const SETUP_TIMEOUT = 60_000;
 const HEADER = "X-Sokosumi-Network";
 /** An origin Core's CORS allows (`resolveCorsAllowOrigin`). */
 const BROWSER = "https://app.sokosumi.com";
@@ -428,33 +434,41 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
       return created;
     }
 
-    beforeAll(async () => {
-      loaded = await load({ NETWORK: deploymentNetwork });
-      admin = await person("Network header admin", "admin");
-      optedIn = await person("Network header opted in");
-      plain = await person("Network header plain");
-      await loaded.prisma.user.update({
-        where: { id: optedIn.id },
-        data: { preprodEnabled: true },
-      });
-      await organization(admin.id, false);
-      await organization(optedIn.id, true);
-      agentName = `Network header agent ${randomUUID()}`;
-      const { seedCatalogAgent } = await import(
-        "@/test-fixtures/network-catalog"
-      );
-      catalog = await seedCatalogAgent(loaded.createNetworkScope("mainnet"), {
-        name: agentName,
-      });
-    });
+    let setup: Promise<void> | undefined;
+    beforeAll(() => {
+      setup = (async () => {
+        loaded = await load({ NETWORK: deploymentNetwork });
+        admin = await person("Network header admin", "admin");
+        optedIn = await person("Network header opted in");
+        plain = await person("Network header plain");
+        await loaded.prisma.user.update({
+          where: { id: optedIn.id },
+          data: { preprodEnabled: true },
+        });
+        await organization(admin.id, false);
+        await organization(optedIn.id, true);
+        agentName = `Network header agent ${randomUUID()}`;
+        const { seedCatalogAgent } = await import(
+          "@/test-fixtures/network-catalog"
+        );
+        catalog = await seedCatalogAgent(loaded.createNetworkScope("mainnet"), {
+          name: agentName,
+        });
+      })();
+      return setup;
+    }, SETUP_TIMEOUT);
 
     afterAll(async () => {
-      await catalog.remove();
+      // A setup that timed out keeps running: wait for it, then remove what
+      // it made, whether it finished or not.
+      await setup?.catch(() => undefined);
+      if (!loaded) return;
+      await catalog?.remove();
       await loaded.prisma.organization.deleteMany({
         where: { id: { in: organizationIds } },
       });
       await loaded.prisma.user.deleteMany({ where: { id: { in: userIds } } });
-    });
+    }, SETUP_TIMEOUT);
 
     /**
      * The first reads of a path can write once (an Organization's missing
@@ -923,40 +937,47 @@ describe.runIf(enabled && onSplitLayout)(
       return created;
     }
 
-    beforeAll(async () => {
-      loaded = await load({ NETWORK_PREPROD_ENABLED: "true" });
-      agentId = randomUUID();
-      names = {
-        mainnet: `Mainnet agent ${agentId}`,
-        preprod: `Preprod agent ${agentId}`,
-      };
-      const { seedCatalogAgent } = await import(
-        "@/test-fixtures/network-catalog"
-      );
-      for (const network of ["mainnet", "preprod"] as const) {
-        const seeded = await seedCatalogAgent(
-          loaded.createNetworkScope(network),
-          { id: agentId, name: names[network] },
+    let setup: Promise<void> | undefined;
+    beforeAll(() => {
+      setup = (async () => {
+        loaded = await load({ NETWORK_PREPROD_ENABLED: "true" });
+        agentId = randomUUID();
+        names = {
+          mainnet: `Mainnet agent ${agentId}`,
+          preprod: `Preprod agent ${agentId}`,
+        };
+        const { seedCatalogAgent } = await import(
+          "@/test-fixtures/network-catalog"
         );
-        removals.push(seeded.remove);
-      }
-      admin = await person("Access admin", "admin");
-      optedIn = await person("Access opted in");
-      notOptedIn = await person("Access not opted in");
-      memberOfOptedIn = await person(
-        "Access member of an opted-in Organization",
-      );
-      memberOfNotOptedIn = await person(
-        "Access member of another Organization",
-      );
-      outsider = await person("Access outsider");
-      await loaded.prisma.user.update({
-        where: { id: optedIn.id },
-        data: { preprodEnabled: true },
-      });
-      optedInOrganization = await organization(memberOfOptedIn.id, true);
-      notOptedInOrganization = await organization(memberOfNotOptedIn.id, false);
-    });
+        for (const network of ["mainnet", "preprod"] as const) {
+          const seeded = await seedCatalogAgent(
+            loaded.createNetworkScope(network),
+            { id: agentId, name: names[network] },
+          );
+          removals.push(seeded.remove);
+        }
+        admin = await person("Access admin", "admin");
+        optedIn = await person("Access opted in");
+        notOptedIn = await person("Access not opted in");
+        memberOfOptedIn = await person(
+          "Access member of an opted-in Organization",
+        );
+        memberOfNotOptedIn = await person(
+          "Access member of another Organization",
+        );
+        outsider = await person("Access outsider");
+        await loaded.prisma.user.update({
+          where: { id: optedIn.id },
+          data: { preprodEnabled: true },
+        });
+        optedInOrganization = await organization(memberOfOptedIn.id, true);
+        notOptedInOrganization = await organization(
+          memberOfNotOptedIn.id,
+          false,
+        );
+      })();
+      return setup;
+    }, SETUP_TIMEOUT);
 
     const oauthClientIds: string[] = [];
     const vendorIds: string[] = [];
@@ -974,6 +995,9 @@ describe.runIf(enabled && onSplitLayout)(
     }
 
     afterAll(async () => {
+      // As in the first suite: wait for a setup that timed out.
+      await setup?.catch(() => undefined);
+      if (!loaded) return;
       for (const remove of removals) await remove();
       // Rows no foreign key ties to the fixture's people.
       await loaded.prisma.apikey.deleteMany({
@@ -992,7 +1016,7 @@ describe.runIf(enabled && onSplitLayout)(
         where: { id: { in: organizationIds } },
       });
       await loaded.prisma.user.deleteMany({ where: { id: { in: userIds } } });
-    });
+    }, SETUP_TIMEOUT);
 
     /** The names of the fixture Agent the catalog lists to this caller. */
     async function listed(headers: Record<string, string>) {

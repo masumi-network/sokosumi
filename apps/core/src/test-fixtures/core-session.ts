@@ -165,15 +165,18 @@ export async function createCoworkerKey(): Promise<{
   return { token, vendorId: vendor.id };
 }
 
-/** A key of the user's personal Soko Bot, which acts as its owner. */
+/**
+ * A key of the user's personal Soko Bot, which acts as its owner. The caller
+ * creates the personal workspace: a fixture is no workspace creation path
+ * (`workspace-creation-chokepoint.test.ts` in the database package).
+ */
 export async function createSokoBotKey(userId: string): Promise<string> {
   const { generateSokoBotApiKeyToken, hashApiKey } = await import(
     "@/lib/coworker-api-key"
   );
-  const workspace =
-    (await prisma.workspace.findFirst({
-      where: { userId, organizationId: null },
-    })) ?? (await prisma.workspace.create({ data: { userId } }));
+  const workspace = await prisma.workspace.findFirstOrThrow({
+    where: { userId, organizationId: null },
+  });
   const sokoBot = await prisma.sokoBot.create({
     data: { userId, workspaceId: workspace.id },
   });
