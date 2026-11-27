@@ -1,8 +1,10 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { stepCountIs, streamText, tool } from "ai";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
   setReferenceScript,
+  takeScriptErrors,
   worldCheckJevAnswers,
   worldCheckMode,
   worldCheckModel,
@@ -76,6 +78,41 @@ describe("world check", () => {
       text: "Drafted post-1.",
       calls: [{ text: "Hi" }],
     });
+  });
+
+  it("plays the newest message's script when the message quotes earlier ones", async () => {
+    process.env.OWNERBENCH_WORLD_CHECK = "reference";
+    setReferenceScript({
+      turns: [
+        { match: "Post this", steps: [() => "first"] },
+        { match: "Make it shorter", steps: [() => "second"] },
+      ],
+    });
+    expect(
+      (await play("CONTEXT: - Owner: Post this\n\nOwner: Make it shorter"))
+        .text,
+    ).toBe("second");
+  });
+
+  it("records a script step that throws, so the run is not read as a pass", async () => {
+    process.env.OWNERBENCH_WORLD_CHECK = "reference";
+    // The SDK logs the stream's error; that error is this test's subject.
+    expectConsole("error", "Error: no posts");
+    takeScriptErrors();
+    setReferenceScript({
+      turns: [
+        {
+          match: "Post this",
+          steps: [
+            () => {
+              throw new Error("no posts");
+            },
+          ],
+        },
+      ],
+    });
+    await play("Post this").catch(() => undefined);
+    expect(takeScriptErrors()).toEqual(['step 0 of "Post this": no posts']);
   });
 
   it("gives Jev the script's route, its overrides, and neutral answers otherwise", () => {

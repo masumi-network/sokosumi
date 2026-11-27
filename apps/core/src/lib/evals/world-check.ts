@@ -71,6 +71,13 @@ export function auditBeforeFirstStep(
   pendingAudit = audit;
 }
 
+const scriptErrors: string[] = [];
+
+/** The script steps that threw since the last call, once each (the SDK retries a step). */
+export function takeScriptErrors(): string[] {
+  return [...new Set(scriptErrors.splice(0))];
+}
+
 const NOOP_ANSWER = "OK";
 let reference: ReferenceScript = { turns: [] };
 
@@ -81,7 +88,15 @@ export function setReferenceScript(next: ReferenceScript): void {
 
 function scriptFor(message: string): TurnScript | null {
   if (worldCheckMode() !== "reference") return null;
-  return reference.turns.find((turn) => message.includes(turn.match)) ?? null;
+  // A message can quote the conversation before it: the turn is the script
+  // whose text comes last, the newest message.
+  let best: TurnScript | null = null;
+  let at = -1;
+  for (const turn of reference.turns) {
+    const index = message.lastIndexOf(turn.match);
+    if (index > at) [best, at] = [turn, index];
+  }
+  return best;
 }
 
 function toolResults(prompt: unknown): unknown[] {
@@ -99,8 +114,15 @@ function toolResults(prompt: unknown): unknown[] {
 
 /** The tool's own result: Core wraps it with its evidence id for the model. */
 function parsed(value: unknown): unknown {
+  if (typeof value === "string") {
+    try {
+      return parsed(JSON.parse(value));
+    } catch {
+      return value;
+    }
+  }
   if (value && typeof value === "object" && "evidenceToolCallId" in value)
-    return (value as { result?: unknown }).result;
+    return parsed((value as { result?: unknown }).result);
   return value;
 }
 
@@ -128,9 +150,19 @@ export function worldCheckModel(
       await audit?.(turnId);
       const next = script?.steps[step];
       step += 1;
-      const played = next
-        ? await next(toolResults(options.prompt), { turnId })
-        : lastAnswer;
+      let played: ScriptedToolCall[] | string;
+      try {
+        played = next
+          ? await next(toolResults(options.prompt), { turnId })
+          : lastAnswer;
+      } catch (error) {
+        // The runner would cover a failed step with a wrap-up answer; the
+        // driver reads these so the run counts as invalid, never as a pass.
+        scriptErrors.push(
+          `step ${step - 1} of "${script?.match}": ${error instanceof Error ? error.message : String(error)}`,
+        );
+        throw error;
+      }
       if (typeof played === "string") {
         lastAnswer = played;
         return {

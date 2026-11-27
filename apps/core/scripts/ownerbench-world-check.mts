@@ -87,8 +87,12 @@ const { createEvalRun, tickEvalRuns } = await import(
   "@/services/evals/eval-runs.service"
 );
 const { EVAL_CASES } = await import("@/services/evals/eval-cases");
-const { auditBeforeFirstStep, setReferenceScript, worldCheckMode } =
-  await import("@/lib/evals/world-check");
+const {
+  auditBeforeFirstStep,
+  setReferenceScript,
+  takeScriptErrors,
+  worldCheckMode,
+} = await import("@/lib/evals/world-check");
 const { REFERENCE_SCRIPTS } = await import("@/lib/evals/reference-scripts");
 const { journeyProblems, resultInvalid } = await import(
   "@/lib/evals/world-check-verdict"
@@ -200,6 +204,7 @@ async function runOnce(
       ? (REFERENCE_SCRIPTS[caseId] ?? { turns: [] })
       : { turns: [] },
   );
+  takeScriptErrors();
   const seen: {
     workspaceId: string | null;
     afterReset: Record<string, number> | null;
@@ -239,12 +244,16 @@ async function runOnce(
       finishedAt: true,
     },
   });
+  // A script step that threw makes the run say nothing about the world.
+  const scriptErrors = takeScriptErrors();
   const results = rows.map((row): ResultRun => {
     const checks = (row.checks ?? []) as unknown as Check[];
     return {
       repeat: row.repeat,
       checks,
-      invalid: resultInvalid({ ...row, checks }),
+      invalid: scriptErrors.length
+        ? `script error: ${scriptErrors.join("; ").slice(0, 300)}`
+        : resultInvalid({ ...row, checks }),
     };
   });
   return {
