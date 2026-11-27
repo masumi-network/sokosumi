@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/masumi-network/sokosumi/compare/macos-v1.2.0...macos-v1.2.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* **chat:** ground meeting briefs in the invite and identify agent senders ([#7670](https://github.com/masumi-network/sokosumi/issues/7670)) ([8a23913](https://github.com/masumi-network/sokosumi/commit/8a23913cbc4aa6c656d16ace5a6ed6b407ce1b4f))
+
 ## [1.2.0](https://github.com/masumi-network/sokosumi/compare/macos-v1.1.1...macos-v1.2.0) (2026-10-19)
 
 
