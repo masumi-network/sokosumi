@@ -72,10 +72,11 @@ export type SeoCrawlRow =
     }
   | { check: SeoCrawlCheck; state: "clear" };
 
-/** stopped: the crawl stopped before it read each page and link; missing: the report has no result; noSitemapPage: the sitemap names no page on the site; olderReport: the report predates the check. */
+/** stopped: the crawl stopped before it read each page and link; missing: the report has no result; noSitemapPage: the sitemap names no page on the site; olderReport: the report predates the check; noPages: the crawl read no HTML page. */
 export type SeoCrawlEmpty =
   | "missing"
   | "noSitemapPage"
+  | "noPages"
   | "olderReport"
   | "stopped";
 
@@ -332,6 +333,7 @@ const stoppedEarly = (crawl: Crawled, check: SeoCrawlCheck) =>
 
 function emptyReason(crawl: Crawled, check: SeoCrawlCheck): SeoCrawlEmpty {
   if (stoppedEarly(crawl, check)) return "stopped";
+  if (!crawl.read) return "noPages";
   // The page checks ran and read no sitemap URL of this site.
   if (check === "noindexInSitemap" && crawl.pageChecks) return "noSitemapPage";
   // A report from before the crawl's JavaScript reads.
@@ -372,7 +374,9 @@ export function seoSiteCrawlView(
       "missing" in reading ||
       left > 0 ||
       reasons.length > 0 ||
-      stoppedEarly(crawl, check)
+      stoppedEarly(crawl, check) ||
+      // A crawl that read no HTML page checked nothing: its empty lists are no pass.
+      !crawl.read
     )
       return {
         check,

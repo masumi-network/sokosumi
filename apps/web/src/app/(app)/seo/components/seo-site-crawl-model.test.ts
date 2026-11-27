@@ -369,6 +369,20 @@ describe("site crawl ledger", () => {
     });
   });
 
+  it("passes no check of a complete crawl that read no HTML page", () => {
+    // Every fetched URL gave a 404 or no HTML: the lists are empty because nothing was read.
+    const crawl = cleanCrawl();
+    crawl.read = 0;
+    crawl.pageChecks!.pages = 0;
+    crawl.pageChecks!.checked = 0;
+    const result = view(crawl);
+    expect(result.clear).toEqual([]);
+    expect(row(crawl, "javascript")).toMatchObject({
+      state: "not determined",
+      empty: "noPages",
+    });
+  });
+
   it("keeps why a site was not crawled, and shows nothing for a report without a crawl", () => {
     expect(
       seoSiteCrawlView({ state: "not crawled", reason: "robots.txt" }),

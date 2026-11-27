@@ -15810,6 +15810,7 @@
           "seen": "Pages not seen: {count}"
         },
         "noSitemapPage": "The sitemap names no page on this site.",
+        "noPages": "The crawl read no page of this site.",
         "olderReport": "This report is from before this check.",
         "stopped": "The crawl stopped before it read each page and link.",
         "undecided": "Not determined: {count} checks",
