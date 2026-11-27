@@ -111,12 +111,16 @@ const tableNames = [
 // PostgreSQL folds a bare name to lowercase, so a bare name in any case can
 // only be a table whose name is all lowercase (`lock` is never `"Lock"`).
 const exact = tableNames.join("|");
+// Each letter becomes a class (`[wW]`) instead of using `(?i:…)`: the modifier
+// matched nothing on the CI runner in #8468, while the same regex passed on
+// the same Node version elsewhere (#8522).
 const anyCase = tableNames
   .filter((name) => name === name.toLowerCase())
+  .map((name) => name.replace(/[a-z]/g, (c) => `[${c}${c.toUpperCase()}]`))
   .join("|");
 
 const UNQUALIFIED = new RegExp(
-  `(?<!CREATE\\s+(?:TEMP|TEMPORARY)\\s+)\\b(?:${KEYWORDS})\\s+(?:IF\\s+(?:NOT\\s+)?EXISTS\\s+)?(?:"(?:${exact})"|(?i:${anyCase}))(?![\\w".])`,
+  `(?<!CREATE\\s+(?:TEMP|TEMPORARY)\\s+)\\b(?:${KEYWORDS})\\s+(?:IF\\s+(?:NOT\\s+)?EXISTS\\s+)?(?:"(?:${exact})"|(?:${anyCase}))(?![\\w".])`,
   "g",
 );
 
