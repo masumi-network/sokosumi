@@ -119,6 +119,10 @@ vi.mock("@/app/projects/components/project-close-status", () => ({
   ),
 }));
 
+vi.mock("@/app/projects/organization-brand-name", () => ({
+  organizationBrandName: async () => null,
+}));
+
 vi.mock("@/app/projects/components/project-brand-card", () => ({
   ProjectBrandProvider: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>

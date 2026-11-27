@@ -14,7 +14,10 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomMessageSchema } from "@/schemas/chat-room.schema";
 import { dispatchChatRoomMention } from "@/services/chat-room-coworker-dispatch.service";
-import { releaseFailedTurnForRetry } from "@/services/chat-room-mention-state";
+import {
+  mentionTurnProvenance,
+  releaseFailedTurnForRetry,
+} from "@/services/chat-room-mention-state";
 
 import {
   chatRoomMessageInclude,
@@ -67,8 +70,9 @@ const route = withOrganizationSlugHeaderParameter(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Mention not found"),
-      409: jsonErrorResponse("Mention is not failed"),
+      409: jsonErrorResponse("Mention is not failed or its Network is stale"),
       500: jsonErrorResponse("Internal Server Error"),
+      503: jsonErrorResponse("Preprod is paused or unavailable"),
     },
   }),
 );
@@ -102,7 +106,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw forbidden("You can only retry mentions you authored");
       }
 
-      const reset = await tx.chatRoomMention.updateMany({
+      const [reset] = await tx.chatRoomMention.updateManyAndReturn({
         where: {
           id: mentionId,
           messageId,
@@ -112,8 +116,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           status: "pending",
           error: null,
         },
+        select: { network: true, preprodGeneration: true },
       });
-      if (reset.count !== 1) {
+      if (!reset) {
         const mention = await tx.chatRoomMention.findFirst({
           where: { id: mentionId, messageId },
           select: { id: true },
@@ -123,7 +128,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
         throw conflict("Mention is not failed");
       }
-      await releaseFailedTurnForRetry(tx, mentionId);
+      // A refusal rolls back the reset without releasing the previous turn.
+      const provenance = await mentionTurnProvenance(reset, tx);
+      await releaseFailedTurnForRetry(tx, mentionId, provenance);
 
       return tx.chatRoomMessage.findUniqueOrThrow({
         where: { id: messageId },

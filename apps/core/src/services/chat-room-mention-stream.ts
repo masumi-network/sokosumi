@@ -1,4 +1,5 @@
-import type { Prisma } from "@sokosumi/database";
+import type { ChatRoomMention, Prisma } from "@sokosumi/database";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
@@ -251,6 +252,39 @@ export async function failMentionThoughtPlaceholder(params: {
   );
   if (changed.count === 0) return;
   await publishChatRoomMessageRealtimeById(params.placeholderId, "update");
+}
+
+/** A refusal may only finish the same Preprod attempt the dispatcher read. */
+export async function failStaleMention(
+  mention: Pick<
+    ChatRoomMention,
+    "id" | "messageId" | "responseMessageId" | "status" | "updatedAt"
+  >,
+): Promise<void> {
+  const failed = await prisma.chatRoomMention.updateMany({
+    where: {
+      id: mention.id,
+      network: "preprod",
+      status: mention.status,
+      updatedAt: mention.updatedAt,
+    },
+    data: {
+      status: "failed",
+      error: CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE,
+    },
+  });
+  if (failed.count === 1) {
+    await failMentionThoughtPlaceholder({
+      placeholderId: mention.responseMessageId,
+      sourceMessageId: mention.messageId,
+      mentionId: mention.id,
+      onlyWhenFailed: true,
+    });
+    await publishChatRoomMessageRealtimeById(
+      mention.messageId,
+      "mention_status",
+    );
+  }
 }
 
 /** Pre-claim fail still needs a coworker bubble; parent has no mention footer. */

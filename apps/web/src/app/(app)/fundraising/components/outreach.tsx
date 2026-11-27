@@ -1,7 +1,6 @@
 "use client";
 import type {
   FundraisingDraftResult,
-  FundraisingPath,
   FundraisingPipeline,
   FundraisingProspect,
 } from "@sokosumi/core-client";
@@ -27,7 +26,7 @@ import {
   FUNDRAISING_KEY,
   useFundraisingOrganization,
 } from "../use-fundraising";
-import { pathsKey } from "./warm-paths";
+import { useWarmPaths } from "./warm-paths";
 
 const GMAIL_DRAFTS = "https://mail.google.com/mail/#drafts";
 const DIRECT = "__direct__";
@@ -50,10 +49,7 @@ export function Outreach({
   const cache = useQueryClient();
   const organizationId = useFundraisingOrganization();
   const contactId = prospect.contact.id;
-  const paths = cache.getQueryData<{ paths: FundraisingPath[] }>([
-    organizationId,
-    ...pathsKey(contactId),
-  ]);
+  const paths = useWarmPaths(contactId).data;
   const intros = (paths?.paths ?? []).filter(
     (path) => path.through?.email && path.via,
   );

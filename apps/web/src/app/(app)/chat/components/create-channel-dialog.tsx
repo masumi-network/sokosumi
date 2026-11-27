@@ -3,7 +3,13 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { Loader2, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useRef, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import { createChannelAction } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
@@ -35,6 +41,7 @@ import {
   createChannelSubmitFields,
   createInitialWizard,
   type Discoverability,
+  editLink,
   remainingNameChars,
   remainingTopicChars,
   setAddPeopleMode,
@@ -64,6 +71,18 @@ export function CreateChannelDialog({
   const tChannels = useTranslations("App.Channels");
   const tVisibility = useTranslations("App.Channels.Visibility");
   const inFlightRef = useRef(false);
+  // Set when a create-time conflict sends the person back to fix the link.
+  const focusLinkRef = useRef(false);
+  // The Link field mounts in place of the control that opened it (Change link,
+  // or Create after a conflict), so it takes focus when that control's focus
+  // was dropped, or when a conflict asked for it.
+  const linkInputRef = useCallback((input: HTMLInputElement | null) => {
+    if (!input) return;
+    if (focusLinkRef.current || document.activeElement === document.body) {
+      focusLinkRef.current = false;
+      input.focus();
+    }
+  }, []);
   const [open, setOpen] = useState(false);
   const { roster, rosterLoaded, rosterError, loadRoster, resetRoster } =
     useChatComposeRoster();
@@ -75,6 +94,18 @@ export function CreateChannelDialog({
     createStepSlug,
   );
   const [isPending, startTransition] = useTransition();
+  // Core said this link was taken on create; the recheck must not hide it.
+  const [conflictSlug, setConflictSlug] = useState<string | null>(null);
+  // While a new link is checked, the field keeps the last answer's shape
+  // instead of closing and reopening on every keystroke.
+  const [settled, setSettled] = useState(availability);
+  // A field the person is in stays put. It closes only once focus has landed
+  // elsewhere in the dialog: a blur-time close would unmount it before the
+  // browser moves focus on, and focus would fall out of the form.
+  const [linkFocused, setLinkFocused] = useState(false);
+  if (availability !== "unknown" && availability !== settled) {
+    setSettled(availability);
+  }
 
   const {
     members,
@@ -86,22 +117,37 @@ export function CreateChannelDialog({
     canCreateExternal,
     hasOrganization,
   } = roster;
-  const slugFieldError =
-    wizard.step === "create"
-      ? availability === "taken"
-        ? t("slugTaken")
-        : availability === "error"
-          ? t("slugCheckFailed")
-          : availability === "invalid" && wizard.slugDirty
-            ? t("slugInvalid")
-            : null
-      : null;
+  const linkConflict = wizard.step === "create" && wizard.slug === conflictSlug;
+  function linkError(state: typeof availability): string | null {
+    if (wizard.step !== "create") return null;
+    if (linkConflict || state === "taken") return t("slugTaken");
+    if (state === "error") return t("slugCheckFailed");
+    if (
+      // The check calls an empty link invalid; a stale answer for a typed one is not.
+      state === "invalid" &&
+      wizard.slug === "" &&
+      (wizard.slugDirty || wizard.name.trim().length > 0)
+    ) {
+      return t("slugInvalid");
+    }
+    return null;
+  }
+  const slugFieldError = linkError(availability);
+  const canAdvance = !linkConflict && canCreateChannel(wizard, availability);
+  // The link field opens when the person asks, or when the derived link can't be used.
+  const showLinkField =
+    wizard.step === "create" &&
+    (wizard.slugDirty ||
+      linkFocused ||
+      linkError(availability === "unknown" ? settled : availability) !== null);
   const orgMemberCount = members.length;
   const allMemberUserIds = members.map((member) => member.user.id);
 
   function resetDialog() {
     setWizard(createInitialWizard());
     setAvailability("invalid");
+    setConflictSlug(null);
+    setLinkFocused(false);
     resetRoster();
   }
 
@@ -128,10 +174,12 @@ export function CreateChannelDialog({
       wizard.step !== "create" ||
       isPending ||
       membersLoadFailed ||
-      !canCreateChannel(wizard, availability)
+      !canAdvance
     ) {
       return;
     }
+    // Enter in Link leaves the step without a blur.
+    setLinkFocused(false);
     setWizard(toAddPeople(wizard, currentUserId));
   }
 
@@ -162,6 +210,8 @@ export function CreateChannelDialog({
         inFlightRef.current = false;
         if (result.error.code === CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN) {
           setAvailability("taken");
+          setConflictSlug(wizard.slug);
+          focusLinkRef.current = true;
           setWizard(backToCreate(wizard));
           return;
         }
@@ -214,7 +264,10 @@ export function CreateChannelDialog({
       </DialogTrigger>
       <DialogContent
         className="app-scrollbar max-h-[calc(100dvh-2rem)] gap-6 overflow-y-auto shadow-none sm:max-w-lg"
-        {...(wizard.slug ? {} : { "aria-describedby": undefined })}
+        {...(isCreateStep ? { "aria-describedby": undefined } : {})}
+        onFocus={(event) =>
+          setLinkFocused(event.target.id === "create-channel-slug")
+        }
       >
         <DialogHeader className={cn(isCreateStep && "gap-1.5")}>
           <DialogTitle>
@@ -222,7 +275,7 @@ export function CreateChannelDialog({
               ? t("addPeopleTitle", { name: wizard.name })
               : t("title")}
           </DialogTitle>
-          {wizard.slug ? (
+          {!isCreateStep && wizard.slug ? (
             <DialogDescription className="text-muted-foreground text-xs font-normal">
               {t("handleChrome", { slug: wizard.slug })}
             </DialogDescription>
@@ -267,51 +320,6 @@ export function CreateChannelDialog({
         wizard.step === "create" ? (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="create-channel-slug">{t("slugLabel")}</Label>
-              <div className="relative">
-                <span
-                  className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm"
-                  aria-hidden
-                >
-                  #
-                </span>
-                <Input
-                  id="create-channel-slug"
-                  value={wizard.slug}
-                  onChange={(event) =>
-                    setWizard(setSlug(wizard, event.target.value))
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      handleAdvanceToPeople();
-                    }
-                  }}
-                  placeholder={t("slugPlaceholder")}
-                  className="pl-7"
-                  autoComplete="off"
-                  spellCheck={false}
-                  autoFocus
-                  maxLength={CHANNEL_SLUG_MAX}
-                  aria-invalid={slugFieldError !== null}
-                  aria-describedby="create-channel-slug-status"
-                />
-              </div>
-              <p
-                id="create-channel-slug-status"
-                role={slugFieldError ? "alert" : undefined}
-                className={cn(
-                  "text-xs",
-                  slugFieldError ? "text-destructive" : "text-muted-foreground",
-                )}
-              >
-                {slugFieldError ??
-                  (availability === "unknown"
-                    ? t("slugChecking")
-                    : t("slugHelp"))}
-              </p>
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="create-channel-name">{t("nameLabel")}</Label>
               <div className="relative">
                 <Input
@@ -328,7 +336,11 @@ export function CreateChannelDialog({
                   }}
                   placeholder={t("namePlaceholder")}
                   className="pr-10"
+                  autoFocus
                   maxLength={CHANNEL_NAME_MAX}
+                  aria-describedby={
+                    showLinkField ? undefined : "create-channel-link-help"
+                  }
                 />
                 <span
                   className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs tabular-nums"
@@ -337,8 +349,88 @@ export function CreateChannelDialog({
                   {remainingNameChars(wizard.name)}
                 </span>
               </div>
-              <p className="text-muted-foreground text-xs">{t("nameHelp")}</p>
+              {showLinkField ? null : (
+                <p
+                  id="create-channel-link-help"
+                  className="text-muted-foreground text-xs text-pretty"
+                >
+                  {wizard.slug ? (
+                    <>
+                      {t.rich("linkHelp", {
+                        slug: wizard.slug,
+                        link: (chunks) => (
+                          <span className="text-foreground font-medium break-words">
+                            {chunks}
+                          </span>
+                        ),
+                      })}{" "}
+                      {availability === "unknown"
+                        ? t("slugChecking")
+                        : t("linkPermanent")}{" "}
+                      <button
+                        type="button"
+                        // The button leaves with the help line; the Link field takes focus as it mounts.
+                        onClick={() => setWizard(editLink(wizard))}
+                        className="text-foreground py-1 underline underline-offset-4"
+                      >
+                        {t("changeLink")}
+                      </button>
+                    </>
+                  ) : (
+                    t("linkEmpty")
+                  )}
+                </p>
+              )}
             </div>
+            {showLinkField ? (
+              <div className="space-y-2">
+                <Label htmlFor="create-channel-slug">{t("slugLabel")}</Label>
+                <div className="relative">
+                  <span
+                    className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm"
+                    aria-hidden
+                  >
+                    #
+                  </span>
+                  <Input
+                    ref={linkInputRef}
+                    id="create-channel-slug"
+                    value={wizard.slug}
+                    onChange={(event) =>
+                      setWizard(setSlug(wizard, event.target.value))
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        handleAdvanceToPeople();
+                      }
+                    }}
+                    placeholder={t("slugPlaceholder")}
+                    className="pl-7"
+                    autoComplete="off"
+                    spellCheck={false}
+                    maxLength={CHANNEL_SLUG_MAX}
+                    aria-invalid={slugFieldError !== null}
+                    aria-describedby="create-channel-slug-status"
+                  />
+                </div>
+                <p
+                  id="create-channel-slug-status"
+                  role={slugFieldError ? "alert" : undefined}
+                  className={cn(
+                    "text-xs",
+                    slugFieldError
+                      ? "text-destructive"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {slugFieldError ??
+                    (availability === "unknown"
+                      ? t("slugChecking")
+                      : t("slugHelp"))}
+                </p>
+              </div>
+            ) : null}
             <div className="space-y-2">
               <Label htmlFor="create-channel-topic">{t("topicLabel")}</Label>
               <div className="relative">
@@ -423,7 +515,9 @@ export function CreateChannelDialog({
         !rosterError &&
         !membersLoadFailed &&
         wizard.step === "add-people" ? (
-          <div className="space-y-4">
+          // min-w-0: a grid item, so a long email in the people list would
+          // otherwise widen the dialog past a phone screen.
+          <div className="min-w-0 space-y-4">
             <RadioGroup
               value={wizard.mode}
               onValueChange={(value) => {
@@ -520,7 +614,7 @@ export function CreateChannelDialog({
             <Button
               type="button"
               variant="primary"
-              disabled={isPending || !canCreateChannel(wizard, availability)}
+              disabled={isPending || !canAdvance}
               onClick={handleAdvanceToPeople}
             >
               {t("next")}
