@@ -597,7 +597,7 @@ export function chargeProjectCompetitorCheck(
       if (balance < expectedCents) return { chargedCents: 0n, shortfall: true };
       const spent = await spend({
         scope,
-        tx: { shared: tx },
+        tx,
         payer: { userId, organizationId, projectId },
         quotedCents: expectedCents,
         mode: "in_full",

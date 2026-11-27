@@ -11,10 +11,9 @@ import {
   type CreditBucketProjectOption,
   creditBucketSpendOrderSql,
   resolveCreditBucketScopeContext,
-  resolveCreditBucketScopeContextOn,
 } from "../helpers/credit-bucket-scope.js";
 import { netTable, sharedTable, type TableNetwork } from "../sql-tables.js";
-import type { CreditDb, RawSqlDb, SharedDb } from "../types/shared-db.js";
+import type { SharedDb } from "../types/shared-db.js";
 
 export interface Consumption {
   bucketId: string;
@@ -22,6 +21,8 @@ export interface Consumption {
 }
 
 export class InsufficientBalanceError extends Error {
+  /** What was to be consumed, in cents. */
+  readonly requested: bigint;
   /** What the buckets could cover, in cents. */
   readonly available: bigint;
 
@@ -30,6 +31,7 @@ export class InsufficientBalanceError extends Error {
       `Insufficient balance: tried to consume ${cents} but only ${available} available`,
     );
     this.name = "InsufficientBalanceError";
+    this.requested = cents;
     this.available = available;
   }
 }
@@ -111,27 +113,27 @@ export const creditBucketRepository = {
   },
 
   /**
-   * `getBalance` for the buckets of `network`, on a transaction of either
-   * side (`CreditDb`).
+   * `getBalance` for the buckets of `network`, on a transaction of the shared
+   * side: the read a spend makes when what it charges depends on the balance.
    */
-  async getBalanceOn(
+  async getNetworkBalance(
     network: TableNetwork,
     userId: string | null,
     organizationId: string | null,
-    db: CreditDb,
+    tx: SharedDb,
     options: CreditBucketProjectOption = {},
   ): Promise<bigint> {
     const now = new Date();
-    const scopeContext = await resolveCreditBucketScopeContextOn(
+    const scopeContext = await resolveCreditBucketScopeContext(
       userId,
       organizationId,
-      db,
+      tx,
       now,
     );
     return await sumAvailableCents(
       buildCreditBucketScopeSql(scopeContext, options),
       now,
-      rawSqlOn(db),
+      tx,
       network,
     );
   },
@@ -342,28 +344,6 @@ export const creditBucketRepository = {
     tx: SharedDb,
     options: CreditBucketProjectOption = {},
   ): Promise<Consumption[]> {
-    return await creditBucketRepository.prepareConsumptionOn(
-      network,
-      userId,
-      organizationId,
-      cents,
-      { shared: tx },
-      options,
-    );
-  },
-
-  /**
-   * `prepareConsumption` on a transaction of either side (`CreditDb`): the
-   * same buckets, with the plan and Seat rows read as that side can.
-   */
-  async prepareConsumptionOn(
-    network: TableNetwork,
-    userId: string | null,
-    organizationId: string | null,
-    cents: bigint,
-    db: CreditDb,
-    options: CreditBucketProjectOption = {},
-  ): Promise<Consumption[]> {
     if (cents <= BigInt(0)) {
       throw new Error("Cents to consume must be positive");
     }
@@ -375,7 +355,7 @@ export const creditBucketRepository = {
       organizationId,
       now,
       cents,
-      db,
+      tx,
       options,
     );
 
@@ -421,7 +401,7 @@ export const creditBucketRepository = {
       cents: bigint;
       consumptions: readonly Consumption[];
     },
-    tx: RawSqlDb,
+    tx: SharedDb,
   ): Promise<string> {
     const id = randomUUIDv7();
     const now = new Date();
@@ -444,14 +424,10 @@ export const creditBucketRepository = {
   },
 };
 
-function rawSqlOn(db: CreditDb): RawSqlDb {
-  return "shared" in db ? db.shared : db.network;
-}
-
 async function sumAvailableCents(
   where: Prisma.Sql,
   now: Date,
-  tx: RawSqlDb,
+  tx: SharedDb,
   network: TableNetwork = "mainnet",
 ): Promise<bigint> {
   const result = await tx.$queryRaw<Array<{ balance: bigint }>>`
@@ -478,19 +454,19 @@ async function getFifoBucketsToCoverSpend(
   organizationId: string | null,
   now: Date,
   cents: bigint,
-  db: CreditDb,
+  tx: SharedDb,
   options: CreditBucketProjectOption,
 ): Promise<Array<{ id: string; available: bigint }>> {
-  const scopeContext = await resolveCreditBucketScopeContextOn(
+  const scopeContext = await resolveCreditBucketScopeContext(
     userId,
     organizationId,
-    db,
+    tx,
     now,
   );
   const where = buildCreditBucketScopeSql(scopeContext, options);
   const spendOrder = creditBucketSpendOrderSql(options.projectId);
 
-  return await rawSqlOn(db).$queryRaw<Array<{ id: string; available: bigint }>>`
+  return await tx.$queryRaw<Array<{ id: string; available: bigint }>>`
     WITH bucket_avail AS (
       SELECT
         cb.id,

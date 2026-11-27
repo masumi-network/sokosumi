@@ -3,7 +3,7 @@ import {
   InsufficientBalanceError,
 } from "@sokosumi/database/repositories";
 
-import type { NetworkDb, NetworkScope, SharedDb } from "@/lib/db/network-scope";
+import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
 
 /** Whose credits a spend takes. */
 export interface CreditPayer {
@@ -35,12 +35,13 @@ export interface SpendInput<Mode extends SpendMode = SpendMode> {
   /** The Network whose credits pay. The one place the Network is read. */
   scope: NetworkScope;
   /**
-   * The caller's open transaction, on the side the caller opened it: the
-   * debit commits or rolls back with the caller's own receipt, at the
-   * caller's isolation level and retry rules. Every statement of the spend
-   * runs on it. A legacy transaction is one of the shared side.
+   * The caller's open transaction, of the shared side: the debit commits or
+   * rolls back with the caller's own receipt, at the caller's isolation level
+   * and retry rules. Every statement of the spend runs on it; the Network's
+   * rows are written through it in raw SQL. A legacy transaction is one of
+   * the shared side.
    */
-  tx: { shared: SharedDb } | { network: NetworkDb };
+  tx: SharedDb;
   payer: CreditPayer;
   /** The price, in cents. */
   quotedCents: bigint;
@@ -92,41 +93,46 @@ export type SpendResult<Mode extends SpendMode = SpendMode> =
   SpendResults[Mode];
 
 /**
- * The errors a spend threw while it prepared, before it wrote anything. Kept
+ * The errors whose latest throw by a spend came from its preparation. Kept
  * beside the error, not on it and not around it: `spend` always throws the
  * original error, so a caller that maps nothing, and the retry of
  * `retriedTransaction` above it, see exactly what they saw before the debit
  * moved here, a transaction conflict included.
  */
-const failedInPreparation = new WeakSet<object>();
+const thrownInPreparation = new WeakSet<object>();
 
 /**
- * True when `spend` threw this error before it wrote anything, while it read
- * the balance or the buckets: any failure of that stage, a transaction
- * conflict included. False for a failure of the write. A caller that answers
- * a failed preparation with its own status asks this in its `catch`; the
- * error itself is the original, to keep as the `cause`.
+ * True when the spend that just threw this error failed before it wrote
+ * anything: while it read its scope, the balance or the buckets. Any failure
+ * of that stage counts, a transaction conflict included. False when the write
+ * failed. A caller that answers a failed preparation with its own status asks
+ * this in the `catch` around its call; the error is the original, to keep as
+ * the `cause`. The answer is about the latest spend that threw the error: the
+ * same error thrown again by a write is a failed write.
  */
 export function spendFailedInPreparation(error: unknown): boolean {
   return (
     typeof error === "object" &&
     error !== null &&
-    failedInPreparation.has(error)
+    thrownInPreparation.has(error)
   );
 }
 
-/** The reads before the write: a failure here is marked as one of this stage. */
-async function prepared<T>(read: () => Promise<T>): Promise<T> {
+function markStage(error: unknown, stage: "preparation" | "write"): void {
+  if (typeof error !== "object" || error === null) return;
+  if (stage === "preparation") thrownInPreparation.add(error);
+  else thrownInPreparation.delete(error);
+}
+
+/** One step of a spend: what it throws is marked with the step's stage. */
+async function inStage<T>(
+  stage: "preparation" | "write",
+  step: () => T | Promise<T>,
+): Promise<T> {
   try {
-    return await read();
+    return await step();
   } catch (error) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      !(error instanceof InsufficientBalanceError)
-    ) {
-      failedInPreparation.add(error);
-    }
+    markStage(error, stage);
     throw error;
   }
 }
@@ -137,6 +143,10 @@ async function prepared<T>(read: () => Promise<T>): Promise<T> {
  * rows of the debit. The caller owns who may spend, the price, the
  * transaction and its retries, and its own receipt, which is also how it
  * knows a repeated call is already paid.
+ *
+ * The transaction is the shared side's, as every payer opens it today. A
+ * Network-side transaction is added by the ticket that moves a payer to that
+ * side, with its own proof that the plan and the Seat are read the same.
  */
 export async function spend(
   input: SpendInput<"in_full">,
@@ -150,12 +160,15 @@ export async function spend(
 export async function spend(input: SpendInput): Promise<SpendResult> {
   const { scope, tx, payer, quotedCents, mode } = input;
   const { userId, organizationId, projectId } = payer;
-  const { network } = scope;
+  // A scope that refuses its Network throws here: a failed preparation.
+  const network = await inStage("preparation", () => scope.network);
   const record = (cents: bigint, consumptions: Consumptions) =>
-    creditBucketRepository.recordSpend(
-      network,
-      { userId, organizationId, cents, consumptions },
-      "shared" in tx ? tx.shared : tx.network,
+    inStage("write", () =>
+      creditBucketRepository.recordSpend(
+        network,
+        { userId, organizationId, cents, consumptions },
+        tx,
+      ),
     );
 
   if (mode === "in_full_or_zero" && quotedCents === 0n) {
@@ -170,10 +183,14 @@ export async function spend(input: SpendInput): Promise<SpendResult> {
 
   let chargedCents = quotedCents;
   if (mode === "up_to_balance" && quotedCents > 0n) {
-    const balance = await prepared(() =>
-      creditBucketRepository.getBalanceOn(network, userId, organizationId, tx, {
-        projectId,
-      }),
+    const balance = await inStage("preparation", () =>
+      creditBucketRepository.getNetworkBalance(
+        network,
+        userId,
+        organizationId,
+        tx,
+        { projectId },
+      ),
     );
     if (balance < quotedCents) chargedCents = balance;
     if (chargedCents <= 0n) {
@@ -190,8 +207,8 @@ export async function spend(input: SpendInput): Promise<SpendResult> {
 
   let consumptions: Consumptions;
   try {
-    consumptions = await prepared(() =>
-      creditBucketRepository.prepareConsumptionOn(
+    consumptions = await inStage("preparation", () =>
+      creditBucketRepository.prepareConsumption(
         network,
         userId,
         organizationId,
@@ -201,7 +218,16 @@ export async function spend(input: SpendInput): Promise<SpendResult> {
       ),
     );
   } catch (error) {
-    if (!(error instanceof InsufficientBalanceError)) throw error;
+    // After a balance that covered the charge, credits that went since are
+    // not an empty wallet: the error is thrown, with what was attempted
+    // (`requested`) and what was left (`available`).
+    if (
+      !(error instanceof InsufficientBalanceError) ||
+      mode === "up_to_balance"
+    )
+      throw error;
+    // Not thrown: missing credits are an outcome here, not a failure.
+    thrownInPreparation.delete(error);
     return {
       outcome: "not_charged",
       transactionId: null,
@@ -230,5 +256,5 @@ export async function spend(input: SpendInput): Promise<SpendResult> {
 }
 
 type Consumptions = Awaited<
-  ReturnType<typeof creditBucketRepository.prepareConsumptionOn>
+  ReturnType<typeof creditBucketRepository.prepareConsumption>
 >;

@@ -1,15 +1,10 @@
-import { parseSelfServeSubscriptionPlanName } from "@sokosumi/utils";
 import {
   CreditBucketReferenceType,
-  EnterpriseContractStatus,
   Prisma,
 } from "../generated/prisma/client.js";
 import { memberRepository } from "../repositories/member.repository.js";
-import { sharedTable, sharedType } from "../sql-tables.js";
-import type { CreditDb, RawSqlDb, SharedDb } from "../types/shared-db.js";
-import { isEnterpriseContractConsumable } from "./enterprise-contract.js";
+import type { SharedDb } from "../types/shared-db.js";
 import { resolveOrganizationBillingPlan } from "./organization-billing-plan.js";
-import { ACTIVE_SUBSCRIPTION_STATUSES } from "./subscription.js";
 
 export interface PersonalCreditBucketScopeContext {
   workspace: "personal";
@@ -68,14 +63,12 @@ export async function resolveCreditBucketScopeContext(
     billingPlan.mode === "enterprise_contract" ||
     (billingPlan.mode === "self_serve" && billingPlan.plan !== "free");
 
-  const rules = { isConsumableEnterprise, requiresAssignedSeat };
-
   if (userId === null) {
     return {
       workspace: "organization",
       userId,
       organizationId,
-      poolAccess: memberlessPoolAccess(rules),
+      poolAccess: isConsumableEnterprise ? "enterprise" : "shared",
     };
   }
 
@@ -84,165 +77,22 @@ export async function resolveCreditBucketScopeContext(
     organizationId,
     tx,
   );
-
-  return {
-    workspace: "organization",
-    userId,
-    organizationId,
-    poolAccess: memberPoolAccess(rules, member),
-  };
-}
-
-/** What an Organization's plan means for its pool, however it was read. */
-interface OrganizationPoolRules {
-  isConsumableEnterprise: boolean;
-  requiresAssignedSeat: boolean;
-}
-
-function memberlessPoolAccess(
-  rules: OrganizationPoolRules,
-): OrganizationCreditPoolAccess {
-  return rules.isConsumableEnterprise ? "enterprise" : "shared";
-}
-
-function memberPoolAccess(
-  rules: OrganizationPoolRules,
-  member: { seatAssignedAt: Date | null } | null,
-): OrganizationCreditPoolAccess {
   const hasAssignedSeat = member?.seatAssignedAt != null;
-  if (!rules.requiresAssignedSeat && member != null) return "shared";
-  if (hasAssignedSeat && rules.isConsumableEnterprise) return "enterprise";
-  return hasAssignedSeat ? "shared" : "none";
-}
 
-/**
- * The scope context on a transaction of either side. The caller names the
- * side its transaction has and never picks a reading: this is the one place
- * that does.
- *
- * THE TWO READINGS MUST STAY EQUAL. The shared side reads the plan and the
- * Seat through models (`resolveCreditBucketScopeContext`); a Network side
- * reads the same rows in raw SQL (`resolveCreditBucketScopeContextInSql`),
- * because that connection's models name the Network's schema. A rule changed
- * in one reading (which contract or subscription counts, what a Seat is) must
- * be changed in the other. Core's
- * `src/lib/credits/spend-transaction-sides.postgres.test.ts` proves they
- * agree, on PostgreSQL, for each kind of plan and payer: add the new case
- * there, and it fails for the copy that was missed.
- */
-export async function resolveCreditBucketScopeContextOn(
-  userId: string | null,
-  organizationId: string | null,
-  db: CreditDb,
-  now: Date = new Date(),
-): Promise<CreditBucketScopeContext> {
-  return "shared" in db
-    ? await resolveCreditBucketScopeContext(
-        userId,
-        organizationId,
-        db.shared,
-        now,
-      )
-    : await resolveCreditBucketScopeContextInSql(
-        userId,
-        organizationId,
-        db.network,
-        now,
-      );
-}
-
-/**
- * The raw SQL reading: it repeats the rules of `resolveOrganizationBillingPlan`,
- * of the active subscription in `subscriptionRepository`, and of the member
- * lookup. Reached only through `resolveCreditBucketScopeContextOn`.
- */
-async function resolveCreditBucketScopeContextInSql(
-  userId: string | null,
-  organizationId: string | null,
-  tx: RawSqlDb,
-  now: Date = new Date(),
-): Promise<CreditBucketScopeContext> {
-  if (!organizationId) {
-    if (userId === null) {
-      throw new Error("A personal credit balance needs a user");
-    }
-    return { workspace: "personal", userId };
+  let poolAccess: OrganizationCreditPoolAccess = "none";
+  if (!requiresAssignedSeat && member != null) {
+    poolAccess = "shared";
+  } else if (hasAssignedSeat && isConsumableEnterprise) {
+    poolAccess = "enterprise";
+  } else if (hasAssignedSeat) {
+    poolAccess = "shared";
   }
 
-  const rules = await organizationPoolRulesInSql(organizationId, tx, now);
-  if (userId === null) {
-    return {
-      workspace: "organization",
-      userId,
-      organizationId,
-      poolAccess: memberlessPoolAccess(rules),
-    };
-  }
-
-  const [member] = await tx.$queryRaw<{ seatAssignedAt: Date | null }[]>`
-    SELECT "seatAssignedAt" FROM ${sharedTable("member")}
-    WHERE "userId" = ${userId} AND "organizationId" = ${organizationId}
-    LIMIT 1
-  `;
   return {
     workspace: "organization",
     userId,
     organizationId,
-    poolAccess: memberPoolAccess(rules, member ?? null),
-  };
-}
-
-async function organizationPoolRulesInSql(
-  organizationId: string,
-  tx: RawSqlDb,
-  now: Date,
-): Promise<OrganizationPoolRules> {
-  const [contract] = await tx.$queryRaw<
-    { activatedAt: Date; periodCount: number }[]
-  >`
-    SELECT "activatedAt", "periodCount" FROM ${sharedTable("enterprise_contract")}
-    WHERE "organizationId" = ${organizationId}
-      AND status = ${EnterpriseContractStatus.active}::${sharedType("EnterpriseContractStatus")}
-      AND "activatedAt" IS NOT NULL
-    ORDER BY "updatedAt" DESC
-    LIMIT 1
-  `;
-  if (contract) {
-    return {
-      isConsumableEnterprise: isEnterpriseContractConsumable({
-        activatedAt: contract.activatedAt,
-        now,
-        periodCount: contract.periodCount,
-        status: EnterpriseContractStatus.active,
-      }),
-      requiresAssignedSeat: true,
-    };
-  }
-
-  const active = Prisma.sql`"referenceId" = ${organizationId}
-      AND status IN (${Prisma.join([...ACTIVE_SUBSCRIPTION_STATUSES])})`;
-  // The period that contains now, a Stripe-backed row first.
-  let [subscription] = await tx.$queryRaw<{ plan: string }[]>`
-    SELECT plan FROM ${sharedTable("subscription")}
-    WHERE ${active} AND "periodStart" <= ${now} AND "periodEnd" > ${now}
-    ORDER BY (COALESCE("stripeSubscriptionId", '') = '') ASC, "updatedAt" DESC
-    LIMIT 1
-  `;
-  if (!subscription) {
-    // Else the latest period that has started.
-    [subscription] = await tx.$queryRaw<{ plan: string }[]>`
-      SELECT plan FROM ${sharedTable("subscription")}
-      WHERE ${active} AND ("periodStart" IS NULL OR "periodStart" <= ${now})
-      ORDER BY "periodEnd" DESC NULLS LAST, "updatedAt" DESC
-      LIMIT 1
-    `;
-  }
-  const plan = subscription
-    ? (parseSelfServeSubscriptionPlanName(subscription.plan) ?? "free")
-    : "free";
-  return {
-    isConsumableEnterprise: false,
-    requiresAssignedSeat: plan !== "free",
+    poolAccess,
   };
 }
 
