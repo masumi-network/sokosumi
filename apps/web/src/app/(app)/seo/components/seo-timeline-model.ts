@@ -13,6 +13,7 @@ export type SeoTimelineNode = {
   label:
     | "auditRun"
     | "checkRun"
+    | "crawlRun"
     | "recheckRun"
     | "resultsSaved"
     | "analysisRequested"
@@ -90,11 +91,13 @@ export function buildSeoTimeline(
                   ? event.observationId
                     ? "resultsSaved"
                     : "analysisRequested"
-                  : isRecheck
-                    ? "recheckRun"
-                    : event.kind === "audit"
-                      ? "auditRun"
-                      : "checkRun";
+                  : check.kind === "crawl_next"
+                    ? "crawlRun"
+                    : isRecheck
+                      ? "recheckRun"
+                      : event.kind === "audit"
+                        ? "auditRun"
+                        : "checkRun";
       return {
         event,
         observation: check,

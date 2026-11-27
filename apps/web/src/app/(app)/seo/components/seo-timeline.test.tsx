@@ -338,6 +338,56 @@ describe("SEO timeline recovery", () => {
     expect(screen.getByText("12 tests each")).toBeVisible();
   });
 
+  it("says how many pages a crawl continuation read, not the rules of its seed page", () => {
+    const workspace = seoTestWorkspace();
+    workspace.scope.pageIds = ["page-a", "page-b"];
+    workspace.observations = [
+      {
+        id: "next",
+        kind: "crawl_next",
+        source: "agent",
+        observedAt: new Date("2026-11-02T10:00:00Z"),
+        // A continuation stores only the page it started from; the crawl holds its own coverage.
+        pageIds: ["page-a"],
+        scopeVersion: 0,
+        sourceTaskId: null,
+        countryCode: null,
+        languageCode: null,
+        devices: [],
+        rulebookVersion: "test-rules",
+        artifactHash: "next",
+        issues: 0,
+        coverage: { checked: 0, skipped: 0, failed: 0 },
+        siteCrawl: { state: "crawled", read: 500 } as never,
+      },
+    ];
+    workspace.timeline = [
+      {
+        id: "next",
+        kind: "check",
+        title: "SEO check results imported",
+        status: "completed",
+        detail: "",
+        at: new Date("2026-11-02T10:00:00Z"),
+        pageIds: ["page-a"],
+        taskId: null,
+        observationId: "next",
+      },
+    ];
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        formats={createFormats()}
+        messages={messages}
+      >
+        <SeoTimeline workspace={workspace} nodes={allNodes(workspace)} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByText("Crawl results")).toBeVisible();
+    expect(screen.getByText(facts("500 pages read"))).toBeVisible();
+  });
+
   it("keeps clean checks for another market as their own rows", () => {
     const workspace = seoTestWorkspace();
     const check = (id: string, day: number, countryCode: string) => ({

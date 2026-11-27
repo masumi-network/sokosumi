@@ -115,6 +115,10 @@ export function SeoTimeline({
           (observation.coverage.failed > 0 ||
             (observation.coverage.modules?.failed ?? 0) > 0);
         const result = resultOf(node);
+        const crawl =
+          observation?.kind === "crawl_next"
+            ? observation.siteCrawl
+            : undefined;
         // Earlier folded checks that covered another number of rules; the newest count is shown.
         const earlierRules = [
           ...new Set(
@@ -205,15 +209,22 @@ export function SeoTimeline({
                   <SeoMetaLine
                     className="text-xs"
                     items={[
+                      // A crawl continuation runs no rules on its seed page: it reads the next pages of the site.
                       [
                         "tests",
-                        report(
-                          // Folded checks that all ran the same count say it is per check.
-                          earlier.length && !earlierRules.length
-                            ? "timeline.checkSummaryEach"
-                            : "timeline.checkSummary",
-                          { checked: observation.coverage.checked },
-                        ),
+                        crawl
+                          ? crawl.state === "crawled"
+                            ? report("timeline.crawlSummary", {
+                                read: crawl.read,
+                              })
+                            : null
+                          : report(
+                              // Folded checks that all ran the same count say it is per check.
+                              earlier.length && !earlierRules.length
+                                ? "timeline.checkSummaryEach"
+                                : "timeline.checkSummary",
+                              { checked: observation.coverage.checked },
+                            ),
                       ],
                       // Devices tell rows with another rule count apart.
                       [
@@ -229,9 +240,10 @@ export function SeoTimeline({
                       // A one-page Audit needs no page count on every row.
                       [
                         "pages",
-                        onePage &&
-                        observation.pageIds.length === 1 &&
-                        viewed.has(observation.pageIds[0])
+                        crawl ||
+                        (onePage &&
+                          observation.pageIds.length === 1 &&
+                          viewed.has(observation.pageIds[0]))
                           ? null
                           : report("pages.count", {
                               count: observation.pageIds.length,
