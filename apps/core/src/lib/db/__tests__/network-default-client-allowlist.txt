@@ -5,7 +5,6 @@ apps/core/src/helpers/admin-agent.ts
 apps/core/src/helpers/agent-rating.ts
 apps/core/src/helpers/agent.ts
 apps/core/src/helpers/billing-notifications.ts
-apps/core/src/helpers/calendar-erasure.ts
 apps/core/src/helpers/compensating-refund.ts
 apps/core/src/helpers/coworker-task-receipt.ts
 apps/core/src/helpers/cuso-low-credit-notification.ts
