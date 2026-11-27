@@ -27,6 +27,22 @@ export const chatResultReferenceSchema = z.discriminatedUnion("kind", [
     .strict(),
 ]);
 
+export const CHAT_RESULT_REFERENCE_KINDS = [
+  "task",
+  "task_schedule",
+  "bot_schedule",
+  "social_post",
+  "studio_job",
+  "job",
+  "file",
+  "decision",
+  "cmo_report",
+  "project_selection",
+] as const;
+
+export type ChatResultReferenceKind =
+  (typeof CHAT_RESULT_REFERENCE_KINDS)[number];
+
 export type ChatResultReference = z.infer<typeof chatResultReferenceSchema>;
 export const CHAT_RESULT_PREVIEW_LIMIT = 6;
 export const sokoBotPreviewResultInputSchema = z
