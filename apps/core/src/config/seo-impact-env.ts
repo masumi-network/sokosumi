@@ -7,4 +7,9 @@ export const seoImpactEnvShape = {
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  // The same cron prepares each measurable change and serves it to the SEO worker.
+  SEO_IMPACT_DISPATCH_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
 };

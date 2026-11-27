@@ -178,7 +178,7 @@ export async function runAuthLogin({
   if (signal?.aborted) {
     throw new Error("OAuth login was cancelled");
   }
-  manager.saveCredentials(credentials);
+  manager.saveCredentials({ ...credentials, clientId: loginRequest.clientId });
 
   const result: AuthLoginResult = {
     authenticated: true,
