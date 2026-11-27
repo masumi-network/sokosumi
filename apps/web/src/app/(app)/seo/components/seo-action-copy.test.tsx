@@ -6,7 +6,11 @@ import { expect, it } from "vitest";
 import messages from "../../../../../messages/en.json";
 import { useSeoActionInstructions } from "./seo-action-copy";
 
-function instructions(before: string | null, target = "title") {
+function instructions(
+  before: string | null,
+  target = "title",
+  extra: Partial<ProjectSeoAction> = {},
+) {
   const action: ProjectSeoAction = {
     id: "action-row",
     observationId: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
@@ -21,6 +25,7 @@ function instructions(before: string | null, target = "title") {
     status: "recommended",
     kind: "fix",
     evidence: [],
+    ...extra,
   };
   return renderHook(() => useSeoActionInstructions(action, action.why), {
     wrapper: ({ children }: { children: ReactNode }) => (
@@ -41,4 +46,25 @@ it("leaves out a blank target", () => {
   expect(instructions("<title>Old</title>", " ")).not.toContain(
     "What to change",
   );
+});
+
+it("copies a checked opening text draft with its note, and nothing for a held-back one", () => {
+  const devices = ["mobile" as const];
+  expect(
+    instructions("<title>Old</title>", "title", {
+      bodyDraft: {
+        target: "opening",
+        devices,
+        before: "Widgets for every room.",
+        after: "Example Corp makes widgets for every room.",
+      },
+    }),
+  ).toContain(
+    "Current opening:\nWidgets for every room.\n\nSuggested opening:\nExample Corp makes widgets for every room.\n\nThe SEO bot checked",
+  );
+  expect(
+    instructions("<title>Old</title>", "title", {
+      bodyDraft: { target: "opening", devices, heldBack: "Names Acme." },
+    }),
+  ).not.toMatch(/opening|Names Acme/);
 });

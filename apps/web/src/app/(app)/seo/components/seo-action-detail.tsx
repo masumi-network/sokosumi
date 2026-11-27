@@ -247,6 +247,50 @@ export function SeoActionDetail({
             </div>
           </DetailPart>
         ) : null}
+        {action.bodyDraft ? (
+          <DetailPart title={report("actions.draft")}>
+            {"after" in action.bodyDraft ? (
+              <div className="space-y-3">
+                <ChangeBox label={report("actions.draftBefore")}>
+                  <pre
+                    dir="auto"
+                    lang=""
+                    className="bg-muted text-muted-foreground rounded-md p-3 text-xs whitespace-pre-wrap break-words"
+                  >
+                    {action.bodyDraft.before}
+                  </pre>
+                </ChangeBox>
+                <ChangeBox
+                  label={report("actions.draftAfter")}
+                  copy={
+                    <SeoCopyButton
+                      text={action.bodyDraft.after}
+                      label={t("actions.copyDraft")}
+                      className="h-7"
+                    />
+                  }
+                >
+                  <pre
+                    dir="auto"
+                    lang=""
+                    className="bg-chart-3-quinary border-chart-3 rounded-md border p-3 text-xs whitespace-pre-wrap break-words"
+                  >
+                    {action.bodyDraft.after}
+                  </pre>
+                </ChangeBox>
+                <p lang="en" className="text-muted-foreground text-xs">
+                  {report("actions.draftNote")}
+                </p>
+              </div>
+            ) : (
+              <p lang="en" className="whitespace-pre-wrap break-words">
+                {report("actions.draftHeldBack", {
+                  reason: action.bodyDraft.heldBack,
+                })}
+              </p>
+            )}
+          </DetailPart>
+        ) : null}
         {/* The impact chip already names the kind of rule; the part keeps to the reason of this action. A
             suggestion says what it is not: no error, and no promise of traffic. */}
         {action.decision ? (
