@@ -58,6 +58,33 @@ import {
   signIn,
 } from "@/test-fixtures/core-session";
 
+const pushDevice = vi.hoisted(() => ({
+  id: "notification-fixture-device",
+  clientId: "",
+  platform: "browser",
+  formFactor: "desktop",
+  push: { state: "Active" },
+}));
+vi.mock("@/lib/ably/client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/ably/client")>()),
+  getPushAdminRestClient: () => ({
+    request: async () => ({ success: true }),
+    push: {
+      admin: {
+        deviceRegistrations: { get: async () => pushDevice },
+        channelSubscriptions: {
+          list: async ({ channel }: { channel: string }) => ({
+            items: [{ channel, deviceId: pushDevice.id }],
+            next: async () => null,
+          }),
+          save: async () => undefined,
+          remove: async () => undefined,
+        },
+      },
+    },
+  }),
+}));
+
 const database = vi.hoisted(() => ({ pools: [] as Pool[], statements: 0 }));
 vi.mock("@vercel/functions", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@vercel/functions")>();
@@ -139,6 +166,8 @@ describe.skipIf(!enabled)("GET /v1/notifications network", () => {
   const pricingId = randomUUID();
   const mainnet = createNetworkScope("mainnet");
   let preprodDb: NetworkDb | undefined;
+  let ownsSyncLock = false;
+  const syncLockKey = "notification-follow-ups-sync";
   const at = new Date("2026-11-27T11:00:00.000Z");
   const jobRowId = randomUUID();
   const taskRowId = randomUUID();
@@ -169,6 +198,11 @@ describe.skipIf(!enabled)("GET /v1/notifications network", () => {
       if (workspaceId) await prisma.task.deleteMany({ where: { workspaceId } });
       await prisma.subscription.deleteMany({ where: { referenceId: user.id } });
       await prisma.user.deleteMany({ where: { id: user.id } });
+    }
+    if (ownsSyncLock) {
+      await prisma.lock.deleteMany({
+        where: { key: syncLockKey, isLocked: false },
+      });
     }
     await prisma.$disconnect();
     await Promise.all(database.pools.map((pool) => pool.end()));
@@ -363,6 +397,54 @@ describe.skipIf(!enabled)("GET /v1/notifications network", () => {
     },
     SETUP_TIMEOUT,
   );
+
+  it("preserves Mainnet push-device bodies and statement counts", async () => {
+    pushDevice.clientId = `${user.id}:browser`;
+
+    async function call(path: string, method = "GET", input?: object) {
+      const before = database.statements;
+      const response = await request(path, method, input);
+      expect(await drainWaitUntil()).toEqual([]);
+      const body = (await response.json()) as {
+        data: { id?: string; revision?: number };
+        meta: Record<string, unknown>;
+      };
+      expect(response.status).toBe(200);
+      delete body.meta.timestamp;
+      delete body.meta.requestId;
+      return { statements: database.statements - before, body };
+    }
+
+    const devicePath = `/push-devices/${pushDevice.id}`;
+    const list = await call("/push-devices");
+    const activation = await call("/push-devices/activations", "POST", {
+      deviceId: pushDevice.id,
+      readerInitiated: true,
+    });
+    const { id: consentId, revision } = activation.body.data;
+    const subscription = await call(`${devicePath}/subscription`, "PUT", {
+      consentId,
+      revision,
+    });
+    const browser = await call(`${devicePath}/browser`, "PATCH", {
+      browser: "Chrome",
+      operatingSystem: "macOS",
+    });
+    const revoke = await call(devicePath, "DELETE");
+    expect({
+      list,
+      activation: {
+        ...activation,
+        body: {
+          ...activation.body,
+          data: { ...activation.body.data, id: "fixture-consent" },
+        },
+      },
+      subscription,
+      browser,
+      revoke,
+    }).toMatchSnapshot();
+  });
 
   it("dedupes tagged writes only within their Network", async () => {
     const input = {
@@ -580,6 +662,10 @@ describe.skipIf(!enabled)("GET /v1/notifications network", () => {
 
     // The exact same source sends a reminder when tagged Mainnet, so the
     // Preprod assertion exercises an eligible source and the real sync route.
+    ownsSyncLock = !(await prisma.lock.findUnique({
+      where: { key: syncLockKey },
+      select: { id: true },
+    }));
     async function runSync() {
       const response = await app.request(`${ORIGIN}/notification-follow-ups`, {
         headers: { authorization: `Bearer ${getEnv().CRON_SECRET}` },

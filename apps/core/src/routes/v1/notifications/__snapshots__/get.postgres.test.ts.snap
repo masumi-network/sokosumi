@@ -239,3 +239,61 @@ exports[`GET /v1/notifications network > preserves Mainnet bodies and statement 
   },
 }
 `;
+
+exports[`GET /v1/notifications network > preserves Mainnet push-device bodies and statement counts 1`] = `
+{
+  "activation": {
+    "body": {
+      "data": {
+        "id": "fixture-consent",
+        "replaceDevice": false,
+        "revision": 0,
+        "revoked": false,
+      },
+      "meta": {},
+    },
+    "statements": 8,
+  },
+  "browser": {
+    "body": {
+      "data": {
+        "success": true,
+      },
+      "meta": {},
+    },
+    "statements": 2,
+  },
+  "list": {
+    "body": {
+      "data": [
+        {
+          "formFactor": "desktop",
+          "id": "notification-fixture-device",
+          "platform": "browser",
+          "state": "active",
+        },
+      ],
+      "meta": {},
+    },
+    "statements": 3,
+  },
+  "revoke": {
+    "body": {
+      "data": {
+        "success": true,
+      },
+      "meta": {},
+    },
+    "statements": 14,
+  },
+  "subscription": {
+    "body": {
+      "data": {
+        "subscribed": true,
+      },
+      "meta": {},
+    },
+    "statements": 11,
+  },
+}
+`;
