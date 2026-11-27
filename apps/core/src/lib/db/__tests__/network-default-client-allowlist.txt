@@ -13,7 +13,6 @@ apps/core/src/helpers/history.ts
 apps/core/src/helpers/job.ts
 apps/core/src/helpers/project-needs-attention.ts
 apps/core/src/helpers/project-stats.ts
-apps/core/src/lib/seo/chat-billing.ts
 apps/core/src/lib/soko-bot/action-response.ts
 apps/core/src/lib/soko-bot/agent-search.ts
 apps/core/src/lib/soko-bot/classification-context.ts
