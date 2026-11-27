@@ -9,7 +9,7 @@ import {
 } from "@/schemas/seo-site-crawl.schema";
 import type { PublicSeoPayload } from "./project-seo-report";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
-import { readCrawlNext } from "./seo-site-crawl";
+import { readCrawlNext, storableText } from "./seo-site-crawl";
 
 /** The stored findings of one audited page (seo-site-crawl.schema.ts). */
 const MAX_AUDIT_FINDINGS = 50;
@@ -43,9 +43,9 @@ const frozenCrawlNext = z.object({
   continues: seoSnapshotIdSchema,
 });
 
-/** A deep-audit entry Sokosumi cannot store: the crawl keeps its other entries. */
+/** A deep-audit entry Sokosumi cannot store, also after storage cleanup: the crawl keeps its other entries. */
 const storable = (entry: { url: string }) =>
-  seoCrawlUrlSchema.safeParse(entry.url).success;
+  seoCrawlUrlSchema.safeParse(storableText(entry.url)).success;
 
 const cut = (text: string) =>
   text.length > MAX_REASON

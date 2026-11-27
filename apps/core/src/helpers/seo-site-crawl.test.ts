@@ -705,13 +705,27 @@ describe("imported crawl continuation", () => {
 
   it("keeps the crawl when a deep-audit entry has a URL Sokosumi cannot store", () => {
     const report = crawlNextReport();
-    report.head.skipped.push({ url: "", reason: "audit failed" });
-    report.pages.push({ ...report.pages[1]!, url: "" });
+    report.head.skipped.push(
+      { url: "", reason: "audit failed" },
+      // Storage drops the NUL, which leaves no URL.
+      { url: "\u0000", reason: "audit failed" },
+    );
+    report.pages.push(
+      { ...report.pages[1]!, url: "" },
+      // The audit still matches its page, as the page key drops the fragment.
+      {
+        ...report.pages[0]!,
+        url: `${report.pages[0]!.url}#${"x".repeat(4096)}`,
+      },
+    );
     const payload = publicSeoPayloadSchema.parse(
       JSON.parse(JSON.stringify(parsePublicSeoArtifact(report))),
     );
     const crawl = payload.siteCrawl;
     if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+    expect(crawl.deepAudit?.pages.map((row) => row.url)).toEqual([
+      legacyReport().request.url,
+    ]);
     expect(crawl.deepAudit?.skipped.map((row) => row.url)).toEqual([
       `${SITE}/slow`,
       `${SITE}/broken`,
