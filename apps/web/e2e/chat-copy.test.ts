@@ -13,8 +13,9 @@ import { resolveBaseUrl } from "./base-url.ts";
 import { signUpWithOrganization } from "./sign-up.ts";
 
 /**
- * A new user with a one-person organization creates a first channel and reads
- * chat in the app's own words: "Add everyone in Ada Test Studio (1 member)",
+ * A new user with a one-person organization creates a first channel, typing
+ * its name first and reading the permanent link it makes, and reads chat in
+ * the app's own words: "Add everyone in Ada Test Studio (1 member)",
  * not "Add all 1 members". Both add-people steps, with the people list and
  * its long mailbox address, stay inside a phone-width dialog. People are
  * grouped as People, not Humans, and Catch up never says "room".
@@ -123,11 +124,20 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       await picker.waitFor({ state: "detached" });
       if (name !== "phone") await showChatList(page, name);
 
-      // First channel: one member, in the singular, fitting the dialog.
+      // First channel: name first, with the permanent link shown under it.
       await page.getByRole("button", { name: "Create channel" }).click();
       await page
-        .getByRole("textbox", { name: "Handle" })
-        .pressSequentially("launch-plans", { delay: 30 });
+        .getByRole("textbox", { name: "Name" })
+        .pressSequentially("Launch Plans", { delay: 30 });
+      const linkHelp =
+        "Link: #launch-plans. You can't change the link later. Change link";
+      await page.getByText(linkHelp).waitFor();
+      const nameFirstFit = await dialogOverflow(page);
+      const createText = await page.getByRole("dialog").innerText();
+      await page.screenshot({
+        path: `${RESULTS_DIR}${name}-chat-copy-create.png`,
+      });
+      // Then one member, in the singular, fitting the dialog.
       await page.getByRole("button", { name: "Next" }).click();
       const addEveryone = "Add everyone in Ada Test Studio (1\u00a0member)";
       await page.getByText(addEveryone, { exact: true }).waitFor();
@@ -171,6 +181,16 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       });
       await context.close();
 
+      assert.doesNotMatch(createText, /Handle/);
+      assert.ok(
+        createText.indexOf("Name") < createText.indexOf("Topic"),
+        "Name comes before Topic",
+      );
+      assert.deepEqual(
+        nameFirstFit,
+        { outside: [], scrollsSideways: false },
+        "create step fits the dialog",
+      );
       assert.match(pickerText, /\bPeople\b/);
       assert.doesNotMatch(pickerText, /Humans/);
       assert.doesNotMatch(addPeopleText, /Add all 1 members/);

@@ -27,7 +27,8 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () =>
+    Object.assign((key: string) => key, { rich: (key: string) => key }),
 }));
 
 vi.mock("sonner", () => ({
@@ -138,7 +139,7 @@ describe("CreateChannelDialog", () => {
 
     await user.click(screen.getByRole("button", { name: "createChannel" }));
     await screen.findByText("Empty.membersLoadFailedTitle");
-    expect(screen.queryByLabelText("slugLabel")).toBeNull();
+    expect(screen.queryByLabelText("nameLabel")).toBeNull();
     expect(screen.queryByRole("button", { name: "next" })).toBeNull();
     expect(createChannelActionMock).not.toHaveBeenCalled();
 
@@ -158,7 +159,7 @@ describe("CreateChannelDialog", () => {
     await user.click(
       screen.getByRole("button", { name: "Empty.membersLoadFailedRetry" }),
     );
-    await screen.findByLabelText("slugLabel");
+    await screen.findByLabelText("nameLabel");
     expect(loadChatComposeRosterActionMock).toHaveBeenCalledTimes(2);
   });
 
@@ -167,8 +168,9 @@ describe("CreateChannelDialog", () => {
     render(<CreateChannelDialog />);
 
     await user.click(screen.getByRole("button", { name: "createChannel" }));
-    await screen.findByLabelText("slugLabel");
-    await user.type(screen.getByLabelText("slugLabel"), "launch");
+    await screen.findByLabelText("nameLabel");
+    await user.type(screen.getByLabelText("nameLabel"), "Launch");
+    expect(screen.queryByLabelText("slugLabel")).toBeNull();
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "next" })).toBeEnabled();
     });
@@ -189,5 +191,65 @@ describe("CreateChannelDialog", () => {
       id: "room-channel",
     });
     expect(assignMock).toHaveBeenCalledWith("/chat/rooms/room-channel");
+  });
+
+  it("asks for the name first and opens the link only on request", async () => {
+    const user = userEvent.setup();
+    render(<CreateChannelDialog />);
+
+    await user.click(screen.getByRole("button", { name: "createChannel" }));
+    const name = await screen.findByLabelText("nameLabel");
+    expect(name).toHaveFocus();
+    expect(screen.getByText("linkEmpty")).toBeInTheDocument();
+    await user.type(name, "Launch plans");
+    expect(name).toHaveAccessibleDescription(/linkHelp/);
+
+    await user.click(screen.getByRole("button", { name: "changeLink" }));
+    const link = screen.getByLabelText("slugLabel");
+    expect(link).toHaveFocus();
+    expect(link).toHaveValue("launch-plans");
+    await user.clear(link);
+    await user.type(link, "launch");
+    await user.type(name, " 2026");
+    expect(link).toHaveValue("launch");
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "next" })).toBeEnabled();
+    });
+    await user.click(screen.getByRole("button", { name: "next" }));
+    await user.click(screen.getByRole("button", { name: "create" }));
+    await waitFor(() => {
+      expect(createChannelActionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "Launch plans 2026", slug: "launch" }),
+      );
+    });
+  });
+
+  it("opens the link field with the reason when the name's link is taken", async () => {
+    checkChannelSlugAvailabilityActionMock.mockResolvedValue({
+      ok: true,
+      value: { status: "taken" },
+    });
+    const user = userEvent.setup();
+    render(<CreateChannelDialog />);
+
+    await user.click(screen.getByRole("button", { name: "createChannel" }));
+    await user.type(await screen.findByLabelText("nameLabel"), "Launch");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("slugTaken");
+    expect(screen.getByLabelText("slugLabel")).toHaveValue("launch");
+    expect(screen.getByLabelText("nameLabel")).toHaveFocus();
+    expect(screen.getByRole("button", { name: "next" })).toBeDisabled();
+  });
+
+  it("opens the link field when the name has nothing a link can use", async () => {
+    const user = userEvent.setup();
+    render(<CreateChannelDialog />);
+
+    await user.click(screen.getByRole("button", { name: "createChannel" }));
+    await user.type(await screen.findByLabelText("nameLabel"), "日本");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("slugInvalid");
+    expect(screen.getByLabelText("slugLabel")).toHaveValue("");
   });
 });

@@ -15,7 +15,6 @@ import { signUpWithOrganization } from "./sign-up.ts";
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const PROJECT = "Harbor Relaunch";
-const CHANNEL_HANDLE = "harbor-crew";
 const CHANNEL = "Harbor Crew";
 
 const PROJECTS = [
@@ -108,8 +107,8 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         .waitFor();
       await page.getByRole("button", { name: "Create channel" }).click();
       await page
-        .getByRole("textbox", { name: "Handle" })
-        .pressSequentially(CHANNEL_HANDLE, { delay: 30 });
+        .getByRole("textbox", { name: "Name" })
+        .pressSequentially(CHANNEL, { delay: 30 });
       await page.getByRole("button", { name: "Next" }).click();
       await page.getByRole("button", { name: "Create" }).click();
       await page.waitForURL(/\/chat\/rooms\//);

@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   backToCreate,
   CHANNEL_NAME_MAX,
+  CHANNEL_SLUG_MAX,
   CHANNEL_TOPIC_MAX,
   canCreateChannel,
+  channelSlugFromName,
   createChannelSubmitFields,
   createInitialWizard,
+  editLink,
   remainingNameChars,
   remainingTopicChars,
   sanitizeChannelNameInput,
@@ -19,13 +22,12 @@ import {
 } from "./create-channel-wizard";
 
 describe("create-channel-wizard", () => {
-  it("createInitialWizard starts on create with an empty handle and public visibility", () => {
+  it("createInitialWizard starts on create with an empty name and link and public visibility", () => {
     expect(createInitialWizard()).toEqual({
       step: "create",
       slug: "",
       slugDirty: false,
       name: "",
-      nameDirty: false,
       topic: "",
       discoverability: "public",
     });
@@ -39,71 +41,80 @@ describe("create-channel-wizard", () => {
     ).toBe("a".repeat(CHANNEL_NAME_MAX));
   });
 
-  it("prefills name from the handle and follows until the name is edited", () => {
-    const handled = setSlug(createInitialWizard(), "team-soko");
-    expect(handled).toEqual({
+  it("channelSlugFromName makes a link from the name's letters and numbers", () => {
+    expect(channelSlugFromName("Launch plans")).toBe("launch-plans");
+    expect(channelSlugFromName("  Q1 OKRs!  ")).toBe("q1-okrs");
+    expect(channelSlugFromName("Café Zürich")).toBe("cafe-zurich");
+    expect(channelSlugFromName("Launch ")).toBe("launch");
+    expect(channelSlugFromName("日本語")).toBe("");
+    expect(channelSlugFromName("")).toBe("");
+  });
+
+  it("channelSlugFromName clamps to the link limit without a trailing hyphen", () => {
+    const name = `${"a".repeat(CHANNEL_SLUG_MAX - 1)} b`;
+    expect(channelSlugFromName(name)).toBe("a".repeat(CHANNEL_SLUG_MAX - 1));
+  });
+
+  it("derives the link from the name until the link is edited", () => {
+    const named = setName(createInitialWizard(), "Launch plans");
+    expect(named).toEqual({
       step: "create",
-      slug: "team-soko",
-      slugDirty: true,
-      name: "Team Soko",
-      nameDirty: false,
+      slug: "launch-plans",
+      slugDirty: false,
+      name: "Launch plans",
       topic: "",
       discoverability: "public",
     });
-    expect(setSlug(handled, "welcome")).toEqual({
-      step: "create",
-      slug: "welcome",
-      slugDirty: true,
-      name: "Welcome",
-      nameDirty: false,
-      topic: "",
-      discoverability: "public",
+    expect(setName(named, "Spring launch")).toMatchObject({
+      slug: "spring-launch",
+      slugDirty: false,
     });
   });
 
-  it("stops following the handle after the name is edited", () => {
-    const handled = setSlug(createInitialWizard(), "team-soko");
-    const custom = setName(handled, "Launch");
-    expect(custom).toEqual({
-      step: "create",
-      slug: "team-soko",
+  it("keeps an edited link when the name changes", () => {
+    const linked = setSlug(setName(createInitialWizard(), "Launch"), "go");
+    expect(linked).toMatchObject({
+      slug: "go",
       slugDirty: true,
       name: "Launch",
-      nameDirty: true,
-      topic: "",
-      discoverability: "public",
     });
-    expect(setSlug(custom, "welcome")).toEqual({
-      step: "create",
-      slug: "welcome",
+    expect(setName(linked, "Launch plans")).toMatchObject({
+      slug: "go",
       slugDirty: true,
-      name: "Launch",
-      nameDirty: true,
-      topic: "",
-      discoverability: "public",
+      name: "Launch plans",
     });
+  });
+
+  it("editLink stops following the name and keeps the current link", () => {
+    const named = setName(createInitialWizard(), "Launch plans");
+    expect(editLink(named)).toEqual({ ...named, slugDirty: true });
+    expect(setName(editLink(named), "Other")).toMatchObject({
+      slug: "launch-plans",
+      name: "Other",
+    });
+    const people = toAddPeople(named, "user-1");
+    expect(editLink(people)).toBe(people);
   });
 
   it("canCreateChannel requires a name, a sanitized slug, and free availability", () => {
     const empty = createInitialWizard();
+    const welcome = setName(empty, "Welcome");
     expect(canCreateChannel(empty, "free")).toBe(false);
-    expect(canCreateChannel(setSlug(empty, "welcome"), "free")).toBe(true);
-    expect(
-      canCreateChannel(setName(setSlug(empty, "welcome"), "   "), "free"),
-    ).toBe(false);
-    expect(canCreateChannel(setSlug(empty, "welcome"), "taken")).toBe(false);
-    expect(canCreateChannel(setSlug(empty, "welcome"), "unknown")).toBe(false);
-    expect(canCreateChannel(setSlug(empty, "welcome"), "error")).toBe(false);
-    expect(canCreateChannel(setSlug(empty, "---"), "invalid")).toBe(false);
+    expect(canCreateChannel(welcome, "free")).toBe(true);
+    expect(canCreateChannel(setName(welcome, "   "), "free")).toBe(false);
+    expect(canCreateChannel(welcome, "taken")).toBe(false);
+    expect(canCreateChannel(welcome, "unknown")).toBe(false);
+    expect(canCreateChannel(welcome, "error")).toBe(false);
+    expect(canCreateChannel(setName(empty, "日本語"), "invalid")).toBe(false);
+    expect(canCreateChannel(setSlug(welcome, "---"), "invalid")).toBe(false);
   });
 
-  it("live-sanitizes typed slug keystrokes", () => {
+  it("live-sanitizes typed link keystrokes and leaves the name alone", () => {
     expect(setSlug(createInitialWizard(), " Team Soko ")).toEqual({
       step: "create",
       slug: "team-soko-",
       slugDirty: true,
-      name: "Team Soko",
-      nameDirty: false,
+      name: "",
       topic: "",
       discoverability: "public",
     });
@@ -118,7 +129,7 @@ describe("create-channel-wizard", () => {
 
   it("createChannelSubmitFields sends form fields and roster only on add-people", () => {
     const details = setDiscoverability(
-      setTopic(setSlug(createInitialWizard(), "team-soko"), "Ship it"),
+      setTopic(setName(createInitialWizard(), "Team Soko"), "Ship it"),
       "private",
     );
     expect(
@@ -151,7 +162,7 @@ describe("create-channel-wizard", () => {
     expect(
       createChannelSubmitFields(
         toAddPeople(
-          setTopic(setSlug(createInitialWizard(), "welcome"), "  "),
+          setTopic(setName(createInitialWizard(), "Welcome"), "  "),
           "user-1",
         ),
         { memberUserIds: [], coworkerIds: [], sokoBotIds: [] },
@@ -174,7 +185,7 @@ describe("create-channel-wizard", () => {
   });
 
   it("setDiscoverability only applies on create", () => {
-    const create = setSlug(createInitialWizard(), "launch");
+    const create = setName(createInitialWizard(), "Launch");
     expect(setDiscoverability(create, "private")).toEqual({
       ...create,
       discoverability: "private",
@@ -189,13 +200,12 @@ describe("create-channel-wizard", () => {
   });
 
   it("toAddPeople keeps form fields and does not create a room", () => {
-    const create = setSlug(createInitialWizard(), "launch");
+    const create = setName(createInitialWizard(), "Launch");
     expect(toAddPeople(create, "user-1")).toEqual({
       step: "add-people",
       slug: "launch",
-      slugDirty: true,
+      slugDirty: false,
       name: "Launch",
-      nameDirty: false,
       topic: "",
       discoverability: "public",
       mode: "all",
@@ -208,17 +218,16 @@ describe("create-channel-wizard", () => {
     );
   });
 
-  it("backToCreate restores the form without dropping handle or name", () => {
+  it("backToCreate restores the form without dropping link or name", () => {
     const people = toAddPeople(
-      setSlug(createInitialWizard(), "launch"),
+      setName(createInitialWizard(), "Launch"),
       "user-1",
     );
     expect(backToCreate(people)).toEqual({
       step: "create",
       slug: "launch",
-      slugDirty: true,
+      slugDirty: false,
       name: "Launch",
-      nameDirty: false,
       topic: "",
       discoverability: "public",
     });
@@ -227,7 +236,7 @@ describe("create-channel-wizard", () => {
 
   it("setAddPeopleMode and setSpecificMembers update add-people only", () => {
     const addPeople = toAddPeople(
-      setSlug(createInitialWizard(), "launch"),
+      setName(createInitialWizard(), "Launch"),
       "user-1",
     );
     const specific = setAddPeopleMode(addPeople, "specific");
