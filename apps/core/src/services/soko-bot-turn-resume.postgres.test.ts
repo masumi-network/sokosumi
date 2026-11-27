@@ -1,6 +1,10 @@
 import "@hono/zod-openapi";
 
+import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import type { AddressInfo } from "node:net";
+import { fileURLToPath } from "node:url";
+import { serve } from "@hono/node-server";
 import { SOKO_BOT_TURN_TOKEN_HEADER } from "@sokosumi/soko-bot";
 import { Client } from "pg";
 import {
@@ -17,10 +21,15 @@ import { recordStatements } from "@/test/record-statements";
 import { onSplitLayout, testSchemaNames } from "@/test/split-layout";
 
 const flag = vi.hoisted(() => ({ on: false }));
-vi.mock("@/lib/network", async (original) => ({
-  ...(await original<typeof import("@/lib/network")>()),
-  isPreprodOn: () => flag.on,
-}));
+vi.mock("@/lib/network", async (original) => {
+  const network = await original<typeof import("@/lib/network")>();
+  return {
+    ...network,
+    isPreprodOn: () => flag.on,
+    requireNetworkOn: (value: unknown) =>
+      flag.on ? network.requireNetwork(value) : network.requireNetworkOn(value),
+  };
+});
 vi.mock("@/lib/ably/client", async () =>
   (await import("@/test/ably-client")).fakeAblyClientModule(),
 );
@@ -476,5 +485,440 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
         await operator.query("COMMIT");
       }
     },
+  );
+
+  it("keeps the Mainnet cron statement count with Preprod off", async () => {
+    flag.on = false;
+    onTestFinished(() => {
+      flag.on = onSplitLayout;
+    });
+    await control("paused", "8");
+    const { bot, turn } = await seed("mainnet", {
+      attached: true,
+      staleLease: true,
+    });
+    const reconcile = vi
+      .spyOn(controlPlane, "reconcileTurn")
+      .mockResolvedValue();
+    onTestFinished(() => reconcile.mockRestore());
+    const recorder = recordStatements();
+    try {
+      await expect(tick(bot.id)).resolves.toMatchObject({
+        claimed: 1,
+        reconciled: 1,
+      });
+    } finally {
+      recorder.restore();
+    }
+    expect(recorder.statements.flat()).not.toContain(keys[0]);
+    expect(recorder.statements.flat()).not.toContain(keys[1]);
+    expect(recorder.statements).toHaveLength(12);
+    expect(await loadTurn(turn.id)).toMatchObject({
+      network: "mainnet",
+      status: "RUNNING",
+      leaseToken: expect.not.stringMatching(/^fixture$/),
+    });
+  });
+
+  it.skipIf(!onSplitLayout).each(["off", "paused"] as const)(
+    "makes progress in all four Mainnet queues behind 20 %s Preprod turns",
+    async (state) => {
+      await control("paused", "7");
+      flag.on = state !== "off";
+      onTestFinished(() => {
+        flag.on = true;
+      });
+      const blocked = await seed("preprod");
+      const allowed = await seed("mainnet");
+      const queues = ["expiry", "cancellation", "recovery", "claim"] as const;
+      const rows = await prisma.sokoBotTurn.createManyAndReturn({
+        data: queues.flatMap((queue) =>
+          [blocked, allowed].flatMap(({ turn }, index) =>
+            Array.from({ length: index === 0 ? 20 : 1 }, () => ({
+              id: randomUUID(),
+              network: turn.network,
+              preprodGeneration: turn.preprodGeneration,
+              sokoBotId: turn.sokoBotId,
+              workspaceId: turn.workspaceId,
+              requestedByUserId: turn.requestedByUserId,
+              clientTurnId: randomUUID(),
+              userMessage: queue,
+              capabilityNames: [],
+              source: "CHAT" as const,
+              status:
+                queue === "recovery"
+                  ? ("STARTING" as const)
+                  : queue === "cancellation"
+                    ? ("CANCEL_REQUESTED" as const)
+                    : ("RUNNING" as const),
+              createdAt: new Date(index),
+              deadlineAt:
+                queue === "expiry" ? new Date(index) : turn.deadlineAt,
+              eveSessionId: queue === "claim" ? randomUUID() : null,
+              reconcilerHeartbeatAt: new Date(index),
+            })),
+          ),
+        ),
+      });
+      const mainnetIds = queues.map(
+        (queue) =>
+          rows.find(
+            (row) => row.userMessage === queue && row.network === "mainnet",
+          )?.id,
+      );
+      const expiry = vi
+        .spyOn(controlPlane, "expireTurn")
+        .mockResolvedValue(false);
+      const cancellation = vi
+        .spyOn(controlPlane, "settleUndeliverableCancellation")
+        .mockResolvedValue(false);
+      const recovery = vi
+        .spyOn(controlPlane, "recoverStartingTurn")
+        .mockResolvedValue(null);
+      const reconcile = vi
+        .spyOn(controlPlane, "reconcileTurn")
+        .mockResolvedValue();
+      onTestFinished(() => {
+        for (const spy of [expiry, cancellation, recovery, reconcile])
+          spy.mockRestore();
+      });
+
+      await cron.syncActiveTurns({
+        abortSignal: new AbortController().signal,
+        shouldContinue: () => true,
+        sokoBotIds: [blocked.bot.id, allowed.bot.id],
+      });
+
+      expect.soft(expiry).toHaveBeenCalledExactlyOnceWith(mainnetIds[0]);
+      expect.soft(cancellation).toHaveBeenCalledExactlyOnceWith(mainnetIds[1]);
+      expect.soft(recovery).toHaveBeenCalledExactlyOnceWith(mainnetIds[2]);
+      expect
+        .soft(reconcile)
+        .toHaveBeenCalledExactlyOnceWith(
+          mainnetIds[3],
+          expect.any(AbortSignal),
+          expect.any(String),
+        );
+      expect(
+        await prisma.sokoBotTurn.findMany({
+          where: { sokoBotId: blocked.bot.id, id: { not: blocked.turn.id } },
+          orderBy: { id: "asc" },
+        }),
+      ).toEqual(
+        rows
+          .filter((row) => row.network === "preprod")
+          .sort((a, b) => a.id.localeCompare(b.id)),
+      );
+    },
+  );
+
+  it.skipIf(onSplitLayout).each(["pause", "raise"] as const)(
+    "settles without charging when %s commits after expiry admission",
+    async (action) => {
+      flag.on = true;
+      onTestFinished(() => {
+        flag.on = false;
+      });
+      await control("open", "7");
+      const { turn, userId } = await seed("preprod", { expired: true });
+      const grant = await mainnet.networkDb.transaction.create({
+        data: { userId, amount: 100_000n * 10_000_000_000n },
+      });
+      await mainnet.networkDb.creditBucket.create({
+        data: { userId, amount: grant.amount, sourceTransactionId: grant.id },
+      });
+      const operator = new Client({
+        connectionString: process.env.DATABASE_URL,
+      });
+      await operator.connect();
+      onTestFinished(() => operator.end());
+      const transact = prisma.$transaction.bind(prisma);
+      const seam = vi
+        .spyOn(prisma, "$transaction")
+        .mockImplementationOnce((async (
+          ...args: Parameters<typeof transact>
+        ) => {
+          await operator.query(
+            'UPDATE public.sync_metadata SET "cursorId" = $1 WHERE "key" = $2',
+            action === "pause" ? ["paused", keys[0]] : ["8", keys[1]],
+          );
+          return transact(...args);
+        }) as typeof transact);
+      onTestFinished(() => seam.mockRestore());
+
+      await expect(controlPlane.expireTurn(turn.id)).resolves.toBe(true);
+      await Promise.all(background.splice(0));
+      expect
+        .soft(
+          await mainnet.networkDb.sokoBotUsage.count({
+            where: { referenceId: turn.id },
+          }),
+        )
+        .toBe(0);
+      expect
+        .soft(
+          await mainnet.networkDb.transaction.findMany({
+            where: { userId, amount: { lt: 0 } },
+            select: { amount: true },
+          }),
+        )
+        .toEqual([]);
+      expect(await loadTurn(turn.id)).toMatchObject({
+        status: "FAILED",
+        errorKind:
+          action === "raise"
+            ? "soko_bot_network_stale"
+            : "turn_deadline_exceeded",
+      });
+    },
+  );
+
+  it.skipIf(!onSplitLayout)(
+    "leaves the launch lease unchanged when completion is paused",
+    async () => {
+      await control("paused", "7");
+      const { turn, sessionId } = await seed("preprod", { attached: true });
+
+      await controlPlane.reconcileRuntimeCompletion(
+        turn.id,
+        sessionId,
+        "fixture",
+      );
+      expect(await loadTurn(turn.id)).toEqual(turn);
+    },
+  );
+
+  it.skipIf(!onSplitLayout)(
+    "does not clear another session when finishing a stale turn without one",
+    async () => {
+      const { bot, turn } = await seed("preprod");
+      const storedBot = await prisma.sokoBot.update({
+        where: { id: bot.id },
+        data: { eveSessionId: randomUUID(), status: "RUNNING" },
+      });
+      await expect(controlPlane.finishStaleTurn(turn.id)).resolves.toBe(true);
+      await Promise.all(background.splice(0));
+
+      expect(
+        await prisma.sokoBot.findUnique({ where: { id: bot.id } }),
+      ).toEqual(storedBot);
+      expect(
+        await prisma.sokoBotDelivery.count({ where: { turnId: turn.id } }),
+      ).toBe(0);
+    },
+  );
+
+  it.skipIf(!onSplitLayout)(
+    "leaves the in-process turn open when its authorization is paused",
+    async () => {
+      await control("paused", "7");
+      const { turn, sessionId, userId, workspaceId, bot } = await seed(
+        "preprod",
+        {
+          attached: true,
+        },
+      );
+      const { InProcessSokoBotRuntime } = await import(
+        "@/lib/soko-bot/in-process-runtime"
+      );
+      await new InProcessSokoBotRuntime().createSession({
+        sessionId,
+        turnId: turn.id,
+        reconciliationLeaseToken: "fixture",
+        sokoBotId: bot.id,
+        userId,
+        workspaceId,
+        message: turn.userMessage,
+      });
+      await Promise.all(background.splice(0));
+      expect(await loadTurn(turn.id)).toEqual(turn);
+      expect(
+        await prisma.sokoBotRuntimeEvent.count({
+          where: {
+            turnId: turn.id,
+            type: { in: ["turn.failed", "session.waiting"] },
+          },
+        }),
+      ).toBe(0);
+    },
+  );
+
+  async function runRunner(
+    turnId: string,
+    sessionId: string,
+    options?: {
+      respond?: (path: string) => Promise<Response | undefined>;
+      shortCallbackTimeout?: boolean;
+    },
+  ) {
+    const token = issueToken({
+      turnId,
+      sessionId,
+      reconciliationLeaseToken: "fixture",
+      expiresAt: Date.now() + 60_000,
+    });
+    const paths: string[] = [];
+    const prefix = `/v1/soko-bot-runtime/turns/${turnId}`;
+    const server = serve({
+      port: 0,
+      hostname: "127.0.0.1",
+      async fetch(request) {
+        const path = new URL(request.url).pathname.slice(prefix.length);
+        paths.push(path);
+        if (path === "/start")
+          return Response.json({
+            system: "Answer the user",
+            message: "Hello",
+            model: "google/gemini-3.6-flash",
+            capabilities: [],
+            deadlineAt: new Date(Date.now() + 60_000).toISOString(),
+            maxSteps: 1,
+          });
+        return (
+          (await options?.respond?.(path)) ??
+          routes.fetch(
+            new Request(`http://localhost/turns/${turnId}${path}`, {
+              method: request.method,
+              body: await request.text(),
+              headers: {
+                ...Object.fromEntries(request.headers),
+                [SOKO_BOT_TURN_TOKEN_HEADER]: token,
+              },
+            }),
+          )
+        );
+      },
+    });
+    await new Promise<void>((resolve) => server.once("listening", resolve));
+    onTestFinished(() => {
+      server.close();
+    });
+    const preload = Buffer.from(`
+      const timeout = AbortSignal.timeout.bind(AbortSignal);
+      AbortSignal.timeout = (ms) => timeout(ms === 120_000 ? 500 : ms);
+    `).toString("base64");
+    const result = await new Promise<{ code: number | null; output: string }>(
+      (resolve, reject) => {
+        const child = spawn(
+          process.execPath,
+          [
+            fileURLToPath(
+              new URL("../../node_modules/tsx/dist/cli.mjs", import.meta.url),
+            ),
+            fileURLToPath(
+              new URL("../soko-bot-runner/index.ts", import.meta.url),
+            ),
+          ],
+          {
+            env: {
+              PATH: process.env.PATH,
+              ...(options?.shortCallbackTimeout
+                ? {
+                    NODE_OPTIONS: `--import=data:text/javascript;base64,${preload}`,
+                  }
+                : {}),
+              SOKO_BOT_CORE_URL: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
+              SOKO_BOT_TURN_ID: turnId,
+            },
+            stdio: ["ignore", "ignore", "pipe"],
+          },
+        );
+        let output = "";
+        child.stderr.on("data", (chunk) => {
+          output += chunk;
+        });
+        child.on("error", reject);
+        child.on("close", (code) => resolve({ code, output }));
+        onTestFinished(() => {
+          if (child.exitCode === null) child.kill();
+        });
+      },
+    );
+    return { ...result, paths };
+  }
+
+  it.skipIf(!onSplitLayout)(
+    "stops the runner on a model gateway Preprod off refusal",
+    async () => {
+      flag.on = false;
+      onTestFinished(() => {
+        flag.on = true;
+      });
+      const { turn, sessionId } = await seed("preprod", { attached: true });
+
+      const result = await runRunner(turn.id, sessionId);
+
+      expect(result.paths).toEqual(["/start", "/gateway/language-model"]);
+      expect(result.code, result.output).toBe(0);
+      expect(await loadTurn(turn.id)).toEqual(turn);
+    },
+    30_000,
+  );
+
+  it.skipIf(onSplitLayout)(
+    "leaves the turn for reconciliation when the runner outwaits its Preprod retry budget",
+    async () => {
+      flag.on = true;
+      onTestFinished(() => {
+        flag.on = false;
+      });
+      await control("open", "7");
+      const { turn, sessionId, userId } = await seed("preprod", {
+        attached: true,
+      });
+      const grant = await mainnet.networkDb.transaction.create({
+        data: { userId, amount: 100_000n * 10_000_000_000n },
+      });
+      await mainnet.networkDb.creditBucket.create({
+        data: { userId, amount: grant.amount, sourceTransactionId: grant.id },
+      });
+      const setPause = (paused: boolean) =>
+        prisma.syncMetadata.update({
+          where: { key: keys[0] },
+          data: { cursorId: paused ? "paused" : "open" },
+        });
+      const result = await runRunner(turn.id, sessionId, {
+        shortCallbackTimeout: true,
+        async respond(path) {
+          if (path === "/gateway/language-model") {
+            return new Response(
+              [
+                { type: "text-start", id: "test" },
+                { type: "text-delta", id: "test", delta: "Answer" },
+                { type: "text-end", id: "test" },
+                {
+                  type: "finish",
+                  finishReason: { unified: "stop", raw: "stop" },
+                  usage: {
+                    inputTokens: { total: 10 },
+                    outputTokens: { total: 3 },
+                  },
+                },
+              ]
+                .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+                .join(""),
+              { headers: { "content-type": "text/event-stream" } },
+            );
+          }
+          if (path === "/complete") await setPause(true);
+          if (path === "/fail") await setPause(false);
+        },
+      });
+      await Promise.all(background.splice(0));
+
+      expect
+        .soft(
+          await mainnet.networkDb.sokoBotUsage.count({
+            where: { referenceId: turn.id },
+          }),
+        )
+        .toBe(0);
+      expect
+        .soft(result.paths)
+        .toEqual(["/start", "/gateway/language-model", "/complete"]);
+      expect(result.code, result.output).toBe(0);
+      expect(await loadTurn(turn.id)).toEqual(turn);
+    },
+    30_000,
   );
 });

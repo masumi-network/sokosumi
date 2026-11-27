@@ -133,6 +133,14 @@ const base = `${coreUrl}/v1/soko-bot-runtime/turns/${turnId}`;
 /** Aborted as soon as Core says the turn is no longer active. */
 const stopped = new AbortController();
 
+function stopsTurn(kind: string | undefined): boolean {
+  return (
+    kind === CORE_API_ERROR_KINDS.SOKO_BOT_TURN_INACTIVE ||
+    kind === CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE ||
+    kind === CORE_API_ERROR_KINDS.PREPROD_OFF
+  );
+}
+
 /**
  * Only a 409 Core marks as the turn's end stops the loop; any other 409, such
  * as a tool's write that lost a race, is that call's failure. Model calls
@@ -142,12 +150,7 @@ const stopped = new AbortController();
  */
 function isInactive(error: unknown): boolean {
   if (stopped.signal.aborted) return true;
-  if (error instanceof CoreRejected)
-    return (
-      error.kind === CORE_API_ERROR_KINDS.SOKO_BOT_TURN_INACTIVE ||
-      error.kind === CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE ||
-      error.kind === CORE_API_ERROR_KINDS.PREPROD_OFF
-    );
+  if (error instanceof CoreRejected) return stopsTurn(error.kind);
   return (error as { statusCode?: unknown } | null)?.statusCode === 409;
 }
 
@@ -163,24 +166,37 @@ const authHeaders: Record<string, string> = localToken
 
 /** Retry only a refusal that Core returned before the callback acted. */
 async function fetchCore(input: RequestInfo | URL, init: RequestInit) {
-  for (;;) {
-    const response = await fetch(
-      input instanceof Request ? input.clone() : input,
-      init,
-    );
-    if (response.status !== 503) return response;
-    const error: { kind?: string } | null = await response
-      .clone()
-      .json()
-      .catch(() => ({}));
-    if (
-      error?.kind !== CORE_API_ERROR_KINDS.PREPROD_PAUSED &&
-      error?.kind !== CORE_API_ERROR_KINDS.PREPROD_CONTROL_UNAVAILABLE
-    ) {
-      return response;
+  let waitingForPreprod = false;
+  try {
+    for (;;) {
+      const response = await fetch(
+        input instanceof Request ? input.clone() : input,
+        init,
+      );
+      const { status } = response;
+      if (status !== 403 && status !== 409 && status !== 503) return response;
+      const error: { kind?: string } | null = await response
+        .clone()
+        .json()
+        .catch(() => ({}));
+      if ((status === 403 || status === 409) && stopsTurn(error?.kind)) {
+        stopped.abort();
+      }
+      if (
+        status !== 503 ||
+        (error?.kind !== CORE_API_ERROR_KINDS.PREPROD_PAUSED &&
+          error?.kind !== CORE_API_ERROR_KINDS.PREPROD_CONTROL_UNAVAILABLE)
+      ) {
+        return response;
+      }
+      waitingForPreprod = true;
+      await response.body?.cancel();
+      await sleep(2_000, undefined, { signal: init.signal ?? undefined });
     }
-    await response.body?.cancel();
-    await sleep(2_000, undefined, { signal: init.signal ?? undefined });
+  } catch (error) {
+    // A refusal that outlasted the callback leaves the turn for reconciliation.
+    if (waitingForPreprod && init.signal?.aborted) stopped.abort();
+    throw error;
   }
 }
 
@@ -200,7 +216,8 @@ const modelFetch: typeof fetch = (input, init) =>
 
 /** POSTs to this turn's Core endpoint; Core says when the turn is over. */
 async function callCore<T>(route: string, body: unknown): Promise<T> {
-  const response = await fetchCore(`${base}${route}`, {
+  const send = route === "/fail" ? fetch : fetchCore;
+  const response = await send(`${base}${route}`, {
     method: "POST",
     headers: { "content-type": "application/json", ...authHeaders },
     body: JSON.stringify(body ?? {}),
@@ -502,6 +519,7 @@ async function main(): Promise<void> {
   try {
     start = await callCore<TurnStart>("/start", {});
   } catch (error) {
+    if (isInactive(error)) process.exit(0);
     // On the sandbox's stdout, which nothing reads (no NODE_ENV there, so
     // evlog prints it pretty); the supervisor's failure report carries the
     // diagnostic to Core instead.

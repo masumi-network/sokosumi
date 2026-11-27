@@ -1777,11 +1777,13 @@ export class SokoBotControlPlane {
       userId: string | null;
       clientTurnId: string | null;
     } | null = null;
+    let deliver = false;
 
     return serializableTransaction(async (tx) => {
       chargedWallet = null;
       chargedCusoProjectId = null;
       cmoTurnEnded = null;
+      deliver = false;
       const turn = await tx.sokoBotTurn.findUnique({
         where: {
           id: input.turnId,
@@ -1801,6 +1803,8 @@ export class SokoBotControlPlane {
           costUsdMicros: true,
           usage: true,
           status: true,
+          network: true,
+          preprodGeneration: true,
           finalAnswer: true,
           responseContract: true,
           capabilityNames: true,
@@ -1826,7 +1830,18 @@ export class SokoBotControlPlane {
       if (input.leaseToken && turn.leaseToken !== input.leaseToken)
         return false;
 
-      const usageCharge = input.stalePreprod
+      let stalePreprod = input.stalePreprod === true;
+      let canCharge = !stalePreprod;
+      if (canCharge && turn.network === "preprod") {
+        try {
+          await detachedNetworkScope(turn, tx);
+        } catch (error) {
+          if (!(error instanceof DetachedNetworkRefusal)) throw error;
+          canCharge = false;
+          stalePreprod = error.final;
+        }
+      }
+      const usageCharge = !canCharge
         ? null
         : await recordSokoBotTurnUsage(
             {
@@ -1869,24 +1884,31 @@ export class SokoBotControlPlane {
         turn.cancellationRequestedAt !== null &&
         (input.providerCompletedAt === undefined ||
           input.providerCompletedAt >= turn.cancellationRequestedAt);
-      const settledStatus: TerminalSokoBotTurnStatus =
-        completionLostToCancellation ? "CANCELLED" : input.status;
+      const settledStatus: TerminalSokoBotTurnStatus = stalePreprod
+        ? "FAILED"
+        : completionLostToCancellation
+          ? "CANCELLED"
+          : input.status;
       const budgetExceeded =
         settledStatus === "FAILED" &&
         runtimeFailureCode({
           code: input.errorKind,
           message: input.errorDetail,
         }) === AI_BUDGET_EXCEEDED;
-      const errorKind = budgetExceeded
-        ? AI_BUDGET_EXCEEDED
-        : usageCharge?.shortfall
-          ? "insufficient_credits"
-          : safeRuntimeDiagnostic(input.errorKind, 120);
-      const errorDetail = budgetExceeded
-        ? AI_BUDGET_EXCEEDED_MESSAGE
-        : usageCharge?.shortfall
-          ? "Available credits were exhausted while settling this Soko Bot turn"
-          : safeRuntimeDiagnostic(input.errorDetail);
+      const errorKind = stalePreprod
+        ? CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE
+        : budgetExceeded
+          ? AI_BUDGET_EXCEEDED
+          : usageCharge?.shortfall
+            ? "insufficient_credits"
+            : safeRuntimeDiagnostic(input.errorKind, 120);
+      const errorDetail = stalePreprod
+        ? null
+        : budgetExceeded
+          ? AI_BUDGET_EXCEEDED_MESSAGE
+          : usageCharge?.shortfall
+            ? "Available credits were exhausted while settling this Soko Bot turn"
+            : safeRuntimeDiagnostic(input.errorDetail);
 
       const responseContract =
         settledStatus === "COMPLETED"
@@ -1932,7 +1954,7 @@ export class SokoBotControlPlane {
       // a production run ends, the month's next one. A turn the owner
       // stopped starts nothing.
       if (
-        !input.stalePreprod &&
+        !stalePreprod &&
         settledStatus !== "CANCELLED" &&
         (turn.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX) ||
           turn.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX) ||
@@ -1947,7 +1969,7 @@ export class SokoBotControlPlane {
           clientTurnId: turn.clientTurnId,
         };
       }
-      const outcome = input.stalePreprod
+      const outcome = stalePreprod
         ? null
         : await assessSokoBotIntentOutcome(tx, input.turnId);
       const outcomeSummary = sokoBotOutcomeSummary(outcome);
@@ -1963,35 +1985,41 @@ export class SokoBotControlPlane {
       }
       if (settledStatus === "COMPLETED")
         await prepareTurnActionResultPreviews(input.turnId, turn, tx);
-      await enqueueSokoBotDelivery(tx, input.turnId);
+      if (!stalePreprod) {
+        await enqueueSokoBotDelivery(tx, input.turnId);
+        deliver = true;
+      }
 
       // A background run never held the chat's status or session.
-      if (!turn.parentTurnId)
+      const clearSession = stalePreprod || input.clearSession;
+      if (!turn.parentTurnId && (!stalePreprod || turn.eveSessionId))
         await tx.sokoBot.updateMany({
           where: {
             id: turn.sokoBotId,
             archivedAt: null,
             adminPausedAt: null,
             status: { not: "PAUSED" },
-            ...(input.clearSession && turn.eveSessionId
+            ...(clearSession && turn.eveSessionId
               ? { eveSessionId: turn.eveSessionId }
               : {}),
           },
           data: {
-            ...(input.clearSession ? { eveSessionId: null } : {}),
-            ...(settledStatus === "FAILED"
-              ? {
-                  status: "ERROR",
-                  lastFailedAt: now,
-                  consecutiveTurnFailures: { increment: 1 },
-                }
-              : settledStatus === "COMPLETED"
+            ...(clearSession ? { eveSessionId: null } : {}),
+            ...(stalePreprod
+              ? { status: "IDLE" }
+              : settledStatus === "FAILED"
                 ? {
-                    status: "IDLE",
-                    lastSucceededAt: now,
-                    consecutiveTurnFailures: 0,
+                    status: "ERROR",
+                    lastFailedAt: now,
+                    consecutiveTurnFailures: { increment: 1 },
                   }
-                : { status: "IDLE" }),
+                : settledStatus === "COMPLETED"
+                  ? {
+                      status: "IDLE",
+                      lastSucceededAt: now,
+                      consecutiveTurnFailures: 0,
+                    }
+                  : { status: "IDLE" }),
           },
         });
 
@@ -2024,7 +2052,7 @@ export class SokoBotControlPlane {
           if (completed) {
             await recordCompletedScheduleRun(tx, scheduleRun.scheduleId, now);
           } else if (
-            !input.stalePreprod &&
+            !stalePreprod &&
             !isPlatformTurnFailure(errorKind ?? null)
           ) {
             await tx.sokoBotSchedule.update({
@@ -2078,29 +2106,30 @@ export class SokoBotControlPlane {
               logSokoBotRouteOutcome(input.turnId).catch(() => undefined),
             ),
           );
-          waitUntil(
-            runAsBackgroundWork(() =>
-              import("@/services/soko-bot-delivery.service")
-                .then(({ deliverSokoBotTurnOutbox }) =>
-                  deliverSokoBotTurnOutbox(input.turnId),
-                )
-                .catch((error) => {
-                  emitCoreWarning(
-                    TURN_LOG,
-                    {
-                      message:
-                        "Could not deliver a settled Soko Bot turn right away",
-                      why: "The inline delivery threw",
-                      fix: "Nothing to do: the delivery outbox keeps it and the soko-bot-turns sync delivers it.",
-                    },
-                    {
-                      turn: { id: input.turnId },
-                      failure: messageSafeErrorFields(error),
-                    },
-                  );
-                }),
-            ),
-          );
+          if (deliver)
+            waitUntil(
+              runAsBackgroundWork(() =>
+                import("@/services/soko-bot-delivery.service")
+                  .then(({ deliverSokoBotTurnOutbox }) =>
+                    deliverSokoBotTurnOutbox(input.turnId),
+                  )
+                  .catch((error) => {
+                    emitCoreWarning(
+                      TURN_LOG,
+                      {
+                        message:
+                          "Could not deliver a settled Soko Bot turn right away",
+                        why: "The inline delivery threw",
+                        fix: "Nothing to do: the delivery outbox keeps it and the soko-bot-turns sync delivers it.",
+                      },
+                      {
+                        turn: { id: input.turnId },
+                        failure: messageSafeErrorFields(error),
+                      },
+                    );
+                  }),
+              ),
+            );
         }
         return settled;
       },
@@ -3587,27 +3616,37 @@ export class SokoBotControlPlane {
     launchLeaseToken: string,
   ): Promise<void> {
     const leaseToken = randomUUID();
-    const updated = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`
-        SELECT "id" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${turnId}::uuid
+    const updated = await prisma
+      .$transaction(async (tx) => {
+        const [turn] = await tx.$queryRaw<
+          { network: string | null; preprodGeneration: number | null }[]
+        >`
+        SELECT "network", "preprodGeneration" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${turnId}::uuid
         FOR NO KEY UPDATE
       `;
-      const now = await databaseNow(tx);
-      // Close can take its own launch grant or a drain that stopped renewing.
-      return tx.sokoBotTurn.updateMany({
-        where: {
-          id: turnId,
-          status: { in: ["STARTING", "RUNNING", "CANCEL_REQUESTED"] },
-          eveSessionId: sessionId,
-          OR: [{ leaseToken: launchLeaseToken }, staleTurnLeaseWhere(now)],
-        },
-        data: {
-          leaseToken,
-          leaseExpiresAt: new Date(now.getTime() + TURN_LEASE_MS),
-          reconcilerHeartbeatAt: now,
-        },
+        if (turn) await detachedNetworkScope(turn, tx);
+        const now = await databaseNow(tx);
+        // Close can take its own launch grant or a drain that stopped renewing.
+        return tx.sokoBotTurn.updateMany({
+          where: {
+            id: turnId,
+            status: { in: ["STARTING", "RUNNING", "CANCEL_REQUESTED"] },
+            eveSessionId: sessionId,
+            OR: [{ leaseToken: launchLeaseToken }, staleTurnLeaseWhere(now)],
+          },
+          data: {
+            leaseToken,
+            leaseExpiresAt: new Date(now.getTime() + TURN_LEASE_MS),
+            reconcilerHeartbeatAt: now,
+          },
+        });
+      })
+      .catch(async (error: unknown) => {
+        if (!(error instanceof DetachedNetworkRefusal)) throw error;
+        if (error.final) await this.finishStaleTurn(turnId);
+        return null;
       });
-    });
+    if (!updated) return;
     if (!updated.count) {
       throw new SokoBotReconciliationLeaseLostError(
         "Soko Bot runtime completion did not win the lease",
