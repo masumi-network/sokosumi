@@ -675,7 +675,7 @@ describe.skipIf(!enabled)("Preprod access", () => {
   it("migrates without a rewrite, twice, under inserts of the previous release", async () => {
     const migration = readFileSync(
       new URL(
-        "../../../../../../packages/database/prisma/migrations/20261127001627_preprod_access_flag/migration.sql",
+        "../../../../../../packages/database/prisma/migrations/20261127063336_preprod_access_flag/migration.sql",
         import.meta.url,
       ),
       "utf8",
