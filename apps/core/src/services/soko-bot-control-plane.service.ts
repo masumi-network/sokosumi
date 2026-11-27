@@ -45,6 +45,7 @@ import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
+import { isAuthenticatedCmoProjectOwner } from "@/helpers/cmo-project-owner";
 import { notifyCusoLowCreditsAfterCharge } from "@/helpers/cuso-low-credit-notification";
 import {
   forfeitCusoProjectCredits,
@@ -2796,6 +2797,25 @@ export class SokoBotControlPlane {
           },
         })
       : null;
+    const isFlaggedCmoBot =
+      isSharedSokoBot(bot) &&
+      bot.projectId !== null &&
+      version.profile === "cmo" &&
+      version.cmoOwnerAudience === true;
+    const speakerUserId = input.chat?.askedByUserId ?? input.userId;
+    const cmoProjectOwner =
+      isFlaggedCmoBot &&
+      source === "CHAT" &&
+      !input.chat?.askedByBot &&
+      (input.chat?.chainDepth ?? 0) === 0
+        ? await isAuthenticatedCmoProjectOwner({
+            bot,
+            version,
+            userId: speakerUserId,
+            askedByBot: input.chat?.askedByBot,
+            chainDepth: input.chat?.chainDepth,
+          })
+        : false;
     // A mute or standing instruction the owner typed is saved before the turn
     // reads memory, whether or not the model would have thought to.
     const capturedPreference =
@@ -2827,6 +2847,7 @@ export class SokoBotControlPlane {
       userId: input.userId,
       sokoBotId: bot.id,
       sharedScope: sokoBotSharedScopeOf(bot),
+      ...(cmoProjectOwner ? { cmoProjectOwner: true } : {}),
       workspaceId: input.workspaceId,
       source: input.source ?? "CHAT",
       clientTurnId,

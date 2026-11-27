@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   findMember,
+  findOrgMember,
   findTurn,
   findMentionTurn,
   releaseMention,
@@ -19,6 +20,7 @@ const {
   TurnInProgress,
 } = vi.hoisted(() => ({
   findMember: vi.fn(),
+  findOrgMember: vi.fn(),
   findTurn: vi.fn(),
   findMentionTurn: vi.fn(),
   releaseMention: vi.fn(),
@@ -35,9 +37,24 @@ const {
   reconcileTurn: vi.fn(),
   TurnInProgress: class extends Error {},
 }));
+vi.mock("@sokosumi/soko-bot", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sokosumi/soko-bot")>();
+  return {
+    ...actual,
+    getSokoBotVersion: (versionId?: string | null) =>
+      versionId === "cmo-owner-flag-test"
+        ? {
+            ...actual.getSokoBotVersion("cmo-v25"),
+            id: "cmo-owner-flag-test",
+            cmoOwnerAudience: true as const,
+          }
+        : actual.getSokoBotVersion(versionId),
+  };
+});
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     chatRoomSokoBotMember: { findUnique: findMember },
+    member: { findFirst: findOrgMember },
     sokoBotTurn: {
       findFirst: findTurn,
       findMany: findMentionTurn,
@@ -338,6 +355,127 @@ describe("a shared Soko Bot mention", () => {
     // The id names the mentioned bot itself, not just its owner.
     expect(turn.sokoBotId).toBe(base.mention.sokoBot.id);
     expect(turn.message).toMatch(/^Ben \(a teammate, not your owner\) asked:/);
+  });
+
+  it("drops the teammate wrapper for an authenticated CMO project owner on a flagged CMO version and keeps it for a second member or unflagged control", async () => {
+    const cmoInput = (overrides: {
+      senderId: string;
+      senderName: string;
+      versionId: string;
+      organizationId?: string | null;
+      askedByBot?: boolean;
+      chainDepth?: number;
+    }) => {
+      const base = sharedInput(
+        overrides.organizationId === undefined
+          ? "org-a"
+          : overrides.organizationId,
+      );
+      return {
+        ...base,
+        mention: {
+          ...base.mention,
+          message: {
+            ...base.mention.message,
+            senderUser: overrides.askedByBot
+              ? null
+              : { id: overrides.senderId, name: overrides.senderName },
+            room: {
+              ...base.mention.message.room,
+              name: "Cuso",
+            },
+          },
+          sokoBot: {
+            ...base.mention.sokoBot,
+            id: "bot-cuso",
+            userId: null,
+            projectId: "proj-cuso",
+            createdByUserId: "owner-1",
+            versionId: overrides.versionId,
+          },
+          sokoBotId: "bot-cuso",
+        },
+        userId: overrides.senderId,
+        askedByBot: overrides.askedByBot ?? false,
+        chainDepth: overrides.chainDepth ?? 0,
+      };
+    };
+
+    // 1. Authenticated CMO project owner on flagged version -> no teammate wrapper.
+    findOrgMember.mockResolvedValueOnce({ role: "owner" });
+    await runSokoBotMentionDispatch(
+      cmoInput({
+        senderId: "owner-1",
+        senderName: "Robin Keller",
+        versionId: "cmo-owner-flag-test",
+      }),
+    );
+    const [ownerTurn] = startTurn.mock.calls[0];
+    expect(ownerTurn).toMatchObject({
+      userId: "owner-1",
+      sokoBotId: "bot-cuso",
+      chat: expect.objectContaining({ askedByUserId: "owner-1" }),
+    });
+    expect(ownerTurn.message).not.toContain("(a member of the team) asked:");
+    expect(ownerTurn.message).toContain("Robin Keller mentioned you in #Cuso:");
+
+    // 2. Second workspace member on the same flagged CMO version -> keeps teammate wrapper.
+    findOrgMember.mockResolvedValueOnce({ role: "member" });
+    await runSokoBotMentionDispatch(
+      cmoInput({
+        senderId: "member-2",
+        senderName: "Hannah Weber",
+        versionId: "cmo-owner-flag-test",
+      }),
+    );
+    const [teammateTurn] = startTurn.mock.calls[1];
+    expect(teammateTurn.message).toMatch(
+      /^Hannah Weber \(a member of the team\) asked:/,
+    );
+
+    // 3. Flag-off control CMO version -> owner keeps teammate wrapper byte-identical.
+    await runSokoBotMentionDispatch(
+      cmoInput({
+        senderId: "owner-1",
+        senderName: "Robin Keller",
+        versionId: "cmo-v25",
+      }),
+    );
+    const [controlTurn] = startTurn.mock.calls[2];
+    expect(controlTurn.message).toMatch(
+      /^Robin Keller \(a member of the team\) asked:/,
+    );
+
+    // 4. Bot-to-bot mention attributed to owner -> stays non-owner.
+    await runSokoBotMentionDispatch(
+      cmoInput({
+        senderId: "owner-1",
+        senderName: "Robin Keller",
+        versionId: "cmo-owner-flag-test",
+        askedByBot: true,
+        chainDepth: 1,
+      }),
+    );
+    const [botTurn] = startTurn.mock.calls[3];
+    expect(botTurn.message).toMatch(
+      /^A teammate \(a member of the team\) asked:/,
+    );
+
+    // 5. Non-org room stays refused even for a flagged CMO owner.
+    startTurn.mockClear();
+    fail.mockClear();
+    await runSokoBotMentionDispatch(
+      cmoInput({
+        senderId: "owner-1",
+        senderName: "Robin Keller",
+        versionId: "cmo-owner-flag-test",
+        organizationId: null,
+      }),
+    );
+    expect(fail).toHaveBeenCalledWith(
+      "Only the owner can message this assistant here",
+    );
+    expect(startTurn).not.toHaveBeenCalled();
   });
 });
 

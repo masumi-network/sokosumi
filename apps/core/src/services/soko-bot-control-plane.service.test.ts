@@ -2764,6 +2764,171 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
   });
 
+  it("passes cmoProjectOwner only for an authenticated CMO project owner on a flagged CMO version, keeping teammates and flag-off controls as TEAMMATE", async () => {
+    const versionService = await import("@/services/soko-bot-version.service");
+    const { getSokoBotVersion } = await import("@sokosumi/soko-bot");
+    const flaggedVersion = {
+      ...getSokoBotVersion("cmo-v25"),
+      id: "cmo-v25-owner-flag",
+      cmoOwnerAudience: true as const,
+    };
+    const resolveSpy = vi
+      .spyOn(versionService, "resolveRunnableSokoBotVersion")
+      .mockImplementation(async (versionId) =>
+        versionId === "cmo-v25-owner-flag"
+          ? flaggedVersion
+          : getSokoBotVersion(versionId),
+      );
+    try {
+      const sharedCmoBot = (versionId: string) => ({
+        ...adminBot({ versionId }),
+        id: "bot_cuso",
+        userId: null,
+        projectId: "proj_cuso",
+        createdByUserId: "user_founder",
+        workspace: { organizationId: "org_1" },
+      });
+      const runTurn = async (params: {
+        versionId: string;
+        speakerId: string;
+        memberRole: string | null;
+        source?: "CHAT" | "SCHEDULE";
+      }) => {
+        const bot = sharedCmoBot(params.versionId);
+        botFindFirstMock.mockResolvedValue(bot);
+        botFindUniqueMock.mockResolvedValue(bot);
+        turnFindUniqueMock.mockResolvedValue(null);
+        turnFindFirstMock.mockResolvedValue(null);
+        workspaceFindFirstMock.mockResolvedValue({ id: "workspace_1" });
+        memberFindFirstMock.mockReset();
+        memberFindFirstMock.mockResolvedValue(
+          params.memberRole ? { role: params.memberRole } : null,
+        );
+        capturePreferenceMock.mockClear();
+        jevEvaluate.mockResolvedValue(
+          jevRoute("MANAGE_WORK", {
+            writeScope: "WORK",
+            signals: { statesPreference: 0.95 },
+          }),
+        );
+        turnCreateMock.mockResolvedValue({
+          id: `turn_${params.speakerId}_${params.versionId}`,
+          leaseToken: "turn_lease",
+        });
+        const runtime = runtimeWithReset(vi.fn());
+        runtime.createSession = vi.fn().mockResolvedValue({
+          sessionId: "session_cmo",
+          runtimeVersion: "eve-test",
+          acceptedAt: "2026-08-18T12:00:00.000Z",
+        });
+        const contextBuilder = {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder;
+        await new SokoBotControlPlane(
+          runtime,
+          contextBuilder,
+          new JevTurnClassifier(),
+        ).startTurn({
+          network: "mainnet",
+          sokoBotId: "bot_cuso",
+          userId: params.speakerId,
+          workspaceId: "workspace_1",
+          clientTurnId: `client-${params.speakerId}-${params.versionId}-${params.source ?? "CHAT"}`,
+          message: "From now on no posts on Fridays",
+          source: params.source ?? "CHAT",
+          ...(params.source === "SCHEDULE"
+            ? {
+                scheduleReservation: {
+                  runId: "run_1",
+                  attempt: 1,
+                  leaseToken: "lease_1",
+                },
+              }
+            : {
+                chat: {
+                  mentionId: "mention_1",
+                  responseMessageId: "message_1",
+                  askedByUserId: params.speakerId,
+                },
+              }),
+        });
+        return {
+          buildArg: (contextBuilder.build as ReturnType<typeof vi.fn>).mock
+            .calls[0]?.[0],
+        };
+      };
+
+      // 1. Authenticated CMO project owner on flagged version -> cmoProjectOwner: true & captures preference.
+      const ownerRes = await runTurn({
+        versionId: "cmo-v25-owner-flag",
+        speakerId: "user_founder",
+        memberRole: "owner",
+      });
+      expect(ownerRes.buildArg).toMatchObject({
+        cmoProjectOwner: true,
+        askedByKind: "OWNER",
+        askedByUserId: "user_founder",
+      });
+      expect(capturePreferenceMock).toHaveBeenCalledTimes(1);
+
+      // 2. An active org admin who did not hire Cuso keeps standing brand preference capture
+      // on both control and owner-framed versions (ADR 0061) while speaker framing stays TEAMMATE.
+      for (const versionId of ["cmo-v25", "cmo-v25-owner-flag"]) {
+        const adminRes = await runTurn({
+          versionId,
+          speakerId: "user_admin",
+          memberRole: "admin",
+        });
+        expect(adminRes.buildArg.cmoProjectOwner).toBeUndefined();
+        expect(capturePreferenceMock).toHaveBeenCalledTimes(1);
+      }
+
+      // 3. Second workspace member (ordinary MEMBER, not hirer) on same flagged version ->
+      // speaker framing stays TEAMMATE while shared brand preference capture remains intact.
+      const teammateRes = await runTurn({
+        versionId: "cmo-v25-owner-flag",
+        speakerId: "user_hannah",
+        memberRole: "member",
+      });
+      expect(teammateRes.buildArg.cmoProjectOwner).toBeUndefined();
+      expect(capturePreferenceMock).toHaveBeenCalledTimes(1);
+
+      // 3. Flag-off control CMO version -> cmoProjectOwner absent, zero member query.
+      const controlRes = await runTurn({
+        versionId: "cmo-v25",
+        speakerId: "user_founder",
+        memberRole: "owner",
+      });
+      expect(controlRes.buildArg.cmoProjectOwner).toBeUndefined();
+      expect(memberFindFirstMock).not.toHaveBeenCalled();
+
+      // 4. Self-started SCHEDULE turn on flagged version -> cmoProjectOwner absent.
+      const db = (await import("@/lib/db/prisma")).default as unknown as Record<
+        string,
+        unknown
+      >;
+      const priorRoomMember = db.chatRoomUserMember;
+      db.chatRoomUserMember = {
+        findUnique: vi.fn().mockResolvedValue({ userId: "user_founder" }),
+      };
+      try {
+        chatRoomFindFirstMock.mockResolvedValue({ id: "room-cuso" });
+        const scheduleRes = await runTurn({
+          versionId: "cmo-v25-owner-flag",
+          speakerId: "user_founder",
+          memberRole: "owner",
+          source: "SCHEDULE",
+        });
+        expect(scheduleRes.buildArg.cmoProjectOwner).toBeUndefined();
+      } finally {
+        if (priorRoomMember === undefined) delete db.chatRoomUserMember;
+        else db.chatRoomUserMember = priorRoomMember;
+      }
+    } finally {
+      resolveSpy.mockRestore();
+    }
+  });
+
   it("runs a Core-written turn on its preset route without asking Jev", async () => {
     botFindFirstMock.mockResolvedValue(adminBot());
     botFindUniqueMock.mockResolvedValue(adminBot());

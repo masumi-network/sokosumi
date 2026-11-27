@@ -146,7 +146,10 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         select: {
           id: true,
           userId: true,
+          projectId: true,
           workspaceId: true,
+          versionId: true,
+          createdByUserId: true,
           archivedAt: true,
         },
       },
