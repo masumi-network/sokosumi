@@ -51,6 +51,7 @@ import {
   journeyRoomLog,
   judgeJourneyChain,
 } from "./per-item-judge";
+import { pricedUsd, tokenPrice } from "./token-prices";
 
 /** A wait on a chat reply or an app nobody will connect ends after this much quiet. */
 const QUIET_MS = 90_000;
@@ -1350,7 +1351,7 @@ export function journeyRuntime(): { adapter: string; models: string } {
 export async function journeyTokens(turnIds: readonly string[]) {
   const turns = await withDescendants(turnIds);
   const where = { turnId: { in: turns.map((turn) => turn.id) } };
-  const [sum, usageFree] = await Promise.all([
+  const [sum, usageFree, byModel] = await Promise.all([
     prisma.sokoBotModelCall.aggregate({
       where,
       _sum: { inputTokens: true, cacheReadTokens: true, outputTokens: true },
@@ -1367,10 +1368,36 @@ export async function journeyTokens(turnIds: readonly string[]) {
         role: { not: "embedding" },
       },
     }),
+    prisma.sokoBotModelCall.groupBy({
+      by: ["requestedModel"],
+      where: { ...where, role: { not: "embedding" } },
+      _sum: {
+        inputTokens: true,
+        cacheReadTokens: true,
+        cacheWriteTokens: true,
+        outputTokens: true,
+      },
+    }),
   ]);
   const inputTokens = sum._sum.inputTokens ?? 0;
   // No model call measured is no measurement, not a cheap journey.
   const measured = sum._count._all > 0 && turns.length > 0 && usageFree === 0;
+  // B6: list-price cost, so cache hits and output count by what they cost.
+  // A model with tokens but no price leaves the journey unpriced.
+  let pricedUsdTotal = 0;
+  let priced = measured;
+  for (const group of byModel) {
+    const tokens = {
+      inputTokens: group._sum.inputTokens ?? 0,
+      cacheReadTokens: group._sum.cacheReadTokens ?? 0,
+      cacheWriteTokens: group._sum.cacheWriteTokens ?? 0,
+      outputTokens: group._sum.outputTokens ?? 0,
+    };
+    if (tokens.inputTokens + tokens.outputTokens === 0) continue;
+    const price = tokenPrice(group.requestedModel);
+    if (!price) priced = false;
+    else pricedUsdTotal += pricedUsd(price, tokens);
+  }
   return {
     inputTokens,
     cachedInputTokens: sum._sum.cacheReadTokens ?? 0,
@@ -1380,6 +1407,9 @@ export async function journeyTokens(turnIds: readonly string[]) {
     inputTokensPerTurn: measured
       ? Math.round(inputTokens / turns.length)
       : null,
+    /** List-price USD of all the journey's tokens (B6), or null when unpriced. */
+    pricedUsd: priced ? pricedUsdTotal : null,
+    pricedUsdPerTurn: priced ? pricedUsdTotal / turns.length : null,
   };
 }
 

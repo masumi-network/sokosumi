@@ -19,6 +19,8 @@ interface Side {
   /** Steps right, averaged over the repeats. */
   stepsPassed: number;
   inputTokensPerTurn: number | null;
+  /** B6: list-price USD per turn (cached, uncached and output by price). */
+  pricedUsdPerTurn: number | null;
 }
 
 export interface DeltaRow {
@@ -49,6 +51,7 @@ interface Totals {
   passRate: number | null;
   stepsPassed: number;
   inputTokensPerTurn: number | null;
+  pricedUsdPerTurn: number | null;
 }
 
 /**
@@ -81,6 +84,7 @@ export function scoredSide(
           inputTokens?: number;
           tokenTurns?: number;
           inputTokensPerTurn?: number | null;
+          pricedUsd?: number | null;
         };
       },
   );
@@ -98,6 +102,14 @@ export function scoredSide(
     0,
   );
   const unscored = results.length - scored.length;
+  // A repeat without a priced cost (an unpriced model, or none measured)
+  // leaves the journey's priced cost unproven, like a missing token count.
+  const priced =
+    measured && outputs.every((output) => output.totals?.pricedUsd != null);
+  const pricedUsd = outputs.reduce(
+    (sum, output) => sum + (output.totals?.pricedUsd ?? 0),
+    0,
+  );
   return {
     status:
       unscored > 0 || scored.length < minimumRepeats
@@ -116,7 +128,9 @@ export function scoredSide(
       ) / Math.max(scored.length, 1),
     inputTokensPerTurn:
       measured && tokenTurns ? Math.round(inputTokens / tokenTurns) : null,
+    pricedUsdPerTurn: priced && tokenTurns ? pricedUsd / tokenTurns : null,
     inputTokens,
+    pricedUsd: priced ? pricedUsd : null,
     tokenTurns,
   };
 }
@@ -135,6 +149,15 @@ function totals(
   // included), the same denominator each journey's own figure uses.
   const turns = measured.reduce((sum, side) => sum + side.tokenTurns, 0);
   const tokens = measured.reduce((sum, side) => sum + side.inputTokens, 0);
+  const pricedSides = scored.filter((side) => side.pricedUsd !== null);
+  const pricedTurns = pricedSides.reduce(
+    (sum, side) => sum + side.tokenTurns,
+    0,
+  );
+  const pricedUsd = pricedSides.reduce(
+    (sum, side) => sum + (side.pricedUsd ?? 0),
+    0,
+  );
   const runs = scored.reduce((sum, side) => sum + side.runs, 0);
   return {
     passed: scored.filter((side) => side.status === "PASSED").length,
@@ -145,6 +168,7 @@ function totals(
       : null,
     stepsPassed: scored.reduce((sum, side) => sum + side.stepsPassed, 0),
     inputTokensPerTurn: turns ? Math.round(tokens / turns) : null,
+    pricedUsdPerTurn: pricedTurns ? pricedUsd / pricedTurns : null,
   };
 }
 
@@ -260,8 +284,8 @@ export function tokenCoverage(delta: VersionDelta): {
   return {
     measured: delta.rows.filter(
       (row) =>
-        row.baseline?.inputTokensPerTurn != null &&
-        row.candidate?.inputTokensPerTurn != null,
+        row.baseline?.pricedUsdPerTurn != null &&
+        row.candidate?.pricedUsdPerTurn != null,
     ).length,
     total: delta.rows.length,
   };
@@ -301,6 +325,7 @@ export function versionDelta(
             unscored: side.unscored,
             stepsPassed: side.stepsPassed,
             inputTokensPerTurn: side.inputTokensPerTurn,
+            pricedUsdPerTurn: side.pricedUsdPerTurn,
           }
         : null;
     return {
@@ -344,19 +369,20 @@ export function versionDelta(
       shared.every((row) => row.baseline?.runs === row.candidate?.runs) &&
       (base.passRate === null ||
         (cand.passRate !== null && cand.passRate >= base.passRate)) &&
-      // Every journey measured its tokens on both sides: one missing count
+      // Every journey priced its tokens on both sides: one missing cost
       // would leave the average to the others.
       shared.every(
         (row) =>
-          row.baseline?.inputTokensPerTurn != null &&
-          row.candidate?.inputTokensPerTurn != null,
+          row.baseline?.pricedUsdPerTurn != null &&
+          row.candidate?.pricedUsdPerTurn != null,
       ) &&
       cand.passed >= base.passed &&
       cand.stepsPassed >= base.stepsPassed &&
       !rows.some((row) => row.regressed) &&
-      // No token count is no evidence the cost held.
-      base.inputTokensPerTurn !== null &&
-      cand.inputTokensPerTurn !== null &&
-      cand.inputTokensPerTurn <= base.inputTokensPerTurn,
+      // B6: cost by price, so a cache win or loss counts; no priced cost is
+      // no evidence the cost held.
+      base.pricedUsdPerTurn !== null &&
+      cand.pricedUsdPerTurn !== null &&
+      cand.pricedUsdPerTurn <= base.pricedUsdPerTurn,
   };
 }

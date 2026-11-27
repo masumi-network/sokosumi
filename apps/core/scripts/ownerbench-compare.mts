@@ -56,8 +56,12 @@ const percent = (share: number | null) =>
   share === null ? "?" : `${Math.round(share * 100)}%`;
 
 function totalsLine(label: string, totals: VersionDelta["baseline"]) {
-  return `${label}: ${totals.passed} passed every repeat (pass^k), ${totals.incomplete} incomplete (${totals.standIn} stand-in Jev repeat(s) excluded), pass^1 ${percent(totals.passRate)}, ${Number(totals.stepsPassed.toFixed(1))} steps right, ${totals.inputTokensPerTurn ?? "?"} input tokens per turn`;
+  return `${label}: ${totals.passed} passed every repeat (pass^k), ${totals.incomplete} incomplete (${totals.standIn} stand-in Jev repeat(s) excluded), pass^1 ${percent(totals.passRate)}, ${Number(totals.stepsPassed.toFixed(1))} steps right, ${totals.inputTokensPerTurn ?? "?"} input tokens per turn, ${usd(totals.pricedUsdPerTurn)} per turn at list price (the bar's cost, B6)`;
 }
+
+/** List-price cost per turn, in micro-dollars for readability. */
+const usd = (value: number | null) =>
+  value === null ? "$?" : `$${(value * 1_000_000).toFixed(0)}µ`;
 
 function summary(delta: VersionDelta) {
   const coverage = tokenCoverage(delta);
@@ -74,7 +78,7 @@ function summary(delta: VersionDelta) {
 console.log("## Dev journeys");
 const cell = (side: VersionDelta["rows"][number]["baseline"]) =>
   side
-    ? `${side.status} ${side.stepsPassed} steps, ${side.inputTokensPerTurn ?? "?"} tok/turn`
+    ? `${side.status} ${side.stepsPassed} steps, ${side.inputTokensPerTurn ?? "?"} tok/turn, ${usd(side.pricedUsdPerTurn)}/turn`
     : "-";
 for (const row of sets.dev.rows)
   console.log(
