@@ -55,27 +55,6 @@ export function applySokoBotRules(
   });
 }
 
-/**
- * The failed CMO hire's clean-up: deletes the Project made for the hire, which
- * takes its Soko Bots, and the Network rows that pointed at either, in ONE
- * statement. `origin/main` sent one `DELETE`, which the server finishes and
- * commits alone when the client's connection is lost or its time runs out; a
- * transaction the client drives cannot, and keeps the Project and its credit
- * buckets (review of #8509).
- *
- * The exception to the rule above, for this statement only: inside one
- * statement every part reads the snapshot taken before the Project's delete,
- * and the keys act after the whole statement, so "only where the parent is
- * gone" cannot be seen. The sweeps are keyed on the ids the deletes return
- * instead. While the keys exist they change the rows first (1 each, not 0)
- * and the keys find none left; the PostgreSQL tests hold the end state to
- * `origin/main`'s `DELETE` on every table, with the keys and without them.
- *
- * The bots are deleted here, not left to their key, because the usage sweep
- * needs the ids of the bots really gone: a bot that left the Project while
- * the statement waited keeps its usage. Refuses, deleting nothing, where
- * `Job.creatorSokoBotId` would.
- */
 interface FailedHireCleanupRow {
   blockerNetwork: string | null;
   blockerJobId: string | null;
@@ -84,34 +63,93 @@ interface FailedHireCleanupRow {
   [count: string]: number | string | null;
 }
 
+/**
+ * Whether the foreign key from `child.column` to `parent` still exists, read
+ * from the catalog by the statement that uses it. A statement that names the
+ * child table locks it first, so a key dropped concurrently is either gone
+ * before the statement reads the catalog or dropped after it commits.
+ */
+function keyExists(
+  child: PrismaRaw.Sql,
+  column: string,
+  parent: PrismaRaw.Sql,
+): PrismaRaw.Sql {
+  return PrismaRaw.sql`EXISTS (
+    SELECT 1 FROM pg_catalog.pg_constraint AS c
+    INNER JOIN pg_catalog.pg_attribute AS a
+      ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+    WHERE c.contype = 'f'
+      AND c.conrelid = to_regclass(${child.sql})
+      AND c.confrelid = to_regclass(${parent.sql})
+      AND a.attname = ${column}
+  )`;
+}
+
+/**
+ * The failed CMO hire's clean-up: deletes the Project made for the hire, which
+ * takes its Soko Bots, and the Network rows that pointed at either, in ONE
+ * statement. `origin/main` sent one `DELETE`, which the server finishes and
+ * commits alone when the client's connection is lost or its time runs out; a
+ * transaction the client drives cannot, and keeps the Project and its credit
+ * buckets (review of #8509).
+ *
+ * While a key exists, its sweep changes nothing and the key does the work at
+ * the Project's delete: with every key in place the only write is that
+ * `DELETE`, so rows, row locks and their order are `origin/main`'s (review of
+ * #8549: a sweep running ahead of the cascade reversed the lock order against
+ * an account deletion). Once a key is dropped (ticket 54), its sweep runs on
+ * the ids the deletes return, and the bots are deleted here so their usage is
+ * swept by the ids of the bots really gone. Refuses, deleting nothing, where
+ * `Job.creatorSokoBotId` would.
+ *
+ * What one statement cannot do once the keys are dropped: it sees the rows of
+ * its snapshot, not a row a writer commits while it waits (a usage row, a Job
+ * hired by the bot or linked to the Project, a bot that joins). The keys
+ * caught those with a fresh read; their replacement belongs to ticket 54.
+ */
 export async function deleteFailedHireProject(
   client: Pick<Prisma.TransactionClient, "$queryRaw">,
   projectId: string,
 ): Promise<RuleCounts> {
   const networks = networksThatAreOn();
+  const project = sharedTable("project");
+  const sokoBot = sharedTable("soko_bot");
   const blockers = networks.map(
     (network) => PrismaRaw.sql`
       SELECT ${network}::text AS network, job."id"
       FROM ${netTable(network, "Job")} AS job
-      INNER JOIN ${sharedTable("soko_bot")} AS bot ON bot."id" = job."creatorSokoBotId"
+      INNER JOIN ${sokoBot} AS bot ON bot."id" = job."creatorSokoBotId"
       WHERE bot."projectId" = ${projectId}::uuid`,
   );
+  const usageKeys = networks.map((network) =>
+    keyExists(netTable(network, "soko_bot_usage"), "sokoBotId", sokoBot),
+  );
   // One name per Network and key; `index` is the Network's place in the list.
-  const sweeps = networks.flatMap((network, index) => [
-    PrismaRaw.sql`${PrismaRaw.raw(`bucket_${index}`)} AS (
-      DELETE FROM ${netTable(network, "credit_bucket")} AS x
-      WHERE x."projectId" IN (SELECT "id" FROM gone) RETURNING 1)`,
-    PrismaRaw.sql`${PrismaRaw.raw(`job_${index}`)} AS (
-      UPDATE ${netTable(network, "Job")} AS x SET "projectId" = NULL
-      WHERE x."projectId" IN (SELECT "id" FROM gone) RETURNING 1)`,
-    PrismaRaw.sql`${PrismaRaw.raw(`usage_${index}`)} AS (
-      DELETE FROM ${netTable(network, "soko_bot_usage")} AS x
-      WHERE x."sokoBotId" IN (SELECT "id" FROM bots) RETURNING 1)`,
-  ]);
-  // Each sub-statement runs when the list below first reads it, so this order
-  // is the order of the row locks: origin/main's cascade order (Mainnet's Job
-  // links, the bots, Mainnet's buckets, each other Network's Job links and
-  // buckets, then usage).
+  const sweeps = networks.flatMap((network, index) => {
+    const bucket = netTable(network, "credit_bucket");
+    const job = netTable(network, "Job");
+    const usage = netTable(network, "soko_bot_usage");
+    return [
+      PrismaRaw.sql`${PrismaRaw.raw(`bucket_${index}`)} AS (
+        DELETE FROM ${bucket} AS x
+        WHERE x."projectId" IN (SELECT "id" FROM gone)
+          AND NOT ${keyExists(bucket, "projectId", project)}
+        RETURNING 1)`,
+      PrismaRaw.sql`${PrismaRaw.raw(`job_${index}`)} AS (
+        UPDATE ${job} AS x SET "projectId" = NULL
+        WHERE x."projectId" IN (SELECT "id" FROM gone)
+          AND NOT ${keyExists(job, "projectId", project)}
+        RETURNING 1)`,
+      PrismaRaw.sql`${PrismaRaw.raw(`usage_${index}`)} AS (
+        DELETE FROM ${usage} AS x
+        WHERE x."sokoBotId" IN (SELECT "id" FROM bots)
+          AND NOT ${keyExists(usage, "sokoBotId", sokoBot)}
+        RETURNING 1)`,
+    ];
+  });
+  // Without the keys these run in the order the list reads them, as
+  // PostgreSQL 18 plans it (its docs leave the order open): an observation
+  // for ticket 54, not a guarantee. With the keys only `gone` writes.
   const counted = [
     "job_0",
     "bots",
@@ -128,13 +166,14 @@ export async function deleteFailedHireProject(
       LIMIT 1
     ),
     gone AS (
-      DELETE FROM ${sharedTable("project")} AS project
+      DELETE FROM ${project} AS project
       WHERE project."id" = ${projectId}::uuid AND NOT EXISTS (SELECT 1 FROM blocker)
       RETURNING project."id"
     ),
     bots AS (
-      DELETE FROM ${sharedTable("soko_bot")} AS bot
+      DELETE FROM ${sokoBot} AS bot
       WHERE bot."projectId" IN (SELECT "id" FROM gone)
+        AND NOT (${PrismaRaw.join(usageKeys, " AND ")})
       RETURNING bot."id"
     ),
     ${PrismaRaw.join(sweeps, ",\n")}

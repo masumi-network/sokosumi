@@ -67,6 +67,9 @@ function outcome(error: {
     return "foreign key";
   if (error.code === "P2034" || pg === "40P01" || error.meta?.code === "40P01")
     return "deadlock";
+  // origin/main's Prisma delete and the statement name it differently.
+  if (error.code === "P2025" || error.code === "PROJECT_NOT_FOUND")
+    return "gone";
   return error.code ?? String(error);
 }
 
@@ -162,14 +165,12 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
           expect(base).not.toEqual(seeded);
           await tx.$executeRaw`ROLLBACK TO SAVEPOINT before_cleanup`;
 
-          // The exception of `deleteFailedHireProject`: with the keys, each
-          // sweep changes its row before the key would, 1 per Network on.
-          const expected = {
-            "credit_bucket.projectId": on.length,
-            "Job.projectId": on.length,
-            "soko_bot_usage.sokoBotId": on.length,
-          };
-          expect(await cleanUp(tx, world.projectId)).toEqual(expected);
+          // While the keys exist they do the work, and no sweep changes a row.
+          expect(await cleanUp(tx, world.projectId)).toEqual({
+            "credit_bucket.projectId": 0,
+            "Job.projectId": 0,
+            "soko_bot_usage.sokoBotId": 0,
+          });
           expect(await digests(tx)).toEqual(base);
           await expect(cleanUp(tx, world.projectId)).rejects.toMatchObject({
             code: "PROJECT_NOT_FOUND",
@@ -177,7 +178,12 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
           await tx.$executeRaw`ROLLBACK TO SAVEPOINT before_cleanup`;
 
           await dropFlowCrossingKeys(tx, "failed CMO hire", networks);
-          expect(await cleanUp(tx, world.projectId)).toEqual(expected);
+          // Without them each sweep changes its row, 1 per Network on.
+          expect(await cleanUp(tx, world.projectId)).toEqual({
+            "credit_bucket.projectId": on.length,
+            "Job.projectId": on.length,
+            "soko_bot_usage.sokoBotId": on.length,
+          });
           const withoutKeys = await digests(tx);
           if (on.length === networks.length) {
             expect(withoutKeys).toEqual(base);
@@ -254,7 +260,10 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
         await db.sokoBot.deleteMany({
           where: { workspaceId: id("workspace") },
         });
-        await db.user.deleteMany({ where: { id: id("ada") } });
+        await db.$executeRaw`DELETE FROM ${sharedTable("task")} WHERE "workspaceId" = ${id("workspace")}::uuid`;
+        await db.user.deleteMany({
+          where: { id: { in: [id("ada"), id("member")] } },
+        });
       }
     }, 60_000);
 
@@ -277,6 +286,50 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
             deadlineAt: "2030-01-01T00:00:00",
             updatedAt: AT,
           });
+          // Rows of the Project and of its bot that the keys reach inside
+          // `shared` and inside a Network: a member's pin and the bot she
+          // created (an account deletion clears both), a Task, the bot's
+          // memory, and each bucket's consumption.
+          await insertRow(tx, sharedTable("user"), {
+            id: created.id("member"),
+            name: "member",
+            email: `${created.id("member")}@example.test`,
+            emailVerified: true,
+            createdAt: AT,
+            updatedAt: AT,
+          });
+          await tx.$executeRaw`
+            UPDATE ${sharedTable("soko_bot")} SET "createdByUserId" = ${created.id("member")}
+            WHERE id = ${created.id("bot.project")}::uuid
+          `;
+          await insertRow(tx, sharedTable("project_star"), {
+            id: created.id("pin"),
+            userId: created.id("member"),
+            projectId: created.projectId,
+          });
+          await insertRow(tx, sharedTable("task"), {
+            id: created.id("task"),
+            name: "Task",
+            workspaceId: created.id("workspace"),
+            projectId: created.projectId,
+            updatedAt: AT,
+          });
+          await insertRow(tx, sharedTable("soko_bot_memory_revision"), {
+            id: created.id("memory"),
+            sokoBotId: created.id("bot.project"),
+            version: 1,
+            hash: "hash",
+            markdown: "memory",
+            source: "test",
+          });
+          for (const network of networks) {
+            await insertRow(tx, netTable(network, "credit_consumption"), {
+              id: created.id("consumption"),
+              amount: 1,
+              bucketId: created.id("bucket.project"),
+              transactionId: created.id("charge.project"),
+            });
+          }
         },
         { timeout: 30_000 },
       );
@@ -562,6 +615,9 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
           ["project", sharedTable("project"), w.projectId],
           ["bot", sharedTable("soko_bot"), w.id("bot.project")],
           ["turn", sharedTable("soko_bot_turn"), w.id("turn")],
+          ["pin", sharedTable("project_star"), w.id("pin")],
+          ["task", sharedTable("task"), w.id("task")],
+          ["memory", sharedTable("soko_bot_memory_revision"), w.id("memory")],
         ];
         for (const network of networks) {
           list.push(
@@ -579,6 +635,11 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
               `${network} usage`,
               netTable(network, "soko_bot_usage"),
               w.id("usage.project"),
+            ],
+            [
+              `${network} consumption`,
+              netTable(network, "credit_consumption"),
+              w.id("consumption"),
             ],
           );
         }
@@ -619,12 +680,7 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
     it("takes its row locks in origin/main's order", async () => {
       const base = await lockOrder("base");
       const head = await lockOrder("head");
-      // With Preprod on, origin/main's cascade reaches the turn between the
-      // two Networks' usage rows; the statement reaches it after both.
-      const settled = (order: string[]) =>
-        onSplitLayout ? order.filter((row) => row !== "turn") : order;
-      expect(settled(head)).toEqual(settled(base));
-      expect(head.at(-1)).toBe(onSplitLayout ? "turn" : base.at(-1));
+      expect(head).toEqual(base);
     }, 120_000);
 
     /**
@@ -634,9 +690,121 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
      * its bot; or the bot, then a write whose key locks the Workspace.
      * Billing (`soko-bot-billing.service.ts`): a consumption on the bucket,
      * then the usage row on the bot. A Soko Bot deletion: the bot, then its
-     * Project's bucket. Each schedule must end as it does on origin/main.
+     * Project's bucket. An account deletion (`user-deletion-tasks.ts`, the
+     * user's delete): the member's pin, then the bot she created
+     * (`createdByUserId` set null). An Organization or personal Workspace
+     * deletion (`lockWorkspaceCalendarForErasure` in `calendar-erasure.ts`):
+     * the Workspace, its Projects, their Tasks, then their deletes; the
+     * Organization's own row before it is one the clean-up never touches.
+     * Each schedule must end as it does on origin/main.
      */
     const schedules = {
+      "an account deletion that deletes the member's pin first": async (
+        w: SokoBotDeletionWorld,
+        mode: Mode,
+      ) => {
+        const account = await session();
+        await account.run("BEGIN");
+        await account.run(
+          `DELETE FROM ${t(sharedTable("project_star"))} WHERE "userId" = $1`,
+          [w.id("member")],
+        );
+        const pending = removeProject(mode, db, w.projectId);
+        await blockedBy(account.pid);
+        const bot = await account.run(
+          `UPDATE ${t(sharedTable("soko_bot"))} SET "createdByUserId" = NULL WHERE "createdByUserId" = $1`,
+          [w.id("member")],
+        );
+        await account.run(bot === "ok" ? "COMMIT" : "ROLLBACK");
+        return { cleanUp: await pending, account: bot };
+      },
+      "an account deletion that starts while the clean-up holds the pin":
+        async (w: SokoBotDeletionWorld, mode: Mode) => {
+          const holder = await session();
+          await holder.run("BEGIN");
+          await holder.run(
+            `UPDATE ${t(netTable("mainnet", "credit_bucket"))} SET amount = amount WHERE id = $1`,
+            [w.id("bucket.project")],
+          );
+          const pending = removeProject(mode, db, w.projectId);
+          const cleanUpPid = await blockedBy(holder.pid);
+          const account = await session();
+          await account.run("BEGIN");
+          const pin = account.run(
+            `DELETE FROM ${t(sharedTable("project_star"))} WHERE "userId" = $1`,
+            [w.id("member")],
+          );
+          expect(await blockedBy(cleanUpPid)).toBe(account.pid);
+          await holder.run("COMMIT");
+          const result = { cleanUp: await pending, account: await pin };
+          const bot = await account.run(
+            `UPDATE ${t(sharedTable("soko_bot"))} SET "createdByUserId" = NULL WHERE "createdByUserId" = $1`,
+            [w.id("member")],
+          );
+          await account.run("COMMIT");
+          return { ...result, bot };
+        },
+      "a Workspace deletion that holds the Workspace and Project first": async (
+        w: SokoBotDeletionWorld,
+        mode: Mode,
+      ) => {
+        const erasure = await session();
+        await erasure.run("BEGIN");
+        await erasure.run(
+          `SELECT 1 FROM ${t(sharedTable("workspace"))} WHERE id = $1::uuid FOR UPDATE`,
+          [w.id("workspace")],
+        );
+        await erasure.run(
+          `SELECT 1 FROM ${t(sharedTable("project"))} WHERE "workspaceId" = $1::uuid ORDER BY id FOR UPDATE`,
+          [w.id("workspace")],
+        );
+        const pending = removeProject(mode, db, w.projectId);
+        await blockedBy(erasure.pid);
+        await erasure.run(
+          `SELECT 1 FROM ${t(sharedTable("task"))} WHERE "workspaceId" = $1::uuid ORDER BY id FOR UPDATE`,
+          [w.id("workspace")],
+        );
+        await erasure.run(
+          `DELETE FROM ${t(sharedTable("task"))} WHERE "workspaceId" = $1::uuid`,
+          [w.id("workspace")],
+        );
+        const deleted = await erasure.run(
+          `DELETE FROM ${t(sharedTable("project"))} WHERE id = $1::uuid`,
+          [w.projectId],
+        );
+        await erasure.run(deleted === "ok" ? "COMMIT" : "ROLLBACK");
+        return { cleanUp: await pending, erasure: deleted };
+      },
+      "a Workspace deletion that starts while the clean-up holds the Project":
+        async (w: SokoBotDeletionWorld, mode: Mode) => {
+          const holder = await session();
+          await holder.run("BEGIN");
+          await holder.run(
+            `SELECT 1 FROM ${t(sharedTable("soko_bot"))} WHERE id = $1::uuid FOR UPDATE`,
+            [w.id("bot.project")],
+          );
+          const pending = removeProject(mode, db, w.projectId);
+          const cleanUpPid = await blockedBy(holder.pid);
+          const erasure = await session();
+          await erasure.run("BEGIN");
+          await erasure.run(
+            `SELECT 1 FROM ${t(sharedTable("workspace"))} WHERE id = $1::uuid FOR UPDATE`,
+            [w.id("workspace")],
+          );
+          const projects = erasure.run(
+            `SELECT 1 FROM ${t(sharedTable("project"))} WHERE "workspaceId" = $1::uuid ORDER BY id FOR UPDATE`,
+            [w.id("workspace")],
+          );
+          expect(await blockedBy(cleanUpPid)).toBe(erasure.pid);
+          await holder.run("COMMIT");
+          const result = { cleanUp: await pending, erasure: await projects };
+          const tasks = await erasure.run(
+            `SELECT 1 FROM ${t(sharedTable("task"))} WHERE "workspaceId" = $1::uuid ORDER BY id FOR UPDATE`,
+            [w.id("workspace")],
+          );
+          await erasure.run("ROLLBACK");
+          return { ...result, tasks };
+        },
       "a Project close that holds the Project first": async (
         w: SokoBotDeletionWorld,
         mode: Mode,
@@ -806,6 +974,24 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
 
     // What origin/main does in each schedule, measured; head must match.
     const onMain: Record<keyof typeof schedules, Record<string, string>> = {
+      "an account deletion that deletes the member's pin first": {
+        cleanUp: "deleted",
+        account: "ok",
+      },
+      "an account deletion that starts while the clean-up holds the pin": {
+        cleanUp: "deleted",
+        account: "ok",
+        bot: "ok",
+      },
+      "a Workspace deletion that holds the Workspace and Project first": {
+        cleanUp: "gone",
+        erasure: "ok",
+      },
+      "a Workspace deletion that starts while the clean-up holds the Project": {
+        cleanUp: "deleted",
+        erasure: "ok",
+        tasks: "ok",
+      },
       "a Project close that holds the Project first": {
         cleanUp: "deleted",
         close: "ok",
@@ -845,7 +1031,7 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
             const kept = Boolean(
               await db.project.findUnique({ where: { id: w.projectId } }),
             );
-            expect(kept).toBe(ended.cleanUp !== "deleted");
+            expect(kept).toBe(!["deleted", "gone"].includes(ended.cleanUp));
             // PostgreSQL picks the victim of a deadlock by timing; what must
             // match is whether the schedule deadlocks at all.
             const deadlocks = (result: Record<string, unknown>) =>
