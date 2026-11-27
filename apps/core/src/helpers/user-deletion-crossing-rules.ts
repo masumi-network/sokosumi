@@ -83,11 +83,7 @@ async function refuseOnPayments(
   for (const network of networksThatAreOn()) {
     // Follow-up (ticket 26, decision D5): the payment sweep reaches the
     // Tasks this user owns, not the subtasks deleted with them.
-    const [payment] = await tx.$queryRaw<{ id: string }[]>`
-      SELECT "id" FROM ${netTable(network, "task_x402_payment")}
-      WHERE "taskId" = ANY(${taskIds})
-      LIMIT 1
-    `;
+    const payment = await findPaymentOnTasks(tx, network, taskIds);
     if (payment) {
       refuse("ACCOUNT_DELETION_SUBTASK_HAS_PAYMENT", network, {
         ...ids,
@@ -95,6 +91,20 @@ async function refuseOnPayments(
       });
     }
   }
+}
+
+export async function findPaymentOnTasks(
+  tx: Tx,
+  network: Network,
+  taskIds: string[],
+) {
+  if (taskIds.length === 0) return;
+  const [payment] = await tx.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM ${netTable(network, "task_x402_payment")}
+    WHERE "taskId" = ANY(${taskIds})
+    LIMIT 1
+  `;
+  return payment;
 }
 
 /**
@@ -111,11 +121,7 @@ async function refuseOnHiredJobs(
     // Follow-up (ticket 26, decision D5): any Job a Soko Bot hired blocks the
     // account deletion, also one in the personal workspace that the deletion
     // would remove a few statements later.
-    const [job] = await tx.$queryRaw<{ id: string }[]>`
-      SELECT "id" FROM ${netTable(network, "Job")}
-      WHERE "creatorSokoBotId" = ANY(${sokoBotIds}::uuid[])
-      LIMIT 1
-    `;
+    const job = await findJobHiredByBots(tx, network, sokoBotIds);
     if (job) {
       refuse("ACCOUNT_DELETION_SOKO_BOT_HIRED_JOB", network, {
         ...ids,
@@ -125,12 +131,76 @@ async function refuseOnHiredJobs(
   }
 }
 
-async function eventsOf(tx: Tx, taskIds: string[]): Promise<string[]> {
+export async function findJobHiredByBots(
+  tx: Tx,
+  network: Network,
+  sokoBotIds: string[],
+) {
+  if (sokoBotIds.length === 0) return;
+  const [job] = await tx.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM ${netTable(network, "Job")}
+    WHERE "creatorSokoBotId" = ANY(${sokoBotIds}::uuid[])
+    LIMIT 1
+  `;
+  return job;
+}
+
+export async function findJobInWorkspaces(
+  tx: Tx,
+  network: Network,
+  workspaceIds: string[],
+) {
+  if (workspaceIds.length === 0) return;
+  const [job] = await tx.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM ${netTable(network, "Job")}
+    WHERE "workspaceId" = ANY(${workspaceIds}::uuid[])
+    LIMIT 1
+  `;
+  return job;
+}
+
+export async function eventsOf(tx: Tx, taskIds: string[]): Promise<string[]> {
   if (taskIds.length === 0) return [];
   const events = await tx.$queryRaw<{ id: string }[]>`
     SELECT "id" FROM ${sharedTable("taskEvent")} WHERE "taskId" = ANY(${taskIds})
   `;
   return events.map((event) => event.id);
+}
+
+export function workspaceTasksWithDescendants(tx: Tx, workspaceId: string) {
+  return tx.$queryRaw<{ id: string; inWorkspace: boolean }[]>`
+    WITH RECURSIVE doomed AS (
+      SELECT "id" FROM ${sharedTable("task")} WHERE "workspaceId" = ${workspaceId}::uuid
+      UNION
+      SELECT child."id"
+      FROM ${sharedTable("task")} AS child
+      INNER JOIN doomed ON child."parentTaskId" = doomed."id"
+    )
+    SELECT task."id", task."workspaceId" = ${workspaceId}::uuid AS "inWorkspace"
+    FROM ${sharedTable("task")} AS task
+    INNER JOIN doomed ON doomed."id" = task."id"
+  `;
+}
+
+export async function workspaceProjectIds(tx: Tx, workspaceId: string) {
+  const projects = await tx.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM ${sharedTable("project")} WHERE "workspaceId" = ${workspaceId}::uuid
+  `;
+  return projects.map((project) => project.id);
+}
+
+export async function workspaceBotIds(
+  tx: Tx,
+  projectIds: string[],
+  workspaceIds: string[],
+) {
+  if (projectIds.length === 0 && workspaceIds.length === 0) return [];
+  const bots = await tx.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM ${sharedTable("soko_bot")}
+    WHERE "projectId" = ANY(${projectIds}::uuid[])
+       OR "workspaceId" = ANY(${workspaceIds}::uuid[])
+  `;
+  return bots.map((bot) => bot.id);
 }
 
 /**
@@ -143,18 +213,7 @@ export async function checkPersonalWorkspace(
   tx: Tx,
   workspaceId: string,
 ): Promise<DeletionCandidates> {
-  const tasks = await tx.$queryRaw<{ id: string; inWorkspace: boolean }[]>`
-    WITH RECURSIVE doomed AS (
-      SELECT "id" FROM ${sharedTable("task")} WHERE "workspaceId" = ${workspaceId}::uuid
-      UNION
-      SELECT child."id"
-      FROM ${sharedTable("task")} AS child
-      INNER JOIN doomed ON child."parentTaskId" = doomed."id"
-    )
-    SELECT task."id", task."workspaceId" = ${workspaceId}::uuid AS "inWorkspace"
-    FROM ${sharedTable("task")} AS task
-    INNER JOIN doomed ON doomed."id" = task."id"
-  `;
+  const tasks = await workspaceTasksWithDescendants(tx, workspaceId);
   const taskIds = tasks.map((task) => task.id);
   // The erasure sweeps the payments on this workspace's own Tasks, after its
   // lock refused the ones it must keep.
@@ -164,17 +223,8 @@ export async function checkPersonalWorkspace(
     { workspaceId },
   );
 
-  const projects = await tx.$queryRaw<{ id: string }[]>`
-    SELECT "id" FROM ${sharedTable("project")} WHERE "workspaceId" = ${workspaceId}::uuid
-  `;
-  const projectIds = projects.map((project) => project.id);
-  const sokoBots =
-    projectIds.length === 0
-      ? []
-      : await tx.$queryRaw<{ id: string }[]>`
-          SELECT "id" FROM ${sharedTable("soko_bot")} WHERE "projectId" = ANY(${projectIds}::uuid[])
-        `;
-  const sokoBotIds = sokoBots.map((sokoBot) => sokoBot.id);
+  const projectIds = await workspaceProjectIds(tx, workspaceId);
+  const sokoBotIds = await workspaceBotIds(tx, projectIds, []);
   await refuseOnHiredJobs(tx, sokoBotIds, { workspaceId });
   return {
     taskIds,
@@ -233,11 +283,7 @@ export async function checkUser(
     for (const network of networksThatAreOn()) {
       // `Job.workspaceId` restricts. The deletion removed the Jobs of these
       // workspaces a moment ago, so only a Job created since can be here.
-      const [job] = await tx.$queryRaw<{ id: string }[]>`
-        SELECT "id" FROM ${netTable(network, "Job")}
-        WHERE "workspaceId" = ANY(${workspaceIds}::uuid[])
-        LIMIT 1
-      `;
+      const job = await findJobInWorkspaces(tx, network, workspaceIds);
       if (job) {
         refuse("ACCOUNT_DELETION_WORKSPACE_HAS_JOB", network, {
           userId,

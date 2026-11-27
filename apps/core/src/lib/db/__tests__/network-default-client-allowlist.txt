@@ -9,7 +9,6 @@ apps/core/src/helpers/compensating-refund.ts
 apps/core/src/helpers/coworker-task-receipt.ts
 apps/core/src/helpers/cuso-low-credit-notification.ts
 apps/core/src/helpers/cuso-project-credits.ts
-apps/core/src/helpers/deletion-evaluate.ts
 apps/core/src/helpers/history.ts
 apps/core/src/helpers/job.ts
 apps/core/src/helpers/project-needs-attention.ts

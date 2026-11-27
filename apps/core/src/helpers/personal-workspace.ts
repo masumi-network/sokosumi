@@ -15,12 +15,19 @@ import { sharedTable } from "@sokosumi/database/sql-tables";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
+import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { conflict, notFound } from "@/helpers/error";
 import {
   isPrismaForeignKeyViolation,
   isPrismaUniqueViolation,
 } from "@/helpers/prisma";
+import { applyRulesAfterDelete } from "@/helpers/user-deletion-crossing-rules";
 import { isLastWorkspace } from "@/helpers/workspace-access";
+import {
+  checkWorkspaceDeletion,
+  refuseJobsInWorkspace,
+  workspaceHasDependents,
+} from "@/helpers/workspace-deletion-crossing-rules";
 import prisma from "@/lib/db/prisma";
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 
@@ -199,22 +206,27 @@ export async function deletePersonalWorkspace(
       }
     }
 
+    // The Workspace delete already locks this row. Take that lock before
+    // checking its Network dependents, after the existing preference update.
+    const locked = await lockCalendarScope(tx, existing.id, []);
+    const candidates = locked
+      ? await checkWorkspaceDeletion(tx, existing.id, "personal workspace")
+      : undefined;
+    if (locked) {
+      await refuseJobsInWorkspace(tx, existing.id, "personal workspace");
+    }
     try {
       await tx.workspace.delete({
         where: { id: existing.id },
       });
     } catch (error) {
       if (isPrismaForeignKeyViolation(error)) {
-        throw conflict(
-          "Cannot delete a personal workspace that still has jobs or tasks",
-          {
-            kind: CORE_API_ERROR_KINDS.WORKSPACE_HAS_DEPENDENTS,
-          },
-        );
+        throw workspaceHasDependents();
       }
       throw error;
     }
 
+    if (candidates) await applyRulesAfterDelete(tx, candidates);
     return existing;
   });
 }
