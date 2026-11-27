@@ -22,7 +22,7 @@ export interface SokoBotDeletionWorld {
   id(name: string): string;
   /** The bot `deleteSokoBot` deletes. */
   sokoBotId: string;
-  /** The Project a failed CMO hire deletes, with its bot `bot.project`. */
+  /** The Project of `bot.project`, which a race deletes beside the bot. */
   projectId: string;
 }
 
@@ -41,9 +41,9 @@ export function newSokoBotDeletionWorld(): SokoBotDeletionWorld {
 
 /**
  * Ada's workspace with three bots: `bot` (the Soko Bot deletion's),
- * `bot.project` in `project` (the failed hire's), and `bot.other` in
+ * `bot.project` in `project`, and `bot.other` in
  * `otherProject`, whose rows must all survive. Each Network holds a row
- * behind every key of both flows, under the same ids.
+ * behind every key of the flow, under the same ids.
  */
 export async function seedSokoBotDeletionWorld(
   tx: Tx,

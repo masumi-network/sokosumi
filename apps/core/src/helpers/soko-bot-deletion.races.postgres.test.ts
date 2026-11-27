@@ -108,7 +108,7 @@ const modes = ["base", "head"] as const;
 
 /** Runs `run` once, before or after the first `model.method` call on `tx`. */
 function around(
-  model: "sokoBot" | "project",
+  model: "sokoBot",
   method: "delete" | "update",
   phase: "before" | "after",
   run: () => Promise<void>,
@@ -150,21 +150,15 @@ function outcome(error: {
   return error.code ?? error.status ?? String(error);
 }
 
-describe.runIf(ON_POSTGRES)("Soko Bot and Project deletion races", () => {
+describe.runIf(ON_POSTGRES)("Soko Bot deletion races", () => {
   let db: Client;
   let deleteSokoBot: typeof import("@/services/soko-bot-deletion.service").deleteSokoBot;
-  let deleteProject: typeof import("./soko-bot-deletion-crossing-rules").deleteProjectWithNetworkRows;
-  let deleteProjectInTransaction: typeof import("./soko-bot-deletion-crossing-rules").deleteProjectInTransaction;
   const cleanup: SokoBotDeletionWorld[] = [];
 
   beforeAll(async () => {
     vi.stubEnv("NETWORK_PREPROD_ENABLED", onSplitLayout ? "true" : "false");
     ({ default: db } = await import("@/lib/db/prisma"));
     ({ deleteSokoBot } = await import("@/services/soko-bot-deletion.service"));
-    ({
-      deleteProjectWithNetworkRows: deleteProject,
-      deleteProjectInTransaction,
-    } = await import("./soko-bot-deletion-crossing-rules"));
   }, 60_000);
 
   afterEach(async () => {
@@ -220,21 +214,6 @@ describe.runIf(ON_POSTGRES)("Soko Bot and Project deletion races", () => {
     return deleteSokoBot(target).then(({ outcome }) => outcome, outcome);
   }
 
-  /** The failed hire's clean-up, as `origin/main` and as head run it. */
-  function removeProject(mode: Mode, projectId: string, wrap: Wrap) {
-    core.appliesTheRules = mode === "head";
-    const run =
-      mode === "head"
-        ? db.$transaction(async (tx) => {
-            await deleteProject(await wrap(tx), projectId);
-          })
-        : (async () => {
-            const client = (await wrap(db as unknown as Tx)) as Tx;
-            await client.project.delete({ where: { id: projectId } });
-          })();
-    return run.then(() => "deleted", outcome);
-  }
-
   async function pidOf(tx: Tx) {
     const [{ pid }] = await tx.$queryRaw<
       { pid: number }[]
@@ -251,22 +230,6 @@ describe.runIf(ON_POSTGRES)("Soko Bot and Project deletion races", () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
     throw new Error("Expected a wait on the other PostgreSQL connection");
-  }
-
-  /** A connection of this database waits on a lock (when no pid is known). */
-  async function waitForAnyLock() {
-    for (let attempts = 0; attempts < 300; attempts++) {
-      const [{ waiting }] = await db.$queryRaw<{ waiting: boolean }[]>`
-        SELECT EXISTS (
-          SELECT 1 FROM pg_stat_activity
-          WHERE datname = current_database()
-            AND cardinality(pg_blocking_pids(pid)) > 0
-        ) AS waiting
-      `;
-      if (waiting) return;
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-    throw new Error("Expected a wait on another PostgreSQL connection");
   }
 
   /** `requireMutationAuthority`: the Turn, then its Soko Bot, `FOR UPDATE`. */
@@ -412,367 +375,6 @@ describe.runIf(ON_POSTGRES)("Soko Bot and Project deletion races", () => {
       );
     },
   );
-
-  describe("the failed hire's Project", () => {
-    /** Runs `run` once, after the first raw read of head's clean-up. */
-    function afterFirstRead(run: () => Promise<void>): Wrap {
-      let ran = false;
-      return (tx) =>
-        new Proxy(tx, {
-          get(target, property, receiver) {
-            const value = Reflect.get(target, property, receiver);
-            if (property !== "$queryRaw") return value;
-            return async (...args: unknown[]) => {
-              const result = await Reflect.apply(value, target, args);
-              if (!ran) {
-                ran = true;
-                await run();
-              }
-              return result;
-            };
-          },
-        });
-    }
-
-    it.each(modes)(
-      "a bot that moves to another Project and hires there does not refuse the clean-up (%s)",
-      async (mode) => {
-        const created = await world();
-        const { id } = created;
-        const moveThenHire = () =>
-          db.$transaction(async (tx) => {
-            await tx.$executeRaw`
-              UPDATE ${sharedTable("soko_bot")} SET "projectId" = ${id("otherProject")}::uuid
-              WHERE id = ${id("bot.project")}::uuid
-            `;
-            await seedJob(tx, network, {
-              id: id("race.row"),
-              agentId: id("agent"),
-              workspaceId: id("workspace"),
-              projectId: id("otherProject"),
-              creatorSokoBotId: id("bot.project"),
-            });
-          });
-        // Base has one statement: the move and hire commit before it. Head
-        // reads first; they commit between its reads.
-        const wrap =
-          mode === "head"
-            ? afterFirstRead(moveThenHire)
-            : around("project", "delete", "before", moveThenHire);
-        expect(await removeProject(mode, created.projectId, wrap)).toBe(
-          "deleted",
-        );
-        expect(
-          await db.project.findUnique({ where: { id: created.projectId } }),
-        ).toBeNull();
-        expect(
-          await db.sokoBot.findUnique({
-            where: { id: id("bot.project") },
-            select: { projectId: true },
-          }),
-        ).toEqual({ projectId: id("otherProject") });
-        expect(
-          await db.$queryRaw`
-            SELECT id, "creatorSokoBotId"::text AS creator FROM ${netTable(network, "Job")}
-            WHERE id IN (${id("race.row")}, ${id("job.project")}) ORDER BY id = ${id("job.project")}
-          `,
-        ).toEqual([
-          { id: id("race.row"), creator: id("bot.project") },
-          { id: id("job.project"), creator: null },
-        ]);
-        for (const local of networks) {
-          expect(
-            await db.$queryRaw`
-              SELECT
-                EXISTS (SELECT 1 FROM ${netTable(local, "credit_bucket")} WHERE id = ${id("bucket.project")}) AS bucket,
-                (SELECT "projectId"::text FROM ${netTable(local, "Job")} WHERE id = ${id("job.project")}) AS "projectJob"
-            `,
-          ).toEqual([{ bucket: false, projectJob: null }]);
-        }
-      },
-      60_000,
-    );
-
-    it.each(modes)(
-      "waits out a writer that holds the Project past one transaction budget, then deletes it (%s)",
-      async (mode) => {
-        const created = await world();
-        const { id } = created;
-        const held = Promise.withResolvers<void>();
-        const release = Promise.withResolvers<void>();
-        const writer = db.$transaction(
-          async (tx) => {
-            await tx.$executeRaw`
-              UPDATE ${sharedTable("project")} SET name = 'renamed'
-              WHERE id = ${created.projectId}::uuid
-            `;
-            held.resolve();
-            await release.promise;
-          },
-          { timeout: 30_000 },
-        );
-        await held.promise;
-        const cleanup = (
-          mode === "head"
-            ? deleteProjectInTransaction(db, created.projectId)
-            : db.project.delete({ where: { id: created.projectId } })
-        ).then(() => "deleted", outcome);
-        try {
-          await waitForAnyLock();
-          // Longer than Prisma's 5 s interactive transaction budget.
-          await new Promise((resolve) => setTimeout(resolve, 6_200));
-        } finally {
-          release.resolve();
-          await writer;
-        }
-        expect(await cleanup).toBe("deleted");
-        expect(
-          await db.project.findUnique({ where: { id: created.projectId } }),
-        ).toBeNull();
-        for (const local of networks) {
-          expect(
-            await db.$queryRaw`
-              SELECT id FROM ${netTable(local, "credit_bucket")} WHERE id = ${id("bucket.project")}
-            `,
-          ).toEqual([]);
-        }
-      },
-      60_000,
-    );
-
-    it.each(modes)(
-      "keeps a bot that moved out after the candidate read, with its usage (%s)",
-      async (mode) => {
-        const created = await world();
-        const { id } = created;
-        const moved = await removeProject(
-          mode,
-          created.projectId,
-          around("project", "delete", "before", async () => {
-            await db.$executeRaw`
-              UPDATE ${sharedTable("soko_bot")} SET "projectId" = ${id("otherProject")}::uuid
-              WHERE id = ${id("bot.project")}::uuid
-            `;
-          }),
-        );
-        expect(moved).toBe("deleted");
-        expect(
-          await db.sokoBot.findUnique({
-            where: { id: id("bot.project") },
-            select: { projectId: true },
-          }),
-        ).toEqual({ projectId: id("otherProject") });
-        for (const local of networks) {
-          expect(
-            await db.$queryRaw`
-              SELECT id FROM ${netTable(local, "soko_bot_usage")} WHERE id = ${id("usage.project")}
-            `,
-          ).toEqual([{ id: id("usage.project") }]);
-          expect(
-            await db.$queryRaw`
-              SELECT id FROM ${netTable(local, "credit_bucket")} WHERE id = ${id("bucket.project")}
-            `,
-          ).toEqual([]);
-        }
-      },
-      60_000,
-    );
-
-    it.each(modes)(
-      "a Job the bot hires after the refusal check meets the key's refusal (%s)",
-      async (mode) => {
-        const created = await world();
-        const { id } = created;
-        const hired = await removeProject(
-          mode,
-          created.projectId,
-          around("project", "delete", "before", async () => {
-            await db.$transaction((tx) =>
-              seedJob(tx, network, {
-                id: id("race.row"),
-                agentId: id("agent"),
-                workspaceId: id("workspace"),
-                creatorSokoBotId: id("bot.project"),
-              }),
-            );
-          }),
-        );
-        expect(hired).toBe("foreign key");
-        expect(
-          await db.project.findUnique({
-            where: { id: created.projectId },
-            select: { id: true },
-          }),
-        ).toEqual({ id: created.projectId });
-      },
-      60_000,
-    );
-
-    it.each(modes)(
-      "a second clean-up of the same Project, started after the first's delete, finds it gone (%s)",
-      async (mode) => {
-        const created = await world();
-        let second: Promise<unknown> | undefined;
-        const first = await removeProject(
-          mode,
-          created.projectId,
-          around("project", "delete", "after", async () => {
-            second = removeProject(mode, created.projectId, (tx) => tx);
-            // Head's transaction holds the Project row until it commits;
-            // base's single statement has committed already.
-            if (mode === "head") await waitForAnyLock();
-          }),
-        );
-        expect({ first, second: await second }).toEqual({
-          first: "deleted",
-          second: "P2025",
-        });
-      },
-      60_000,
-    );
-
-    it.each(modes)(
-      "a second clean-up that read before the first committed finds the Project gone (%s)",
-      async (mode) => {
-        const created = await world();
-        const second = await removeProject(
-          mode,
-          created.projectId,
-          around("project", "delete", "before", async () => {
-            expect(
-              await removeProject(mode, created.projectId, (tx) => tx),
-            ).toBe("deleted");
-          }),
-        );
-        expect(second).toBe("P2025");
-      },
-      60_000,
-    );
-  });
-
-  describe("the failed hire's clean-up behind a long lock wait", () => {
-    function cleanUp(mode: Mode, projectId: string) {
-      return (
-        mode === "head"
-          ? deleteProjectInTransaction(db, projectId)
-          : db.project.delete({ where: { id: projectId } })
-      ).then(() => "deleted", outcome);
-    }
-
-    async function projectRowsGone({ id, projectId }: SokoBotDeletionWorld) {
-      expect(
-        await db.project.findUnique({ where: { id: projectId } }),
-      ).toBeNull();
-      for (const local of networks) {
-        expect(
-          await db.$queryRaw`
-            SELECT id FROM ${netTable(local, "credit_bucket")} WHERE id = ${id("bucket.project")}
-          `,
-        ).toEqual([]);
-      }
-    }
-
-    it.each(modes)(
-      "keeps its place ahead of a Job insert queued behind it, which then fails on the Project key (%s)",
-      async (mode) => {
-        const created = await world();
-        const { id } = created;
-        const held = Promise.withResolvers<void>();
-        const release = Promise.withResolvers<void>();
-        // A holds the Project's bot, which the Project delete's cascade needs.
-        const holder = db.$transaction(
-          async (tx) => {
-            await tx.$queryRaw`
-              SELECT id FROM ${sharedTable("soko_bot")} WHERE id = ${id("bot.project")}::uuid FOR UPDATE
-            `;
-            held.resolve();
-            await release.promise;
-          },
-          { timeout: 30_000 },
-        );
-        await held.promise;
-        const cleanup = cleanUp(mode, created.projectId);
-        let insert: Promise<unknown> | undefined;
-        try {
-          await waitForAnyLock();
-          const started = Promise.withResolvers<number>();
-          insert = db
-            .$transaction(
-              async (tx) => {
-                started.resolve(await pidOf(tx));
-                await seedJob(tx, network, {
-                  id: id("race.row"),
-                  agentId: id("agent"),
-                  workspaceId: id("workspace"),
-                  projectId: created.projectId,
-                  creatorSokoBotId: id("bot.project"),
-                });
-              },
-              { timeout: 30_000 },
-            )
-            .then(() => "written", outcome);
-          // The insert waits on the Project key, behind the clean-up.
-          await waitForLock(await started.promise);
-          // Longer than Prisma's 5 s interactive transaction budget.
-          await new Promise((resolve) => setTimeout(resolve, 6_100));
-        } finally {
-          release.resolve();
-          await holder;
-        }
-        expect({ cleanup: await cleanup, insert: await insert }).toEqual({
-          cleanup: "deleted",
-          insert: "foreign key",
-        });
-        await projectRowsGone(created);
-        expect(
-          await db.$queryRaw`SELECT id FROM ${netTable(network, "Job")} WHERE id = ${id("race.row")}`,
-        ).toEqual([]);
-      },
-      60_000,
-    );
-
-    it.each(modes)(
-      "deletes after the first release, though the writer takes the Project again each time (%s)",
-      async (mode) => {
-        const created = await world();
-        let finished = false;
-        let cleanup: Promise<unknown> | undefined;
-        for (let hold = 0; hold < 4 && !finished; hold += 1) {
-          const held = Promise.withResolvers<number>();
-          const release = Promise.withResolvers<void>();
-          const writer = db.$transaction(
-            async (tx) => {
-              const rows = await tx.$executeRaw`
-                UPDATE ${sharedTable("project")} SET name = ${`hold ${hold}`}
-                WHERE id = ${created.projectId}::uuid
-              `;
-              held.resolve(rows);
-              await release.promise;
-            },
-            { timeout: 30_000 },
-          );
-          if ((await held.promise) === 0) {
-            release.resolve();
-            await writer;
-            break;
-          }
-          cleanup ??= cleanUp(mode, created.projectId).finally(() => {
-            finished = true;
-          });
-          try {
-            await waitForAnyLock();
-            await new Promise((resolve) => setTimeout(resolve, 5_800));
-          } finally {
-            release.resolve();
-            await writer;
-          }
-        }
-        expect(await cleanup).toBe("deleted");
-        await projectRowsGone(created);
-      },
-      60_000,
-    );
-  });
 
   describe("the Soko Bot deletion beside a delete of its Project", () => {
     it.each(modes)(

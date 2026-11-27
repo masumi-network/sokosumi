@@ -13,7 +13,6 @@ import {
 import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
 import { isOnEmailAllowlist } from "@/helpers/email-allowlist";
-import { deleteProjectInTransaction } from "@/helpers/soko-bot-deletion-crossing-rules";
 import { getUserWorkspace } from "@/helpers/user-workspaces";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
@@ -877,8 +876,9 @@ export async function startCmoOnboarding(input: {
       await prisma.chatRoom
         .delete({ where: { id: sharedRoomId } })
         .catch(() => undefined);
-    await deleteProjectInTransaction(prisma, project.id).catch(
-      (cleanupError) => {
+    await prisma.project
+      .delete({ where: { id: project.id } })
+      .catch((cleanupError) => {
         recordCoreWarning(
           { operation: "cmo_hire_cleanup", project: { id: project.id } },
           {
@@ -888,8 +888,7 @@ export async function startCmoOnboarding(input: {
             cause: cleanupError,
           },
         );
-      },
-    );
+      });
     throw error;
   }
 

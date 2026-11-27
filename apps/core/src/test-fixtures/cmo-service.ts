@@ -218,8 +218,6 @@ const client = {
   // Runs the callback against this same mock, as one transaction would.
   $transaction: (callback: (tx: unknown) => unknown) => callback(client),
   $executeRaw: vi.fn(async () => 1),
-  // Raw reads find nothing: no Soko Bot of a Project, no Job it hired.
-  $queryRaw: vi.fn(async () => []),
   brandBrain: {
     findUnique: brainFindUnique,
     upsert: brainUpsert,

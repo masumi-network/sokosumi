@@ -1,20 +1,15 @@
 import type { Prisma } from "@sokosumi/database";
-import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
-import { createError } from "evlog";
+import { netTable } from "@sokosumi/database/sql-tables";
 
 import {
   applyRulesAfterDelete,
-  type DeletionCandidates,
   type RuleCounts,
-  workspaceBotIds,
 } from "@/helpers/user-deletion-crossing-rules";
-import type prisma from "@/lib/db/prisma";
 import { networksThatAreOn } from "@/lib/network";
-import vercelConfig from "../../vercel.json" with { type: "json" };
 
 /**
- * The keys of `src/lib/db/crossing-keys.ts` owned by the Soko Bot deletion and
- * the failed CMO hire, done by Core in every Network that is on, by the rule
+ * The keys of `src/lib/db/crossing-keys.ts` owned by the Soko Bot deletion,
+ * done by Core in every Network that is on, by the rule
  * of `user-deletion-crossing-rules.ts`: a refusal before the parent's delete,
  * a cascade after it and only where the parent is gone.
  */
@@ -56,77 +51,4 @@ export function applySokoBotRules(
     projectIds: [],
     sokoBotIds: [sokoBotId],
   });
-}
-
-/**
- * Before a Project is deleted with its Soko Bots: refuses where
- * `Job.creatorSokoBotId` would, and returns what `applyRulesAfterDelete`
- * needs afterwards.
- */
-export async function checkProjectDeletion(
-  tx: Tx,
-  projectId: string,
-): Promise<DeletionCandidates> {
-  for (const network of networksThatAreOn()) {
-    // One statement, so the Job and its creator's Project are one snapshot:
-    // a bot that moved to another Project and hired there does not refuse.
-    const [job] = await tx.$queryRaw<{ id: string }[]>`
-      SELECT job."id" FROM ${netTable(network, "Job")} AS job
-      JOIN ${sharedTable("soko_bot")} AS bot ON bot."id" = job."creatorSokoBotId"
-      WHERE bot."projectId" = ${projectId}::uuid
-      LIMIT 1
-    `;
-    if (job) {
-      // Follow-up (ticket 26, decision D5): the key refused this delete with
-      // its raw error; the refusal stays, readable.
-      throw createError({
-        code: "PROJECT_DELETION_SOKO_BOT_HIRED_JOB",
-        message:
-          "A Job hired by the Project's Soko Bot blocks deleting the Project",
-        why: "A Job names one of the Project's Soko Bots as its creator",
-        fix: "Keep the Project, or remove the Job's creator link by hand first",
-        // Ids only in id-named fields: redaction masks them anywhere else.
-        data: { projectId, jobId: job.id, network },
-      });
-    }
-  }
-  // For the guarded usage sweep only: a bot that left keeps its rows there.
-  const sokoBotIds = await workspaceBotIds(tx, [projectId], []);
-  return { taskIds: [], taskEventIds: [], projectIds: [projectId], sokoBotIds };
-}
-
-/**
- * Deletes a Project, which takes its Soko Bots with it, and the Network rows
- * that pointed at either. Throws, deleting nothing, where a key would refuse.
- */
-export async function deleteProjectWithNetworkRows(
-  tx: Tx & Pick<Prisma.TransactionClient, "project">,
-  projectId: string,
-): Promise<RuleCounts> {
-  const candidates = await checkProjectDeletion(tx, projectId);
-  await tx.project.delete({ where: { id: projectId } });
-  return applyRulesAfterDelete(tx, candidates);
-}
-
-/**
- * Core's function duration (`apps/core/vercel.json`), the longest the
- * request that runs the clean-up can last.
- */
-const CORE_INVOCATION_MS =
-  vercelConfig.functions["dist/index.js"].maxDuration * 1000;
-
-/**
- * `deleteProjectWithNetworkRows` in one transaction. The single delete it
- * replaced waited on a row lock for as long as its request ran; Prisma's
- * default 5 s budget would roll back and give up the lock's place in the
- * queue, so the budget, connection wait included, is the invocation's.
- */
-export function deleteProjectInTransaction(
-  client: Pick<typeof prisma, "$transaction">,
-  projectId: string,
-): Promise<RuleCounts> {
-  return client.$transaction(
-    (tx) => deleteProjectWithNetworkRows(tx, projectId),
-    { maxWait: CORE_INVOCATION_MS, timeout: CORE_INVOCATION_MS },
-  );
 }
