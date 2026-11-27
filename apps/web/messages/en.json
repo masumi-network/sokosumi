@@ -13053,6 +13053,7 @@
         "hintSuggested": "Add the ones worth a conversation; dismissed people are never suggested again.",
         "hintNoExa": "Exa is not configured on this server, so searching is off.",
         "find": "Find investors",
+        "review": "Review",
         "add": "Add",
         "addAll": "Add all",
         "dismiss": "Dismiss",

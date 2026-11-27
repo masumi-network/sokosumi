@@ -1,5 +1,6 @@
 import type {
   Contact,
+  ContactSuggestion,
   FundraisingPath,
   FundraisingPaths,
   FundraisingPipeline,
@@ -118,5 +119,24 @@ export function testPaths(paths: FundraisingPath[]): FundraisingPaths {
     researchUsd: 0.1,
     paths,
     research: RESEARCH,
+  };
+}
+
+export function testSuggestion(
+  overrides: Partial<ContactSuggestion> = {},
+): ContactSuggestion {
+  return {
+    id: "suggestion-1",
+    listId: "list-1",
+    profileUrl: "https://example.com/sam",
+    name: "Sam Suggested",
+    role: "Partner",
+    organization: "Sample Capital",
+    location: null,
+    reason: "Leads seed rounds in agent tooling.",
+    status: "SUGGESTED",
+    contactId: null,
+    createdAt: AT,
+    ...overrides,
   };
 }

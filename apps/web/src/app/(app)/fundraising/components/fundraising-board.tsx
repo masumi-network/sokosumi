@@ -294,7 +294,7 @@ export function FundraisingBoard({
                     </TableCell>
                     <TableCell className={cn(CELL, "text-sm")}>
                       {contact.lastContactAt ? (
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-0.5">
                           <span className="tabular-nums">
                             {format.relativeTime(
                               new Date(contact.lastContactAt),
@@ -306,6 +306,7 @@ export function FundraisingBoard({
                               state={contact.replyState}
                               since={contact.awaitingReplySince}
                               now={now}
+                              plain
                             />
                           ) : null}
                         </div>

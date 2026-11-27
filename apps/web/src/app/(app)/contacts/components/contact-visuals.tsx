@@ -344,16 +344,31 @@ export function ReplyChip({
   state,
   since,
   now,
+  plain = false,
 }: {
   state: ContactReplyState;
   since: Date | string | null;
   now: Date;
+  /** A dot and a line of text that wraps instead of a pill that truncates, for narrow columns. */
+  plain?: boolean;
 }) {
   const t = useTranslations("App.Contacts");
   const waiting =
     since && (state === "NO_REPLY" || state === "AWAITING_REPLY")
       ? daysSince(since, now)
       : null;
+  if (plain)
+    return (
+      <span className="text-muted-foreground flex items-start gap-1.5 text-xs">
+        <Dot className={cn("mt-1", REPLY_DOT[state])} />
+        <span className="tabular-nums">
+          {t(`replyStates.${state}`)}
+          {waiting !== null
+            ? ` · ${t("grid.waitingDays", { days: waiting })}`
+            : ""}
+        </span>
+      </span>
+    );
   return (
     <span className="bg-quinary text-foreground inline-flex h-6 max-w-full items-center gap-1.5 rounded-full px-2 text-xs whitespace-nowrap">
       <Dot className={REPLY_DOT[state]} />

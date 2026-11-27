@@ -1,11 +1,16 @@
-import type { FundraisingProspect } from "@sokosumi/core-client";
+import type {
+  ContactSuggestion,
+  FundraisingProspect,
+} from "@sokosumi/core-client";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 import {
+  testContact,
   testPipeline,
   testProspect,
+  testSuggestion,
 } from "@/app/fundraising/fundraising-fixtures";
 import en from "@/messages/en.json";
 import { TestQueryProvider } from "@/test/query-provider";
@@ -15,7 +20,7 @@ const service = vi.hoisted(() => {
   const never = () => new Promise<never>(() => {});
   return {
     pipeline: never,
-    suggestions: async () => [],
+    suggestions: vi.fn(async () => [] as ContactSuggestion[]),
     paths: never,
     updateProspect: vi.fn(),
   };
@@ -110,5 +115,41 @@ describe("FundraisingBoard", () => {
         screen.getByRole("radio", { name: /To research/ }),
       ),
     );
+  });
+
+  it("folds suggestions into one bar until Review opens them", async () => {
+    service.suggestions.mockResolvedValueOnce([
+      testSuggestion(),
+      testSuggestion({ id: "suggestion-2", name: "Rae Suggested" }),
+    ]);
+    const user = renderBoard();
+
+    const review = await screen.findByRole("button", { name: "Review" });
+    expect(screen.getByText("2 suggested investors")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Find investors/ })).toBeTruthy();
+    expect(review.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("Sam Suggested")).toBeNull();
+    expect(investorButton()).toBeTruthy();
+
+    await user.click(review);
+
+    expect(review.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("Sam Suggested")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Add" })).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Add all" })).toBeTruthy();
+  });
+
+  it("shows the reply state as plain text under the last touch", () => {
+    renderBoard(
+      testProspect({
+        contact: testContact({
+          lastContactAt: new Date(Date.now() - 30 * 86_400_000),
+          replyState: "NO_REPLY",
+          awaitingReplySince: new Date(Date.now() - 30 * 86_400_000),
+        }),
+      }),
+    );
+
+    expect(screen.getByText("No reply · 30d")).toBeTruthy();
   });
 });
