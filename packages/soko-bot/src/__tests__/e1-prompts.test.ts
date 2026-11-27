@@ -66,7 +66,10 @@ describe("e1Prompts version flag", () => {
     const social = getSokoBotSkillForVersion("social-posting-instructions", e1);
     expect(social.content).toContain("intended publication date or time");
     expect(social.content).toContain(
-      "Never put a review deadline or suggested date into `scheduledAt`",
+      "explicitly asks you to pick a publication slot and schedule it",
+    );
+    expect(social.content).toContain(
+      "Never put a review deadline or unrequested suggested date into `scheduledAt`",
     );
     expect(social.content).toContain("unscheduled proposals");
 
