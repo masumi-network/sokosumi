@@ -10,6 +10,7 @@ import {
   type EnvVariables,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
+import { canUsePreprodInWorkspace, isPreprodOn } from "@/lib/network";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { ablyTokenRequestSchema } from "@/schemas/ably-token.schema";
 
@@ -25,7 +26,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/ably-token",
     description:
-      "Mint an Ably TokenRequest for Realtime. Grants chat room subscribe for the caller's memberships, narrowed to the rooms named by roomIds when present, exact per-user Calendar workspace subscribe, always-on chat and Calendar control, user task/notification/job wildcards, and org presence (ADR-0003). Pass clientInstanceId as a query param (Ably authParams) for multi-device clientId. Call after join/leave or on revoke so capabilities refresh.",
+      "Mint an Ably TokenRequest for Realtime. Grants chat room subscribe for the caller's memberships, narrowed to the rooms named by roomIds when present, exact per-user Calendar workspace subscribe, always-on chat and Calendar control, user task/notification channels, Job status channels by Network and Workspace, and org presence (ADR-0003). Pass clientInstanceId as a query param (Ably authParams) for multi-device clientId. Call after join/leave or on revoke so capabilities refresh.",
     tags: ["Realtime"],
     request: {
       query: z.object({
@@ -66,6 +67,16 @@ export default function mount(
       throw badRequest("Invalid clientInstanceId");
     }
 
+    // Preprod Job channels go to a browser session only, as Preprod itself
+    // does (`hasPreprodAccess`), and the flags are read only while it is on.
+    const { authContext } = c.var;
+    const sessionRole =
+      authContext.actor === "user" &&
+      authContext.authenticationMethod === "session"
+        ? { role: authContext.role }
+        : null;
+    const withPreprod = isPreprodOn() && sessionRole !== null;
+
     const [roomMemberships, orgMemberships, workspaces] = await Promise.all([
       prisma.chatRoomUserMember.findMany({
         where: {
@@ -89,7 +100,13 @@ export default function mount(
             },
           ],
         },
-        select: { id: true },
+        select: {
+          id: true,
+          ...(withPreprod && {
+            user: { select: { preprodEnabled: true } },
+            organization: { select: { preprodEnabled: true } },
+          }),
+        },
       }),
     ]);
 
@@ -98,6 +115,17 @@ export default function mount(
       roomIds: roomMemberships.map((m) => m.roomId),
       organizationIds: orgMemberships.map((m) => m.organizationId),
       workspaceIds: workspaces.map((workspace) => workspace.id),
+      preprodJobWorkspaceIds: withPreprod
+        ? workspaces
+            .filter((workspace) =>
+              canUsePreprodInWorkspace(
+                workspace.user ?? {},
+                sessionRole?.role,
+                { organization: workspace.organization ?? null },
+              ),
+            )
+            .map((workspace) => workspace.id)
+        : [],
       clientInstanceId,
     });
 

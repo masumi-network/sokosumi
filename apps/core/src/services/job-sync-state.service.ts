@@ -23,6 +23,7 @@ import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { emitCoreError, emitCoreWarning } from "@/lib/evlog";
+import { JOB_SYNC_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sourceImportService } from "@/services/source-import.service";
 
@@ -249,7 +250,8 @@ export async function finalizeJobSyncResult(
 
   try {
     await publishJobStatusData({
-      agentId: updatedJob.agentId,
+      network: JOB_SYNC_NETWORK,
+      workspaceId: updatedJob.workspaceId,
       userId: ownerId,
       jobId: updatedJob.id,
       jobStatus: updatedJob.status,

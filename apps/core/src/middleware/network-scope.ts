@@ -1,4 +1,4 @@
-import { CORE_API_ERROR_KINDS, hasAdminRole } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
@@ -10,7 +10,12 @@ import {
   type NetworkScope,
 } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
-import { isPreprodOn, NETWORKS, type Network } from "@/lib/network";
+import {
+  canUsePreprodInWorkspace,
+  isPreprodOn,
+  NETWORKS,
+  type Network,
+} from "@/lib/network";
 
 import {
   type AuthenticationContext,
@@ -79,20 +84,23 @@ async function hasPreprodAccess(
   ) {
     return false;
   }
-  if (hasAdminRole(authContext.role)) return true;
-  const { userId, organizationId } = authContext;
+  const { userId, organizationId, role } = authContext;
+  // An admin's role decides, so no flag is read.
+  if (canUsePreprodInWorkspace({}, role, { organization: null })) return true;
   if (organizationId) {
     const member = await prisma.member.findFirst({
       where: { organizationId, userId, organization: { preprodEnabled: true } },
       select: { id: true },
     });
-    return member !== null;
+    return canUsePreprodInWorkspace({}, role, {
+      organization: { preprodEnabled: member !== null },
+    });
   }
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { preprodEnabled: true },
   });
-  return user?.preprodEnabled === true;
+  return canUsePreprodInWorkspace(user ?? {}, role, { organization: null });
 }
 
 /**

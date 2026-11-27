@@ -24,22 +24,34 @@ import {
   publishTaskEventData,
 } from "./publish";
 
-const { envMock, publishMock, batchPublishMock, getMock, getRestClientMock } =
-  vi.hoisted(() => ({
-    envMock: {
-      NETWORK: "Mainnet",
-      VERCEL_ENV: "production" as "production" | "preview",
-      VERCEL_GIT_COMMIT_REF: "main" as string | undefined,
-    },
-    publishMock: vi.fn(),
-    batchPublishMock: vi.fn(),
-    getMock: vi.fn(),
-    getRestClientMock: vi.fn(),
-  }));
+const {
+  envMock,
+  publishMock,
+  batchPublishMock,
+  getMock,
+  getRestClientMock,
+  findOwnerMock,
+} = vi.hoisted(() => ({
+  envMock: {
+    NETWORK: "Mainnet",
+    NETWORK_PREPROD_ENABLED: false,
+    VERCEL_ENV: "production" as "production" | "preview",
+    VERCEL_GIT_COMMIT_REF: "main" as string | undefined,
+  },
+  publishMock: vi.fn(),
+  batchPublishMock: vi.fn(),
+  getMock: vi.fn(),
+  getRestClientMock: vi.fn(),
+  findOwnerMock: vi.fn(),
+}));
 
 vi.mock("@sentry/node", () => ({ captureException: vi.fn() }));
 
 vi.mock("@/config/env", () => ({ getEnv: () => envMock }));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: { user: { findUnique: findOwnerMock } },
+}));
 
 vi.mock("./client", () => ({
   getRestClient: () => getRestClientMock(),
@@ -59,6 +71,7 @@ getRestClientMock.mockImplementation(() => ({
 beforeEach(() => {
   envMock.VERCEL_ENV = "production";
   envMock.VERCEL_GIT_COMMIT_REF = "main";
+  envMock.NETWORK_PREPROD_ENABLED = false;
 });
 
 describe("calendar invalidation publishing", () => {
@@ -130,23 +143,116 @@ describe("publishTaskEventData", () => {
 });
 
 describe("publishJobStatusData", () => {
-  it("publishes job status data to the agent-user channel", async () => {
-    await publishJobStatusData({
-      agentId: "agent_123",
-      userId: "user_123",
-      jobId: "job_123",
-      jobStatus: SokosumiJobStatus.PROCESSING,
-      jobStatusSettled: false,
-    });
+  const WORKSPACE_ID = "workspace_123";
+  const status = {
+    workspaceId: WORKSPACE_ID,
+    userId: "user_123",
+    jobId: "job_123",
+    jobStatus: SokosumiJobStatus.PROCESSING,
+    jobStatusSettled: false,
+  };
+  const PREPROD_CHANNEL =
+    "agent_jobs:preprod:workspace_workspace_123:user_user_123";
+  /** The Owner as the access read returns them. */
+  const owner = (overrides: Record<string, unknown> = {}) => ({
+    role: "user",
+    preprodEnabled: false,
+    workspace: { id: "workspace_personal" },
+    members: [],
+    ...overrides,
+  });
 
-    expect(getMock).toHaveBeenCalledWith(
-      "agent_jobs:agent_agent_123:user_user_123",
+  beforeEach(() => {
+    publishMock.mockClear();
+    getMock.mockClear();
+    findOwnerMock.mockReset();
+  });
+
+  it.each([false, true])(
+    "publishes a Mainnet status once, on the Network and Workspace name, reading nothing (Preprod on: %s)",
+    async (preprodOn) => {
+      envMock.NETWORK_PREPROD_ENABLED = preprodOn;
+
+      await publishJobStatusData({ network: "mainnet", ...status });
+
+      expect(getMock.mock.calls).toEqual([
+        ["agent_jobs:mainnet:workspace_workspace_123:user_user_123"],
+      ]);
+      expect(publishMock.mock.calls).toEqual([
+        [
+          "job_status_data",
+          {
+            jobId: "job_123",
+            jobStatus: SokosumiJobStatus.PROCESSING,
+            jobStatusSettled: false,
+          },
+        ],
+      ]);
+      expect(findOwnerMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    [
+      "a member of the Workspace's opted-in Organization",
+      owner({ members: [{ organization: { preprodEnabled: true } }] }),
+    ],
+    [
+      "an opted-in person in their personal Workspace",
+      owner({ preprodEnabled: true, workspace: { id: WORKSPACE_ID } }),
+    ],
+    ["a platform admin", owner({ role: "admin" })],
+  ])("publishes a Preprod status to %s", async (_who, row) => {
+    envMock.NETWORK_PREPROD_ENABLED = true;
+    findOwnerMock.mockResolvedValue(row);
+
+    await publishJobStatusData({ network: "preprod", ...status });
+
+    expect(findOwnerMock).toHaveBeenCalledTimes(1);
+    expect(getMock.mock.calls).toEqual([[PREPROD_CHANNEL]]);
+    expect(publishMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [
+      "a person who is not opted in",
+      owner({ workspace: { id: WORKSPACE_ID } }),
+    ],
+    [
+      "a member of an Organization that is not opted in, opted in themselves",
+      owner({
+        preprodEnabled: true,
+        members: [{ organization: { preprodEnabled: false } }],
+      }),
+    ],
+    [
+      "an opted-in person in a Workspace that is not theirs",
+      owner({ preprodEnabled: true }),
+    ],
+    ["an Owner who is gone", null],
+  ])("drops a Preprod status for %s, with a warning", async (_who, row) => {
+    envMock.NETWORK_PREPROD_ENABLED = true;
+    findOwnerMock.mockResolvedValue(row);
+    const warnings = expectCoreLog(
+      "warn",
+      "Dropped a Preprod job status event",
     );
-    expect(publishMock).toHaveBeenCalledWith("job_status_data", {
-      jobId: "job_123",
-      jobStatus: SokosumiJobStatus.PROCESSING,
-      jobStatusSettled: false,
-    });
+
+    await expect(
+      publishJobStatusData({ network: "preprod", ...status }),
+    ).resolves.toBeUndefined();
+
+    expect(getMock).not.toHaveBeenCalled();
+    expect(publishMock).not.toHaveBeenCalled();
+    expect(warnings[0]?.event).toMatchObject({ job: { id: "job_123" } });
+  });
+
+  it("publishes no Preprod status while Preprod is off, reading nothing", async () => {
+    await publishJobStatusData({ network: "preprod", ...status });
+
+    expect(findOwnerMock).not.toHaveBeenCalled();
+    expect(getMock).not.toHaveBeenCalled();
+    expect(publishMock).not.toHaveBeenCalled();
   });
 });
 

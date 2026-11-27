@@ -2,7 +2,6 @@
 
 import type { JobSummary } from "@sokosumi/core-client";
 import { SokosumiJobStatus } from "@sokosumi/core-client";
-import { makeAgentJobsChannelName } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -19,7 +18,7 @@ import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { Button } from "@/components/ui/button";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useAnimationFrameBatch } from "@/hooks/effects/use-animation-frame-batch";
-import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
+import { jobStatusChannelName } from "@/lib/ably/job-status-channel";
 import { jobStatusDataSchema } from "@/lib/ably/schema";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -152,13 +151,17 @@ export function JobsList({
     [filteredJobs, locale],
   );
 
-  const channelName = makeAgentJobsChannelName(
-    agentId,
-    userId,
-    getRealtimeChannelEnvironment(),
-  );
+  // The list is one Workspace's, so its first Job names the channel. An empty
+  // list has no status to keep live.
+  const workspaceId = jobs[0]?.workspace.id;
+  const channelName = workspaceId
+    ? jobStatusChannelName(workspaceId, userId)
+    : null;
 
-  function handleStatusUpdate(updates: JobStatusUpdateData[]) {
+  function handleStatusUpdate(received: JobStatusUpdateData[]) {
+    // The channel carries every Job of the Workspace, other Agents' too.
+    const listedJobIds = new Set(localJobs.map((job) => job.id));
+    const updates = received.filter((update) => listedJobIds.has(update.jobId));
     if (updates.length === 0) {
       return;
     }
@@ -217,14 +220,16 @@ export function JobsList({
 
   return (
     <>
-      <LazyAblyProvider>
-        <ChannelProvider channelName={channelName}>
-          <JobsStatusRealtimeListener
-            channelName={channelName}
-            onStatusUpdate={handleStatusUpdate}
-          />
-        </ChannelProvider>
-      </LazyAblyProvider>
+      {channelName ? (
+        <LazyAblyProvider>
+          <ChannelProvider channelName={channelName}>
+            <JobsStatusRealtimeListener
+              channelName={channelName}
+              onStatusUpdate={handleStatusUpdate}
+            />
+          </ChannelProvider>
+        </LazyAblyProvider>
+      ) : null}
       <aside className="@4xl/jobs-panes:border-border flex size-full min-h-0 flex-col py-4 @4xl/jobs-panes:border-r">
         {header}
         <JobsSearch
