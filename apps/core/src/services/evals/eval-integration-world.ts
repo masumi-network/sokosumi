@@ -88,20 +88,41 @@ const INBOX = [
 /** Gmail's own operators, which the fixed inbox does not filter on. */
 const GMAIL_OPERATOR = /^-?[a-z_]+:/i;
 
+/** Seconds since the epoch a Gmail `after:`/`before:` operator names. */
+function epochBound(text: string, operator: "after" | "before") {
+  const value = text.match(new RegExp(`\\b${operator}:(\\d+)\\b`))?.[1];
+  return value ? Number(value) * 1000 : null;
+}
+
+/**
+ * The fixed inbox as Gmail would filter it: words in the sender, subject or
+ * body; `is:unread`; `after:`/`before:` in epoch seconds (what Core sends);
+ * nothing in `in:sent`. Other operators do not narrow it.
+ */
 function matchingMail(query: unknown) {
   const text = typeof query === "string" ? query : "";
   if (/\bin:sent\b/.test(text)) return [];
+  const unreadOnly = /\bis:unread\b/.test(text);
+  const after = epochBound(text, "after");
+  const before = epochBound(text, "before");
   const words = text
     .split(/\s+/)
     .filter((word) => word && !GMAIL_OPERATOR.test(word))
     .map((word) => word.toLowerCase());
-  return INBOX.filter((mail) =>
-    words.every((word) =>
-      `${mail.sender} ${mail.subject} ${mail.messageText}`
-        .toLowerCase()
-        .includes(word),
-    ),
-  );
+  return INBOX.filter((mail) => {
+    const at = Date.parse(mail.messageTimestamp);
+    return (
+      (!unreadOnly ||
+        (mail.labelIds as readonly string[]).includes("UNREAD")) &&
+      (after === null || at > after) &&
+      (before === null || at < before) &&
+      words.every((word) =>
+        `${mail.sender} ${mail.subject} ${mail.messageText}`
+          .toLowerCase()
+          .includes(word),
+      )
+    );
+  });
 }
 
 /** Three events in the window asked for, at fixed times from its start. */
@@ -177,7 +198,25 @@ const TOOLS: Record<string, readonly EvalTool[]> = {
       name: "List events",
       description: "Events on the primary calendar in a time window.",
       readOnly: true,
-      run: (args) => ({ items: calendarEvents(args), nextPageToken: null }),
+      // Only events that overlap the window asked for, as Google returns.
+      run: (args) => {
+        const timeMin =
+          typeof args.timeMin === "string"
+            ? Date.parse(args.timeMin)
+            : -Infinity;
+        const timeMax =
+          typeof args.timeMax === "string"
+            ? Date.parse(args.timeMax)
+            : Infinity;
+        return {
+          items: calendarEvents(args).filter(
+            (event) =>
+              Date.parse(event.end.dateTime) > timeMin &&
+              Date.parse(event.start.dateTime) < timeMax,
+          ),
+          nextPageToken: null,
+        };
+      },
     },
     {
       slug: "GOOGLECALENDAR_CREATE_EVENT",
