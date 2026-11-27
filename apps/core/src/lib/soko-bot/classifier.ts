@@ -1,5 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import {
+  SOKO_BOT_DIRECT_READ_CAPABILITIES,
+  SOKO_BOT_SANDBOX_CAPABILITIES,
   SOKO_BOT_TURN_COMPLEXITIES,
   type SokoBotCapability,
   type SokoBotRoute,
@@ -143,7 +145,57 @@ const COMPLEXITY_CRITERIA: Record<SokoBotTurnComplexity["label"], string> = {
     "Many steps or real judgement: plan or rethink a strategy or a campaign, coordinate work across several Tasks, Coworkers or Agents, research several sources and compare or recommend, a request with several independent parts across different tools, a long document or analysis, or debugging why something went wrong. A yes or a short answer to previousReply is complex when that reply offered such work.",
 };
 
-export function routeQuestions(hasPendingProposals: boolean) {
+export const ABSTAIN_ROUTE = "ABSTAIN";
+
+const ABSTAIN_CRITERION =
+  "None of the options above clearly fits: the message is genuinely ambiguous between acting and asking, asks for something outside the available options, or depends on context not shown here.";
+
+const BASE_CAPABILITY_SET = new Set<string>([
+  ...SOKO_BOT_DIRECT_READ_CAPABILITIES,
+  ...SOKO_BOT_SANDBOX_CAPABILITIES,
+]);
+
+export interface RouteMenuContext {
+  /** Capabilities the version (or bot-to-bot scope) is allowed to run. */
+  capabilities: readonly SokoBotCapability[];
+  /** Whether at least one online marketplace Agent is available to hire. */
+  hasAgents: boolean;
+}
+
+/**
+ * Keel menu rule: filters Jev's route options to what the workspace and
+ * version can actually run before asking Jev. Selection never grants
+ * permission; Core re-checks the pick and enforces its own authority gates.
+ */
+export function runnableRoutesForMenu(menu: RouteMenuContext): SokoBotRoute[] {
+  const allowed = new Set<string>(menu.capabilities);
+  const routes: SokoBotRoute[] = ["DIRECT_RESPONSE", "CLARIFY"];
+  const hasDelegate = allowed.has("create_task") || allowed.has("assign_task");
+  const hasHire = allowed.has("hire_agent") && menu.hasAgents;
+  const hasManage = menu.capabilities.some(
+    (capability) => !BASE_CAPABILITY_SET.has(capability),
+  );
+  if (hasDelegate) routes.push("DELEGATE_TASK");
+  if (hasHire) routes.push("HIRE_AGENT");
+  if (hasManage) routes.push("MANAGE_WORK");
+  const actionRoutes =
+    Number(hasDelegate) + Number(hasHire) + Number(hasManage);
+  if (actionRoutes >= 2) routes.push("MIXED");
+  return routes;
+}
+
+export function routeQuestions(
+  hasPendingProposals: boolean,
+  availableRoutes?: readonly SokoBotRoute[],
+) {
+  const routeCriteria: Record<string, string> = availableRoutes
+    ? {
+        ...Object.fromEntries(
+          availableRoutes.map((route) => [route, ROUTE_CRITERIA[route]]),
+        ),
+        [ABSTAIN_ROUTE]: ABSTAIN_CRITERION,
+      }
+    : ROUTE_CRITERIA;
   return {
     ...Object.fromEntries(
       Object.entries(SIGNAL_INSTRUCTIONS).map(([key, instructions]) => [
@@ -154,7 +206,7 @@ export function routeQuestions(hasPendingProposals: boolean) {
     route: {
       type: "choice" as const,
       instructions: ROUTE_INSTRUCTIONS,
-      criteria: ROUTE_CRITERIA,
+      criteria: routeCriteria,
     },
     writeScope: {
       type: "choice" as const,
@@ -184,6 +236,11 @@ export function routeQuestions(hasPendingProposals: boolean) {
 export interface ClassifierContextSummary {
   /** The assistant's last reply in this conversation, so "yes" has a referent. */
   previousReply?: string | null;
+  /**
+   * Host-filtered runnable route menu (keel menu rule, active when a version
+   * enables `routeSteering`). Omitted on legacy versions.
+   */
+  availableRoutes?: readonly SokoBotRoute[];
   pendingIntents?: readonly {
     id: string;
     desiredOutcome: string;
@@ -320,19 +377,21 @@ export type RouteEvaluator = (request: {
     pendingProposals: string[];
   };
   hasPendingProposals: boolean;
+  availableRoutes?: readonly SokoBotRoute[];
   abortSignal: AbortSignal;
 }) => Promise<RouteEvaluation>;
 
 const evaluateWithJev: RouteEvaluator = async ({
   state,
   hasPendingProposals,
+  availableRoutes,
   abortSignal,
 }) => {
   const mode = planJevMode();
   if (mode === "stand-in")
     return evaluateOnChatGptPlan({
       state,
-      questions: routeQuestions(hasPendingProposals),
+      questions: routeQuestions(hasPendingProposals, availableRoutes),
       abortSignal,
     });
   const result = await recordedOnPlan(
@@ -341,7 +400,7 @@ const evaluateWithJev: RouteEvaluator = async ({
       model: gateway.evaluationModel(SOKO_BOT_ROUTE_MODEL),
       // Clipped text can end in half an emoji, which the Gateway refuses.
       state: wellFormed(state),
-      questions: routeQuestions(hasPendingProposals),
+      questions: routeQuestions(hasPendingProposals, availableRoutes),
       abortSignal,
       maxRetries: 0,
       providerOptions: JEV_PROVIDER_OPTIONS,
@@ -409,11 +468,32 @@ export function classificationFromAnswers(
   message: string,
   answers: RouteAnswers,
   pendingIntents: NonNullable<ClassifierContextSummary["pendingIntents"]>,
+  availableRoutes?: readonly SokoBotRoute[],
 ): TurnClassification {
   const signals = signalsFromAnswers(answers);
   const complexity = complexityFromAnswers(answers);
+  const probabilities = answers.route.probabilities;
+  const rawRoute = answers.route.choice;
+  const rawConfidence = probabilities?.[rawRoute];
+  const allowed = availableRoutes ? new Set(availableRoutes) : null;
+  const actionableRoutes = ([...WORK_ROUTES, "HIRE_AGENT"] as const).filter(
+    (route) => !allowed || allowed.has(route),
+  );
+  const workConfidence = probabilities
+    ? Math.min(
+        1,
+        actionableRoutes.reduce(
+          (sum, route) => sum + (probabilities[route] ?? 0),
+          0,
+        ),
+      )
+    : undefined;
   return {
-    ...routedClassification(message, answers, pendingIntents),
+    ...routedClassification(message, answers, pendingIntents, availableRoutes),
+    rawRoute,
+    ...(rawConfidence !== undefined ? { rawConfidence } : {}),
+    ...(workConfidence !== undefined ? { workConfidence } : {}),
+    ...(availableRoutes ? { menuRoutes: [...availableRoutes] } : {}),
     ...(signals ? { signals } : {}),
     ...(complexity ? { complexity } : {}),
   };
@@ -458,15 +538,34 @@ function routedClassification(
   message: string,
   answers: RouteAnswers,
   pendingIntents: NonNullable<ClassifierContextSummary["pendingIntents"]>,
+  availableRoutes?: readonly SokoBotRoute[],
 ): TurnClassification {
   if (pendingIntents.length > 0) {
     const confirmation = answers.confirmsPending?.probability ?? 0;
     if (confirmation >= MIN_CONFIRMATION_CONFIDENCE) {
       const [selected] = pendingIntents;
       if (pendingIntents.length === 1 && selected) {
+        const effectiveRoute = selected.requiresApproval
+          ? "CLARIFY"
+          : selected.route;
+        if (availableRoutes && !availableRoutes.includes(effectiveRoute)) {
+          return {
+            ...baseClassification(
+              "CLARIFY",
+              selected.desiredOutcome,
+              `Jev: confirmed proposal route ${effectiveRoute} is no longer available; reads only.`,
+              0,
+            ),
+            selectedIntentId: selected.id,
+            candidateTaskIds: [...(selected.targetIds ?? [])],
+            continuation: "CONTINUE",
+            requiresApproval: selected.requiresApproval,
+            abstained: true,
+          };
+        }
         return {
           ...baseClassification(
-            selected.requiresApproval ? "CLARIFY" : selected.route,
+            effectiveRoute,
             selected.desiredOutcome,
             `Jev: confirms the pending proposal (${percent(confirmation)}).`,
             confirmation,
@@ -492,7 +591,7 @@ function routedClassification(
     }
   }
 
-  const routed = routeFromAnswers(message, answers);
+  const routed = routeFromAnswers(message, answers, availableRoutes);
   // Jev's reading of "cancel that" / "instead, …" against the one pending
   // proposal; the control plane only withdraws on this.
   return pendingIntents.length > 0 &&
@@ -524,14 +623,45 @@ const MIN_MIXED_SHARE = 0.2;
 function routeFromAnswers(
   message: string,
   answers: RouteAnswers,
+  availableRoutes?: readonly SokoBotRoute[],
 ): TurnClassification {
+  const menu = availableRoutes ? new Set(availableRoutes) : null;
   const route = answers.route.choice;
   const probabilities = answers.route.probabilities ?? {};
   const confidence = probabilities[route] ?? 0;
   const workConfidence = WORK_ROUTES.reduce(
-    (sum, work) => sum + (probabilities[work] ?? 0),
+    (sum, work) =>
+      sum + (!menu || menu.has(work) ? (probabilities[work] ?? 0) : 0),
     0,
   );
+
+  const canDirect = !menu || menu.has("DIRECT_RESPONSE");
+  const canClarify = !menu || menu.has("CLARIFY");
+  const fallback: SokoBotRoute =
+    canDirect &&
+    (!canClarify ||
+      (probabilities.DIRECT_RESPONSE ?? 0) > (probabilities.CLARIFY ?? 0))
+      ? "DIRECT_RESPONSE"
+      : "CLARIFY";
+
+  // Keel menu validation: reject ABSTAIN, unknown, or unavailable routes before
+  // acting and route through the defined fallback.
+  if (
+    menu &&
+    (route === ABSTAIN_ROUTE || !isRoute(route) || !menu.has(route))
+  ) {
+    return {
+      ...baseClassification(
+        fallback,
+        message,
+        route === ABSTAIN_ROUTE
+          ? `Jev: abstained (${percent(confidence)}); defined fallback.`
+          : `Jev: picked unavailable route (${route}); defined fallback.`,
+        probabilities[fallback] ?? 0,
+      ),
+      abstained: true,
+    };
+  }
 
   const scope = answers.writeScope.choice;
   const scopeConfidence = answers.writeScope.probabilities?.[scope] ?? 0;
@@ -570,14 +700,28 @@ function routeFromAnswers(
     ((WORK_ROUTES as readonly string[]).includes(route) &&
       workConfidence >= MIN_POOLED_WORK_CONFIDENCE)
   ) {
-    return baseClassification(
-      "DELEGATE_TASK",
-      message,
-      route === "DELEGATE_TASK"
-        ? `Jev: DELEGATE_TASK (${percent(confidence)}).`
-        : `Jev: work across routes (${percent(workConfidence)}, ${route} leading).`,
-      route === "DELEGATE_TASK" ? confidence : workConfidence,
-    );
+    const canDelegate = !menu || menu.has("DELEGATE_TASK");
+    if (canDelegate) {
+      return baseClassification(
+        "DELEGATE_TASK",
+        message,
+        route === "DELEGATE_TASK"
+          ? `Jev: DELEGATE_TASK (${percent(confidence)}).`
+          : `Jev: work across routes (${percent(workConfidence)}, ${route} leading).`,
+        route === "DELEGATE_TASK" ? confidence : workConfidence,
+      );
+    }
+    if (menu?.has("MANAGE_WORK")) {
+      const classification = baseClassification(
+        "MANAGE_WORK",
+        message,
+        `Jev: work across routes (${percent(workConfidence)}, ${route} leading).`,
+        workConfidence,
+      );
+      return confidentScope
+        ? { ...classification, writeScope: confidentScope }
+        : classification;
+    }
   }
   if (route === "HIRE_AGENT" && confidence >= MIN_HIRE_CONFIDENCE)
     return baseClassification(
@@ -595,10 +739,6 @@ function routeFromAnswers(
       `Jev: ${route} (${percent(confidence)}).`,
       confidence,
     );
-  const fallback =
-    (probabilities.DIRECT_RESPONSE ?? 0) > (probabilities.CLARIFY ?? 0)
-      ? "DIRECT_RESPONSE"
-      : "CLARIFY";
   if (!isRoute(route))
     return baseClassification(
       fallback,
@@ -608,6 +748,18 @@ function routeFromAnswers(
     );
   // Reads only, but the bot is told what the owner may want, so it can show
   // the change and ask for a go-ahead rather than say it cannot act.
+  if (menu) {
+    return {
+      ...baseClassification(
+        fallback,
+        message,
+        `Jev: abstained (${route} at ${percent(confidence)}); defined fallback.`,
+        probabilities[fallback] ?? 0,
+      ),
+      unsureRoute: route,
+      abstained: true,
+    };
+  }
   return {
     ...baseClassification(
       fallback,
@@ -695,6 +847,9 @@ export class JevTurnClassifier implements TurnClassifier {
           pendingProposals: pending.map((intent) => intent.desiredOutcome),
         },
         hasPendingProposals: pending.length > 0,
+        ...(context.availableRoutes
+          ? { availableRoutes: context.availableRoutes }
+          : {}),
       });
       // Read before anything that can throw: a malformed answer still cost money.
       usage = {
@@ -708,6 +863,7 @@ export class JevTurnClassifier implements TurnClassifier {
           message,
           routeAnswersSchema.parse(result.answers),
           pending,
+          context.availableRoutes,
         ),
         model: routeModelName(),
         version: CLASSIFIER_VERSION,
@@ -733,12 +889,18 @@ export class JevTurnClassifier implements TurnClassifier {
         },
       );
       return {
-        classification: baseClassification(
-          "CLARIFY",
-          message,
-          "Classifier unavailable; reads only.",
-          0,
-        ),
+        classification: {
+          ...baseClassification(
+            "CLARIFY",
+            message,
+            "Classifier unavailable; reads only.",
+            0,
+          ),
+          classifierFailed: true,
+          ...(context.availableRoutes
+            ? { menuRoutes: [...context.availableRoutes], abstained: true }
+            : {}),
+        },
         model: routeModelName(),
         version: CLASSIFIER_VERSION,
         latencyMs: elapsed(),

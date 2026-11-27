@@ -371,6 +371,7 @@ export {
   cmoPostsVideoShapes,
 } from "./versions/cmo-video-shapes-skill.js";
 export {
+  applyRouteSteeringPrompt,
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,
@@ -379,6 +380,7 @@ export {
   composeTurnPreamble,
   DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotVersion,
+  ROUTE_STEERING_ACT_OR_ASK_SECTION,
   SOKO_BOT_PRODUCT_VERSIONS,
   SOKO_BOT_SKILLS,
   SOKO_BOT_VERSIONS,

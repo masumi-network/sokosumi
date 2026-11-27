@@ -114,6 +114,7 @@ import {
   type ClassificationResult,
   JevTurnClassifier,
   presetClassificationResult,
+  runnableRoutesForMenu,
   storedWriteScope,
   type TurnClassifier,
 } from "@/lib/soko-bot/classifier";
@@ -2512,6 +2513,17 @@ export class SokoBotControlPlane {
         ),
       ].join(" "),
     );
+    // Keel menu rule (E1, gated by version.routeSteering): filter Jev's route
+    // options to what this bot and workspace can actually run before asking
+    // Jev, then re-check the pick against the same menu before acting.
+    const availableRoutes = version.routeSteering
+      ? runnableRoutesForMenu({
+          capabilities: input.chat?.askedByBot
+            ? SOKO_BOT_BOT_TO_BOT_CAPABILITIES
+            : applyVersionCapabilities(version, SOKO_BOT_CAPABILITIES),
+          hasAgents: classifierContext.agentIds.length > 0,
+        })
+      : undefined;
     const classification: ClassificationResult = input.presetRoute
       ? presetClassificationResult(message, input.presetRoute)
       : await withEvaluationActor(
@@ -2519,6 +2531,7 @@ export class SokoBotControlPlane {
           () =>
             this.classifier.classify(input.chat?.classifyMessage ?? message, {
               ...classifierContext,
+              ...(availableRoutes ? { availableRoutes } : {}),
               previousReply:
                 previousTurn?.status === "COMPLETED"
                   ? previousTurn.finalAnswer
@@ -2542,6 +2555,20 @@ export class SokoBotControlPlane {
               })),
             }),
         );
+    if (
+      availableRoutes &&
+      !input.presetRoute &&
+      !availableRoutes.includes(classification.classification.route)
+    ) {
+      classification.classification = {
+        ...classification.classification,
+        route: "CLARIFY",
+        confidence: 0,
+        requiresClarification: true,
+        abstained: true,
+        rationaleSummary: `Host re-check rejected unavailable route (${classification.classification.route}); reads only.`,
+      };
+    }
     // Every Task the name matches is a candidate. Several matches used to
     // force CLARIFY, which turned "archive all my [TEST] tasks" into a
     // question; the bot sees the candidates and asks only when the owner

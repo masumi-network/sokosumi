@@ -1,13 +1,19 @@
-import { capabilitiesForClassification } from "@sokosumi/soko-bot";
+import {
+  capabilitiesForClassification,
+  SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+  SOKO_BOT_CAPABILITIES,
+} from "@sokosumi/soko-bot";
 import { describe, expect, it, vi } from "vitest";
 import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import { databaseNow } from "@/lib/db/database-now";
 import {
+  ABSTAIN_ROUTE,
   type ClassifierContextSummary,
   classifierAttemptTimeoutMs,
   JevTurnClassifier,
   type RouteEvaluator,
   routeQuestions,
+  runnableRoutesForMenu,
   SOKO_BOT_ROUTE_MODEL,
   unwrapTitleTags,
 } from "@/lib/soko-bot/classifier";
@@ -69,6 +75,19 @@ function answering(
   evaluation: Awaited<ReturnType<RouteEvaluator>>,
 ): RouteEvaluator & ReturnType<typeof vi.fn> {
   return vi.fn(async () => evaluation);
+}
+
+function splitChoice(
+  probabilities: Record<string, number>,
+  choice: string,
+): RouteEvaluator & ReturnType<typeof vi.fn> {
+  return answering({
+    ...jevRoute("CLARIFY"),
+    answers: {
+      route: { choice, probabilities },
+      writeScope: { choice: "WORK", probabilities: { WORK: 0.4 } },
+    },
+  });
 }
 
 describe("Jev route selection", () => {
@@ -678,5 +697,185 @@ describe("failing closed", () => {
     expect(result.failed).toBe(false);
     expect(result.classification.route).toBe("CLARIFY");
     expect(result.classification.unsureRoute).toBeUndefined();
+  });
+
+  it("records raw real-Jev prediction alongside effective route without changing legacy split-vote grants", async () => {
+    const result = await new JevTurnClassifier(
+      splitChoice(
+        { MANAGE_WORK: 0.4, DIRECT_RESPONSE: 0.35, CLARIFY: 0.25 },
+        "MANAGE_WORK",
+      ),
+    ).classify("Give me a status rundown", EMPTY_CONTEXT);
+    expect(result.classification).toMatchObject({
+      route: "DIRECT_RESPONSE",
+      confidence: 0.4,
+      unsureRoute: "MANAGE_WORK",
+      rawRoute: "MANAGE_WORK",
+      rawConfidence: 0.4,
+      workConfidence: 0.4,
+    });
+    expect(result.classification.menuRoutes).toBeUndefined();
+    expect(result.classification.abstained).toBeUndefined();
+    expect(capabilitiesForClassification(result.classification)).not.toContain(
+      "create_task",
+    );
+  });
+
+  it("filters Jev's route menu to runnable workspace/version routes under the keel menu rule", () => {
+    expect(
+      runnableRoutesForMenu({
+        capabilities: SOKO_BOT_CAPABILITIES,
+        hasAgents: true,
+      }),
+    ).toEqual([
+      "DIRECT_RESPONSE",
+      "CLARIFY",
+      "DELEGATE_TASK",
+      "HIRE_AGENT",
+      "MANAGE_WORK",
+      "MIXED",
+    ]);
+    // No online agents removes HIRE_AGENT before asking Jev.
+    expect(
+      runnableRoutesForMenu({
+        capabilities: SOKO_BOT_CAPABILITIES,
+        hasAgents: false,
+      }),
+    ).toEqual([
+      "DIRECT_RESPONSE",
+      "CLARIFY",
+      "DELEGATE_TASK",
+      "MANAGE_WORK",
+      "MIXED",
+    ]);
+    // Read-only scope (such as bot-to-bot) exposes no write routes or MIXED.
+    expect(
+      runnableRoutesForMenu({
+        capabilities: SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+        hasAgents: true,
+      }),
+    ).toEqual(["DIRECT_RESPONSE", "CLARIFY"]);
+
+    const legacy = routeQuestions(false);
+    expect(Object.keys(legacy.route.criteria)).not.toContain(ABSTAIN_ROUTE);
+    expect(Object.keys(legacy.route.criteria)).toContain("HIRE_AGENT");
+
+    const filtered = routeQuestions(false, [
+      "DIRECT_RESPONSE",
+      "CLARIFY",
+      "MANAGE_WORK",
+    ]);
+    expect(Object.keys(filtered.route.criteria)).toEqual([
+      "DIRECT_RESPONSE",
+      "CLARIFY",
+      "MANAGE_WORK",
+      ABSTAIN_ROUTE,
+    ]);
+  });
+
+  it("re-checks Jev picks against the menu and handles ABSTAIN, unavailable, and stale picks via defined fallback", async () => {
+    const menu = [
+      "DIRECT_RESPONSE",
+      "CLARIFY",
+      "DELEGATE_TASK",
+      "MANAGE_WORK",
+      "MIXED",
+    ] as const;
+
+    // Explicit ABSTAIN falls back using fallback probability, marking abstained.
+    const abstained = await new JevTurnClassifier(
+      splitChoice(
+        {
+          ABSTAIN: 0.5,
+          MANAGE_WORK: 0.3,
+          CLARIFY: 0.15,
+          DIRECT_RESPONSE: 0.05,
+        },
+        ABSTAIN_ROUTE,
+      ),
+    ).classify("Handle the release note", {
+      ...EMPTY_CONTEXT,
+      availableRoutes: menu,
+    });
+    expect(abstained.classification).toMatchObject({
+      route: "CLARIFY",
+      confidence: 0.15,
+      rawRoute: ABSTAIN_ROUTE,
+      rawConfidence: 0.5,
+      workConfidence: 0.3,
+      abstained: true,
+      menuRoutes: [...menu],
+    });
+    expect(
+      capabilitiesForClassification(abstained.classification),
+    ).not.toContain("create_task");
+
+    // Unavailable pick (HIRE_AGENT excluded from menu) is rejected by host re-check.
+    const unavailable = await new JevTurnClassifier(
+      splitChoice(
+        { HIRE_AGENT: 0.92, DIRECT_RESPONSE: 0.05, CLARIFY: 0.03 },
+        "HIRE_AGENT",
+      ),
+    ).classify("Hire someone to review this", {
+      ...EMPTY_CONTEXT,
+      availableRoutes: menu,
+    });
+    expect(unavailable.classification).toMatchObject({
+      route: "DIRECT_RESPONSE",
+      confidence: 0.05,
+      rawRoute: "HIRE_AGENT",
+      rawConfidence: 0.92,
+      abstained: true,
+    });
+    expect(
+      capabilitiesForClassification(unavailable.classification),
+    ).not.toContain("hire_agent");
+
+    // Stale confirmed proposal whose route is no longer runnable fails closed.
+    const stale = await new JevTurnClassifier(
+      answering({
+        ...jevRoute("DIRECT_RESPONSE", { confirmsPending: 0.96 }),
+      }),
+    ).classify("Yes, go ahead", {
+      ...EMPTY_CONTEXT,
+      availableRoutes: menu,
+      pendingIntents: [
+        {
+          id: "intent-stale",
+          desiredOutcome: "Hire an agent",
+          route: "HIRE_AGENT",
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          requiresApproval: false,
+        },
+      ],
+    });
+    expect(stale.classification).toMatchObject({
+      route: "CLARIFY",
+      confidence: 0,
+      abstained: true,
+      selectedIntentId: "intent-stale",
+    });
+  });
+
+  it("marks classifierFailed and abstained when Jev fails with a menu", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "The Soko Bot classifier failed, so the request became a clarification",
+      ["The routing model call failed, or its answer did not parse"],
+    );
+    const menu = ["DIRECT_RESPONSE", "CLARIFY", "MANAGE_WORK"] as const;
+    const failed = await new JevTurnClassifier(async () => {
+      throw new Error("gateway down");
+    }).classify("Update the post", {
+      ...EMPTY_CONTEXT,
+      availableRoutes: menu,
+    });
+    expect(failed.failed).toBe(true);
+    expect(failed.classification).toMatchObject({
+      route: "CLARIFY",
+      classifierFailed: true,
+      abstained: true,
+      menuRoutes: [...menu],
+    });
   });
 });
