@@ -10611,6 +10611,12 @@
         "editTags": "Editar etiquetas",
         "editTagsTitle": "Etiquetas de este mensaje",
         "editTagsNote": "Todos en este chat ven tu cambio.",
+        "moreTags": "Más etiquetas",
+        "Confidence": {
+          "veryLikely": "Muy probable",
+          "likely": "Probable",
+          "byHand": "Añadida a mano"
+        },
         "taskDue": "Vence {date}",
         "taskSource": "Del chat:",
         "taskFrom": "{name} escribió:",

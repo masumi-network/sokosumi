@@ -10611,6 +10611,12 @@
         "editTags": "Tags bearbeiten",
         "editTagsTitle": "Tags dieser Nachricht",
         "editTagsNote": "Alle in diesem Chat sehen deine Änderung.",
+        "moreTags": "Weitere Tags",
+        "Confidence": {
+          "veryLikely": "Sehr wahrscheinlich",
+          "likely": "Wahrscheinlich",
+          "byHand": "Von Hand gesetzt"
+        },
         "taskDue": "Fällig {date}",
         "taskSource": "Aus dem Chat:",
         "taskFrom": "{name} schrieb:",
