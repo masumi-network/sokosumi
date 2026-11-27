@@ -10,13 +10,20 @@ import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import { createCoreLogger, emitCoreError, logCoreWarning } from "@/lib/evlog";
-import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { sokoBotScheduleActingUserId } from "@/lib/soko-bot/acting-user";
+import { DetachedNetworkRefusal } from "@/lib/soko-bot/detached-network";
 import { isScheduleAuthorityRevoked } from "@/lib/soko-bot/owner-authority";
 import {
   isRetryableSokoBotRuntimeError,
   SokoBotRuntimeUnavailableError,
 } from "@/lib/soko-bot/runtime-errors";
+import {
+  finishStaleSchedule,
+  isTemporaryScheduleRefusal,
+  requireScheduledTurnProvenance,
+  type ScheduledTurnProvenance,
+  scheduleTurnProvenance,
+} from "@/lib/soko-bot/schedule-resume";
 import { nextEffectiveRun } from "@/lib/soko-bot/schedule-run-changes";
 import {
   scheduleAuthorityRoute,
@@ -109,6 +116,7 @@ function reportScheduleDisabled(schedule: ScheduleFailures): void {
 }
 
 interface ClaimedOccurrence {
+  provenance: ScheduledTurnProvenance;
   run: {
     id: string;
     attempt: number;
@@ -117,10 +125,13 @@ interface ClaimedOccurrence {
     turnId: string | null;
     leaseToken: string;
     leaseExpiresAt: Date | null;
-    status: string;
+    status: "CLAIMED";
   };
   schedule: {
     id: string;
+    jobId: string | null;
+    network: string | null;
+    preprodGeneration: number | null;
     sokoBotId: string;
     requestedByUserId: string | null;
     sokoBot: {
@@ -139,6 +150,8 @@ interface ClaimedOccurrence {
   };
   scheduledFor: Date;
 }
+
+type PickupResult = ClaimedOccurrence | "skipped" | null;
 
 function prismaErrorCode(error: unknown): string | null {
   if (!error || typeof error !== "object" || !("code" in error)) return null;
@@ -265,13 +278,15 @@ export function scheduleRunPrompt(schedule: {
 
 export class SokoBotSchedulesSyncService {
   private async claimRecoverableRun(
-    scheduleId?: string,
-  ): Promise<ClaimedOccurrence | null> {
+    scheduleId: string | undefined,
+    skipped: Set<string>,
+  ): Promise<PickupResult> {
     const now = new Date();
     const pending = await prisma.sokoBotScheduleRun.findFirst({
       where: {
         ...(scheduleId ? { scheduleId } : {}),
         schedule: {
+          ...(skipped.size ? { id: { notIn: [...skipped] } } : {}),
           sokoBot: {
             archivedAt: null,
             status: { not: "PAUSED" },
@@ -318,7 +333,20 @@ export class SokoBotSchedulesSyncService {
       orderBy: [{ leaseExpiresAt: "asc" }, { id: "asc" }],
     });
     if (!pending) return null;
+    const { schedule, ...run } = pending;
+    const provenance = await scheduleTurnProvenance(schedule).catch(
+      (error: unknown) => {
+        if (error instanceof DetachedNetworkRefusal) return error;
+        throw error;
+      },
+    );
+    if (provenance instanceof DetachedNetworkRefusal) {
+      if (provenance.final) await finishStaleSchedule(schedule, run);
+      skipped.add(schedule.id);
+      return "skipped";
+    }
     const leaseToken = randomUUID();
+    const leaseExpiresAt = new Date(Date.now() + SCHEDULE_LEASE_MS);
     const claimed = await prisma.sokoBotScheduleRun.updateMany({
       where: {
         id: pending.id,
@@ -332,12 +360,12 @@ export class SokoBotSchedulesSyncService {
         attempt: { increment: 1 },
         prompt: pending.prompt ?? pending.schedule.prompt,
         leaseToken,
-        leaseExpiresAt: new Date(Date.now() + SCHEDULE_LEASE_MS),
+        leaseExpiresAt,
       },
     });
     if (claimed.count === 0) return null;
-    const { schedule, ...run } = pending;
     return {
+      provenance,
       run: {
         id: run.id,
         attempt: pending.attempt + 1,
@@ -345,7 +373,7 @@ export class SokoBotSchedulesSyncService {
         prompt: run.prompt ?? pending.schedule.prompt,
         turnId: run.turnId,
         leaseToken,
-        leaseExpiresAt: new Date(Date.now() + SCHEDULE_LEASE_MS),
+        leaseExpiresAt,
         status: "CLAIMED",
       },
       schedule,
@@ -354,13 +382,15 @@ export class SokoBotSchedulesSyncService {
   }
 
   private async claimDueOccurrence(
-    scheduleId?: string,
-  ): Promise<ClaimedOccurrence | null> {
+    scheduleId: string | undefined,
+    skipped: Set<string>,
+  ): Promise<PickupResult> {
     // Platform kill switch: nothing the bot starts on its own may run.
     if (getEnv().SOKO_BOT_PROACTIVE_PAUSED) return null;
     const due = await prisma.sokoBotSchedule.findFirst({
       where: {
         ...(scheduleId ? { id: scheduleId } : {}),
+        ...(skipped.size ? { NOT: { id: { in: [...skipped] } } } : {}),
         enabled: true,
         nextRunAt: { lte: new Date() },
         sokoBot: {
@@ -379,6 +409,17 @@ export class SokoBotSchedulesSyncService {
       orderBy: [{ nextRunAt: "asc" }, { id: "asc" }],
     });
     if (!due?.nextRunAt) return null;
+    const provenance = await scheduleTurnProvenance(due).catch(
+      (error: unknown) => {
+        if (error instanceof DetachedNetworkRefusal) return error;
+        throw error;
+      },
+    );
+    if (provenance instanceof DetachedNetworkRefusal) {
+      if (provenance.final) await finishStaleSchedule(due);
+      skipped.add(due.id);
+      return "skipped";
+    }
     if (await this.disableIfFailureBudgetExceeded(due)) {
       return null;
     }
@@ -465,6 +506,7 @@ export class SokoBotSchedulesSyncService {
     });
     if (!claimed) return null;
     return {
+      provenance,
       run: {
         id: claimed.id,
         attempt: claimed.attempt,
@@ -481,11 +523,12 @@ export class SokoBotSchedulesSyncService {
   }
 
   private async claimNextOccurrence(
-    scheduleId?: string,
-  ): Promise<ClaimedOccurrence | null> {
+    scheduleId: string | undefined,
+    skipped: Set<string>,
+  ): Promise<PickupResult> {
     return (
-      (await this.claimRecoverableRun(scheduleId)) ??
-      this.claimDueOccurrence(scheduleId)
+      (await this.claimRecoverableRun(scheduleId, skipped)) ??
+      this.claimDueOccurrence(scheduleId, skipped)
     );
   }
 
@@ -570,10 +613,11 @@ export class SokoBotSchedulesSyncService {
     if (!getEnv().SOKO_BOT_ENABLED) return result;
 
     const claimed: ClaimedOccurrence[] = [];
+    const skipped = new Set<string>();
     while (input.shouldContinue() && claimed.length < BATCH_SIZE) {
-      const next = await this.claimNextOccurrence(input.scheduleId);
+      const next = await this.claimNextOccurrence(input.scheduleId, skipped);
       if (!next) break;
-      claimed.push(next);
+      if (next !== "skipped") claimed.push(next);
     }
     result.claimed = claimed.length;
     result.runIds = claimed.map((occurrence) => occurrence.run.id);
@@ -598,7 +642,7 @@ export class SokoBotSchedulesSyncService {
     claimed: ClaimedOccurrence,
     enqueueReconciliation?: SokoBotScheduleSyncInput["enqueueReconciliation"],
   ): Promise<"completed" | "failed" | "deferred"> {
-    const { run, schedule, scheduledFor } = claimed;
+    const { run, schedule, scheduledFor, provenance } = claimed;
     try {
       let turnId = run.turnId;
       let turnStatus: string | null = null;
@@ -607,9 +651,16 @@ export class SokoBotSchedulesSyncService {
       if (turnId) {
         const existing = await prisma.sokoBotTurn.findUnique({
           where: { id: turnId },
-          select: { id: true, status: true, errorKind: true },
+          select: {
+            id: true,
+            status: true,
+            errorKind: true,
+            network: true,
+            preprodGeneration: true,
+          },
         });
         if (existing) {
+          requireScheduledTurnProvenance(provenance, existing);
           turnStatus = existing.status;
           turnErrorKind = existing.errorKind;
         } else {
@@ -680,7 +731,7 @@ export class SokoBotSchedulesSyncService {
             ? await isScheduleAuthorityRevoked(schedule)
             : false;
         const started = await sokoBotControlPlane.startTurn({
-          network: DETACHED_SOKO_BOT_NETWORK,
+          ...provenance,
           userId: actingUserId,
           sokoBotId: schedule.sokoBotId,
           workspaceId: schedule.workspaceId,
@@ -788,6 +839,28 @@ export class SokoBotSchedulesSyncService {
       }
       return "deferred";
     } catch (error) {
+      if (isTemporaryScheduleRefusal(schedule, error)) {
+        await prisma.sokoBotScheduleRun.updateMany({
+          where: {
+            id: run.id,
+            status: "CLAIMED",
+            attempt: run.attempt,
+            leaseToken: run.leaseToken,
+          },
+          data: {
+            status: "PENDING",
+            attempt: { decrement: 1 },
+            leaseToken: null,
+            leaseExpiresAt: null,
+          },
+        });
+        return "deferred";
+      }
+      if (error instanceof DetachedNetworkRefusal) {
+        return (await finishStaleSchedule(schedule, run))
+          ? "failed"
+          : "deferred";
+      }
       const noDestination = error instanceof SokoBotNoDestinationError;
       const transient = isRetryableScheduleFailure(error);
       const maxAttempts = noDestination
