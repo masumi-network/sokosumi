@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { after, before, describe, test } from "node:test";
 
-import { type Browser, chromium, type Page } from "playwright";
+import {
+  type Browser,
+  chromium,
+  type Page,
+  errors as playwrightErrors,
+} from "playwright";
 
 import { resolveBaseUrl } from "./base-url.ts";
 import { signUpWithOrganization } from "./sign-up.ts";
@@ -10,8 +15,9 @@ import { signUpWithOrganization } from "./sign-up.ts";
 /**
  * A new user with a one-person organization creates a first channel and reads
  * chat in the app's own words: "Add everyone in Ada Test Studio (1 member)",
- * not "Add all 1 members", and the whole option fits a phone-width dialog.
- * People are grouped as People, not Humans, and Catch up never says "room".
+ * not "Add all 1 members". Both add-people steps, with the people list and
+ * its long mailbox address, stay inside a phone-width dialog. People are
+ * grouped as People, not Humans, and Catch up never says "room".
  */
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
@@ -22,11 +28,26 @@ const PROJECTS = [
   { name: "desktop", width: 1440, height: 900, isMobile: false },
 ];
 
-/** Whether the element's text runs past its own box or the screen. */
-function overflows(page: Page, text: string) {
-  return page.getByText(text, { exact: true }).evaluate((el) => {
-    const box = el.getBoundingClientRect();
-    return el.scrollWidth > el.clientWidth + 1 || box.right > innerWidth;
+/**
+ * What sticks out of the open dialog: each element whose box passes the
+ * dialog's edge, and whether the dialog itself scrolls sideways.
+ */
+function dialogOverflow(page: Page) {
+  return page.getByRole("dialog").evaluate((dialog) => {
+    const edge = dialog.getBoundingClientRect();
+    const outside = [...dialog.querySelectorAll("*")]
+      .filter((el) => {
+        const box = el.getBoundingClientRect();
+        return (
+          box.width > 0 &&
+          (box.left < edge.left - 1 || box.right > edge.right + 1)
+        );
+      })
+      .map((el) => (el.textContent ?? el.tagName).trim().slice(0, 40));
+    return {
+      outside,
+      scrollsSideways: dialog.scrollWidth > dialog.clientWidth + 1,
+    };
   });
 }
 
@@ -34,18 +55,22 @@ function overflows(page: Page, text: string) {
 async function showChatList(page: Page, name: string) {
   const nav = page.getByRole("navigation", { name: "Main navigation" });
   const catchUp = page.getByRole("link", { name: "Catch up" }).first();
-  const shown = () =>
-    catchUp.waitFor({ timeout: 10_000 }).then(
-      () => true,
-      () => false,
-    );
   if (name === "phone") {
-    // Right after sign-up the page may still hydrate and drop the first tap.
+    // Right after sign-up the page may still hydrate and drop the first tap,
+    // so a tap that times out is tried again; any other failure is not.
+    let lastError: unknown;
     for (let tap = 0; tap < 3; tap++) {
-      await nav.getByRole("link", { name: "Chats" }).click();
-      if (await shown()) return;
+      if (await catchUp.isVisible()) return;
+      try {
+        await nav.getByRole("link", { name: "Chats" }).click();
+        await catchUp.waitFor({ timeout: 10_000 });
+        return;
+      } catch (error) {
+        if (!(error instanceof playwrightErrors.TimeoutError)) throw error;
+        lastError = error;
+      }
     }
-    throw new Error("Chats tab did not open the chat list");
+    throw lastError;
   }
   if (await catchUp.isVisible()) return;
   const showSidebar = page.getByRole("button", { name: "Show sidebar" });
@@ -106,14 +131,19 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       await page.getByRole("button", { name: "Next" }).click();
       const addEveryone = "Add everyone in Ada Test Studio (1\u00a0member)";
       await page.getByText(addEveryone, { exact: true }).waitFor();
-      const addEveryoneOverflows = await overflows(page, addEveryone);
+      const addEveryoneFit = await dialogOverflow(page);
       const addPeopleText = await page.getByRole("dialog").innerText();
       await page.screenshot({
         path: `${RESULTS_DIR}${name}-chat-copy-add.png`,
       });
+      // The people list holds the user's own long mailbox address.
       await page.getByRole("radio", { name: "Add specific people" }).click();
       await page.getByText("1 selected").waitFor();
+      const specificFit = await dialogOverflow(page);
       const specificText = await page.getByRole("dialog").innerText();
+      await page.screenshot({
+        path: `${RESULTS_DIR}${name}-chat-copy-specific.png`,
+      });
       await page.getByRole("radio", { name: addEveryone }).click();
       await page.getByRole("button", { name: "Create" }).click();
       await page.waitForURL(/\/chat\/rooms\//);
@@ -144,7 +174,16 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       assert.match(pickerText, /\bPeople\b/);
       assert.doesNotMatch(pickerText, /Humans/);
       assert.doesNotMatch(addPeopleText, /Add all 1 members/);
-      assert.equal(addEveryoneOverflows, false, "option fits the dialog");
+      assert.deepEqual(
+        addEveryoneFit,
+        { outside: [], scrollsSideways: false },
+        "add-everyone step fits the dialog",
+      );
+      assert.deepEqual(
+        specificFit,
+        { outside: [], scrollsSideways: false },
+        "specific-people step fits the dialog",
+      );
       assert.match(specificText, /\bPeople\b/);
       assert.doesNotMatch(specificText, /Humans/);
       assert.doesNotMatch(catchUpText, /\brooms?\b/i);
