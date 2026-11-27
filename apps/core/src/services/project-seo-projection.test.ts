@@ -1084,6 +1084,16 @@ describe("stored SEO workspace projections", () => {
       ),
     ];
     expect(tags()).toEqual([{ id: "1", lastCheckResult: undefined }]);
+    // A note without a device and a mobile pass leave a desktop fix untested.
+    input.observations = [
+      check(
+        [row("mobile", "pass")],
+        [{ ...finding(null), severity: "note" } as ReturnType<typeof finding>],
+        "2026-11-05T12:00:00Z",
+      ),
+      check([rowOf("fired")], [finding("desktop")], "2026-11-01T12:00:00Z", 1),
+    ];
+    expect(tags()).toEqual([{ id: "1", lastCheckResult: undefined }]);
     // A fix for mobile does not fail on a desktop failure.
     input.observations = [
       check([rowOf("fired")], [finding("desktop")], "2026-11-05T12:00:00Z"),

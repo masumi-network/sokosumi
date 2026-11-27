@@ -79,8 +79,13 @@ export function withSeoLastCheckResults(
           return { result: "failing", at: check.observedAt };
         // A pass ends a fix only under the rulebook that found the issue, as an exact later pass does.
         if (check.payload.rulebookVersion !== rulebook) continue;
-        const read = [states.passed.get(key), states.noted.get(key)];
-        if (read.some((devices) => devices?.has(device) || devices?.has(null)))
+        // A note without a device says the rule was read, not on which device: only a row or a note there counts.
+        const passed = states.passed.get(key);
+        if (
+          passed?.has(device) ||
+          passed?.has(null) ||
+          states.noted.get(key)?.has(device)
+        )
           return { result: "fixed", at: check.observedAt };
       }
       return undefined;
