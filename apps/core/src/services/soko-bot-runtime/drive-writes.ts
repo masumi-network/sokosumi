@@ -289,8 +289,60 @@ export async function saveChatAttachment(
   return copyBlobToDrive(runtime, authorized, input);
 }
 
-/** Read tools whose results hand the bot links to a Task's result files. */
-const TASK_FILE_SOURCES = ["get_task_status", "get_job_status"];
+/** The id a status read in this turn was given, per read tool. */
+async function workReadThisTurn(
+  turnId: string,
+  capability: "get_task_status" | "get_job_status",
+  key: "taskId" | "jobId",
+): Promise<string[]> {
+  const reads = await prisma.sokoBotToolCall.findMany({
+    where: { turnId, capability, status: "COMPLETED" },
+    select: { input: true },
+  });
+  return reads.flatMap((read) => {
+    const id = (read.input as Record<string, unknown> | null)?.[key];
+    return typeof id === "string" ? [id] : [];
+  });
+}
+
+/**
+ * Whether `url` is exactly a ready file of a Task or Job this turn read
+ * with get_task_status or get_job_status: the read proved access, and the
+ * file is one of the files that read lists, not a link in its prose.
+ */
+async function isReadyFileOfReadWork(
+  authorized: AuthorizedSokoBotRuntime,
+  url: string,
+): Promise<boolean> {
+  const [taskIds, jobIds] = await Promise.all([
+    workReadThisTurn(authorized.turn.id, "get_task_status", "taskId"),
+    workReadThisTurn(authorized.turn.id, "get_job_status", "jobId"),
+  ]);
+  const [taskFile, jobFile] = await Promise.all([
+    taskIds.length
+      ? prisma.taskFile.findFirst({
+          where: {
+            taskId: { in: taskIds },
+            task: { workspaceId: authorized.turn.workspaceId },
+            status: "READY",
+            fileUrl: url,
+          },
+          select: { id: true },
+        })
+      : null,
+    jobIds.length
+      ? prisma.blob.findFirst({
+          where: {
+            event: { jobId: { in: jobIds } },
+            status: "READY",
+            fileUrl: url,
+          },
+          select: { id: true },
+        })
+      : null,
+  ]);
+  return Boolean(taskFile ?? jobFile);
+}
 
 /**
  * A Sokosumi link that is not a chat attachment. A file already in Files
@@ -325,15 +377,7 @@ async function saveLinkedSokosumiFile(
       throw new SokoBotRefusedUnsentError(
         `"${inFiles.displayName}" is already in Files as fileId ${inFiles.id}. Use that fileId; it needs no upload.`,
       );
-    const reads = await prisma.sokoBotToolCall.findMany({
-      where: {
-        turnId: authorized.turn.id,
-        capability: { in: TASK_FILE_SOURCES },
-        status: "COMPLETED",
-      },
-      select: { result: true },
-    });
-    if (reads.some((read) => JSON.stringify(read.result).includes(input.url)))
+    if (await isReadyFileOfReadWork(authorized, input.url))
       return copyBlobToDrive(runtime, authorized, input);
   }
   throw new SokoBotRefusedUnsentError(
