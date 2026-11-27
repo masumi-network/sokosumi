@@ -703,7 +703,7 @@ describe("imported crawl continuation", () => {
     );
   });
 
-  it("says a page with no finding is not audited when its checks could not all read it", () => {
+  it("says a page with no finding is not audited when not every check of it passed", () => {
     const report = crawlNextReport();
     const audit = report.pages[0]!;
     const page = audit.report as ReturnType<typeof legacyReport>;
@@ -726,13 +726,18 @@ describe("imported crawl continuation", () => {
       if (crawl?.state !== "crawled") throw new Error("expected a crawl");
       return crawl.deepAudit!;
     };
-    // A blocked check, or no check that read the page at all.
-    for (const results of [["pass", "blocked"], ["not checked"]]) {
+    // A blocked or not checked check next to a pass, a check that fired with no finding, or no check at all.
+    for (const results of [
+      ["pass", "blocked"],
+      ["pass", "not checked"],
+      ["fired"],
+      [],
+    ]) {
       const deepAudit = withChecklist(...results);
       expect(deepAudit.pages).toEqual([]);
       expect(deepAudit.skipped).toContainEqual({
         url: audit.url,
-        reason: expect.stringContaining("could not all read the page"),
+        reason: expect.stringContaining("not every check of the page passed"),
       });
     }
     // Every check read the page: no finding is "No issues".

@@ -17,7 +17,7 @@ const MAX_REASON = 2000;
 const CRAWL_ONLY_RULEBOOK = "crawl";
 const UNREADABLE_PAGE = "Sokosumi could not read the page's audit report";
 const UNCHECKED_PAGE =
-  "The page's audit found no issue, but its checks could not all read the page";
+  "The page's audit lists no issue, but not every check of the page passed";
 
 const crawlNextReport = z.object({
   kind: z.literal("crawl_next"),
@@ -81,9 +81,12 @@ export function parseCrawlNextArtifact(
             auditedSeoPageKey(page.url)
         )
           return { page };
-        // No finding from checks that did not all read the page is no "No issues".
-        const { checked, failed } = payload.coverage;
-        if (!payload.findings.length && (failed > 0 || checked === 0))
+        // No finding is "No issues" only when each check of the page passed: a blocked or not checked one had no data.
+        if (
+          !payload.findings.length &&
+          (!payload.checks.length ||
+            payload.checks.some((check) => check.result !== "pass"))
+        )
           return { page, reason: UNCHECKED_PAGE };
         return { page, payload };
       } catch {
