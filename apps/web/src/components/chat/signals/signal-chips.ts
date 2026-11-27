@@ -52,13 +52,12 @@ export function tagEditorRows(
   more: ChatSignalTag[];
 } {
   const opened = new Set(appliedAtOpen);
+  const current = new Set(signal.tags);
   return {
     applied: CHAT_SIGNAL_TAG_ORDER.filter((tag) => opened.has(tag)).map(
       (tag) => ({
         tag,
-        confidence: signal.tags.includes(tag)
-          ? tagConfidence(tag, signal)
-          : null,
+        confidence: current.has(tag) ? tagConfidence(tag, signal) : null,
       }),
     ),
     more: CHAT_SIGNAL_TAG_ORDER.filter((tag) => !opened.has(tag)),
