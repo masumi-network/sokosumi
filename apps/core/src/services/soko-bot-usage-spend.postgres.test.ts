@@ -746,6 +746,11 @@ describe.skipIf(!enabled)(
             credits: CHECK_CREDITS,
           });
         await check();
+        // The first charge's times lie before the observed call, also in
+        // milliseconds: the debit's times are read against the call's.
+        const charged = Date.now();
+        while (Date.now() <= charged)
+          await new Promise((resolve) => setTimeout(resolve, 1));
 
         expectAsOnBase(
           "a person, a check charged before",
