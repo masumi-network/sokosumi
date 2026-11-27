@@ -96,7 +96,18 @@ async function load(env: Record<string, string>) {
   const fixture = await import("@/test-fixtures/core-session");
   const { default: prisma } = await import("@/lib/db/prisma");
   const { createNetworkScope } = await import("@/lib/db/network-scope");
-  return { fixture, prisma, createNetworkScope, app: fixture.createCoreApp() };
+  // The product's own creation path, so a fixture workspace has its Files
+  // vocabulary (`workspace-creation-chokepoint.test.ts`).
+  const { createPersonalWorkspace } = await import(
+    "@/helpers/personal-workspace"
+  );
+  return {
+    fixture,
+    prisma,
+    createNetworkScope,
+    createPersonalWorkspace,
+    app: fixture.createCoreApp(),
+  };
 }
 
 type Loaded = Awaited<ReturnType<typeof load>>;
@@ -414,7 +425,7 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
       const user = await loaded.fixture.createPasswordUser(name, role);
       userIds.push(user.id);
       // A personal workspace, so a new session opens it and needs no seat.
-      await loaded.prisma.workspace.create({ data: { userId: user.id } });
+      await loaded.createPersonalWorkspace(user.id);
       return {
         id: user.id,
         cookie: await loaded.fixture.signIn(loaded.app, user.email),
@@ -466,6 +477,10 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
       await catalog?.remove();
       await loaded.prisma.organization.deleteMany({
         where: { id: { in: organizationIds } },
+      });
+      // The free plan `createPersonalWorkspace` grants is not tied to the user.
+      await loaded.prisma.subscription.deleteMany({
+        where: { referenceId: { in: userIds } },
       });
       await loaded.prisma.user.deleteMany({ where: { id: { in: userIds } } });
     }, SETUP_TIMEOUT);
@@ -915,7 +930,7 @@ describe.runIf(enabled && onSplitLayout)(
     async function person(name: string, role?: string): Promise<Person> {
       const user = await loaded.fixture.createPasswordUser(name, role);
       userIds.push(user.id);
-      await loaded.prisma.workspace.create({ data: { userId: user.id } });
+      await loaded.createPersonalWorkspace(user.id);
       return {
         id: user.id,
         email: user.email,
@@ -1014,6 +1029,10 @@ describe.runIf(enabled && onSplitLayout)(
       });
       await loaded.prisma.organization.deleteMany({
         where: { id: { in: organizationIds } },
+      });
+      // The free plan `createPersonalWorkspace` grants is not tied to the user.
+      await loaded.prisma.subscription.deleteMany({
+        where: { referenceId: { in: userIds } },
       });
       await loaded.prisma.user.deleteMany({ where: { id: { in: userIds } } });
     }, SETUP_TIMEOUT);
