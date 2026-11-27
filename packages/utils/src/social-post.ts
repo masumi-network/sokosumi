@@ -554,6 +554,21 @@ function inWords(mimes: Iterable<string>): string {
     : (labels[0] ?? "");
 }
 
+/** Networks whose posts take only video, such as TikTok and YouTube. */
+export function socialPostVideoOnlyProviders(): SocialPostProvider[] {
+  return (
+    Object.entries(SOCIAL_POST_MEDIA_RULES) as [
+      SocialPostProvider,
+      (typeof SOCIAL_POST_MEDIA_RULES)[SocialPostProvider],
+    ][]
+  )
+    .filter(
+      ([, rules]) =>
+        rules.imageMimeTypes.length === 0 && rules.gifMimeTypes.length === 0,
+    )
+    .map(([provider]) => provider);
+}
+
 /**
  * The file types a post takes, in words, for one provider or any: "JPEG,
  * PNG or WebP images, GIF animations, MP4 videos". A refusal names them so

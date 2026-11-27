@@ -23,6 +23,7 @@ import {
   socialPostSupportsFirstComment,
   socialPostTextLength,
   socialPostTextLimit,
+  socialPostVideoOnlyProviders,
   splitYouTubePostText,
   validateSocialPostMedia,
 } from "./social-post.js";
@@ -377,6 +378,16 @@ describe("socialPostMaxBytesForKind", () => {
     expect(socialPostMaxBytesForKind("x", "image")).toBe(rules.maxImageBytes);
     expect(socialPostMaxBytesForKind("x", "gif")).toBe(rules.maxGifBytes);
     expect(socialPostMaxBytesForKind("x", "video")).toBe(rules.maxVideoBytes);
+  });
+});
+
+describe("socialPostVideoOnlyProviders", () => {
+  it("lists the networks whose posts take only video", () => {
+    expect(socialPostVideoOnlyProviders().sort()).toEqual([
+      "tiktok",
+      "youtube",
+    ]);
+    expect(socialPostAcceptedFormats("youtube")).toBe("MP4 videos");
   });
 });
 

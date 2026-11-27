@@ -560,6 +560,7 @@ export {
   socialPostSupportsFirstComment,
   socialPostTextLength,
   socialPostTextLimit,
+  socialPostVideoOnlyProviders,
   socialProvidersForWorkspace,
   socialProviderUnavailableMessage,
   splitYouTubePostText,

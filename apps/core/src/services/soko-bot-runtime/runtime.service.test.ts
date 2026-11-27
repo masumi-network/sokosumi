@@ -15382,7 +15382,7 @@ describe("Content Studio image tools", () => {
           { fileId: "01a0f430-aaaa-7000-8000-000000000009" },
         ]),
       ).rejects.toThrow(
-        /\(image\/svg\+xml\).*Posts take JPEG, PNG or WebP images.*Make a PNG copy of this image/,
+        /\(image\/svg\+xml\).*Posts take JPEG, PNG or WebP images.*For a network that takes images, make a PNG copy of this image.*For TikTok or YouTube, which take only video, attach a video instead\.$/,
       );
     });
   });
