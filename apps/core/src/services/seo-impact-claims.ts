@@ -140,13 +140,9 @@ export async function recordSeoImpactVerdict(
   if (count) return receipt;
   const stored = await prisma.projectSeoImpactVerdict.findUnique({
     where: { id: row.id },
-    select: { claimId: true, state: true, verdict: true },
+    select: { claimId: true, verdict: true },
   });
-  if (
-    stored?.claimId === claimId &&
-    stored.state === saved &&
-    isDeepStrictEqual(stored.verdict, verdict)
-  )
+  if (stored?.claimId === claimId && isDeepStrictEqual(stored.verdict, verdict))
     return receipt;
   throw conflict("The claim ended, or the change has another result");
 }
