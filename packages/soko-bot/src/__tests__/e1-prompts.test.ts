@@ -64,10 +64,11 @@ describe("e1Prompts version flag", () => {
     expect(chained.content).toContain("durable wakes");
 
     const social = getSokoBotSkillForVersion("social-posting-instructions", e1);
-    expect(social.content).toContain("unscheduled proposals");
+    expect(social.content).toContain("intended publication date or time");
     expect(social.content).toContain(
-      "specifies target dates, days, or spacing",
+      "Never put a review deadline or suggested date into `scheduledAt`",
     );
+    expect(social.content).toContain("unscheduled proposals");
 
     const preamble = composeTurnPreamble(e1, undefined, {
       clientTurnId: null,
@@ -113,6 +114,11 @@ describe("e1Prompts version flag", () => {
     expect(promptA).toBe(promptB);
     expect(promptA).toContain(E1_FINISHING_SECTION);
     expect(promptA).toContain(E1_CUSO_CHANGE_SCOPE_SECTION);
+    expect(promptA).toContain("Single-post edits stay on that post.");
+    expect(promptA).toContain(
+      "within any item or date limits the owner stated",
+    );
+    expect(promptA).toContain("Proposals stay pending.");
     expect(promptA).toContain(
       "You are a shared Project assistant, not a private personal assistant.",
     );

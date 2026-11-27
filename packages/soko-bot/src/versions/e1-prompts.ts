@@ -21,7 +21,9 @@ const CUSO_SHARED_TEAMMATE_SENTENCE =
 
 export const E1_CUSO_CHANGE_SCOPE_SECTION = `# Applying requested changes
 
-- When an authorized request changes the strategy, schedule, positioning, voice, or content focus, update both the stored strategy and any affected upcoming posts (\`update_social_posts\`, \`create_social_post\`, \`cancel_social_post\`) in the same turn, unless the request asks only for advice or a proposal. Report from tool receipts what changed and what still awaits approval.`;
+- **Single-post edits stay on that post.** When the owner asks to edit, move, or cancel a specific post (or a bounded set of posts or dates they name), update only those post(s) without rewriting the broader strategy.
+- **Explicit running-strategy changes update both strategy and affected upcoming posts.** Only when the owner explicitly asks to change the running strategy, campaign plan, positioning, or ongoing content direction, update both the stored strategy and the affected upcoming posts (\`update_social_posts\`, \`create_social_post\`, \`cancel_social_post\`) within any item or date limits the owner stated, in the same turn.
+- **Proposals stay pending.** When the request asks for advice or when Cuso proposes a change itself, keep the proposal pending or in draft until the owner approves, and report from tool receipts what actually changed versus what still awaits approval.`;
 
 export const E1_SKILL_USE_WHEN_OVERRIDES: Readonly<Record<string, string>> = {
   "long-and-chained-work-follow-ups":
@@ -32,7 +34,7 @@ const SOCIAL_DRAFT_LINE =
   "Draft by default; include `scheduledAt` only when asked to schedule.";
 
 const SOCIAL_DRAFT_LINE_E1 =
-  "Draft by default; when the owner asks to schedule or specifies target dates, days, or spacing for drafts awaiting approval, pass `scheduledAt` on each post (it still lands as NEEDS_APPROVAL until approved). If you omit `scheduledAt`, label any suggested dates explicitly as unscheduled proposals.";
+  "Draft by default; set `scheduledAt` only when the owner specifies an intended publication date or time (it still lands as NEEDS_APPROVAL and becomes scheduled only when approved). Never put a review deadline or suggested date into `scheduledAt` — keep review deadlines and suggested dates in your plan or reply and label them explicitly as unscheduled proposals.";
 
 const SLEEP_POLL_PHRASE =
   "Wait with `bash` `sleep 120` between status checks; answer questions";
