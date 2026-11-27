@@ -17,6 +17,10 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
+  WorldCheckModelCallError,
+  worldCheckMode,
+} from "@/lib/evals/world-check";
+import {
   chatGptPlanEffectiveModel,
   localChatGptPlanEnabled,
 } from "@/lib/local-chatgpt-plan";
@@ -460,6 +464,8 @@ export async function judgeEvalChain(
   roomLog: { room: string; from: string; content: string }[],
   model?: string,
 ): Promise<{ verdict: SokoBotJudgeVerdict; model: string }> {
+  // A world check scores the checks alone, with no model.
+  if (worldCheckMode()) throw new WorldCheckModelCallError("the judge");
   const transcripts = await Promise.all(
     turnIds.map(async (id) => (await loadTranscript(id)).transcript),
   );

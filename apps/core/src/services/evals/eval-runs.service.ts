@@ -22,6 +22,7 @@ import {
 } from "@/lib/evals/eval-compare";
 import {
   comparableRuns,
+  dailyEvalsEnabled,
   evalCommit,
   evalEnvironment,
   isPlanEnvironment,
@@ -276,15 +277,23 @@ async function timeOutStuckRun(run: {
   return (await completeIfDone(run)).completed;
 }
 
-/** The queued run first in line starts once nothing else is running. */
+/**
+ * The queued run first in line starts once nothing else is running: the
+ * database has one set of lanes. A Core starts and advances only runs of its
+ * own environment, so a database forked from production never runs its copied
+ * runs; while another environment's run is running, this Core waits, and a
+ * copied run times out like any stuck run.
+ */
 async function startNextRun() {
+  const environment = evalEnvironment();
   const running = await prisma.evalRun.findFirst({
     where: { status: "RUNNING" },
     orderBy: { createdAt: "asc" },
   });
-  if (running && !(await timeOutStuckRun(running))) return running;
+  if (running && !(await timeOutStuckRun(running)))
+    return running.environment === environment ? running : null;
   const queued = await prisma.evalRun.findFirst({
-    where: { status: "QUEUED" },
+    where: { status: "QUEUED", environment },
     orderBy: { createdAt: "asc" },
   });
   if (!queued) return null;
@@ -546,7 +555,8 @@ async function completeIfDone(run: {
     data: { status: "COMPLETED", finishedAt: new Date() },
   });
   await pauseEvalLanes(run.repeats);
-  if (run.trigger === "DAILY") {
+  // Only where the daily run is created: a fork can complete a copied one.
+  if (run.trigger === "DAILY" && dailyEvalsEnabled()) {
     // Loaded here: the email reads this module's report.
     const { sendEvalRegressionEmail } = await import("./eval-report-email");
     try {

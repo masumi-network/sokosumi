@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { ReasonField } from "@/components/admin/reason-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,8 +15,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { startImpersonation } from "@/lib/api/admin-impersonation";
 
 interface ImpersonateUserDialogProps {
@@ -84,16 +83,13 @@ export function ImpersonateUserDialog({
             {t("description", { name, email })}
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-2">
-          <Label htmlFor={reasonId}>{t("reasonLabel")}</Label>
-          <Input
-            id={reasonId}
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            placeholder={t("reasonPlaceholder")}
-            maxLength={500}
-          />
-        </div>
+        <ReasonField
+          id={reasonId}
+          label={t("reasonLabel")}
+          value={reason}
+          onChange={setReason}
+          placeholder={t("reasonPlaceholder")}
+        />
         <DialogFooter>
           <Button
             type="button"
