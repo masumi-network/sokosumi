@@ -295,6 +295,16 @@ export function compareSeoRuns(
         results.set(key, { result: "fixed", devices: read });
       } else notCheckedAgain += 1;
     }
+    // A rule the later check read and found clear, with no open issue in either check: a fix from an older check
+    // of another kind is answered by it, though the lists count nothing.
+    for (const [key, devices] of after.passed) {
+      if (results.has(key) || before.open.has(key) || after.failed.has(key))
+        continue;
+      results.set(key, {
+        result: "fixed",
+        devices: new Set([...devices, ...(after.noted.get(key) ?? [])]),
+      });
+    }
   }
   const moves = reason
     ? []

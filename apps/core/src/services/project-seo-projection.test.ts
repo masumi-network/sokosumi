@@ -1002,6 +1002,7 @@ describe("stored SEO workspace projections", () => {
         at,
       );
     const ids = () => projectSeoProjection(input).actions.map(({ id }) => id);
+    const rowOf = (result: "fired" | "pass") => row("desktop", result);
     // Fail, pass, pass: the second pass reads no open issue, and the first one still ended the proposal.
     input.observations = [
       check([row("desktop", "pass")], [], "2026-11-05T12:00:00Z"),
@@ -1039,6 +1040,22 @@ describe("stored SEO workspace projections", () => {
         lastCheckResult,
       })),
     ).toEqual([{ id: "1", lastCheckResult: undefined }]);
+    // Pass, fail in an audit, pass: the two focused checks agree, and the newest one still answers the audit's fix.
+    const focused = (at: string) => {
+      const row = check([{ ...rowOf("pass") }], [], at);
+      row.kind = "page_check";
+      row.payload = {
+        ...(row.payload as object),
+        kind: "page_check",
+      } as PublicSeoPayload;
+      return row;
+    };
+    input.observations = [
+      focused("2026-11-05T12:00:00Z"),
+      check([rowOf("fired")], [finding(null)], "2026-11-03T12:00:00Z", 1),
+      focused("2026-11-01T12:00:00Z"),
+    ];
+    expect(ids()).toEqual([]);
   });
 
   it("replaces an unlinked recommendation when a later check proposes its own fix for the finding", () => {
