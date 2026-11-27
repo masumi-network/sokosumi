@@ -1,4 +1,4 @@
-// The admin Agent and rate routes as `origin/main` at 48866eb2b answers them,
+// The admin Agent and rate routes as `origin/main` at e8e19a5d9 answers them,
 // with the same routes, seed and clock. RECORD_ADMIN_CATALOG_BASE=true writes
 // the public-layout recording.
 import "@hono/zod-openapi";
@@ -6,17 +6,10 @@ import { randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { Hono } from "hono";
 import type { Pool } from "pg";
-import { afterAll, beforeAll, expect, it, vi } from "vitest";
-import { createPersonalWorkspace } from "@/helpers/personal-workspace";
-import { createNetworkScope } from "@/lib/db/network-scope";
-import { coreEvlogMiddleware } from "@/lib/evlog";
+import { afterAll, expect, it, vi } from "vitest";
+import { copyPostgresTestDatabase } from "@/test/postgres-database-copy";
 import { observing, statements } from "@/test/spend-comparison";
 import { onSplitLayout, testSchemaNames } from "@/test/split-layout";
-import {
-  createApiKey,
-  createCoreApp,
-  createPasswordUser,
-} from "@/test-fixtures/core-session";
 
 const state = vi.hoisted(() => ({
   network: "Mainnet" as "Mainnet" | "Preprod",
@@ -49,9 +42,9 @@ const enabled = process.env.RUN_DATABASE_INTEGRATION_TESTS === "true";
  * Every row of every table of this run's schemas, each as its JSON, sorted.
  * Read on a connection of its own, outside Core's observed pool.
  */
-async function everyRow() {
+async function everyRow(url: string) {
   const { Client } = await import("pg");
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  const client = new Client({ connectionString: url });
   await client.connect();
   try {
     const schemas = [...new Set(Object.values(testSchemaNames()))];
@@ -79,16 +72,69 @@ async function everyRow() {
   }
 }
 
-// Taken before the file's first write; every table, all columns, must be
-// as it was when the file ends.
-let before: Awaited<ReturnType<typeof everyRow>> | undefined;
-beforeAll(async () => {
-  if (enabled) before = await everyRow();
-}, 60_000);
-afterAll(async () => {
-  await Promise.all(state.pools.map((pool) => pool.end()));
-  if (before) expect(await everyRow()).toEqual(before);
-}, 60_000);
+/**
+ * Core, imported only once `DATABASE_URL` names the private copy: Better
+ * Auth writes its OAuth resource when the module loads.
+ */
+async function loadCore() {
+  const [scope, evlog, workspace, session] = await Promise.all([
+    import("@/lib/db/network-scope"),
+    import("@/lib/evlog"),
+    import("@/helpers/personal-workspace"),
+    import("@/test-fixtures/core-session"),
+  ]);
+  return {
+    createNetworkScope: scope.createNetworkScope,
+    coreEvlogMiddleware: evlog.coreEvlogMiddleware,
+    createPersonalWorkspace: workspace.createPersonalWorkspace,
+    createApiKey: session.createApiKey,
+    createCoreApp: session.createCoreApp,
+    createPasswordUser: session.createPasswordUser,
+  };
+}
+let core: Awaited<ReturnType<typeof loadCore>>;
+
+/**
+ * The run's database is only read: every row of it is taken before anything
+ * else and compared after the file. Everything this file writes, Better
+ * Auth's start included, goes to a private copy of the migrated template
+ * with an empty catalog, so no rate or Agent of another file enters the
+ * availability SQL the recording binds.
+ */
+if (enabled) {
+  const given = process.env.DATABASE_URL;
+  if (!given) throw new Error("The admin catalog recording needs PostgreSQL");
+  const before = await everyRow(given);
+  const copy = await copyPostgresTestDatabase(
+    process.env.POSTGRES_TEST_TEMPLATE_URL ?? given,
+    "catalog_test",
+  );
+  afterAll(async () => {
+    try {
+      await Promise.all(state.pools.map((pool) => pool.end()));
+    } finally {
+      vi.unstubAllEnvs();
+      await copy.drop();
+    }
+    expect(await everyRow(given)).toEqual(before);
+  }, 120_000);
+  vi.stubEnv("DATABASE_URL", copy.url);
+  vi.stubEnv("DATABASE_URL_UNPOOLED", copy.url);
+  const { Client } = await import("pg");
+  const names = testSchemaNames();
+  const network = names.DATABASE_SCHEMA_MAINNET;
+  const client = new Client({ connectionString: copy.url });
+  await client.connect();
+  try {
+    await client.query(`TRUNCATE "${network}"."Agent", "${network}"."AgentPricing",
+      "${network}"."AgentFixedPricing", "${network}"."CreditCost",
+      "${network}"."Category", "${network}"."Tag",
+      "${names.DATABASE_SCHEMA_SHARED}"."sync_metadata" CASCADE`);
+  } finally {
+    await client.end();
+  }
+  core = await loadCore();
+}
 
 const clock = new Date("2026-11-27T12:00:00.000Z");
 const createdAt = new Date("2026-11-25T01:02:03.456Z");
@@ -117,7 +163,7 @@ async function scenario(
   header: "absent" | "mainnet",
   labels: Map<string, string>,
 ) {
-  const scope = createNetworkScope("mainnet");
+  const scope = core.createNetworkScope("mainnet");
   const run = randomUUID().slice(0, 8);
   const prefix = `adm${run}`;
   labels.set(prefix, "adm");
@@ -133,8 +179,6 @@ async function scenario(
     method: string,
     path: string,
     body?: unknown,
-    // The rate list holds every rate of the database: keep this run's rows.
-    own?: (row: { unit: string }) => boolean,
   ) {
     const { outcome, log } = await observing(async () => {
       const response = await app.request(path, {
@@ -161,17 +205,9 @@ async function scenario(
       sql: sql.replace(/"(shared|mainnet)"\./g, '"public".'),
       values,
     });
-    const answer = own
-      ? (() => {
-          const parsed = JSON.parse(outcome.body) as {
-            data: { unit: string }[];
-          };
-          return JSON.stringify(parsed.data.filter(own));
-        })()
-      : outcome.body;
     records[label] = {
       status: outcome.status,
-      body: answer,
+      body: outcome.body,
       count: log.length,
       transactions: grouped.transactions.map((tx) => tx.map(plainSql)),
       outside: grouped.outsideTransactions.map(plainSql),
@@ -262,6 +298,23 @@ async function scenario(
         },
       });
       createdRates.push(other.id);
+      // Out of lexical order: the rate list answers them as the table holds
+      // them, and its full response is recorded.
+      for (const [suffix, cents] of [
+        ["z", 3n],
+        ["a", 2n],
+        ["m", 4n],
+      ] as const) {
+        const rate = await tx.creditCost.create({
+          data: {
+            unit: `${prefix}${suffix}`,
+            centsPerUnit: cents,
+            createdAt,
+            updatedAt,
+          },
+        });
+        createdRates.push(rate.id);
+      }
     }, "Fixture conflict");
 
     vi.useFakeTimers({ toFake: ["Date"] });
@@ -439,8 +492,7 @@ async function scenario(
       creditsPerUnit: 1,
     });
     await call("rate read", "GET", `/v1/credit-costs/${rateId}`);
-    const ownUnits = (row: { unit: string }) => row.unit.startsWith(prefix);
-    await call("rate list", "GET", "/v1/credit-costs", undefined, ownUnits);
+    await call("rate list", "GET", "/v1/credit-costs");
     // 3 and 5 units at 20 credits a unit: 60 and 100. The hire refuses 59.
     await prices("first rate", 59);
     await call("rate update", "PATCH", `/v1/credit-costs/${rateId}`, {
@@ -459,13 +511,7 @@ async function scenario(
     await call("rate delete", "DELETE", `/v1/credit-costs/${rateId}`);
     await call("rate delete again", "DELETE", `/v1/credit-costs/${rateId}`);
     await call("rate read deleted", "GET", `/v1/credit-costs/${rateId}`);
-    await call(
-      "rate list after delete",
-      "GET",
-      "/v1/credit-costs",
-      undefined,
-      ownUnits,
-    );
+    await call("rate list after delete", "GET", "/v1/credit-costs");
     await prices("deleted rate", 149);
   } finally {
     vi.useRealTimers();
@@ -596,18 +642,18 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
   "preserves admin catalog responses and SQL with deployment NETWORK=%s",
   async (network) => {
     state.network = network;
-    const shared = createNetworkScope("mainnet").sharedDb;
+    const shared = core.createNetworkScope("mainnet").sharedDb;
     const app = new Hono();
-    app.use(coreEvlogMiddleware());
+    app.use(core.coreEvlogMiddleware());
     app.use(async (c, next) => {
       c.set("requestId", "admin-catalog-request");
       await next();
     });
-    app.route("/", createCoreApp());
-    const admin = await createPasswordUser("Admin catalog", "admin");
+    app.route("/", core.createCoreApp());
+    const admin = await core.createPasswordUser("Admin catalog", "admin");
     try {
-      const workspace = await createPersonalWorkspace(admin.id);
-      const token = await createApiKey(admin.id);
+      const workspace = await core.createPersonalWorkspace(admin.id);
+      const token = await core.createApiKey(admin.id);
       const key = await shared.apikey.findFirstOrThrow({
         where: { referenceId: admin.id },
       });
@@ -674,14 +720,17 @@ it.skipIf(!enabled || onSplitLayout)(
   "refuses every admin Agent and rate route for Preprod while it is off",
   async () => {
     state.network = "Mainnet";
-    const scope = createNetworkScope("mainnet");
-    const app = createCoreApp();
-    const admin = await createPasswordUser("Admin catalog refusal", "admin");
+    const scope = core.createNetworkScope("mainnet");
+    const app = core.createCoreApp();
+    const admin = await core.createPasswordUser(
+      "Admin catalog refusal",
+      "admin",
+    );
     const prefix = `adm${randomUUID().slice(0, 8)}`;
     let rateId: string | undefined;
     try {
-      await createPersonalWorkspace(admin.id);
-      const token = await createApiKey(admin.id);
+      await core.createPersonalWorkspace(admin.id);
+      const token = await core.createApiKey(admin.id);
       await scope.networkDb.agent.create({
         data: {
           id: prefix,
