@@ -166,7 +166,7 @@ vi.mock("@/components/chat/chat-room-sidebar-row", () => ({
     trailingLink?: ReactNode;
     itemProps?: ComponentProps<"li">;
   }) => {
-    harnessRowProps.set(props.room.id, props);
+    harnessRowProps.set(props.room.id, { ...props, trailingLink });
     return (
       <li {...itemProps} data-testid="room-row">
         <span>{label}</span>

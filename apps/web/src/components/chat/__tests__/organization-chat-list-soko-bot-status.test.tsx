@@ -1,7 +1,11 @@
 import { SokoBotStatus } from "@sokosumi/core-client";
 import { act, screen, within } from "@testing-library/react";
+import { use } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { publishLiveSokoBot } from "@/components/chat/personal-assistant-chrome-store";
+import {
+  publishLiveSokoBot,
+  SokoBotDirectRowContext,
+} from "@/components/chat/personal-assistant-chrome-store";
 
 import { makeUser } from "./chat-room-fixtures";
 import {
@@ -159,7 +163,64 @@ describe("OrganizationChatList one row for your Soko Bot", () => {
       name: "App.Sidebar.Content.SokoBot.team",
     });
     expect(team).toHaveAttribute("href", "/agents");
+    // Its own 40px box (32px from md), a gap clear of the menu's hit area.
+    const { trailingLink } = harnessRowProps.get("bot-direct") as {
+      trailingLink: { props: { className: string } };
+    };
+    expect(trailingLink.props.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["size-10", "md:size-8", "mr-1.5", "md:mr-0.5"]),
+    );
     expect(personRow).not.toHaveTextContent("SokoBot");
+  });
+
+  // The server has no poll (`useLiveSokoBotStatus` is null there), so the
+  // merge must come from the room alone, or the HTML lists the bot twice.
+  it("merges from the room alone, before any bot row has published", async () => {
+    function Probe() {
+      return <span data-testid="probe">{use(SokoBotDirectRowContext)}</span>;
+    }
+    listRoomsMock.mockResolvedValue(emptyListResult([botDirect]));
+    await act(async () =>
+      renderOrganizationChatList({
+        rooms: [botDirect],
+        directFooter: <Probe />,
+      }),
+    );
+
+    expect(screen.getByTestId("probe")).toHaveTextContent(sokoBot.id);
+    expect(links("/agents")).toHaveLength(1);
+  });
+
+  it("holds the bot row back while it loads, when the Direct stands in", async () => {
+    const { default: PersonalAssistantNav } = await import(
+      "@/app/components/sidebar/components/personal-assistant-nav.client"
+    );
+    listRoomsMock.mockResolvedValue(emptyListResult([botDirect]));
+    await act(async () =>
+      renderOrganizationChatList({
+        rooms: [botDirect],
+        directFooter: <PersonalAssistantNav nested />,
+      }),
+    );
+
+    expect(links("/agents")).toHaveLength(1);
+    expect(screen.queryByText(/MenuItems\.sokoBot/)).toBeNull();
+  });
+
+  it("leaves a Direct with a teammate's bot alone", async () => {
+    const teammateBotDirect = makeRoom({
+      id: "teammate-bot-direct",
+      kind: "direct",
+      myAccess: "member",
+      userMembers: [makeUser("user-1")],
+      sokoBotMembers: [{ ...sokoBot, id: "bot-2", ownerUserId: "user-2" }],
+    });
+    await renderSidebar([teammateBotDirect]);
+
+    expect(links("/personal-assistant")).toHaveLength(1);
+    expect(harnessRowProps.get("teammate-bot-direct")?.trailingLink).toBe(
+      undefined,
+    );
   });
 
   it("keeps the bot row where no Direct with the bot is listed", async () => {

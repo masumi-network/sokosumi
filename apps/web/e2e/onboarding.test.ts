@@ -433,16 +433,39 @@ for (const { name, ...viewport } of PROJECTS) {
         .count();
       assert.equal(botRows, 0, `${BOT} is listed once`);
       await saved
-        .getByRole("link", { name: "Your team's Soko Bots", exact: true })
-        .filter({ visible: true })
-        .first()
-        .waitFor();
-      await saved
         .getByRole("button", { name: "Personal", exact: true })
         .click();
       await saved
         .getByRole("menuitem", { name: /^Personal\b.*Just you$/ })
         .waitFor();
+      await saved.keyboard.press("Escape");
+      // The people icon at the end of the bot's row is its own target: it
+      // opens the team's Soko Bots, not the row's chat or its menu, and on a
+      // phone it closes the sheet like any sidebar link.
+      const team = saved
+        .locator('[data-slot="room-row-main"]')
+        .filter({ visible: true })
+        .getByRole("link", { name: "Your team's Soko Bots", exact: true });
+      const sidebarUrl = saved.url();
+      // Pressed 2px inside its right edge, next to the menu: still the team.
+      const teamBox = await team.boundingBox();
+      assert.ok(teamBox, "the team link has a box");
+      assert.ok(
+        teamBox.width >= (viewport.width < 768 ? 40 : 32),
+        "the team link is a full target",
+      );
+      await team.click({
+        position: { x: teamBox.width - 2, y: teamBox.height / 2 },
+      });
+      await saved.waitForURL(/\/agents$/);
+      await saved
+        .locator('[data-slot="sidebar"][data-mobile="true"]')
+        .waitFor({ state: "detached" });
+      // Back where it was, with the sidebar open again.
+      await saved.goBack();
+      await saved.waitForURL(sidebarUrl);
+      if (await showSidebar.isVisible()) await showSidebar.click();
+      await team.waitFor();
       if (viewport.width < 768) {
         // Back to chats is one tap to the phone's global Search and New task.
         await page.getByRole("link", { name: "Back to chats" }).click();

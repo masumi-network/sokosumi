@@ -449,8 +449,11 @@ describe("ChatRoomSidebarRow trailing link", () => {
     const spacer = container.querySelector(
       '[data-slot="room-trailing-spacer"]',
     );
-    expect(spacer?.className).toContain("[@media(hover:hover)]:w-10");
-    expect(spacer?.className).toContain("[@media(hover:none)]:w-16");
+    // Menu, gap and the link's own 40px box (32px from `md`).
+    expect(spacer?.className).toContain("[@media(hover:hover)]:w-20");
+    expect(spacer?.className).toContain("[@media(hover:hover)]:md:w-16");
+    expect(spacer?.className).toContain("[@media(hover:none)]:w-20");
+    expect(spacer?.className).toContain("[@media(hover:none)]:md:w-16");
   });
 });
 

@@ -542,11 +542,12 @@ export function ChatRoomSidebarRow({
           // hole holds two boxes. They are the same 32px box, and a muted room
           // carries no badge, so one width serves both.
           (isMuted || hasRowCount) && "[@media(hover:none)]:w-16",
-          // A trailing link is one more 32px box beside the menu, at rest too.
+          // A trailing link is its own 40px box (32px from `md`) and a gap
+          // clear of the menu's hit area, beside the menu, at rest too.
           trailingLink &&
             (isMuted || hasRowCount
-              ? "[@media(hover:none)]:w-24"
-              : "[@media(hover:none)]:w-16"),
+              ? "[@media(hover:none)]:w-28 [@media(hover:none)]:md:w-24"
+              : "[@media(hover:none)]:w-20 [@media(hover:none)]:md:w-16"),
           // The Workspace tile stands in flow to the left of all that. These
           // carry `md:` too, or the `md:size-7` above would win at that width.
           hasTile &&
@@ -573,10 +574,10 @@ export function ChatRoomSidebarRow({
           // A Workspace tile rests in the menu's column as the bell does. Beside
           // a count or a handle it stands just left of that column, so the hole
           // grows by the tile. With both, `w-16` already clears all three.
-          // A trailing link shows at rest, left of the menu's column: its glyph
-          // ends 53px in from the row edge, so the name ends at 60px.
+          // A trailing link shows at rest, left of the menu's column, and the
+          // name stops short of its whole box: menu, gap and link.
           trailingLink
-            ? "[@media(hover:hover)]:w-10"
+            ? "[@media(hover:hover)]:w-20 [@media(hover:hover)]:md:w-16"
             : hasRowCount && reorderHandle
               ? "[@media(hover:hover)]:w-16"
               : tileBesideColumn

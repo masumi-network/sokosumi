@@ -32,10 +32,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import {
-  SIDEBAR_ICON_ACTION_CLASS,
-  SIDEBAR_ROW_LABEL_INSET_CLASS,
-} from "@/components/ui/sidebar-classes";
+import { SIDEBAR_ROW_LABEL_INSET_CLASS } from "@/components/ui/sidebar-classes";
 import { SidebarSectionContent } from "@/components/ui/sidebar-section";
 import { useChatUnreadsFilter } from "@/hooks/effects/use-chat-unreads-filter";
 import { useRememberPinnedRooms } from "@/hooks/effects/use-remember-pinned-rooms";
@@ -75,7 +72,10 @@ import {
   ChatUnreadsFilterChip,
 } from "./chat-unread-nav-rows";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
-import { isDirectWithSokoBot } from "./direct-room-participants";
+import {
+  isDirectWithSokoBot,
+  ownSokoBotIdOfDirect,
+} from "./direct-room-participants";
 import {
   limitSidebarChannels,
   limitSidebarSectionRooms,
@@ -457,21 +457,27 @@ export function OrganizationChatList({
     };
   }
 
-  // With the sidebar's bot row below it, a listed Direct with your bot
-  // becomes that bot's one row, and the bot row stands down.
-  const directBot =
-    directFooter && liveSokoBot
-      ? (directRows.visible.find((room) =>
-          isDirectWithSokoBot(room, currentUserId, liveSokoBot.id),
-        ) ?? null)
-      : null;
+  // With the sidebar's bot row below it, a listed Direct with your own bot
+  // becomes that bot's one row, and the bot row stands down. Found from the
+  // rooms, not the poll, so the server's HTML lists the bot once too.
+  let directBot: ChatRoom | null = null;
+  let directBotId: string | null = null;
+  for (const room of directFooter ? directRows.visible : []) {
+    directBotId = ownSokoBotIdOfDirect(room, currentUserId);
+    if (directBotId) {
+      directBot = room;
+      break;
+    }
+  }
   const isTeamActive = isPathActive(pathname, AGENTS_ROUTE);
   const teamLink = (
     <Link
       href={AGENTS_ROUTE}
       title={tSokoBot("team")}
       aria-current={isTeamActive ? "page" : undefined}
-      className={SIDEBAR_ICON_ACTION_CLASS}
+      // Its own 40px box (32px from `md`), clear of the room menu's: the
+      // gap is that menu's hit area reaching left (DESIGN.md, Touch targets).
+      className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground mr-1.5 flex size-10 shrink-0 items-center justify-center rounded-md transition-colors md:mr-0.5 md:size-8"
     >
       <Users className="size-4 md:size-3.5" aria-hidden />
       <span className="sr-only">{tSokoBot("team")}</span>
@@ -480,14 +486,20 @@ export function OrganizationChatList({
 
   function directRowProps(room: ChatRoom): ChatRoomSidebarRowProps {
     const props = roomRowProps(room);
-    if (room !== directBot || !liveSokoBot) return props;
+    if (room !== directBot) return props;
     return {
       ...props,
       // Under the name, as the bot row had it. The avatar announces it.
+      // Until the bot row's first status (the server has none) the line holds
+      // its height, so the words arrive without moving the rows.
       status: undefined,
       subtitle: (
         <span aria-hidden>
-          <SokoBotStatusLine bot={liveSokoBot} />
+          {liveSokoBot && liveSokoBot.id === directBotId ? (
+            <SokoBotStatusLine bot={liveSokoBot} />
+          ) : (
+            "\u00a0"
+          )}
         </span>
       ),
       trailingLink: dismissSheetOnNavigate ? (
@@ -712,9 +724,7 @@ export function OrganizationChatList({
                   </SidebarMenuItem>
                 ) : null}
               </SidebarMenu>
-              <SokoBotDirectRowContext
-                value={directBot ? (liveSokoBot?.id ?? null) : null}
-              >
+              <SokoBotDirectRowContext value={directBotId}>
                 {directFooter}
               </SokoBotDirectRowContext>
             </SidebarSectionContent>

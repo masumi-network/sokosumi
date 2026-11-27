@@ -75,10 +75,16 @@ export default function PersonalAssistantNav({
 }) {
   // Session memory for Instant `/chat` (SOK-903): mount means the row is shown.
   usePersonalAssistantChromeVisible();
+  // Your bot's Direct above stands in: no static row while the bot loads.
+  const standsIn = use(SokoBotDirectRowContext) !== null;
 
   const menu = (
     <SidebarMenu className="gap-0">
-      {bot ? <LiveSokoBotRow bot={bot} /> : <StaticSokoBotsRow />}
+      {bot ? (
+        <LiveSokoBotRow bot={bot} />
+      ) : standsIn ? null : (
+        <StaticSokoBotsRow />
+      )}
     </SidebarMenu>
   );
   if (nested) return menu;
