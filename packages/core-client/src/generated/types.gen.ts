@@ -14554,6 +14554,10 @@ export type NotificationItem = {
      * When the notification was created
      */
     createdAt: Date;
+    /**
+     * Network of the Job the notification points at; null when it points at none
+     */
+    network: 'mainnet' | 'preprod' | null;
 };
 
 /**

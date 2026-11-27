@@ -58311,6 +58311,19 @@ export const NotificationItemSchema = {
             format: 'date-time',
             example: '2026-06-16T15:00:00.000Z',
             description: 'When the notification was created'
+        },
+        network: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'mainnet',
+                'preprod',
+                null
+            ],
+            description: 'Network of the Job the notification points at; null when it points at none',
+            example: null
         }
     },
     required: [
@@ -58324,7 +58337,8 @@ export const NotificationItemSchema = {
         'metadata',
         'isRead',
         'readAt',
-        'createdAt'
+        'createdAt',
+        'network'
     ]
 } as const;
 
