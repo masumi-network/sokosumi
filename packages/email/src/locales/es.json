@@ -49,6 +49,7 @@
   "jobs": {
     "failureNotification": {
       "subject": "Sokosumi - El job {jobId} ha fallado",
+      "preprodSubject": "[Preprod] Sokosumi - El job {jobId} ha fallado",
       "preview": "El job {jobId} ha fallado",
       "title": "Tu job ha fallado",
       "description": "Esto es lo que informó el job.",

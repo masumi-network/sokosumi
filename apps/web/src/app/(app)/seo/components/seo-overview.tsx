@@ -22,6 +22,7 @@ import {
   seoPageName,
   seoSiteUrl,
 } from "./seo-shared";
+import { SeoSiteSpeed } from "./seo-site-speed";
 import { seoIssueScope } from "./seo-summary-model";
 import { useSeoTileDay } from "./seo-summary-tiles";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -192,6 +193,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
           {result("actions.checksIncompleteBody")}
         </p>
       ) : null}
+      <SeoSiteSpeed workspace={data} />
       <SeoPages model={model} />
     </div>
   );
