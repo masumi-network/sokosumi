@@ -1,10 +1,9 @@
-import type { Prisma } from "@sokosumi/database";
 import {
   creditBucketRepository,
   InsufficientBalanceError,
 } from "@sokosumi/database/repositories";
 
-import type { NetworkScope } from "@/lib/db/network-scope";
+import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
 
 /** Whose credits a spend takes. */
 export interface CreditPayer {
@@ -26,10 +25,11 @@ export interface SpendInput {
   /** The Network whose credits pay. The one place the Network is read. */
   scope: NetworkScope;
   /**
-   * The caller's open transaction: the debit commits or rolls back with the
-   * caller's own receipt, at the caller's isolation level and retry rules.
+   * The caller's open transaction, of the shared side: the debit commits or
+   * rolls back with the caller's own receipt, at the caller's isolation level
+   * and retry rules. The Network's rows are written through it in raw SQL.
    */
-  tx: Prisma.TransactionClient;
+  tx: SharedDb;
   payer: CreditPayer;
   /** The price, in cents, above zero. */
   quotedCents: bigint;
@@ -84,17 +84,18 @@ export async function spend(input: SpendInput): Promise<SpendResult> {
       availableCents: error.available,
     };
   }
-  const transaction = await tx.transaction.create({
-    data: {
-      amount: -quotedCents,
+  const transactionId = await creditBucketRepository.recordSpend(
+    scope.network,
+    {
       userId: payer.userId,
       organizationId: payer.organizationId,
-      creditConsumptions: { createMany: { data: consumptions } },
+      cents: quotedCents,
+      consumptions,
     },
-    select: { id: true },
-  });
+    tx,
+  );
   return {
-    transactionId: transaction.id,
+    transactionId,
     quotedCents,
     chargedCents: quotedCents,
     shortfall: false,

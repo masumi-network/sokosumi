@@ -56,7 +56,7 @@
               "<id 4>",
               "<time>",
               "30000000000",
-              "<bucket STRIPE_SUBSCRIPTION_PERIOD of funded person>",
+              "<bucket expiring later of funded person>",
               "<id 2>"
             ]
           },
@@ -101,8 +101,8 @@
           ]
         },
         {
-          "id": "<bucket STRIPE_SUBSCRIPTION_PERIOD of funded person>",
-          "amount": "2500000000000",
+          "id": "<bucket expiring later of funded person>",
+          "amount": "60000000000",
           "projectId": null,
           "consumptions": [
             {
@@ -110,12 +110,6 @@
               "transactionId": "<id 2>"
             }
           ]
-        },
-        {
-          "id": "<bucket SIGNUP_BONUS of funded person>",
-          "amount": "30000000000000",
-          "projectId": null,
-          "consumptions": []
         }
       ],
       "transactions": [
@@ -140,7 +134,7 @@
           "id": "<id 4>",
           "createdAt": "<time>",
           "amount": "30000000000",
-          "bucketId": "<bucket STRIPE_SUBSCRIPTION_PERIOD of funded person>",
+          "bucketId": "<bucket expiring later of funded person>",
           "transactionId": "<id 2>"
         }
       ],
@@ -172,6 +166,10 @@
           "transactionId": "<id 2>"
         }
       ]
+    },
+    "debit": {
+      "uuidVersions": ["7", "7", "7"],
+      "timesWithinTheCheck": [true, true, true, true]
     }
   },
   "an Organization, funded": {
@@ -442,6 +440,10 @@
           "transactionId": "<id 2>"
         }
       ]
+    },
+    "debit": {
+      "uuidVersions": ["7", "7", "7", "7"],
+      "timesWithinTheCheck": [true, true, true, true, true]
     }
   },
   "an Organization, shortfall": {
@@ -547,137 +549,10 @@
       "transactions": [],
       "consumptions": [],
       "checks": []
-    }
-  },
-  "a person, replay after an interrupted check": {
-    "result": "checked",
-    "pagesRead": 2,
-    "newsSearches": 2,
-    "statements": {
-      "transactions": [
-        [
-          {
-            "sql": "BEGIN",
-            "values": []
-          },
-          {
-            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
-            "values": []
-          },
-          {
-            "sql": "SELECT \"public\".\"competitor_check\".\"id\", \"public\".\"competitor_check\".\"transactionId\", \"public\".\"competitor_check\".\"chargedCents\" FROM \"public\".\"competitor_check\" WHERE (\"public\".\"competitor_check\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
-            "values": ["<id 1>", "1", "0"]
-          },
-          {
-            "sql": "SELECT \"public\".\"project\".\"id\", \"public\".\"project\".\"workspaceId\" FROM \"public\".\"project\" WHERE (\"public\".\"project\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
-            "values": ["<interrupted person's Project>", "1", "0"]
-          },
-          {
-            "sql": "SELECT \"public\".\"workspace\".\"id\", \"public\".\"workspace\".\"userId\", \"public\".\"workspace\".\"organizationId\" FROM \"public\".\"workspace\" WHERE \"public\".\"workspace\".\"id\" = $1 OFFSET $2",
-            "values": ["<interrupted person's workspace>", "0"]
-          },
-          {
-            "sql": "COMMIT",
-            "values": []
-          }
-        ]
-      ],
-      "outsideTransactions": {
-        "INSERT INTO \"public\".\"competitor_page_snapshot\" (\"id\",\"competitorId\",\"kind\",\"url\",\"text\",\"fetchedAt\") VALUES ($1,$2,CAST($3::text AS \"public\".\"CompetitorPageKind\"),$4,$5,$6) ON CONFLICT (\"competitorId\",\"kind\") DO UPDATE SET \"url\" = $7, \"text\" = $8, \"fetchedAt\" = $9 WHERE ((\"public\".\"competitor_page_snapshot\".\"competitorId\" = $10 AND \"public\".\"competitor_page_snapshot\".\"kind\" = CAST($11::text AS \"public\".\"CompetitorPageKind\")) AND 1=1) RETURNING \"public\".\"competitor_page_snapshot\".\"id\", \"public\".\"competitor_page_snapshot\".\"competitorId\", \"public\".\"competitor_page_snapshot\".\"kind\"::text, \"public\".\"competitor_page_snapshot\".\"url\", \"public\".\"competitor_page_snapshot\".\"text\", \"public\".\"competitor_page_snapshot\".\"fetchedAt\"": 2,
-        "SELECT \"public\".\"competitor_check\".\"id\", \"public\".\"competitor_check\".\"createdAt\" FROM \"public\".\"competitor_check\" WHERE (\"public\".\"competitor_check\".\"projectId\" = $1 AND \"public\".\"competitor_check\".\"finishedAt\" IS NOT NULL) ORDER BY \"public\".\"competitor_check\".\"createdAt\" DESC LIMIT $2 OFFSET $3": 1,
-        "SELECT \"public\".\"competitor_check\".\"id\", \"public\".\"competitor_check\".\"createdAt\", \"public\".\"competitor_check\".\"finishedAt\" FROM \"public\".\"competitor_check\" WHERE \"public\".\"competitor_check\".\"projectId\" = $1 ORDER BY \"public\".\"competitor_check\".\"createdAt\" DESC LIMIT $2 OFFSET $3": 1,
-        "SELECT \"public\".\"competitor_page_snapshot\".\"id\", \"public\".\"competitor_page_snapshot\".\"url\", \"public\".\"competitor_page_snapshot\".\"text\", \"public\".\"competitor_page_snapshot\".\"competitorId\", \"public\".\"competitor_page_snapshot\".\"kind\"::text FROM \"public\".\"competitor_page_snapshot\" WHERE ((\"public\".\"competitor_page_snapshot\".\"competitorId\" = $1 AND \"public\".\"competitor_page_snapshot\".\"kind\" = CAST($2::text AS \"public\".\"CompetitorPageKind\")) OR (\"public\".\"competitor_page_snapshot\".\"competitorId\" = $3 AND \"public\".\"competitor_page_snapshot\".\"kind\" = CAST($4::text AS \"public\".\"CompetitorPageKind\"))) OFFSET $5": 1,
-        "SELECT \"public\".\"project\".\"id\", \"public\".\"project\".\"competitorChecksSince\", \"public\".\"project\".\"workspaceId\" FROM \"public\".\"project\" WHERE (\"public\".\"project\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3": 1,
-        "SELECT \"public\".\"project_social_connection\".\"id\", \"public\".\"project_social_connection\".\"externalHandle\", \"public\".\"project_social_connection\".\"performanceHeadFetchedAt\", \"public\".\"project_social_connection\".\"composioConnectedAccountId\", \"public\".\"project_social_connection\".\"connectorUserId\", \"public\".\"project_social_connection\".\"externalAccountId\" FROM \"public\".\"project_social_connection\" WHERE (\"public\".\"project_social_connection\".\"projectId\" = $1 AND \"public\".\"project_social_connection\".\"provider\" = $2 AND \"public\".\"project_social_connection\".\"status\" = $3) ORDER BY \"public\".\"project_social_connection\".\"connectedAt\" DESC LIMIT $4 OFFSET $5": 1,
-        "SELECT \"public\".\"tracked_competitor\".\"id\", \"public\".\"tracked_competitor\".\"memberEditedAt\", \"public\".\"tracked_competitor\".\"createdAt\", \"public\".\"tracked_competitor\".\"projectId\", \"public\".\"tracked_competitor\".\"name\", \"public\".\"tracked_competitor\".\"websiteUrl\", \"public\".\"tracked_competitor\".\"pricingUrl\", \"public\".\"tracked_competitor\".\"instagramHandle\", \"public\".\"tracked_competitor\".\"facebookHandle\", \"public\".\"tracked_competitor\".\"source\"::text FROM \"public\".\"tracked_competitor\" WHERE (\"public\".\"tracked_competitor\".\"projectId\" = $1 AND \"public\".\"tracked_competitor\".\"removedAt\" IS NULL) ORDER BY \"public\".\"tracked_competitor\".\"createdAt\" ASC, \"public\".\"tracked_competitor\".\"id\" ASC OFFSET $2": 1,
-        "UPDATE \"public\".\"competitor_check\" SET \"finishedAt\" = $1, \"competitorCount\" = $2, \"signalCount\" = $3, \"sources\" = $4, \"costUsd\" = $5, \"chargedCents\" = $6 WHERE (\"public\".\"competitor_check\".\"id\" = $7 AND 1=1) RETURNING \"public\".\"competitor_check\".\"id\", \"public\".\"competitor_check\".\"createdAt\", \"public\".\"competitor_check\".\"projectId\", \"public\".\"competitor_check\".\"day\", \"public\".\"competitor_check\".\"finishedAt\", \"public\".\"competitor_check\".\"competitorCount\", \"public\".\"competitor_check\".\"signalCount\", \"public\".\"competitor_check\".\"sources\", \"public\".\"competitor_check\".\"costUsd\", \"public\".\"competitor_check\".\"chargedCents\", \"public\".\"competitor_check\".\"transactionId\"": 1
-      }
     },
-    "rows": {
-      "buckets": [
-        {
-          "id": "<bucket expiring first of interrupted person>",
-          "amount": "30000000000",
-          "projectId": null,
-          "consumptions": [
-            {
-              "amount": "30000000000",
-              "transactionId": "<id 2>"
-            }
-          ]
-        },
-        {
-          "id": "<bucket STRIPE_SUBSCRIPTION_PERIOD of interrupted person>",
-          "amount": "2500000000000",
-          "projectId": null,
-          "consumptions": [
-            {
-              "amount": "30000000000",
-              "transactionId": "<id 2>"
-            }
-          ]
-        },
-        {
-          "id": "<bucket SIGNUP_BONUS of interrupted person>",
-          "amount": "30000000000000",
-          "projectId": null,
-          "consumptions": []
-        }
-      ],
-      "transactions": [
-        {
-          "id": "<id 2>",
-          "createdAt": "<time>",
-          "updatedAt": "<time>",
-          "amount": "-60000000000",
-          "userId": "<interrupted person>",
-          "organizationId": null
-        }
-      ],
-      "consumptions": [
-        {
-          "id": "<id 3>",
-          "createdAt": "<time>",
-          "amount": "30000000000",
-          "bucketId": "<bucket expiring first of interrupted person>",
-          "transactionId": "<id 2>"
-        },
-        {
-          "id": "<id 4>",
-          "createdAt": "<time>",
-          "amount": "30000000000",
-          "bucketId": "<bucket STRIPE_SUBSCRIPTION_PERIOD of interrupted person>",
-          "transactionId": "<id 2>"
-        }
-      ],
-      "checks": [
-        {
-          "id": "<id 1>",
-          "createdAt": "<time>",
-          "projectId": "<interrupted person's Project>",
-          "day": "2026-11-16",
-          "finishedAt": "<time>",
-          "competitorCount": 2,
-          "signalCount": 0,
-          "sources": {
-            "ads": {
-              "status": "not_configured"
-            },
-            "news": {
-              "status": "ok"
-            },
-            "pages": {
-              "status": "ok"
-            },
-            "social": {
-              "status": "not_connected"
-            }
-          },
-          "costUsd": 0.014,
-          "chargedCents": "60000000000",
-          "transactionId": "<id 2>"
-        }
-      ]
+    "debit": {
+      "uuidVersions": [],
+      "timesWithinTheCheck": []
     }
   },
   "an Organization, credits gone after the balance read": {
@@ -802,6 +677,139 @@
           "transactionId": null
         }
       ]
+    },
+    "debit": {
+      "uuidVersions": [],
+      "timesWithinTheCheck": []
+    }
+  },
+  "a person, replay after an interrupted check": {
+    "result": "checked",
+    "pagesRead": 2,
+    "newsSearches": 2,
+    "statements": {
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"public\".\"competitor_check\".\"id\", \"public\".\"competitor_check\".\"transactionId\", \"public\".\"competitor_check\".\"chargedCents\" FROM \"public\".\"competitor_check\" WHERE (\"public\".\"competitor_check\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"project\".\"id\", \"public\".\"project\".\"workspaceId\" FROM \"public\".\"project\" WHERE (\"public\".\"project\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<interrupted person's Project>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"workspace\".\"id\", \"public\".\"workspace\".\"userId\", \"public\".\"workspace\".\"organizationId\" FROM \"public\".\"workspace\" WHERE \"public\".\"workspace\".\"id\" = $1 OFFSET $2",
+            "values": ["<interrupted person's workspace>", "0"]
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ]
+      ],
+      "outsideTransactions": {
+        "INSERT INTO \"public\".\"competitor_page_snapshot\" (\"id\",\"competitorId\",\"kind\",\"url\",\"text\",\"fetchedAt\") VALUES ($1,$2,CAST($3::text AS \"public\".\"CompetitorPageKind\"),$4,$5,$6) ON CONFLICT (\"competitorId\",\"kind\") DO UPDATE SET \"url\" = $7, \"text\" = $8, \"fetchedAt\" = $9 WHERE ((\"public\".\"competitor_page_snapshot\".\"competitorId\" = $10 AND \"public\".\"competitor_page_snapshot\".\"kind\" = CAST($11::text AS \"public\".\"CompetitorPageKind\")) AND 1=1) RETURNING \"public\".\"competitor_page_snapshot\".\"id\", \"public\".\"competitor_page_snapshot\".\"competitorId\", \"public\".\"competitor_page_snapshot\".\"kind\"::text, \"public\".\"competitor_page_snapshot\".\"url\", \"public\".\"competitor_page_snapshot\".\"text\", \"public\".\"competitor_page_snapshot\".\"fetchedAt\"": 2,
+        "SELECT \"public\".\"competitor_check\".\"id\", \"public\".\"competitor_check\".\"createdAt\" FROM \"public\".\"competitor_check\" WHERE (\"public\".\"competitor_check\".\"projectId\" = $1 AND \"public\".\"competitor_check\".\"finishedAt\" IS NOT NULL) ORDER BY \"public\".\"competitor_check\".\"createdAt\" DESC LIMIT $2 OFFSET $3": 1,
+        "SELECT \"public\".\"competitor_check\".\"id\", \"public\".\"competitor_check\".\"createdAt\", \"public\".\"competitor_check\".\"finishedAt\" FROM \"public\".\"competitor_check\" WHERE \"public\".\"competitor_check\".\"projectId\" = $1 ORDER BY \"public\".\"competitor_check\".\"createdAt\" DESC LIMIT $2 OFFSET $3": 1,
+        "SELECT \"public\".\"competitor_page_snapshot\".\"id\", \"public\".\"competitor_page_snapshot\".\"url\", \"public\".\"competitor_page_snapshot\".\"text\", \"public\".\"competitor_page_snapshot\".\"competitorId\", \"public\".\"competitor_page_snapshot\".\"kind\"::text FROM \"public\".\"competitor_page_snapshot\" WHERE ((\"public\".\"competitor_page_snapshot\".\"competitorId\" = $1 AND \"public\".\"competitor_page_snapshot\".\"kind\" = CAST($2::text AS \"public\".\"CompetitorPageKind\")) OR (\"public\".\"competitor_page_snapshot\".\"competitorId\" = $3 AND \"public\".\"competitor_page_snapshot\".\"kind\" = CAST($4::text AS \"public\".\"CompetitorPageKind\"))) OFFSET $5": 1,
+        "SELECT \"public\".\"project\".\"id\", \"public\".\"project\".\"competitorChecksSince\", \"public\".\"project\".\"workspaceId\" FROM \"public\".\"project\" WHERE (\"public\".\"project\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3": 1,
+        "SELECT \"public\".\"project_social_connection\".\"id\", \"public\".\"project_social_connection\".\"externalHandle\", \"public\".\"project_social_connection\".\"performanceHeadFetchedAt\", \"public\".\"project_social_connection\".\"composioConnectedAccountId\", \"public\".\"project_social_connection\".\"connectorUserId\", \"public\".\"project_social_connection\".\"externalAccountId\" FROM \"public\".\"project_social_connection\" WHERE (\"public\".\"project_social_connection\".\"projectId\" = $1 AND \"public\".\"project_social_connection\".\"provider\" = $2 AND \"public\".\"project_social_connection\".\"status\" = $3) ORDER BY \"public\".\"project_social_connection\".\"connectedAt\" DESC LIMIT $4 OFFSET $5": 1,
+        "SELECT \"public\".\"tracked_competitor\".\"id\", \"public\".\"tracked_competitor\".\"memberEditedAt\", \"public\".\"tracked_competitor\".\"createdAt\", \"public\".\"tracked_competitor\".\"projectId\", \"public\".\"tracked_competitor\".\"name\", \"public\".\"tracked_competitor\".\"websiteUrl\", \"public\".\"tracked_competitor\".\"pricingUrl\", \"public\".\"tracked_competitor\".\"instagramHandle\", \"public\".\"tracked_competitor\".\"facebookHandle\", \"public\".\"tracked_competitor\".\"source\"::text FROM \"public\".\"tracked_competitor\" WHERE (\"public\".\"tracked_competitor\".\"projectId\" = $1 AND \"public\".\"tracked_competitor\".\"removedAt\" IS NULL) ORDER BY \"public\".\"tracked_competitor\".\"createdAt\" ASC, \"public\".\"tracked_competitor\".\"id\" ASC OFFSET $2": 1,
+        "UPDATE \"public\".\"competitor_check\" SET \"finishedAt\" = $1, \"competitorCount\" = $2, \"signalCount\" = $3, \"sources\" = $4, \"costUsd\" = $5, \"chargedCents\" = $6 WHERE (\"public\".\"competitor_check\".\"id\" = $7 AND 1=1) RETURNING \"public\".\"competitor_check\".\"id\", \"public\".\"competitor_check\".\"createdAt\", \"public\".\"competitor_check\".\"projectId\", \"public\".\"competitor_check\".\"day\", \"public\".\"competitor_check\".\"finishedAt\", \"public\".\"competitor_check\".\"competitorCount\", \"public\".\"competitor_check\".\"signalCount\", \"public\".\"competitor_check\".\"sources\", \"public\".\"competitor_check\".\"costUsd\", \"public\".\"competitor_check\".\"chargedCents\", \"public\".\"competitor_check\".\"transactionId\"": 1
+      }
+    },
+    "rows": {
+      "buckets": [
+        {
+          "id": "<bucket expiring first of interrupted person>",
+          "amount": "30000000000",
+          "projectId": null,
+          "consumptions": [
+            {
+              "amount": "30000000000",
+              "transactionId": "<id 2>"
+            }
+          ]
+        },
+        {
+          "id": "<bucket expiring later of interrupted person>",
+          "amount": "60000000000",
+          "projectId": null,
+          "consumptions": [
+            {
+              "amount": "30000000000",
+              "transactionId": "<id 2>"
+            }
+          ]
+        }
+      ],
+      "transactions": [
+        {
+          "id": "<id 2>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "amount": "-60000000000",
+          "userId": "<interrupted person>",
+          "organizationId": null
+        }
+      ],
+      "consumptions": [
+        {
+          "id": "<id 3>",
+          "createdAt": "<time>",
+          "amount": "30000000000",
+          "bucketId": "<bucket expiring first of interrupted person>",
+          "transactionId": "<id 2>"
+        },
+        {
+          "id": "<id 4>",
+          "createdAt": "<time>",
+          "amount": "30000000000",
+          "bucketId": "<bucket expiring later of interrupted person>",
+          "transactionId": "<id 2>"
+        }
+      ],
+      "checks": [
+        {
+          "id": "<id 1>",
+          "createdAt": "<time>",
+          "projectId": "<interrupted person's Project>",
+          "day": "2026-11-16",
+          "finishedAt": "<time>",
+          "competitorCount": 2,
+          "signalCount": 0,
+          "sources": {
+            "ads": {
+              "status": "not_configured"
+            },
+            "news": {
+              "status": "ok"
+            },
+            "pages": {
+              "status": "ok"
+            },
+            "social": {
+              "status": "not_connected"
+            }
+          },
+          "costUsd": 0.014,
+          "chargedCents": "60000000000",
+          "transactionId": "<id 2>"
+        }
+      ]
+    },
+    "debit": {
+      "uuidVersions": ["7", "7", "7"],
+      "timesWithinTheCheck": [false, false, false, false]
     }
   }
 }

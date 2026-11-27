@@ -362,6 +362,7 @@ A failure that comes and goes with the order: the log prints `Running tests with
 - Always use `convertCentsToCredits()` when returning credit values to users
 - Use `convertCreditsToCents()` when storing user-provided credit values
 - Take absolute value when displaying credits: `Math.abs(convertCentsToCredits(amount))`
+- **A new credit debit calls `spend` from `@/lib/credits/spend`**, with a Network scope and the open shared-side transaction: it chooses the buckets and writes the debit, or answers with a shortfall and writes nothing. The caller keeps who may spend, the price, the transaction and its own receipt. The competitor check is its first caller; the other payers still write their own debit and move one pull request each. A payer that moves records what `origin/main` answers, writes and sends first (`src/services/competitor-check-spend.postgres.test.ts`).
 
 ### Prisma Transactions
 

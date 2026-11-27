@@ -1,22 +1,16 @@
-import type { Prisma } from "@sokosumi/database";
 import {
   creditBucketRepository,
   InsufficientBalanceError,
 } from "@sokosumi/database/repositories";
 import { describe, expect, it, vi } from "vitest";
 
-import type { NetworkScope } from "@/lib/db/network-scope";
+import type { NetworkDb, NetworkScope, SharedDb } from "@/lib/db/network-scope";
 
 import { spend } from "./spend";
 
 const scope = { network: "mainnet" } as NetworkScope;
+const tx = {} as SharedDb;
 const payer = { userId: null, organizationId: "org-1", projectId: "project-1" };
-
-function openTransaction() {
-  const create = vi.fn(async () => ({ id: "debit-1" }));
-  const tx = { transaction: { create } } as unknown as Prisma.TransactionClient;
-  return { tx, create };
-}
 
 describe("spend", () => {
   it("writes the debit on the caller's transaction and returns it as charged in full", async () => {
@@ -27,7 +21,9 @@ describe("spend", () => {
     const prepare = vi
       .spyOn(creditBucketRepository, "prepareConsumption")
       .mockResolvedValue(consumptions);
-    const { tx, create } = openTransaction();
+    const record = vi
+      .spyOn(creditBucketRepository, "recordSpend")
+      .mockResolvedValue("debit-1");
 
     const spent = await spend({ scope, tx, payer, quotedCents: 100n });
 
@@ -46,22 +42,21 @@ describe("spend", () => {
       { projectId: "project-1" },
     );
     // The buckets and their order are the repository's, written as chosen.
-    expect(create).toHaveBeenCalledExactlyOnceWith({
-      data: {
-        amount: -100n,
-        userId: null,
-        organizationId: "org-1",
-        creditConsumptions: { createMany: { data: consumptions } },
-      },
-      select: { id: true },
-    });
+    expect(record).toHaveBeenCalledExactlyOnceWith(
+      "mainnet",
+      { userId: null, organizationId: "org-1", cents: 100n, consumptions },
+      tx,
+    );
+    // The same transaction, not one that only looks like it.
+    expect(prepare.mock.calls[0]?.[4]).toBe(tx);
+    expect(record.mock.calls[0]?.[2]).toBe(tx);
   });
 
   it("writes nothing and reports the shortfall when the credits do not cover the price", async () => {
     vi.spyOn(creditBucketRepository, "prepareConsumption").mockRejectedValue(
       new InsufficientBalanceError(100n, 75n),
     );
-    const { tx, create } = openTransaction();
+    const record = vi.spyOn(creditBucketRepository, "recordSpend");
 
     const spent = await spend({ scope, tx, payer, quotedCents: 100n });
 
@@ -72,18 +67,34 @@ describe("spend", () => {
       shortfall: true,
       availableCents: 75n,
     });
-    expect(create).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
   });
 
   it("lets any other failure of the bucket read through", async () => {
     vi.spyOn(creditBucketRepository, "prepareConsumption").mockRejectedValue(
       new Error("Cents to consume must be positive"),
     );
-    const { tx, create } = openTransaction();
+    const record = vi.spyOn(creditBucketRepository, "recordSpend");
 
     await expect(spend({ scope, tx, payer, quotedCents: 0n })).rejects.toThrow(
       "Cents to consume must be positive",
     );
-    expect(create).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Never called: `tsc` checks it. Each `@ts-expect-error` is a use that must
+ * not compile, so loosening a type fails the typecheck here.
+ */
+export function _wrongSpendsDoNotCompile(
+  networkTx: NetworkDb,
+  sharedTx: SharedDb,
+): void {
+  void spend({ scope, tx: sharedTx, payer, quotedCents: 1n });
+
+  // @ts-expect-error the debit rides on the shared side's transaction, never on a Network's
+  void spend({ scope, tx: networkTx, payer, quotedCents: 1n });
+  // @ts-expect-error the Network comes from a scope, not from its name
+  void spend({ scope: "preprod", tx: sharedTx, payer, quotedCents: 1n });
+}

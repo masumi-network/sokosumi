@@ -128,7 +128,84 @@ function recorded(): Record<string, unknown> {
     : {};
 }
 
-/** Compares with what `origin/main` did, or records it while run there. */
+interface Statement {
+  sql: string;
+  values: unknown[];
+}
+interface Observed {
+  statements: { transactions: Statement[][] };
+}
+
+/*
+ * The one difference from `origin/main`, statement by statement. There the
+ * debit was Prisma's nested create: three statements.
+ */
+const MAIN_INSERT_DEBIT =
+  'INSERT INTO "public"."Transaction" ("id","createdAt","updatedAt","amount","userId","organizationId") VALUES ($1,$2,$3,$4,$5,$6) RETURNING "public"."Transaction"."id"';
+const mainInsertConsumptions = (count: number) =>
+  `INSERT INTO "public"."credit_consumption" ("id","createdAt","amount","bucketId","transactionId") VALUES ${Array.from(
+    { length: count },
+    (_unused, row) =>
+      `(${[1, 2, 3, 4, 5].map((column) => `$${row * 5 + column}`).join(",")})`,
+  ).join(", ")}`;
+const MAIN_READ_DEBIT_BACK =
+  'SELECT "public"."Transaction"."id" FROM "public"."Transaction" WHERE "public"."Transaction"."id" = $1 LIMIT $2 OFFSET $3';
+/*
+ * Now the credit bucket repository's `recordSpend` writes it, as it has
+ * written the Task charge since #8224: two statements of raw SQL, which name
+ * the Network's schema.
+ */
+const NOW_INSERT_DEBIT =
+  'INSERT INTO "public"."Transaction" (id, "createdAt", "updatedAt", amount, "userId", "organizationId") VALUES ($1, $2, $3, $4, $5, $6)';
+const NOW_INSERT_CONSUMPTIONS =
+  'INSERT INTO "public"."credit_consumption" (id, "createdAt", amount, "bucketId", "transactionId") SELECT c.id, $1::timestamp(3), c.amount, c."bucketId", $2::text FROM unnest($3::text[], $4::bigint[], $5::text[]) AS c(id, amount, "bucketId")';
+
+/**
+ * A transaction recorded on `origin/main`, with its debit written as
+ * `recordSpend` writes it: the same values in the same place, every other
+ * statement untouched. It refuses a debit that is not exactly the three
+ * statements above.
+ */
+function withTheDebitAsWrittenNow(transaction: Statement[]): Statement[] {
+  const at = transaction.findIndex(({ sql }) => sql === MAIN_INSERT_DEBIT);
+  if (at === -1) return transaction;
+  const [debit, consumptions, readBack] = transaction.slice(at, at + 3);
+  if (!debit || !consumptions || !readBack) throw new Error("A debit is cut");
+  const debitId = debit.values[0];
+  const written = Array.from(
+    { length: consumptions.values.length / 5 },
+    (_unused, row) => consumptions.values.slice(row * 5, row * 5 + 5),
+  );
+  expect([consumptions.sql, readBack]).toEqual([
+    mainInsertConsumptions(written.length),
+    { sql: MAIN_READ_DEBIT_BACK, values: [debitId, "1", "0"] },
+  ]);
+  // One time and one debit for every consumption, as the one statement binds.
+  expect(written.map((row) => [row[1], row[4]])).toEqual(
+    written.map(() => [debit.values[1], debitId]),
+  );
+  return [
+    ...transaction.slice(0, at),
+    { sql: NOW_INSERT_DEBIT, values: debit.values },
+    {
+      sql: NOW_INSERT_CONSUMPTIONS,
+      values: [
+        debit.values[1],
+        debitId,
+        written.map((row) => row[0]),
+        written.map((row) => row[2]),
+        written.map((row) => row[3]),
+      ],
+    },
+    ...transaction.slice(at + 3),
+  ];
+}
+
+/**
+ * Compares with what `origin/main` did, or records it while run there. The
+ * answer, the rows and every statement are `origin/main`'s; only the debit's
+ * own statements are the ones above.
+ */
 function expectAsOnBase(key: string, observed: unknown) {
   if (recording) {
     writeFileSync(
@@ -137,7 +214,14 @@ function expectAsOnBase(key: string, observed: unknown) {
     );
     return;
   }
-  expect(observed).toEqual(recorded()[key]);
+  const base = recorded()[key] as Observed;
+  expect(observed).toEqual({
+    ...base,
+    statements: {
+      ...base.statements,
+      transactions: base.statements.transactions.map(withTheDebitAsWrittenNow),
+    },
+  });
 }
 
 const mainnet = () => createNetworkScope("mainnet").networkDb;
@@ -215,24 +299,24 @@ async function grant(
 }
 
 /**
- * A person in the personal workspace the product creates, which grants the
- * sign-up bonus and the free plan's credits, and one bucket that expires
- * before both and holds half a check's price: a check spends from two buckets.
+ * A person in the personal workspace the product creates, with two buckets:
+ * the one that expires first holds half a check's price, so a check spends
+ * from both.
  */
 async function person(name: string): Promise<Payer> {
   const userId = await createUser(name);
   const workspace = await createPersonalWorkspace(userId);
   labels.set(workspace.id, `<${name}'s workspace>`);
-  for (const bucket of await mainnet().creditBucket.findMany({
-    where: { userId },
-    select: { id: true, sourceTransactionId: true, referenceType: true },
-  })) {
-    labels.set(bucket.id, `<bucket ${bucket.referenceType} of ${name}>`);
-    labels.set(
-      bucket.sourceTransactionId,
-      `<grant ${bucket.referenceType} of ${name}>`,
-    );
-  }
+  // The grants are other writers' (sign-up and free plan), which cannot write
+  // on the split layout yet: the fixture's own buckets replace them, so the
+  // same credits exist on both layouts.
+  await mainnet().creditBucket.deleteMany({ where: { userId } });
+  await mainnet().transaction.deleteMany({ where: { userId } });
+  await grant(
+    `expiring later of ${name}`,
+    { userId },
+    { cents: PRICE, expiresInDays: 20 },
+  );
   await grant(
     `expiring first of ${name}`,
     { userId },
@@ -391,6 +475,7 @@ async function rows(payer: Payer) {
 async function observe(payer: Payer, now: Date) {
   readers.readCompetitorPage.mockClear();
   readers.searchExa.mockClear();
+  const started = Date.now();
   sent.log = [];
   sent.observing = true;
   let result: unknown;
@@ -402,12 +487,27 @@ async function observe(payer: Payer, now: Date) {
   } finally {
     sent.observing = false;
   }
+  const ended = Date.now();
+  const left = await rows(payer);
+  const debitRows = [...left.transactions, ...left.consumptions];
+  const debitTimes = [
+    ...left.transactions.flatMap((row) => [row.createdAt, row.updatedAt]),
+    ...left.consumptions.map((row) => row.createdAt),
+  ];
   return plain({
     result,
     pagesRead: readers.readCompetitorPage.mock.calls.length,
     newsSearches: readers.searchExa.mock.calls.length,
     statements: statements(sent.log),
-    rows: await rows(payer),
+    rows: left,
+    // What `plain` hides of the debit's rows: the kind of id, and that their
+    // times are this check's.
+    debit: {
+      uuidVersions: debitRows.map((row) => row.id.charAt(14)),
+      timesWithinTheCheck: debitTimes.map(
+        (time) => time.getTime() >= started && time.getTime() <= ended,
+      ),
+    },
   });
 }
 
