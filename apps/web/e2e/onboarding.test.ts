@@ -381,16 +381,49 @@ for (const { name, ...viewport } of PROJECTS) {
       if (await showSidebar.isVisible()) await showSidebar.click();
       // The bot's own row and the phone's All chats sit on the same column
       // as the rows around them, not 8px further in.
-      const rowLeft = (selector: string) =>
-        saved
-          .locator(`[data-sidebar="menu-button"]${selector}`)
+      const rows: Record<string, string> = {
+        home: '[data-sidebar="menu-button"][href$="/chat"]',
+        sokoBot: '[data-sidebar="menu-button"][href$="/personal-assistant"]',
+        ...(viewport.width < 768 && {
+          allChats: '[data-sidebar="menu-button"][href$="/chat/rooms"]',
+        }),
+      };
+      for (const selector of Object.values(rows)) {
+        await saved
+          .locator(selector)
           .filter({ visible: true })
           .first()
-          .evaluate((el) => Math.round(el.getBoundingClientRect().left));
-      const homeLeft = await rowLeft('[href$="/chat"]');
-      assert.equal(await rowLeft('[href$="/personal-assistant"]'), homeLeft);
-      if (viewport.width < 768) {
-        assert.equal(await rowLeft('[href$="/chat/rooms"]'), homeLeft);
+          .waitFor();
+      }
+      // The sheet and the sidebar slide in, so every row is read in one
+      // frame, once two frames in a row agree.
+      const lefts = await saved.evaluate(async (selectors) => {
+        const read = () =>
+          JSON.stringify(
+            Object.fromEntries(
+              Object.entries(selectors).map(([key, selector]) => {
+                const row = [...document.querySelectorAll(selector)].find(
+                  (el) => el.getBoundingClientRect().width > 0,
+                );
+                return [
+                  key,
+                  Math.round(row?.getBoundingClientRect().left ?? -1),
+                ];
+              }),
+            ),
+          );
+        const frame = () => new Promise((done) => requestAnimationFrame(done));
+        let last = read();
+        for (let i = 0; i < 120; i++) {
+          await frame();
+          const next = read();
+          if (next === last) break;
+          last = next;
+        }
+        return JSON.parse(last) as Record<string, number>;
+      }, rows);
+      for (const [key, left] of Object.entries(lefts)) {
+        assert.equal(left, lefts.home, `${key} starts where Home does`);
       }
       await saved
         .getByRole("button", { name: "Personal", exact: true })
