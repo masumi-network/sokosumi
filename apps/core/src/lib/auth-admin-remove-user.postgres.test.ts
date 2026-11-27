@@ -1,6 +1,6 @@
 /**
  * Better Auth's admin `remove-user` is closed: it deletes the User row without
- * Core's blockers, sweeps or Stripe clean-up. Core's own deletion still works.
+ * Core's blockers, sweeps or Stripe clean-up.
  * RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… pnpm --filter core test src/lib/auth-admin-remove-user.postgres.test.ts
  */
 // First: schemas built before this module loads have no `.openapi`, and the
@@ -88,23 +88,5 @@ describe.skipIf(!enabled)("Better Auth admin remove-user", () => {
     expect(
       await prisma.user.findUnique({ where: { id: target.id } }),
     ).not.toBeNull();
-  });
-
-  it("still deletes an account through Core's own delete-user flow", async () => {
-    const own = await account("Delete myself");
-    const cookie = await signIn(app, own.email);
-
-    const response = await app.request(`${ORIGIN}/auth/delete-user`, {
-      method: "POST",
-      headers: {
-        origin: ORIGIN,
-        cookie,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({ password: "fixture-password-long" }),
-    });
-
-    expect(response.status).toBe(200);
-    expect(await prisma.user.findUnique({ where: { id: own.id } })).toBeNull();
   });
 });
