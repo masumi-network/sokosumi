@@ -123,6 +123,8 @@ export const networkScopeMiddleware = createMiddleware<{
 }>(async (c, next) => {
   // A nested router runs this again: the request keeps its one scope.
   if (!c.var.networkScope) {
+    // The one place an authenticated request names its Network; a public
+    // route calls `publicRequestNetworkScope`.
     c.set(
       "networkScope",
       requestNetwork(c) === "mainnet"
