@@ -12,6 +12,20 @@ const CRAWL_PREFIX = "Site crawl: ";
 /** The stored crawl's text and gap limits (seo-site-crawl.schema.ts). */
 const MAX_TEXT = 2000;
 const MAX_GAPS = 50;
+/** The last stored gap when the crawl gave more than Sokosumi stores: a dropped gap may be about any check. */
+const MORE_GAPS = "More gaps";
+
+function capGaps<T extends { item: string; reason: string }>(gaps: T[]) {
+  if (gaps.length <= MAX_GAPS) return gaps;
+  const kept = gaps.slice(0, MAX_GAPS - 1);
+  return [
+    ...kept,
+    {
+      item: MORE_GAPS,
+      reason: `the crawl gave ${gaps.length - kept.length} more gaps than Sokosumi stores, so no check can be clear`,
+    },
+  ];
+}
 
 const count = z.number().int();
 const page = z.object({ url: z.string() });
@@ -222,7 +236,7 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
           ),
         }
       : null,
-    gaps: [
+    gaps: capGaps([
       // The bot counts a page here when its title or its description is not compared, so the count is no
       // count of titles: it goes in words, not into the check's not-determined count.
       ...(pageChecks?.duplicatesNotCompared
@@ -243,7 +257,7 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
             ]
           : [],
       ),
-    ].slice(0, MAX_GAPS),
+    ]),
   });
 }
 

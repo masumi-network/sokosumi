@@ -239,6 +239,27 @@ describe("imported site crawl", () => {
     expect(crawl.gaps[1]?.reason.endsWith("…")).toBe(true);
   });
 
+  it("says so when the crawl gave more gaps than Sokosumi stores", () => {
+    const crawl = stored(
+      siteReport({
+        crawl: botCrawl(),
+        couldNotSee: Array.from({ length: 60 }, (_, i) => ({
+          item: `Site crawl: Gap ${i}`,
+          reason: "not read",
+        })),
+      }),
+    );
+    if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+    expect(crawl.gaps).toHaveLength(50);
+    // The duplicate check's own gap comes first: 61 gaps, of which 49 stay.
+    expect(crawl.gaps.at(-2)?.item).toBe("Gap 47");
+    expect(crawl.gaps.at(-1)).toEqual({
+      item: "More gaps",
+      reason:
+        "the crawl gave 12 more gaps than Sokosumi stores, so no check can be clear",
+    });
+  });
+
   it("keeps only text PostgreSQL can store", () => {
     // A cut inside a surrogate pair, and a NUL: jsonb refuses both, and the whole import with them.
     const crawl = stored(
