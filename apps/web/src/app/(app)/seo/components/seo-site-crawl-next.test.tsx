@@ -102,6 +102,25 @@ describe("crawl of the next pages while other dates load", () => {
     await user.click(screen.getByRole("button", { name: "pick an end date" }));
     await waitFor(() => expect(button).toBeDisabled());
   });
+
+  it("buys nothing from a confirmation that was open when other dates began to load", async () => {
+    // The open dialog makes the rest of the page inert to the pointer; the date still changes, as through history.
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const read = async (input: RequestInfo | URL) =>
+      String(input).includes(`to=${TO}`)
+        ? new Promise<Response>(() => {})
+        : Response.json(data());
+    show(read);
+    await user.click(screen.getByRole("button", { name: next.button }));
+    const confirm = screen.getByRole("button", { name: next.confirm });
+    expect(confirm).toBeEnabled();
+    await user.click(
+      screen.getByRole("button", { name: "pick an end date", hidden: true }),
+    );
+    await waitFor(() => expect(confirm).toBeDisabled());
+    await user.click(confirm);
+    expect(mutate).not.toHaveBeenCalled();
+  });
 });
 
 describe("uncertain crawl of the next pages", () => {

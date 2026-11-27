@@ -55,6 +55,8 @@ export function SeoCrawlNextButton({ model }: { model: SeoWorkspaceModel }) {
         <AlertDialogFooter>
           <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
           <AlertDialogAction
+            // A dialog opened before other dates began to load still holds the old read's offer.
+            disabled={model.updating}
             onClick={() => {
               if (!confirming) return;
               void model.execute(
