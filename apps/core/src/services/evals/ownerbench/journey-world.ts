@@ -15,6 +15,7 @@ import {
 } from "@/lib/evals/eval-guard";
 import { EVAL_AGENT_BASE_URL } from "@/lib/evals/fake-agent";
 import { EVAL_COWORKER } from "@/lib/evals/fake-coworker";
+import { runExtractionNudge } from "@/lib/files/in-process-indexer";
 import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { writeOwnerDriveFile } from "@/services/image-studio-drive.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
@@ -429,14 +430,40 @@ async function seedFile(
     workspaceId: lane.workspaceId,
     organizationId: lane.organizationId,
     userId: lane.userId,
+    // A fresh object each journey: the reset deleted the last one at the
+    // same name, and the store answers a just-rewritten pathname with 404
+    // for a few seconds, which sent extraction into its retry backoff.
     pathname: buildOrganizationDriveFilePathname(
       lane.organizationId,
-      file.name,
+      file.name.replace(/(\.[^.]+)?$/, `-${randomUUID().slice(0, 8)}$1`),
     ),
     ...file,
   });
   if (!written) throw new Error(`Could not seed ${file.name} in Files`);
+  await untilExtracted(written.id);
   return written.id;
+}
+
+/**
+ * A file the owner uploaded before the journey has been read by the time
+ * they ask about it; a seed that is still extracting would make the bot meet
+ * "still being processed" at random. Extraction is local (no model call).
+ */
+async function untilExtracted(resourceId: string): Promise<void> {
+  const deadline = Date.now() + 60_000;
+  for (;;) {
+    await runExtractionNudge();
+    const version = await prisma.fileVersion.findFirst({
+      where: { resourceId },
+      orderBy: { revision: "desc" },
+      select: { extractionState: true },
+    });
+    const state = version?.extractionState;
+    if (state && state !== "PENDING" && state !== "RUNNING") return;
+    if (Date.now() > deadline)
+      throw new Error(`A seeded file was not extracted in time (${state})`);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
 }
 
 /**

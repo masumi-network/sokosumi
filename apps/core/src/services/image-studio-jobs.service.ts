@@ -21,7 +21,6 @@ import {
   videoRecipeFor,
   videoShapesFor,
 } from "@sokosumi/utils";
-import { put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
 import { HTTPException } from "hono/http-exception";
 import sharp from "sharp";
@@ -69,6 +68,7 @@ import {
 import {
   readStudioBlobToken,
   requireStudioBlobToken,
+  studioPut,
 } from "@/lib/image-studio/blob-store";
 import { imageModel, resolveImageSettings } from "@/lib/image-studio/catalog";
 import { RECRAFT_VECTOR_ENDPOINT } from "@/lib/image-studio/catalog-overrides";
@@ -1779,7 +1779,7 @@ async function speakScript(
   );
   if (spokenSeconds > quotedSeconds * VOICE_OVERRUN_LIMIT)
     throw new Error("The voice ran far longer than the script was quoted at.");
-  const stored = await put(
+  const stored = await studioPut(
     `projects/${job.projectId}/image-studio/${job.id}-voice.mp3`,
     voice.bytes as unknown as Buffer,
     {
@@ -1854,7 +1854,7 @@ async function storeShortVideoPictures(
   return await Promise.all(
     sources.map(async (source, index) => {
       const framed = await keepVideoPicture(await source);
-      const stored = await put(
+      const stored = await studioPut(
         `projects/${job.projectId}/image-studio/${job.id}-picture-${index}.jpg`,
         framed as unknown as Buffer,
         {
@@ -2036,7 +2036,7 @@ async function storeTalkingVideoSitePage(
     if (!project?.websiteUrl) return null;
     const page = await captureTalkingVideoSitePage(project.websiteUrl, device);
     if (!page) return null;
-    const stored = await put(
+    const stored = await studioPut(
       `projects/${job.projectId}/image-studio/${job.id}-site${device === "desktop" ? "-desktop" : ""}.jpg`,
       page as unknown as Buffer,
       {
@@ -3554,7 +3554,7 @@ async function storeMedia(
   // objects were left behind with nothing referencing them. The finished image
   // and any separate backdrop use stable keys, overwritten idempotently. The
   // keys are not secrets, and nothing about access control rests on them.
-  let blob: Awaited<ReturnType<typeof put>>;
+  let blob: Awaited<ReturnType<typeof studioPut>>;
   let backdropBlobPathname: string | undefined;
   try {
     const storageOptions = {
@@ -3565,7 +3565,7 @@ async function storeMedia(
     };
     const objectPath = `projects/${job.projectId}/image-studio/${job.id}`;
     if (vectorSource) {
-      await put(`${objectPath}-source.svg`, Buffer.from(vectorSource), {
+      await studioPut(`${objectPath}-source.svg`, Buffer.from(vectorSource), {
         ...storageOptions,
         contentType: "image/svg+xml",
         abortSignal: AbortSignal.timeout(60_000),
@@ -3576,7 +3576,7 @@ async function storeMedia(
         .createHash("sha256")
         .update(backdrop.bytes)
         .digest("hex");
-      const backdropBlob = await put(
+      const backdropBlob = await studioPut(
         `${objectPath}-backdrop-${backdropHash.slice(0, 16)}`,
         backdrop.bytes as unknown as Buffer,
         {
@@ -3587,7 +3587,7 @@ async function storeMedia(
       );
       backdropBlobPathname = backdropBlob.pathname;
     }
-    blob = await put(
+    blob = await studioPut(
       `${objectPath}-${checksum.slice(0, 16)}`,
       downloaded.bytes as unknown as Buffer,
       {
