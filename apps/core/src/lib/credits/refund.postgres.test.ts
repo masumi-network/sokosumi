@@ -20,6 +20,8 @@ import { fileURLToPath } from "node:url";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { Client, type Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import type { BuildTransactionHistoryParams } from "@/helpers/transaction-history";
+import { expectCoreLog } from "@/test/core-log";
 import { baseFile, plain, statements, thrown } from "@/test/spend-comparison";
 import { onSplitLayout, testSchemaNames } from "@/test/split-layout";
 
@@ -27,8 +29,14 @@ const pools = vi.hoisted(() => [] as Pool[]);
 const outside = vi.hoisted(() => ({
   /** The next refund waits for its release after it wrote its rows. */
   hold: undefined as
-    | { reached: () => void; release: Promise<void> }
+    | { reached: (backendPid: number) => void; release: Promise<void> }
     | undefined,
+  /**
+   * CSV reads that look up their rows' Agents on the split layout, where the
+   * default client has no Agent table: each logs one warning, declared once
+   * at the end of the case.
+   */
+  agentPreviewWarnings: 0,
   /** See the x402 comparison: the recorder instance every pool reports to. */
   observing: undefined as
     | typeof import("@/test/spend-comparison").observing
@@ -60,13 +68,20 @@ vi.mock("@/helpers/compensating-refund", async (importOriginal) => {
       const held = outside.hold;
       if (held) {
         outside.hold = undefined;
-        held.reached();
+        // Which backend holds the rows, for the probe of who waits for it.
+        // `observe` leaves this one statement out of what it records.
+        const [backend] =
+          await tx.$queryRawUnsafe<{ pid: number }[]>(HELD_BACKEND_SQL);
+        held.reached(backend?.pid ?? -1);
         await held.release;
       }
       return id;
     }) satisfies typeof actual.createCompensatingRefund,
   };
 });
+
+/** The test's own statement inside a held refund, not the refund's. */
+const HELD_BACKEND_SQL = "SELECT pg_backend_pid() AS pid";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -110,6 +125,10 @@ async function load(env: Record<string, string>) {
     "@/services/task-payment-claim.service"
   );
   const x402 = await import("@/services/task-x402-payment.refund");
+  const history = await import("@/helpers/transaction-history");
+  const { streamTransactionCsv } = await import(
+    "@/helpers/transaction-history-csv"
+  );
   const { observing } = outside;
   if (!observing) throw new Error("No pool reports to a recorder");
   return {
@@ -120,6 +139,17 @@ async function load(env: Record<string, string>) {
     createPersonalWorkspace,
     workspaceRepository,
     cusoVersionId: CMO_SOKO_BOT_VERSION_IDS[0],
+    /** The history readers as the routes call them: the default client. */
+    readers: {
+      page: (params: BuildTransactionHistoryParams) =>
+        history.findTransactionHistoryPage(params, { take: 50 }, prisma),
+      count: (params: BuildTransactionHistoryParams) =>
+        history.countTransactionHistory(params, prisma),
+      total: (params: BuildTransactionHistoryParams) =>
+        history.sumTransactionHistory(params, prisma),
+      csv: (params: BuildTransactionHistoryParams) =>
+        new Response(streamTransactionCsv(params, prisma)).text(),
+    },
     callers: {
       /** Job sync's refund phase: `syncRefundReconciliationJob`'s transaction. */
       job: (jobId: string) =>
@@ -190,6 +220,7 @@ function createWorld(loaded: Loaded) {
     jobIds: [] as string[],
     claimIds: [] as string[],
     paymentIds: [] as string[],
+    payers: [] as Payer[],
   };
   const name = (id: string, as: string) => {
     labels.set(id, as);
@@ -283,12 +314,14 @@ function createWorld(loaded: Loaded) {
       await mainnet().transaction.deleteMany({ where: { userId } });
       await grant(`soon of ${as}`, { userId }, CREDIT, { expiresInDays: 2 });
       await grant(`later of ${as}`, { userId }, 3n * CREDIT);
-      return {
+      const payer = {
         userId,
         organizationId: null,
         workspaceId: workspace.id,
         projectId: await project(workspace.id, as),
       };
+      made.payers.push(payer);
+      return payer;
     },
 
     /**
@@ -339,7 +372,14 @@ function createWorld(loaded: Loaded) {
       const owner = { organizationId };
       await grant(`pool of ${as}`, owner, 3n * CREDIT);
       await grant(`Project of ${as}`, owner, CREDIT, { projectId });
-      return { userId, organizationId, workspaceId: workspace.id, projectId };
+      const payer = {
+        userId,
+        organizationId,
+        workspaceId: workspace.id,
+        projectId,
+      };
+      made.payers.push(payer);
+      return payer;
     },
 
     /**
@@ -486,6 +526,7 @@ function createWorld(loaded: Loaded) {
           where: { id: { in: made.jobIds } },
           select: {
             id: true,
+            updatedAt: true,
             transactionId: true,
             refundedTransactionId: true,
           },
@@ -598,13 +639,18 @@ async function observe(
   act: () => Promise<unknown>,
 ) {
   const before = await world.rows();
-  const { outcome, log } = await loaded.observing(async () => {
+  const call = { start: new Date(), end: new Date() };
+  const { outcome, log: sentWithProbe } = await loaded.observing(async () => {
+    call.start = new Date();
     try {
       return { answer: await act() };
     } catch (error) {
       return { threw: failure(error) };
+    } finally {
+      call.end = new Date();
     }
   });
+  const log = sentWithProbe.filter(({ text }) => text !== HELD_BACKEND_SQL);
   // Every refund reads its record first, its id bound: an observation
   // without that read recorded nothing, even while recording.
   const recordIds = [
@@ -634,6 +680,12 @@ async function observe(
   );
   const times = written.map((row) => row.createdAt.getTime());
   expect(times).toEqual([...times].sort((a, b) => a - b));
+  const relations = timeRelations(before, left, call);
+  // A refund's rows are dated by the call that wrote them: Prisma fills
+  // `createdAt`/`updatedAt` in Core's process (schema `@default(now())`,
+  // `@updatedAt`), so the application's clock, bound in the INSERT.
+  for (const row of relations.rows)
+    expect(row, row.row).toMatchObject({ during: "the call" });
   return plain(
     {
       outcome,
@@ -642,19 +694,187 @@ async function observe(
         outsideTransactions: sent.outsideTransactions,
       },
       rows: left,
+      times: relations,
+      readers: await readAround(loaded, world, call),
     },
     world.labels,
   );
 }
 
-/** Waits until another session waits for a lock this test's held refund holds. */
-async function someoneWaitsForALock() {
+type Rows = Awaited<ReturnType<World["rows"]>>;
+
+/** Where an instant lies against the call: before it, during it, or after it. */
+function against(time: Date, call: { start: Date; end: Date }) {
+  if (time < call.start) return "before the call";
+  if (time > call.end) return "after the call";
+  return "the call";
+}
+
+/**
+ * The time relations of the rows a call wrote or changed, read raw, before
+ * ids and times become names. `during` places each against the call (which
+ * also places it after the charge, written before the call). Every row of
+ * one Prisma create shares one instant on `origin/main`: a refund
+ * transaction's `updatedAt` and its source bucket's `createdAt` equal its
+ * `createdAt`, and a write-off's consumption is its transaction's instant.
+ * Rows of different statements are only ordered (`observe`), never equal by
+ * rule. An x402 failure row is dated by the database's trigger, at the
+ * transaction's start (`now()`), and is only placed against the call.
+ */
+function timeRelations(
+  before: Rows,
+  after: Rows,
+  call: { start: Date; end: Date },
+) {
+  const isNew = <T extends { id: string }>(old: T[], now: T[]) => {
+    const known = new Set(old.map((row) => row.id));
+    return now.filter((row) => !known.has(row.id));
+  };
+  const charges = before.transactions.filter((row) => row.amount < 0n);
+  const latestCharge = Math.max(
+    ...charges.map((row) => row.createdAt.getTime()),
+  );
+  const transactions = isNew(before.transactions, after.transactions);
+  const buckets = isNew(before.buckets, after.buckets);
+  const consumptions = isNew(before.consumptions, after.consumptions);
+  const rows = [
+    ...transactions.map((row) => ({
+      row: `transaction ${row.id}`,
+      during: against(row.createdAt, call),
+      afterTheCharge: row.createdAt.getTime() > latestCharge,
+      updatedAtIsCreatedAt: row.updatedAt.getTime() === row.createdAt.getTime(),
+    })),
+    ...buckets.map((row) => ({
+      row: `bucket ${row.id}`,
+      during: against(row.createdAt, call),
+      atItsTransaction:
+        row.createdAt.getTime() ===
+        transactions
+          .find((transaction) => transaction.id === row.sourceTransactionId)
+          ?.createdAt.getTime(),
+    })),
+    ...consumptions.map((row) => ({
+      row: `consumption ${row.id}`,
+      during: against(row.createdAt, call),
+      atItsTransaction:
+        row.createdAt.getTime() ===
+        transactions
+          .find((transaction) => transaction.id === row.transactionId)
+          ?.createdAt.getTime(),
+    })),
+    ...isNew(before.paymentActions, after.paymentActions).map((row) => ({
+      row: `payment action ${row.id}`,
+      during: against(row.createdAt, call),
+    })),
+    // The record's link, and a Cuso the write-off check touched.
+    ...[...after.jobs, ...after.claims, ...after.payments, ...after.cusos]
+      .filter(
+        (row) =>
+          row.updatedAt.getTime() !==
+          [
+            ...before.jobs,
+            ...before.claims,
+            ...before.payments,
+            ...before.cusos,
+          ]
+            .find((old) => old.id === row.id)
+            ?.updatedAt.getTime(),
+      )
+      .map((row) => ({
+        row: `changed ${row.id}`,
+        during: against(row.updatedAt, call),
+      })),
+  ];
+  return { rows };
+}
+
+/**
+ * What the history readers answer for each payer of the case: the page, the
+ * count, the total and the CSV, within the call's window (`to` is exclusive,
+ * so one millisecond past its end) and before it. On `origin/main` a refund
+ * is inside the first and not in the second.
+ */
+async function readAround(
+  loaded: Loaded,
+  world: World,
+  call: { start: Date; end: Date },
+) {
+  const windows = {
+    "during the call": {
+      from: call.start,
+      to: new Date(call.end.getTime() + 1),
+    },
+    "before the call": { to: call.start },
+  };
+  const read = [];
+  for (const payer of world.made.payers) {
+    const scope: BuildTransactionHistoryParams = payer.organizationId
+      ? {
+          scope: "workspace",
+          userContext: {
+            source: "context",
+            userId: payer.userId,
+            organizationId: payer.organizationId,
+          },
+          workspaceContext: {
+            workspaceId: payer.workspaceId,
+            userId: null,
+            organizationId: payer.organizationId,
+          },
+        }
+      : {
+          scope: "owned",
+          userContext: {
+            source: "context",
+            userId: payer.userId,
+            organizationId: null,
+          },
+          workspaceContext: {
+            workspaceId: payer.workspaceId,
+            userId: payer.userId,
+            organizationId: null,
+          },
+        };
+    for (const [window, bounds] of Object.entries(windows)) {
+      const params = { ...scope, ...bounds };
+      const page = await loaded.readers.page(params);
+      // The CSV below logs one warning then: see `agentPreviewWarnings`.
+      if (onSplitLayout && page.rows.some((row) => row.agentId !== null)) {
+        outside.agentPreviewWarnings += 1;
+      }
+      read.push({
+        payer: payer.organizationId ?? payer.userId,
+        window,
+        page: page.rows.map((row) => ({
+          id: row.id,
+          agentId: row.agentId,
+          kind: row.kind,
+          amount: row.amount,
+          projectId: row.projectId,
+          refundSource: row.refundSource,
+          refundX402Kind: row.refundX402Kind,
+        })),
+        count: await loaded.readers.count(params),
+        total: await loaded.readers.total(params),
+        csvTotals: (await loaded.readers.csv(params))
+          .trim()
+          .split("\r\n")
+          .slice(-3),
+      });
+    }
+  }
+  return read;
+}
+
+/** Waits until a session waits for a lock the held refund's backend holds. */
+async function someoneWaitsFor(heldPid: number) {
   const client = new Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();
   try {
     for (let tries = 0; tries < 200; tries += 1) {
       const { rows } = await client.query(
-        `SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`,
+        `SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = current_database() AND $1::int = ANY(pg_blocking_pids(pid))`,
+        [heldPid],
       );
       if ((rows[0] as { n: number }).n > 0) return;
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -695,10 +915,19 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
     async function withWorld(run: (world: World) => Promise<void>) {
       const controls = await controlRows();
       const world = createWorld(loaded);
+      outside.agentPreviewWarnings = 0;
       try {
         await run(world);
       } finally {
         await world.remove();
+      }
+      // `origin/main`'s CSV on the split layout: see `agentPreviewWarnings`.
+      if (outside.agentPreviewWarnings > 0) {
+        expectCoreLog(
+          "warn",
+          "Failed to load agent previews for history feed",
+          outside.agentPreviewWarnings,
+        );
       }
       // Removed by the ids it made: every other credit row is as it was.
       expect(await controlRows()).toEqual(controls);
@@ -800,9 +1029,9 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
               { bucket: "pool of Organization", cents: CREDIT },
             ]);
             const id = await world.record(kind, "record", payer, chargeId);
-            let reached = () => {};
+            let reached = (_pid: number) => {};
             let release = () => {};
-            const atHold = new Promise<void>((resolve) => {
+            const atHold = new Promise<number>((resolve) => {
               reached = resolve;
             });
             outside.hold = {
@@ -819,11 +1048,11 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
                 (answer) => ({ answer }),
                 (error: unknown) => ({ threw: failure(error) }),
               );
-              const stopped = await Promise.race([
-                atHold.then(() => false),
-                first.then(() => true),
+              const heldPid = await Promise.race([
+                atHold,
+                first.then(() => null),
               ]);
-              if (stopped) {
+              if (heldPid === null) {
                 // Stopped before its rows: nothing to wait for.
                 outside.hold = undefined;
                 const second = await refund().then(
@@ -836,7 +1065,7 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
                 (answer) => ({ answer }),
                 (error: unknown) => ({ threw: failure(error) }),
               );
-              await someoneWaitsForALock();
+              await someoneWaitsFor(heldPid);
               release();
               return { first: await first, second: await second };
             });
