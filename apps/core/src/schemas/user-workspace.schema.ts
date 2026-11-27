@@ -57,6 +57,11 @@ export const userWorkspaceSchema = z
       description: "Whether a new session opens this workspace",
       example: true,
     }),
+    canUsePreprod: z.boolean().openapi({
+      description:
+        "Whether the person may send `X-Sokosumi-Network: preprod` in this workspace: always false while Preprod is switched off; otherwise true for a platform admin, and else the person's own Preprod access for the personal workspace and the organization's for an organization workspace",
+      example: false,
+    }),
   })
   .openapi("UserWorkspace");
 

@@ -64,6 +64,7 @@ function organization(id: string, name: string): UserWorkspace {
     logo: null,
     websiteUrl: null,
     preferred: false,
+    canUsePreprod: false,
     enabledSocialProviders: [],
   };
 }

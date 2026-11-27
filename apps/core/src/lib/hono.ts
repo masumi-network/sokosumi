@@ -70,9 +70,9 @@ export function createNestedOpenAPIHono() {
  * Use this for OpenAPI routes that require authentication
  *
  * Auth middleware is automatically applied - all routes are protected
- * Network scope middleware runs after auth and sets `networkScope`; a nested instance keeps the parent's.
  * Coworker context middleware runs after auth to attach optional workspace scope from headers.
  * Organization context middleware verifies session membership, or sets organizationId from X-Organization-Slug
+ * Network scope middleware runs after those and sets `networkScope` for the Network the request names; a nested instance keeps the parent's.
  * For mixed public/private routes, use standard OpenAPIHono class instead.
  * For nested remounts under this class, use `createNestedOpenAPIHono`.
  *
@@ -96,9 +96,10 @@ export class OpenAPIHonoWithAuth<
     });
 
     this.use(authMiddleware);
-    this.use(networkScopeMiddleware);
     this.use(coworkerContextMiddleware);
     this.use(organizationContextMiddleware);
+    // After the Organization of the request is known: Preprod access depends on it.
+    this.use(networkScopeMiddleware);
     this.use(workspaceMiddleware(includeWorkspaceContext));
     if (requireOrganizationProductSeat) {
       this.use(organizationProductSeatMiddleware);

@@ -34,7 +34,6 @@ apps/core/src/routes/v1/agents/[id]/get.ts
 apps/core/src/routes/v1/agents/[id]/input-schema/get.ts
 apps/core/src/routes/v1/agents/[id]/reviews/get.ts
 apps/core/src/routes/v1/agents/[id]/reviews/me/get.ts
-apps/core/src/routes/v1/agents/get.ts
 apps/core/src/routes/v1/categories/get.ts
 apps/core/src/routes/v1/coworkers/me/usage/post.ts
 apps/core/src/routes/v1/credit-costs/[id]/delete.ts

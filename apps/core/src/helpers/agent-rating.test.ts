@@ -1,6 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
+import type { NetworkDb } from "@/lib/db/network-scope";
+
 import {
   calculateAgentRating,
   calculateAgentRatings,
@@ -52,7 +54,7 @@ describe("calculateAgentRatings", () => {
       userAgentRating: {
         groupBy,
       },
-    } as unknown as Prisma.TransactionClient;
+    } as unknown as NetworkDb;
 
     const result = await calculateAgentRatings(["agent-1", "agent-2"], tx);
 
@@ -91,7 +93,7 @@ describe("calculateAgentRatings", () => {
       userAgentRating: {
         groupBy,
       },
-    } as unknown as Prisma.TransactionClient;
+    } as unknown as NetworkDb;
 
     const result = await calculateAgentRatings(["agent-1"], tx);
 
