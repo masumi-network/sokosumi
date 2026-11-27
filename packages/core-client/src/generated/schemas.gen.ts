@@ -24705,6 +24705,13 @@ export const StudioAgentBrandContextSchema = {
                 'themes'
             ]
         },
+        assets: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/StudioProductPhoto'
+            },
+            maxItems: 20
+        },
         colors: {
             type: 'array',
             items: {
@@ -24722,6 +24729,25 @@ export const StudioAgentBrandContextSchema = {
             maxItems: 3
         }
     }
+} as const;
+
+export const StudioProductPhotoSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255
+        }
+    },
+    required: [
+        'id',
+        'name'
+    ]
 } as const;
 
 export const StudioAgentAdHeadlineSchema = {
@@ -25603,6 +25629,11 @@ export const ProjectImageJobSchema = {
                 type: 'string',
                 format: 'uuid'
             }
+        },
+        brandReferenceCount: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 4
         },
         referenceFileIds: {
             type: 'array',
@@ -46923,6 +46954,13 @@ export const StudioBrandKitSchema = {
             ],
             format: 'uri'
         },
+        assets: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/StudioProductPhoto'
+            },
+            maxItems: 20
+        },
         studioLogoPosition: {
             anyOf: [
                 {
@@ -47125,25 +47163,6 @@ export const StudioProductSchema = {
     ]
 } as const;
 
-export const StudioProductPhotoSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        name: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 255
-        }
-    },
-    required: [
-        'id',
-        'name'
-    ]
-} as const;
-
 export const StudioWebsiteVisualSchema = {
     allOf: [
         {
@@ -47269,6 +47288,36 @@ export const StudioBrandCopySchema = {
     ]
 } as const;
 
+export const UpdateStudioBrandAssetsSchema = {
+    anyOf: [
+        {
+            type: 'object',
+            properties: {
+                add: {
+                    $ref: '#/components/schemas/StudioProductPhoto'
+                }
+            },
+            required: [
+                'add'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                remove: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'remove'
+            ],
+            additionalProperties: false
+        }
+    ]
+} as const;
+
 export const StudioBrandLookStateSchema = {
     type: 'object',
     properties: {
@@ -47383,6 +47432,11 @@ export const CreateProjectImageJobRequestSchema = {
             },
             maxItems: 4,
             default: []
+        },
+        brandReferenceCount: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 4
         },
         referenceFileIds: {
             type: 'array',

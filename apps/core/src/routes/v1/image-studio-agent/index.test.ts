@@ -157,6 +157,19 @@ describe("reading brand context", () => {
     expect(state.design).not.toHaveBeenCalled();
   });
 
+  it("lists brand images even when the project has no written brand context", async () => {
+    const assets = [
+      { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", name: "mascot.png" },
+    ];
+    state.project.mockResolvedValueOnce({
+      studioBrandAssets: assets,
+      brandBrain: null,
+      designMdUrl: null,
+    });
+    state.strategy.mockResolvedValueOnce(null);
+    expect((await (await read()).json()).data).toEqual({ assets });
+  });
+
   it("selects and caps reference copy from the authorized project", async () => {
     const long = "a".repeat(250);
     state.project.mockResolvedValueOnce({

@@ -12,6 +12,13 @@ export default defineTool({
     "Generate a new image from a description. Use this for a genuinely new idea. To change an image that already exists, use refine_image instead so the original is preserved and the lineage stays intact.",
   inputSchema: z.object({
     route: z.enum(ImageStudioRoute).optional(),
+    brandAssetIds: z
+      .array(z.uuid())
+      .max(4)
+      .optional()
+      .describe(
+        "Relevant image IDs from read_brand_context. Use gemini-pro with references; allow four total, including the source version and product photo.",
+      ),
     catalogProductId: z
       .string()
       .uuid()
@@ -67,6 +74,9 @@ export default defineTool({
       aspectRatio: input.aspectRatio,
       resolution: input.resolution,
       modelId: input.modelId,
+      ...(input.brandAssetIds?.length
+        ? { brandAssetIds: input.brandAssetIds }
+        : {}),
       ...(input.catalogProductId
         ? { catalogProductId: input.catalogProductId }
         : {}),

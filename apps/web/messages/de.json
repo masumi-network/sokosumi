@@ -4760,6 +4760,13 @@
         "error": "Die Vorschläge von der Projekt-Website konnten nicht erstellt werden. Versuche es erneut."
       },
       "BrandKit": {
+        "assets": "Markenbilder",
+        "assetHint": "Füge Maskottchen, Illustrationen oder andere Bilder hinzu, die Content Studio als visuelle Vorlagen verwenden kann.",
+        "addAsset": "Bild hinzufügen",
+        "removeAsset": "{name} entfernen",
+        "removeImage": "Entfernen",
+        "assetError": "Die Markenbilder konnten nicht aktualisiert werden.",
+        "retryAsset": "Erneut versuchen",
         "websiteLookDraft": "Farben und Schriften von deiner Website. Du kannst sie vor dem Speichern bearbeiten.",
         "discardWebsiteLook": "Vorgeschlagenes Design verwerfen",
         "cancelLook": "Änderungen am Design verwerfen",
