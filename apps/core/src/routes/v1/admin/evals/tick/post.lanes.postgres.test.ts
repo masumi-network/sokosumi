@@ -58,7 +58,10 @@ vi.mock("@/services/evals/eval-case-runner", async (importOriginal) => ({
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { pollEvalCase, startEvalCase } from "@/services/evals/eval-case-runner";
-import { getEvalLane } from "@/services/evals/eval-lanes.service";
+import {
+  getEvalLane,
+  pauseEvalLanes,
+} from "@/services/evals/eval-lanes.service";
 import { createEvalRun } from "@/services/evals/eval-runs.service";
 import { withFixtureSchemas } from "@/test/split-layout";
 import mount from "./post";
@@ -157,6 +160,9 @@ describe.skipIf(!enabled)(
         await withFixtureSchemas((tx) =>
           tx.sokoBotTurn.delete({ where: { id: turn.id } }),
         );
+        // Preparing the lane unpaused its Cuso; a finished run pauses both
+        // bots, and later files on this database expect that.
+        await pauseEvalLanes(1);
       }
     });
   },
