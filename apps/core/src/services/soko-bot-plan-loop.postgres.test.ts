@@ -873,6 +873,32 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
         extra: { ...receipt.extra, targetId: post, input: { postId: post } },
       });
 
+      it("sends back a reply that says it changed something no receipt shows", async () => {
+        const chat = await finished([]);
+        const prompt = await check(chat, "I scheduled both posts for Monday.");
+        expect(prompt).toMatch(
+          /^Your plan marks every step done and your reply says something was made or changed, but Core has no record of any change in this request\./,
+        );
+        expect(
+          await check(chat, "I scheduled both posts for Monday."),
+        ).toBeNull();
+      });
+
+      it("lets an all-done plan that only read and answered through", async () => {
+        expect(
+          await check(await finished([]), "Here is what the report says."),
+        ).toBeNull();
+      });
+
+      it("lets an all-done plan with a change on record through", async () => {
+        expect(
+          await check(
+            await finished([scheduledPost]),
+            "I scheduled both posts for Monday.",
+          ),
+        ).toBeNull();
+      });
+
       it("lets it through once a later call made that save good", async () => {
         const post = randomUUID();
         expect(

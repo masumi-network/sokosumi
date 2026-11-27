@@ -15,6 +15,7 @@ import {
   resolveRequestId,
 } from "@/lib/soko-bot/request-chain";
 import {
+  CHANGE_CLAIM,
   changeTools,
   RECORDED_SAVES,
   RuntimeEventLog,
@@ -172,9 +173,20 @@ function unsettled(saves: readonly SaveReceipt[]): SaveReceipt[] {
 async function receiptsDisagree(
   found: NonNullable<Awaited<ReturnType<typeof turnPlan>>>,
   turnIds: readonly string[],
+  draft: string,
 ): Promise<string | null> {
   if (!found.plan.steps.every((step) => step.status === "done")) return null;
-  const left = unsettled(await savesSince(found, turnIds, 1));
+  const saves = await savesSince(found, turnIds, 1);
+  // A plan can be all reading and answering; but one whose reply says a
+  // change was made, with no change on record anywhere in the request, is
+  // done only in words.
+  const words = parseActionNarrativeText(draft)?.message ?? draft;
+  if (
+    !saves.some((save) => save.outcome === "done") &&
+    CHANGE_CLAIM.test(words)
+  )
+    return `Your plan marks every step done and your reply says something was made or changed, but Core has no record of any change in this request. Do the work now with the tools. If a step cannot be done, call update_plan (revision ${found.plan.revision}) and mark it blocked with the reason, or skipped if it is not needed. Then reply, saying plainly what was done and what was not.`;
+  const left = unsettled(saves);
   if (!left.length) return null;
   const lines = receiptLines(left);
   return `Your plan marks every step done, but Core's receipts for this request show:\n${lines}\nBefore you answer, put each right. A save that did not happen: do it again if you can. One Core could not confirm: read back whether it happened, and never repeat it blind. A Studio job still running: wait_for it so its result follows. One you cannot put right: call update_plan (revision ${found.plan.revision}) and mark its step blocked with the reason. Then reply, saying plainly what did not happen.`;
@@ -514,7 +526,7 @@ export async function evaluateTurnDoneCheck(input: {
   const open = openSteps(found.plan);
   if (!open.length) {
     if (await waitingOnOthers(input.turnId, turnIds)) return null;
-    const disagree = await receiptsDisagree(found, turnIds);
+    const disagree = await receiptsDisagree(found, turnIds, input.draft);
     return disagree && (await claim()) ? disagree : null;
   }
   const working = open.some((step) => step.status === "in_progress");

@@ -955,7 +955,7 @@ async function ownerNarrative(
 }
 
 /** A sentence saying something was done: created, sent, scheduled and the like. */
-const CHANGE_CLAIM =
+export const CHANGE_CLAIM =
   /\b(created|assigned|sent|posted|scheduled|set up|hired|generated|made|drafted|prepared|uploaded|archived|updated|changed|saved|added|booked|published|replied|emailed|messaged|moved|deleted|removed|started|launched)\b/i;
 
 /**
