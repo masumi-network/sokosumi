@@ -123,7 +123,7 @@ const gscRowsSchema = z.object({
 // Search Console, through Cuso's own connection
 // ---------------------------------------------------------------------------
 
-async function searchConsoleAccount(
+export async function searchConsoleAccount(
   cusoBotId: string,
 ): Promise<ComposioIntegrationAccount | null> {
   // A test copy reads its source's Search Console (ADR 0073).
@@ -145,9 +145,9 @@ function isoDay(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-/** The property for the brand's site: a domain property first, then the longest URL prefix. */
-function pickProperty(ids: string[], websiteUrl: string): string | null {
-  const covering = ids.filter((id) => gscPropertyCovers(id, [websiteUrl]));
+/** The property that covers a URL (the brand's site, or one page): a domain property first, then the longest URL prefix. */
+export function pickProperty(ids: string[], url: string): string | null {
+  const covering = ids.filter((id) => gscPropertyCovers(id, [url]));
   return (
     covering.find((id) => id.startsWith("sc-domain:")) ??
     covering.sort((a, b) => b.length - a.length)[0] ??

@@ -21,11 +21,18 @@ export interface Consumption {
 }
 
 export class InsufficientBalanceError extends Error {
+  /** What was to be consumed, in cents. */
+  readonly requested: bigint;
+  /** What the buckets could cover, in cents. */
+  readonly available: bigint;
+
   constructor(cents: bigint, available: bigint) {
     super(
       `Insufficient balance: tried to consume ${cents} but only ${available} available`,
     );
     this.name = "InsufficientBalanceError";
+    this.requested = cents;
+    this.available = available;
   }
 }
 
@@ -91,6 +98,26 @@ export const creditBucketRepository = {
     tx: Prisma.TransactionClient,
     options: CreditBucketProjectOption = {},
   ): Promise<bigint> {
+    return await creditBucketRepository.getNetworkBalance(
+      "mainnet",
+      userId,
+      organizationId,
+      tx,
+      options,
+    );
+  },
+
+  /**
+   * `getBalance` for the buckets of `network`, on a transaction of the shared
+   * side: the read a spend makes when what it charges depends on the balance.
+   */
+  async getNetworkBalance(
+    network: TableNetwork,
+    userId: string | null,
+    organizationId: string | null,
+    tx: SharedDb,
+    options: CreditBucketProjectOption = {},
+  ): Promise<bigint> {
     const now = new Date();
     const scopeContext = await resolveCreditBucketScopeContext(
       userId,
@@ -102,6 +129,7 @@ export const creditBucketRepository = {
       buildCreditBucketScopeSql(scopeContext, options),
       now,
       tx,
+      network,
     );
   },
 
@@ -357,8 +385,10 @@ export const creditBucketRepository = {
    * Records a spend on `network`: the credit transaction and one consumption
    * per bucket `prepareConsumption` chose. Raw SQL, so it also runs on a
    * transaction of the shared side. It sets `id` (UUID v7) and the timestamps
-   * itself, as Prisma did: one instant of this process for every row. The
-   * user and the Organization are written as ids. Returns the transaction's id.
+   * itself, as Prisma did: one instant of this process for every row, or
+   * `createdAt` when the caller gives one. The consumptions' ids sort in the
+   * order `prepareConsumption` chose the buckets, as Prisma's did. The user
+   * and the Organization are written as ids. Returns the transaction's id.
    */
   async recordSpend(
     network: TableNetwork,
@@ -367,17 +397,23 @@ export const creditBucketRepository = {
       organizationId: string | null;
       cents: bigint;
       consumptions: readonly Consumption[];
+      /** The time of every row; this process's clock when absent. */
+      createdAt?: Date;
     },
     tx: SharedDb,
   ): Promise<string> {
     const id = randomUUIDv7();
-    const now = new Date();
+    const now = spend.createdAt ?? new Date();
     await tx.$executeRaw`
       INSERT INTO ${netTable(network, "Transaction")}
         (id, "createdAt", "updatedAt", amount, "userId", "organizationId")
       VALUES (${id}, ${now}, ${now}, ${-spend.cents}, ${spend.userId}, ${spend.organizationId})
     `;
-    const ids = spend.consumptions.map(() => randomUUIDv7());
+    // UUIDv7s of one millisecond are random among themselves: sorted, they
+    // follow the allocation, and the history reader, which names a spend's
+    // Project by its first consumption (lowest createdAt, id), sees the
+    // bucket that paid first.
+    const ids = spend.consumptions.map(() => randomUUIDv7()).sort();
     const amounts = spend.consumptions.map(({ amount }) => amount);
     const bucketIds = spend.consumptions.map(({ bucketId }) => bucketId);
     await tx.$executeRaw`
@@ -394,14 +430,15 @@ export const creditBucketRepository = {
 async function sumAvailableCents(
   where: Prisma.Sql,
   now: Date,
-  tx: Prisma.TransactionClient,
+  tx: SharedDb,
+  network: TableNetwork = "mainnet",
 ): Promise<bigint> {
   const result = await tx.$queryRaw<Array<{ balance: bigint }>>`
     WITH bucket_avail AS (
       SELECT
         (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available
-      FROM ${netTable("mainnet", "credit_bucket")} cb
-      LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
+      FROM ${netTable(network, "credit_bucket")} cb
+      LEFT JOIN ${netTable(network, "credit_consumption")} cc ON cc."bucketId" = cb.id
       WHERE ${where}
         AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
         AND ${creditBucketActivatesAtOrBeforeSql(now)}

@@ -1,10 +1,14 @@
 import type { CoreHttpClient } from "../http-client.js";
 import { parseApiResponse } from "../models/api-response.js";
+import {
+  parseUserWorkspace,
+  type UserWorkspace,
+} from "../models/user-workspace.js";
 
-export async function fetchPersonalWorkspaceAccess(
+export async function fetchUserWorkspaces(
   client: CoreHttpClient,
   signal?: AbortSignal,
-): Promise<boolean> {
+): Promise<UserWorkspace[]> {
   const { data } = parseApiResponse<unknown>(
     await client.get("/v1/users/me/workspaces", signal),
   );
@@ -16,13 +20,15 @@ export async function fetchPersonalWorkspaceAccess(
   ) {
     throw new Error("Invalid Workspaces response: expected a workspaces array");
   }
-  return data.workspaces.some(
-    (workspace: unknown) =>
-      !!workspace &&
-      typeof workspace === "object" &&
-      "kind" in workspace &&
-      workspace.kind === "personal",
-  );
+  return data.workspaces.map(parseUserWorkspace);
+}
+
+export async function fetchPersonalWorkspaceAccess(
+  client: CoreHttpClient,
+  signal?: AbortSignal,
+): Promise<boolean> {
+  const workspaces = await fetchUserWorkspaces(client, signal);
+  return workspaces.some((workspace) => workspace.kind === "personal");
 }
 
 export async function ensurePersonalWorkspace(

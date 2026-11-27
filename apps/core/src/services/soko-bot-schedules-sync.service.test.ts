@@ -339,6 +339,7 @@ describe("SokoBotSchedulesSyncService", () => {
       deferred: 1,
     });
     expect(startTurnMock).toHaveBeenCalledWith({
+      network: "mainnet",
       userId: dueSchedule.requestedByUserId,
       workspaceId: dueSchedule.workspaceId,
       sokoBotId: dueSchedule.sokoBotId,

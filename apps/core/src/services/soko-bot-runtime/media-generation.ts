@@ -5,6 +5,7 @@ import {
   sokoBotGetImageInputSchema as getImageInputSchema,
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 import { requireProjectAccess } from "@/lib/image-studio/access";
@@ -391,6 +392,9 @@ export async function generateTalkingVideo(
   };
 }
 
+const STUDIO_JOB_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Where an image or video started with `generate_image` or `generate_video` has got to. */
 export async function getStudioJob(
   runtime: RuntimeOperations,
@@ -398,6 +402,11 @@ export async function getStudioJob(
   raw: unknown,
 ) {
   const input = getImageInputSchema.parse(raw);
+  if (!STUDIO_JOB_ID.test(input.jobId)) {
+    throw new SokoBotRuntimeValidationError(
+      `"${input.jobId.slice(0, 80)}" is not a Content Studio job id. get_image and get_video only check jobs started with generate_image, generate_video or generate_talking_video, by the jobId they returned. A YouTube or other web video is not a studio job: read its page with web_fetch on the full link, or use a video file the owner uploaded (list_files).`,
+    );
+  }
   runtime.requireImageProject(authorized, input.projectId);
   const scope = {
     projectId: input.projectId,
@@ -408,7 +417,8 @@ export async function getStudioJob(
     // Access before reconciling: reconciliation calls the provider, and a
     // Project id the owner cannot open must not reach it.
     await requireProjectAccess(scope);
-    await reconcileProjectJobs(input.projectId);
+    // Image Studio is Mainnet only, whatever the turn's Network.
+    await reconcileProjectJobs(createNetworkScope("mainnet"), input.projectId);
     const job = await getJob({ ...scope, jobId: input.jobId });
     if (!job) return null;
     const styled = await styledChatPicture(runtime, authorized, job);

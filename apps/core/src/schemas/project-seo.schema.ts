@@ -1,5 +1,8 @@
 import { z } from "@hono/zod-openapi";
-import { SEO_FULL_AUDIT_CREDITS } from "@sokosumi/utils";
+import {
+  SEO_FULL_AUDIT_CREDITS,
+  SEO_FULL_AUDIT_MARKUP_PERCENT,
+} from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 import {
   seoArticleDates,
@@ -23,6 +26,10 @@ export {
 
 import { seoActionSchema } from "./project-seo-action.schema";
 import {
+  seoConversionSchema,
+  seoKeywordEstimateFields,
+} from "./project-seo-keyword-estimate.schema";
+import {
   seoMonitorChangeSchema,
   seoMonitorLastRunSchema,
   seoMonitorRuleSchema,
@@ -34,14 +41,15 @@ import {
   seoSerpSeriesSchema,
   seoShareOfVoiceSchema,
 } from "./project-seo-rankings.schema";
+import { seoRunDiffSchema } from "./project-seo-run-diff.schema";
 import { seoWorkspaceSeasonalIdeaSchema } from "./project-seo-seasonal.schema";
 import { seoStrategySchema } from "./project-seo-strategy.schema";
 import {
   seoSearchQueryRowSchema,
   seoSearchTypeSchema,
   seoTrafficChannelSchema,
-  seoWorkspaceLandingPagesSchema,
   seoWorkspaceSearchBreakdownSchema,
+  workspaceLandingFields,
 } from "./project-seo-traffic.schema";
 import {
   auditSearchConsoleInputFields,
@@ -62,6 +70,7 @@ import {
   seoUrlSchema,
 } from "./seo-page.schema";
 import { workspaceSiteEvidenceFields } from "./seo-site-evidence.schema";
+import { workspaceSiteSpeedFields } from "./seo-site-speed.schema";
 
 export {
   SEO_SEARCH_QUERY_ROW_LIMIT,
@@ -209,7 +218,9 @@ export const requestSeoAnalysisSchema = z
       .max(SEO_MAX_PROVIDER_CALLS)
       .default(20),
     fullAuditCredits: z.literal(SEO_FULL_AUDIT_CREDITS).optional(),
-    fullAuditPrice: seoCostPlusPriceSchema.optional(),
+    fullAuditPrice: seoCostPlusPriceSchema.optional().openapi({
+      description: `Required for \`kind: "audit_full"\`: \`{kind: "cost_plus", version: 1, minimumCredits: ${SEO_FULL_AUDIT_CREDITS}, markupPercent: ${SEO_FULL_AUDIT_MARKUP_PERCENT}}\`. The audit costs its provider cost plus ${SEO_FULL_AUDIT_MARKUP_PERCENT}%, at least ${SEO_FULL_AUDIT_CREDITS} credits. It has no credit cap: \`fullAuditLimits.usd\` bounds the provider cost. Leave out \`maxCredits\`. Confirm the price with the person first.`,
+    }),
     ...auditSearchConsoleInputFields,
     ...publicSitemapInputFields,
     setupGoal: z
@@ -365,9 +376,7 @@ export const seoFindingSchema = z
     observedAt: dateTimeSchema,
   })
   .openapi("ProjectSeoFinding");
-/** The SEO bot's estimate of how likely a searcher takes the page's action. It is not a measured rate. */
-export const seoConversionSchema = z.enum(["high", "medium", "low"]);
-export { seoEditorialKeywordSchema };
+export { seoConversionSchema, seoEditorialKeywordSchema };
 export const SEO_AUDIT_IDEA_LIMIT = 50;
 export const seoIdeaRankSchema = z
   .number()
@@ -404,9 +413,7 @@ export const seoKeywordSchema = z
       })
       .nullable(),
     intent: z.string().nullable(),
-    conversion: seoConversionSchema.nullable(),
-    /** The product feature the keyword is about, in the words of the check. */
-    feature: z.string().nullable(),
+    ...seoKeywordEstimateFields,
     device: z.union([seoDeviceSchema, z.null()]),
     position: z.number().nullable(),
     positionStatus: z.enum(["ranked", "not_in_range", "unavailable"]),
@@ -423,6 +430,8 @@ export const seoKeywordSchema = z
       .array(seoPositionPointSchema)
       .max(SEO_RANK_HISTORY_POINTS)
       .optional(),
+    /** True: older reads of the period can exist that `positionHistory` does not hold (a load or point limit). */
+    positionHistoryCut: z.boolean().optional(),
   })
   .openapi("ProjectSeoKeyword");
 export const seoCompetitorSchema = z
@@ -477,8 +486,8 @@ export const seoMetricSchema = z
   })
   .openapi("ProjectSeoMetric");
 export const SEO_KEYWORD_SERIES_ROW_LIMIT = 10_000;
-export const SEO_KEYWORD_SERIES_MAX_KEYWORDS = 25;
-/** One daily read per country; a sync reads at most this many. */
+export const SEO_KEYWORD_SERIES_MAX_KEYWORDS = 50;
+/** A sync reads tracked keyword days for at most this many countries. */
 export const SEO_KEYWORD_SERIES_MAX_COUNTRIES = 3;
 /**
  * Daily Search Console rows for tracked keywords, grouped by normalized query
@@ -498,6 +507,8 @@ export const seoKeywordSeriesSchema = z
             .string()
             .regex(/^[A-Z]{2}$/)
             .optional(),
+          /** First day read, where the workspace added days of earlier syncs. Never stored. */
+          from: seoDateSchema.optional(),
           points: z
             .array(
               z.object({
@@ -588,7 +599,7 @@ export const seoSearchQueriesSchema = z
     rowLimit: z.number().int().positive(),
     truncated: z.boolean(),
     rows: z.array(seoSearchQueryRowSchema.extend({ id: z.string() })),
-    /** Daily positions of tracked keywords from the same observation. Absent when not requested. */
+    /** Daily positions of tracked keywords from the same observation, with older days of earlier syncs. Absent when not requested. */
     keywordSeries: seoKeywordSeriesSchema.optional(),
     /** The Search Console search type of these rows. Absent reads web search. */
     searchType: seoSearchTypeSchema.optional(),
@@ -625,6 +636,8 @@ export const seoRunSchema = z
     seconds: z.union([z.number().int().nonnegative(), z.null()]),
     /** The SEO monitor whose scheduled Run made this result. Null for a one-off check. */
     monitorId: z.union([seoIdSchema, z.null()]).optional(),
+    /** What this check changed against the earlier comparable check. Absent for the first check of its kind. */
+    runDiff: seoRunDiffSchema.optional(),
   })
   .openapi("ProjectSeoRun");
 export const seoJobSchema = z
@@ -683,10 +696,7 @@ export const projectSeoWorkspaceSchema = z
       .optional(),
     /** Owner-chosen brand terms that split Search Console queries. Absent before any was saved. */
     brandTerms: z.array(z.string()).optional(),
-    /** Organic key events per landing page from the newest Google Analytics sync in view. */
-    landingPages: z
-      .union([seoWorkspaceLandingPagesSchema, z.null()])
-      .optional(),
+    ...workspaceLandingFields,
     /** Google's index verdict per page from the newest Search Console sync that inspected them. */
     indexStatus: z.union([seoIndexStatusSchema, z.null()]).optional(),
     /** Private indexing assessment for the current viewer's audit and selected pages. */
@@ -694,6 +704,7 @@ export const projectSeoWorkspaceSchema = z
     ...workspaceSiteEvidenceFields,
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
+    ...workspaceSiteSpeedFields,
     landingEngagementChange: seoLandingEngagementChange.optional(),
     articleDates: z.array(seoArticleDates).optional(),
     topicLaunches: z.array(seoTopicLaunch).optional(),

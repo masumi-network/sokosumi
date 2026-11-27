@@ -25,6 +25,7 @@ const {
   refundReviewedClaimMock,
   resolveReviewedClaimMock,
   retryReviewedClaimMock,
+  seoImpactRowsMock,
 } = vi.hoisted(() => ({
   getSessionMock: vi.fn(),
   verifyApiKeyMock: vi.fn(),
@@ -34,6 +35,7 @@ const {
   refundReviewedClaimMock: vi.fn(),
   resolveReviewedClaimMock: vi.fn(),
   retryReviewedClaimMock: vi.fn(),
+  seoImpactRowsMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -64,6 +66,11 @@ vi.mock("@/lib/db/prisma", () => ({
     ]),
     user: { findMany: searchUsersMock },
     organization: { findMany: searchOrganizationsMock },
+    projectSeoObservation: { groupBy: vi.fn().mockResolvedValue([]) },
+    projectSeoImpactVerdict: {
+      count: vi.fn(async () => 1),
+      findMany: seoImpactRowsMock,
+    },
   },
 }));
 
@@ -114,6 +121,69 @@ describe("admin router (real mount, real auth + admin guard)", () => {
       billingTotal: 0,
       pricingAttention: 0,
       billing: [],
+    });
+  });
+
+  it("serves the impact of done SEO actions only to an authenticated admin", async () => {
+    const url = "http://localhost/seo-action-impact?days=14";
+    getSessionMock.mockResolvedValue(null);
+    expect((await adminRouter.request(url)).status).toBe(401);
+    mockSession("user");
+    expect((await adminRouter.request(url)).status).toBe(403);
+    mockSession("admin");
+    const response = await adminRouter.request(url);
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toEqual({
+      hasNext: false,
+      pageSize: 10,
+      items: [],
+    });
+    expect(
+      (await adminRouter.request("http://localhost/seo-action-impact?days=3"))
+        .status,
+    ).toBe(422);
+  });
+
+  it("serves tracked SEO page changes only to an authenticated admin", async () => {
+    getSessionMock.mockResolvedValue(null);
+    expect(
+      (await adminRouter.request("http://localhost/seo-impact")).status,
+    ).toBe(401);
+    mockSession("user");
+    expect(
+      (await adminRouter.request("http://localhost/seo-impact")).status,
+    ).toBe(403);
+    mockSession("admin");
+    seoImpactRowsMock.mockResolvedValue([
+      {
+        id: "0196f2a0-0000-7000-8000-000000000001",
+        projectId: "0196f2a0-0000-7000-8000-000000000002",
+        pageUrl: "https://battery-sensei.app/pricing",
+        title: "Name the battery app in the title",
+        changeSource: "cuso_done",
+        changedAt: new Date("2026-11-20T10:00:00Z"),
+        crawledAt: null,
+        windowStart: null,
+        windowEnd: null,
+        state: "waiting_crawl",
+        reason: "not_crawled_yet",
+        project: {
+          name: "Cuso",
+          workspace: { organization: { slug: "battery-sensei" } },
+        },
+      },
+    ]);
+    const response = await adminRouter.request("http://localhost/seo-impact");
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toMatchObject({
+      total: 1,
+      rows: [
+        {
+          organizationSlug: "battery-sensei",
+          suggestionTitle: "Name the battery app in the title",
+          state: "waiting_crawl",
+        },
+      ],
     });
   });
 

@@ -280,6 +280,14 @@ export function failedTurnRoute(
   };
 }
 
+/** The tools a schedule's run starts from: its stored ones, or a person's. */
+export function storedScheduleCapabilities(
+  capabilityNames: readonly string[],
+): readonly SokoBotCapability[] {
+  const stored = capabilityNames.filter(isSokoBotCapability);
+  return stored.length ? stored : PERSON_SCHEDULE_CAPABILITIES;
+}
+
 /**
  * A follow-up the bot wrote for itself runs with the tools of the turn that
  * wrote it, not a route Jev guesses from its prompt: "continue the CRM table
@@ -291,8 +299,7 @@ export function failedTurnRoute(
 export function inheritedScheduleRoute(
   capabilityNames: readonly string[],
 ): PresetRoute {
-  const stored = capabilityNames.filter(isSokoBotCapability);
-  const capabilities = stored.length ? stored : PERSON_SCHEDULE_CAPABILITIES;
+  const capabilities = storedScheduleCapabilities(capabilityNames);
   return {
     route: "DELEGATE_TASK",
     reason: "Schedule run, with the tools of whoever wrote it.",
@@ -311,6 +318,7 @@ export interface ScheduleAuthorityRouteInput {
   botUserId: string | null;
   botProjectId: string | null;
   botVersionId: string | null;
+  revoked?: boolean;
   now?: Date;
 }
 
@@ -318,8 +326,8 @@ export interface ScheduleAuthorityRouteInput {
  * Computes the route for a user- or bot-created schedule run, intersecting its
  * stored capabilities with persisted `SokoBotSchedule.authority`. Legacy rows
  * (`authority == null`) preserve `inheritedScheduleRoute`; non-null expired,
- * mismatched, or malformed authorities fail closed without falling back to
- * `PERSON_SCHEDULE_CAPABILITIES`.
+ * revoked, mismatched, or malformed authorities fail closed without falling
+ * back to `PERSON_SCHEDULE_CAPABILITIES`.
  */
 export function scheduleAuthorityRoute(
   input: ScheduleAuthorityRouteInput,
@@ -327,10 +335,7 @@ export function scheduleAuthorityRoute(
   if (input.authority === null || input.authority === undefined) {
     return inheritedScheduleRoute(input.capabilityNames);
   }
-  const stored = input.capabilityNames.filter(isSokoBotCapability);
-  const baseCapabilities = stored.length
-    ? stored
-    : PERSON_SCHEDULE_CAPABILITIES;
+  const baseCapabilities = storedScheduleCapabilities(input.capabilityNames);
   const result = intersectScheduleRouteCapabilities({
     scheduleId: input.id,
     sokoBotId: input.sokoBotId,
@@ -341,6 +346,7 @@ export function scheduleAuthorityRoute(
     botProjectId: input.botProjectId,
     botVersionId: input.botVersionId,
     offeredCapabilities: baseCapabilities,
+    ...(input.revoked ? { revoked: true } : {}),
     now: input.now,
   });
   return {

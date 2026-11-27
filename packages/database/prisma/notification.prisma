@@ -49,6 +49,8 @@ model Notification {
   publishNextAttemptAt DateTime?
 
   @@unique([userId, kind, referenceId, eventId, messageKey])
+  @@unique([network, userId, kind, referenceId, eventId, messageKey], map: "notification_network_dedupe_key")
+  @@unique([userId, kind, referenceId, eventId, messageKey], map: "notification_untagged_dedupe_key", where: { network: null })
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([userId, isRead])
   @@index([userId, workspaceId])

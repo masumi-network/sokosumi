@@ -1,11 +1,12 @@
-import {
-  type Consumption,
-  creditBucketRepository,
-  InsufficientBalanceError,
-} from "@sokosumi/database/repositories";
+import { InsufficientBalanceError } from "@sokosumi/database/repositories";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
+import {
+  type SpendResult,
+  spend,
+  spendFailedInPreparation,
+} from "@/lib/credits/spend";
 import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
 
 import { unprocessableEntity } from "./error";
@@ -50,37 +51,35 @@ export async function createTaskEventTransaction(
     return null;
   }
 
-  let consumptions: Consumption[];
+  let spent: SpendResult<"in_full">;
   try {
-    consumptions = await creditBucketRepository.prepareConsumption(
-      input.scope.network,
-      input.userId,
-      input.organizationId,
-      input.cents,
-      input.tx,
-      { projectId: input.projectId ?? null },
-    );
+    spent = await spend({
+      scope: input.scope,
+      tx: input.tx,
+      payer: {
+        // An empty id is no id, for the bucket choice and the debit alike;
+        // production has none (measured 2026-11-27).
+        userId: input.userId || null,
+        organizationId: input.organizationId || null,
+        projectId: input.projectId ?? null,
+      },
+      quotedCents: input.cents,
+      mode: "in_full",
+    });
   } catch (error) {
-    if (error instanceof InsufficientBalanceError) {
-      throw unprocessableEntity(error.message, {
-        kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE,
-      });
-    }
-    if (error instanceof Error) {
+    // Any failure before the write is a 422, a refused scope and a conflict
+    // included; a failed write passes as it is.
+    if (spendFailedInPreparation(error) && error instanceof Error) {
       throw unprocessableEntity(error.message);
     }
     throw error;
   }
-
-  return await creditBucketRepository.recordSpend(
-    input.scope.network,
-    {
-      // An empty id is no id, as the relation write treated it.
-      userId: input.userId || null,
-      organizationId: input.organizationId || null,
-      cents: input.cents,
-      consumptions,
-    },
-    input.tx,
-  );
+  if (spent.outcome === "not_charged") {
+    throw unprocessableEntity(
+      new InsufficientBalanceError(spent.quotedCents, spent.availableCents)
+        .message,
+      { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
+    );
+  }
+  return spent.transactionId;
 }

@@ -13,6 +13,7 @@ import {
   reasoningPartsToMetadata,
   thoughtMetadataFields,
 } from "@/helpers/persist-assistant-to-chat-room";
+import { reportPreprodControlUnavailableOnce } from "@/helpers/preprod-control";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotMessageMemberId } from "@/helpers/soko-bot-message-member";
 import { getCoworkerAuthorizationHeader } from "@/lib/coworker-request-auth";
@@ -24,8 +25,13 @@ import {
   scriptedReplyModel,
   takeEvalCoworkerReply,
 } from "@/lib/evals/fake-coworker";
-import { createCoreLogger, emitCoreError } from "@/lib/evlog";
+import {
+  createCoreLogger,
+  emitCoreError,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { DetachedNetworkRefusal } from "@/lib/soko-bot/detached-network";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
 import {
   readQuoteFromMetadata,
@@ -42,14 +48,17 @@ import {
 import {
   claimMentionForDispatch,
   markMentionFailed,
+  mentionTurnProvenance,
   ROOM_COWORKER_STREAM_TIMEOUT,
   ROOM_MENTION_GIVE_UP_MS,
+  ROOM_SENT_STALE_MS,
 } from "./chat-room-mention-state";
 import {
   consumeMentionProviderStream,
   discardMentionThoughtPlaceholder,
   failMentionThoughtPlaceholder,
   failMentionWithCoworkerShell,
+  failStaleMention,
   publishMentionThoughtPlaceholder,
 } from "./chat-room-mention-stream";
 import {
@@ -60,10 +69,22 @@ import {
 /** Cap Ably thought updates; first beat always publishes. */
 const MENTION_THOUGHT_PUBLISH_MIN_INTERVAL_MS = 250;
 
+export function dispatchReclaimedChatRoomMentions(
+  mentionIds: string[],
+): Promise<void>[] {
+  return reportPreprodControlUnavailableOnce(() =>
+    mentionIds.map((mentionId) =>
+      // Background work: its events never land on this request's event.
+      runAsBackgroundWork(() => dispatchChatRoomMention(mentionId)),
+    ),
+  );
+}
+
 /**
  * Clients poll a mention until it reaches a terminal state, so any escape from
  * the dispatch flow without marking the row pins them to an unbounded poll.
  * This is the single funnel that guarantees termination.
+ * A temporary Network refusal leaves the attempt for stale reclaim.
  */
 export async function dispatchChatRoomMention(
   mentionId: string,
@@ -214,6 +235,22 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   }
 
   try {
+    const provenance = await mentionTurnProvenance(mention).catch(
+      async (error: unknown) => {
+        if (!(error instanceof DetachedNetworkRefusal)) throw error;
+        if (
+          error.final &&
+          (mention.status === "pending" ||
+            (mention.status === "sent" &&
+              mention.updatedAt.getTime() < Date.now() - ROOM_SENT_STALE_MS))
+        ) {
+          await failStaleMention(mention);
+        }
+        return null;
+      },
+    );
+    if (!provenance) return;
+
     // Soft-delete wipes content and cancels pending/sent mentions, but a
     // waitUntil already in flight may still reach here — fail closed before
     // claiming so we do not burn credits or post under a tombstone.
@@ -310,6 +347,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       await runSokoBotMentionDispatch({
         mentionId,
         mention,
+        provenance,
         userId,
         failWithShell,
         askedByBot,

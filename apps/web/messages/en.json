@@ -180,7 +180,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
-      "switchOrganization": "Switch organisation",
+      "switchWorkspaceCurrent": "Switch workspace (current: {name})",
       "personalAccount": "Personal account",
       "createWorkspace": "Create workspace",
       "organizationsHeading": "Organizations",
@@ -450,6 +450,7 @@
           "download": "Download",
           "copy": "Copy",
           "copySuccess": "Result copied to clipboard",
+          "copyFormattedSuccess": "Result copied with formatting",
           "copyError": "Failed to copy result",
           "maximize": "Maximize",
           "expand": "Expand",
@@ -464,6 +465,7 @@
           "exportDocxError": "Failed to export Word document",
           "exportAsPdf": "Export as PDF",
           "exportAsDocx": "Export as Word document",
+          "exportTooLarge": "This file is too large to export. The limit is {limit, number} MB.",
           "exportAsMarkdown": "Export as Markdown",
           "Refund": {
             "error": "Failed to request refund",
@@ -687,7 +689,7 @@
           "emailError": "Failed to send invites"
         },
         "Errors": {
-          "createFailed": "Failed to create organization",
+          "createFailed": "Could not create the organization. Try again.",
           "unauthorizedAction": "Log in"
         }
       },
@@ -1828,7 +1830,7 @@
         "review": "Review on the assistant page",
         "task": "Task",
         "chainDepth": "Assistant-to-assistant reply {depth} of {max}. A person writing here resets the count.",
-        "chainRoomRate": "{count} of {max} assistant messages in this room this hour.",
+        "chainRoomRate": "{count} of {max} assistant messages in this chat this hour.",
         "chainLastHop": "This is the last hop — it will not wake anyone else.",
         "source": {
           "inbox": "From your inbox",
@@ -3666,6 +3668,13 @@
             "cancel": "Cancel"
           },
           "upload": "Upload",
+          "useOrganization": "Copy {organization} brand",
+          "copy": "Copy",
+          "organizationTitle": "{organization} brand",
+          "organizationHint": "Start with your organization's DESIGN.md. The copy is this project's own to edit.",
+          "or": "or",
+          "organizationAlreadySet": "This project already has a brand.",
+          "organizationCopied": "Copied the {organization} brand",
           "moreActions": "Brand actions"
         },
         "backToProject": "Back to project",
@@ -4674,14 +4683,16 @@
         "voiceover": "Story with voice",
         "site_tour": "Website tour",
         "top_three": "Top 3 list",
-        "slideshow": "Photo slideshow"
+        "slideshow": "Photo slideshow",
+        "launch": "Launch"
       },
       "kindHints": {
         "presenter": "A presenter says your script to camera.",
         "voiceover": "A voice tells a short story over your pictures and website.",
         "site_tour": "A voice walks people through your website.",
         "top_three": "A voice gives three numbered points.",
-        "slideshow": "Your pictures to music, with one line on each."
+        "slideshow": "Your pictures to music, with one line on each.",
+        "launch": "A voice announces something new, with its date on a card."
       },
       "kindNeedsSite": "Add your website to the project first.",
       "stepShows": "What it shows",
@@ -4698,17 +4709,23 @@
         "voiceover": "Most people get this wrong about…",
         "site_tour": "This is our website. Here is what you can do on it…",
         "top_three": "Three ways to… One, … Two, … Three, … Try it today.",
-        "slideshow": "Shipped the code?\nNow ship the page.\nTry it free today"
+        "slideshow": "Shipped the code?\nNow ship the page.\nTry it free today",
+        "launch": "Our winter menu is here. It starts on 3 December. Six warm dishes, made fresh each morning. Book your table today."
       },
       "scriptHints": {
         "voiceover": "The first sentence is the hook.",
         "site_tour": "Say what people see on your site, from the top down.",
         "top_three": "A sentence that names the list, one per point, then what to do next.",
-        "slideshow": "One short line per picture, one per row."
+        "slideshow": "One short line per picture, one per row.",
+        "launch": "Say what is new, then when. The date shows on a card while the second sentence is spoken."
       },
       "hookLine": "Words on screen at the start",
       "hookLinePlaceholder": "Leave empty and we write them for you",
       "hookLineHint": "Up to six words that tell people why to keep watching.",
+      "launchDate": "Date",
+      "launchDatePlaceholder": "3 December",
+      "launchDateHint": "When it starts, as it should show on the card.",
+      "launchDateMissing": "Add the date of what you are announcing.",
       "shortIncludes": "Captions, music and your logo at the end are included.",
       "slideshowIncludes": "Music and your logo at the end are included.",
       "costDetailShort": "charged only when the video is ready, in about a minute",
@@ -4752,10 +4769,20 @@
         "error": "Could not prepare suggestions from the project website. Try again."
       },
       "BrandKit": {
+        "logo": "Logo",
+        "look": "Colors and fonts",
+        "copy": "Brand copy",
+        "assets": "Brand images",
+        "assetHint": "Add mascots, illustrations, or other images for Content Studio to use as visual references.",
+        "addAsset": "Add image",
+        "removeAsset": "Remove {name}",
+        "removeImage": "Remove",
+        "assetError": "Could not update the brand images.",
+        "retryAsset": "Try again",
         "websiteLookDraft": "Colors and fonts suggested from your website. Edit them before saving the look.",
         "discardWebsiteLook": "Discard suggested look",
         "cancelLook": "Cancel look edits",
-        "editLook": "Edit colors and fonts",
+        "editLook": "Edit",
         "resetLook": "Use project design",
         "colorsHelp": "Enter up to eight hex colors, one per line, such as #23453C.",
         "fonts": "Fonts",
@@ -4771,7 +4798,7 @@
         "websiteProfileAdded": "Website suggestions added. Review the brand voice and audience before saving.",
         "websiteCopyEmpty": "There’s no new website copy to add.",
         "websiteCopyError": "Could not read copy from the project website. Try again.",
-        "extractWebsiteStyle": "Extract colors and fonts",
+        "extractWebsiteStyle": "From website",
         "websiteStyleHelp": "Extracting the website’s style replaces the project design guide.",
         "websiteStyleSaved": "Website style saved to the project design guide.",
         "logoFile": "Project logo file",
@@ -6591,6 +6618,10 @@
             "title": "SEO audit alerts",
             "description": "Inspect audit failures and connection coverage."
           },
+          "seoImpact": {
+            "title": "SEO impact",
+            "description": "Track done page changes until Google crawls them."
+          },
           "x402Payments": {
             "title": "x402 payments",
             "description": "Inspect direct-payment health and resolve held or disputed x402 charges."
@@ -7868,6 +7899,28 @@
       },
       "SeoAlerts": {
         "type": "Alert type",
+        "impactTab": "Action impact",
+        "impactDescription": "Search Console totals for the page of each done SEO action, for the same number of days before and after it. Each entry is one audit and the person whose Search Console data it holds. The figures do not rule out seasonality, other changes on the page or a Google update.",
+        "impactWindow": "Days before and after",
+        "impactEmpty": "No audit has stored daily page data yet.",
+        "impactNoActions": "No done action on a page with stored daily data.",
+        "impactCompleted": "Task completed on {date}",
+        "impactVerified": "Fix verified on {date}",
+        "impactMetric": "Metric",
+        "impactBefore": "{days, number} days before",
+        "impactAfter": "{days, number} days after",
+        "impactClicks": "Clicks",
+        "impactImpressions": "Impressions",
+        "impactPosition": "Average position",
+        "impactNotMeasured": "Not measured",
+        "impactPending": "Not final yet",
+        "impactNoPosition": "No impressions",
+        "impactState": {
+          "measured": "Measured",
+          "too_early": "Too early",
+          "not_measured": "Not measured",
+          "low_counts": "Too few impressions"
+        },
         "pricingAttention": "Audit payments to check: {count}",
         "billingTab": "Audit billing ({count})",
         "billingDescription": "Metered full audits and their latest settlement status. Costs come from verified provider receipts. Charged credits come from the debit transaction.",
@@ -7920,7 +7973,7 @@
         "search_console": "Search Console",
         "ga4": "Google Analytics 4",
         "connectionSummary": "Connections to reconnect: {count}",
-        "summary": "Last 30 days: {critical} critical, {warning, plural, one {# warning} other {# warnings}}",
+        "summary": "Open or from the last 30 days: {critical} critical, {warning, plural, one {# warning} other {# warnings}}",
         "unavailable": "Alert counts are unavailable.",
         "title": "SEO audit alerts",
         "description": "The latest finished or overdue run for each audit. Page failure warnings start at {percent}% of attempted pages.",
@@ -7969,6 +8022,51 @@
           "gscProperty": "The audit could not use the selected Search Console property.",
           "gscUnavailable": "The audit could not verify Search Console coverage.",
           "gscSkipped": "The owner chose to continue without Search Console."
+        }
+      },
+      "SeoImpact": {
+        "title": "SEO impact",
+        "description": "Page changes that customers marked done. Each row waits for Google's first crawl after the change, then gets the four weeks its verdict compares.",
+        "summary": "Showing {shown} of {total} tracked page changes.",
+        "period": "Period",
+        "periods": {
+          "90": "90 days",
+          "365": "365 days",
+          "all": "All"
+        },
+        "empty": "No page change was tracked in this period.",
+        "customer": "Customer",
+        "page": "Page",
+        "suggestion": "Suggestion",
+        "source": "Source",
+        "changedAt": "Changed",
+        "crawledAt": "First observed crawl after change",
+        "window": "Window",
+        "state": "State",
+        "reason": "Reason",
+        "none": "None",
+        "notYet": "Not yet",
+        "windowRange": "{start} to {end}",
+        "readyOn": "Data final on {date}",
+        "sources": {
+          "cuso_done": "Marked done",
+          "audit_recheck": "Audit recheck"
+        },
+        "states": {
+          "waiting_crawl": "Waits for crawl",
+          "waiting_window": "Waits for window",
+          "ready": "Ready for verdict",
+          "waiting_retry": "Waits for more data",
+          "measured": "Measured",
+          "not_measurable": "Not measurable"
+        },
+        "reasons": {
+          "no_cuso": "The project has no live Cuso.",
+          "not_connected": "Search Console is not connected.",
+          "no_property": "No Search Console property covers the page.",
+          "inspection_failed": "URL Inspection failed or was refused.",
+          "not_crawled_yet": "Google has not crawled the page since the change.",
+          "worker_failed": "The SEO worker gave no verdict after three claims."
         }
       },
       "CmoSpend": {
@@ -8294,6 +8392,38 @@
           "help": "Training opt-ins only. Brand text omitted; image links expire in 10 minutes.",
           "download": "Download JSONL",
           "error": "Failed to export ad data. Try again."
+        }
+      },
+      "PreprodAccess": {
+        "title": "Preprod access",
+        "noEffect": "Nothing reads this switch yet: it does not change what anyone can do.",
+        "state": "{enabled, select, true {On} other {Off}}",
+        "saved": "{enabled, select, true {Preprod access is on.} other {Preprod access is off.}}",
+        "history": {
+          "title": "Recent changes",
+          "entry": "{enabled, select, true {Switched on} other {Switched off}} by {operator}",
+          "unknown": "an unknown admin",
+          "empty": "No changes yet."
+        },
+        "dialog": {
+          "title": "{enabled, select, true {Switch Preprod access on?} other {Switch Preprod access off?}}",
+          "description": "{enabled, select, true {{type, select, user {The user} other {The Organization}} {name} gets Preprod access.} other {{type, select, user {The user} other {The Organization}} {name} loses Preprod access.}} Your name and the reason are recorded with the change.",
+          "reasonLabel": "Reason",
+          "reasonHint": "Ticket id, no personal details.",
+          "reasonRequired": "Enter a reason.",
+          "cancel": "Cancel",
+          "confirm": "{enabled, select, true {Switch on} other {Switch off}}"
+        },
+        "errors": {
+          "forbidden": "Not allowed: only an admin signed in as themselves can change Preprod access.",
+          "notFound": "{type, select, user {This user no longer exists.} other {This Organization no longer exists.}}",
+          "invalid": "The change was not accepted. Check the reason and try again.",
+          "failed": "The change could not be saved. Try again."
+        },
+        "unavailable": {
+          "title": "Preprod access could not be loaded.",
+          "description": "The rest of the page works.",
+          "retry": "Try again"
         }
       }
     },
@@ -9965,7 +10095,7 @@
         "participants": "Members",
         "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
         "cannotRemoveSelf": "You can't remove yourself",
-        "humans": "Humans",
+        "humans": "People",
         "coworkers": "AI coworkers",
         "personalAssistants": "Personal assistants",
         "cancel": "Cancel",
@@ -9999,7 +10129,7 @@
         "empty": "Choose who to message.",
         "chooseRecipientError": "Choose a recipient.",
         "removeRecipient": "Remove {name}",
-        "groupDirectHumansOnly": "Group direct messages are humans only.",
+        "groupDirectHumansOnly": "Group direct messages are for people only.",
         "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1.",
         "personalAssistantDirectOneToOneOnly": "Personal assistant direct messages are 1:1.",
         "openFailed": "Could not open the conversation. Try again."
@@ -10156,7 +10286,7 @@
         "unpin": "Unpin message",
         "pinned": "Pinned",
         "messageRequired": "Message is required.",
-        "roomRequired": "Room is required.",
+        "roomRequired": "Chat is required.",
         "pinError": "Could not pin message.",
         "unpinError": "Could not unpin message.",
         "statePinned": "The message is pinned.",
@@ -10263,15 +10393,18 @@
       "CreateWizard": {
         "title": "Create a channel",
         "nameLabel": "Name",
-        "namePlaceholder": "e.g. Welcome",
-        "nameHelp": "Shown in the sidebar. It starts from the handle; you can change it here.",
-        "slugLabel": "Handle",
-        "slugPlaceholder": "welcome",
-        "slugHelp": "Unique among channels. You cannot change it after creating.",
-        "slugTaken": "This channel handle already exists. Browse channels to find it.",
-        "slugInvalid": "Enter a valid handle.",
-        "slugChecking": "Checking handle…",
-        "slugCheckFailed": "Could not check this handle. Try again.",
+        "namePlaceholder": "e.g. Launch plans",
+        "linkHelp": "Link: <link>#{slug}</link>.",
+        "linkPermanent": "You can't change the link later.",
+        "linkEmpty": "The channel link comes from the name. You can't change the link later.",
+        "changeLink": "Change link",
+        "slugLabel": "Link",
+        "slugPlaceholder": "launch-plans",
+        "slugHelp": "Unique among channels. You can't change it after creating.",
+        "slugTaken": "A channel with this link already exists. Change the link, or browse channels to find it.",
+        "slugInvalid": "Enter a link with letters or numbers.",
+        "slugChecking": "Checking link…",
+        "slugCheckFailed": "Could not check this link. Try again.",
         "handleChrome": "# {slug}",
         "topicLabel": "Topic",
         "topicPlaceholder": "What is this channel about?",
@@ -10279,7 +10412,7 @@
         "back": "Back",
         "create": "Create",
         "addPeopleTitle": "Add people to {name}",
-        "addAll": "Add all {count} members of {organization}",
+        "addAll": "Add everyone in {organization} ({count, plural, one {# member} other {# members}})",
         "addSpecific": "Add specific people",
         "addSpecificHelp": "Select people and AI coworkers to add to this channel."
       },
@@ -10513,7 +10646,7 @@
         "markAllRead": "Mark all as read",
         "markAllReadError": "Couldn't mark everything as read. Try again.",
         "caughtUpTitle": "You're caught up",
-        "caughtUpDescription": "Nothing new needs you since you last read your rooms.",
+        "caughtUpDescription": "Nothing new needs you since you last read your chats.",
         "firstCatchUpTitle": "Nothing to catch up on yet",
         "firstCatchUpDescription": "When people talk in your channels and chats, the gist and anything waiting on you shows up here.",
         "firstCatchUpCreateChannel": "Create a channel",
@@ -10533,7 +10666,13 @@
         "createTask": "Create a task",
         "editTags": "Edit tags",
         "editTagsTitle": "Tags for this message",
-        "editTagsNote": "Everyone in the room sees your change.",
+        "editTagsNote": "Everyone in this chat sees your change.",
+        "moreTags": "More tags",
+        "Confidence": {
+          "veryLikely": "Very likely",
+          "likely": "Likely",
+          "byHand": "Added by hand"
+        },
         "taskDue": "Due {date}",
         "taskSource": "From the chat:",
         "taskFrom": "{name} wrote:",
@@ -10597,7 +10736,7 @@
           "emptyTitle": "No decisions yet",
           "emptyHint": "We find them in channels and in chats with other people who allow it. Notes to yourself are never tagged.",
           "loadOlder": "Load older",
-          "note": "We find these for you. If one is wrong, choose “Not a decision”. It leaves this list for everyone in its room, and the message keeps its other tags.",
+          "note": "We find these for you. If one is wrong, choose “Not a decision”. It leaves this list for everyone in that chat, and the message keeps its other tags.",
           "notDecision": "Not a decision",
           "notDecisionFor": "Not a decision: {message}",
           "notDecisionError": "Couldn't change that. Try again.",
@@ -10615,7 +10754,7 @@
         },
         "Briefing": {
           "welcomeBack": "Welcome back",
-          "unread": "{messages, plural, one {# unread message} other {# unread messages}} in {rooms, plural, one {# room} other {# rooms}}",
+          "unread": "{messages, plural, one {# unread message} other {# unread messages}} in {rooms, plural, one {# chat} other {# chats}}",
           "unreadSince": "{unread} since {date}",
           "waitingOnYou": "Waiting on you",
           "whileAway": "What happened",
@@ -10702,6 +10841,7 @@
       "uploadFab": "Upload file",
       "folder": "Folder",
       "createFolder": "New",
+      "emptyNewFolder": "New folder",
       "folderName": "Folder name",
       "createFolderDialogTitle": "Create new folder",
       "createFolderDialogDescription": "Enter a name for the new folder",
@@ -10812,7 +10952,7 @@
         "retry": "Retry",
         "loadMore": "Load more",
         "emptyTitle": "Your files will appear here",
-        "emptyDescription": "Upload a file and it will appear here.",
+        "emptyDescription": "Upload a file, or make a folder to sort them.",
         "noMatchesTitle": "No accessible matches",
         "noMatchesDescription": "Try a different wording, or clear the filters.",
         "statusLoading": "Loading files",
@@ -10905,7 +11045,14 @@
         },
         "previewHeading": "Preview",
         "previewOpen": "Open",
+        "readmeLabel": "About this folder",
+        "readmeShowMore": "Show more",
+        "readmeShowLess": "Show less",
+        "readmeMedia": "Open media",
+        "readmeMediaNamed": "Open media: {name}",
         "previewDownload": "Download",
+        "previewDownloadOriginal": "Original file",
+        "previewExportTooLarge": "Too large to export as PDF or Word. The limit is {limit, number} MB; the original file still downloads.",
         "previewLoading": "Loading preview",
         "previewUnavailable": "This preview could not be loaded. The download still works.",
         "previewNotRenderable": "No inline preview for this file type. Open it in a tab, or download it.",
@@ -11001,6 +11148,8 @@
         "manage": "Manage room",
         "loading": "Loading data room",
         "loadFailed": "Could not load the data room",
+        "loadFailedDescription": "It may have been closed, or it belongs to another workspace.",
+        "retry": "Try again",
         "backToFiles": "Back to Files",
         "copyLink": "Copy link",
         "linkCopied": "Link copied",
@@ -12043,6 +12192,7 @@
       "create": "Create table",
       "save": "Save",
       "retry": "Retry",
+      "openFailed": "Can't open this table",
       "openTable": "Open table",
       "loading": "Loading…",
       "showArchivedRows": "Show archived rows",
@@ -12077,7 +12227,7 @@
       "exportCsv": "Export CSV",
       "restore": "Restore table",
       "archive": "Archive table",
-      "archivedNotice": "This table is archived. Restore it to continue editing.",
+      "archivedNotice": "This table is archived, so it is read-only.",
       "view": "Saved view",
       "allRows": "All rows",
       "configureView": "View settings",
@@ -12094,10 +12244,13 @@
       "sortAscending": "Sort ascending",
       "sortDescending": "Sort descending",
       "noRows": "No rows in this view. Add a row or change your filters.",
+      "noRowsArchived": "No rows. Restore the table to add some.",
+      "noRowsArchivedFiltered": "No rows in this view. Change the view or its filters.",
       "liveUpdates": "Live updates every 3 seconds. Edits are checked for conflicts.",
       "enrichDescription": "The task can write only to your selected rows and output columns. No sending or outreach is authorized.",
       "historyDescription": "Each batch records changes and sources. Undo stops if a value was changed later.",
       "archiveDescription": "Archiving keeps data and history. You can restore this table from Files.",
+      "restoreDescription": "Restoring makes this table editable again, with its data and history.",
       "tableSettings": "Changes apply to this live table.",
       "viewName": "View name",
       "visibleColumns": "Visible columns",
@@ -12995,7 +13148,9 @@
         "hint": "Describe who you are raising from; Exa reads fund pages and deal news and suggests people with a reason and a source.",
         "hintSuggested": "Add the ones worth a conversation; dismissed people are never suggested again.",
         "hintNoExa": "Exa is not configured on this server, so searching is off.",
+        "hintNoExaShort": "Search is off",
         "find": "Find investors",
+        "review": "Review",
         "add": "Add",
         "addAll": "Add all",
         "dismiss": "Dismiss",
@@ -13520,9 +13675,11 @@
         "notInKeptRows": "Not in the first {count} rows kept",
         "trendShow": "Daily positions",
         "trendEmpty": "No Search Console impressions in any country",
-        "trendNotRequested": "Not read in the last sync. Up to 25 tracked keywords get daily positions.",
+        "trendNotRequested": "Not read in the last sync. Up to 50 tracked keywords get daily positions.",
         "trendLabel": "Average position for “{keyword}”",
         "trendNoImpressions": "No impressions",
+        "trendTruncated": "A Search Console read reached its row limit. Some days can be missing.",
+        "trendNoPosition": "No position reported",
         "summary": "In Google's top results for {found} of {read, plural, one {# checked keyword} other {# checked keywords}}",
         "firstPage": "{count} on the first page",
         "more": "{count, plural, one {Show # more keyword} other {Show # more keywords}}",
@@ -13534,7 +13691,19 @@
             "medium": "Medium chance to convert",
             "high": "High chance to convert"
           },
-          "note": "Goal fit is an estimate based on what people search for and what your page offers.",
+          "note": "Chance to convert is the SEO check's own judgement, made from what people search for and what your page offers. It is not a measured conversion rate.",
+          "checkedOn": "From the check on <date></date>",
+          "reason": "{intent}, {fit}",
+          "intent": {
+            "product": "Searches for a product",
+            "comparison": "Compares options",
+            "problem": "Has a problem to solve",
+            "learn": "Wants to learn"
+          },
+          "fit": {
+            "direct": "matches your offer",
+            "partial": "partly matches your offer"
+          },
           "high": "High",
           "medium": "Medium",
           "low": "Low"
@@ -13638,14 +13807,17 @@
         "historyShow": "History",
         "historyPaidTitle": "Positions in paid checks",
         "historyPaidNote": "Each point is one check of the search results on that day.",
+        "historyOlderHidden": "Older checks are not shown.",
         "historyPaidLabel": "{device, select, mobile {Mobile} desktop {Desktop} other {All devices}}: position in paid checks for “{keyword}”",
         "historyNotInRange": "Not in the checked results",
-        "historyPaidAxis": "Position 1 is at the top. A lower position is better. A check that did not find the page in its results has no position.",
+        "historyNotInTop": "Not in the top {count}",
+        "historyPaidAxis": "Position 1 is at the top. A lower position is better. A hollow mark at the bottom is a check that did not find the page in its results: it has no position.",
         "historyGscTitle": "Search Console average position, daily",
         "historyGscNote": "An average over all impressions of the day, not one check.",
         "serp": {
           "title": "Search results in paid checks",
           "note": "What the results page showed on each check, newest first.",
+          "aiNote": "An AI Overview is the summary Google writes above the results. It cites a page when it links to that page as a source.",
           "check": "Check",
           "aiOverview": "AI Overview",
           "featured": "Featured snippet",
@@ -13659,8 +13831,13 @@
             "not_checked": "AI Overview not checked",
             "undetermined": "Citation not determined",
             "cited_checked": "Cites a checked page",
-            "other_page": "Checked for another page"
+            "other_page": "Checked for another page",
+            "site_cited": "Cites the page's site",
+            "site_cited_checked": "Cites a checked site"
           },
+          "aiSources": "Sources",
+          "ownSource": "{domain} (your site)",
+          "moreSources": "+{count} more",
           "snippet": {
             "owned": "The page's site",
             "checked_site": "A checked site",
@@ -13700,15 +13877,15 @@
         "shortlist": {
           "label": "Recommended",
           "chartKey": "Recommended · estimated extra clicks at position 10",
-          "summary": "{count, plural, one {# idea is recommended} other {# ideas are recommended}} for goal fit, low competition and potential extra clicks.",
-          "none": "No ideas meet all three criteria: goal fit, low competition and potential extra clicks.",
+          "summary": "{count, plural, one {# idea is recommended} other {# ideas are recommended}} for a high chance to convert, low competition and potential extra clicks.",
+          "none": "No ideas meet all three criteria: a high chance to convert, low competition and potential extra clicks.",
           "gain": "Est. gain at #10",
           "clicks": "{count, plural, =0 {0 clicks/mo} one {+# click/mo} other {+# clicks/mo}}",
           "lift": "{percent} more monthly clicks than the current estimate.",
-          "priority": "Strong goal fit and low difficulty. The middle gain for ideas in this market is {median, number} extra clicks/month.",
-          "fitUnknown": "Goal fit has not been assessed.",
-          "medium": "The estimated fit with your page goal is medium.",
-          "low": "The estimated fit with your page goal is low.",
+          "priority": "High chance to convert and low difficulty. The middle gain for ideas in this market is {median, number} extra clicks/month.",
+          "fitUnknown": "Chance to convert has not been assessed.",
+          "medium": "The chance to convert is medium.",
+          "low": "The chance to convert is low.",
           "difficultyUnknown": "Difficulty has not been measured.",
           "competition": "Competition is too high for a recommendation.",
           "gainUnknown": "There is no click estimate for position 10.",
@@ -13765,6 +13942,13 @@
         "before": "Before",
         "after": "Suggested change",
         "noBefore": "No previous value recorded",
+        "draft": "Opening text draft",
+        "draftBefore": "Current opening",
+        "draftAfter": "Suggested opening",
+        "copyDraft": "Copy draft",
+        "draftNote": "The SEO bot compared the numbers and names in the draft with the page. This check can miss a false claim. Read the draft before you publish it.",
+        "draftDevice": "This draft is only for the {device, select, mobile {mobile} desktop {desktop} other {{device}}} page.",
+        "draftHeldBack": "The SEO bot held its draft back: {reason}",
         "recommended": "Recommended",
         "unavailable": "Task unavailable",
         "task_created": "Draft task created",
@@ -13828,7 +14012,25 @@
         "alternative": "Alternative",
         "nextCheck": "Next check",
         "canceled": "Task canceled",
-        "failed": "Task failed"
+        "failed": "Task failed",
+        "impact": {
+          "title": "Before and after",
+          "completed": "Counted from {date}, the day the Task was completed.",
+          "verified": "Counted from {date}, the day the fix was verified.",
+          "metric": "Metric",
+          "beforeDays": "{days, number} days before",
+          "afterDays": "{days, number} days after",
+          "clicks": "Clicks",
+          "impressions": "Impressions",
+          "position": "Average position",
+          "notMeasured": "Not measured",
+          "pending": "Not final yet",
+          "noPosition": "No impressions",
+          "tooEarly": "From {date}, Search Console has final data for the {days, number} days after. The next audit after that day reads them.",
+          "notMeasuredNote": "No audit has read the daily Search Console data of this page for the whole period. A new audit reads the 400 days before it.",
+          "lowCounts": "A period has fewer than {min, number} impressions or clicks. That is too few for a percent.",
+          "caveat": "These are Search Console figures for this page alone. They do not rule out seasonality, other changes on the page or a Google update."
+        }
       },
       "pages": {
         "title": "Pages",
@@ -14098,7 +14300,7 @@
         "retryPrevious": "Retry previous request",
         "coverage": {
           "limitedScope": "The audit still samples public pages and their internal links. It will skip Search Console clicks, impressions and indexing data.",
-          "privateConnection": "The audit uses your Google connection only for the approved Search Console property. Your account details stay private.",
+          "privateConnection": "The audit uses your Google connection only for the approved Search Console property. Everyone who can see the audit sees its Search Console results. Your Google connection and account details stay private.",
           "withoutSearch": "Without Search Console",
           "withSearch": "Include Search Console",
           "title": "Search Console coverage",
@@ -14149,8 +14351,8 @@
         "importSitemapHelp": "Review the first {count} eligible page URLs below. Starting the audit shares those URLs. The XML file stays on your device.",
         "sitemapReading": "Reading sitemap…",
         "sitemapInvalid": "Choose a sitemap URL set under 512 KiB with public pages from this site.",
-        "includePropertyTotals": "Include property-wide web search totals, pages, and search queries in my private report.",
-        "includeSitemaps": "Include Google’s submitted sitemap status for this property in my private report.",
+        "includePropertyTotals": "Include property-wide web search totals, pages, and search queries in the report. Everyone who can see the audit sees them.",
+        "includeSitemaps": "Include Google’s submitted sitemap status for this property in the report. Everyone who can see the audit sees it.",
         "alreadyRunning": "A check is running. Wait for its result before you start the next one.",
         "noPermission": "A check cannot be requested for these pages.",
         "running": "Checks in progress",
@@ -14293,10 +14495,16 @@
           "fixed": "{count} fixed",
           "drops": "{count, plural, one {# ranking drop} other {# ranking drops}}",
           "rises": "{count, plural, one {# ranking gain} other {# ranking gains}}",
+          "lostCitations": "{count, plural, one {# lost AI Overview citation} other {# lost AI Overview citations}}",
           "newFailuresTitle": "Now failing",
           "fixedTitle": "Fixed",
           "movesTitle": "Ranking moves",
           "move": "{keyword}: position {from} → {to}",
+          "lost": "{keyword}: was position {from}, now not in the top {checked}",
+          "lostCitationsTitle": "AI Overview citations lost",
+          "lostCitation": "{keyword}: the AI Overview no longer cites your page",
+          "lostCitationGone": "{keyword}: the AI Overview that cited your page no longer shows",
+          "lostCitationsShowing": "Showing {shown} of {total}",
           "band": "A ranking move counts only when it is larger than normal search noise: 2 places in the top 3, 5 in the top 10, 7 in the top 20."
         },
         "plan": {
@@ -14643,8 +14851,10 @@
         },
         "researchCompetitors": "Research competitors",
         "verdict": {
-          "issues": "{count, plural, one {# issue to fix} other {# issues to fix}}",
+          "actions": "{count, plural, one {# thing to fix} other {# things to fix}}",
+          "issuesFound": "{count, plural, one {# issue found in the last check} other {# issues found in the last check}}",
           "waiting": "{count, plural, one {# suggestion to review} other {# suggestions to review}}",
+          "andSuggestions": "{lead}. {count, plural, one {# suggestion to review} other {# suggestions to review}}",
           "clear": "No issues found in the last check",
           "noCheck": "No check yet. Run one to find issues.",
           "noCheckOff": "No check yet",
@@ -14666,7 +14876,11 @@
         },
         "openAction": "Open action",
         "changeProperty": "Change property",
-        "chooseProperty": "Choose property"
+        "chooseProperty": "Choose property",
+        "fixState": {
+          "failing": "Still failed in the check on {day}",
+          "notTested": "Not tested again since {day}"
+        }
       },
       "scopeFilters": "Filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
@@ -14697,6 +14911,36 @@
         "shownUntil": "Showing up to {day}.",
         "scheduled": "Scheduled",
         "next": "Next check"
+      },
+      "runDiff": {
+        "title": "Since the check on {day}",
+        "cardTitle": "Test results since the check on {day}",
+        "open": "What changed since the check before",
+        "issues": "Failed page tests: {from, number} before, {to, number} now",
+        "issuesNow": "Failed page tests now: {to, number}",
+        "new": "New ({count, number})",
+        "fixed": "Fixed ({count, number})",
+        "stillOpen": "Still failing ({count, number})",
+        "none": "None",
+        "more": "and {count, number} more",
+        "notCheckedAgain": "{count, plural, one {# earlier issue has no clear result in this check. It counts as neither fixed nor still failing.} other {# earlier issues have no clear result in this check. They count as neither fixed nor still failing.}}",
+        "notCheckedBefore": "{count, plural, one {# open issue has no clear result in the earlier check. It does not count as new.} other {# open issues have no clear result in the earlier check. They do not count as new.}}",
+        "moves": "Ranking moves ({count, number})",
+        "noMoves": "No ranking moves to show.",
+        "notComparable": {
+          "title": "Not compared with the check before",
+          "market": "The two checks used different markets, so their issues are not compared.",
+          "rulebook": "The tests changed between the two checks, so their issues are not compared.",
+          "pages": "One of the two checks did not read every selected page, so their issues are not compared."
+        },
+        "all": "Comparison details",
+        "count": {
+          "new": "New",
+          "fixed": "Fixed",
+          "stillOpen": "Still failing"
+        },
+        "rulebookChange": "The tests changed between the two checks. {compared, plural, one {# test both checks ran is} other {# tests both checks ran are}} compared, {other, number} left out.",
+        "firstNew": "First new failed tests"
       },
       "filterDates": "Filter by date",
       "syncNow": "Sync now",
@@ -15006,6 +15250,7 @@
         "brandLimited": "There are more query rows than the split can read. The branded and non-branded numbers are a lower limit.",
         "brandListedOnly": "These numbers count the listed queries only. The day totals could not be compared, so there are no shares.",
         "brandUnavailable": "Could not read the queries for this period, so there is no brand split.",
+        "brandLoading": "Reading the brand split…",
         "brandEmpty": "Add your brand terms to see how much traffic comes from searches for your name."
       },
       "traffic": {
@@ -15040,8 +15285,7 @@
           "googleNews": "Google News"
         },
         "keyEvents": "Key events (organic)",
-        "noKeyEvents": "Google Analytics recorded no key events for these pages. Set up key events there to see conversions here.",
-        "keyEventsAiAssistant": "Key events (AI assistants)",
+        "noKeyEvents": "Google Analytics recorded no key events for these pages. Set up key events there to see them here.",
         "aiAssistants": "AI assistants",
         "aiAssistantsHelp": "Visits in Google Analytics' AI Assistant channel (ChatGPT, Perplexity, Gemini, Copilot and others) by the page they landed on",
         "aiAssistantsTruncated": "Only the first rows were kept, so the totals can be higher",
@@ -15057,6 +15301,7 @@
           "non_branded": "Non-branded"
         },
         "brandTotals": "Listed queries: {branded} clicks branded ({brandedShare}), {nonBranded} clicks non-branded ({nonBrandedShare})",
+        "brandTotalsNoShare": "Listed queries: {branded} clicks branded, {nonBranded} clicks non-branded",
         "brandSuggested": "Suggested from your website name. Check the terms before you save.",
         "editBrandTerms": "Edit brand terms",
         "addBrandTerms": "Add brand terms",
@@ -15066,7 +15311,8 @@
         "cancelBrandTerms": "Cancel",
         "brandSaved": "Brand terms saved",
         "noQueryData": "This search type has no query data",
-        "keyEventsNotRead": "Not read: shares a landing path with another selected page"
+        "keyEventsNotRead": "Not read: shares a landing path with another selected page",
+        "keyEventsNotSelected": "Not in this read"
       },
       "export": {
         "menu": "Export: {table}",
@@ -15307,11 +15553,11 @@
           },
           "38": {
             "title": "Export and date presets",
-            "missing": "No comparison with the same period last year. Export is unavailable for “Countries and devices”, “AI assistants”, and “What changed in organic visits”. The CSV separator follows the app language, not the computer's region."
+            "missing": "No comparison with the same period last year. Export is unavailable for “Countries and devices”, “AI assistants”, “What changed in organic visits”, and “Site speed”. The CSV separator follows the app language, not the computer's region."
           },
           "39": {
             "title": "AI Overview citation history",
-            "missing": "AI Overviews that Google loads after the page are not checked, because that read costs extra."
+            "missing": "You get no alert when an AI Overview stops citing your page."
           },
           "40": {
             "title": "AI assistant referral traffic",
@@ -15427,21 +15673,14 @@
         }
       },
       "pageSpeed": {
-        "overTarget": "Over the 2.5 s lab target",
-        "withinTarget": "Within the 2.5 s lab target",
         "title": "Page speed",
-        "lab": "Lighthouse test",
+        "lab": "Lab test (Lighthouse)",
         "field": "Speed for real visitors",
-        "scope": {
-          "url": "This URL",
-          "origin": "Entire origin",
-          "normalized": "Normalized URL group"
-        },
         "scores": "Lighthouse scores (out of 100)",
         "unavailable": "Google could not return usable measurements.",
         "not_checked": "Not checked in this audit.",
         "no_data": "Google reported no real-user data for this URL.",
-        "quota": "Google’s test limit was reached.",
+        "quota": "A test limit was reached.",
         "deadline": "The test ran out of time.",
         "single": "One run",
         "multiple": "Median of {ok} usable runs out of {runs}",
@@ -15455,18 +15694,112 @@
         "metricsTitle": {
           "lcp": "Largest item appears (LCP)",
           "fcp": "First content appears (FCP)",
-          "tbt": "Total blocking time",
-          "si": "Speed index",
+          "tbt": "Time the page is too busy to respond (TBT)",
+          "si": "How fast the page fills in (speed index)",
           "cls": "Unexpected layout shifts (CLS)",
-          "inp": "Interaction to next paint",
-          "ttfb": "Time to first byte"
+          "inp": "Response to a tap or click (INP)",
+          "ttfb": "Server starts to answer (TTFB)"
         },
         "insights": "What to investigate",
-        "p75": "75th percentile",
+        "p75": "3 of 4 visits were at least this fast (75th percentile)",
         "date": "Audit date",
         "budget": "The audit used its PageSpeed request budget.",
         "unsafe": "The audit could not verify a public landing page.",
-        "paintTime": "{device} · largest item appeared in {time}"
+        "status": {
+          "good": "Good",
+          "needs_improvement": "Needs improvement",
+          "poor": "Poor",
+          "too_little_data": "Too little data"
+        },
+        "limit": "Good: up to {good} · poor: over {poor}",
+        "vitals": "Each status compares the value with Google’s limits (Core Web Vitals).",
+        "source": {
+          "field": "Real visitors",
+          "fieldOrigin": "Real visitors, whole site",
+          "fieldGroup": "Real visitors, group of similar pages",
+          "lab": "Lab test",
+          "mixed": "Differs by device"
+        },
+        "caveat": {
+          "origin": "Google has too few visits to this page alone. These values are for the whole site, so they do not describe this page.",
+          "normalized": "These values are for a group of similar addresses, so they can differ for this page."
+        },
+        "labNote": "A lab test loads the page once on a simulated device. It shows what to fix, but real visitors can see other values.",
+        "labNoInp": "A lab test cannot measure the response to taps and clicks.",
+        "labVersion": "Lighthouse {version}",
+        "auditedPage": "The audit tested {url}. That address leads to this page.",
+        "noReadable": "No readable measurement.",
+        "verdict": {
+          "pass": "Within all limits",
+          "passOn": "Within all limits on {devices}",
+          "over": "Over a limit: {metrics}",
+          "unknown": "Not known"
+        },
+        "metricShort": {
+          "lcp": "loading (LCP)",
+          "inp": "response (INP)",
+          "cls": "layout shifts (CLS)"
+        }
+      },
+      "siteSpeed": {
+        "title": "Site speed",
+        "description": "How fast the main pages load, measured against Google’s limits.",
+        "column": {
+          "page": "Page",
+          "tier": "Check",
+          "devices": "Devices",
+          "status": "Speed",
+          "source": "Measured by",
+          "trend": "Trend"
+        },
+        "tier": {
+          "full": "Full check",
+          "reduced": "Short check, one device",
+          "none": "Not checked"
+        },
+        "audited": "Page of this audit",
+        "cause": {
+          "action": "Added because it is on the path to the site's main action",
+          "keyword": "Added because it ranks for a tracked keyword",
+          "template": "Added as an example of a page type",
+          "entry": "Added because visitors often arrive here",
+          "risk": "Added because it is likely to be slow"
+        },
+        "showMore": "Show {count} more pages",
+        "trend": {
+          "better": "Getting better",
+          "worse": "Getting worse",
+          "steady": "Steady",
+          "none": "No trend yet"
+        },
+        "trendTitle": "Real visitors, week by week",
+        "trendText": "{metric}: {first} in the 28 days to {firstDate}, {last} in the 28 days to {lastDate}.",
+        "trendLimit": "The dashed line is the good limit: {good}.",
+        "trendWeek": "28 days to {date}: {value}",
+        "trendWeekNone": "28 days to {date}: no data",
+        "noTrend": {
+          "incompatible_population": "Earlier weeks measured a different group of visits, so they cannot be compared.",
+          "unavailable": "Earlier weeks could not be read or verified.",
+          "legacy_unverified": "This audit could not verify that the earlier weeks measured the same group of visits. Run a new audit to check for a trend.",
+          "too_few": "Too few weeks with data to show a trend.",
+          "no_series": "No weekly chart is available for this measurement."
+        },
+        "deviceReason": {
+          "crux-url": "Short check on {device}: {share} of the page loads Google measured for this address or similar addresses were on it.",
+          "crux-origin": "Short check on {device}: {share} of the page loads Google measured for the site were on it.",
+          "page-type": "Short check on {device}, the usual device for this kind of page.",
+          "default": "Short check on {device}, the default device.",
+          "unknown": "Short check on {device}.",
+          "stopped": "The default device is {device}: the check found no device shares before it stopped."
+        },
+        "mix": "Page loads: {phone} phone · {desktop} desktop · {tablet} tablet",
+        "notChecked": "Pages not checked: {count}. {reason}",
+        "gap": {
+          "limit": "The audit checks a limited number of pages for speed.",
+          "deadline": "The audit ran out of time.",
+          "quota": "A CrUX rate limit was reached.",
+          "other": "The speed test did not finish."
+        }
       }
     },
     "AdDataConsent": {
@@ -15810,7 +16143,11 @@
         "assigned": "You were assigned {taskName}",
         "participantAdded": "You were added to {taskName} as a participant",
         "followUp": "{taskName} is still waiting for you",
-        "seoMonitorWorse": "{taskName}: the newest scheduled SEO result got worse. New failures: {newFailures}. Ranking drops: {drops}."
+        "seoMonitorWorse": "{site}: the newest scheduled SEO result got worse. New failures: {newFailures}. Ranking drops: {drops}. Lost AI Overview citations: {lostCitations}.",
+        "seoMonitorClicksDrop": "{site}: Search Console clicks fell from {clicksFrom} to {clicksTo} against the period before."
+      },
+      "System": {
+        "seoAdminCritical": "An SEO audit has a critical alert. Open the admin SEO alerts to check it."
       },
       "Billing": {
         "lowBalance": "Your credits are running low: {credits} left",

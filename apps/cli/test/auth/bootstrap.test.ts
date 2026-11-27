@@ -359,6 +359,38 @@ test("requireAuthenticatedSession rejects before Core when unsigned-in", async (
   );
 });
 
+test("requireAuthenticatedSession names the client id for an unknown custom host", async () => {
+  await assert.rejects(
+    requireAuthenticatedSession({
+      authManager: {
+        getApiKeyCredentials: () => null,
+        getAuthTokenAsync: async () => null,
+        getAuthMethod: () => null,
+        getCredentials: () => null,
+      },
+      config: {
+        target: "custom",
+        apiUrl: "https://core.example.test",
+        authBaseUrl: "https://core.example.test/auth",
+        clientId: "",
+        clientSecret: "",
+      },
+      env: {},
+      targetExplicit: true,
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof CliError);
+      assert.equal(error.code, "AUTH_REQUIRED");
+      assert.match(
+        error.message,
+        /sokosumi --api-url https:\/\/core\.example\.test --client-id <id> auth login/,
+      );
+      assert.match(error.message, /SOKOSUMI_OAUTH_CLIENT_ID/);
+      return true;
+    },
+  );
+});
+
 test("requireAuthenticatedSession returns the resolved auth state", async () => {
   const auth = await requireAuthenticatedSession({
     authManager: {
@@ -376,4 +408,52 @@ test("requireAuthenticatedSession returns the resolved auth state", async () => 
     authMethod: "oauth",
     expiresAt: "2030-01-01T00:00:00.000Z",
   });
+});
+
+test("an environment token never reads the OS vault", async () => {
+  const vaultRead = () => {
+    throw new Error("OS vault read would show a keychain prompt");
+  };
+  const vault = { read: vaultRead, write: () => {}, clear: () => {} };
+  for (const environment of [
+    { SOKOSUMI_API_KEY: "soko_mainnet_secret" },
+    { SOKOSUMI_AUTH_TOKEN: "oauth-access-token" },
+  ]) {
+    const result = await resolveInitialAuth({
+      authManager: new AuthManager({
+        credentialStore: vault,
+        apiKeyStore: vault,
+        environment,
+      }),
+      config: MAINNET_CONFIG,
+      environment,
+    });
+    assert.equal(result.authenticated, true);
+  }
+});
+
+test("usable OAuth still rejects a stored key that requests could fall back to", async () => {
+  await assert.rejects(
+    resolveInitialAuth({
+      authManager: new AuthManager({
+        credentialStore: {
+          read: () => ({
+            authToken: "oauth-access-token",
+            expiresAt: "2999-01-01T00:00:00.000Z",
+          }),
+          write: () => {},
+          clear: () => {},
+        },
+        apiKeyStore: {
+          read: () => ({ apiKey: "legacy_secret" }),
+          write: () => {},
+          clear: () => {},
+        },
+        environment: {},
+      }),
+      config: MAINNET_CONFIG,
+      environment: {},
+    }),
+    /Legacy API keys need an explicit target/,
+  );
 });

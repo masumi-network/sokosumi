@@ -1,22 +1,24 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
-import { describe, expect, it, vi } from "vitest";
-import { expectCoreLog } from "@/test/core-log";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cardFontDir } from "@/test/card-font";
+import { causeMessage, expectCoreLog } from "@/test/core-log";
 
-const { withBrowser } = vi.hoisted(() => ({ withBrowser: vi.fn() }));
+const { withBrowser, captionFontsDir } = vi.hoisted(() => ({
+  withBrowser: vi.fn(),
+  captionFontsDir: vi.fn(),
+}));
 vi.mock("@/lib/site-capture", () => ({ withBrowser }));
 vi.mock("@/config/env", () => ({ getEnv: () => ({}) }));
 vi.mock("@/lib/ffmpeg", () => ({
   CAPTION_FONT_FAMILY: "Montserrat Black",
-  captionFontsDir: async () => {
-    const dir = await mkdtemp(path.join(tmpdir(), "card-font-"));
-    await writeFile(path.join(dir, "Montserrat-Black.ttf"), "font");
-    return dir;
-  },
+  captionFontsDir,
 }));
 
+beforeEach(() => {
+  captionFontsDir.mockImplementation(cardFontDir);
+});
+
 import {
+  CARD_PAGE_NAME_SHIM,
   cardColours,
   cardMayLoad,
   renderVideoCards,
@@ -88,6 +90,85 @@ describe("rendering cards past the deadline", () => {
     expectCoreLog("warn", "Could not draw a video's cards in time");
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(newPage).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the caption font while cards are drawn", () => {
+  it("returns no cards when the font is still loading as the budget ends", async () => {
+    vi.useFakeTimers();
+    try {
+      captionFontsDir.mockReturnValue(new Promise(() => undefined));
+      withBrowser.mockClear();
+      const drawn = renderVideoCards(
+        [{ kind: "title", text: "One" }],
+        { colors: [], font: null },
+        "9:16",
+        50,
+      );
+      await vi.advanceTimersByTimeAsync(50);
+
+      await expect(drawn).resolves.toBeNull();
+      expect(withBrowser).not.toHaveBeenCalled();
+      expectCoreLog("warn", "Could not draw a video's cards in time");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("returns no cards when the font cannot be loaded", async () => {
+    captionFontsDir.mockRejectedValue(new Error("font download failed"));
+    withBrowser.mockClear();
+    const entries = expectCoreLog("warn", "Could not draw a video's cards");
+
+    const pngs = await renderVideoCards(
+      [{ kind: "title", text: "One" }],
+      { colors: [], font: null },
+      "9:16",
+    );
+
+    expect(pngs).toBeNull();
+    expect(withBrowser).not.toHaveBeenCalled();
+    expect(entries.map((entry) => causeMessage(entry.cause))).toEqual([
+      "font download failed",
+    ]);
+  });
+});
+
+describe("fitting a card in a bundled Core", () => {
+  // tsx and tsup keep function names by wrapping them in `__name(...)`; the
+  // card page has no such helper, so every card failed under `pnpm dev`.
+  it("gives the page `__name` before it runs the fit", async () => {
+    const evaluated: unknown[] = [];
+    const page = {
+      setViewport: async () => undefined,
+      setRequestInterception: async () => undefined,
+      on: () => undefined,
+      setContent: async () => undefined,
+      evaluate: async (script: unknown) => {
+        evaluated.push(script);
+        return true;
+      },
+      screenshot: async () => new Uint8Array([1]),
+      close: async () => undefined,
+    };
+    withBrowser.mockImplementation(
+      (work: (browser: unknown) => Promise<unknown>) =>
+        work({ newPage: async () => page, close: async () => undefined }),
+    );
+
+    const pngs = await renderVideoCards(
+      [{ kind: "title", text: "One" }],
+      { colors: [], font: null },
+      "9:16",
+    );
+
+    expect(pngs).toEqual([new Uint8Array([1])]);
+    const shim = evaluated.indexOf(CARD_PAGE_NAME_SHIM);
+    const fit = evaluated.findIndex(
+      (script) => typeof script === "function" && script.name === "fitCard",
+    );
+    expect(shim).toBeGreaterThanOrEqual(0);
+    expect(shim).toBeLessThan(fit);
   });
 });
 

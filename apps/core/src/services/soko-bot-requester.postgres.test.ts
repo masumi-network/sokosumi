@@ -216,6 +216,7 @@ describe.skipIf(!enabled)("Soko Bot records name who asked", () => {
 
   it("leaves a schedule's Requester unchanged when its prompt, cron or timezone change", async () => {
     const created = await createSokoBotSchedule({
+      network: "mainnet",
       userId: people.member,
       workspaceId,
       name: "Weekly review",

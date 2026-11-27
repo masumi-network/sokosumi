@@ -1,3 +1,4 @@
+import { Bot, ChevronLeft, ChevronRight, Plus, Star } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { z } from "zod";
 import type { ViewContext } from "../../shell/Shell.tsx";
@@ -8,8 +9,7 @@ import {
   type MessageKey,
   t,
 } from "../../shell/text.ts";
-import { QuietButton } from "../../shell/ui.tsx";
-import { initials } from "../task.tsx";
+import { Badge, Button } from "../../shell/ui.tsx";
 
 /**
  * The fields of an `agents_list` Cardano item the view reads. x402 items have
@@ -93,6 +93,9 @@ export function AgentsBrowse({
         role: "user",
         content: [{ type: "text", text }],
       });
+      // A host may answer before the person allows the message (Claude.ai
+      // does), so "sent" never locks Hire: after a decline it works again
+      // (SOKD-497).
       if (!result.isError) state = "sent";
     } catch {}
     busy.current = false;
@@ -142,18 +145,22 @@ export function AgentsBrowse({
         </h1>
         {agents.length > 1 && (
           <div className="-mx-3 -my-2.5 flex items-center">
-            <QuietButton
+            <Button
+              variant="ghost"
+              className="min-w-11"
               onClick={() => scroll(-1)}
               aria-label={t("agentsBrowse.previous")}
             >
-              <span aria-hidden="true">←</span>
-            </QuietButton>
-            <QuietButton
+              <ChevronLeft aria-hidden="true" />
+            </Button>
+            <Button
+              variant="ghost"
+              className="min-w-11"
               onClick={() => scroll(1)}
               aria-label={t("agentsBrowse.next")}
             >
-              <span aria-hidden="true">→</span>
-            </QuietButton>
+              <ChevronRight aria-hidden="true" />
+            </Button>
           </div>
         )}
       </header>
@@ -163,7 +170,7 @@ export function AgentsBrowse({
         aria-label={t("agentsBrowse.title")}
         // A scrollable region is reachable from the keyboard: arrow keys scroll it.
         tabIndex={0}
-        className="focus-visible:outline-ring -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 focus-visible:outline-2 focus-visible:-outline-offset-2"
+        className="focus-visible:outline-ring -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-2 overflow-x-auto px-4 pb-2 focus-visible:outline-2 focus-visible:-outline-offset-2"
       >
         {agents.map((agent) => (
           <AgentCard
@@ -171,7 +178,7 @@ export function AgentsBrowse({
             agent={agent}
             price={credits(agent.credits)}
             locale={locale}
-            sending={sending?.id === agent.id ? sending.state : undefined}
+            busy={sending?.id === agent.id && sending.state === "sending"}
             onHire={
               canHire && isPlainReference(agent.id)
                 ? () => askToHire(agent.id)
@@ -191,9 +198,9 @@ export function AgentsBrowse({
       </p>
 
       {seeAll && (
-        <QuietButton onClick={seeAll} className="-mx-3 self-start">
+        <Button variant="ghost" onClick={seeAll} className="-mx-3 self-start">
           {t("agentsBrowse.seeAll")}
-        </QuietButton>
+        </Button>
       )}
     </article>
   );
@@ -203,14 +210,15 @@ function AgentCard({
   agent,
   price,
   locale,
-  sending,
+  busy,
   onHire,
   disabled,
 }: {
   agent: ListedAgent;
   price: string;
   locale?: string;
-  sending?: Sending["state"];
+  /** Its message is on the way to the host. */
+  busy: boolean;
   onHire?: () => void;
   disabled: boolean;
 }) {
@@ -220,34 +228,31 @@ function AgentCard({
     ratings?.average != null && ratings.total > 0
       ? formatNumber(Math.round(ratings.average * 10) / 10, locale)
       : undefined;
-  const sent = sending === "sent";
 
   return (
     <li
       aria-labelledby={nameId}
-      className="border-border flex w-64 shrink-0 snap-start flex-col gap-3 rounded-lg border p-4"
+      className="bg-background border-border flex w-64 shrink-0 snap-start flex-col gap-3 rounded-lg border p-4"
     >
-      <div className="flex items-start gap-3">
+      <div className="flex min-w-0 items-center gap-3">
         <span
           aria-hidden="true"
-          className="bg-accent text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-medium"
+          className="border-border bg-card-background flex size-10 shrink-0 items-center justify-center rounded-lg border"
         >
-          {initials(agent.name)}
+          <Bot className="text-muted-foreground size-5" />
         </span>
-        <h2
-          id={nameId}
-          className="line-clamp-2 min-w-0 pt-0.5 font-medium break-words"
-        >
+        <h2 id={nameId} className="min-w-0 truncate font-medium">
           {agent.name}
         </h2>
       </div>
-      <p className="text-muted-foreground line-clamp-3 flex-1 text-sm break-words">
+      <p className="text-muted-foreground line-clamp-2 flex-1 text-sm break-words">
         {agent.summary || agent.description}
       </p>
-      <p className="flex items-baseline justify-between gap-3 text-sm">
-        <span className="font-medium tabular-nums">{price}</span>
+      <div className="text-muted-foreground flex min-h-8 items-center justify-between gap-3 text-xs">
+        <Badge>{price}</Badge>
         {average !== undefined && ratings ? (
-          <span className="text-muted-foreground tabular-nums">
+          <span className="inline-flex items-center gap-1 tabular-nums">
+            <Star aria-hidden="true" className="size-3 fill-current" />
             <span aria-hidden="true">
               {t("agentsBrowse.rating", { average, total: ratings.total })}
             </span>
@@ -261,24 +266,21 @@ function AgentCard({
             </span>
           </span>
         ) : (
-          <span className="text-muted-foreground">
-            {t("agentsBrowse.noRatings")}
-          </span>
+          <span>{t("agentsBrowse.noRatings")}</span>
         )}
-      </p>
+      </div>
       {onHire && (
-        <QuietButton
-          onClick={onHire}
-          disabled={disabled || sent}
-          className="border-border w-full border"
-        >
-          {sent
-            ? t("agentsBrowse.sentButton")
-            : sending === "sending"
-              ? t("agentsBrowse.sending")
-              : t("agentsBrowse.hire")}
+        <Button onClick={onHire} disabled={disabled} className="w-full">
+          {busy ? (
+            t("agentsBrowse.sending")
+          ) : (
+            <>
+              <Plus aria-hidden="true" />
+              {t("agentsBrowse.hire")}
+            </>
+          )}
           <span className="sr-only"> {agent.name}</span>
-        </QuietButton>
+        </Button>
       )}
     </li>
   );

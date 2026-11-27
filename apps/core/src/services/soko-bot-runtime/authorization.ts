@@ -12,6 +12,10 @@ import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
+import {
+  DetachedNetworkRefusal,
+  detachedNetworkScope,
+} from "@/lib/soko-bot/detached-network";
 import { isStoredMeetingPrep } from "@/lib/soko-bot/system-routes";
 import {
   type SokoBotWriteTargets,
@@ -51,6 +55,8 @@ export async function authorize(
     where: { id: input.turnId },
     select: {
       id: true,
+      network: true,
+      preprodGeneration: true,
       clientTurnId: true,
       sokoBotId: true,
       requestedByUserId: true,
@@ -101,6 +107,24 @@ export async function authorize(
   if (turn.sokoBot.status === "PAUSED" || turn.sokoBot.adminPausedAt) {
     throw new SokoBotRuntimeAuthorizationError("Soko Bot is paused");
   }
+  if (
+    turn.network === "preprod" &&
+    turn.eveSessionId !== null &&
+    turn.eveSessionId !== input.sessionId
+  ) {
+    throw new SokoBotRuntimeAuthorizationError("Runtime session mismatch");
+  }
+  const scope = await detachedNetworkScope(turn).catch(
+    async (error: unknown) => {
+      if (error instanceof DetachedNetworkRefusal && error.final) {
+        const { sokoBotControlPlane } = await import(
+          "../soko-bot-control-plane.service"
+        );
+        await sokoBotControlPlane.finishStaleTurn(turn.id);
+      }
+      throw error;
+    },
+  );
   const now = await databaseNow();
   if (
     turn.deadlineAt <= now ||
@@ -233,6 +257,7 @@ export async function authorize(
   }
 
   return {
+    scope,
     grant,
     ...(meetingPrep ? { meetingPrep: true as const } : {}),
     toolCallLimit: sokoBotToolCallLimit(turn),
@@ -251,6 +276,7 @@ export async function authorize(
       versionId: turn.versionId,
       modelId: turn.modelId,
       source: turn.source,
+      clientTurnId: turn.clientTurnId,
       chainDepth: turn.chainDepth,
       intentId: turn.intentId,
       intentRevision: turn.intentRevision,

@@ -59,8 +59,11 @@ export async function resendRoomMessageEmail(
       if (!messageParams || (row.metadata !== null && metadata === null))
         return;
       const delivery = await resolveDelivery({
-        ...row,
-        workspaceId: row.workspaceId ?? undefined,
+        userId: row.userId,
+        kind: row.kind,
+        referenceId: row.referenceId,
+        eventId: row.eventId,
+        messageKey: row.messageKey,
         messageParams,
         metadata,
       });

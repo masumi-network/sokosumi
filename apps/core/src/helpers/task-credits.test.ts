@@ -6,7 +6,11 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
+import {
+  createRefusedNetworkScope,
+  type NetworkScope,
+  type SharedDb,
+} from "@/lib/db/network-scope";
 
 import {
   createTaskEventTransaction,
@@ -60,7 +64,13 @@ describe("createTaskEventTransaction", () => {
     );
     expect(recordSpend).toHaveBeenCalledExactlyOnceWith(
       "preprod",
-      { userId: "user_1", organizationId: null, cents: 500n, consumptions },
+      {
+        userId: "user_1",
+        organizationId: null,
+        cents: 500n,
+        consumptions,
+        createdAt: expect.any(Date),
+      },
       tx,
     );
   });
@@ -89,12 +99,23 @@ describe("createTaskEventTransaction", () => {
     );
     expect(recordSpend).toHaveBeenCalledExactlyOnceWith(
       "preprod",
-      { userId: "user_1", organizationId: "org_1", cents: 500n, consumptions },
+      {
+        userId: "user_1",
+        organizationId: "org_1",
+        cents: 500n,
+        consumptions,
+        createdAt: expect.any(Date),
+      },
       tx,
     );
   });
 
-  it("records an empty user or Organization id as none", async () => {
+  it("reads and records an empty user or Organization id as none", async () => {
+    // Changed with the move into the credits module (decided 2026-11-27): an
+    // empty id is now none for the bucket choice too, not only for the debit,
+    // because `spend` takes one payer for both. No user, Organization,
+    // transaction or bucket has an empty id (measured on production), so only
+    // an id no row has reads differently than on `origin/main`.
     const consumptions = [{ bucketId: "bucket_1", amount: 500n }];
     prepareConsumption.mockResolvedValue(consumptions);
 
@@ -106,9 +127,23 @@ describe("createTaskEventTransaction", () => {
       tx,
     });
 
+    expect(prepareConsumption).toHaveBeenCalledExactlyOnceWith(
+      "preprod",
+      null,
+      null,
+      500n,
+      tx,
+      { projectId: null },
+    );
     expect(recordSpend).toHaveBeenCalledExactlyOnceWith(
       "preprod",
-      { userId: null, organizationId: null, cents: 500n, consumptions },
+      {
+        userId: null,
+        organizationId: null,
+        cents: 500n,
+        consumptions,
+        createdAt: expect.any(Date),
+      },
       tx,
     );
   });
@@ -172,6 +207,80 @@ describe("createTaskEventTransaction", () => {
     } satisfies Pick<HTTPException, "status" | "message" | "cause">);
 
     expect(recordSpend).not.toHaveBeenCalled();
+  });
+
+  it("answers any other failure of the bucket choice with a plain 422", async () => {
+    const failure = new Error("could not serialize access");
+    prepareConsumption.mockRejectedValue(failure);
+
+    const thrown = await createTaskEventTransaction({
+      userId: "user_1",
+      organizationId: null,
+      cents: 500n,
+      scope,
+      tx,
+    }).catch((error: unknown) => error);
+
+    expect(thrown).toBeInstanceOf(HTTPException);
+    expect(thrown).toMatchObject({
+      status: 422,
+      message: "could not serialize access",
+    });
+    expect(isInsufficientBalanceError(thrown)).toBe(false);
+    expect(recordSpend).not.toHaveBeenCalled();
+  });
+
+  it("answers a scope that refuses its Network with a plain 422", async () => {
+    const refusing = createRefusedNetworkScope(
+      new HTTPException(403, { message: "Preprod is switched off" }),
+    );
+
+    await expect(
+      createTaskEventTransaction({
+        userId: "user_1",
+        organizationId: null,
+        cents: 500n,
+        scope: refusing,
+        tx,
+      }),
+    ).rejects.toMatchObject({
+      status: 422,
+      message: "Preprod is switched off",
+    });
+    expect(prepareConsumption).not.toHaveBeenCalled();
+    expect(recordSpend).not.toHaveBeenCalled();
+  });
+
+  it("passes a value thrown by the bucket choice that is no Error", async () => {
+    prepareConsumption.mockRejectedValue("not an error");
+
+    await expect(
+      createTaskEventTransaction({
+        userId: "user_1",
+        organizationId: null,
+        cents: 500n,
+        scope,
+        tx,
+      }),
+    ).rejects.toBe("not an error");
+  });
+
+  it("passes a failed write as it is", async () => {
+    prepareConsumption.mockResolvedValue([
+      { bucketId: "bucket_1", amount: 500n },
+    ]);
+    const failure = new Error("write failed");
+    recordSpend.mockRejectedValue(failure);
+
+    await expect(
+      createTaskEventTransaction({
+        userId: "user_1",
+        organizationId: null,
+        cents: 500n,
+        scope,
+        tx,
+      }),
+    ).rejects.toBe(failure);
   });
 
   it("detects insufficient-balance errors by kind", () => {

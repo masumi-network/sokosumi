@@ -8,7 +8,8 @@ export type DriveFilePreviewTextState =
   | { kind: "failed" };
 
 /**
- * Loads plain-text or Markdown bytes for `DriveFilePreview` from the authorized
+ * Loads plain-text or Markdown bytes for `DriveFilePreview` and a folder's
+ * README card (`DriveFolderReadme`) from the authorized
  * content proxy when the file qualifies for inline text rendering.
  */
 export function useDriveFilePreviewText(

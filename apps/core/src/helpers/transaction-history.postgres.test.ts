@@ -24,6 +24,7 @@ import { testSchemaNames } from "@/test/split-layout";
 import {
   type BuildTransactionHistoryParams,
   countTransactionHistory,
+  findTransactionDailySpend,
   findTransactionHistoryPage,
   mapTransactionHistoryRow,
   sumTransactionHistory,
@@ -399,6 +400,34 @@ async function findRefundItem(tx: Tx, refundId: string) {
 }
 
 describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
+  it.each(["UTC", "Europe/Berlin", "America/New_York"])(
+    "groups spending by UTC day in %s",
+    async (zone) => {
+      await withSeededLedger(async (tx) => {
+        await tx.$queryRaw`SELECT set_config('TimeZone', ${zone}, true)`;
+        await tx.$executeRaw`
+          INSERT INTO ${netTable("mainnet", "Transaction")} (id, "createdAt", "updatedAt", amount, "userId")
+          VALUES
+            ('tx-day-before', TIMESTAMP '2026-07-27 23:59:59.999', TIMESTAMP '2026-07-27 23:59:59.999', ${-CREDIT}, ${USER_ID}),
+            ('tx-day-after', TIMESTAMP '2026-07-28 00:00:00.000', TIMESTAMP '2026-07-28 00:00:00.000', ${-2n * CREDIT}, ${USER_ID})
+        `;
+        expect(
+          await findTransactionDailySpend(
+            {
+              ...personalScope,
+              from: new Date("2026-07-27T00:00:00.000Z"),
+              to: new Date("2026-07-29T00:00:00.000Z"),
+            },
+            tx,
+          ),
+        ).toEqual([
+          { date: "2026-07-27", credits: 1 },
+          { date: "2026-07-28", credits: 2 },
+        ]);
+      });
+    },
+  );
+
   it("reads an empty ledger in the configured schemas", async () => {
     if (!db) throw new Error("Missing integration database");
     expect(await countTransactionHistory(personalScope, db)).toBe(0);

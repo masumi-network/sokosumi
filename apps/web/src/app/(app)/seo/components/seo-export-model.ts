@@ -62,14 +62,11 @@ export function seoTopPagesExport(
   t: Label,
   keyEvents: ReturnType<typeof seoKeyEvents> = null,
 ): SeoExport {
-  const keyEventsCell = (pageUrl: string): SeoCsvCell[] =>
-    keyEvents
-      ? [
-          keyEvents.skipped.has(pageUrl)
-            ? t("traffic.keyEventsNotRead")
-            : (keyEvents.byPage.get(pageUrl) ?? null),
-        ]
-      : [];
+  const keyEventsCell = (pageUrl: string): SeoCsvCell[] => {
+    if (!keyEvents) return [];
+    const value = keyEvents.cell(pageUrl);
+    return [typeof value === "number" ? value : t(value)];
+  };
   return {
     header: [
       t("page"),
@@ -80,7 +77,7 @@ export function seoTopPagesExport(
       t("pages.queryCount"),
       ...(keyEvents
         ? [
-            `${t(keyEvents.label)} ${keyEvents.period.from}/${keyEvents.period.to}`,
+            `${t("traffic.keyEvents")} ${keyEvents.period.from}/${keyEvents.period.to}`,
           ]
         : []),
       t("pages.topQuery"),
@@ -216,6 +213,9 @@ export function seoActionsExport(
   });
   const hasReviews = actions.some((action) => action.followUpReview);
   const hasDecisions = actions.some((action) => action.decision);
+  const draftOf = (action: ProjectSeoAction) =>
+    action.bodyDraft && "after" in action.bodyDraft ? action.bodyDraft : null;
+  const hasDrafts = actions.some(draftOf);
   return {
     header: [
       t("export.action"),
@@ -227,6 +227,13 @@ export function seoActionsExport(
       t("actions.effect"),
       t("actions.before"),
       t("actions.after"),
+      ...(hasDrafts
+        ? [
+            t("actions.draftBefore"),
+            t("actions.draftAfter"),
+            t("analysis.devices"),
+          ]
+        : []),
       ...(hasReviews ? [t("actions.reviewAgain")] : []),
       ...(hasDecisions
         ? [
@@ -246,6 +253,16 @@ export function seoActionsExport(
       action.decision ? null : action.expectedEffect,
       action.edit?.before ?? null,
       action.edit?.after ?? null,
+      ...(hasDrafts
+        ? [
+            draftOf(action)?.before ?? null,
+            draftOf(action)?.after ?? null,
+            // A draft for one device must not be pasted into the other device's page.
+            draftOf(action)
+              ?.devices.map((device) => t("timeline.device", { device }))
+              .join(", ") ?? null,
+          ]
+        : []),
       ...(hasReviews
         ? [
             action.followUpReview

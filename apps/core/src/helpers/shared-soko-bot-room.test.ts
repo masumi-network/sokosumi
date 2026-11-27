@@ -8,7 +8,7 @@ import {
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 
-function clientWith(bot: { id: string } | null) {
+function clientWith(bot: { id: string; deletedAt?: Date | null } | null) {
   return { sokoBot: { findUnique: vi.fn(async () => bot) } };
 }
 
@@ -21,7 +21,7 @@ describe("assertNotSharedSokoBotRoom", () => {
     ).resolves.toBeUndefined();
     expect(client.sokoBot.findUnique).toHaveBeenCalledWith({
       where: { sharedRoomId: ROOM_ID },
-      select: { id: true },
+      select: { id: true, deletedAt: true },
     });
   });
 
@@ -35,12 +35,39 @@ describe("assertNotSharedSokoBotRoom", () => {
       const error = await assertNotSharedSokoBotRoom(
         ROOM_ID,
         change,
-        clientWith({ id: "bot" }) as never,
+        clientWith({ id: "bot", deletedAt: null }) as never,
       ).catch((caught: unknown) => caught);
 
       expect(error).toBeInstanceOf(HTTPException);
       expect((error as HTTPException).status).toBe(400);
       expect((error as HTTPException).message).toMatch(message);
+    },
+  );
+
+  // SOKD-487: a deleted bot can't come back, so its room is an ordinary archive.
+  it.each(["archive", "delete"] as const)(
+    "lets an owner %s the room of a deleted shared bot",
+    async (change) => {
+      await expect(
+        assertNotSharedSokoBotRoom(
+          ROOM_ID,
+          change,
+          clientWith({ id: "bot", deletedAt: new Date() }) as never,
+        ),
+      ).resolves.toBeUndefined();
+    },
+  );
+
+  it.each(["external", "private"] as const)(
+    "still refuses to make a deleted shared bot's room %s",
+    async (change) => {
+      await expect(
+        assertNotSharedSokoBotRoom(
+          ROOM_ID,
+          change,
+          clientWith({ id: "bot", deletedAt: new Date() }) as never,
+        ),
+      ).rejects.toBeInstanceOf(HTTPException);
     },
   );
 });

@@ -290,7 +290,13 @@ describe("notification emails", () => {
   });
 
   it("has a sentence for every update reason, including the fallback", async () => {
-    const reasons = ["canceled", "failed", "updated"] as const;
+    const reasons = [
+      "canceled",
+      "failed",
+      "seoMonitorWorse",
+      "seoMonitorClicksDrop",
+      "updated",
+    ] as const;
 
     for (const reason of reasons) {
       const rendered = await renderTaskUpdateEmail({
@@ -325,6 +331,46 @@ describe("notification emails", () => {
     expect(rendered.html).toContain(TASK_URL);
   });
 
+  it("names the site and what got worse in an SEO monitor email", async () => {
+    const rendered = await renderTaskUpdateEmail({
+      actionUrl: TASK_URL,
+      drops: 2,
+      locale: "en",
+      lostCitations: 4,
+      newFailures: 3,
+      reason: "seoMonitorWorse",
+      recipientName: "Sandro",
+      site: "shop.example",
+      taskName: "Weekly SEO check",
+    });
+
+    expect(rendered.subject).toBe(
+      "Sokosumi - SEO results for shop.example got worse",
+    );
+    expect(rendered.html).toContain("New failing checks: 3.");
+    expect(rendered.html).toContain("Ranking drops: 2.");
+    expect(rendered.html).toContain("Lost AI Overview citations: 4.");
+    expect(rendered.html).toContain("shop.example (Weekly SEO check)");
+  });
+
+  it("gives both click counts in a Search Console clicks email", async () => {
+    const rendered = await renderTaskUpdateEmail({
+      actionUrl: TASK_URL,
+      clicksFrom: 120,
+      clicksTo: 60,
+      locale: "en",
+      reason: "seoMonitorClicksDrop",
+      recipientName: "Sandro",
+      site: "shop.example",
+      taskName: "Weekly SEO check",
+    });
+
+    expect(rendered.subject).toBe(
+      "Sokosumi - Search Console clicks for shop.example fell",
+    );
+    expect(rendered.html).toContain("fell from 120 to 60 against");
+  });
+
   it("writes the new emails in the locale they are given", async () => {
     const germanRoom = await renderChatRoomMessageEmail({
       actionUrl: ROOM_URL,
@@ -352,7 +398,14 @@ describe("calendar email templates", () => {
   it.each(["en", "de", "es"])(
     "renders every update template in %s",
     async (locale) => {
-      const reasons = ["failed", "canceled", "updated"] as const;
+      const reasons = [
+        "failed",
+        "canceled",
+        "seoMonitorWorse",
+        "seoMonitorClicksDrop",
+        "updated",
+      ] as const;
+
       for (const reason of reasons) {
         const email = await renderTaskUpdateEmail({
           actionUrl: TASK_URL,

@@ -132,7 +132,7 @@ export async function writeVersionChunks(input: {
         id, "createdAt", "versionId", "chunkId", ordinal, anchor, text,
         "evidenceScopeId", "scopeVersion", "inputDigest", search_vector
       ) VALUES (
-        gen_random_uuid(), now(), ${input.versionId}::uuid, ${chunk.chunkId},
+        gen_random_uuid(), now() AT TIME ZONE 'UTC', ${input.versionId}::uuid, ${chunk.chunkId},
         ${chunk.ordinal}, ${JSON.stringify(chunk.anchor)}::jsonb, ${chunk.text},
         ${input.evidenceScopeId}::uuid, ${input.scopeVersion},
         ${chunk.inputDigest}, to_tsvector('simple', ${chunk.text})

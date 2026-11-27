@@ -100,6 +100,13 @@ export function normalizeGscQueries(
 
 /** Search Console refuses a filter expression longer than this. */
 export const GSC_FILTER_EXPRESSION_LIMIT = 4096;
+/**
+ * Keywords in one read. 25 keywords over 366 days give 9,150 rows when Google returns one spelling of each.
+ * Each other spelling of a keyword adds rows, so a read can still reach the 10,000 row limit. It then says so.
+ */
+export const SEO_KEYWORD_SERIES_READ_KEYWORDS = 25;
+/** Search Console reads per sync for tracked keyword days. */
+export const SEO_KEYWORD_SERIES_MAX_READS = 4;
 const KEYWORD_SERIES_DIMENSIONS = ["date", "query"];
 const PRIORITY_RANK = { high: 0, medium: 1, low: 2 } as const;
 const gscKeywordSeriesReportSchema = z.object({
@@ -149,9 +156,11 @@ function keywordExpression(keywords: string[]): string {
  * The reader's own choices come first, so the keywords a check tracks from the
  * start never take their place; then priority, then the keywords a check set out
  * to read, then key. Only the reader's own keywords are named as left out.
- * At most 25 fit, in at most 3 countries, each
- * country's set within the filter expression limit. A country Search Console
- * cannot name is left out.
+ * At most 50 fit, in at most 3 countries. One read holds at most 25 keywords
+ * of one country, within the filter expression limit. A keyword goes to the
+ * first read of its country with room; a country with more keywords gets
+ * another read, up to 4 reads per sync. A country Search Console cannot name
+ * is left out.
  */
 export function selectTrackedKeywords(keywords: TrackedKeyword[]): {
   groups: TrackedKeywordGroup[];
@@ -187,32 +196,62 @@ export function selectTrackedKeywords(keywords: TrackedKeyword[]): {
       a.rank - b.rank ||
       Number(b.focus) - Number(a.focus) ||
       a.key.localeCompare(b.key) ||
-      a.countryCode.localeCompare(b.countryCode),
+      a.countryCode.localeCompare(b.countryCode) ||
+      // Two keys can compare as equal in the locale. The code units decide then, not the input order.
+      Number(a.key > b.key) - Number(a.key < b.key),
   );
-  const groups = new Map<string, string[]>();
+  const groups = new Map<string, string[][]>();
   const leftOut: string[] = [];
   let chosen = 0;
+  let reads = 0;
   for (const { key, countryCode, own } of ordered) {
-    const group = groups.get(countryCode) ?? [];
-    if (
+    const chunks = groups.get(countryCode) ?? [];
+    const fits = (chunk: string[]) =>
+      chunk.length < SEO_KEYWORD_SERIES_READ_KEYWORDS &&
+      keywordExpression([...chunk, key]).length <= GSC_FILTER_EXPRESSION_LIMIT;
+    const open =
       chosen < SEO_KEYWORD_SERIES_MAX_KEYWORDS &&
       gscCountry(countryCode) &&
       (groups.has(countryCode) ||
-        groups.size < SEO_KEYWORD_SERIES_MAX_COUNTRIES) &&
-      keywordExpression([...group, key]).length <= GSC_FILTER_EXPRESSION_LIMIT
-    ) {
-      group.push(key);
-      groups.set(countryCode, group);
+        groups.size < SEO_KEYWORD_SERIES_MAX_COUNTRIES);
+    let chunk = open ? chunks.find(fits) : undefined;
+    if (open && !chunk && reads < SEO_KEYWORD_SERIES_MAX_READS && fits([])) {
+      chunk = [];
+      chunks.push(chunk);
+      reads++;
+    }
+    if (chunk) {
+      chunk.push(key);
+      groups.set(countryCode, chunks);
       chosen++;
       // A note that names keywords the reader never chose would be noise on every sync.
     } else if (own) leftOut.push(`${key} (${countryCode})`);
   }
   return {
-    groups: [...groups].map(([countryCode, chosenKeys]) => ({
-      countryCode,
-      keywords: chosenKeys,
-    })),
+    groups: [...groups].flatMap(([countryCode, chunks]) =>
+      chunks.map((chosenKeys) => ({ countryCode, keywords: chosenKeys })),
+    ),
     leftOut,
+  };
+}
+
+/** A build from before 50 keywords refuses a stored series of more than 25: it fails the whole workspace. */
+const STORED_SERIES_KEYWORDS = 25;
+
+/**
+ * The series as a sync stores it. The keywords past the first 25 go under a key of their own, so an older
+ * build skips that sync as unknown keys, and shows the syncs before it.
+ */
+export function storedKeywordSeries(
+  series: NativeKeywordSeries,
+): Pick<NativeSeoMetrics, "keywordSeries" | "keywordSeriesMore"> {
+  const more = series.keywords.slice(STORED_SERIES_KEYWORDS);
+  return {
+    keywordSeries: {
+      ...series,
+      keywords: series.keywords.slice(0, STORED_SERIES_KEYWORDS),
+    },
+    ...(more.length && { keywordSeriesMore: more }),
   };
 }
 
@@ -257,7 +296,9 @@ export function gscKeywordSeriesArguments(
 /**
  * Validates one date/query response against the requested scope. A malformed
  * grouping, a date outside the period, a query outside the requested keywords
- * or a duplicate row refuses the whole read. Case and spacing variants of one
+ * or a duplicate row refuses the whole read. The filter ignores case, so it
+ * also returns a query that differs from a keyword by case folding only ("ος"
+ * for "οσ"). That query is another keyword: its rows are left out. Case and spacing variants of one
  * keyword merge per day: clicks and impressions add up, position is weighted
  * by impressions and is null when there are none.
  */
@@ -277,6 +318,10 @@ export function normalizeGscKeywordSeries(
       >(),
     ]),
   );
+  const filters = [...days.keys()].map(
+    (keyword) =>
+      new RegExp(`^${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "iu"),
+  );
   const seen = new Set<string>();
   for (const row of report.rows) {
     if (row.keys.length !== KEYWORD_SERIES_DIMENSIONS.length)
@@ -285,8 +330,13 @@ export function normalizeGscKeywordSeries(
     if (!withinPeriod(date, query))
       throw new Error("Search Console returned a date outside the period");
     const byDate = days.get(normalizeSeoQuery(text));
-    if (!byDate)
+    if (!byDate) {
+      // Search Console matched the text as written: normalizing can compose it out of the match ("α\u0345" to "ᾳ").
+      const forms = [text, normalizeSeoQuery(text)];
+      if (filters.some((filter) => forms.some((form) => filter.test(form))))
+        continue;
       throw new Error("Search Console returned a query outside the keywords");
+    }
     const identity = JSON.stringify([date, text]);
     if (seen.has(identity))
       throw new Error("Search Console returned a duplicate keyword row");

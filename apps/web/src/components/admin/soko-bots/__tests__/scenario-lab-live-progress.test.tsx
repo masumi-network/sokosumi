@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { withNuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TestQueryProvider } from "@/test/query-provider";
 
 const {
@@ -57,7 +57,7 @@ const VERSIONS: SokoBotVersion[] = [
   },
 ];
 
-function turn(status: string, toolCalls: unknown[]) {
+function turn(status: string, toolCalls: unknown[] = []) {
   return {
     id: "turn_1",
     status,
@@ -81,98 +81,117 @@ function makeWrapper() {
   };
 }
 
+// A run asleep between two polls, a batch and a pending fetch all outlive a
+// test that ends first, and then set state on a torn-down environment. So
+// every test finishes what it starts: `finish()` lets the turn complete and
+// the clock run until nothing is waiting.
+let turnStatus = "RUNNING";
+let turnToolCalls: (url: string) => unknown[] = () => [];
+
+function stubTurnFetch() {
+  const fetchMock = vi.fn(async (url: string) =>
+    Response.json({ turn: turn(turnStatus, turnToolCalls(url)) }),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+async function flush(ms = 0) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms);
+  });
+}
+
+async function finish() {
+  turnStatus = "COMPLETED";
+  for (let i = 0; i < 10 && vi.getTimerCount() > 0; i++) await flush(5_000);
+}
+
+function renderLab() {
+  return render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
+    wrapper: makeWrapper(),
+  });
+}
+
+async function clickRun(name: string, index = 0) {
+  await flush();
+  const buttons = screen.getAllByRole("button", { name });
+  fireEvent.click(buttons[index] as HTMLElement);
+  await flush();
+}
+
 describe("ScenarioLab live progress", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    turnStatus = "RUNNING";
+    turnToolCalls = () => [];
     listRunsMock.mockResolvedValue({ ok: true, value: [] });
     setVersionMock.mockResolvedValue({ ok: true, value: { id: "bot" } });
     judgeMock.mockResolvedValue({ ok: true, value: {} });
+    startTurnMock.mockResolvedValue({ ok: true, value: { turnId: "turn_1" } });
+  });
+
+  afterEach(() => {
+    // The rule these tests follow: nothing is left asleep at the end.
+    const pending = vi.getTimerCount();
+    vi.useRealTimers();
+    expect(pending).toBe(0);
   });
 
   it("shows the step the assistant is on while the turn runs", async () => {
-    startTurnMock.mockResolvedValue({ ok: true, value: { turnId: "turn_1" } });
-    // Two polls: still running with one finished call and one in flight, then
-    // settled. The first is what a reader used to have no way of seeing.
-    const running = turn("RUNNING", [
+    // Still running with one finished call and one in flight: what a reader
+    // used to have no way of seeing.
+    turnToolCalls = () => [
       { id: "c1", capability: "create_task", status: "COMPLETED" },
       { id: "c2", capability: "create_schedule", status: "RUNNING" },
-    ]);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => ({ turn: running }),
-      })),
-    );
-
-    render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
-      wrapper: makeWrapper(),
-    });
+    ];
+    stubTurnFetch();
+    const { unmount } = renderLab();
 
     // Exactly "run": the page also has runAll and runAllVersions, and the
     // first scenario is a plain prompt rather than a simulated trigger.
-    const runButtons = await screen.findAllByRole("button", { name: "run" });
-    fireEvent.click(runButtons[0] as HTMLElement);
+    await clickRun("run");
 
-    await waitFor(() =>
-      expect(screen.getByText("create_schedule")).toBeInTheDocument(),
-    );
+    expect(screen.getByText("create_schedule")).toBeInTheDocument();
     expect(screen.getByText("create_task")).toBeInTheDocument();
     // The route it took, without opening the turn.
     expect(screen.getByText("liveRoute")).toBeInTheDocument();
+    await finish();
+    unmount();
   });
 
   it("shows the failed step's diagnostic from the admin turn read", async () => {
-    startTurnMock.mockResolvedValue({ ok: true, value: { turnId: "turn_1" } });
     const adminUrl = "/api/admin/soko-bots/turns/turn_1";
     const diagnostic = "Provider rejected the tool call (HTTP 429)";
-    const fetchMock = vi.fn(async (url: string) =>
-      Response.json({
-        turn: turn("RUNNING", [
-          {
-            id: "call-1",
-            capability: "read_email",
-            status: "FAILED",
-            errorDetail: url === adminUrl ? diagnostic : null,
-          },
-        ]),
-      }),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-    render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
-      wrapper: makeWrapper(),
-    });
-    const [runButton] = await screen.findAllByRole("button", { name: "run" });
-    fireEvent.click(runButton);
+    turnToolCalls = (url) => [
+      {
+        id: "call-1",
+        capability: "read_email",
+        status: "FAILED",
+        errorDetail: url === adminUrl ? diagnostic : null,
+      },
+    ];
+    const fetchMock = stubTurnFetch();
+    const { unmount } = renderLab();
+    await clickRun("run");
 
-    await screen.findByText("read_email");
+    expect(screen.getByText("read_email")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(adminUrl, expect.anything());
     expect(screen.getByText(diagnostic)).toBeInTheDocument();
+    await finish();
+    unmount();
   });
 
   it("stops polling the turn once the lab closes", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout"] });
-    startTurnMock.mockResolvedValue({ ok: true, value: { turnId: "turn_1" } });
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ turn: turn("RUNNING", []) }),
-    }));
-    vi.stubGlobal("fetch", fetchMock);
-    try {
-      const { unmount } = render(
-        <ScenarioLab versionId="v11" versions={VERSIONS} />,
-        { wrapper: makeWrapper() },
-      );
-      const runButtons = await screen.findAllByRole("button", { name: "run" });
-      fireEvent.click(runButtons[0] as HTMLElement);
-      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const fetchMock = stubTurnFetch();
+    const { unmount } = renderLab();
+    await clickRun("run");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
-      unmount();
-      await vi.advanceTimersByTimeAsync(5_000);
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-    } finally {
-      vi.useRealTimers();
-    }
+    unmount();
+    await flush(5_000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it.each([
@@ -181,34 +200,18 @@ describe("ScenarioLab live progress", () => {
   ])(
     "starts nothing more of a %s batch once the lab closes",
     async (button, versionChanges) => {
-      vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout"] });
-      startTurnMock.mockResolvedValue({
-        ok: true,
-        value: { turnId: "turn_1" },
-      });
-      const fetchMock = vi.fn(async () => ({
-        ok: true,
-        json: async () => ({ turn: turn("RUNNING", []) }),
-      }));
-      vi.stubGlobal("fetch", fetchMock);
-      try {
-        const { unmount } = render(
-          <ScenarioLab versionId="v11" versions={VERSIONS} />,
-          { wrapper: makeWrapper() },
-        );
-        fireEvent.click(await screen.findByRole("button", { name: button }));
-        await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      const fetchMock = stubTurnFetch();
+      const { unmount } = renderLab();
+      await clickRun(button);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
 
-        unmount();
-        await vi.advanceTimersByTimeAsync(5_000);
-        // Only the first scenario's turn, which was running when the lab closed.
-        expect(startTurnMock).toHaveBeenCalledTimes(1);
-        expect(simulateMock).not.toHaveBeenCalled();
-        expect(ingestMock).not.toHaveBeenCalled();
-        expect(setVersionMock).toHaveBeenCalledTimes(versionChanges);
-      } finally {
-        vi.useRealTimers();
-      }
+      unmount();
+      await flush(5_000);
+      // Only the first scenario's turn, which was running when the lab closed.
+      expect(startTurnMock).toHaveBeenCalledTimes(1);
+      expect(simulateMock).not.toHaveBeenCalled();
+      expect(ingestMock).not.toHaveBeenCalled();
+      expect(setVersionMock).toHaveBeenCalledTimes(versionChanges);
     },
   );
 
@@ -231,26 +234,12 @@ describe("ScenarioLab live progress", () => {
         },
       ],
     });
-    startTurnMock.mockResolvedValue({ ok: true, value: { turnId: "turn_1" } });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => ({ turn: turn("RUNNING", []) }),
-      })),
-    );
+    stubTurnFetch();
+    const { unmount } = renderLab();
+    await clickRun("run");
 
-    render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
-      wrapper: makeWrapper(),
-    });
-
-    // Exactly "run": the page also has runAll and runAllVersions, and the
-    // first scenario is a plain prompt rather than a simulated trigger.
-    const runButtons = await screen.findAllByRole("button", { name: "run" });
-    fireEvent.click(runButtons[0] as HTMLElement);
-
-    await waitFor(() =>
-      expect(screen.getByText("previousRun")).toBeInTheDocument(),
-    );
+    expect(screen.getByText("previousRun")).toBeInTheDocument();
+    await finish();
+    unmount();
   });
 });

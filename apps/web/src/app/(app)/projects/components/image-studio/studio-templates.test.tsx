@@ -46,6 +46,8 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
 
 const mocks = vi.hoisted(() => ({
   assets: [] as unknown[],
+  uploadFile: vi.fn(),
+  updateBrandAssets: vi.fn(),
   loadBrandKit: vi.fn(),
   saveBrandCopy: vi.fn(),
   saveBrandLook: vi.fn(),
@@ -70,7 +72,23 @@ vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
   saveStudioBrandLook: mocks.saveBrandLook,
   saveStudioLogoPosition: mocks.saveLogoPosition,
   saveStudioWebsiteLogo: mocks.saveWebsiteLogo,
+  updateStudioBrandAssets: mocks.updateBrandAssets,
   uploadStudioProjectLogo: mocks.uploadLogo,
+}));
+
+vi.mock("@/lib/auth/auth.client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/auth/auth.client")>()),
+  authClient: {
+    getSession: async () => ({
+      data: { session: { activeOrganizationId: null } },
+    }),
+  },
+}));
+vi.mock("@/lib/utils/drive-file-upload.client", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/lib/utils/drive-file-upload.client")
+  >()),
+  uploadDriveFile: mocks.uploadFile,
 }));
 
 vi.mock("@/lib/actions/design-md/action", () => ({
@@ -682,6 +700,55 @@ describe("starting from a template", () => {
     });
     expect(tone).toHaveValue("Direct and warm");
     expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
+  });
+
+  it("adds a mascot alongside another brand image and removes just the mascot", async () => {
+    const other = { id: "other", name: "packaging.jpg" };
+    const mascot = { id: "mascot", name: "mascot.png" };
+    mocks.loadBrandKit.mockResolvedValueOnce({
+      assets: [other],
+      logo: null,
+      colors: [],
+      fonts: [],
+      summary: "",
+      tone: "",
+      audience: [],
+      approvedLines: [],
+      version: null,
+    });
+    mocks.uploadFile.mockResolvedValueOnce({ resourceId: mascot.id });
+    mocks.updateBrandAssets
+      .mockResolvedValueOnce([other, mascot])
+      .mockResolvedValueOnce([other]);
+    mount();
+    fireEvent.click(screen.getByRole("button", { name: "brandKit" }));
+    const picker = await screen.findByLabelText("BrandKit.addAsset", {
+      selector: "input",
+    });
+    await waitFor(() => expect(picker).toBeEnabled());
+    fireEvent.change(picker, {
+      target: {
+        files: [new File(["PNG"], mascot.name, { type: "image/png" })],
+      },
+    });
+    await screen.findByText(mascot.name);
+    expect(mocks.updateBrandAssets).toHaveBeenCalledWith({
+      projectId: "p",
+      change: { add: mascot },
+    });
+    const row = screen.getByText(mascot.name).closest("li");
+    if (!row) throw new Error("Missing mascot row");
+    const remove = within(row).getByRole("button");
+    await waitFor(() => expect(remove).toBeEnabled());
+    fireEvent.click(remove);
+    await waitFor(() =>
+      expect(screen.queryByText(mascot.name)).not.toBeInTheDocument(),
+    );
+    expect(mocks.updateBrandAssets).toHaveBeenCalledWith({
+      projectId: "p",
+      change: { remove: mascot.id },
+    });
+    expect(screen.getByText(other.name)).toBeInTheDocument();
   });
 
   it("uploads an approved logo while preserving an unsaved brand copy edit", async () => {

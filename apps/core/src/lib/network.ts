@@ -1,4 +1,5 @@
 import type { TableNetwork } from "@sokosumi/database/sql-tables";
+import { hasAdminRole } from "@sokosumi/utils";
 import { createError } from "evlog";
 
 import { getEnv } from "@/config/env";
@@ -11,6 +12,12 @@ import { getEnv } from "@/config/env";
  */
 export type Network = TableNetwork;
 
+// Detached Soko Bot work runs on Mainnet until tickets 24 and 30 carry provenance.
+export const DETACHED_SOKO_BOT_NETWORK = "mainnet" satisfies Network;
+
+// The job sync runs on Mainnet until ticket 23 gives it the Job's Network.
+export const JOB_SYNC_NETWORK = "mainnet" satisfies Network;
+
 export const NETWORKS = [
   "mainnet",
   "preprod",
@@ -22,6 +29,12 @@ const _everyNetworkListed: Exclude<
 > extends never
   ? true
   : never = true;
+
+/** The Network a payload names in the spelling of the deployment's `NETWORK` (`PaymentSource.network`). */
+export const NETWORK_BY_NAME = {
+  Mainnet: "mainnet",
+  Preprod: "preprod",
+} as const satisfies Record<string, Network>;
 
 /**
  * Returns `value` as a Network, or throws. A missing or unknown Network is an
@@ -50,6 +63,29 @@ export function requireNetwork(value: unknown): Network {
  */
 export function isPreprodOn(): boolean {
   return getEnv().NETWORK_PREPROD_ENABLED;
+}
+
+/**
+ * Whether a user may use Preprod in one Workspace: the one copy of the rule.
+ * Never while Preprod is off. A platform admin always; otherwise the user's
+ * flag decides in their personal Workspace and the Organization's flag in an
+ * Organization Workspace. Reads nothing: the caller brings the flags it
+ * loaded, and has established that the Workspace is the user's own or that
+ * they are a member of its Organization.
+ */
+export function canUsePreprodInWorkspace(
+  user: { preprodEnabled?: boolean },
+  role: string | null | undefined,
+  /** `organization` is null for the personal Workspace. */
+  workspace: { organization: { preprodEnabled?: boolean } | null },
+): boolean {
+  if (!isPreprodOn()) return false;
+  if (hasAdminRole(role)) return true;
+  return (workspace.organization ?? user).preprodEnabled === true;
+}
+
+export function networksThatAreOn(): readonly Network[] {
+  return isPreprodOn() ? NETWORKS : ["mainnet"];
 }
 
 /**

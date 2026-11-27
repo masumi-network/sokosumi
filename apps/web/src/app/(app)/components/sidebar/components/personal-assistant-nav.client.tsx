@@ -5,6 +5,8 @@ import { avatarStateOf } from "@sokosumi/soko-bot";
 import { Bot, Users } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { use } from "react";
+import { SokoBotDirectRowContext } from "@/components/chat/personal-assistant-chrome-store";
 import { useNavPathname } from "@/components/navigation-progress.client";
 import { BotFace } from "@/components/soko-bot/bot-face";
 import { SOKO_BOT_STATUS_TONE } from "@/components/soko-bot/soko-bot-badges";
@@ -62,19 +64,33 @@ export interface SidebarSokoBotLive extends SidebarSokoBotAvatar {
  */
 export default function PersonalAssistantNav({
   bot = null,
+  nested = false,
 }: {
   bot?: SidebarSokoBotLive | null;
+  /**
+   * Inside a section that is already a sidebar group (Direct messages): the
+   * row takes that group's padding, so its slot stays on the Direct rows'.
+   */
+  nested?: boolean;
 }) {
   // Session memory for Instant `/chat` (SOK-903): mount means the row is shown.
   usePersonalAssistantChromeVisible();
+  // Your bot's Direct above stands in: no static row while the bot loads.
+  const standsIn = use(SokoBotDirectRowContext) !== null;
 
+  const menu = (
+    <SidebarMenu className="gap-0">
+      {bot ? (
+        <LiveSokoBotRow bot={bot} />
+      ) : standsIn ? null : (
+        <StaticSokoBotsRow />
+      )}
+    </SidebarMenu>
+  );
+  if (nested) return menu;
   return (
     <SidebarGroup className="w-full">
-      <SidebarGroupContent>
-        <SidebarMenu className="gap-0">
-          {bot ? <LiveSokoBotRow bot={bot} /> : <StaticSokoBotsRow />}
-        </SidebarMenu>
-      </SidebarGroupContent>
+      <SidebarGroupContent>{menu}</SidebarGroupContent>
     </SidebarGroup>
   );
 }
@@ -131,6 +147,9 @@ function LiveSokoBotRow({ bot: rendered }: { bot: SidebarSokoBotLive }) {
   const pathname = useNavPathname();
   const isActive = isPathActive(pathname, SOKO_BOT_ROUTE);
   const isTeamActive = !isActive && isPathActive(pathname, AGENTS_ROUTE);
+
+  // The Direct above is this bot's row now; this one keeps polling for it.
+  if (use(SokoBotDirectRowContext) === bot.id) return null;
 
   return (
     <SidebarMenuItem className="relative">

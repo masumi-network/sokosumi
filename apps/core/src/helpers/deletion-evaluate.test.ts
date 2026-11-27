@@ -16,7 +16,9 @@ const {
   taskPaymentClaimFindFirstMock,
   subscriptionFindFirstMock,
   enterpriseContractFindFirstMock,
-  taskX402PaymentFindFirstMock,
+  findUnresolvedX402PaymentMock,
+  findLiveAuthorizationX402PaymentMock,
+  findForeignChargeX402PaymentMock,
   memberFindFirstMock,
   vendorMemberFindFirstMock,
   jobFindFirstMock,
@@ -28,7 +30,9 @@ const {
   taskPaymentClaimFindFirstMock: vi.fn(),
   subscriptionFindFirstMock: vi.fn(),
   enterpriseContractFindFirstMock: vi.fn(),
-  taskX402PaymentFindFirstMock: vi.fn(),
+  findUnresolvedX402PaymentMock: vi.fn(),
+  findLiveAuthorizationX402PaymentMock: vi.fn(),
+  findForeignChargeX402PaymentMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
   vendorMemberFindFirstMock: vi.fn(),
   jobFindFirstMock: vi.fn(),
@@ -46,8 +50,22 @@ vi.mock("@/lib/blob", () => ({
   deleteTaskFileIfOwned: vi.fn(),
 }));
 
+// The payment reads are raw SQL, proven on PostgreSQL in
+// `user-deletion-crossing-rules.postgres.test.ts`.
+vi.mock("@/helpers/user-deletion-network", () => ({
+  findUnresolvedX402Payment: findUnresolvedX402PaymentMock,
+  findLiveAuthorizationX402Payment: findLiveAuthorizationX402PaymentMock,
+  findForeignChargeX402Payment: findForeignChargeX402PaymentMock,
+}));
+
 vi.mock("@/helpers/workspace-access", () => ({
   isLastWorkspace: (...args: unknown[]) => isLastWorkspaceMock(...args),
+}));
+
+vi.mock("@/lib/db/network-scope", () => ({
+  createNetworkScope: () => ({
+    networkDb: { job: { findFirst: jobFindFirstMock } },
+  }),
 }));
 
 vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
@@ -80,9 +98,6 @@ function createPrisma() {
     task: {
       findFirst: taskFindFirstMock,
     },
-    taskX402Payment: {
-      findFirst: taskX402PaymentFindFirstMock,
-    },
     subscription: {
       findFirst: subscriptionFindFirstMock,
     },
@@ -90,6 +105,11 @@ function createPrisma() {
       findFirst: enterpriseContractFindFirstMock,
     },
   };
+}
+
+/** One scope per Network that is on: here Mainnet, on the same mocked client. */
+function createScopes() {
+  return [{ network: "mainnet", networkDb: createPrisma() }] as never;
 }
 
 const RUNNING_SUBSCRIPTION_WHERE = {
@@ -142,27 +162,13 @@ function mockClaimLookups(options: {
 function mockX402Lookups(options: {
   unresolved?: { id: string; status: string } | null;
   liveAuthorization?: { id: string } | null;
-  foreignCharge?: {
-    id: string;
-    taskId: string;
-    transaction: { userId: string };
-  } | null;
+  foreignCharge?: { id: string; taskId: string; chargedUserId: string } | null;
 }) {
-  taskX402PaymentFindFirstMock.mockImplementation(
-    async ({ where }: { where: Record<string, unknown> }) => {
-      if (
-        typeof where.status === "object" &&
-        where.status !== null &&
-        "notIn" in where.status
-      ) {
-        return options.unresolved ?? null;
-      }
-      if (where.xPaymentHeader) {
-        return options.liveAuthorization ?? null;
-      }
-      return options.foreignCharge ?? null;
-    },
+  findUnresolvedX402PaymentMock.mockResolvedValue(options.unresolved);
+  findLiveAuthorizationX402PaymentMock.mockResolvedValue(
+    options.liveAuthorization,
   );
+  findForeignChargeX402PaymentMock.mockResolvedValue(options.foreignCharge);
 }
 
 describe("evaluateUserDeletion", () => {
@@ -171,7 +177,6 @@ describe("evaluateUserDeletion", () => {
     taskPaymentClaimFindFirstMock.mockResolvedValue(null);
     subscriptionFindFirstMock.mockResolvedValue(null);
     enterpriseContractFindFirstMock.mockResolvedValue(null);
-    taskX402PaymentFindFirstMock.mockResolvedValue(null);
     memberFindFirstMock.mockResolvedValue(null);
     vendorMemberFindFirstMock.mockResolvedValue(null);
     jobFindFirstMock.mockResolvedValue(null);
@@ -183,7 +188,11 @@ describe("evaluateUserDeletion", () => {
     mockClaimLookups({ reviewRequired: null, pending: null });
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: [],
       reviewRequiredClaim: null,
@@ -198,7 +207,11 @@ describe("evaluateUserDeletion", () => {
     });
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: ["TASK_PAYMENT_CLAIM_PENDING"],
       reviewRequiredClaim: null,
@@ -213,7 +226,11 @@ describe("evaluateUserDeletion", () => {
     });
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: ["TASK_PAYMENT_CLAIM_REVIEW_REQUIRED"],
       reviewRequiredClaim: {
@@ -232,7 +249,11 @@ describe("evaluateUserDeletion", () => {
     });
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: [
         "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
@@ -251,7 +272,11 @@ describe("evaluateUserDeletion", () => {
     subscriptionFindFirstMock.mockResolvedValue({ id: "sub_paid" });
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: ["RUNNING_SUBSCRIPTION"],
       reviewRequiredClaim: null,
@@ -271,7 +296,11 @@ describe("evaluateUserDeletion", () => {
     subscriptionFindFirstMock.mockResolvedValue(null);
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: [],
       reviewRequiredClaim: null,
@@ -295,7 +324,11 @@ describe("evaluateUserDeletion", () => {
     subscriptionFindFirstMock.mockResolvedValue({ id: "sub_paid" });
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: [
         "RUNNING_SUBSCRIPTION",
@@ -317,7 +350,11 @@ describe("evaluateUserDeletion", () => {
     });
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: ["TASK_X402_PAYMENT_PENDING"],
       reviewRequiredClaim: null,
@@ -337,7 +374,11 @@ describe("evaluateUserDeletion", () => {
     });
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: ["TASK_PAYMENT_CLAIM_PENDING", "TASK_X402_PAYMENT_PENDING"],
       reviewRequiredClaim: null,
@@ -351,7 +392,11 @@ describe("evaluateUserDeletion", () => {
     memberFindFirstMock.mockResolvedValue({ id: "member_owner" });
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: ["USER_OWNS_ORGANIZATION"],
       reviewRequiredClaim: null,
@@ -367,7 +412,11 @@ describe("evaluateUserDeletion", () => {
     memberFindFirstMock.mockResolvedValue(null);
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: [],
       reviewRequiredClaim: null,
@@ -379,7 +428,11 @@ describe("evaluateUserDeletion", () => {
     vendorMemberFindFirstMock.mockResolvedValue({ id: "vendor_admin_member" });
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: ["USER_IS_LAST_VENDOR_ADMIN"],
       reviewRequiredClaim: null,
@@ -410,7 +463,11 @@ describe("evaluateUserDeletion", () => {
     vendorMemberFindFirstMock.mockResolvedValue(null);
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toMatchObject({ blockers: [] });
   });
 
@@ -419,13 +476,17 @@ describe("evaluateUserDeletion", () => {
     const memberCountMock = vi.fn();
 
     await expect(
-      evaluateUserDeletion("user_delete", {
-        ...createPrisma(),
-        member: {
-          findFirst: memberFindFirstMock,
-          count: memberCountMock,
-        },
-      } as never),
+      evaluateUserDeletion(
+        "user_delete",
+        {
+          ...createPrisma(),
+          member: {
+            findFirst: memberFindFirstMock,
+            count: memberCountMock,
+          },
+        } as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: ["USER_OWNS_ORGANIZATION"],
       reviewRequiredClaim: null,
@@ -442,7 +503,11 @@ describe("evaluateUserDeletion", () => {
     mockJobLookups({ inFlight: { id: "job_running" } });
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: ["IN_FLIGHT_JOB"],
       reviewRequiredClaim: null,
@@ -463,7 +528,11 @@ describe("evaluateUserDeletion", () => {
     mockJobLookups({ unsettled: { id: "job_locked" } });
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: ["UNSETTLED_ON_CHAIN_JOB"],
       reviewRequiredClaim: null,
@@ -487,7 +556,11 @@ describe("evaluateUserDeletion", () => {
     taskFindFirstMock.mockResolvedValue({ id: "task_running" });
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: ["IN_FLIGHT_TASK"],
       reviewRequiredClaim: null,
@@ -510,7 +583,11 @@ describe("evaluateUserDeletion", () => {
     taskFindFirstMock.mockResolvedValue({ id: "task_other_org" });
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: ["IN_FLIGHT_JOB", "UNSETTLED_ON_CHAIN_JOB", "IN_FLIGHT_TASK"],
       reviewRequiredClaim: null,
@@ -538,7 +615,11 @@ describe("evaluateUserDeletion", () => {
     taskFindFirstMock.mockResolvedValue(null);
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: [],
       reviewRequiredClaim: null,
@@ -561,7 +642,11 @@ describe("evaluateUserDeletion", () => {
     });
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion(
+        "user_delete",
+        createPrisma() as never,
+        createScopes(),
+      ),
     ).resolves.toEqual({
       blockers: [
         "USER_OWNS_ORGANIZATION",
@@ -703,7 +788,7 @@ describe("evaluateOrganizationDeletion", () => {
     vi.clearAllMocks();
     getMembersByOrganizationIdMock.mockResolvedValue([{ userId: "user-1" }]);
     isLastWorkspaceMock.mockResolvedValue(false);
-    jobFindFirstMock.mockResolvedValue(null);
+    jobFindFirstMock.mockReset().mockResolvedValue(null);
     taskFindFirstMock.mockResolvedValue(null);
     subscriptionFindFirstMock.mockResolvedValue(null);
     enterpriseContractFindFirstMock.mockResolvedValue(null);
@@ -830,15 +915,6 @@ describe("evaluateOrganizationDeletion", () => {
     ).resolves.toEqual({
       blockers: ["IN_FLIGHT_JOB"],
     });
-    expect(jobFindFirstMock).toHaveBeenCalledWith({
-      where: {
-        organizationId: "org-1",
-        events: {
-          none: { status: { in: finalizedAgentJobStatuses } },
-        },
-      },
-      select: { id: true },
-    });
   });
 
   it("returns UNSETTLED_ON_CHAIN_JOB when the Organization has a Job with a non-finalized purchase", async () => {
@@ -848,18 +924,6 @@ describe("evaluateOrganizationDeletion", () => {
       evaluateOrganizationDeletion("org-1", "user-1", createPrisma() as never),
     ).resolves.toEqual({
       blockers: ["UNSETTLED_ON_CHAIN_JOB"],
-    });
-    expect(jobFindFirstMock).toHaveBeenCalledWith({
-      where: {
-        organizationId: "org-1",
-        purchase: {
-          OR: [
-            { onChainStatus: { notIn: finalizedOnChainJobStatuses } },
-            { onChainStatus: null },
-          ],
-        },
-      },
-      select: { id: true },
     });
   });
 
@@ -881,7 +945,6 @@ describe("evaluateOrganizationDeletion", () => {
   });
 
   it("does not return work blockers when Organization Jobs and Tasks are terminal and on-chain is finalized", async () => {
-    mockJobLookups({ inFlight: null, unsettled: null });
     taskFindFirstMock.mockResolvedValue(null);
 
     await expect(

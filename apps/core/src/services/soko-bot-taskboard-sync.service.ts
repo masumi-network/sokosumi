@@ -8,6 +8,7 @@ import {
 } from "@/helpers/soko-bot-owner";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotSelfStarter } from "@/lib/soko-bot/acting-user";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
@@ -514,6 +515,7 @@ export class SokoBotTaskboardSyncService {
       .join("\n")
       .trim();
     const started = await sokoBotControlPlane.startTurn({
+      network: DETACHED_SOKO_BOT_NETWORK,
       ...starter,
       workspaceId: bot.workspaceId,
       sokoBotId: bot.id,

@@ -30,6 +30,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import {
   type ReactNode,
   type RefObject,
+  useId,
   useRef,
   useState,
   useTransition,
@@ -43,11 +44,12 @@ import {
 import { CHAT_DECISIONS_PATH } from "@/app/chat/utils/chat-route-base";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import {
-  CHAT_SIGNAL_TAG_ORDER,
   type ChatSignalChip,
   chatMessageSenderName,
   chipTags,
   signalChips,
+  type TagConfidence,
+  tagEditorRows,
 } from "@/components/chat/signals/signal-chips";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -481,7 +483,7 @@ function TextAction({
   );
 }
 
-/** The tag editor: every tag as a checkbox, with Jev's probability beside it. */
+/** The tag editor: the message's tags first with a word for how sure Jev was, then the rest. */
 function TagEditor({
   signal,
   disabled,
@@ -492,7 +494,7 @@ function TagEditor({
   onToggle: (tag: ChatSignalTag, applies: boolean) => void;
 }) {
   const t = useTranslations("App.Channels.Signals");
-  const format = useFormatter();
+  const titleId = useId();
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -506,43 +508,95 @@ function TagEditor({
           <Tags className="size-3.5" aria-hidden />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-72 p-3">
-        <p className="mb-2 text-xs font-medium">{t("editTagsTitle")}</p>
-        <ul className="-mx-2 flex flex-col">
-          {CHAT_SIGNAL_TAG_ORDER.map((tag) => {
-            const applies = signal.tags.includes(tag);
-            const probability = signal.probabilities[tag];
-            return (
-              <li key={tag}>
-                <label
-                  className={cn(
-                    "flex items-center gap-2 px-2 py-1 text-sm",
-                    !disabled && cn(POPOVER_ROW_CLASS, "cursor-pointer"),
-                  )}
-                >
-                  <Checkbox
-                    checked={applies}
-                    disabled={disabled}
-                    onCheckedChange={(checked) =>
-                      onToggle(tag, checked === true)
-                    }
-                  />
-                  <span className="flex-1">{t(`Tags.${tag}`)}</span>
-                  {probability != null ? (
-                    <span className="text-muted-foreground text-xs tabular-nums">
-                      {format.number(probability, { style: "percent" })}
-                    </span>
-                  ) : null}
-                </label>
-              </li>
-            );
-          })}
-        </ul>
+      <PopoverContent
+        align="start"
+        className="w-72 p-3"
+        aria-labelledby={titleId}
+      >
+        <TagEditorLists
+          titleId={titleId}
+          signal={signal}
+          disabled={disabled}
+          onToggle={onToggle}
+        />
         <p className="text-muted-foreground mt-3 text-xs text-pretty">
           {t("editTagsNote")}
         </p>
       </PopoverContent>
     </Popover>
+  );
+}
+
+/** Mounts with the popover, so its snapshot is the tags as it opened. */
+function TagEditorLists({
+  titleId,
+  signal,
+  disabled,
+  onToggle,
+}: {
+  /** The popover's title, which also names the first list. */
+  titleId: string;
+  signal: ChatMessageSignal;
+  disabled: boolean;
+  onToggle: (tag: ChatSignalTag, applies: boolean) => void;
+}) {
+  const t = useTranslations("App.Channels.Signals");
+  const [appliedAtOpen] = useState(() => signal.tags);
+  const moreId = useId();
+  const { applied, more } = tagEditorRows(signal, appliedAtOpen);
+
+  function row(tag: ChatSignalTag, confidence: TagConfidence | null) {
+    return (
+      <li key={tag}>
+        <label
+          className={cn(
+            "flex items-center gap-2 px-2 py-1 text-sm",
+            !disabled && cn(POPOVER_ROW_CLASS, "cursor-pointer"),
+          )}
+        >
+          <Checkbox
+            checked={signal.tags.includes(tag)}
+            disabled={disabled}
+            onCheckedChange={(checked) => onToggle(tag, checked === true)}
+          />
+          <span className="flex-1">{t(`Tags.${tag}`)}</span>
+          {confidence ? (
+            <span className="bg-muted text-muted-foreground rounded-md px-1.5 py-0.5 text-xs whitespace-nowrap">
+              {t(`Confidence.${confidence}`)}
+            </span>
+          ) : null}
+        </label>
+      </li>
+    );
+  }
+
+  return (
+    <>
+      <p id={titleId} className="mb-2 text-xs font-medium">
+        {t("editTagsTitle")}
+      </p>
+      {applied.length > 0 ? (
+        <ul aria-labelledby={titleId} className="-mx-2 flex flex-col">
+          {applied.map(({ tag, confidence }) => row(tag, confidence))}
+        </ul>
+      ) : null}
+      {applied.length > 0 && more.length > 0 ? (
+        <p
+          id={moreId}
+          className="border-border text-muted-foreground mt-2 mb-1 border-t pt-2 text-xs font-medium"
+        >
+          {t("moreTags")}
+        </p>
+      ) : null}
+      {more.length > 0 ? (
+        <ul
+          aria-labelledby={applied.length > 0 ? moreId : titleId}
+          className="-mx-2 flex flex-col"
+        >
+          {more.map((tag) => row(tag, null))}
+        </ul>
+      ) : null}
+    </>
   );
 }
 

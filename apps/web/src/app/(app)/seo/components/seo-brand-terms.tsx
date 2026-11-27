@@ -69,7 +69,8 @@ export function SeoBrandSplit({
             className="text-muted-foreground text-xs"
             data-testid="seo-brand-totals"
           >
-            {t("brandTotals", {
+            {/* Without a listed click there is no total to take a share of. */}
+            {t(listed ? "brandTotals" : "brandTotalsNoShare", {
               branded: format.number(totals.branded.clicks),
               brandedShare: share(totals.branded.clicks),
               nonBranded: format.number(totals.nonBranded.clicks),

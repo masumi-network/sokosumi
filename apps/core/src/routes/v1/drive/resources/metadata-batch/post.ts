@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { strictBody } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import { badRequest, unprocessableEntity } from "@/helpers/error";
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
@@ -26,10 +27,18 @@ import {
 } from "@/services/file-metadata.service";
 import { loadLiveResources } from "@/services/file-search.service";
 
-const bodySchema = fileMetadataBatchRequestSchema.extend({
+// Strict, and a batch that changes nothing is refused (SOKD-485).
+export const metadataBatchBodySchema = strictBody({
+  ...fileMetadataBatchRequestSchema.shape,
   scope: driveFileScopeSchema,
   organizationId: z.string().optional(),
-});
+}).refine(
+  (body) =>
+    body.addTagLabelIds !== undefined ||
+    body.removeTagLabelIds !== undefined ||
+    body.categoryLabelId !== undefined,
+  "Send at least one change: addTagLabelIds, removeTagLabelIds, categoryLabelId.",
+);
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
@@ -48,7 +57,7 @@ const route = withCoworkerContextHeaderParameters(
     request: {
       body: {
         required: true,
-        content: { "application/json": { schema: bodySchema } },
+        content: { "application/json": { schema: metadataBatchBodySchema } },
       },
     },
     responses: {

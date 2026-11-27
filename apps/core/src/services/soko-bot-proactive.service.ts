@@ -17,8 +17,12 @@ import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
-import { serializableTransaction } from "@/lib/db/transaction";
+import {
+  retriedTransaction,
+  serializableTransaction,
+} from "@/lib/db/transaction";
 import { recordCoreWarning } from "@/lib/evlog";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   MAIL_TRIAGE_GUIDE,
@@ -208,39 +212,44 @@ export async function ensureSystemSchedules(bot: {
       60_000,
     );
     if (!nextRunAt) continue;
-    await prisma.sokoBotSchedule
-      .create({
-        data: {
-          sokoBotId: bot.id,
-          requestedByUserId:
-            bot.userId ?? (cmo ? (bot.createdByUserId ?? null) : null),
-          workspaceId: bot.workspaceId,
-          name: schedule.name,
-          ...(shared && !cmo ? { enabled: false } : {}),
-          timezone: bot.ingestTimezone,
-          cronExpression: schedule.cronExpression,
-          prompt,
-          systemKey: schedule.key,
-          nextRunAt,
-        },
-      })
-      .catch((error: unknown) => {
-        // Raced by another tick: the unique key holds.
-        if (isPrismaUniqueViolation(error)) return;
-        recordCoreWarning(
-          {
-            operation: "soko_bot_system_schedules",
-            sokoBot: { id: bot.id },
+    // Retried on a deadlock: its foreign keys lock the bot, then the
+    // Workspace, while a Project close locks them the other way round.
+    await retriedTransaction(
+      (tx) =>
+        tx.sokoBotSchedule.create({
+          data: {
+            network: DETACHED_SOKO_BOT_NETWORK,
+            sokoBotId: bot.id,
+            requestedByUserId:
+              bot.userId ?? (cmo ? (bot.createdByUserId ?? null) : null),
+            workspaceId: bot.workspaceId,
+            name: schedule.name,
+            ...(shared && !cmo ? { enabled: false } : {}),
+            timezone: bot.ingestTimezone,
+            cronExpression: schedule.cronExpression,
+            prompt,
             systemKey: schedule.key,
+            nextRunAt,
           },
-          {
-            message: "A Soko Bot built-in rhythm was not created",
-            why: "Creating the schedule failed for a reason other than a race",
-            fix: "The next tick tries again; read the failure fields if it repeats, since the bot runs without this rhythm until then.",
-            details: { failure: messageSafeErrorFields(error) },
-          },
-        );
-      });
+        }),
+      "A Soko Bot built-in rhythm kept colliding with another write",
+    ).catch((error: unknown) => {
+      // Raced by another tick: the unique key holds.
+      if (isPrismaUniqueViolation(error)) return;
+      recordCoreWarning(
+        {
+          operation: "soko_bot_system_schedules",
+          sokoBot: { id: bot.id },
+          systemKey: schedule.key,
+        },
+        {
+          message: "A Soko Bot built-in rhythm was not created",
+          why: "Creating the schedule failed, or kept deadlocking with other writes after its retries",
+          fix: "The next tick tries again; read the failure fields if it repeats, since the bot runs without this rhythm until then.",
+          details: { failure: messageSafeErrorFields(error) },
+        },
+      );
+    });
   }
 }
 

@@ -12,6 +12,7 @@ import {
   NEWSLETTER_PROJECT_ID,
   NEWSLETTER_WORKSPACE_ID,
 } from "@/test/newsletter";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 
 // The issue service runs for real against this in-memory issue; the email
 // renderer and the Task domain are mocked, so nothing renders or mails.
@@ -152,6 +153,7 @@ const AUTHORIZED: AuthorizedSokoBotRuntime = {
   },
   reader: { userId: "user", audience: "OWNER", sharedScope: null },
   classificationConfidence: 1,
+  scope: testNetworkScope(),
   toolCallLimit: 10,
   askedByKind: "OWNER",
 };

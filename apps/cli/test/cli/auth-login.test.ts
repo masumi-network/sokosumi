@@ -51,6 +51,7 @@ test("auth login stores OAuth credentials without printing the access token", as
     refreshToken: "secret-refresh-token",
     tokenType: "Bearer",
     expiresAt: "2030-01-01T00:00:00.000Z",
+    clientId: "cli-client",
   });
   assert.deepEqual(result, {
     authenticated: true,
@@ -381,4 +382,34 @@ test("hosted preprod OAuth uses the compiled first-party client without configur
     loginRequest?.authBaseUrl,
     "https://api.preprod.sokosumi.com/auth",
   );
+});
+
+test("auth login reads the vault before the browser exchange", async () => {
+  let browserOpened = false;
+  let saved = false;
+  await assert.rejects(
+    runAuthLogin({
+      env: {
+        SOKOSUMI_API_URL: "https://api.example.test",
+        SOKOSUMI_OAUTH_CLIENT_ID: "cli-client",
+      },
+      loginFn: async () => {
+        browserOpened = true;
+        return { authToken: "secret-access-token" };
+      },
+      authManager: {
+        saveCredentials: (credentials) => {
+          saved = true;
+          return credentials;
+        },
+        getApiKeyCredentials: () => {
+          throw new Error("OS credential vault is required");
+        },
+      },
+      stdout: { write: () => {} },
+    }),
+    /OS credential vault is required/,
+  );
+  assert.equal(browserOpened, false);
+  assert.equal(saved, false);
 });

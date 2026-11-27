@@ -32,6 +32,7 @@ import {
   sanitizeSokoBotMemoryMarkdown,
   sokoBotContextPacketSchema,
 } from "@sokosumi/soko-bot";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
@@ -48,6 +49,7 @@ import {
   forfeitCusoProjectCredits,
   forfeitCusoProjectCreditsIfLeavingCmo,
 } from "@/helpers/cuso-project-credits";
+import { networkStamp } from "@/helpers/preprod-control";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { jsonInput } from "@/helpers/prisma-json";
 import { cancelUnpublishedSocialPosts } from "@/helpers/social-post-quote";
@@ -93,6 +95,10 @@ import {
 } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
+  accountQuestionHint,
+  openAccountQuestion,
+} from "@/lib/soko-bot/account-question";
+import {
   sokoBotActingUserId,
   sokoBotScheduleActingUserId,
   sokoBotScheduleActingUserWhere,
@@ -118,6 +124,11 @@ import {
 } from "@/lib/soko-bot/classifier";
 import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
 import {
+  DetachedNetworkRefusal,
+  detachedNetworkScope,
+  requireDetachedTurnProvenance,
+} from "@/lib/soko-bot/detached-network";
+import {
   assertEvaluationActor,
   evaluationBinding,
   evaluationEvidence,
@@ -142,6 +153,11 @@ import {
   shouldPersistSokoBotRuntimeEvent,
 } from "@/lib/soko-bot/runtime-stream";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
+import {
+  finishStaleSchedule,
+  isTemporaryScheduleRefusal,
+  scheduleTurnProvenance,
+} from "@/lib/soko-bot/schedule-resume";
 import {
   matchesReservedTurnMessage,
   PERSON_SCHEDULE_CAPABILITIES,
@@ -203,6 +219,8 @@ import { enqueueSokoBotDelivery } from "./soko-bot-delivery.service";
 
 /** Context for the control plane's standalone events. */
 const TURN_LOG = { operation: "soko_bot_turn" };
+/** Stands for the turn about to be created, which no question can belong to. */
+const NO_TURN_YET = "00000000-0000-0000-0000-000000000000";
 
 const TURN_DEADLINE_MS = 15 * 60 * 1_000;
 /**
@@ -1414,45 +1432,52 @@ export class SokoBotControlPlane {
     if (!turn) return null;
 
     const leaseToken = randomUUID();
-    const claimed = await prisma.$transaction(async (tx) => {
-      // Pause and archive lock the bot before they touch a turn.
-      await tx.$queryRaw`
+    const claimed = await prisma
+      .$transaction(async (tx) => {
+        // Pause and archive lock the bot before they touch a turn.
+        await tx.$queryRaw`
         SELECT "id" FROM ${sharedTable("soko_bot")} WHERE "id" = ${turn.sokoBotId}::uuid FOR UPDATE
       `;
-      // Foreground settlement can already hold the turn and need the bot.
-      const locked = await tx.$queryRaw<{ id: string }[]>`
+        // Foreground settlement can already hold the turn and need the bot.
+        const locked = await tx.$queryRaw<{ id: string }[]>`
         SELECT "id" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${turn.id}::uuid
         FOR NO KEY UPDATE SKIP LOCKED
       `;
-      if (!locked.length) return null;
-      const claimedAt = await databaseNow(tx);
-      const { count } = await tx.sokoBotTurn.updateMany({
-        where: {
-          id: turn.id,
-          status: "STARTING",
-          eveSessionId: turn.eveSessionId,
-          errorKind: turn.errorKind,
-          leaseToken: turn.leaseToken,
-          leaseExpiresAt: turn.leaseExpiresAt,
-          reconcilerHeartbeatAt: turn.reconcilerHeartbeatAt,
-          deadlineAt: { gt: claimedAt },
-          AND: [staleTurnLeaseWhere(claimedAt), startRecoveryEligibility()],
-        },
-        data: {
-          leaseToken,
-          leaseExpiresAt: new Date(claimedAt.getTime() + TURN_LEASE_MS),
-          reconcilerHeartbeatAt: claimedAt,
-          errorKind: "runtime_start_ambiguous",
-          errorDetail: "Recovering durable start after process interruption",
-        },
-      });
-      if (!count) return null;
-      // Make a serializable pause/archive with an older snapshot retry its check.
-      await tx.$executeRaw`
+        if (!locked.length) return null;
+        await detachedNetworkScope(turn, tx);
+        const claimedAt = await databaseNow(tx);
+        const { count } = await tx.sokoBotTurn.updateMany({
+          where: {
+            id: turn.id,
+            status: "STARTING",
+            eveSessionId: turn.eveSessionId,
+            errorKind: turn.errorKind,
+            leaseToken: turn.leaseToken,
+            leaseExpiresAt: turn.leaseExpiresAt,
+            reconcilerHeartbeatAt: turn.reconcilerHeartbeatAt,
+            deadlineAt: { gt: claimedAt },
+            AND: [staleTurnLeaseWhere(claimedAt), startRecoveryEligibility()],
+          },
+          data: {
+            leaseToken,
+            leaseExpiresAt: new Date(claimedAt.getTime() + TURN_LEASE_MS),
+            reconcilerHeartbeatAt: claimedAt,
+            errorKind: "runtime_start_ambiguous",
+            errorDetail: "Recovering durable start after process interruption",
+          },
+        });
+        if (!count) return null;
+        // Make a serializable pause/archive with an older snapshot retry its check.
+        await tx.$executeRaw`
         UPDATE ${sharedTable("soko_bot")} SET "updatedAt" = "updatedAt" WHERE "id" = ${turn.sokoBotId}::uuid
       `;
-      return tx.sokoBot.findUniqueOrThrow({ where: { id: turn.sokoBotId } });
-    });
+        return tx.sokoBot.findUniqueOrThrow({ where: { id: turn.sokoBotId } });
+      })
+      .catch(async (error: unknown) => {
+        if (!(error instanceof DetachedNetworkRefusal)) throw error;
+        if (error.final) await this.finishStaleTurn(turn.id);
+        return null;
+      });
     if (!claimed) return null;
 
     const stopRenewing = this.holdTurnLease(turn.id, leaseToken);
@@ -1719,6 +1744,16 @@ export class SokoBotControlPlane {
     };
   }
 
+  async finishStaleTurn(turnId: string): Promise<boolean> {
+    return this.settleTurn({
+      turnId,
+      status: "FAILED",
+      errorKind: CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE,
+      clearSession: true,
+      staleNetwork: true,
+    });
+  }
+
   private async settleTurn(input: {
     turnId: string;
     status: TerminalSokoBotTurnStatus;
@@ -1728,6 +1763,7 @@ export class SokoBotControlPlane {
     leaseToken?: string;
     providerCompletedAt?: Date;
     requireMissingEveSession?: boolean;
+    staleNetwork?: true;
   }): Promise<boolean> {
     // Set inside the transaction and read after it commits, because the
     // low-balance check publishes over realtime and must not run for a
@@ -1746,13 +1782,20 @@ export class SokoBotControlPlane {
       userId: string | null;
       clientTurnId: string | null;
     } | null = null;
+    let deliver = false;
 
     return serializableTransaction(async (tx) => {
       chargedWallet = null;
       chargedCusoProjectId = null;
       cmoTurnEnded = null;
+      deliver = false;
       const turn = await tx.sokoBotTurn.findUnique({
-        where: { id: input.turnId },
+        where: {
+          id: input.turnId,
+          ...(input.staleNetwork
+            ? { OR: [{ network: "preprod" }, { network: null }] }
+            : {}),
+        },
         select: {
           sokoBotId: true,
           clientTurnId: true,
@@ -1767,6 +1810,8 @@ export class SokoBotControlPlane {
           costUsdMicros: true,
           usage: true,
           status: true,
+          network: true,
+          preprodGeneration: true,
           finalAnswer: true,
           responseContract: true,
           capabilityNames: true,
@@ -1792,23 +1837,41 @@ export class SokoBotControlPlane {
       if (input.leaseToken && turn.leaseToken !== input.leaseToken)
         return false;
 
-      const usageCharge = await recordSokoBotTurnUsage(
-        {
-          turnId: input.turnId,
-          sokoBotId: turn.sokoBotId,
-          userId: sokoBotActingUserId(turn),
-          costUsdMicros: turn.costUsdMicros,
-          ranModel: turnRanModel(turn.usage),
-        },
-        tx,
-      );
+      let staleNetwork = input.staleNetwork === true;
+      let canCharge = !staleNetwork;
+      if (canCharge && (turn.network === "preprod" || turn.network === null)) {
+        try {
+          await detachedNetworkScope(turn, tx);
+        } catch (error) {
+          if (!(error instanceof DetachedNetworkRefusal)) throw error;
+          canCharge = false;
+          staleNetwork = error.final;
+        }
+      }
+      const usageCharge = !canCharge
+        ? null
+        : await recordSokoBotTurnUsage(
+            {
+              turnId: input.turnId,
+              sokoBotId: turn.sokoBotId,
+              userId: sokoBotActingUserId(turn),
+              costUsdMicros: turn.costUsdMicros,
+              ranModel: turnRanModel(turn.usage),
+            },
+            tx,
+          );
       const chargedUserId = sokoBotActingUserId(turn);
-      if (usageCharge.chargedCents > 0n && usageCharge.cusoProjectId) {
+      if (
+        usageCharge &&
+        usageCharge.chargedCents > 0n &&
+        usageCharge.cusoProjectId
+      ) {
         chargedCusoProjectId = usageCharge.cusoProjectId;
       }
       // A Cuso's charge drew on his Project credits first: the pool's
       // notice, which sends people to Sokosumi's top-up, is not his.
       if (
+        usageCharge &&
         usageCharge.chargedCents > 0n &&
         chargedUserId &&
         !usageCharge.cusoProjectId
@@ -1828,24 +1891,31 @@ export class SokoBotControlPlane {
         turn.cancellationRequestedAt !== null &&
         (input.providerCompletedAt === undefined ||
           input.providerCompletedAt >= turn.cancellationRequestedAt);
-      const settledStatus: TerminalSokoBotTurnStatus =
-        completionLostToCancellation ? "CANCELLED" : input.status;
+      const settledStatus: TerminalSokoBotTurnStatus = staleNetwork
+        ? "FAILED"
+        : completionLostToCancellation
+          ? "CANCELLED"
+          : input.status;
       const budgetExceeded =
         settledStatus === "FAILED" &&
         runtimeFailureCode({
           code: input.errorKind,
           message: input.errorDetail,
         }) === AI_BUDGET_EXCEEDED;
-      const errorKind = budgetExceeded
-        ? AI_BUDGET_EXCEEDED
-        : usageCharge.shortfall
-          ? "insufficient_credits"
-          : safeRuntimeDiagnostic(input.errorKind, 120);
-      const errorDetail = budgetExceeded
-        ? AI_BUDGET_EXCEEDED_MESSAGE
-        : usageCharge.shortfall
-          ? "Available credits were exhausted while settling this Soko Bot turn"
-          : safeRuntimeDiagnostic(input.errorDetail);
+      const errorKind = staleNetwork
+        ? CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE
+        : budgetExceeded
+          ? AI_BUDGET_EXCEEDED
+          : usageCharge?.shortfall
+            ? "insufficient_credits"
+            : safeRuntimeDiagnostic(input.errorKind, 120);
+      const errorDetail = staleNetwork
+        ? null
+        : budgetExceeded
+          ? AI_BUDGET_EXCEEDED_MESSAGE
+          : usageCharge?.shortfall
+            ? "Available credits were exhausted while settling this Soko Bot turn"
+            : safeRuntimeDiagnostic(input.errorDetail);
 
       const responseContract =
         settledStatus === "COMPLETED"
@@ -1891,6 +1961,7 @@ export class SokoBotControlPlane {
       // a production run ends, the month's next one. A turn the owner
       // stopped starts nothing.
       if (
+        !staleNetwork &&
         settledStatus !== "CANCELLED" &&
         (turn.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX) ||
           turn.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX) ||
@@ -1905,7 +1976,9 @@ export class SokoBotControlPlane {
           clientTurnId: turn.clientTurnId,
         };
       }
-      const outcome = await assessSokoBotIntentOutcome(tx, input.turnId);
+      const outcome = staleNetwork
+        ? null
+        : await assessSokoBotIntentOutcome(tx, input.turnId);
       const outcomeSummary = sokoBotOutcomeSummary(outcome);
       // The owner reads the model's own words; the claim check has already
       // held back any change no receipt proves. A canned note on top read as
@@ -1919,35 +1992,41 @@ export class SokoBotControlPlane {
       }
       if (settledStatus === "COMPLETED")
         await prepareTurnActionResultPreviews(input.turnId, turn, tx);
-      await enqueueSokoBotDelivery(tx, input.turnId);
+      if (!staleNetwork) {
+        await enqueueSokoBotDelivery(tx, input.turnId);
+        deliver = true;
+      }
 
       // A background run never held the chat's status or session.
-      if (!turn.parentTurnId)
+      const clearSession = staleNetwork || input.clearSession;
+      if (!turn.parentTurnId && (!staleNetwork || turn.eveSessionId))
         await tx.sokoBot.updateMany({
           where: {
             id: turn.sokoBotId,
             archivedAt: null,
             adminPausedAt: null,
             status: { not: "PAUSED" },
-            ...(input.clearSession && turn.eveSessionId
+            ...(clearSession && turn.eveSessionId
               ? { eveSessionId: turn.eveSessionId }
               : {}),
           },
           data: {
-            ...(input.clearSession ? { eveSessionId: null } : {}),
-            ...(settledStatus === "FAILED"
-              ? {
-                  status: "ERROR",
-                  lastFailedAt: now,
-                  consecutiveTurnFailures: { increment: 1 },
-                }
-              : settledStatus === "COMPLETED"
+            ...(clearSession ? { eveSessionId: null } : {}),
+            ...(staleNetwork
+              ? { status: "IDLE" }
+              : settledStatus === "FAILED"
                 ? {
-                    status: "IDLE",
-                    lastSucceededAt: now,
-                    consecutiveTurnFailures: 0,
+                    status: "ERROR",
+                    lastFailedAt: now,
+                    consecutiveTurnFailures: { increment: 1 },
                   }
-                : { status: "IDLE" }),
+                : settledStatus === "COMPLETED"
+                  ? {
+                      status: "IDLE",
+                      lastSucceededAt: now,
+                      consecutiveTurnFailures: 0,
+                    }
+                  : { status: "IDLE" }),
           },
         });
 
@@ -1979,7 +2058,10 @@ export class SokoBotControlPlane {
         if (scheduleRunUpdate.count === 1) {
           if (completed) {
             await recordCompletedScheduleRun(tx, scheduleRun.scheduleId, now);
-          } else if (!isPlatformTurnFailure(errorKind ?? null)) {
+          } else if (
+            !staleNetwork &&
+            !isPlatformTurnFailure(errorKind ?? null)
+          ) {
             await tx.sokoBotSchedule.update({
               where: { id: scheduleRun.scheduleId },
               data: { consecutiveFailures: { increment: 1 } },
@@ -2031,29 +2113,30 @@ export class SokoBotControlPlane {
               logSokoBotRouteOutcome(input.turnId).catch(() => undefined),
             ),
           );
-          waitUntil(
-            runAsBackgroundWork(() =>
-              import("@/services/soko-bot-delivery.service")
-                .then(({ deliverSokoBotTurnOutbox }) =>
-                  deliverSokoBotTurnOutbox(input.turnId),
-                )
-                .catch((error) => {
-                  emitCoreWarning(
-                    TURN_LOG,
-                    {
-                      message:
-                        "Could not deliver a settled Soko Bot turn right away",
-                      why: "The inline delivery threw",
-                      fix: "Nothing to do: the delivery outbox keeps it and the soko-bot-turns sync delivers it.",
-                    },
-                    {
-                      turn: { id: input.turnId },
-                      failure: messageSafeErrorFields(error),
-                    },
-                  );
-                }),
-            ),
-          );
+          if (deliver)
+            waitUntil(
+              runAsBackgroundWork(() =>
+                import("@/services/soko-bot-delivery.service")
+                  .then(({ deliverSokoBotTurnOutbox }) =>
+                    deliverSokoBotTurnOutbox(input.turnId),
+                  )
+                  .catch((error) => {
+                    emitCoreWarning(
+                      TURN_LOG,
+                      {
+                        message:
+                          "Could not deliver a settled Soko Bot turn right away",
+                        why: "The inline delivery threw",
+                        fix: "Nothing to do: the delivery outbox keeps it and the soko-bot-turns sync delivers it.",
+                      },
+                      {
+                        turn: { id: input.turnId },
+                        failure: messageSafeErrorFields(error),
+                      },
+                    );
+                  }),
+              ),
+            );
         }
         return settled;
       },
@@ -2079,26 +2162,37 @@ export class SokoBotControlPlane {
 
   async settleUndeliverableCancellation(turnId: string): Promise<boolean> {
     const leaseToken = randomUUID();
-    const claimed = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`
-        SELECT "id" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${turnId}::uuid
+    const claimed = await prisma
+      .$transaction(async (tx) => {
+        const [turn] = await tx.$queryRaw<
+          { network: string | null; preprodGeneration: number | null }[]
+        >`
+        SELECT "network", "preprodGeneration"
+        FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${turnId}::uuid
         FOR NO KEY UPDATE
       `;
-      const now = await databaseNow(tx);
-      return tx.sokoBotTurn.updateMany({
-        where: {
-          id: turnId,
-          status: "CANCEL_REQUESTED",
-          eveSessionId: null,
-          ...staleTurnLeaseWhere(now),
-        },
-        data: {
-          leaseToken,
-          leaseExpiresAt: new Date(now.getTime() + TURN_LEASE_MS),
-          reconcilerHeartbeatAt: now,
-        },
+        if (!turn) return { count: 0 };
+        await detachedNetworkScope(turn, tx);
+        const now = await databaseNow(tx);
+        return tx.sokoBotTurn.updateMany({
+          where: {
+            id: turnId,
+            status: "CANCEL_REQUESTED",
+            eveSessionId: null,
+            ...staleTurnLeaseWhere(now),
+          },
+          data: {
+            leaseToken,
+            leaseExpiresAt: new Date(now.getTime() + TURN_LEASE_MS),
+            reconcilerHeartbeatAt: now,
+          },
+        });
+      })
+      .catch(async (error: unknown) => {
+        if (!(error instanceof DetachedNetworkRefusal)) throw error;
+        if (error.final) await this.finishStaleTurn(turnId);
+        return { count: 0 };
       });
-    });
     if (!claimed.count) return false;
     return this.settleTurn({
       turnId,
@@ -2159,9 +2253,17 @@ export class SokoBotControlPlane {
         workspaceId: true,
         eveSessionId: true,
         eveTurnId: true,
+        network: true,
+        preprodGeneration: true,
       },
     });
     if (!turn) return false;
+    try {
+      await detachedNetworkScope(turn);
+    } catch (error) {
+      if (!(error instanceof DetachedNetworkRefusal)) throw error;
+      return error.final ? this.finishStaleTurn(turn.id) : false;
+    }
     if (turn.eveSessionId && turn.eveTurnId) {
       try {
         await this.deliverRuntimeCancellation(turn);
@@ -2283,6 +2385,7 @@ export class SokoBotControlPlane {
       },
     });
     if (duplicate) {
+      requireDetachedTurnProvenance(input, duplicate);
       if (
         !matchesReservedTurnMessage(duplicate, message, input.presetRoute) ||
         duplicate.workspaceId !== input.workspaceId ||
@@ -2736,6 +2839,21 @@ export class SokoBotControlPlane {
             message: input.chat?.classifyMessage ?? message,
           })
         : null;
+    // The owner may be answering "which account?": the model needs the
+    // question's id and options to pass them, which no message carries.
+    const accountQuestion =
+      (input.source ?? "CHAT") === "CHAT" &&
+      personAsked &&
+      !askedByTeammate &&
+      !input.chat?.askedByBot
+        ? await openAccountQuestion({
+            sokoBotId: bot.id,
+            requestedByUserId: input.userId,
+            destinationRoomId: destinationRoom?.id ?? null,
+            turnId: NO_TURN_YET,
+            turnCreatedAt: new Date(),
+          })
+        : null;
     const context = await this.contextBuilder.build({
       userId: input.userId,
       sokoBotId: bot.id,
@@ -2745,6 +2863,7 @@ export class SokoBotControlPlane {
       clientTurnId,
       classification: classification.classification,
       personAsked,
+      extraHints: accountQuestion ? [accountQuestionHint(accountQuestion)] : [],
       capturedPreference,
       turnMessage: input.chat?.said ?? input.chat?.classifyMessage ?? message,
       previousReply:
@@ -2892,8 +3011,11 @@ export class SokoBotControlPlane {
           previous: previousTurn,
           now: reservedAt,
         });
+        const stamp = await networkStamp(input.network, tx);
+        requireDetachedTurnProvenance(input, stamp);
         const created = await tx.sokoBotTurn.create({
           data: {
+            ...stamp,
             sokoBotId: bot.id,
             requestedByUserId: input.userId,
             workspaceId: input.workspaceId,
@@ -3186,6 +3308,7 @@ export class SokoBotControlPlane {
           failed: classification.failed,
         });
     } catch (error) {
+      if (error instanceof DetachedNetworkRefusal) throw error;
       // Another request with this idempotency key may have committed between
       // the optimistic read and serializable acquisition. Return its durable
       // result instead of surfacing a false busy/conflict response.
@@ -3198,6 +3321,7 @@ export class SokoBotControlPlane {
         },
       });
       if (racedDuplicate) {
+        requireDetachedTurnProvenance(input, racedDuplicate);
         if (
           !matchesReservedTurnMessage(
             racedDuplicate,
@@ -3504,27 +3628,37 @@ export class SokoBotControlPlane {
     launchLeaseToken: string,
   ): Promise<void> {
     const leaseToken = randomUUID();
-    const updated = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`
-        SELECT "id" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${turnId}::uuid
+    const updated = await prisma
+      .$transaction(async (tx) => {
+        const [turn] = await tx.$queryRaw<
+          { network: string | null; preprodGeneration: number | null }[]
+        >`
+        SELECT "network", "preprodGeneration" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${turnId}::uuid
         FOR NO KEY UPDATE
       `;
-      const now = await databaseNow(tx);
-      // Close can take its own launch grant or a drain that stopped renewing.
-      return tx.sokoBotTurn.updateMany({
-        where: {
-          id: turnId,
-          status: { in: ["STARTING", "RUNNING", "CANCEL_REQUESTED"] },
-          eveSessionId: sessionId,
-          OR: [{ leaseToken: launchLeaseToken }, staleTurnLeaseWhere(now)],
-        },
-        data: {
-          leaseToken,
-          leaseExpiresAt: new Date(now.getTime() + TURN_LEASE_MS),
-          reconcilerHeartbeatAt: now,
-        },
+        if (turn) await detachedNetworkScope(turn, tx);
+        const now = await databaseNow(tx);
+        // Close can take its own launch grant or a drain that stopped renewing.
+        return tx.sokoBotTurn.updateMany({
+          where: {
+            id: turnId,
+            status: { in: ["STARTING", "RUNNING", "CANCEL_REQUESTED"] },
+            eveSessionId: sessionId,
+            OR: [{ leaseToken: launchLeaseToken }, staleTurnLeaseWhere(now)],
+          },
+          data: {
+            leaseToken,
+            leaseExpiresAt: new Date(now.getTime() + TURN_LEASE_MS),
+            reconcilerHeartbeatAt: now,
+          },
+        });
+      })
+      .catch(async (error: unknown) => {
+        if (!(error instanceof DetachedNetworkRefusal)) throw error;
+        if (error.final) await this.finishStaleTurn(turnId);
+        return null;
       });
-    });
+    if (!updated) return;
     if (!updated.count) {
       throw new SokoBotReconciliationLeaseLostError(
         "Soko Bot runtime completion did not win the lease",
@@ -3588,6 +3722,13 @@ export class SokoBotControlPlane {
     }
     if (!turn?.eveSessionId || !turn.leaseToken) {
       throw new SokoBotNotFoundError("Runtime turn not found");
+    }
+    try {
+      await detachedNetworkScope(turn);
+    } catch (error) {
+      if (!(error instanceof DetachedNetworkRefusal)) throw error;
+      if (error.final) await this.finishStaleTurn(turn.id);
+      return;
     }
     const eveSessionId = turn.eveSessionId;
 
@@ -5263,12 +5404,17 @@ export class SokoBotControlPlane {
       }
       let retry: SokoBotTurnStartResult;
       try {
+        const provenance = await scheduleTurnProvenance(scheduleRun.schedule);
+        if (scheduleRun.turn) {
+          requireDetachedTurnProvenance(provenance, scheduleRun.turn);
+        }
         const retryInput = await scheduleRetryInput(
           bot,
           scheduleRun,
           boundReplayTurnId,
         );
         retry = await this.startTurn({
+          ...provenance,
           userId: sokoBotScheduleActingUserId({
             requestedByUserId: scheduleRun.schedule.requestedByUserId,
             systemKey: scheduleRun.schedule.systemKey,
@@ -5296,6 +5442,14 @@ export class SokoBotControlPlane {
                 expectedPrompt: scheduleRun.prompt,
               },
         });
+        if (
+          provenance.network === "preprod" &&
+          retry.errorKind === CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE
+        ) {
+          throw new DetachedNetworkRefusal(
+            CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE,
+          );
+        }
         await prisma.sokoBotAdminAction.create({
           data: {
             operationId,
@@ -5313,6 +5467,13 @@ export class SokoBotControlPlane {
           },
         });
       } catch (error) {
+        if (isTemporaryScheduleRefusal(scheduleRun.schedule, error))
+          throw error;
+        if (error instanceof DetachedNetworkRefusal && error.final) {
+          await finishStaleSchedule(scheduleRun.schedule, scheduleRun);
+          await recordFailure(error);
+          throw error;
+        }
         let reservationKnown = false;
         try {
           reservationKnown = Boolean(

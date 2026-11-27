@@ -132,6 +132,66 @@ export type SeoFullAuditCostDetail = {
     }>;
 };
 
+export type AdminSeoActionImpact = {
+    hasNext: boolean;
+    pageSize: number;
+    items: Array<{
+        auditId: string | null;
+        projectId: string | null;
+        workspaceId: string;
+        workspaceOrganizationSlug: string | null;
+        workspaceUserId: string | null;
+        userId: string;
+        actions: Array<{
+            id: string;
+            pageUrl: string;
+            title: string;
+            impact: ProjectSeoActionImpact;
+        }>;
+    }>;
+};
+
+export type ProjectSeoActionImpact = {
+    anchor: string;
+    anchorKind: 'completed' | 'verified';
+    days: number;
+    state: 'measured' | 'too_early' | 'not_measured' | 'low_counts';
+    before: {
+        from: string;
+        to: string;
+        clicks: number;
+        impressions: number;
+        position: number | null;
+    } | null;
+    after: {
+        from: string;
+        to: string;
+        clicks: number;
+        impressions: number;
+        position: number | null;
+    } | null;
+};
+
+export type AdminSeoImpactVerdicts = {
+    total: number;
+    rows: Array<{
+        id: string;
+        organizationSlug: string | null;
+        projectId: string;
+        projectName: string;
+        pageUrl: string;
+        suggestionTitle: string | null;
+        changeSource: 'cuso_done' | 'audit_recheck';
+        changedAt: Date;
+        crawledAt: Date | null;
+        windowStart: string | null;
+        windowEnd: string | null;
+        windowReadyOn: string | null;
+        state: 'waiting_crawl' | 'waiting_window' | 'ready' | 'waiting_retry' | 'measured' | 'not_measurable';
+        reason: 'no_cuso' | 'not_connected' | 'no_property' | 'inspection_failed' | 'not_crawled_yet' | 'worker_failed' | null;
+    }>;
+};
+
 export type AdminAgentList = Array<AdminAgentListItem>;
 
 export type AdminAgentListItem = {
@@ -1444,6 +1504,37 @@ export const StripeSubscriptionStatus = {
  */
 export type StripeSubscriptionStatus = typeof StripeSubscriptionStatus[keyof typeof StripeSubscriptionStatus];
 
+export type AdminPreprodAccess = {
+    enabled: boolean;
+    /**
+     * The 20 most recent changes, newest first
+     */
+    changes: Array<{
+        id: string;
+        createdAt: Date;
+        enabled: boolean;
+        reason: string;
+        operator: {
+            id: string;
+            /**
+             * Null when the admin's account no longer exists
+             */
+            name: string | null;
+        };
+    }>;
+};
+
+export type SetAdminPreprodAccessBody = {
+    /**
+     * Whether the user or Organization may use Preprod
+     */
+    enabled: boolean;
+    /**
+     * Why access is switched: a ticket id, no personal details. Kept with the change after the account is deleted.
+     */
+    reason: string;
+};
+
 export type AdminMatchedChannelOption = {
     id: string;
     name: string;
@@ -1535,6 +1626,44 @@ export type AdminRemoveMatchedChannelParticipant = {
     userId: string;
     roomId: string;
     outcome: 'removed';
+};
+
+export type AdminPreprodPause = {
+    /**
+     * Whether Preprod is paused. Paused until an admin opens it.
+     */
+    paused: boolean;
+    /**
+     * Preprod's generation number, raised by each wipe; 0 before the first.
+     */
+    generation: number;
+    /**
+     * The 20 most recent pause changes, newest first
+     */
+    changes: Array<{
+        id: string;
+        createdAt: Date;
+        paused: boolean;
+        reason: string;
+        operator: {
+            id: string;
+            /**
+             * Null when the admin's account no longer exists
+             */
+            name: string | null;
+        };
+    }>;
+};
+
+export type SetAdminPreprodPauseBody = {
+    /**
+     * Whether Preprod is paused
+     */
+    paused: boolean;
+    /**
+     * Why Preprod is paused or opened: a ticket id, no personal details.
+     */
+    reason: string;
 };
 
 export type AdminOrganizationOverviewItem = {
@@ -3725,6 +3854,24 @@ export type UpdateChatRoomRequest = {
      * Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.
      */
     groupName?: string | null;
+    /**
+     * Ignored. Add members with POST /chats/rooms/{id}/members.
+     *
+     * @deprecated
+     */
+    memberUserIds?: Array<string>;
+    /**
+     * Ignored. Add members with POST /chats/rooms/{id}/members.
+     *
+     * @deprecated
+     */
+    coworkerIds?: Array<string>;
+    /**
+     * Ignored. Add members with POST /chats/rooms/{id}/members.
+     *
+     * @deprecated
+     */
+    sokoBotIds?: Array<string>;
 };
 
 /**
@@ -4732,6 +4879,9 @@ export type ContactUpsertResult = {
 };
 
 export type ContactMergeSuggestion = {
+    /**
+     * `same_name` is any duplicate group: the same name, or the same surname, first initial and company email domain. `GET /contacts/duplicates?contactId=` says which.
+     */
     reason: 'shared_channel' | 'same_name';
     contactIds: Array<string>;
 };
@@ -4766,6 +4916,10 @@ export type ContactMapContact = {
 
 export type ContactDuplicateGroup = {
     name: string;
+    /**
+     * Why they were grouped: `same_name` (the same name, case and spacing ignored) or `same_company` (the same surname and first initial, with emails at the same company domain).
+     */
+    reason: 'same_name' | 'same_company';
     contacts: Array<Contact>;
 };
 
@@ -5425,6 +5579,10 @@ export type LinkDriveGoogleSheetRequest = {
      * Folder to put the copy in; the Drive root when omitted
      */
     folder?: string;
+    /**
+     * The same as `folder`, as other Drive writes name it.
+     */
+    folderPath?: string;
 };
 
 export type DriveItems = Array<DriveItem>;
@@ -5751,19 +5909,6 @@ export type FileMetadataBatchResponse = {
     revisedCount: number | null;
 };
 
-export type FileMetadataBatchRequest = {
-    resourceIds?: Array<string>;
-    selectionToken?: string;
-    idempotencyKey: string;
-    addTagLabelIds?: Array<string>;
-    removeTagLabelIds?: Array<string>;
-    categoryLabelId?: string | null;
-    expectedRevisions?: Array<{
-        resourceId: string;
-        metadataRevision: number;
-    }>;
-};
-
 export type FileResource = {
     id: string;
     displayName: string;
@@ -5921,6 +6066,10 @@ export type FileSearchMeta = {
      */
     hasMore: boolean;
     nextCursor: string | null;
+    /**
+     * This result window, for `POST /drive/resources/selection-token` (`windowCursor`). Set on every page, also when the window fits on one page and `nextCursor` is null.
+     */
+    windowCursor: string;
     /**
      * The previous cursor no longer applied (access, query or index changed) and a fresh window was taken.
      */
@@ -6818,8 +6967,14 @@ export type StudioAgentBrandContext = {
         goals: Array<string>;
         themes: Array<string>;
     };
+    assets?: Array<StudioProductPhoto>;
     colors?: Array<string>;
     fonts?: Array<string>;
+};
+
+export type StudioProductPhoto = {
+    id: string;
+    name: string;
 };
 
 export type StudioAgentAdHeadline = {
@@ -7004,6 +7159,7 @@ export type ProjectImageJob = {
     video: ProjectVideoSettings | null;
     talkingVideo?: ProjectTalkingVideo;
     referenceAssetIds: Array<string>;
+    brandReferenceCount?: number;
     referenceFileIds?: Array<string>;
     exportHeadline?: string;
     useProductCutout?: boolean;
@@ -7029,7 +7185,7 @@ export type ProjectTalkingVideo = {
     siteShots: boolean;
     broll: boolean;
     music: boolean;
-    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | null;
+    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | 'launch' | null;
     shape: '9:16' | '4:5' | '1:1' | '16:9';
     sourceJobId: string | null;
 };
@@ -7140,9 +7296,9 @@ export type DesignMdWrite = {
      */
     content: string | null;
     /**
-     * Extraction id of the generated DESIGN.md, when known
+     * Extraction id of the generated DESIGN.md, when known. Leave it out (or send null) for a DESIGN.md you wrote.
      */
-    extractionId: string | null;
+    extractionId?: string | null;
 };
 
 export type MemberWithOrganization = {
@@ -7269,6 +7425,10 @@ export type UserWorkspace = {
      * Whether a new session opens this workspace
      */
     preferred: boolean;
+    /**
+     * Whether the person may send `X-Sokosumi-Network: preprod` in this workspace: always false while Preprod is switched off; otherwise true for a platform admin, and else the person's own Preprod access for the personal workspace and the organization's for an organization workspace
+     */
+    canUsePreprod: boolean;
 };
 
 export const ProjectSocialProvider = {
@@ -7650,8 +7810,12 @@ export type User = {
 };
 
 export type UpdateUserName = {
-    firstName: string;
-    lastName: string;
+    firstName?: string;
+    lastName?: string;
+    /**
+     * The display name other members see. Omitted, it stays as it is.
+     */
+    name?: string;
 };
 
 export type OrganizationDeletionEvaluation = {
@@ -12239,6 +12403,7 @@ export type StudioModelScoreboard = {
 
 export type StudioBrandKit = {
     logo: string | null;
+    assets?: Array<StudioProductPhoto>;
     studioLogoPosition?: StudioLogoPosition | null;
     colors: Array<string>;
     fonts: Array<string>;
@@ -12274,11 +12439,6 @@ export type StudioProduct = {
     photo?: StudioProductPhoto;
 };
 
-export type StudioProductPhoto = {
-    id: string;
-    name: string;
-};
-
 export type StudioWebsiteVisual = StudioBrandLook & {
     logo: string | null;
 };
@@ -12289,7 +12449,12 @@ export type StudioBrandLook = {
 };
 
 export type SaveStudioBrandCopy = {
-    copy: StudioBrandCopy;
+    copy: StudioBrandCopy & {
+        /**
+         * The voice tone. Empty or omitted, the stored tone stays. A Project with no tone yet needs one.
+         */
+        tone?: string;
+    };
     version: Date | null;
 };
 
@@ -12298,6 +12463,12 @@ export type StudioBrandCopy = {
     tone: string;
     audience: Array<string>;
     approvedLines: Array<string>;
+};
+
+export type UpdateStudioBrandAssets = {
+    add: StudioProductPhoto;
+} | {
+    remove: string;
 };
 
 export type StudioBrandLookState = {
@@ -12325,6 +12496,7 @@ export type CreateProjectImageJobRequest = {
     lettering?: 'overlay' | 'ideogram';
     settings?: ProjectImageSettings;
     referenceAssetIds?: Array<string>;
+    brandReferenceCount?: number;
     referenceFileIds?: Array<string>;
     parentAssetId?: string | null;
     sessionId?: string | null;
@@ -12357,6 +12529,9 @@ export type CreateProjectTalkingVideoJobRequest = {
     script: string;
     voice?: 'Aria' | 'Roger' | 'Sarah' | 'Laura' | 'Charlie' | 'George' | 'Callum' | 'River' | 'Liam' | 'Charlotte' | 'Alice' | 'Matilda' | 'Will' | 'Jessica' | 'Eric' | 'Chris' | 'Brian' | 'Daniel' | 'Lily' | 'Bill';
     languageCode?: string;
+    /**
+     * A stock presenter, `{"kind": "stock", "id": "<presenter id from the catalog>"}`, or the caller's own photo in Files, `{"kind": "file", "fileId": "<Drive file id>", "consent": true}`. Only a person can start a video of their own photo: an agent gets 403 `person_approval_required` with the Studio link to send the person to.
+     */
     presenter: {
         kind: 'stock';
         id: string;
@@ -12373,13 +12548,14 @@ export type CreateProjectTalkingVideoJobRequest = {
 };
 
 export type CreateProjectShortVideoJobRequest = {
-    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | 'launch';
     script: string;
     hookLine?: string;
     voice?: 'Aria' | 'Roger' | 'Sarah' | 'Laura' | 'Charlie' | 'George' | 'Callum' | 'River' | 'Liam' | 'Charlotte' | 'Alice' | 'Matilda' | 'Will' | 'Jessica' | 'Eric' | 'Chris' | 'Brian' | 'Daniel' | 'Lily' | 'Bill';
     languageCode?: string;
     pictureAssetIds?: Array<string>;
     pictureFileIds?: Array<string>;
+    launchDate?: string;
     shapes?: Array<'9:16' | '4:5' | '1:1' | '16:9'>;
     idempotencyKey: string;
 };
@@ -12394,7 +12570,7 @@ export type ProjectTalkingVideoScripts = {
 
 export type WriteProjectTalkingVideoScriptsRequest = {
     topic?: string;
-    format?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+    format?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | 'launch';
     languageCode?: string;
 };
 
@@ -12526,11 +12702,13 @@ export type ProjectSeoWorkspace = {
     searchBreakdown?: ProjectSeoWorkspaceSearchBreakdown | null;
     brandTerms?: Array<string>;
     landingPages?: ProjectSeoLandingPages | null;
+    aiAssistantPages?: ProjectSeoLandingPages | null;
     indexStatus?: ProjectSeoIndexStatus | null;
     indexTriage?: ProjectSeoIndexTriage | null;
     siteEvidence?: ProjectSeoSiteEvidence | null;
     auditSiteEvidence?: Array<ProjectSeoSiteEvidence>;
     strategy?: ProjectSeoStrategy | null;
+    siteSpeed?: ProjectSeoSiteSpeed | null;
     landingEngagementChange?: {
         propertyId: string;
         timeZone: string;
@@ -12711,6 +12889,7 @@ export type ProjectSeoWorkspace = {
             from: Date;
             to: Date;
         } | null;
+        requester?: true;
         propertyDataExpired?: true;
         propertyTotals?: {
             clicks: number | null;
@@ -12992,6 +13171,13 @@ export type ProjectSeoObservation = {
                 first: Date;
                 last: Date;
             } | null;
+            history?: {
+                status: 'comparable' | 'incompatible_population' | 'unavailable' | 'legacy_unverified';
+                weeks?: Array<string>;
+                lcp?: Array<number | null>;
+                inp?: Array<number | null>;
+                cls?: Array<number | null>;
+            };
         };
     }>;
     pageSpeedRecoveryFileId?: string;
@@ -13068,6 +13254,8 @@ export type ProjectSeoKeyword = {
     intent: string | null;
     conversion: 'high' | 'medium' | 'low' | null;
     feature: string | null;
+    intentClass?: 'product' | 'comparison' | 'problem' | 'learn' | null;
+    fit?: 'direct' | 'partial' | null;
     device: 'mobile' | 'desktop' | null;
     position: number | null;
     positionStatus: 'ranked' | 'not_in_range' | 'unavailable';
@@ -13077,6 +13265,7 @@ export type ProjectSeoKeyword = {
     priority: 'low' | 'medium' | 'high';
     version: number;
     positionHistory?: Array<ProjectSeoPositionPoint>;
+    positionHistoryCut?: boolean;
 };
 
 export type ProjectSeoPositionPoint = {
@@ -13084,6 +13273,7 @@ export type ProjectSeoPositionPoint = {
     observationId: string;
     position: number | null;
     positionStatus: 'ranked' | 'not_in_range' | 'unavailable';
+    checkedResults?: number | null;
     device: 'mobile' | 'desktop' | null;
 };
 
@@ -13133,6 +13323,7 @@ export type ProjectSeoAction = {
         before: string | null;
         after: string;
     } | null;
+    bodyDraft?: ProjectSeoBodyDraft;
     decision?: {
         kind: 'content_opportunity' | 'internal_link_opportunity' | 'offer_availability' | 'open_strategy_opportunity';
         alternative: string;
@@ -13172,8 +13363,22 @@ export type ProjectSeoAction = {
     status: 'recommended' | 'needs_review' | 'task_created' | 'unavailable' | 'implemented' | 'verified' | 'canceled' | 'failed';
     completedAt?: Date;
     verifiedAt?: Date;
+    impact?: ProjectSeoActionImpact;
+    lastCheckResult?: 'failing' | 'fixed';
+    lastCheckAt?: Date;
     kind: 'fix' | 'opportunity';
     evidence: Array<string>;
+};
+
+export type ProjectSeoBodyDraft = {
+    target: 'opening';
+    devices: Array<'mobile' | 'desktop'>;
+    heldBack: string;
+} | {
+    target: 'opening';
+    devices: Array<'mobile' | 'desktop'>;
+    before: string;
+    after: string;
 };
 
 export type ProjectSeoMetric = {
@@ -13234,6 +13439,7 @@ export type ProjectSeoKeywordSeries = {
     keywords: Array<{
         keyword: string;
         countryCode?: string;
+        from?: string;
         points: Array<{
             date: string;
             clicks: number;
@@ -13284,6 +13490,7 @@ export type ProjectSeoLandingPages = {
     }>;
     truncated?: boolean;
     skippedUrls?: Array<string>;
+    pageUrls: Array<string>;
     observationId: string;
     propertyId: string;
     from: string;
@@ -13494,6 +13701,100 @@ export type ProjectSeoStrategy = {
     languageCode: string | null;
 };
 
+export type ProjectSeoSiteSpeed = {
+    rows: Array<{
+        url: string;
+        audited: boolean;
+        group?: string;
+        cause?: 'action' | 'keyword' | 'template' | 'entry' | 'risk';
+        why?: string;
+        tier?: 'full' | 'reduced' | 'none';
+        check?: {
+            device: 'mobile' | 'desktop';
+            basis: 'crux-url' | 'crux-origin' | 'page-type' | 'default';
+            mix: {
+                level: 'url' | 'origin';
+                phone: number;
+                desktop: number;
+                tablet: number;
+                period: {
+                    first: string;
+                    last: string;
+                } | null;
+            } | null;
+            notChecked: 'deadline' | 'quota' | 'other' | null;
+        };
+        devices: Array<{
+            pageUrl: string;
+            testedUrl: string;
+            device: 'mobile' | 'desktop';
+            lab: {
+                status: 'not_checked' | 'no_data' | 'quota' | 'budget' | 'unsafe' | 'deadline' | 'unavailable';
+            } | {
+                status: 'measured';
+                median: {
+                    lcp: number | null;
+                    cls: number | null;
+                    fcp: number | null;
+                    tbt: number | null;
+                    si: number | null;
+                };
+                runs: number;
+                ok: number;
+                lighthouse: string | null;
+                pageSpeed?: {
+                    scores: {
+                        performance?: number;
+                        accessibility?: number;
+                        bestPractices?: number;
+                        seo?: number;
+                        agenticBrowsing?: number;
+                    };
+                    insights: Array<{
+                        id: string;
+                        title: string;
+                        detail: string;
+                        action: string;
+                    }>;
+                    measuredAt?: Date;
+                };
+            };
+            field: {
+                status: 'not_checked' | 'no_data' | 'quota' | 'budget' | 'unsafe' | 'deadline' | 'unavailable';
+            } | {
+                status: 'measured';
+                level: 'url' | 'origin' | 'normalized';
+                url: string;
+                p75: {
+                    lcp: number | null;
+                    cls: number | null;
+                    fcp: number | null;
+                    inp: number | null;
+                    ttfb: number | null;
+                };
+                period: {
+                    first: Date;
+                    last: Date;
+                } | null;
+                history?: {
+                    status: 'comparable' | 'incompatible_population' | 'unavailable' | 'legacy_unverified';
+                    weeks?: Array<string>;
+                    lcp?: Array<number | null>;
+                    inp?: Array<number | null>;
+                    cls?: Array<number | null>;
+                };
+            };
+        }>;
+    }>;
+    dropped: number;
+    notChecked?: {
+        count: number;
+        reason: 'limit' | 'deadline' | 'quota' | 'other';
+    };
+    observationId: string;
+    observedAt: Date;
+};
+
 export type ProjectSeoSerpSeries = {
     keyword: string;
     device: 'mobile' | 'desktop';
@@ -13513,6 +13814,7 @@ export type ProjectSeoSerpPoint = {
         asyncLoaded: boolean;
         citedDomains: Array<string>;
         pageCited: boolean | null;
+        siteCited?: boolean | null;
     } | null;
     featured: {
         domain: string | null;
@@ -13556,6 +13858,58 @@ export type ProjectSeoRun = {
     issues: number | null;
     seconds: number | null;
     monitorId?: string | null;
+    runDiff?: ProjectSeoRunDiff;
+};
+
+export type ProjectSeoRunDiff = {
+    from: Date;
+    to: Date;
+    comparable: boolean;
+    reason?: 'market' | 'rulebook' | 'pages';
+    rulebookChange?: {
+        compared: number;
+        other: number;
+    };
+    new: Array<{
+        rowId: string;
+        title: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        severity: 'critical' | 'major' | 'minor';
+    }>;
+    newCount: number;
+    fixed: Array<{
+        rowId: string;
+        title: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        severity: 'critical' | 'major' | 'minor';
+    }>;
+    fixedCount: number;
+    stillOpen: Array<{
+        rowId: string;
+        title: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        severity: 'critical' | 'major' | 'minor';
+    }>;
+    stillOpenCount: number;
+    notCheckedAgain: number;
+    notCheckedBefore: number;
+    numbers: {
+        issues: {
+            from: number | null;
+            to: number | null;
+        };
+        moves: Array<{
+            keyword: string;
+            pageUrl: string;
+            device: 'mobile' | 'desktop' | null;
+            from: number;
+            to: number;
+        }>;
+        moveCount: number;
+    };
 };
 
 export type ProjectSeoAnalysis = {
@@ -13641,9 +13995,22 @@ export type ProjectSeoMonitorChange = {
         device: 'mobile' | 'desktop' | null;
         from: number;
         to: number;
+    } | {
+        keyword: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        from: number;
+        to: null;
+        checkedResults: number;
     }>;
     moveCount: number;
     dropCount: number;
+    lostCitations: Array<{
+        keyword: string;
+        device: 'mobile' | 'desktop';
+        shown: boolean;
+    }>;
+    lostCitationCount: number;
 };
 
 export type AddProjectSeoPageRequest = {
@@ -13682,6 +14049,9 @@ export type RequestProjectSeoAnalysisRequest = {
     analyses?: Array<'page.inspect' | 'keyword.refresh' | 'links.refresh'>;
     maxProviderCalls?: number;
     fullAuditCredits?: 750;
+    /**
+     * Required for `kind: "audit_full"`: `{kind: "cost_plus", version: 1, minimumCredits: 750, markupPercent: 50}`. The audit costs its provider cost plus 50%, at least 750 credits. It has no credit cap: `fullAuditLimits.usd` bounds the provider cost. Leave out `maxCredits`. Confirm the price with the person first.
+     */
     fullAuditPrice?: {
         kind: 'cost_plus';
         version: 1;
@@ -14105,6 +14475,82 @@ export type DisconnectSeoConnectionResponse = {
     disconnected: true;
 };
 
+export type SeoImpactClaim = {
+    claimId: string;
+    claimedUntil: Date;
+    input: SeoImpactInput;
+};
+
+export type SeoImpactInput = {
+    schema: 'sokosumi.seo-impact-input/1';
+    impactId: string;
+    pageUrl: string;
+    property: string;
+    changedAt: Date;
+    changeSource: 'cuso_done' | 'audit_recheck';
+    changeBounds: {
+        earliest: Date;
+        latest: Date;
+    } | null;
+    changeCheck: 'verified' | 'not_checked';
+    windowCrawl: Date;
+    pageByDate: Array<{
+        date: string;
+        clicks: number;
+        impressions: number;
+        ctr: number;
+        position: number;
+    }>;
+    siteByDate: Array<{
+        date: string;
+        clicks: number;
+        impressions: number;
+        ctr: number;
+        position: number;
+    }>;
+    candidates: Array<{
+        pageUrl: string;
+        byDate: Array<{
+            date: string;
+            clicks: number;
+            impressions: number;
+            ctr: number;
+            position: number;
+        }>;
+    }>;
+    pin: {
+        comparisonPage: string;
+    } | null;
+    readAt: Date;
+};
+
+export type SeoImpactVerdictReceipt = {
+    impactId: string;
+    state: 'change not confirmed' | 'not crawled after change' | 'tested' | 'waiting';
+};
+
+export type SeoImpactResult = {
+    schema: 'sokosumi.seo-impact/1';
+    impactId: string;
+    pageUrl: string;
+    property: string;
+    changedAt: string;
+    changeSource: 'cuso_done' | 'audit_recheck';
+    observedAt: string;
+    windowCrawl: string;
+    state: 'change not confirmed' | 'not crawled after change' | 'tested' | 'waiting';
+    verdict: {
+        verdict: 'effect detected' | 'no effect detected' | 'not measurable';
+        [key: string]: unknown;
+    } | null;
+    comparison: {
+        pageUrl: string | null;
+        [key: string]: unknown;
+    } | null;
+    retryAfter: string | null;
+    [key: string]: unknown;
+};
+
 export type PublicNewsletter = {
     name: string;
     senderName: string;
@@ -14362,6 +14808,10 @@ export type NotificationItem = {
      * When the notification was created
      */
     createdAt: Date;
+    /**
+     * Network of the Job the notification points at; null when it points at none
+     */
+    network: 'mainnet' | 'preprod' | null;
 };
 
 /**
@@ -16730,7 +17180,10 @@ export type SokoBotVersion = {
     }>;
     capabilities: Array<string> | null;
     inferenceRegion?: 'eu' | 'us' | null;
-    systemPrompt: string;
+    /**
+     * The composed system prompt. Sent to platform admins only, for the behaviour lab.
+     */
+    systemPrompt?: string;
 };
 
 export type UpdateSokoBotProactiveRequest = {
@@ -18823,9 +19276,9 @@ export type AdHocDesignMdWrite = {
      */
     content: string;
     /**
-     * Extraction id of the generated DESIGN.md, when known
+     * Extraction id of the generated DESIGN.md, when known. Leave it out (or send null) for a DESIGN.md you wrote.
      */
-    extractionId: string | null;
+    extractionId?: string | null;
 };
 
 export type EffectiveDesignMd = {
@@ -18931,6 +19384,16 @@ export type ContextOrganizationId = string;
  * Native Mac app build, `macos/<build>`. A build older than the minimum gets 426 with `kind: client_update_required` on every operation (ADR 0053).
  */
 export type SokosumiClient = string;
+
+/**
+ * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace. While Preprod is switched on, a Preprod API key (`soko_preprod_`) is for Preprod without the header, and an API key whose Network the header contradicts gets 403 with `kind: api_key_network_mismatch` on Network data; while it is off, every API key is for Mainnet, as without a prefix. While Preprod is switched on, a Coworker's payment (a Task event with `credits` or `masumiPayment`, an x402 payment, usage) is for the Network its payload names (`masumiPayment.PaymentSource.network`, or the 402's chain: Base is Mainnet, Base Sepolia is Preprod), else for the header's, else for Mainnet; a payload and a header that name different Networks get 400 with `kind: network_mismatch`, and a payment on Preprod needs the Preprod access of the billed party (the Organization the payment is billed to, else the billed user), else 403 with `kind: preprod_access_required`; while Preprod is off, a payload names no Network. Operations on shared data are never refused because of the Network.
+ */
+export const SokosumiNetwork = { MAINNET: 'mainnet', PREPROD: 'preprod' } as const;
+
+/**
+ * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace. While Preprod is switched on, a Preprod API key (`soko_preprod_`) is for Preprod without the header, and an API key whose Network the header contradicts gets 403 with `kind: api_key_network_mismatch` on Network data; while it is off, every API key is for Mainnet, as without a prefix. While Preprod is switched on, a Coworker's payment (a Task event with `credits` or `masumiPayment`, an x402 payment, usage) is for the Network its payload names (`masumiPayment.PaymentSource.network`, or the 402's chain: Base is Mainnet, Base Sepolia is Preprod), else for the header's, else for Mainnet; a payload and a header that name different Networks get 400 with `kind: network_mismatch`, and a payment on Preprod needs the Preprod access of the billed party (the Organization the payment is billed to, else the billed user), else 403 with `kind: preprod_access_required`; while Preprod is off, a payload names no Network. Operations on shared data are never refused because of the Network.
+ */
+export type SokosumiNetwork = typeof SokosumiNetwork[keyof typeof SokosumiNetwork];
 
 export type StopAdminImpersonationData = {
     body?: never;
@@ -19214,6 +19677,127 @@ export type ListAdminSeoAlertsResponses = {
 };
 
 export type ListAdminSeoAlertsResponse = ListAdminSeoAlertsResponses[keyof ListAdminSeoAlertsResponses];
+
+export type ListAdminSeoActionImpactData = {
+    body?: never;
+    path?: never;
+    query?: {
+        days?: number;
+        page?: number;
+    };
+    url: '/admin/seo-action-impact';
+};
+
+export type ListAdminSeoActionImpactErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSeoActionImpactError = ListAdminSeoActionImpactErrors[keyof ListAdminSeoActionImpactErrors];
+
+export type ListAdminSeoActionImpactResponses = {
+    /**
+     * Impact of done SEO actions
+     */
+    200: {
+        data: AdminSeoActionImpact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSeoActionImpactResponse = ListAdminSeoActionImpactResponses[keyof ListAdminSeoActionImpactResponses];
+
+export type ListAdminSeoImpactVerdictsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        period?: '90' | '365' | 'all';
+    };
+    url: '/admin/seo-impact';
+};
+
+export type ListAdminSeoImpactVerdictsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSeoImpactVerdictsError = ListAdminSeoImpactVerdictsErrors[keyof ListAdminSeoImpactVerdictsErrors];
+
+export type ListAdminSeoImpactVerdictsResponses = {
+    /**
+     * Tracked SEO page changes
+     */
+    200: {
+        data: AdminSeoImpactVerdicts;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSeoImpactVerdictsResponse = ListAdminSeoImpactVerdictsResponses[keyof ListAdminSeoImpactVerdictsResponses];
 
 export type ListAdminAgentsData = {
     body?: never;
@@ -22049,6 +22633,171 @@ export type ListAdminUsersResponses = {
 
 export type ListAdminUsersResponse = ListAdminUsersResponses[keyof ListAdminUsersResponses];
 
+export type GetAdminUserPreprodAccessData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/users/{id}/preprod-access';
+};
+
+export type GetAdminUserPreprodAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminUserPreprodAccessError = GetAdminUserPreprodAccessErrors[keyof GetAdminUserPreprodAccessErrors];
+
+export type GetAdminUserPreprodAccessResponses = {
+    /**
+     * Preprod access and its recent changes
+     */
+    200: {
+        data: AdminPreprodAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminUserPreprodAccessResponse = GetAdminUserPreprodAccessResponses[keyof GetAdminUserPreprodAccessResponses];
+
+export type SetAdminUserPreprodAccessData = {
+    body: SetAdminPreprodAccessBody;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/users/{id}/preprod-access';
+};
+
+export type SetAdminUserPreprodAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminUserPreprodAccessError = SetAdminUserPreprodAccessErrors[keyof SetAdminUserPreprodAccessErrors];
+
+export type SetAdminUserPreprodAccessResponses = {
+    /**
+     * Preprod access and its recent changes
+     */
+    200: {
+        data: AdminPreprodAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminUserPreprodAccessResponse = SetAdminUserPreprodAccessResponses[keyof SetAdminUserPreprodAccessResponses];
+
 export type ListAdminMatchedChannelsData = {
     body?: never;
     path?: never;
@@ -22809,6 +23558,152 @@ export type RemoveAdminMatchedChannelParticipantResponses = {
 
 export type RemoveAdminMatchedChannelParticipantResponse = RemoveAdminMatchedChannelParticipantResponses[keyof RemoveAdminMatchedChannelParticipantResponses];
 
+export type GetAdminPreprodPauseData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/networks/preprod/pause';
+};
+
+export type GetAdminPreprodPauseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminPreprodPauseError = GetAdminPreprodPauseErrors[keyof GetAdminPreprodPauseErrors];
+
+export type GetAdminPreprodPauseResponses = {
+    /**
+     * The Preprod pause, its generation and its recent changes
+     */
+    200: {
+        data: AdminPreprodPause;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminPreprodPauseResponse = GetAdminPreprodPauseResponses[keyof GetAdminPreprodPauseResponses];
+
+export type SetAdminPreprodPauseData = {
+    body: SetAdminPreprodPauseBody;
+    path?: never;
+    query?: never;
+    url: '/admin/networks/preprod/pause';
+};
+
+export type SetAdminPreprodPauseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminPreprodPauseError = SetAdminPreprodPauseErrors[keyof SetAdminPreprodPauseErrors];
+
+export type SetAdminPreprodPauseResponses = {
+    /**
+     * The Preprod pause, its generation and its recent changes
+     */
+    200: {
+        data: AdminPreprodPause;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminPreprodPauseResponse = SetAdminPreprodPauseResponses[keyof SetAdminPreprodPauseResponses];
+
 export type ListAdminOrganizationsData = {
     body?: never;
     path?: never;
@@ -23530,6 +24425,171 @@ export type AssignAdminOrganizationMemberSeatResponses = {
 };
 
 export type AssignAdminOrganizationMemberSeatResponse = AssignAdminOrganizationMemberSeatResponses[keyof AssignAdminOrganizationMemberSeatResponses];
+
+export type GetAdminOrganizationPreprodAccessData = {
+    body?: never;
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/preprod-access';
+};
+
+export type GetAdminOrganizationPreprodAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminOrganizationPreprodAccessError = GetAdminOrganizationPreprodAccessErrors[keyof GetAdminOrganizationPreprodAccessErrors];
+
+export type GetAdminOrganizationPreprodAccessResponses = {
+    /**
+     * Preprod access and its recent changes
+     */
+    200: {
+        data: AdminPreprodAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminOrganizationPreprodAccessResponse = GetAdminOrganizationPreprodAccessResponses[keyof GetAdminOrganizationPreprodAccessResponses];
+
+export type SetAdminOrganizationPreprodAccessData = {
+    body: SetAdminPreprodAccessBody;
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/preprod-access';
+};
+
+export type SetAdminOrganizationPreprodAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminOrganizationPreprodAccessError = SetAdminOrganizationPreprodAccessErrors[keyof SetAdminOrganizationPreprodAccessErrors];
+
+export type SetAdminOrganizationPreprodAccessResponses = {
+    /**
+     * Preprod access and its recent changes
+     */
+    200: {
+        data: AdminPreprodAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminOrganizationPreprodAccessResponse = SetAdminOrganizationPreprodAccessResponses[keyof SetAdminOrganizationPreprodAccessResponses];
 
 export type ListAdminInvoicesData = {
     body?: never;
@@ -25995,6 +27055,21 @@ export type GetAgentsData = {
 };
 
 export type GetAgentsErrors = {
+    /**
+     * Forbidden. Only for Preprod (`X-Sokosumi-Network: preprod`, or a Preprod API key) or a key the header contradicts. Branch on `kind`: preprod_off (Preprod is switched off), preprod_access_required (an anonymous caller, a Coworker or Soko Bot key, or a person without Preprod access in the workspace) or api_key_network_mismatch (an API key of the other Network than the header names)
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unprocessable Entity
      */
@@ -35512,7 +36587,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors 
         };
     };
     /**
-     * Mention is not failed
+     * Mention is not failed or its Network is stale
      */
     409: {
         error: string;
@@ -35530,6 +36605,21 @@ export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors 
      * Internal Server Error
      */
     500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Preprod is paused or unavailable
+     */
+    503: {
         error: string;
         message: string;
         kind?: string;
@@ -48426,6 +49516,9 @@ export type PostDriveResourcesSelectionTokenData = {
          */
         scope: 'me' | 'org';
         organizationId?: string;
+        /**
+         * The search response's `search.windowCursor` (any of its cursors names the same window).
+         */
         windowCursor: string;
     };
     headers?: {
@@ -48514,7 +49607,17 @@ export type PostDriveResourcesSelectionTokenResponses = {
 export type PostDriveResourcesSelectionTokenResponse = PostDriveResourcesSelectionTokenResponses[keyof PostDriveResourcesSelectionTokenResponses];
 
 export type PostDriveResourcesMetadataBatchData = {
-    body: FileMetadataBatchRequest & {
+    body: {
+        resourceIds?: Array<string>;
+        selectionToken?: string;
+        idempotencyKey: string;
+        addTagLabelIds?: Array<string>;
+        removeTagLabelIds?: Array<string>;
+        categoryLabelId?: string | null;
+        expectedRevisions?: Array<{
+            resourceId: string;
+            metadataRevision: number;
+        }>;
         /**
          * Drive file owner scope: 'me' for personal, 'org' for organization
          */
@@ -66820,6 +67923,117 @@ export type PutProjectsByIdDesignMdResponses = {
 
 export type PutProjectsByIdDesignMdResponse = PutProjectsByIdDesignMdResponses[keyof PutProjectsByIdDesignMdResponses];
 
+export type PostProjectsByIdDesignMdFromOrganizationData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/design-md/from-organization';
+};
+
+export type PostProjectsByIdDesignMdFromOrganizationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project not found, or the organization has no DESIGN.md
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The Project already has a DESIGN.md, or is a read-only CMO Project
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdDesignMdFromOrganizationError = PostProjectsByIdDesignMdFromOrganizationErrors[keyof PostProjectsByIdDesignMdFromOrganizationErrors];
+
+export type PostProjectsByIdDesignMdFromOrganizationResponses = {
+    /**
+     * Project DESIGN.md copied
+     */
+    200: {
+        data: Project;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdDesignMdFromOrganizationResponse = PostProjectsByIdDesignMdFromOrganizationResponses[keyof PostProjectsByIdDesignMdFromOrganizationResponses];
+
 export type GetProjectsByIdCalendarData = {
     body?: never;
     headers?: {
@@ -79428,6 +80642,117 @@ export type ResearchStudioWebsiteDraftResponses = {
 
 export type ResearchStudioWebsiteDraftResponse = ResearchStudioWebsiteDraftResponses[keyof ResearchStudioWebsiteDraftResponses];
 
+export type UpdateStudioBrandAssetsData = {
+    body: UpdateStudioBrandAssets;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/brand-kit/assets';
+};
+
+export type UpdateStudioBrandAssetsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid reference image or full brand kit
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateStudioBrandAssetsError = UpdateStudioBrandAssetsErrors[keyof UpdateStudioBrandAssetsErrors];
+
+export type UpdateStudioBrandAssetsResponses = {
+    /**
+     * Updated brand images
+     */
+    200: {
+        data: Array<StudioProductPhoto>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateStudioBrandAssetsResponse = UpdateStudioBrandAssetsResponses[keyof UpdateStudioBrandAssetsResponses];
+
 export type SaveStudioBrandLookData = {
     body: SaveStudioBrandLook;
     headers?: {
@@ -88503,6 +89828,169 @@ export type FinalizeSeoConnectionResponses = {
 
 export type FinalizeSeoConnectionResponse = FinalizeSeoConnectionResponses[keyof FinalizeSeoConnectionResponses];
 
+export type PostSeoImpactClaimsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/seo-impact/claims';
+};
+
+export type PostSeoImpactClaimsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostSeoImpactClaimsError = PostSeoImpactClaimsErrors[keyof PostSeoImpactClaimsErrors];
+
+export type PostSeoImpactClaimsResponses = {
+    /**
+     * A claim, or null
+     */
+    200: {
+        data: SeoImpactClaim | null;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostSeoImpactClaimsResponse = PostSeoImpactClaimsResponses[keyof PostSeoImpactClaimsResponses];
+
+export type PostSeoImpactClaimsByClaimIdVerdictData = {
+    body: SeoImpactResult;
+    path: {
+        claimId: string;
+    };
+    query?: never;
+    url: '/seo-impact/claims/{claimId}/verdict';
+};
+
+export type PostSeoImpactClaimsByClaimIdVerdictErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostSeoImpactClaimsByClaimIdVerdictError = PostSeoImpactClaimsByClaimIdVerdictErrors[keyof PostSeoImpactClaimsByClaimIdVerdictErrors];
+
+export type PostSeoImpactClaimsByClaimIdVerdictResponses = {
+    /**
+     * Result saved
+     */
+    200: {
+        data: SeoImpactVerdictReceipt;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostSeoImpactClaimsByClaimIdVerdictResponse = PostSeoImpactClaimsByClaimIdVerdictResponses[keyof PostSeoImpactClaimsByClaimIdVerdictResponses];
+
 export type GetPublicNewsletterUnsubscribeData = {
     body?: never;
     path?: never;
@@ -96142,6 +97630,21 @@ export type SetCmoSeoSuggestionStatusForProjectErrors = {
      * No such suggestion
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The suggestion changed while it was saved
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -106923,6 +108426,10 @@ export type GetTasksData = {
          * true also lists sub-tasks. People get only Tasks that are not sub-tasks by default, as the task board shows them; coworkers and Soko Bots always get sub-tasks.
          */
         includeSubtasks?: 'true' | 'false';
+        /**
+         * false sends each Task's `description` as null, for a list of many Tasks such as a board. A description can be long; read one with GET /tasks/{id}. Defaults to true.
+         */
+        includeDescription?: 'true' | 'false';
         /**
          * true lists only Tasks where a comment mentions the caller and the caller has not commented since. It narrows the Tasks that `scope` selects, so send scope=workspace to include a teammate's Tasks. It also lists sub-tasks. People only; coworkers and Soko Bots get 400.
          */

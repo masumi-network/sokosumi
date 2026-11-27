@@ -16,10 +16,15 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BOARD } from "../../../harness/fixtures.ts";
 import { Shell } from "../../shell/Shell.tsx";
-import { BOARD_EMPTY, TasksBoard, TasksList } from "./TasksBoard.tsx";
+import {
+  BOARD_EMPTY,
+  BOARD_REFRESH_ARGS,
+  TasksBoard,
+  TasksList,
+} from "./TasksBoard.tsx";
 
 type Result = typeof BOARD.result;
 
@@ -28,6 +33,7 @@ async function openBoard(
   result: Result | CallToolResult,
   host: McpUiHostContext = {},
   refreshed: () => Promise<CallToolResult> = async () => BOARD.result,
+  input: Record<string, unknown> = BOARD.input,
 ) {
   const [hostSide, viewSide] = InMemoryTransport.createLinkedPair();
   const hostContext: McpUiHostContext = {
@@ -84,12 +90,13 @@ async function openBoard(
       isEmpty={(data) => data.data.length === 0}
       empty={BOARD_EMPTY}
       refreshTool="tasks_list"
+      refreshArgs={BOARD_REFRESH_ARGS}
     >
       {(data, context) => <TasksBoard data={data} context={context} />}
     </Shell>,
   );
   await act(() => initialized);
-  await act(() => bridge.sendToolInput({ arguments: BOARD.input }));
+  await act(() => bridge.sendToolInput({ arguments: input }));
   await act(() => bridge.sendToolResult(result));
   return { bridge, sent };
 }
@@ -98,8 +105,27 @@ const column = (name: string) =>
   screen.getByRole("region", { name: new RegExp(`^${name}`) });
 const taskButton = (name: string) =>
   screen.getByRole("button", { name: new RegExp(name) });
+/** The whole card around a Task's title. */
+const card = (name: string) =>
+  taskButton(name).closest("article") as HTMLElement;
 
-afterEach(cleanup);
+/** The iframe's width: the board below 640px, Web's phone list above. */
+function setWidth(width: number) {
+  const { happyDOM } = window as unknown as {
+    happyDOM: { setViewport(size: { width: number; height: number }): void };
+  };
+  happyDOM.setViewport({ width, height: 900 });
+}
+
+beforeEach(() => {
+  // Before the fixture's due days, so none is overdue.
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-25T12:00:00Z") });
+  setWidth(1024);
+});
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 describe("TasksBoard inline", () => {
   it("shows the workspace, how many Tasks it shows, and a count per column in Web's order", async () => {
@@ -119,40 +145,92 @@ describe("TasksBoard inline", () => {
     ]);
   });
 
-  it("shows the top three Tasks per column with identifier, initials and due date", async () => {
+  it("shows only the columns with Tasks when the call filters by status (SOKD-497)", async () => {
+    await openBoard(BOARD.canceled, {}, undefined, BOARD.canceledInput);
+
+    expect(
+      screen.getAllByRole("region").map((region) => region.textContent),
+    ).toEqual([expect.stringMatching(/^Done1/)]);
+    expect(
+      screen.getByText("Book the venue for the team offsite"),
+    ).toBeTruthy();
+  });
+
+  it("reads a status filter given as a comma-separated string", async () => {
+    await openBoard(BOARD.canceled, {}, undefined, {
+      ...BOARD.input,
+      status: "CANCELED,FAILED",
+    });
+
+    expect(screen.getAllByRole("region")).toHaveLength(1);
+  });
+
+  it("keeps every column on an unfiltered board, empty ones too", async () => {
+    await openBoard(BOARD.canceled);
+
+    expect(screen.getAllByRole("region")).toHaveLength(5);
+  });
+
+  it("shows the top three Tasks per column as Web's cards", async () => {
     await openBoard(BOARD.result);
     const todo = within(column("Todo"));
 
-    expect(todo.getAllByRole("listitem")).toHaveLength(3);
+    expect(todo.getAllByRole("article")).toHaveLength(3);
     expect(todo.getByText("1 more")).toBeTruthy();
     expect(screen.queryByText("Audit the pricing page copy")).toBeNull();
 
-    const research = taskButton("Research competitor pricing");
-    expect(research.textContent).toContain("ACME-39");
-    expect(research.textContent).toContain("Due Nov 28, 2026");
-    expect(research.textContent).toContain("MA");
-    expect(research.textContent).toContain("Assigned to Market Analyst");
+    const research = within(card("Research competitor pricing"));
+    expect(research.getByText("ACME-39")).toBeTruthy();
+    expect(research.getByText("Due Nov 28")).toBeTruthy();
+    expect(research.getByText("MA")).toBeTruthy();
+    expect(research.getByText("Assigned to Market Analyst")).toBeTruthy();
+    expect(
+      research.getByRole("img", { name: "Priority: Medium" }),
+    ).toBeTruthy();
   });
 
-  it("names a status only where the column title does not", async () => {
+  it("names a status only where the column title does not, as Web does", async () => {
     await openBoard(BOARD.result);
-    const meta = (name: string) => taskButton(name).textContent;
+    const named = (task: string, status: string) =>
+      within(card(task)).queryByText(status);
+    const marker = (task: string, status: string) =>
+      within(card(task)).queryByRole("img", { name: status });
 
-    expect(meta("Send the December newsletter")).toContain(
-      "ACME-40 · Scheduled",
-    );
-    expect(meta("Draft the Q1 launch plan")).not.toContain("ACME-41 · Draft");
-    expect(meta("Export the November ad report")).toContain("· Failed");
-    expect(meta("Research competitor pricing")).not.toContain("Ready");
-    expect(meta("Approve the January social posts")).toContain(
-      "· Approval required",
-    );
+    expect(named("Send the December newsletter", "Scheduled")).toBeTruthy();
+    expect(named("Export the November ad report", "Failed")).toBeTruthy();
+    expect(
+      named("Approve the January social posts", "Approval required"),
+    ).toBeTruthy();
+    expect(named("Research competitor pricing", "Ready")).toBeNull();
+    expect(marker("Research competitor pricing", "Ready")).toBeTruthy();
+    expect(marker("Draft the Q1 launch plan", "Draft")).toBeTruthy();
+  });
+
+  it("says Overdue once a due day has passed in the host's time zone", async () => {
+    vi.setSystemTime(new Date("2026-11-29T12:00:00Z"));
+    await openBoard(BOARD.result);
+
+    expect(
+      within(card("Research competitor pricing")).getByText("Overdue · Nov 28"),
+    ).toBeTruthy();
+    expect(
+      within(card("Send the December newsletter")).getByText("Due Dec 1"),
+    ).toBeTruthy();
   });
 
   it("never shows a Task's description", async () => {
     await openBoard(BOARD.result);
 
     expect(screen.queryByText(/Plain record text/)).toBeNull();
+  });
+
+  it("shows a team's 100 newest Tasks of 1,586, with how many more per column", async () => {
+    await openBoard(BOARD.team);
+
+    expect(screen.getByText("Showing 100 of 1586 Tasks")).toBeTruthy();
+    expect(column("Backlog").textContent).toContain("20");
+    expect(column("Backlog").textContent).toContain("17 more");
+    expect(screen.getAllByRole("article")).toHaveLength(15);
   });
 
   it("leaves the workspace name out of a personal workspace", async () => {
@@ -169,6 +247,28 @@ describe("TasksBoard inline", () => {
   });
 });
 
+describe("TasksBoard on a narrow screen", () => {
+  beforeEach(() => setWidth(402));
+
+  it("shows Web's phone list: the first five cards, each with its status", async () => {
+    await openBoard(BOARD.result);
+
+    expect(screen.queryAllByRole("region")).toHaveLength(0);
+    const cards = screen.getAllByRole("article");
+    expect(cards).toHaveLength(5);
+    expect(within(cards[0]).getByText("Draft")).toBeTruthy();
+    expect(within(cards[2]).getByText("Ready")).toBeTruthy();
+    expect(screen.getByText("8 more")).toBeTruthy();
+  });
+
+  it("shows every card in full screen", async () => {
+    await openBoard(BOARD.result, { displayMode: "fullscreen" });
+
+    expect(screen.getAllByRole("article")).toHaveLength(13);
+    expect(screen.queryByText(/more$/)).toBeNull();
+  });
+});
+
 describe("TasksBoard fullscreen", () => {
   it("asks the host for full screen, then shows every Task in its column", async () => {
     const { sent } = await openBoard(BOARD.result);
@@ -179,7 +279,7 @@ describe("TasksBoard fullscreen", () => {
 
     expect(sent.modes).toHaveBeenCalledWith("fullscreen");
     await waitFor(() =>
-      expect(within(column("Todo")).getAllByRole("listitem")).toHaveLength(4),
+      expect(within(column("Todo")).getAllByRole("article")).toHaveLength(4),
     );
     expect(screen.queryByText("1 more")).toBeNull();
     expect(screen.getByRole("button", { name: "Exit full screen" }));
@@ -206,6 +306,24 @@ describe("TasksBoard actions", () => {
         text: "The person selected Task ACME-39 on the Sokosumi Task board. Call tasks_get with ACME-39 for its details.",
       },
     ]);
+  });
+
+  it("also writes the selection to ChatGPT's widget state when the host offers it (SOKD-497)", async () => {
+    const setWidgetState = vi.fn();
+    Object.assign(window, { openai: { setWidgetState } });
+    try {
+      await openBoard(BOARD.result);
+      await act(async () =>
+        fireEvent.click(taskButton("Research competitor pricing")),
+      );
+    } finally {
+      Reflect.deleteProperty(window, "openai");
+    }
+
+    expect(setWidgetState).toHaveBeenCalledWith({
+      modelContent:
+        "The person selected Task ACME-39 on the Sokosumi Task board. Call tasks_get with ACME-39 for its details.",
+    });
   });
 
   it("sends the Task's id when its identifier is not a plain reference", async () => {
@@ -257,7 +375,7 @@ describe("TasksBoard actions", () => {
     ).toBeNull();
   });
 
-  it("refreshes by re-calling tasks_list with the same arguments", async () => {
+  it("refreshes by re-calling tasks_list with the same arguments, without descriptions", async () => {
     // tasks_list's own result: no `_meta.sokosumi`, which only the show tool adds.
     const { _meta, ...plain } = BOARD.personal;
     const { sent } = await openBoard(BOARD.result, {}, async () => plain);
@@ -266,7 +384,11 @@ describe("TasksBoard actions", () => {
       fireEvent.click(screen.getByRole("button", { name: "Refresh" })),
     );
 
-    expect(sent.calls).toHaveBeenCalledWith("tasks_list", BOARD.input);
+    // As tasks_show_board sends them (SOKD-496).
+    expect(sent.calls).toHaveBeenCalledWith("tasks_list", {
+      ...BOARD.input,
+      includeDescription: "false",
+    });
     expect(screen.queryByText("Acme Studio")).toBeNull();
     expect(screen.queryByText("Send the December newsletter")).toBeTruthy();
     expect(screen.queryByText("Approve the January social posts")).toBeNull();

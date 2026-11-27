@@ -128,6 +128,41 @@ describe("GET /coworkers", () => {
     expect(body.data[0].metadata).toBeNull();
   });
 
+  it.each([
+    ["no channels key", { profile: { llm: ["GPT-5"] } }],
+    ["null channels", { channels: null, profile: { llm: ["GPT-5"] } }],
+  ])(
+    "lists a coworker whose stored metadata has %s (SOKD-477)",
+    async (_label, metadata) => {
+      coworkerFindManyMock.mockResolvedValue([
+        {
+          id: "cow_legacy",
+          createdAt: new Date("2026-02-25T10:00:00.000Z"),
+          updatedAt: new Date("2026-02-25T10:00:00.000Z"),
+          archivedAt: null,
+          isWhitelisted: false,
+          priority: 0,
+          capabilities: ["chat"],
+          slug: "legacy-agent",
+          name: "Legacy Agent",
+          baseURL: null,
+          vendor: sampleVendor,
+          metadata,
+        },
+      ]);
+
+      const app = createApp();
+      const response = await app.request("http://localhost/?scope=all");
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.data[0].metadata).toEqual({
+        channels: {},
+        profile: { llm: ["GPT-5"] },
+      });
+    },
+  );
+
   it("can return all non-archived coworkers via scope=all", async () => {
     coworkerFindManyMock.mockResolvedValue([]);
 

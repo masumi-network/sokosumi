@@ -1,5 +1,6 @@
 import type { Hono } from "hono";
 
+import { assertMainnetScope } from "@/lib/db/network-scope";
 import { moveLegacyStudioFolderTasks } from "@/services/image-studio-drive.service";
 import { reconcileStaleJobs } from "@/services/image-studio-jobs.service";
 
@@ -17,14 +18,18 @@ export default function mount(app: Hono) {
       c,
       IMAGE_JOBS_SYNC_LOCK_KEY,
       async (context) => {
+        const { scope } = context;
+        assertMainnetScope(scope);
         const result = await reconcileStaleJobs({
+          scope,
           olderThanMs: STALE_AFTER_MS,
           limit: BATCH,
         });
         const folders = await moveLegacyStudioFolderTasks(5);
         context.log.set({ result: { ...result, folders } });
       },
-      { errorDetail: "safe-fields" },
+      // Image Studio is Mainnet only.
+      { errorDetail: "safe-fields", network: "mainnet" },
     );
   });
 }

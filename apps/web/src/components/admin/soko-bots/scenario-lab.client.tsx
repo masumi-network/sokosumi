@@ -248,6 +248,7 @@ export function ScenarioLab({
   });
   const [promptOpen, setPromptOpen] = useState(false);
   const current = versions.find((v) => v.id === activeVersion) ?? null;
+  const systemPrompt = current?.systemPrompt;
   const [running, setRunning] = useState<Set<string>>(new Set());
   const [failures, setFailures] = useState<Record<string, string>>({});
   // One at a time: turns share the bot's session lock, so this is the run the
@@ -498,23 +499,28 @@ export function ScenarioLab({
                 ? current.capabilities.join(", ")
                 : t("allTools")}
             </dd>
-            <dt className="text-muted-foreground">{t("overviewPrompt")}</dt>
-            <dd>
-              <button
-                type="button"
-                onClick={() => setPromptOpen((v) => !v)}
-                aria-expanded={promptOpen}
-                className="text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
-              >
-                {promptOpen ? t("hidePrompt") : t("showPrompt")} ·{" "}
-                {Math.round(current.systemPrompt.length / 1024)} KB
-              </button>
-              {promptOpen ? (
-                <pre className="app-scrollbar bg-background mt-2 max-h-96 overflow-auto rounded-md border p-2 font-mono text-2xs leading-snug whitespace-pre-wrap break-words">
-                  {current.systemPrompt}
-                </pre>
-              ) : null}
-            </dd>
+            {/* Core sends the composed prompt to platform admins only. */}
+            {systemPrompt === undefined ? null : (
+              <>
+                <dt className="text-muted-foreground">{t("overviewPrompt")}</dt>
+                <dd>
+                  <button
+                    type="button"
+                    onClick={() => setPromptOpen((v) => !v)}
+                    aria-expanded={promptOpen}
+                    className="text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+                  >
+                    {promptOpen ? t("hidePrompt") : t("showPrompt")} ·{" "}
+                    {Math.round(systemPrompt.length / 1024)} KB
+                  </button>
+                  {promptOpen ? (
+                    <pre className="app-scrollbar bg-background mt-2 max-h-96 overflow-auto rounded-md border p-2 font-mono text-2xs leading-snug whitespace-pre-wrap break-words">
+                      {systemPrompt}
+                    </pre>
+                  ) : null}
+                </dd>
+              </>
+            )}
           </dl>
         </div>
       ) : null}

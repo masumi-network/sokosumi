@@ -122,6 +122,23 @@ describe("getNotificationHref", () => {
     ).toBe("/tasks/a%2Fb");
   });
 
+  it.each([
+    "Notifications.Task.seoMonitorWorse",
+    "Notifications.Task.seoMonitorClicksDrop",
+  ])(
+    "opens the result, where the change shows, from the SEO monitor alert %s",
+    (messageKey) => {
+      expect(
+        getNotificationHref({
+          kind: "TASK",
+          referenceId: "t1",
+          messageKey,
+          metadata: { workspaceId: "ws" },
+        }),
+      ).toBe("/tasks/t1/result");
+    },
+  );
+
   it("returns job href with agentId", () => {
     expect(
       getNotificationHref({
@@ -297,6 +314,17 @@ describe("getNotificationHref", () => {
         metadata: { messageId: "  msg-1  " },
       }),
     ).toBe("/chat/rooms/room-1?message=msg-1");
+  });
+
+  it("opens the admin alert list from a critical SEO alert", () => {
+    expect(
+      getNotificationHref({
+        kind: "SYSTEM",
+        referenceId: "task-1",
+        messageKey: "Notifications.System.seoAdminCritical",
+        metadata: null,
+      }),
+    ).toBe("/admin/seo-alerts");
   });
 
   it("deep-links pending vendor grant SYSTEM to personal review", () => {

@@ -14,6 +14,7 @@ import { emitChatRoomMessageCreatedEffects } from "@/helpers/chat-room-message-c
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { networkStamp } from "@/helpers/preprod-control";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
@@ -38,6 +39,7 @@ import {
   skillMetadata,
 } from "@/services/chat-message-skills.service";
 import { dispatchChatRoomMention } from "@/services/chat-room-coworker-dispatch.service";
+import type { NewChatRoomMention } from "@/services/chat-room-mention-state";
 import { scheduleChatRoomMessageUnfurls } from "@/services/chat-room-message-unfurl.service";
 
 import {
@@ -390,6 +392,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           excludeUserId: userContext.userId,
         });
 
+        // Read only for a message that mentions someone: a Preprod post
+        // without mentions writes no Network row.
+        let mentions: NewChatRoomMention[] = [];
+        if (mentionedCoworkerIds.length + mentionedSokoBotIds.length > 0) {
+          const stamp = await networkStamp(c.var.networkScope.network, tx);
+          mentions = [
+            ...mentionedCoworkerIds.map((coworkerId) => ({
+              ...stamp,
+              coworkerId,
+              sokoBotId: null,
+            })),
+            ...mentionedSokoBotIds.map((sokoBotId) => ({
+              ...stamp,
+              coworkerId: null,
+              sokoBotId,
+            })),
+          ];
+        }
         const message = await tx.chatRoomMessage.create({
           data: {
             roomId: room.id,
@@ -399,16 +419,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ...(clientId ? { clientMessageId: clientId } : {}),
             ...(metadata ? { metadata } : {}),
             mentionsAsSource: {
-              create: [
-                ...mentionedCoworkerIds.map((coworkerId) => ({
-                  coworkerId,
-                  sokoBotId: null,
-                })),
-                ...mentionedSokoBotIds.map((sokoBotId) => ({
-                  coworkerId: null,
-                  sokoBotId: sokoBotId,
-                })),
-              ],
+              create: mentions,
             },
             userMentionsAsSource: {
               create: mentionedUserIds.map((mentionedUserId) => ({

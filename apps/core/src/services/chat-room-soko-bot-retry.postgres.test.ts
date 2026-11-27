@@ -224,7 +224,7 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
         status: "sent",
       },
     });
-    await db.$executeRaw`UPDATE chat_room_mention SET "updatedAt" = now() - interval '1 hour' WHERE id = ${mention.id}::uuid`;
+    await db.$executeRaw`UPDATE chat_room_mention SET "updatedAt" = (now() AT TIME ZONE 'UTC') - interval '1 hour' WHERE id = ${mention.id}::uuid`;
     return { source, response, mention };
   }
 
@@ -288,6 +288,7 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     });
     await dispatch({
       mentionId: mention.id,
+      provenance: { network: "mainnet" },
       mention,
       userId,
       failWithShell: async () => {
@@ -1083,7 +1084,7 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
       const workerA = publicDispatch(m.mention.id);
       await a.atHold;
       // A stalls past the stale window; worker B reclaims under the same key.
-      await db.$executeRaw`UPDATE chat_room_mention SET "updatedAt" = now() - interval '1 hour' WHERE id = ${m.mention.id}::uuid`;
+      await db.$executeRaw`UPDATE chat_room_mention SET "updatedAt" = (now() AT TIME ZONE 'UTC') - interval '1 hour' WHERE id = ${m.mention.id}::uuid`;
       await reclaimLater();
       const started = reclaimerStarts
         ? startsRunningTurn(m.mention.id, () => mentionReply(m.mention.id))
@@ -1121,7 +1122,7 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     const m = await staleMention();
     const old = await turnFor(m, "FAILED");
     // Asked, and failed, 20 minutes ago.
-    await db.$executeRaw`UPDATE chat_room_mention SET "createdAt" = now() - interval '20 minutes' WHERE id = ${m.mention.id}::uuid`;
+    await db.$executeRaw`UPDATE chat_room_mention SET "createdAt" = (now() AT TIME ZONE 'UTC') - interval '20 minutes' WHERE id = ${m.mention.id}::uuid`;
     const delivery = await db.sokoBotDelivery.findFirstOrThrow({
       where: { turnId: old.id },
     });
@@ -1162,7 +1163,7 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
       where: { id: stuck.mention.id },
       data: { status: "sent", responseMessageId: reply.id },
     });
-    await db.$executeRaw`UPDATE chat_room_mention SET "updatedAt" = now() - interval '1 hour', "createdAt" = now() - interval '20 minutes' WHERE id = ${stuck.mention.id}::uuid`;
+    await db.$executeRaw`UPDATE chat_room_mention SET "updatedAt" = (now() AT TIME ZONE 'UTC') - interval '1 hour', "createdAt" = (now() AT TIME ZONE 'UTC') - interval '20 minutes' WHERE id = ${stuck.mention.id}::uuid`;
     startTurn.mockClear();
     await publicDispatch(stuck.mention.id);
     expect(startTurn).not.toHaveBeenCalled();
@@ -1294,7 +1295,7 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
       const workerA = publicDispatch(m.mention.id);
       await a.atHold;
       // A stalls past the stale window; worker B reclaims and opens its reply.
-      await db.$executeRaw`UPDATE chat_room_mention SET "updatedAt" = now() - interval '1 hour' WHERE id = ${m.mention.id}::uuid`;
+      await db.$executeRaw`UPDATE chat_room_mention SET "updatedAt" = (now() AT TIME ZONE 'UTC') - interval '1 hour' WHERE id = ${m.mention.id}::uuid`;
       await reclaimLater();
       const started = reclaimerStarts
         ? startsRunningTurn(m.mention.id, () => mentionReply(m.mention.id))

@@ -3,6 +3,7 @@ import { loadCliEnvironment } from "../config/loader.js";
 import {
   type AuthEnvironment,
   type AuthManager,
+  envBearerCredential,
   getAuthManager,
 } from "./auth-manager.js";
 import {
@@ -12,6 +13,7 @@ import {
   PREPROD_API_URL,
   resolveCliConfig,
   resolveTargetScope,
+  sanitizeApiUrl,
   targetFromUserApiKey,
 } from "./config.js";
 
@@ -190,7 +192,11 @@ export async function resolveInitialAuth({
   const envApiKey = String(environment.SOKOSUMI_API_KEY || "").trim();
   if (envApiKey) assertApiKeyTarget(envApiKey, config, targetExplicit);
 
-  const storedApiKey = authManager.getApiKeyCredentials();
+  // An environment token wins over stored credentials, so skip the OS vault.
+  // Without one, check the stored key up front: requests fall back to it
+  // when the OAuth session expires mid-run.
+  const envBearer = envBearerCredential(environment);
+  const storedApiKey = envBearer ? null : authManager.getApiKeyCredentials();
   if (storedApiKey?.apiKey) {
     assertApiKeyTarget(storedApiKey.apiKey, config, targetExplicit);
     if (storedApiKey.target && storedApiKey.target !== config.target) {
@@ -207,12 +213,11 @@ export async function resolveInitialAuth({
     environment,
   });
   const authMethod = authManager.getAuthMethod(environment);
-  const credentials = authManager.getCredentials();
-  const apiKeyCredentials = authManager.getApiKeyCredentials();
-  const expiresAt =
-    authMethod === "api-key"
-      ? apiKeyCredentials?.expiresAt || null
-      : credentials?.expiresAt || null;
+  const expiresAt = envBearer
+    ? null
+    : authMethod === "api-key"
+      ? authManager.getApiKeyCredentials()?.expiresAt || null
+      : authManager.getCredentials()?.expiresAt || null;
 
   return {
     authenticated: Boolean(token),
@@ -234,7 +239,12 @@ export async function requireAuthenticatedSession(session: {
     targetExplicit: session.targetExplicit,
   });
   if (!auth.authenticated) {
-    throw new CliError("AUTH_REQUIRED", AUTHENTICATION_REQUIRED_MESSAGE);
+    throw new CliError(
+      "AUTH_REQUIRED",
+      session.config.target === "custom" && !session.config.clientId
+        ? `Authentication required for this API URL. Sign in with \`sokosumi --api-url ${sanitizeApiUrl(session.config.apiUrl)} --client-id <id> auth login\`, or set SOKOSUMI_OAUTH_CLIENT_ID.`
+        : AUTHENTICATION_REQUIRED_MESSAGE,
+    );
   }
   return auth;
 }

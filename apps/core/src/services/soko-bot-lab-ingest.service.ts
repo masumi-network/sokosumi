@@ -3,6 +3,7 @@ import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 
 import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import {
   SYSTEM_TURN_ROUTES,
   systemScheduleRoute,
@@ -123,6 +124,7 @@ export async function runSokoBotLabIngest(input: {
   // which is worse than the duplicate it avoids: a repeated nudge is noise,
   // a swallowed one is work nobody hears about.
   const started = await sokoBotControlPlane.startTurn({
+    network: DETACHED_SOKO_BOT_NETWORK,
     userId: input.userId,
     workspaceId: input.workspaceId,
     // `lab:` keeps the run out of the owner's proactive allowance, which is

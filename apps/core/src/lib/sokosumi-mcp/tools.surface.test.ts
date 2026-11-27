@@ -219,6 +219,10 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
       version: null,
     },
   },
+  projects_image_studio_brand_assets_update: {
+    id: "p-1",
+    body: { remove: "11111111-1111-4111-8111-111111111111" },
+  },
   projects_image_studio_brand_look_update: {
     id: "p-1",
     body: { look: null, lookRevision: 0 },
@@ -411,6 +415,7 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   projects_posting_instructions: { id: "p-1" },
   projects_set_design: { id: "p-1", body: { content: "# Design\n" } },
   projects_clear_design: { id: "p-1" },
+  projects_copy_organization_design: { id: "p-1" },
   projects_needs_attention: { id: "p-1" },
   projects_close_status: { id: "p-1" },
   projects_close: {

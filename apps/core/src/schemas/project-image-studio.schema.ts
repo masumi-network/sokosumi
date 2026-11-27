@@ -3,6 +3,7 @@ import { SOKO_BOT_VOICEOVER_VOICES } from "@sokosumi/soko-bot";
 import {
   MAX_STUDIO_HEADLINE_LENGTH,
   SHORT_VIDEO_FORMATS,
+  SHORT_VIDEO_LAUNCH_DATE_MAX_LENGTH,
   SHORT_VIDEO_MAX_PICTURES,
   TALKING_VIDEO_SCRIPT_MAX_LENGTH,
   TALKING_VIDEO_SCRIPT_MIN_LENGTH,
@@ -278,6 +279,12 @@ export const imageStudioJobSchema = z
     talkingVideo: imageStudioTalkingVideoSchema.optional(),
     /** The versions it referenced, so a retry keeps every one of them. */
     referenceAssetIds: z.array(z.string().uuid()),
+    brandReferenceCount: z
+      .number()
+      .int()
+      .min(0)
+      .max(LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB)
+      .optional(),
     referenceFileIds: z.array(z.string().uuid()).optional(),
     exportHeadline: studioHeadlineTextSchema.optional(),
     useProductCutout: z.boolean().optional(),
@@ -362,6 +369,12 @@ export const createImageJobRequestSchema = z
     lettering: z.enum(["overlay", "ideogram"]).optional(),
     settings: imageStudioSettingsSchema.optional(),
     referenceAssetIds: z.array(z.string().uuid()).max(4).default([]),
+    brandReferenceCount: z
+      .number()
+      .int()
+      .min(0)
+      .max(LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB)
+      .optional(),
     referenceFileIds: z
       .array(z.string().uuid())
       .max(LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB)
@@ -426,17 +439,22 @@ export const createTalkingVideoJobRequestSchema = z
      * A photo of a person needs their say-so: `consent` records that the
      * caller confirmed they may use it.
      */
-    presenter: z.discriminatedUnion("kind", [
-      z.object({
-        kind: z.literal("stock"),
-        id: z.string().trim().min(1).max(100),
+    presenter: z
+      .discriminatedUnion("kind", [
+        z.object({
+          kind: z.literal("stock"),
+          id: z.string().trim().min(1).max(100),
+        }),
+        z.object({
+          kind: z.literal("file"),
+          fileId: z.string().uuid(),
+          consent: z.literal(true),
+        }),
+      ])
+      .openapi({
+        description:
+          'A stock presenter, `{"kind": "stock", "id": "<presenter id from the catalog>"}`, or the caller\'s own photo in Files, `{"kind": "file", "fileId": "<Drive file id>", "consent": true}`. Only a person can start a video of their own photo: an agent gets 403 `person_approval_required` with the Studio link to send the person to.',
       }),
-      z.object({
-        kind: z.literal("file"),
-        fileId: z.string().uuid(),
-        consent: z.literal(true),
-      }),
-    ]),
     /**
      * Show the Project's website behind the presenter in the middle of the
      * video. Omitted, it is shown when the Project has a website; it never is
@@ -492,8 +510,23 @@ export const createShortVideoJobRequestSchema = z
       .array(z.string().uuid())
       .max(SHORT_VIDEO_MAX_PICTURES)
       .default([]),
+    /**
+     * When a `launch` short's new thing arrives, as the card shows it
+     * ("3 December", "Saturday at 10"). Required for a launch, and only
+     * the owner's real date: it is never written for them.
+     */
+    launchDate: z
+      .string()
+      .trim()
+      .min(1)
+      .max(SHORT_VIDEO_LAUNCH_DATE_MAX_LENGTH)
+      .optional(),
     shapes: videoShapesSchema,
     idempotencyKey: z.string().trim().min(8).max(200),
+  })
+  .refine((request) => request.format !== "launch" || request.launchDate, {
+    message: "A launch needs the date of what it announces.",
+    path: ["launchDate"],
   })
   .openapi("CreateProjectShortVideoJobRequest");
 
@@ -852,6 +885,7 @@ export const recordImageStudioInitialTurnSchema = z.object({
 
 export const createAgentImageJobSchema = createImageJobRequestSchema
   .omit({
+    brandReferenceCount: true,
     exportHeadline: true,
     useProductCutout: true,
     letterExistingBackdrop: true,
@@ -859,6 +893,10 @@ export const createAgentImageJobSchema = createImageJobRequestSchema
   .extend({
     route: imageStudioRouteSchema.optional(),
     experimentArm: studioRouterArmSchema.optional(),
+    brandAssetIds: z
+      .array(z.uuid())
+      .max(LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB)
+      .optional(),
     catalogProductId: z.string().uuid().optional(),
     modelId: z
       .enum(["gemini-pro", "ideogram-v3", "recraft-v4-1-text-to-vector"])

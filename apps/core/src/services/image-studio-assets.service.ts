@@ -575,6 +575,7 @@ export interface JobView {
   /** The versions this job referenced, so a retry keeps all of them. */
   referenceAssetIds: string[];
   referenceFileIds?: string[];
+  brandReferenceCount?: number;
   useProductCutout?: boolean;
   lettering?: "overlay" | "ideogram";
   exportHeadline?: string;
@@ -698,6 +699,7 @@ export function toJobView(job: {
   settings: unknown;
   referenceAssetIds: string[];
   referenceFileIds?: string[];
+  brandReferenceCount?: number;
   useProductCutout?: boolean;
   lettering?: string;
   exportHeadline?: string | null;
@@ -740,6 +742,9 @@ export function toJobView(job: {
       ? { talkingVideo: talkingVideoView(job.settings) }
       : {}),
     referenceAssetIds: job.referenceAssetIds,
+    ...(job.brandReferenceCount
+      ? { brandReferenceCount: job.brandReferenceCount }
+      : {}),
     ...(job.referenceFileIds?.length
       ? { referenceFileIds: job.referenceFileIds }
       : {}),

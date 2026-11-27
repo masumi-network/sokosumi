@@ -173,3 +173,41 @@ describe("calendarDateSchema", () => {
     ).toBe(false);
   });
 });
+
+// SOKD-491: `email` and `company` were dropped and the contact saved without them.
+describe("contact write bodies refuse unknown keys", () => {
+  it("names a guessed key on create and lists the real ones", () => {
+    const result = createContactSchema.safeParse({
+      name: "Zed Fakename",
+      email: "zed@example.com",
+    });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toMatch(
+      /^Unknown key "email"\. This body takes: name, organization, .*channels, upsert\.$/,
+    );
+  });
+
+  it("names guessed keys on update", () => {
+    const result = updateContactSchema.safeParse({
+      version: 1,
+      company: "Co",
+      title: "Fake",
+    });
+    expect(result.error?.issues[0]?.message).toMatch(
+      /^Unknown keys "company", "title"\./,
+    );
+  });
+
+  it("refuses an update that changes nothing", () => {
+    const result = updateContactSchema.safeParse({ version: 1 });
+    expect(result.error?.issues[0]?.message).toMatch(
+      /^Send at least one field to change: name, organization/,
+    );
+  });
+
+  it("still takes a normal update", () => {
+    expect(
+      updateContactSchema.parse({ version: 1, organization: "Co" }),
+    ).toEqual({ version: 1, organization: "Co" });
+  });
+});

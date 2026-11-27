@@ -9,11 +9,10 @@ import { databaseNow } from "@/lib/db/database-now";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { evalEnvironment } from "@/lib/evals/eval-environment";
-import {
-  EVAL_CONNECTED_ACCOUNT_PREFIX,
-  forgetEvalWorkspaces,
-} from "@/lib/evals/eval-guard";
+import { forgetEvalWorkspaces } from "@/lib/evals/eval-guard";
+import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-social-account";
 import { EVAL_COWORKER } from "@/lib/evals/fake-coworker";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { writeOwnerDriveFile } from "@/services/image-studio-drive.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { ensureA2aWorld } from "../eval-a2a";
@@ -24,6 +23,7 @@ import {
   type FixturePicturePost,
   type FixtureTask,
   INVESTOR_FIXTURE,
+  investorLine,
   type JourneyCoworker,
   type JourneyFixtures,
   type JourneyPrepare,
@@ -55,6 +55,11 @@ export interface JourneyWorld {
   upcomingByNetwork?: Record<string, number>;
   /** Cuso's home room for this journey: its conversation starts empty. */
   cusoRoomId?: string;
+  /**
+   * When the lane was cleared for this journey, before its prepare: a file
+   * made before then is an earlier case's, one made after is this journey's.
+   */
+  isolatedAt?: string;
   /** The room the owner, the teammates and the owner's bot share. */
   teammateRoomId?: string;
   /** Cuso's published posts when the journey started. */
@@ -248,6 +253,7 @@ async function seedWorkspaceSchedules(
     const { botId, userId } = bots[schedule.who];
     const row = await prisma.sokoBotSchedule.create({
       data: {
+        network: DETACHED_SOKO_BOT_NETWORK,
         sokoBotId: botId,
         requestedByUserId: userId,
         workspaceId: lane.workspaceId,
@@ -530,20 +536,14 @@ async function seedFridayAndLinkedInPosts(
 
 /** The owner's research notes: every fitting investor, then the two misfits. */
 export function investorNotes(): string {
-  const months = ["March", "May", "July", "September"];
-  const fits = INVESTOR_FIXTURE.fits.map(
-    (fit, index) =>
-      `- **${fit.fund}** (Europe, seed). Partner: ${fit.partner}. Recent deal: led the seed round of ${fit.startup}, an AI-agent startup, in ${months[index % months.length]} 2026. Source: ${fit.source}`,
-  );
-  const [bayline, ironforge] = INVESTOR_FIXTURE.misfits;
   return [
     "# Seed investor notes",
     "",
     "Collected for our seed round. All rounds below are from the last 12 months.",
     "",
-    ...fits,
-    `- **${bayline?.fund}** (San Francisco, Series B only). Partner: ${bayline?.partner}. Recent deal: Series B of ${bayline?.startup}. Source: ${bayline?.source}`,
-    `- **${ironforge?.fund}** (Munich, growth stage, no seed). Partner: ${ironforge?.partner}. Recent deal: growth round of ${ironforge?.startup}. Source: ${ironforge?.source}`,
+    ...[...INVESTOR_FIXTURE.fits, ...INVESTOR_FIXTURE.misfits].map(
+      (investor) => `- ${investorLine(investor)}`,
+    ),
     "",
   ].join("\n");
 }

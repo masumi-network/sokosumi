@@ -8,6 +8,7 @@ import {
   type SokoBotPacketAudience,
   type SokoBotTurnReader,
 } from "@/helpers/task-visibility";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import * as ads from "./soko-bot-runtime/ads";
 import * as authorization from "./soko-bot-runtime/authorization";
@@ -115,6 +116,8 @@ export interface SokoBotActionContext {
     /** The model chosen for this turn at its start (`turn-model.ts`). */
     modelId?: string | null;
     source: string | null;
+    /** Idempotency key for this turn (e.g. `watch:<id>`, `schedule:<id>:<slot>`, `admin-retry:<id>:<op>`). */
+    clientTurnId?: string | null;
     /** Bot-to-bot hops behind this turn; see lib/soko-bot/chat-chain.ts. */
     chainDepth: number;
     intentId?: string | null;
@@ -124,6 +127,7 @@ export interface SokoBotActionContext {
 }
 
 export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
+  scope: NetworkScope;
   meetingPrep?: true;
   grant: SokoBotTurnGrantClaims;
   toolCallLimit: number;

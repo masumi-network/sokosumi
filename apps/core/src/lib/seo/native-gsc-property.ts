@@ -8,8 +8,9 @@ export function gscPropertyCovers(property: string, urls: string[]): boolean {
     return (
       !!domain &&
       urls.every((url) => {
-        const host = new URL(url).hostname.toLowerCase();
-        return host === domain || host.endsWith(`.${domain}`);
+        // A text that is no URL is no page the property covers.
+        const host = URL.parse(url)?.hostname.toLowerCase();
+        return host === domain || !!host?.endsWith(`.${domain}`);
       })
     );
   }

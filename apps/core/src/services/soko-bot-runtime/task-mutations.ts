@@ -6,8 +6,10 @@ import {
   sokoBotUpdateTaskInputSchema as taskUpdateInputSchema,
 } from "@sokosumi/soko-bot";
 import { buildTaskWriteAccessWhere } from "@/helpers/access-control";
+import { networkStamp } from "@/helpers/preprod-control";
 import { jsonInput } from "@/helpers/prisma-json";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import {
   actionInputHash,
   actionOperationKey,
@@ -182,6 +184,7 @@ export async function applyTaskMutation(
       };
       await tx.sokoBotDelegation.create({
         data: {
+          ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx)),
           turnId: authorized.turn.id,
           toolCallId,
           kind: "TASK",
@@ -271,6 +274,7 @@ export async function applyTaskMutation(
     };
     await tx.sokoBotDelegation.create({
       data: {
+        ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx)),
         turnId: authorized.turn.id,
         toolCallId,
         kind: "TASK",
@@ -400,6 +404,7 @@ export async function assignTask(
         : undefined;
     await tx.sokoBotDelegation.create({
       data: {
+        ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx)),
         turnId: authorized.turn.id,
         toolCallId,
         kind: "TASK",

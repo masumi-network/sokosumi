@@ -7,6 +7,8 @@ import {
 } from "@/app/tasks/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { DEVELOPER_SECTION_PANEL_CLASS } from "./developer-section-shell";
+
 interface DeveloperSectionRowsSkeletonProps {
   rows?: number;
 }
@@ -43,7 +45,7 @@ export function DeveloperSectionRowsSkeleton({
 
 /**
  * Content-only shell for Suspense fallbacks inside DeveloperSectionShell
- * (avoids double max-w-4xl wrapper after Instant `loading.tsx` resolves).
+ * (avoids a double panel wrapper after Instant `loading.tsx` resolves).
  * Matches non-card sections (title + description + list).
  */
 export function DeveloperSectionContentSkeleton(): React.ReactElement {
@@ -64,7 +66,7 @@ export function DeveloperSectionContentSkeleton(): React.ReactElement {
 export function DeveloperSectionPageSkeleton(): React.ReactElement {
   return (
     <div data-testid="developer-section-loading" className="min-h-full w-full">
-      <div className="mx-auto max-w-4xl space-y-8 px-4 py-2">
+      <div className={DEVELOPER_SECTION_PANEL_CLASS}>
         <div className="bg-card text-card-foreground rounded-xl border shadow-sm">
           <div className="flex flex-col gap-1.5 p-6">
             <div className="flex items-start justify-between gap-4">
@@ -91,7 +93,7 @@ export function DeveloperSectionPageSkeleton(): React.ReactElement {
 export function DeveloperListPageSkeleton(): React.ReactElement {
   return (
     <div data-testid="developer-list-loading" className="min-h-full w-full">
-      <div className="mx-auto max-w-4xl space-y-8 px-4 py-2">
+      <div className={DEVELOPER_SECTION_PANEL_CLASS}>
         <DeveloperSectionContentSkeleton />
       </div>
     </div>

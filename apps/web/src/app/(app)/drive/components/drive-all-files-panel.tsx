@@ -33,6 +33,7 @@ import {
   childFolders,
   DriveFolderNav,
 } from "@/app/drive/components/drive-folder-nav";
+import { DriveFolderReadme } from "@/app/drive/components/drive-folder-readme";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import type { DriveShareItem } from "@/app/drive/components/drive-share-dialog";
 import { PageSearchField } from "@/components/page-search-field";
@@ -168,6 +169,12 @@ export interface DriveAllFilesPanelProps {
   onShareFile?: (item: DriveShareItem) => void;
   /** Opens the move dialog for the ticked uploads. */
   onMoveFiles?: (files: { pathname: string; name: string }[]) => void;
+  /**
+   * The page's create controls (Upload, New folder), shown in an empty folder
+   * or Workspace so the first step sits where the eye already is. The page
+   * owns them because it owns the picker, the dialog and the target folder.
+   */
+  emptyActions?: ReactNode;
 }
 
 export function DriveAllFilesPanel({
@@ -182,6 +189,7 @@ export function DriveAllFilesPanel({
   dataRoomPaths,
   onShareFile,
   onMoveFiles,
+  emptyActions,
 }: DriveAllFilesPanelProps) {
   const t = useTranslations("App.Drive.Files");
   const queryClient = useQueryClient();
@@ -800,6 +808,22 @@ export function DriveAllFilesPanel({
         />
       ) : null}
 
+      {browsing ? (
+        <DriveFolderReadme
+          store={store}
+          folder={filters.folder}
+          onOpen={(file) =>
+            setOpenFile({
+              id: file.id,
+              displayName: file.displayName,
+              mimeType: file.mimeType,
+              sizeBytes: file.sizeBytes,
+              pathname: file.pathname,
+            })
+          }
+        />
+      ) : null}
+
       {appliedFacets.length > 0 ? (
         <div
           className="flex flex-wrap items-center gap-2"
@@ -1103,7 +1127,14 @@ export function DriveAllFilesPanel({
             >
               {t("filterClear")}
             </Button>
-          ) : null}
+          ) : appliedQuery || !emptyActions ? null : (
+            <div
+              className="mt-4 flex flex-wrap justify-center gap-2"
+              data-testid="drive-empty-actions"
+            >
+              {emptyActions}
+            </div>
+          )}
         </div>
       ) : (
         <>

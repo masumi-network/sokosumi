@@ -1,6 +1,8 @@
 import { z } from "@hono/zod-openapi";
 import { publicExplorationText, publicExplorationUrl } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { seoActionImpactSchema } from "./seo-action-impact.schema";
+import { seoDeviceSchema } from "./seo-audit-coverage.schema";
 import { seoIdSchema, seoUrlSchema } from "./seo-page.schema";
 
 export const MAX_RANKED_DECISIONS = 5;
@@ -204,6 +206,36 @@ export const seoFollowUpReview = z.discriminatedUnion("kind", [
     afterPeriod: measuredPeriod,
   }),
 ]);
+// Text with only white space is no draft and no reason.
+const draftText = z.string().min(1).max(20_000).regex(/\S/);
+// A device listed twice would hide that a draft covers one device only.
+const draftDevices = z
+  .array(seoDeviceSchema)
+  .min(1)
+  .refine((devices) => new Set(devices).size === devices.length);
+/**
+ * The SEO bot's draft of a page's opening text for an action: the page's opening and a rewrite that passed the
+ * bot's claim check, or only why the bot held its draft back. Older reports have none.
+ */
+export const seoBodyDraftSchema = z
+  // A draft with a held-back reason is never checked: the held-back form comes first, and the checked form is strict, so
+  // one whose reason is unreadable is dropped.
+  .union([
+    z.object({
+      target: z.literal("opening"),
+      devices: draftDevices,
+      heldBack: draftText,
+    }),
+    z
+      .object({
+        target: z.literal("opening"),
+        devices: draftDevices,
+        before: draftText,
+        after: draftText,
+      })
+      .strict(),
+  ])
+  .openapi("ProjectSeoBodyDraft");
 export const seoActionSchema = z
   .object({
     id: z.string(),
@@ -222,6 +254,7 @@ export const seoActionSchema = z
       }),
       z.null(),
     ]),
+    bodyDraft: seoBodyDraftSchema.optional(),
     decision: decisionDetail.optional(),
     followUpReview: seoFollowUpReview.optional(),
     taskId: z.string().nullable(),
@@ -239,6 +272,16 @@ export const seoActionSchema = z
     completedAt: dateTimeSchema.optional(),
     /** When the last check that shows every finding of the fix gone ran; it can come before completedAt. Set on a verified fix. */
     verifiedAt: dateTimeSchema.optional(),
+    /** Set for the human who requested the audits, once an audit read this page's daily Search Console rows alone. */
+    impact: seoActionImpactSchema.optional(),
+    /**
+     * A fix's issues in the page checks after its own: failing where one still fails on a device the fix names, fixed
+     * where every one passed there. For each issue and device the newest check that read its rule decides. Absent
+     * where no later check read one of them.
+     */
+    lastCheckResult: z.enum(["failing", "fixed"]).optional(),
+    /** When the newest check that decided lastCheckResult ran. */
+    lastCheckAt: dateTimeSchema.optional(),
     /** A fix comes from a confirmed check. An opportunity is a named heuristic over measured search data. */
     kind: z.enum(["fix", "opportunity"]),
     evidence: z.array(z.string()),

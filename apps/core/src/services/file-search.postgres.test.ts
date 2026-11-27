@@ -321,6 +321,9 @@ describe.skipIf(!enabled)("Files retrieval against PostgreSQL", () => {
 
       expect(page.items).toHaveLength(page.search.windowCount);
       expect(page.search.indexCoverage).toEqual(coverageOf(page.items));
+      // SOKD-486: a one-page window still has a cursor to select it by.
+      expect(page.search.nextCursor).toBeNull();
+      expect(page.search.windowCursor).toEqual(expect.any(String));
     }, 60_000);
 
     it("3. counts a resource with no version row exactly as hydration does", async () => {

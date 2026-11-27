@@ -57,10 +57,12 @@ import {
   tryUseLiveLogger,
 } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { NETWORK_BY_NAME, type Network } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { prepareAuditSettlement } from "@/lib/seo/audit-settlement";
 import { formatUpstreamErrorForLog } from "@/lib/upstream-error-log";
 import { isAgentAuthContext, requireUserContext } from "@/middleware/auth";
+import { paymentScope } from "@/middleware/network-scope";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { taskWorkerContextSchema } from "@/schemas/task-worker-context.schema";
 import { projectMemoryService } from "@/services/project-memory.service";
@@ -256,20 +258,28 @@ function mountTaskEventRoute(
       let eventStatus: TaskStatus | null = status ?? null;
       let chargedMasumiPayment = false;
       let pausedForInsufficientBalance = false;
+      let chargedNetwork: Network | undefined;
 
       if (
         isAgent &&
         (masumiPayment != null || (credits != null && credits > 0))
       ) {
+        const namedNetwork = masumiPayment?.PaymentSource?.network;
+        const scope = await paymentScope(c, {
+          payloadNetwork: namedNetwork && NETWORK_BY_NAME[namedNetwork],
+          billed: { userId: task.ownerId, organizationId: task.organizationId },
+          db: tx,
+        });
         const settled = await settleTaskEventCharge({
           task,
           credits,
           masumiPayment,
-          scope: c.var.networkScope,
+          scope,
           tx,
         });
         cents = settled.cents;
         transactionId = settled.transactionId;
+        if (transactionId) chargedNetwork = scope.network;
         chargedMasumiPayment = settled.chargedMasumiPayment;
         if (settled.eventStatus != null) {
           eventStatus = settled.eventStatus;
@@ -292,7 +302,7 @@ function mountTaskEventRoute(
           channel,
           ...(cents !== undefined && { cents }),
           transactionId,
-          ...(transactionId && { network: c.var.networkScope.network }),
+          ...(chargedNetwork && { network: chargedNetwork }),
           ...actorData,
         },
       });

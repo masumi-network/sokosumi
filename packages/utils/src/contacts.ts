@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { strictBody } from "./strict-body.js";
+
 /**
  * What a contact is to the team. `CONTACT` is the plain default; the sales
  * steps (prospect, lead, active, customer) apply only to people the team
@@ -325,21 +327,31 @@ export const contactFieldsSchema = z.object({
     .optional(),
 });
 
-export const createContactSchema = contactFieldsSchema
-  .extend({
-    name: contactFieldsSchema.shape.name.optional(),
-    channels: z.array(contactChannelInputSchema).max(20).default([]),
-    /** Attach to the contact that already owns one of these channels. */
-    upsert: z.boolean().default(false),
-  })
-  .refine(
-    (value) => Boolean(value.name) || value.channels.length > 0,
-    "A contact needs a name or a channel",
-  );
+// Strict: a guessed `email` or `company` was dropped and the call still
+// answered 200 (SOKD-491). Email goes in `channels`, a company in `organization`.
+export const createContactSchema = strictBody({
+  ...contactFieldsSchema.shape,
+  name: contactFieldsSchema.shape.name.optional(),
+  channels: z.array(contactChannelInputSchema).max(20).default([]),
+  /** Attach to the contact that already owns one of these channels. */
+  upsert: z.boolean().default(false),
+}).refine(
+  (value) => Boolean(value.name) || value.channels.length > 0,
+  "A contact needs a name or a channel",
+);
 
-export const updateContactSchema = contactFieldsSchema.partial().extend({
+const contactChangeFields = Object.keys(contactFieldsSchema.shape);
+
+export const updateContactSchema = strictBody({
+  ...contactFieldsSchema.partial().shape,
   version: z.int().positive(),
-});
+}).refine(
+  (value) =>
+    contactChangeFields.some(
+      (field) => value[field as keyof typeof value] !== undefined,
+    ),
+  `Send at least one field to change: ${contactChangeFields.join(", ")}.`,
+);
 
 export const contactInteractionInputSchema = z.object({
   occurredAt: z.iso.datetime({ offset: true }),

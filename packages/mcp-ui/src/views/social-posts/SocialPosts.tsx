@@ -1,6 +1,8 @@
+import { BadgeCheck, Eye, Image, MessagesSquare } from "lucide-react";
 import { useRef, useState } from "react";
 import { z } from "zod";
 import type { ViewContext } from "../../shell/Shell.tsx";
+import { type MarkerSpec, StatusMarker } from "../../shell/status.tsx";
 import {
   formatDateTime,
   isMessageKey,
@@ -9,7 +11,16 @@ import {
   type MessageKey,
   t,
 } from "../../shell/text.ts";
-import { PrimaryButton, QuietButton } from "../../shell/ui.tsx";
+import { Badge, Button } from "../../shell/ui.tsx";
+import { ProviderIcon } from "./provider-icons.tsx";
+
+/** Web's social-post-status-badge.tsx mark for a post waiting on approval. */
+const NEEDS_APPROVAL_MARKER: MarkerSpec = {
+  icon: BadgeCheck,
+  hue: "warning",
+  weight: "outline",
+};
+
 import { isUnknownTool } from "../../shell/use-view-connection.ts";
 
 const CANCEL_TOOL = "projects_social_post_cancel";
@@ -207,21 +218,22 @@ export function SocialPosts({
           )}
         </div>
         {refresh && (
-          <QuietButton
+          <Button
+            variant="ghost"
             className="-mx-3"
             onClick={runRefresh}
             disabled={refreshing === "busy"}
             aria-busy={refreshing === "busy"}
           >
             {refreshing === "busy" ? t("view.refreshing") : t("view.refresh")}
-          </QuietButton>
+          </Button>
         )}
       </header>
       <p role="status" className="text-muted-foreground text-xs empty:hidden">
         {refreshing === "failed" ? t("view.refreshFailed") : ""}
       </p>
 
-      <ul aria-label={t("socialPosts.title")} className="flex flex-col gap-6">
+      <ul aria-label={t("socialPosts.title")} className="flex flex-col gap-2">
         {posts.map((item) => (
           <PostItem
             key={item.post.id}
@@ -303,88 +315,117 @@ function PostItem({
   ]
     .filter(Boolean)
     .join(" · ");
-  const extras = [
-    post.media?.length ? t("socialPosts.media") : undefined,
-    post.threadParts?.length
-      ? t("socialPosts.thread", { count: post.threadParts.length + 1 })
-      : undefined,
-  ].filter(Boolean);
+  const hasMedia = !!post.media?.length;
+  const threadCount = post.threadParts?.length
+    ? post.threadParts.length + 1
+    : 0;
   // A failed cancel may be tried again. A conflict needs a refresh first: its
   // new revision gives the post a new key, and Cancel comes back.
   const offerCancel = canCancel && (!outcome || outcome === "failed");
   const note = outcome && OUTCOME_TEXT[outcome];
 
   return (
-    <li className="flex flex-col gap-2">
-      <p className="text-muted-foreground text-xs">{source}</p>
-      <p
-        className={`line-clamp-4 text-sm break-words whitespace-pre-line ${outcome === "canceled" ? "text-muted-foreground" : ""}`}
-      >
-        {post.text || t("socialPosts.noText")}
-      </p>
-      <p className="text-muted-foreground text-xs">
-        {post.scheduledAt
-          ? t("socialPosts.scheduled", {
-              date: formatDateTime(post.scheduledAt, context),
-            })
-          : t("socialPosts.unscheduled")}
-      </p>
-      {extras.length > 0 && (
-        <p className="text-muted-foreground text-xs">{extras.join(" · ")}</p>
-      )}
-      {item.projectCmo && (
-        <p className="text-muted-foreground text-xs">{t("socialPosts.cmo")}</p>
-      )}
-
-      {note && (
-        <p role="status" data-step={outcome} className="text-sm">
-          {t(note)}
+    <li className="bg-background border-border flex gap-3 rounded-lg border p-3">
+      <ProviderIcon provider={post.provider} />
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+          <span className="text-foreground inline-flex items-center gap-1.5 text-xs font-medium">
+            <StatusMarker spec={NEEDS_APPROVAL_MARKER} />
+            {t("socialPosts.needsApproval")}
+          </span>
+          {post.scheduledAt ? (
+            <span className="text-foreground font-medium tabular-nums">
+              {t("socialPosts.scheduled", {
+                date: formatDateTime(post.scheduledAt, context),
+              })}
+            </span>
+          ) : (
+            <span>{t("socialPosts.unscheduled")}</span>
+          )}
         </p>
-      )}
-      {outcome === "missing-tool" && (
-        <div data-step="missing-tool" className="flex flex-col gap-1">
-          <p className="text-sm font-semibold">
-            {t("socialPosts.missingToolset.title")}
-          </p>
-          <p className="text-muted-foreground text-sm">
-            {t("socialPosts.missingToolset.body")}
-          </p>
-          <code className="text-sm break-words">
-            {t("socialPosts.missingToolset.example")}
-          </code>
-        </div>
-      )}
-
-      {confirming ? (
-        <div data-step="confirm" className="flex flex-col gap-2">
-          <p className="text-sm font-medium">{t("socialPosts.confirm")}</p>
-          <div className="-mx-3 flex flex-wrap items-center gap-2 px-3 sm:mx-0 sm:px-0">
-            <PrimaryButton onClick={onCancel}>
-              {t("socialPosts.cancelPost")}
-            </PrimaryButton>
-            <QuietButton onClick={onKeep}>{t("socialPosts.keep")}</QuietButton>
-          </div>
-        </div>
-      ) : (
-        <div
-          data-step={outcome === "canceling" ? "canceling" : undefined}
-          className="-mx-3 flex flex-wrap items-center"
+        <p className="text-muted-foreground min-w-0 truncate text-xs">
+          {source}
+        </p>
+        <p
+          className={`line-clamp-4 text-sm break-words whitespace-pre-line ${outcome === "canceled" ? "text-muted-foreground" : ""}`}
         >
-          {url && (
-            <QuietButton onClick={() => onOpen(url)}>
-              {t("socialPosts.review")}
-            </QuietButton>
-          )}
-          {outcome === "canceling" && (
-            <QuietButton disabled aria-busy>
-              {t("socialPosts.canceling")}
-            </QuietButton>
-          )}
-          {offerCancel && (
-            <QuietButton onClick={onAsk}>{t("socialPosts.cancel")}</QuietButton>
-          )}
-        </div>
-      )}
+          {post.text || t("socialPosts.noText")}
+        </p>
+        {(threadCount > 0 || hasMedia) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {threadCount > 0 && (
+              <Badge variant="outline">
+                <MessagesSquare aria-hidden="true" />
+                {t("socialPosts.thread", { count: threadCount })}
+              </Badge>
+            )}
+            {hasMedia && (
+              <Badge variant="outline">
+                <Image aria-hidden="true" />
+                {t("socialPosts.media")}
+              </Badge>
+            )}
+          </div>
+        )}
+        {item.projectCmo && (
+          <p className="text-muted-foreground text-xs">
+            {t("socialPosts.cmo")}
+          </p>
+        )}
+
+        {note && (
+          <p role="status" data-step={outcome} className="text-sm">
+            {t(note)}
+          </p>
+        )}
+        {outcome === "missing-tool" && (
+          <div data-step="missing-tool" className="flex flex-col gap-1">
+            <p className="text-sm font-semibold">
+              {t("socialPosts.missingToolset.title")}
+            </p>
+            <p className="text-muted-foreground text-sm">
+              {t("socialPosts.missingToolset.body")}
+            </p>
+            <code className="text-sm break-words">
+              {t("socialPosts.missingToolset.example")}
+            </code>
+          </div>
+        )}
+
+        {confirming ? (
+          <div data-step="confirm" className="flex flex-col gap-2">
+            <p className="text-sm font-medium">{t("socialPosts.confirm")}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="destructive" onClick={onCancel}>
+                {t("socialPosts.cancelPost")}
+              </Button>
+              <Button onClick={onKeep}>{t("socialPosts.keep")}</Button>
+            </div>
+          </div>
+        ) : (
+          <div
+            data-step={outcome === "canceling" ? "canceling" : undefined}
+            className="flex flex-wrap items-center gap-2"
+          >
+            {url && (
+              <Button onClick={() => onOpen(url)}>
+                <Eye aria-hidden="true" />
+                {t("socialPosts.review")}
+              </Button>
+            )}
+            {outcome === "canceling" && (
+              <Button variant="ghost" disabled aria-busy>
+                {t("socialPosts.canceling")}
+              </Button>
+            )}
+            {offerCancel && (
+              <Button variant="ghost" onClick={onAsk}>
+                {t("socialPosts.cancel")}
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
     </li>
   );
 }

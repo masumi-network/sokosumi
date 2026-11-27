@@ -179,6 +179,10 @@
       "cli": "projects image-studio-website-research",
       "mcp": "projects_image_studio_website_research"
     },
+    "PATCH /projects/{id}/image-studio/brand-kit/assets": {
+      "cli": "projects image-studio-brand-assets-update",
+      "mcp": "projects_image_studio_brand_assets_update"
+    },
     "PUT /projects/{id}/image-studio/brand-kit/look": {
       "cli": "projects image-studio-brand-look-update",
       "mcp": "projects_image_studio_brand_look_update"
@@ -425,6 +429,10 @@
     "PUT /projects/{id}/design-md": {
       "cli": "projects set-design",
       "mcp": "projects_set_design"
+    },
+    "POST /projects/{id}/design-md/from-organization": {
+      "cli": "projects copy-organization-design",
+      "mcp": "projects_copy_organization_design"
     },
     "DELETE /projects/{id}/design-md": {
       "cli": "projects clear-design",

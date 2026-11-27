@@ -52,8 +52,13 @@ export type SeoKeywordGroup = {
   sources: string[];
   /** The newest estimate a check gave of how likely a searcher takes the page's action; null without one. */
   conversion: Keyword["conversion"];
+  /** When the estimate comes from another check than the shown ranks: that check's time, else null. */
+  estimateAt: Keyword["observedAt"];
   /** The product feature the keyword is about, in the words of the check. */
   feature: string | null;
+  /** What the searcher looks for and how well the page matches it: the reason of the estimate, from the same check. */
+  intentClass: NonNullable<Keyword["intentClass"]> | null;
+  fit: NonNullable<Keyword["fit"]> | null;
   /** The newest keyword difficulty (0 to 100) a check gave; null without one. */
   difficulty: number | null;
   /** Estimated monthly clicks now (at the best rank read) and at places 10, 3 and 1; null without a volume. */
@@ -132,7 +137,13 @@ export function keywordGroups(rows: Keyword[], broad = hasRankedIdeas(rows)) {
       best,
       sources: [...new Set(group.map((row) => row.source))],
       conversion: estimated?.conversion ?? null,
+      estimateAt:
+        reads.length && estimated?.observationId !== top?.observationId
+          ? (estimated?.observedAt ?? null)
+          : null,
       feature: estimated?.feature ?? null,
+      intentClass: estimated?.intentClass ?? null,
+      fit: estimated?.fit ?? null,
       difficulty:
         group.find((row) => row.difficulty !== null)?.difficulty ?? null,
       // The estimate now goes with the best rank, as the list shows it; a row of another rank would claim

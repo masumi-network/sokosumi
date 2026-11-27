@@ -2,7 +2,10 @@ import { z } from "@hono/zod-openapi";
 import { brandBrainSchema } from "@sokosumi/soko-bot";
 
 import { studioLogoPositionOrNullSchema } from "./studio-logo-position.schema";
-import { studioProductImportSchema } from "./studio-product.schema";
+import {
+  studioProductImportSchema,
+  studioProductPhotoSchema,
+} from "./studio-product.schema";
 
 export const studioBrandCopySchema = z
   .object({
@@ -79,9 +82,21 @@ export const saveStudioBrandLookSchema = z
 
 export type SaveStudioBrandLook = z.infer<typeof saveStudioBrandLookSchema>;
 
+export const studioBrandAssetsSchema = z
+  .array(studioProductPhotoSchema)
+  .max(20);
+
+export const updateStudioBrandAssetsSchema = z
+  .union([
+    z.object({ add: studioProductPhotoSchema }).strict(),
+    z.object({ remove: z.uuid() }).strict(),
+  ])
+  .openapi("UpdateStudioBrandAssets");
+
 export const studioBrandKitSchema = z
   .object({
     logo: z.string().url().nullable(),
+    assets: studioBrandAssetsSchema.optional(),
     studioLogoPosition: studioLogoPositionOrNullSchema.optional(),
     colors: z.array(z.string()),
     fonts: z.array(z.string()),
@@ -97,7 +112,15 @@ export const studioBrandKitSchema = z
 
 export const saveStudioBrandCopySchema = z
   .object({
-    copy: studioBrandCopySchema,
+    copy: studioBrandCopySchema.extend({
+      // What GET returns goes back as is: an empty tone keeps the stored one.
+      tone: z.string().trim().max(400).optional().openapi({
+        description:
+          "The voice tone. Empty or omitted, the stored tone stays. A Project with no tone yet needs one.",
+      }),
+    }),
     version: studioBrandKitSchema.shape.version,
   })
   .openapi("SaveStudioBrandCopy");
+
+export type SaveStudioBrandCopy = z.infer<typeof saveStudioBrandCopySchema>;

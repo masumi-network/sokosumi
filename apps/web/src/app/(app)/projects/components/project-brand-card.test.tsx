@@ -1,13 +1,15 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   ProjectBrandCard,
   ProjectBrandProvider,
 } from "@/app/projects/components/project-brand-card";
+
 import { projectBrandJobCallbacks } from "@/app/projects/project-brand-job";
+import { copyOrganizationDesignMdToProject } from "@/lib/actions/design-md/action";
 import {
   removeProjectDesignMd,
   updateProject,
@@ -40,6 +42,14 @@ const MESSAGES: Record<string, string> = {
   "brandCard.edit": "Edit",
   "brandCard.remove": "Remove",
   "brandCard.upload": "Upload",
+  "brandCard.useOrganization": "Copy {organization} brand",
+  "brandCard.copy": "Copy",
+  "brandCard.organizationTitle": "{organization} brand",
+  "brandCard.organizationHint":
+    "Start with your organization's DESIGN.md. The copy is this project's own to edit.",
+  "brandCard.or": "or",
+  "brandCard.organizationAlreadySet": "This project already has a brand.",
+  "brandCard.organizationCopied": "Copied the {organization} brand",
   "brandCard.moreActions": "Brand actions",
   "brandCard.removed": "Brand context removed",
   "brandCard.removeDialog.title": "Remove brand context?",
@@ -76,6 +86,10 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/actions/project/action", () => ({
   removeProjectDesignMd: vi.fn(),
   updateProject: vi.fn(),
+}));
+
+vi.mock("@/lib/actions/design-md/action", () => ({
+  copyOrganizationDesignMdToProject: vi.fn(),
 }));
 
 vi.mock("@/components/design-md/design-md-upload-trigger", () => ({
@@ -123,6 +137,29 @@ vi.mock("@/components/design-md/use-design-md-generation", () => ({
   },
 }));
 
+const SAVED_ELSEWHERE = {
+  extractionId: null,
+  url: "https://blob.example/project/DESIGN.md",
+};
+
+/** The card keyed by its file, as the project pages render it. */
+function remountableCard(designMd: typeof SAVED_ELSEWHERE | null) {
+  return (
+    <ProjectBrandProvider
+      key={designMd?.url ?? "empty"}
+      projectId="project-1"
+      initialDesignMd={designMd}
+      websiteUrl={null}
+    >
+      <ProjectBrandCard
+        projectId="project-1"
+        websiteUrl={null}
+        organizationName="Acme"
+      />
+    </ProjectBrandProvider>
+  );
+}
+
 const FAILURE_KEY = "sokosumi:project-brand-failure:viewer-1:project-1";
 
 function generationCallback<T>(name: string) {
@@ -137,7 +174,9 @@ function renderBrandDashboard({
   },
   websiteUrl = "https://example.com",
   headerAction,
+  organizationName,
 }: {
+  organizationName?: string | null;
   autoStart?: boolean;
   designMd?: { extractionId: string | null; url: string } | null;
   websiteUrl?: string | null;
@@ -154,6 +193,7 @@ function renderBrandDashboard({
         projectId="project-1"
         websiteUrl={url}
         headerAction={headerAction}
+        organizationName={organizationName}
       />
     </ProjectBrandProvider>
   );
@@ -840,5 +880,288 @@ describe("ProjectBrandCard", () => {
 
     expect(screen.getByText("Not set")).toBeInTheDocument();
     expect(screen.queryByText("Failed")).toBeNull();
+  });
+
+  it("copies the organization's brand into a project without one", async () => {
+    vi.mocked(copyOrganizationDesignMdToProject).mockResolvedValue({
+      ok: true,
+      value: {
+        extractionId: null,
+        previewUrl: null,
+        url: "https://blob.example/project/DESIGN.md",
+      },
+    } as Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>);
+    const user = userEvent.setup();
+    renderBrandDashboard({
+      designMd: null,
+      websiteUrl: null,
+      organizationName: "Acme",
+    });
+
+    await user.click(screen.getByRole("button", { name: "Copy Acme brand" }));
+
+    expect(copyOrganizationDesignMdToProject).toHaveBeenCalledWith({
+      projectId: "project-1",
+    });
+    expect(await screen.findByText("Ready")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Copy Acme brand" }),
+    ).toBeNull();
+  });
+
+  it("keeps the organization button away from a project that has a brand or no organization", () => {
+    const view = renderBrandDashboard({ organizationName: "Acme" });
+    expect(
+      screen.queryByRole("button", { name: "Copy Acme brand" }),
+    ).toBeNull();
+    view.unmount();
+
+    renderBrandDashboard({ designMd: null, websiteUrl: null });
+    expect(screen.queryByRole("button", { name: /brand$/ })).toBeNull();
+  });
+
+  it("moves keyboard focus to the brand menu once the copy lands", async () => {
+    vi.mocked(copyOrganizationDesignMdToProject).mockResolvedValue({
+      ok: true,
+      value: {
+        extractionId: null,
+        previewUrl: null,
+        url: "https://blob.example/project/DESIGN.md",
+      },
+    } as Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>);
+    const user = userEvent.setup();
+    renderBrandDashboard({
+      designMd: null,
+      websiteUrl: null,
+      organizationName: "Acme",
+    });
+
+    screen.getByRole("button", { name: "Copy Acme brand" }).focus();
+    await user.keyboard("{Enter}");
+
+    expect(
+      await screen.findByRole("button", { name: "Brand actions" }),
+    ).toHaveFocus();
+  });
+
+  it("keeps focus on the brand menu when the refreshed page remounts the card", async () => {
+    vi.mocked(copyOrganizationDesignMdToProject).mockResolvedValue({
+      ok: true,
+      value: {
+        extractionId: null,
+        previewUrl: null,
+        url: "https://blob.example/project/DESIGN.md",
+      },
+    } as Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>);
+    const user = userEvent.setup();
+    const card = (designMd: { extractionId: null; url: string } | null) => (
+      // The page keys the provider by the file, as the project pages do.
+      <ProjectBrandProvider
+        key={designMd?.url ?? "empty"}
+        projectId="project-1"
+        initialDesignMd={designMd}
+        websiteUrl={null}
+      >
+        <ProjectBrandCard
+          projectId="project-1"
+          websiteUrl={null}
+          organizationName="Acme"
+        />
+      </ProjectBrandProvider>
+    );
+    const view = render(card(null));
+
+    screen.getByRole("button", { name: "Copy Acme brand" }).focus();
+    await user.keyboard("{Enter}");
+    await screen.findByText("Ready");
+    // The action's revalidation sends the page with the new file.
+    view.rerender(
+      card({
+        extractionId: null,
+        url: "https://blob.example/project/DESIGN.md",
+      }),
+    );
+
+    expect(screen.getByRole("button", { name: "Brand actions" })).toHaveFocus();
+  });
+
+  it("names a brand saved meanwhile and moves focus to it once the page refreshes", async () => {
+    vi.mocked(copyOrganizationDesignMdToProject).mockResolvedValue({
+      ok: false,
+      error: {
+        code: "BAD_INPUT",
+        kind: "project_design_md_exists",
+        status: 409,
+      },
+    } as Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>);
+    const user = userEvent.setup();
+    const view = render(remountableCard(null));
+
+    screen.getByRole("button", { name: "Copy Acme brand" }).focus();
+    await user.keyboard("{Enter}");
+    expect(toast.error).toHaveBeenCalledWith(
+      "This project already has a brand.",
+    );
+    // The action's refresh brings the brand another tab saved.
+    view.rerender(remountableCard(SAVED_ELSEWHERE));
+
+    expect(screen.getByRole("button", { name: "Brand actions" })).toHaveFocus();
+  });
+
+  it("keeps other refusals apart and leaves focus on the button", async () => {
+    vi.mocked(copyOrganizationDesignMdToProject).mockResolvedValue({
+      ok: false,
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        kind: "cmo_project_read_only",
+        status: 409,
+      },
+    } as Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>);
+    const user = userEvent.setup();
+    const view = render(remountableCard(null));
+    const copyButton = screen.getByRole("button", { name: "Copy Acme brand" });
+
+    copyButton.focus();
+    await user.keyboard("{Enter}");
+
+    expect(toast.error).toHaveBeenCalledWith(
+      "Couldn't update project brand context",
+    );
+    expect(copyButton).toHaveFocus();
+    // A later brand from elsewhere does not pull focus to its menu.
+    copyButton.blur();
+    view.rerender(remountableCard(SAVED_ELSEWHERE));
+    expect(
+      screen.getByRole("button", { name: "Brand actions" }),
+    ).not.toHaveFocus();
+  });
+
+  it("leaves focus where the user moved it while the copy was pending", async () => {
+    const pending =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>
+      >();
+    vi.mocked(copyOrganizationDesignMdToProject).mockReturnValue(
+      pending.promise,
+    );
+    const user = userEvent.setup();
+    render(
+      <>
+        {remountableCard(null)}
+        <button type="button">Elsewhere</button>
+      </>,
+    );
+
+    screen.getByRole("button", { name: "Copy Acme brand" }).focus();
+    await user.keyboard("{Enter}");
+    // Through the website field (Generate and Upload are busy) and out.
+    await user.tab();
+    expect(screen.getByRole("textbox")).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Elsewhere" })).toHaveFocus();
+    await act(async () => {
+      pending.resolve({
+        ok: true,
+        value: {
+          extractionId: null,
+          previewUrl: null,
+          url: SAVED_ELSEWHERE.url,
+        },
+      } as Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>);
+    });
+
+    expect(await screen.findByText("Ready")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Elsewhere" })).toHaveFocus();
+  });
+
+  it("hands focus from the website field to the brand menu when the copy lands", async () => {
+    const pending =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>
+      >();
+    vi.mocked(copyOrganizationDesignMdToProject).mockReturnValue(
+      pending.promise,
+    );
+    const user = userEvent.setup();
+    render(
+      <>
+        {remountableCard(null)}
+        <button type="button">Elsewhere</button>
+      </>,
+    );
+
+    screen.getByRole("button", { name: "Copy Acme brand" }).focus();
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(screen.getByRole("textbox")).toHaveFocus();
+    await act(async () => {
+      pending.resolve({
+        ok: true,
+        value: {
+          extractionId: null,
+          previewUrl: null,
+          url: SAVED_ELSEWHERE.url,
+        },
+      } as Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>);
+    });
+
+    expect(await screen.findByText("Ready")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Brand actions" })).toHaveFocus();
+  });
+
+  it("reads the or between the organization's brand and the other ways", () => {
+    renderBrandDashboard({
+      designMd: null,
+      websiteUrl: null,
+      organizationName: "Acme",
+    });
+
+    const or = screen.getByText("or");
+    expect(or.closest("[aria-hidden]")).toBeNull();
+  });
+
+  it("lets a long organization name wrap inside the card", () => {
+    const longName = "Ada's Neighbourhood Bakery and Coffee Roastery GmbH";
+    renderBrandDashboard({
+      designMd: null,
+      websiteUrl: null,
+      organizationName: longName,
+    });
+
+    // The name sits in the tile's title, which may break anywhere, so an
+    // unbroken name never grows past the card; the button keeps "Copy".
+    const title = screen.getByText(`${longName} brand`);
+    expect(title.className).toMatch(/wrap-anywhere/);
+    expect(title.parentElement?.className).toMatch(/\bmin-w-0\b/);
+    expect(
+      screen.getByRole("button", { name: `Copy ${longName} brand` }),
+    ).toHaveTextContent(/^Copy$/);
+  });
+
+  it("leads with the organization's brand, then the other ways under or", () => {
+    renderBrandDashboard({
+      designMd: null,
+      websiteUrl: null,
+      organizationName: "Acme",
+    });
+
+    const copy = screen.getByRole("button", { name: "Copy Acme brand" });
+    const generate = screen.getByRole("button", {
+      name: "Generate from website",
+    });
+    // Copy comes first in reading and tab order, and is the filled button.
+    expect(
+      copy.compareDocumentPosition(generate) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(copy.className).toMatch(/\bbg-primary\b/);
+    expect(generate.className).not.toMatch(/\bbg-primary\b/);
+    expect(screen.getByText("or")).toBeInTheDocument();
+  });
+
+  it("shows no or divider without an organization brand", () => {
+    renderBrandDashboard({ designMd: null, websiteUrl: null });
+
+    expect(screen.queryByText("or")).not.toBeInTheDocument();
   });
 });

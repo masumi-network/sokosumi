@@ -23,10 +23,30 @@ export function seoRankNoiseBand(rank: number): number | null {
   );
 }
 
-/** A move beyond the band. A page absent or unranked in either read is not determined, never a drop. */
+/** A move beyond the band between two ranked reads. A page left out of the latest read is isSeoRankLost. */
 export function isSeoRankMove(from: number, to: number): boolean {
   const band = seoRankNoiseBand(from);
   return band !== null && to >= 1 && Math.abs(to - from) > band;
+}
+
+/** The worst start rank whose loss counts: below it a read seldom reaches past the band. */
+export const SEO_LOST_RANK_MAX_START = 10;
+
+/**
+ * A page at `from` that the latest read did not list in its top `checkedResults`. It counts only when that read
+ * reached past the band, so a short read never turns into a drop. A failed or suspect read is unavailable, not here.
+ */
+export function isSeoRankLost(
+  from: number,
+  checkedResults: number | null,
+): boolean {
+  const band = seoRankNoiseBand(from);
+  return (
+    band !== null &&
+    from <= SEO_LOST_RANK_MAX_START &&
+    checkedResults !== null &&
+    checkedResults > from + band
+  );
 }
 
 export interface SeoMonitorRunResult {
@@ -37,6 +57,7 @@ export interface SeoMonitorRunResult {
 const identity = (pageUrl: string, ...parts: Array<string | null>) =>
   JSON.stringify([normalizeSeoUrl(pageUrl), ...parts]);
 
+/** The checks of a Run that gave a result, one per page, rule and device. */
 function checkResults(payload: PublicSeoPayload) {
   const results = new Map<string, PublicSeoPayload["checks"][number]>();
   for (const check of payload.checks)
@@ -52,10 +73,17 @@ function findingTitle(payload: PublicSeoPayload, key: string) {
   )?.title;
 }
 
-function rankedKeywords(payload: PublicSeoPayload) {
+function keywordsWith(
+  payload: PublicSeoPayload,
+  status: "ranked" | "not_in_range",
+) {
   const ranked = new Map<string, PublicSeoPayload["keywords"][number]>();
   for (const row of payload.keywords) {
-    if (row.positionStatus !== "ranked" || row.position === null) continue;
+    if (
+      row.positionStatus !== status ||
+      (status === "ranked" && row.position === null)
+    )
+      continue;
     const key = identity(
       row.pageUrl,
       row.keyword.normalize("NFKC").toLowerCase(),
@@ -64,6 +92,100 @@ function rankedKeywords(payload: PublicSeoPayload) {
     if (!ranked.has(key)) ranked.set(key, row);
   }
   return ranked;
+}
+
+/** Why two Runs cannot be compared: they used another Market or another rulebook. Null when they can. */
+export function seoRunMismatch(
+  before: PublicSeoPayload,
+  after: PublicSeoPayload,
+): "market" | "rulebook" | null {
+  if (
+    before.countryCode !== after.countryCode ||
+    before.languageCode !== after.languageCode
+  )
+    return "market";
+  return before.rulebookVersion === after.rulebookVersion ? null : "rulebook";
+}
+
+/** Every position move beyond the noise band between two Runs, drops first. */
+export function seoRankMoves(
+  before: PublicSeoPayload,
+  after: PublicSeoPayload,
+) {
+  const earlierRanks = keywordsWith(before, "ranked");
+  const moves: Array<SeoMonitorChange["moves"][number] & { to: number }> = [];
+  for (const [key, row] of keywordsWith(after, "ranked")) {
+    const from = earlierRanks.get(key)?.position;
+    if (from == null || !isSeoRankMove(from, row.position!)) continue;
+    moves.push({
+      keyword: row.keyword,
+      pageUrl: row.pageUrl,
+      device: row.device,
+      from,
+      to: row.position!,
+    });
+  }
+  // Drops first: they are what the reader acts on.
+  moves.sort((a, b) => b.to - b.from - (a.to - a.from));
+  return moves;
+}
+
+const pageSet = (payload: PublicSeoPayload) =>
+  [...new Set(payload.pageUrls.map(normalizeSeoUrl))].sort().join("\n");
+
+const serpKey = (read: { keyword: string; device: string }) =>
+  JSON.stringify([read.keyword.normalize("NFKC").toLowerCase(), read.device]);
+
+/** True when either Run read the keyword's SERP as suspect: its missing page says nothing about the rank. */
+function hasSuspectSerp(
+  runs: PublicSeoPayload[],
+  row: PublicSeoPayload["keywords"][number],
+): boolean {
+  const keyword = row.keyword.normalize("NFKC").toLowerCase();
+  return runs.some((run) =>
+    run.serps?.some(
+      (read) =>
+        read.suspect &&
+        read.keyword.normalize("NFKC").toLowerCase() === keyword &&
+        (!row.device || read.device === row.device),
+    ),
+  );
+}
+
+/**
+ * Keywords whose AI Overview cited the page before and does not now: it names other sources, or it is gone after
+ * the read waited for it. A suspect read, a read with no AI Overview data and a citation that was not determined
+ * (null) never count. Other pages give other citations, so both Runs must have checked the same pages.
+ */
+function lostSeoCitations(
+  before: PublicSeoPayload,
+  after: PublicSeoPayload,
+): SeoMonitorChange["lostCitations"] {
+  if (pageSet(before) !== pageSet(after)) return [];
+  const cited = new Set<string>();
+  for (const read of before.serps ?? [])
+    if (
+      !read.suspect &&
+      read.aiOverview?.shown &&
+      read.aiOverview.pageCited === true
+    )
+      cited.add(serpKey(read));
+  const lost: SeoMonitorChange["lostCitations"] = [];
+  for (const read of after.serps ?? []) {
+    const overview = read.aiOverview;
+    if (read.suspect || !overview) continue;
+    const gone = overview.shown
+      ? overview.pageCited === false
+      : overview.asyncLoaded;
+    // delete: a keyword read twice counts once.
+    if (gone && cited.delete(serpKey(read)))
+      lost.push({
+        keyword: read.keyword,
+        device: read.device,
+        shown: overview.shown,
+      });
+  }
+  return lost;
 }
 
 /** What the newest monitor Run changed against the one before. Only checks read in both Runs count. */
@@ -77,11 +199,7 @@ export function compareSeoMonitorRuns(
   };
   const before = previous.payload,
     after = latest.payload;
-  if (
-    before.countryCode !== after.countryCode ||
-    before.languageCode !== after.languageCode ||
-    before.rulebookVersion !== after.rulebookVersion
-  )
+  if (seoRunMismatch(before, after))
     return {
       ...base,
       comparable: false,
@@ -92,6 +210,8 @@ export function compareSeoMonitorRuns(
       moves: [],
       moveCount: 0,
       dropCount: 0,
+      lostCitations: [],
+      lostCitationCount: 0,
     };
   const earlier = checkResults(before);
   const newFailures: SeoMonitorChange["newFailures"] = [];
@@ -107,21 +227,30 @@ export function compareSeoMonitorRuns(
       device: check.device,
     });
   }
-  const earlierRanks = rankedKeywords(before);
-  const moves: SeoMonitorChange["moves"] = [];
-  for (const [key, row] of rankedKeywords(after)) {
+  const earlierRanks = keywordsWith(before, "ranked");
+  const moves: SeoMonitorChange["moves"] = seoRankMoves(before, after);
+  for (const [key, row] of keywordsWith(after, "not_in_range")) {
     const from = earlierRanks.get(key)?.position;
-    if (from == null || !isSeoRankMove(from, row.position!)) continue;
+    if (
+      from == null ||
+      !isSeoRankLost(from, row.checkedResults) ||
+      hasSuspectSerp([before, after], row)
+    )
+      continue;
     moves.push({
       keyword: row.keyword,
       pageUrl: row.pageUrl,
       device: row.device,
       from,
-      to: row.position!,
+      to: null,
+      checkedResults: row.checkedResults!,
     });
   }
-  // Drops first: they are what the reader acts on.
-  moves.sort((a, b) => b.to - b.from - (a.to - a.from));
+  // Drops first, lost keywords before them: they are what the reader acts on.
+  const fall = (move: SeoMonitorChange["moves"][number]) =>
+    move.to === null ? Number.MAX_SAFE_INTEGER : move.to - move.from;
+  moves.sort((a, b) => fall(b) - fall(a));
+  const lostCitations = lostSeoCitations(before, after);
   return {
     ...base,
     comparable: true,
@@ -131,13 +260,22 @@ export function compareSeoMonitorRuns(
     fixed: fixed.slice(0, SEO_MONITOR_CHANGE_ITEMS),
     moves: moves.slice(0, SEO_MONITOR_CHANGE_ITEMS),
     moveCount: moves.length,
-    dropCount: moves.filter((move) => move.to > move.from).length,
+    dropCount: moves.filter((move) => move.to === null || move.to > move.from)
+      .length,
+    lostCitations: lostCitations.slice(0, SEO_MONITOR_CHANGE_ITEMS),
+    lostCitationCount: lostCitations.length,
   };
 }
 
-/** Worse: a check that passed now fails, or a ranked keyword fell beyond the band. */
+/**
+ * Worse: a check that passed now fails, a ranked keyword fell beyond the band or left the results, or an AI Overview
+ * stopped citing the page.
+ */
 export function isSeoMonitorChangeWorse(change: SeoMonitorChange): boolean {
   return (
-    change.comparable && (change.newFailureCount > 0 || change.dropCount > 0)
+    change.comparable &&
+    (change.newFailureCount > 0 ||
+      change.dropCount > 0 ||
+      change.lostCitationCount > 0)
   );
 }

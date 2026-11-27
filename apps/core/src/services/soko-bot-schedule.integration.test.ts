@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-
 import type { createPrismaClient } from "@sokosumi/database/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -46,6 +45,9 @@ describe.skipIf(!databaseUrl)(
     let turnId: string;
 
     beforeAll(async () => {
+      const { testNetworkScope } = await import(
+        "@/test-fixtures/network-scope"
+      );
       db = (await import("@/lib/db/prisma")).default;
       service = new (
         await import("./soko-bot-runtime.service")
@@ -65,6 +67,7 @@ describe.skipIf(!databaseUrl)(
         data: { id: botId, userId, workspaceId, status: "RUNNING" },
       });
       vi.spyOn(service, "authorize").mockImplementation(async () => ({
+        scope: testNetworkScope(),
         toolCallLimit: 64,
         turn: {
           id: turnId,
@@ -164,6 +167,7 @@ describe.skipIf(!databaseUrl)(
         "./soko-bot-schedule.service"
       );
       const schedule = await createSokoBotSchedule({
+        network: "mainnet",
         ...scheduleInput,
         userId,
         workspaceId,

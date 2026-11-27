@@ -132,9 +132,9 @@ export function PreferencesSection({
       : selectedLanguage || currentLocale;
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-6">
       <Card>
-        <CardContent className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between">
+        <CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-1">
             <CardTitle>{themeTranslations("title")}</CardTitle>
             <CardDescription>
@@ -173,7 +173,7 @@ export function PreferencesSection({
       </Card>
 
       <Card>
-        <CardContent className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between">
+        <CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-1">
             <CardTitle>{languageTranslations("title")}</CardTitle>
             <CardDescription>
@@ -209,7 +209,7 @@ export function PreferencesSection({
       </Card>
 
       <Card>
-        <CardContent className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between">
+        <CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-1">
             <CardTitle>{timeFormatTranslations("title")}</CardTitle>
             <CardDescription>

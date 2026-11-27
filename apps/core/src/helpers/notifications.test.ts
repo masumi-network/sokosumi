@@ -4,8 +4,9 @@ import {
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "@sokosumi/utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
+import * as networkConfig from "@/lib/network";
 import {
   expectBackgroundProbe,
   probeBackgroundFailure,
@@ -51,6 +52,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     notification: {
       create: vi.fn(),
+      findFirst: vi.fn(),
       findUnique: vi.fn(),
       findMany: notificationFindManyMock,
     },
@@ -152,6 +154,7 @@ function createPrismaMock() {
     $queryRaw: vi.fn().mockResolvedValue([]),
     notification: {
       create: vi.fn(),
+      findFirst: vi.fn(),
       findMany: notificationFindManyMock,
       findUnique: vi.fn(),
       update: vi.fn(),
@@ -255,7 +258,7 @@ describe("createNotification", () => {
     });
     expect(schedulePublishMock).toHaveBeenCalledWith(notification.id);
     expect(publishNotificationEventMock).not.toHaveBeenCalled();
-    expect(prismaMock.notification.findUnique).not.toHaveBeenCalled();
+    expect(prismaMock.notification.findFirst).not.toHaveBeenCalled();
     expect(prismaMock.notification.upsert).not.toHaveBeenCalled();
   });
 
@@ -290,7 +293,7 @@ describe("createNotification", () => {
     vi.mocked(prisma.notification.create).mockRejectedValueOnce(
       createUniqueViolation(),
     );
-    vi.mocked(prisma.notification.findUnique).mockResolvedValueOnce(queued);
+    vi.mocked(prisma.notification.findFirst).mockResolvedValueOnce(queued);
     schedulePublishMock.mockClear();
     publishNotificationEventMock.mockClear();
 
@@ -311,7 +314,7 @@ describe("createNotification", () => {
     });
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockRejectedValue(createUniqueViolation());
-    prismaMock.notification.findUnique.mockResolvedValue(existing);
+    prismaMock.notification.findFirst.mockResolvedValue(existing);
 
     const result = await createNotification(
       {
@@ -324,15 +327,14 @@ describe("createNotification", () => {
 
     expect(result).toEqual({ notification: existing, created: false });
     expect(publishNotificationEventMock).not.toHaveBeenCalled();
-    expect(prismaMock.notification.findUnique).toHaveBeenCalledWith({
+    expect(prismaMock.notification.findFirst).toHaveBeenCalledWith({
       where: {
-        userId_kind_referenceId_eventId_messageKey: {
-          userId: notificationInput.userId,
-          kind: notificationInput.kind,
-          referenceId: notificationInput.referenceId,
-          eventId: notificationInput.eventId,
-          messageKey: notificationInput.messageKey,
-        },
+        userId: notificationInput.userId,
+        kind: notificationInput.kind,
+        referenceId: notificationInput.referenceId,
+        eventId: notificationInput.eventId,
+        messageKey: notificationInput.messageKey,
+        network: null,
       },
     });
     expect(prismaMock.notification.update).not.toHaveBeenCalled();
@@ -378,7 +380,7 @@ describe("createNotification", () => {
       },
     });
     expect(schedulePublishMock).toHaveBeenCalledWith(created.id);
-    expect(prismaMock.notification.findUnique).not.toHaveBeenCalled();
+    expect(prismaMock.notification.findFirst).not.toHaveBeenCalled();
     expect(existing.messageKey).toBe("Notifications.Task.completed");
   });
 
@@ -390,7 +392,7 @@ describe("createNotification", () => {
     });
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockRejectedValue(createUniqueViolation());
-    prismaMock.notification.findUnique.mockResolvedValue(existing);
+    prismaMock.notification.findFirst.mockResolvedValue(existing);
 
     const result = await createNotification(
       notificationInput,
@@ -941,7 +943,7 @@ describe("createNotification email", () => {
   it("dispatches no email for a duplicate emit, since the first one was mailed", async () => {
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockRejectedValue(createUniqueViolation());
-    prismaMock.notification.findUnique.mockResolvedValue(
+    prismaMock.notification.findFirst.mockResolvedValue(
       createNotificationRecord(),
     );
 
@@ -1741,6 +1743,32 @@ describe("chat room arrival count", () => {
     expect(publishNotificationEventMock).toHaveBeenCalledTimes(1);
     expect(publishedGroupCount()).toBeUndefined();
   });
+});
+
+describe("publishNotificationRow network", () => {
+  beforeEach(() => {
+    publishNotificationEventMock.mockReset();
+    publishNotificationEventMock.mockResolvedValue(undefined);
+  });
+
+  it.each([null, "mainnet", "preprod"] as const)(
+    "tells the reader's tabs the row's Network (%s)",
+    async (network) => {
+      const flag = vi.spyOn(networkConfig, "isPreprodOn").mockReturnValue(true);
+      onTestFinished(() => void flag.mockRestore());
+      await publishNotificationRow(createNotificationRecord({ network }), {
+        inApp: true,
+        osBanner: true,
+        email: false,
+      });
+
+      expect(publishNotificationEventMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          notification: expect.objectContaining({ network }),
+        }),
+      );
+    },
+  );
 });
 
 /**

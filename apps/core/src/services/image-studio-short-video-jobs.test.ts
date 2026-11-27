@@ -185,11 +185,15 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: readAssetBytesMock,
 }));
 
+import type { MainnetScope } from "@/lib/db/network-scope";
 import {
   createShortVideoJob,
   reconcileJob,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
+
+/** The charge's Network, handed down as the entry point would. */
+const scope = { network: "mainnet" } as MainnetScope;
 
 /** 130 characters: quoted at 10 seconds. */
 const SCRIPT = `${"Stop scrolling. ".repeat(8)}ok`;
@@ -371,6 +375,32 @@ describe("starting a short", () => {
     expect(jobCreateMock).not.toHaveBeenCalled();
   });
 
+  it("refuses a launch without the date of what it announces", async () => {
+    await expect(
+      createShortVideoJob({ ...BASE_INPUT, format: "launch", launchDate: " " }),
+    ).rejects.toMatchObject({ status: 422 });
+    expect(jobCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps a launch's date, and no date on any other short", async () => {
+    await createShortVideoJob({
+      ...BASE_INPUT,
+      format: "launch",
+      launchDate: "3 December",
+    });
+    expect(stored.settings).toMatchObject({
+      format: "launch",
+      launchDate: "3 December",
+    });
+
+    await createShortVideoJob({
+      ...BASE_INPUT,
+      idempotencyKey: "short-other-1",
+      launchDate: "3 December",
+    });
+    expect(stored.settings).not.toHaveProperty("launchDate");
+  });
+
   it("refuses a short with nothing to show", async () => {
     projectFindUniqueMock.mockResolvedValue({ websiteUrl: null });
 
@@ -423,7 +453,11 @@ describe("a short's music arriving", () => {
       durationSeconds: 9.2,
     });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/music.wav");
+    await settleWithMedia(
+      scope,
+      "job-1",
+      "https://v3b.fal.media/files/music.wav",
+    );
 
     expect(downloadMediaMock).toHaveBeenCalledWith(
       "https://v3b.fal.media/files/music.wav",
@@ -451,11 +485,49 @@ describe("a short's music arriving", () => {
     );
   });
 
+  it("gives a launch its date and the brand's colours and font for its card", async () => {
+    stored = {
+      ...stored,
+      settings: {
+        ...(stored.settings as object),
+        format: "launch",
+        launchDate: "3 December",
+      },
+    };
+    loadStudioBrandMock.mockResolvedValue({
+      look: { colors: ["#6400FF", "#FFFFFF"], fonts: ["Inter"] },
+    });
+    editShortVideoMock.mockResolvedValue({
+      bytes: new Uint8Array([8]),
+      durationSeconds: 9.2,
+    });
+
+    await settleWithMedia(
+      scope,
+      "job-1",
+      "https://v3b.fal.media/files/music.wav",
+    );
+
+    expect(editShortVideoMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        format: "launch",
+        launch: {
+          date: "3 December",
+          brand: { colors: ["#6400FF", "#FFFFFF"], font: "Inter" },
+        },
+      }),
+    );
+  });
+
   it("fails the job, uncharged, when the short cannot be put together", async () => {
     editShortVideoMock.mockRejectedValue(new Error("ffmpeg exited 1"));
     const logged = expectCoreLog("warn", "Could not put a short together");
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/music.wav");
+    await settleWithMedia(
+      scope,
+      "job-1",
+      "https://v3b.fal.media/files/music.wav",
+    );
 
     expect(jobUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -495,11 +567,16 @@ describe("delivering a short with other shapes", () => {
       return { count: 1 };
     });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/music.wav", {
-      // What a provider reports is the clip's size, not the edit's.
-      width: 1080,
-      height: 1920,
-    });
+    await settleWithMedia(
+      scope,
+      "job-1",
+      "https://v3b.fal.media/files/music.wav",
+      {
+        // What a provider reports is the clip's size, not the edit's.
+        width: 1080,
+        height: 1920,
+      },
+    );
 
     expect(assetCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -526,7 +603,7 @@ describe("delivering a short with other shapes", () => {
     jobCreateManyMock.mockRejectedValue(new Error("connection reset"));
 
     await expect(
-      settleWithMedia("job-1", "https://v3b.fal.media/files/music.wav"),
+      settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/music.wav"),
     ).rejects.toThrow("connection reset");
     // The asset and its charge were in the same transaction, which rolled back:
     // the job has no asset, so the next reconcile settles it again.
@@ -619,7 +696,7 @@ describe("a short in several shapes", () => {
     });
     putMock.mockRejectedValue(new Error("stop at the upload"));
 
-    await reconcileJob("job-2");
+    await reconcileJob(scope, "job-2");
 
     expect(fetchQueueResultMock).toHaveBeenCalledWith({
       model: "fal-ai/lyria2",
@@ -648,7 +725,7 @@ describe("a short in several shapes", () => {
             },
     );
 
-    await reconcileJob("job-2");
+    await reconcileJob(scope, "job-2");
 
     expect(fetchQueueResultMock).not.toHaveBeenCalled();
     expect(jobUpdateManyMock).toHaveBeenCalledWith(

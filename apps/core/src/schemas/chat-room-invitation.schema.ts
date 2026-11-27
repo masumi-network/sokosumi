@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { strictBody } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 
@@ -21,11 +22,9 @@ export const chatRoomInvitationStatusSchema = z
   ])
   .openapi("ChatRoomInvitationStatus");
 
-export const createChatRoomInvitationRequestSchema = z
-  .object({
-    email: z.string().trim().email().openapi({ example: "guest@example.com" }),
-  })
-  .openapi("CreateChatRoomInvitationRequest");
+export const createChatRoomInvitationRequestSchema = strictBody({
+  email: z.string().trim().email().openapi({ example: "guest@example.com" }),
+}).openapi("CreateChatRoomInvitationRequest");
 
 export const chatRoomInvitationSchema = z
   .object({

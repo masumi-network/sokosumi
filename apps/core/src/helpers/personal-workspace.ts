@@ -20,7 +20,13 @@ import {
   isPrismaForeignKeyViolation,
   isPrismaUniqueViolation,
 } from "@/helpers/prisma";
+import { applyRulesAfterDelete } from "@/helpers/user-deletion-crossing-rules";
 import { isLastWorkspace } from "@/helpers/workspace-access";
+import {
+  checkWorkspaceDeletion,
+  refuseJobsInWorkspace,
+  workspaceHasDependents,
+} from "@/helpers/workspace-deletion-crossing-rules";
 import prisma from "@/lib/db/prisma";
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 
@@ -199,22 +205,25 @@ export async function deletePersonalWorkspace(
       }
     }
 
+    // The runtime locks its Bot before inserting into the Workspace. An
+    // early Workspace lock would deadlock against the Bot cascade.
+    const refuse = () => {
+      throw workspaceHasDependents();
+    };
+    const candidates = await checkWorkspaceDeletion(tx, existing.id, refuse);
+    await refuseJobsInWorkspace(tx, existing.id, refuse);
     try {
       await tx.workspace.delete({
         where: { id: existing.id },
       });
     } catch (error) {
       if (isPrismaForeignKeyViolation(error)) {
-        throw conflict(
-          "Cannot delete a personal workspace that still has jobs or tasks",
-          {
-            kind: CORE_API_ERROR_KINDS.WORKSPACE_HAS_DEPENDENTS,
-          },
-        );
+        throw workspaceHasDependents();
       }
       throw error;
     }
 
+    await applyRulesAfterDelete(tx, candidates);
     return existing;
   });
 }

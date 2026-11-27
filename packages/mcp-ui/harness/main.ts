@@ -6,8 +6,9 @@
  *   http://localhost:5173/?view=hello&fixture=default&theme=dark
  *
  * `&styles=fixed` sends host style variables in fixed colours, and
- * `&styles=light-dark` in `light-dark()`. `&retheme` then switches the theme
- * with a theme-only host-context change, as some hosts do.
+ * `&styles=light-dark` in `light-dark()`; views ignore both (ADR 0083).
+ * `&retheme` switches the theme with a theme-only host-context change, as
+ * some hosts do. Every view runs under the spec's default CSP.
  */
 import {
   AppBridge,
@@ -37,6 +38,20 @@ const STYLES: Record<string, McpUiStyles> = {
   } as McpUiStyles,
 };
 const styles = STYLES[params.get("styles") ?? ""];
+
+/**
+ * What a host MUST apply to a view that declares no `csp` (SEP-1865): no
+ * `font-src`, so no font may load from a URL, `data:` included.
+ */
+const DEFAULT_CSP = [
+  "default-src 'none'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "media-src 'self' data:",
+  "object-src 'none'",
+  "connect-src 'none'",
+].join("; ");
 const log = document.getElementById("log");
 
 function record(line: string) {
@@ -60,7 +75,10 @@ async function main() {
   iframe.title = `${viewId} view`;
   // No allow-same-origin: the view runs in an opaque origin, as in real hosts.
   iframe.setAttribute("sandbox", "allow-scripts");
-  iframe.srcdoc = await loadView();
+  iframe.srcdoc = (await loadView()).replace(
+    "<head>",
+    `<head><meta http-equiv="Content-Security-Policy" content="${DEFAULT_CSP}">`,
+  );
   document.body.prepend(iframe);
   if (!iframe.contentWindow) throw new Error("The iframe has no window");
 

@@ -570,3 +570,88 @@ export const startImpersonationBodySchema = z
     }),
   })
   .openapi("StartImpersonationBody");
+
+export const adminUserIdParamSchema = z.object({
+  id: z.string().openapi({
+    param: { name: "id", in: "path" },
+    example: "user_123",
+  }),
+});
+
+export const setAdminPreprodAccessBodySchema = z
+  .object({
+    enabled: z.boolean().openapi({
+      description: "Whether the user or Organization may use Preprod",
+    }),
+    reason: z.string().trim().min(1, "Reason is required").max(500).openapi({
+      description:
+        "Why access is switched: a ticket id, no personal details. Kept with the change after the account is deleted.",
+      example: "SOK-123",
+    }),
+  })
+  .openapi("SetAdminPreprodAccessBody");
+
+export const adminPreprodAccessSchema = z
+  .object({
+    enabled: z.boolean(),
+    changes: z
+      .array(
+        z.object({
+          id: z.string(),
+          createdAt: dateTimeSchema,
+          enabled: z.boolean(),
+          reason: z.string(),
+          operator: z.object({
+            id: z.string(),
+            name: z.string().nullable().openapi({
+              description: "Null when the admin's account no longer exists",
+            }),
+          }),
+        }),
+      )
+      .openapi({ description: "The 20 most recent changes, newest first" }),
+  })
+  .openapi("AdminPreprodAccess");
+
+export const setAdminPreprodPauseBodySchema = z
+  .object({
+    paused: z.boolean().openapi({
+      description: "Whether Preprod is paused",
+    }),
+    reason: z.string().trim().min(1, "Reason is required").max(500).openapi({
+      description:
+        "Why Preprod is paused or opened: a ticket id, no personal details.",
+      example: "SOK-123",
+    }),
+  })
+  .openapi("SetAdminPreprodPauseBody");
+
+export const adminPreprodPauseSchema = z
+  .object({
+    paused: z.boolean().openapi({
+      description: "Whether Preprod is paused. Paused until an admin opens it.",
+    }),
+    generation: z.number().int().nonnegative().openapi({
+      description:
+        "Preprod's generation number, raised by each wipe; 0 before the first.",
+    }),
+    changes: z
+      .array(
+        z.object({
+          id: z.string(),
+          createdAt: dateTimeSchema,
+          paused: z.boolean(),
+          reason: z.string(),
+          operator: z.object({
+            id: z.string(),
+            name: z.string().nullable().openapi({
+              description: "Null when the admin's account no longer exists",
+            }),
+          }),
+        }),
+      )
+      .openapi({
+        description: "The 20 most recent pause changes, newest first",
+      }),
+  })
+  .openapi("AdminPreprodPause");

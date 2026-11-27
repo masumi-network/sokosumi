@@ -20,7 +20,7 @@ export async function DeveloperCoworkersList({
   }
 
   return (
-    <ul className="divide-border divide-y rounded-lg border">
+    <ul className="bg-background divide-border divide-y rounded-lg border">
       <PageSearchRows
         rows={coworkers.map((coworker) => {
           const imageUrl = coworker.image

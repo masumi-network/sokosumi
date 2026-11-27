@@ -3,6 +3,7 @@ import {
   type SokoBotSeoCapability,
 } from "@sokosumi/soko-bot";
 import { badRequest } from "@/helpers/error";
+import { modelSeoWorkspace } from "@/helpers/seo-site-speed-model-view";
 import { isEvalWorkspace } from "@/lib/evals/eval-guard";
 
 import {
@@ -42,6 +43,13 @@ const PROVIDER_BACKED_SEO_TOOLS = new Set<SokoBotSeoCapability>([
   "sync_seo_statistics",
 ]);
 
+/** The workspace as Soko Bot reads it: speed reads without the worker's free text (modelSeoWorkspace). */
+async function botSeoWorkspace(
+  ...args: Parameters<typeof getProjectSeoWorkspace>
+) {
+  return modelSeoWorkspace(await getProjectSeoWorkspace(...args));
+}
+
 /** Chat and the SEO page share authorization, validation and durable operations. */
 export async function runSeoTool(
   capability: SokoBotSeoCapability,
@@ -64,11 +72,12 @@ export async function runSeoTool(
     );
   const link = `/seo?projectId=${encodeURIComponent(projectId)}&view=project`;
   if (capability === "get_seo_workspace") {
+    const { impactDays } =
+      SOKO_BOT_SEO_INPUT_SCHEMAS.get_seo_workspace.parse(parsed);
     return {
-      ...(await getProjectSeoWorkspace(
-        actor,
-        seoWorkspaceQuerySchema.parse(fields),
-      )),
+      ...(await botSeoWorkspace(actor, seoWorkspaceQuerySchema.parse(fields), {
+        actionImpact: { days: impactDays },
+      })),
       link,
     };
   }
@@ -83,7 +92,7 @@ export async function runSeoTool(
   // A receipt proves the write. Replays reauthorize and read current state,
   // rather than returning private evidence cached before a permission change.
   if (replay)
-    return { ...(await getProjectSeoWorkspace(actor)), link, replayed: true };
+    return { ...(await botSeoWorkspace(actor)), link, replayed: true };
   let result: unknown;
   switch (capability) {
     case "record_seo_page_change":
@@ -156,11 +165,13 @@ export async function runSeoTool(
     }
     case "sync_seo_statistics":
       return {
-        ...(await syncProjectSeoStatistics(
-          actor,
-          syncProjectSeoStatisticsSchema.parse(fields),
-          hooks,
-        )),
+        ...modelSeoWorkspace(
+          await syncProjectSeoStatistics(
+            actor,
+            syncProjectSeoStatisticsSchema.parse(fields),
+            hooks,
+          ),
+        ),
         link,
       };
   }
@@ -169,7 +180,7 @@ export async function runSeoTool(
       ? (result as { id?: string; taskId?: string })
       : {};
   return {
-    ...(await getProjectSeoWorkspace(actor)),
+    ...(await botSeoWorkspace(actor)),
     link,
     result: {
       id: identity.id,

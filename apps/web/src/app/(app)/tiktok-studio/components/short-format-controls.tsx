@@ -22,6 +22,7 @@ export const SHORT_FORMATS = [
   "site_tour",
   "top_three",
   "slideshow",
+  "launch",
 ] as const satisfies readonly ShortFormat[];
 
 /** A slideshow's words are on screen; the other formats are spoken. */
@@ -54,9 +55,9 @@ export function VideoKindPicker({
   return (
     <RadioGroup.Root
       aria-label={t("kind")}
-      // One row whenever the form has the width; lg keeps 3 because the
-      // preview column sits beside the form there.
-      className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:grid-cols-3 xl:grid-cols-5"
+      // Two even rows of three, or one row whenever the form has the width
+      // (not at lg, where the preview column sits beside the form).
+      className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6 lg:grid-cols-3 2xl:grid-cols-6"
       disabled={readOnly}
       onValueChange={(next) => onChange(next as VideoKind)}
       value={value}

@@ -21,6 +21,7 @@ import {
 
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { SokoBotRuntimeService } from "@/services/soko-bot-runtime.service";
 
 function flag(name: string): string | undefined {
@@ -109,6 +110,7 @@ await prisma.sokoBotContextSnapshot.create({
     packet: { memory: { version: memoryVersion } },
     turn: {
       create: {
+        network: DETACHED_SOKO_BOT_NETWORK,
         id: turnId,
         sokoBotId: bot.id,
         requestedByUserId: bot.userId,

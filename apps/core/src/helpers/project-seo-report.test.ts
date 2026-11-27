@@ -117,6 +117,66 @@ describe("public SEO report trust boundary", () => {
     expect(report.actions[0].findingIds).toEqual(["title.desktop:desktop"]);
   });
 
+  it("keeps an action's opening text draft or held-back note through page and site import and the stored re-parse", () => {
+    const drafted = {
+      target: "opening" as const,
+      devices: ["mobile" as const, "desktop" as const],
+      before: "Widgets for every room.",
+      after: "Example Corp makes widgets for every room.",
+    };
+    const heldBack = {
+      target: "opening" as const,
+      devices: ["mobile" as const],
+      heldBack: 'The draft names "Acme", which the page does not state.',
+    };
+    const raw = legacyReport();
+    raw.actions = [
+      { ...raw.actions[0], n: 1, bodyDraft: drafted },
+      { ...raw.actions[0], n: 2, bodyDraft: heldBack },
+      // No device: Core cannot read this draft, so it drops the draft and keeps the action.
+      { ...raw.actions[0], n: 3, bodyDraft: { ...drafted, devices: [] } },
+      { ...raw.actions[0], n: 4 },
+      // A checked draft that also carries a held-back reason reads as held back.
+      { ...raw.actions[0], n: 5, bodyDraft: { ...drafted, heldBack: "No." } },
+      // These are dropped: an empty reason never makes the draft checked, nor do a repeated device or blank text.
+      { ...raw.actions[0], n: 6, bodyDraft: { ...drafted, heldBack: "" } },
+      {
+        ...raw.actions[0],
+        n: 7,
+        bodyDraft: { ...drafted, devices: ["mobile", "mobile"] },
+      },
+      { ...raw.actions[0], n: 8, bodyDraft: { ...drafted, after: " \n" } },
+    ] as typeof raw.actions;
+    const drafts = (payload: { actions: { bodyDraft?: unknown }[] }) =>
+      payload.actions.map((row) => row.bodyDraft);
+    const expected = [
+      drafted,
+      heldBack,
+      undefined,
+      undefined,
+      { target: "opening", devices: drafted.devices, heldBack: "No." },
+      undefined,
+      undefined,
+      undefined,
+    ];
+    const page = parsePublicSeoArtifact(raw);
+    expect(drafts(page)).toEqual(expected);
+    expect(page.actions[3]).not.toHaveProperty("bodyDraft");
+    // The projection reads the stored JSON with the same schema: a plain object would strip the new key.
+    expect(
+      drafts(publicSeoPayloadSchema.parse(JSON.parse(JSON.stringify(page)))),
+    ).toEqual(expected);
+    // Focused results read actions with the stored schema too: a bad draft there drops only the draft.
+    const stored = JSON.parse(JSON.stringify(page));
+    stored.actions[0].bodyDraft.devices = [];
+    expect(drafts(publicSeoPayloadSchema.parse(stored))[0]).toBeUndefined();
+    const site = parsePublicSeoArtifact({
+      ...siteStrategyReport(),
+      pages: [raw],
+    });
+    expect(drafts(site)).toEqual(expected);
+  });
+
   it("retains site-wide findings without inventing page or device evidence", () => {
     const raw = {
       ...siteStrategyReport(),
@@ -344,7 +404,12 @@ describe("public SEO report trust boundary", () => {
 
   it("keeps a keyword's conversion estimate and feature, and imports the report without a value it cannot read", () => {
     const fixture = legacyReport();
-    const estimate = { conversion: "medium", feature: "Low battery alerts" };
+    const estimate = {
+      conversion: "medium",
+      feature: "Low battery alerts",
+      intentClass: "problem",
+      fit: "direct",
+    };
     const report = parsePublicSeoArtifact({
       ...fixture,
       header: {
@@ -369,6 +434,9 @@ describe("public SEO report trust boundary", () => {
             intent: null,
             conversion: "low",
             feature: "   ",
+            // A class the bot takes out of the ranking is no reason Core shows.
+            intentClass: "other brand",
+            fit: "partial",
           },
         ],
       },
@@ -387,6 +455,8 @@ describe("public SEO report trust boundary", () => {
     // A feature of spaces only is no feature: the level stays.
     expect(rows("blank feature")[0].conversion).toBe("low");
     expect(rows("blank feature")[0].feature).toBeUndefined();
+    expect(rows("blank feature")[0]).not.toHaveProperty("intentClass");
+    expect(rows("blank feature")[0].fit).toBe("partial");
     // A report from before the estimate has none.
     const before = parsePublicSeoArtifact(fixture);
     expect(before.keywords.every((row) => row.conversion === undefined)).toBe(
@@ -469,6 +539,8 @@ describe("public SEO report trust boundary", () => {
           observedAt: fixture.observedAt,
           conversion: "certain",
           feature: 7,
+          intentClass: 7,
+          fit: "direct",
         },
       ],
     });
@@ -477,6 +549,8 @@ describe("public SEO report trust boundary", () => {
     ]);
     expect(report.keywords[0]).not.toHaveProperty("conversion");
     expect(report.keywords[0]).not.toHaveProperty("feature");
+    expect(report.keywords[0]).not.toHaveProperty("intentClass");
+    expect(report.keywords[0]).not.toHaveProperty("fit");
   });
 
   it("refuses private Google evidence before projecting public fields, including nested site pages", () => {
@@ -982,6 +1056,30 @@ describe("SERP reads of a focused result", () => {
     });
     expect(parsed.notes).toEqual([]);
     expect(parsed.serps?.[0].aiOverview).toEqual(aiOverview);
+  });
+
+  it("keeps the site citation through import and the stored re-parse, and reads an older read without it", () => {
+    const cited = {
+      shown: true,
+      asyncLoaded: true,
+      citedDomains: ["example.com"],
+      pageCited: false,
+    };
+    const parsed = parsePublicSeoArtifact({
+      ...focusedRankingsReport(),
+      serps: [
+        serpRead({ aiOverview: { ...cited, siteCited: true } }),
+        serpRead({ aiOverview: cited }),
+      ],
+    });
+    const stored = publicSeoPayloadSchema.parse(
+      JSON.parse(JSON.stringify(parsed)),
+    );
+    expect(parsed.notes).toEqual([]);
+    expect(stored.serps?.map((read) => read.aiOverview)).toEqual([
+      { ...cited, siteCited: true },
+      cited,
+    ]);
   });
 
   it("keeps a null AI Overview as not checked and a null featured snippet as none", () => {

@@ -1,6 +1,17 @@
 import type { Notification } from "@sokosumi/database";
 
+import { type Network, requireNetwork } from "@/lib/network";
+
 import { readNotificationRowJson } from "./notification-row-json";
+
+/** The row's `network` column as a Network; `notification_network_check` holds its values. */
+export function notificationNetwork(
+  notification: Pick<Notification, "network">,
+): Network | null {
+  return notification.network === null
+    ? null
+    : requireNetwork(notification.network);
+}
 
 /**
  * A stored notification as the API answers with it: JSON columns parsed, and
@@ -33,5 +44,6 @@ export function mapNotificationToItem(notification: Notification) {
     isRead: notification.isRead,
     readAt: notification.readAt,
     createdAt: notification.createdAt,
+    network: notificationNetwork(notification),
   };
 }

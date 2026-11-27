@@ -1,7 +1,11 @@
 import type { SokoBotCapability } from "@sokosumi/soko-bot";
+import type { Network } from "@/lib/network";
 import type { PresetRoute } from "@/lib/soko-bot/classifier";
 
 export interface StartSokoBotTurnInput {
+  network: Network;
+  /** Detached work can reserve a Preprod turn only in the generation it read. */
+  expectedPreprodGeneration?: number | null;
   /**
    * The person the turn acts for: the member who asked, or a personal bot's
    * owner. Null when a shared bot acts on its own (ADR 0057).

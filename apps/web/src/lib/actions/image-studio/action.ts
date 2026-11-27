@@ -56,6 +56,7 @@ interface StartGenerationParameters extends AuthenticatedRequest {
   settings: ProjectImageSettings;
   parentAssetId: string | null;
   referenceAssetIds: string[];
+  brandReferenceCount?: number;
   referenceFileIds?: string[];
   product?: StudioProductIdentity;
   batchId?: string;
@@ -121,7 +122,12 @@ export const startImageGeneration = withSession<
       settings: input.settings,
       referenceAssetIds: input.referenceAssetIds,
       ...(input.referenceFileIds?.length
-        ? { referenceFileIds: input.referenceFileIds }
+        ? {
+            referenceFileIds: input.referenceFileIds,
+            ...(input.brandReferenceCount
+              ? { brandReferenceCount: input.brandReferenceCount }
+              : {}),
+          }
         : {}),
       parentAssetId: input.parentAssetId,
       product: input.product,
@@ -306,6 +312,7 @@ interface StartShortVideoParameters
       | "format"
       | "script"
       | "hookLine"
+      | "launchDate"
       | "languageCode"
       | "pictureAssetIds"
       | "shapes"
@@ -324,6 +331,7 @@ export const startShortVideo = withSession<
       format: input.format,
       script: input.script,
       ...(input.hookLine ? { hookLine: input.hookLine } : {}),
+      ...(input.launchDate ? { launchDate: input.launchDate } : {}),
       // Core checks the voice against its own list.
       voice: input.voice as CreateProjectShortVideoJobRequest["voice"],
       languageCode: input.languageCode,

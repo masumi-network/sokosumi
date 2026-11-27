@@ -33,7 +33,7 @@ export async function requeueEmptyCompanyLookups(
   { before, apply = false }: RequeueEmptyCompanyLookupsOptions,
 ): Promise<number> {
   const matches = Prisma.sql`
-    "enrichedAt" < (${before}::timestamptz AT TIME ZONE 'UTC')
+    "enrichedAt" < ${before}::timestamp
     AND description IS NULL
     AND industry IS NULL
     AND size IS NULL

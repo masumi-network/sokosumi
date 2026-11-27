@@ -1181,7 +1181,13 @@ describe("POST /chats/rooms/{id}/messages", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             mentionsAsSource: {
-              create: [{ coworkerId: null, sokoBotId: SOKO_BOT_ID }],
+              create: [
+                {
+                  network: "mainnet",
+                  coworkerId: null,
+                  sokoBotId: SOKO_BOT_ID,
+                },
+              ],
             },
           }),
         }),
@@ -1330,7 +1336,13 @@ describe("POST /chats/rooms/{id}/messages", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             mentionsAsSource: {
-              create: [{ coworkerId: COWORKER_ID, sokoBotId: null }],
+              create: [
+                {
+                  network: "mainnet",
+                  coworkerId: COWORKER_ID,
+                  sokoBotId: null,
+                },
+              ],
             },
             userMentionsAsSource: {
               create: [{ userId: ALICE_ID }],

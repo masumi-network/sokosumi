@@ -326,6 +326,8 @@ vi.mock("@/config/env", async (importOriginal) => ({
   getBetterAuthProductionUrl: () => getBetterAuthProductionUrlMock(),
   getBetterAuthPublicBaseUrl: () => getBetterAuthPublicBaseUrlMock(),
   getWebAppBaseUrl: () => getWebAppBaseUrlMock(),
+  isExplicitPreprod: (await importOriginal<typeof import("@/config/env")>())
+    .isExplicitPreprod,
   isProductionEnvironment: (
     await importOriginal<typeof import("@/config/env")>()
   ).isProductionEnvironment,
@@ -1053,6 +1055,32 @@ describe("core auth config", () => {
     });
   });
 
+  it.each([
+    ["Mainnet", "Mainnet", "soko_mainnet_", 19],
+    ["Preprod", "Preprod", undefined, 6],
+    [undefined, "Preprod", "soko_mainnet_", 19],
+  ] as const)(
+    "configures User key minting with NETWORK=%s",
+    async (deployment, parsedNetwork, defaultPrefix, charactersLength) => {
+      vi.stubEnv("NETWORK", deployment);
+      getEnvMock.mockReturnValue({
+        ...getDefaultEnv(),
+        NETWORK: parsedNetwork,
+      });
+      try {
+        await import("./auth");
+        expect(apiKeyPluginMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            defaultPrefix,
+            startingCharactersConfig: { charactersLength },
+          }),
+        );
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    },
+  );
+
   it("keeps branch previews out of production trustedOrigins", async () => {
     getEnvMock.mockReturnValue({
       ...getDefaultEnv(),
@@ -1281,6 +1309,17 @@ describe("core auth config", () => {
     >;
 
     expect(config.disabledPaths).toContain("/sign-up/email");
+  });
+
+  // It deletes the User row without Core's blockers, sweeps or Stripe clean-up.
+  it("closes the admin user removal", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [{ disabledPaths: string[] }]
+    >;
+
+    expect(config.disabledPaths).toContain("/admin/remove-user");
   });
 
   it("uses the canonical production URL for the OAuth proxy", async () => {

@@ -1,17 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { FileSourceKind, FileSourceScope } from "@sokosumi/database";
 import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
-import { del } from "@vercel/blob";
 import { z } from "zod";
-import { getEnv } from "@/config/env";
 import { jsonInput } from "@/helpers/prisma-json";
 import { getCredits } from "@/helpers/user";
 import prisma from "@/lib/db/prisma";
-import {
-  EVAL_CONNECTED_ACCOUNT_PREFIX,
-  forgetEvalWorkspaces,
-} from "@/lib/evals/eval-guard";
+import { driveDel } from "@/lib/drive-blob";
+import { forgetEvalWorkspaces } from "@/lib/evals/eval-guard";
 import { seedEvalMcpServer } from "@/lib/evals/eval-mcp-server";
+import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-social-account";
 import { tombstoneDriveUploadResources } from "@/services/file-catalog.service";
 import { freeCreditAdminService } from "@/services/free-credit-admin.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
@@ -478,10 +475,132 @@ export async function seedEvalXDms(
   });
 }
 
+function botMadeInWorkspace(workspaceId: string) {
+  return { workspaceId, creatorSokoBotId: { not: null } };
+}
+
+/**
+ * What earlier benchmark cases made in the lane, known by who made it, not
+ * by its title: Tasks and Task Schedules (with their Runs) a bot created, the
+ * Cuso Project's posts a bot created, and every Drive upload (an earlier
+ * case's evidence PDF or a file a bot saved). A case that starts after this sees
+ * none of them in its first context. A member's Tasks and schedules (the
+ * owner's seeded board) stay; a case's setup seeds its own posts and
+ * strategy after this runs.
+ */
+export async function clearEarlierCaseArtifacts(
+  lane: Pick<EvalLaneRecord, "workspaceId" | "cusoProjectId">,
+  deleteBlobs?: DeleteBlobs,
+): Promise<{ blobsPending: string[] }> {
+  const botMade = botMadeInWorkspace(lane.workspaceId);
+  await prisma.task.updateMany({
+    where: {
+      archivedAt: null,
+      OR: [botMade, { schedule: botMade }],
+    },
+    data: { archivedAt: new Date() },
+  });
+  await prisma.taskSchedule.deleteMany({ where: botMade });
+  await prisma.socialPost.deleteMany({
+    where: { projectId: lane.cusoProjectId, creatorSokoBotId: { not: null } },
+  });
+  return removeLaneUploads(lane, deleteBlobs);
+}
+
+/**
+ * Every Drive upload in the lane, which is every file in its Files and its
+ * Projects' files: an earlier case's evidence PDF, a file a bot saved, an
+ * upload. Nothing on a lane is shared seed; each case's prepare writes its
+ * own files after this. An upload finds an earlier file by listing the blob
+ * store, so the blob goes as well as its catalog entry.
+ */
+export async function removeLaneUploads(
+  lane: Pick<EvalLaneRecord, "workspaceId">,
+  deleteBlobs: DeleteBlobs = deleteFromBlobStore,
+): Promise<{ blobsPending: string[] }> {
+  const { workspaceId } = lane;
+  const uploads = await prisma.fileResource.findMany({
+    where: {
+      workspaceId,
+      sourceKind: FileSourceKind.DRIVE_UPLOAD,
+      tombstonedAt: null,
+    },
+    select: { sourceId: true, sourceScope: true },
+  });
+  // The catalog entry goes first: the bot can't list or read a file whose
+  // blob is still being deleted.
+  for (const upload of uploads)
+    await tombstoneDriveUploadResources({
+      workspaceId,
+      scope:
+        upload.sourceScope === FileSourceScope.ORGANIZATION
+          ? "organization"
+          : "user",
+      pathnames: [upload.sourceId],
+    });
+  const pendingKey = `${PENDING_BLOB_PREFIX}${workspaceId}:`;
+  const earlier = await prisma.syncMetadata.findMany({
+    where: { key: { startsWith: pendingKey } },
+    select: { key: true },
+  });
+  const pathnames = [
+    ...new Set([
+      ...earlier.map((row) => row.key.slice(pendingKey.length)),
+      ...uploads.map((upload) => upload.sourceId),
+    ]),
+  ];
+  if (!pathnames.length) return { blobsPending: [] };
+  const deleted = await retried(() => deleteBlobs(pathnames));
+  // A blob still there would be found by a later upload of the same name:
+  // its pathname waits for the next reset to delete it.
+  if (deleted)
+    await prisma.syncMetadata.deleteMany({
+      where: {
+        key: { in: pathnames.map((pathname) => pendingKey + pathname) },
+      },
+    });
+  else
+    for (const pathname of pathnames)
+      await prisma.syncMetadata.upsert({
+        where: { key: pendingKey + pathname },
+        create: { key: pendingKey + pathname, lastSyncedAt: new Date() },
+        update: { lastSyncedAt: new Date() },
+      });
+  return { blobsPending: deleted ? [] : pathnames };
+}
+
+/** Deletes these blobs; resolves when they are gone, rejects when they may not be. */
+export type DeleteBlobs = (pathnames: string[]) => Promise<void>;
+
+/** Where a reset that could not delete a lane's blob keeps its pathname. */
+export const PENDING_BLOB_PREFIX = "eval-lane-blob-pending:";
+
+// Every store the pathname may live in (a data room's private one too). With
+// no store configured it rejects, so the pathname stays pending.
+const deleteFromBlobStore: DeleteBlobs = (pathnames) => driveDel(pathnames);
+
+/** Up to three tries, 200 ms then 800 ms apart; whether one succeeded. */
+async function retried(work: () => Promise<void>): Promise<boolean> {
+  for (const [attempt, wait] of [200, 800, 0].entries()) {
+    try {
+      await work();
+      return true;
+    } catch {
+      if (attempt < 2)
+        await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+  }
+  return false;
+}
+
 export async function resetEvalLaneForSokoBot(
   lane: EvalLaneRecord,
-): Promise<void> {
+): Promise<{ blobsPending: string[] }> {
   const { workspaceId, sokoBotId } = lane;
+  // A release that commits before deletion must still go through the archive.
+  await prisma.taskSchedule.deleteMany({
+    where: botMadeInWorkspace(workspaceId),
+  });
   await prisma.task.updateMany({
     where: { workspaceId, archivedAt: null },
     data: { archivedAt: new Date() },
@@ -497,31 +616,7 @@ export async function resetEvalLaneForSokoBot(
     },
     data: { deletedAt: new Date() },
   });
-  // Every Drive upload in the lane: an upload finds an earlier file by
-  // listing the blob store, so the blob goes as well as its catalog entry.
-  const uploads = await prisma.fileResource.findMany({
-    where: {
-      workspaceId,
-      sourceKind: FileSourceKind.DRIVE_UPLOAD,
-      tombstonedAt: null,
-    },
-    select: { sourceId: true, sourceScope: true },
-  });
-  const token = getEnv().BLOB_READ_WRITE_TOKEN;
-  if (uploads.length && token)
-    await del(
-      uploads.map((upload) => upload.sourceId),
-      { token },
-    ).catch(() => undefined);
-  for (const upload of uploads)
-    await tombstoneDriveUploadResources({
-      workspaceId,
-      scope:
-        upload.sourceScope === FileSourceScope.ORGANIZATION
-          ? "organization"
-          : "user",
-      pathnames: [upload.sourceId],
-    });
+  const uploads = await removeLaneUploads(lane);
   await prisma.socialPost.deleteMany({ where: { workspaceId } });
   await prisma.newsletterIssue.deleteMany({ where: { workspaceId } });
   await prisma.contact.deleteMany({ where: { workspaceId } });
@@ -531,4 +626,5 @@ export async function resetEvalLaneForSokoBot(
   await sokoBotControlPlane.resetMemory(lane.userId, workspaceId);
   await seedEvalMcpServer(lane);
   await closeA2aWorld(lane);
+  return uploads;
 }

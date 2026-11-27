@@ -1,9 +1,5 @@
 import type { SokoBotTurnStatus } from "@sokosumi/database";
-import {
-  evaluateScenario,
-  type ScenarioCheck,
-  type SokoBotJudgeVerdict,
-} from "@sokosumi/soko-bot";
+import { evaluateScenario, type ScenarioCheck } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { jsonInput } from "@/helpers/prisma-json";
 import { databaseNow } from "@/lib/db/database-now";
@@ -11,14 +7,16 @@ import prisma from "@/lib/db/prisma";
 import { setEvalCoworkerScript } from "@/lib/evals/fake-coworker";
 import { recordCoreWarning } from "@/lib/evlog";
 import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
+import { planJevMode, planJevStandInDuring } from "@/lib/plan-jev";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { effectiveSokoBotRuntimeAdapter } from "@/lib/soko-bot/factory";
+import type { NewChatRoomMention } from "@/services/chat-room-mention-state";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import {
   SOKO_EVENTS_SYNC_KEY,
   sokoBotEventsSyncService,
 } from "@/services/soko-bot-events-sync.service";
-import { judgeEvalChain } from "@/services/soko-bot-lab-judge.service";
 import { startLabScenarioTurn } from "@/services/soko-bot-lab-scenario.service";
 import { sokoBotSchedulesSyncService } from "@/services/soko-bot-schedules-sync.service";
 import { syncSokoBotWatches } from "@/services/soko-bot-watches.service";
@@ -31,6 +29,7 @@ import type {
 } from "../eval-case-runner";
 import { prepareCmoChatCase } from "../eval-cmo-runner";
 import {
+  clearEarlierCaseArtifacts,
   type EvalLaneRecord,
   resetEvalLaneForSokoBot,
 } from "../eval-lanes.service";
@@ -45,6 +44,11 @@ import {
   journeyJudgeScenario,
   type OwnerJourney,
 } from "./journeys";
+import {
+  type JourneyJudgeOutcome,
+  journeyRoomLog,
+  judgeJourneyChain,
+} from "./per-item-judge";
 
 /** A wait on a chat reply or an app nobody will connect ends after this much quiet. */
 const QUIET_MS = 90_000;
@@ -181,7 +185,13 @@ async function askInRoom(
       roomId,
       senderUserId,
       content,
-      mentionsAsSource: { create: { sokoBotId: botId, coworkerId: null } },
+      mentionsAsSource: {
+        create: {
+          sokoBotId: botId,
+          coworkerId: null,
+          network: DETACHED_SOKO_BOT_NETWORK,
+        } satisfies NewChatRoomMention,
+      },
     },
     select: { mentionsAsSource: { select: { id: true } } },
   });
@@ -505,6 +515,110 @@ export async function freshConversationCheck(
   };
 }
 
+/**
+ * The first turn's context holds no Task another case made: the Tasks it
+ * carries that a bot created, or a bot's Task Schedule released, before this
+ * journey started. A member's Task from before (the seeded board) is the
+ * world, not a leak. No snapshot is no evidence.
+ */
+export async function earlierCaseTasksCheck(
+  turnId: string,
+  journeyStartedAt: Date,
+): Promise<ScenarioCheck> {
+  const snapshot = await prisma.sokoBotContextSnapshot.findUnique({
+    where: { turnId },
+    select: { packet: true },
+  });
+  const ids = packetTaskIds(snapshot?.packet);
+  const foreign = await prisma.task.findMany({
+    where: {
+      id: { in: ids },
+      createdAt: { lt: journeyStartedAt },
+      OR: [
+        { creatorSokoBotId: { not: null } },
+        { schedule: { creatorSokoBotId: { not: null } } },
+      ],
+    },
+    select: { name: true },
+  });
+  return {
+    label: "Opens with no other case's Tasks",
+    pass: Boolean(snapshot) && foreign.length === 0,
+    actual: snapshot
+      ? foreign.length
+        ? `${foreign.length} of ${ids.length} Task(s) from another case: "${foreign[0]?.name}"`
+        : `0 of ${ids.length} Task(s) from another case`
+      : "no context snapshot",
+  };
+}
+
+/** Tools whose results show what is in Files. */
+const FILE_READS = [
+  "list_files",
+  "read_file",
+  "search_files",
+  "workspace_import_file",
+];
+
+/**
+ * Neither the first turn's context nor what its file reads returned names a
+ * file an earlier case left: a Drive upload of the lane made before this
+ * journey's isolation point, by its id. Names repeat (this journey may
+ * upload its own "evidence.pdf"), so a name never makes a file earlier.
+ */
+export async function earlierCaseFilesCheck(
+  turnId: string,
+  isolatedAt: Date,
+  workspaceId: string,
+  toolCalls: readonly { capability: string; result?: unknown }[],
+): Promise<ScenarioCheck> {
+  const snapshot = await prisma.sokoBotContextSnapshot.findUnique({
+    where: { turnId },
+    select: { packet: true },
+  });
+  const earlier = await prisma.fileResource.findMany({
+    where: {
+      workspaceId,
+      sourceKind: "DRIVE_UPLOAD",
+      createdAt: { lt: isolatedAt },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+    select: { id: true, displayName: true },
+  });
+  const seen = [
+    JSON.stringify(snapshot?.packet ?? null),
+    ...toolCalls
+      .filter((call) => FILE_READS.includes(call.capability))
+      .map((call) => JSON.stringify(call.result ?? null)),
+  ].join("\n");
+  const leaked = earlier.filter((file) => seen.includes(file.id));
+  return {
+    label: "Opens with no other case's files",
+    pass: Boolean(snapshot) && leaked.length === 0,
+    actual: snapshot
+      ? leaked.length
+        ? `${leaked.length} earlier case file(s) seen: "${leaked[0]?.displayName}"`
+        : "no earlier case's file in the context or the first file reads"
+      : "no context snapshot",
+  };
+}
+
+/** The Task ids a context packet's tasks names. */
+export function packetTaskIds(packet: unknown): string[] {
+  const tasks =
+    packet && typeof packet === "object" && "tasks" in packet
+      ? (packet as { tasks: unknown }).tasks
+      : null;
+  return Array.isArray(tasks)
+    ? tasks.flatMap((task) =>
+        task && typeof task === "object" && "id" in task
+          ? [String(task.id)]
+          : [],
+      )
+    : [];
+}
+
 /** The turn ids a context packet's recentTurns names. */
 export function packetTurnIds(packet: unknown): string[] {
   const recent =
@@ -553,6 +667,13 @@ async function finishStep(
       await freshConversationCheck(
         turnIds[0],
         new Date(state.journeyStartedAt),
+      ),
+      await earlierCaseTasksCheck(turnIds[0], new Date(state.journeyStartedAt)),
+      await earlierCaseFilesCheck(
+        turnIds[0],
+        new Date(state.world.isolatedAt ?? state.journeyStartedAt),
+        lane.workspaceId,
+        merged?.toolCalls ?? [],
       ),
     );
   if (step.kind === "schedule_fires")
@@ -677,6 +798,27 @@ async function forgetEarlierJourneys(lane: EvalLaneRecord, botId: string) {
   });
 }
 
+/**
+ * A journey whose lane still holds an earlier case's work the reset could
+ * not remove ends before its first step as an infrastructure error, as a
+ * failed route pick does: unscored, never a pass, a failure or a regression.
+ */
+export function isolationFailed(
+  journey: OwnerJourney,
+  blobsPending: readonly string[],
+): CaseStart {
+  return {
+    kind: "done",
+    outcome: {
+      status: "ERROR",
+      checks: [],
+      output: { journey: journey.id, setup: { blobsPending } },
+      error: `The lane was not cleaned: ${blobsPending.length} earlier upload blob(s) could not be deleted (${blobsPending.slice(0, 3).join(", ")}), so an earlier case's file may still be found; unscored until a reset deletes them`,
+      turnIds: [],
+    },
+  };
+}
+
 export async function startJourney(
   journey: OwnerJourney,
   lane: EvalLaneRecord,
@@ -689,7 +831,17 @@ export async function startJourney(
     })) > 0
   )
     return { kind: "busy" };
-  if (journey.bot === "soko-bot") await resetEvalLaneForSokoBot(lane);
+  // Cuso has no full reset: what earlier cases made goes before its setup
+  // seeds this journey's world.
+  const { blobsPending } =
+    journey.bot === "soko-bot"
+      ? await resetEvalLaneForSokoBot(lane)
+      : await clearEarlierCaseArtifacts(lane);
+  // An earlier case's file the reset could not delete would be this case's
+  // too: the case is unscored, and so is every next one until a reset
+  // deletes it (each reset retries it).
+  if (blobsPending.length) return isolationFailed(journey, blobsPending);
+  const isolatedAt = (await databaseNow()).toISOString();
   const cusoRoomId =
     journey.bot === "cuso" ? await freshCusoRoom(lane, journey.id) : undefined;
   if (journey.cusoSetup) await prepareCmoChatCase(lane, journey.cusoSetup);
@@ -709,6 +861,7 @@ export async function startJourney(
       botId,
     )),
     cusoRoomId,
+    isolatedAt,
   };
   await setEvalCoworkerScript(world.coworkers.Mira, []);
   await setEvalCoworkerScript(world.coworkers.CodePat, []);
@@ -958,6 +1111,21 @@ export function organizerJev(
 }
 
 /**
+ * Which Jev answered the journey's questions on a plan run: real Jev, or the
+ * stand-in (all of it, or for part of the journey after real Jev paused).
+ * Null off the plan. A stand-in result is never compared with a real-Jev one.
+ */
+export function journeyJev(
+  state: Pick<JourneyState, "journeyStartedAt">,
+  now: Date = new Date(),
+): "real" | "stand-in" | null {
+  if (planJevMode() === null) return null;
+  return planJevStandInDuring(new Date(state.journeyStartedAt), now)
+    ? "stand-in"
+    : "real";
+}
+
+/**
  * Classifier calls of the journey's turns, and how many failed. A failed
  * route pick sends the turn down a fallback (read-only clarification), so a
  * journey with any is an infrastructure error, not a verdict on the bot.
@@ -1069,25 +1237,14 @@ async function journeyOutcome(
     ...unreached,
   ];
   const score = journeyScore(journey, state.steps);
-  let judge: { verdict: SokoBotJudgeVerdict; model: string } | null = null;
+  let judge: JourneyJudgeOutcome | null = null;
   if (turnIds.length)
-    judge = await judgeEvalChain(
+    judge = await judgeJourneyChain({
+      journey,
       turnIds,
-      journeyJudgeScenario(journey),
-      state.steps.map((step) => ({
-        room: "owner journey",
-        from:
-          step.kind === "owner"
-            ? "Owner"
-            : step.kind === "teammate"
-              ? "Teammate (not the owner)"
-              : step.kind === "coworker"
-                ? "Task event"
-                : "Schedule",
-        content: step.label,
-      })),
-      context.judgeModel,
-    ).catch((error: unknown) => {
+      roomLog: journeyRoomLog(state.steps),
+      model: context.judgeModel,
+    }).catch((error: unknown) => {
       recordCoreWarning(
         { operation: "eval_tick" },
         {
@@ -1145,6 +1302,10 @@ async function journeyOutcome(
       journey: journey.id,
       level: journey.level,
       runtime: journeyRuntime(),
+      jev: journeyJev(state),
+      ...(judge?.judgeMode === "per-item"
+        ? { judgeMode: "per-item", judgeItems: judge.judgeItems ?? [] }
+        : {}),
       score,
       totals,
       answer: state.steps.at(-1)?.answer ?? null,

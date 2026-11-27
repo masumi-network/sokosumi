@@ -109,7 +109,7 @@ async function prunePublishedInvalidations(): Promise<void> {
       WHERE id IN (
         SELECT id
         FROM ${sharedTable("calendar_invalidation_outbox")}
-        WHERE "publishedAt" < NOW() - (${INVALIDATION_RETENTION_DAYS} * INTERVAL '1 day')
+        WHERE "publishedAt" < (NOW() AT TIME ZONE 'UTC') - (${INVALIDATION_RETENTION_DAYS} * INTERVAL '1 day')
         ORDER BY "publishedAt" ASC, id ASC
         LIMIT ${INVALIDATION_PRUNE_BATCH_SIZE}
       )

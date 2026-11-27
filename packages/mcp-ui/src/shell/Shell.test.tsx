@@ -25,6 +25,7 @@ const Greeting = z.object({ name: z.string() });
 interface OpenViewOptions {
   isEmpty?: (data: z.infer<typeof Greeting>) => boolean;
   refreshTool?: string;
+  refreshArgs?: Record<string, string>;
   /** Answers the view's `tools/call`; the host then offers `serverTools`. */
   callTool?: (params: CallToolRequest["params"]) => Promise<CallToolResult>;
 }
@@ -37,7 +38,7 @@ const links = vi.fn();
 /** A fake host: an AppBridge on one end of an in-memory pipe, the view on the other. */
 async function openView(
   hostContext: McpUiHostContext = {},
-  { isEmpty, refreshTool, callTool }: OpenViewOptions = {},
+  { isEmpty, refreshTool, refreshArgs, callTool }: OpenViewOptions = {},
 ) {
   const [hostSide, viewSide] = InMemoryTransport.createLinkedPair();
   const bridge = new AppBridge(
@@ -68,6 +69,7 @@ async function openView(
       schema={Greeting}
       isEmpty={isEmpty}
       refreshTool={refreshTool}
+      refreshArgs={refreshArgs}
     >
       {(data, context) => {
         refresh = context.refresh;
@@ -134,23 +136,33 @@ describe("Shell", () => {
     ).toBeTruthy();
   });
 
-  it("applies the host theme and style variables, then follows changes", async () => {
+  // SOKD-475: Sokosumi's style in every host. Only light or dark follows
+  // the host; its colours and fonts are ignored.
+  it("follows the host's theme and ignores its style variables and fonts", async () => {
     const bridge = await openView({
       theme: "dark",
       // A host may send only some variables; the SDK types all of them.
       styles: {
-        variables: { "--color-background-primary": "#101010" } as McpUiStyles,
+        variables: {
+          "--color-background-primary": "#101010",
+          "--font-sans": "Georgia",
+        } as McpUiStyles,
+        css: {
+          fonts: "@font-face { font-family: Host; src: local(Georgia); }",
+        },
       },
     });
 
     const root = document.documentElement;
     expect(root.getAttribute("data-theme")).toBe("dark");
-    expect(root.style.getPropertyValue("--color-background-primary")).toBe(
-      "#101010",
-    );
+    expect(root.style.colorScheme).toBe("dark");
+    expect(root.style.getPropertyValue("--color-background-primary")).toBe("");
+    expect(root.style.getPropertyValue("--font-sans")).toBe("");
+    expect(document.querySelectorAll("style").length).toBe(0);
 
     await act(() => bridge.sendHostContextChange({ theme: "light" }));
     expect(root.getAttribute("data-theme")).toBe("light");
+    expect(root.style.colorScheme).toBe("light");
   });
 
   it("passes the host's display mode and follows changes", async () => {
@@ -162,33 +174,6 @@ describe("Shell", () => {
     );
 
     expect(screen.getByText(/, fullscreen$/)).toBeTruthy();
-  });
-
-  // SOKD-415 open item: a host that changes only `theme` keeps the style
-  // variables it sent before. Values written with `light-dark()` follow the
-  // new `color-scheme`; fixed colours stay those of the old theme.
-  it("keeps earlier style variables when the host changes only the theme", async () => {
-    const bridge = await openView({
-      theme: "light",
-      styles: {
-        variables: {
-          "--color-background-primary": "#ffffff",
-          "--color-text-primary": "light-dark(#171717, #fafafa)",
-        } as McpUiStyles,
-      },
-    });
-    const root = document.documentElement;
-
-    await act(() => bridge.sendHostContextChange({ theme: "dark" }));
-
-    expect(root.getAttribute("data-theme")).toBe("dark");
-    expect(root.style.colorScheme).toBe("dark");
-    expect(root.style.getPropertyValue("--color-background-primary")).toBe(
-      "#ffffff",
-    );
-    expect(root.style.getPropertyValue("--color-text-primary")).toBe(
-      "light-dark(#171717, #fafafa)",
-    );
   });
 
   it("refreshes by calling the twin with the tool's input through the host", async () => {
@@ -213,6 +198,36 @@ describe("Shell", () => {
       expect.anything(),
     );
     expect(screen.getByText(/^Grace in/)).toBeTruthy();
+  });
+
+  it("refreshes with the view's own arguments over the tool's input", async () => {
+    const callTool = vi.fn(async () => greeting("Grace"));
+    const bridge = await openView(
+      {},
+      {
+        refreshTool: "tasks_list",
+        refreshArgs: { includeDescription: "false" },
+        callTool,
+      },
+    );
+    await act(() =>
+      bridge.sendToolInput({
+        arguments: { scope: "workspace", includeDescription: "true" },
+      }),
+    );
+    await act(() => bridge.sendToolResult(greeting("Ada")));
+
+    await act(async () => {
+      await refresh?.();
+    });
+
+    expect(callTool).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "tasks_list",
+        arguments: { scope: "workspace", includeDescription: "false" },
+      }),
+      expect.anything(),
+    );
   });
 
   it("keeps the last result when a refresh fails", async () => {

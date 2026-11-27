@@ -11,7 +11,7 @@ import { getWebAppBaseUrl } from "@/config/env";
 
 import { callTool, type ToolCaller } from "./dispatch";
 import { type DerivedTool, getTools } from "./tool-schema";
-import { MCP_TOOLSETS, toolsetOf } from "./tools";
+import { isDestructive, MCP_TOOLSETS, toolsetOf } from "./tools";
 import {
   MCP_UI_TOOLS,
   type McpUiTool,
@@ -125,7 +125,11 @@ export function createSokosumiMcpServer(
         `Unknown tool: ${params.name}`,
       );
     }
-    const result = await callTool(uiTool.twin.input, args, caller);
+    const result = await callTool(
+      uiTool.twin.input,
+      { ...args, ...uiTool.args },
+      caller,
+    );
     return {
       ...result,
       _meta: {
@@ -167,19 +171,14 @@ interface UiTool extends McpUiTool {
   view: McpUiView;
 }
 
-function annotations({
-  input,
-  destructive,
-  spendsCredits = false,
-  openWorld = false,
-}: DerivedTool): ToolAnnotations {
+function annotations(tool: DerivedTool): ToolAnnotations {
+  const { input, spendsCredits = false, openWorld = false } = tool;
   if (input.method === "GET") {
     return { readOnlyHint: true, openWorldHint: false };
   }
   return {
     readOnlyHint: false,
-    destructiveHint:
-      spendsCredits || (destructive ?? input.method === "DELETE"),
+    destructiveHint: isDestructive(tool),
     idempotentHint: input.method === "PUT" || input.method === "DELETE",
     // Credits pay an outside agent; ad tools act on Google or Meta; some
     // Image Studio tools fetch a public website.

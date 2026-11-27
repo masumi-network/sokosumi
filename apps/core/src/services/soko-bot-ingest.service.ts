@@ -7,6 +7,7 @@ import {
 import { createError } from "evlog";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotSelfStarter } from "@/lib/soko-bot/acting-user";
 import {
@@ -566,6 +567,7 @@ export class SokoBotIngestSyncService {
     let started: Awaited<ReturnType<typeof sokoBotControlPlane.startTurn>>;
     try {
       started = await sokoBotControlPlane.startTurn({
+        network: DETACHED_SOKO_BOT_NETWORK,
         ...starter,
         workspaceId: bot.workspaceId,
         sokoBotId: bot.id,

@@ -70,10 +70,10 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         await signUpWithOrganization(page, BASE_URL);
         await page.goto(`${BASE_URL}/chat/catch-up`);
         await page.getByRole("button", { name: "Create a channel" }).click();
-        // Typed, not filled: the handle drives the name and an availability check.
+        // Typed, not filled: the name drives the link and an availability check.
         await page
-          .getByRole("textbox", { name: "Handle" })
-          .pressSequentially("shop-list", { delay: 30 });
+          .getByRole("textbox", { name: "Name" })
+          .pressSequentially("Shop List", { delay: 30 });
         await page.getByRole("button", { name: "Next" }).click();
         await page.getByRole("button", { name: "Create" }).click();
       }

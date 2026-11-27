@@ -8,10 +8,19 @@
  */
 import { randomUUID } from "node:crypto";
 import { convertCreditsToCents } from "@sokosumi/utils";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
-import type { EvalLaneRecord } from "../eval-lanes.service";
+import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
+import { searchFiles } from "@/services/file-search.service";
+import { taskScheduleReleaseService } from "@/services/task-schedule-runs.service";
+import {
+  clearEarlierCaseArtifacts,
+  type DeleteBlobs,
+  type EvalLaneRecord,
+  PENDING_BLOB_PREFIX,
+  resetEvalLaneForSokoBot,
+} from "../eval-lanes.service";
 import {
   type CheckContext,
   indexedTexts,
@@ -20,10 +29,14 @@ import {
 import {
   claimedRunCheck,
   claimedRunState,
+  earlierCaseFilesCheck,
+  earlierCaseTasksCheck,
   foregroundTurnId,
   freshConversationCheck,
+  isolationFailed,
   journeyTokens,
   organizerFailures,
+  packetTaskIds,
   routingFailures,
   withDescendants,
 } from "./journey-runner";
@@ -34,6 +47,19 @@ import {
   seedTeammateRoom,
 } from "./journey-world";
 import { type JourneyOutcome, OWNER_JOURNEYS } from "./journeys";
+
+// Clearing a lane also deletes its uploads' blobs; nothing leaves this test.
+vi.mock("@vercel/blob", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/blob")>()),
+  del: vi.fn(async () => undefined),
+}));
+const driveDel = vi.hoisted(() =>
+  vi.fn<(pathnames: readonly string[]) => Promise<void>>(async () => undefined),
+);
+vi.mock("@/lib/drive-blob", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/drive-blob")>()),
+  driveDel,
+}));
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -998,6 +1024,474 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     await prisma.fileVersion.deleteMany({ where: { resourceId: resource.id } });
     await prisma.fileEvidenceScope.deleteMany({ where: { id: scope.id } });
     await prisma.fileResource.deleteMany({ where: { id: resource.id } });
+  });
+
+  describe("a case's first context holds no earlier case's work", () => {
+    // Its own owner and workspace: clearing a lane tombstones every upload in
+    // it, and the other tests' files live in the shared one.
+    const userId = randomUUID();
+    let workspaceId: string;
+    let projectId: string;
+    let botId: string;
+    const cutoff = new Date("2026-01-01T09:00:00.000Z");
+    const earlierAt = new Date(cutoff.getTime() - 1);
+    const classification = {
+      schemaVersion: 1 as const,
+      route: "MANAGE_WORK" as const,
+      confidence: 0.9,
+      rationaleSummary: "The owner asked about the board",
+      requestedOutcome: "Answer from the board",
+      candidateProjectIds: [],
+      candidateCoworkerIds: [],
+      candidateAgentIds: [],
+      requiresClarification: false,
+      requiresApproval: false,
+    };
+
+    beforeAll(async () => {
+      await prisma.user.create({
+        data: {
+          id: userId,
+          name: "Isolation owner",
+          email: `${userId}@example.test`,
+          emailVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+      workspaceId = (await prisma.workspace.create({ data: { userId } })).id;
+      projectId = (
+        await prisma.project.create({
+          data: { workspaceId, name: "Cuso" },
+          select: { id: true },
+        })
+      ).id;
+      botId = (
+        await prisma.sokoBot.create({
+          data: { userId, workspaceId },
+          select: { id: true },
+        })
+      ).id;
+    });
+
+    afterAll(async () => {
+      await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
+      await prisma.task.deleteMany({ where: { workspaceId } });
+      await prisma.taskSchedule.deleteMany({ where: { workspaceId } });
+      await prisma.socialPost.deleteMany({ where: { workspaceId } });
+      await prisma.fileResource.deleteMany({ where: { workspaceId } });
+      await prisma.sokoBot.deleteMany({ where: { id: botId } });
+      await prisma.project.deleteMany({ where: { workspaceId } });
+      await prisma.workspace.deleteMany({ where: { id: workspaceId } });
+      await prisma.user.deleteMany({ where: { id: userId } });
+    });
+
+    /** What one case leaves: a Task it delegated, a Task its schedule released, a post. */
+    async function runCase(
+      kind: "delegated" | "released",
+      createdAt: Date,
+    ): Promise<string> {
+      if (kind === "delegated")
+        return (
+          await prisma.task.create({
+            data: {
+              workspaceId,
+              name: "Earlier case's delegation",
+              creatorSokoBotId: botId,
+              createdAt,
+            },
+            select: { id: true },
+          })
+        ).id;
+      const schedule = await prisma.taskSchedule.create({
+        data: {
+          workspaceId,
+          creatorSokoBotId: botId,
+          name: "Earlier case's schedule",
+          expr: "0 9 * * *",
+          timezone: "Europe/Berlin",
+          anchorAt: new Date(),
+          ruleEffectiveFrom: new Date(),
+          epochId: randomUUID(),
+        },
+        select: { id: true },
+      });
+      await prisma.socialPost.create({
+        data: {
+          projectId,
+          workspaceId,
+          provider: "x",
+          text: "Earlier case's draft",
+          creatorSokoBotId: botId,
+          createdAt,
+        },
+      });
+      // This fixture covers a Task whose bot provenance comes from its schedule.
+      return (
+        await prisma.task.create({
+          data: {
+            workspaceId,
+            name: "Earlier case's released Task",
+            creatorUserId: userId,
+            scheduleId: schedule.id,
+            createdAt,
+          },
+          select: { id: true },
+        })
+      ).id;
+    }
+
+    /** The next case's opening turn, with the packet Core builds for it. */
+    async function openingTurn(): Promise<{
+      turnId: string;
+      taskIds: string[];
+    }> {
+      const built = await new ContextPacketBuilder().build({
+        userId,
+        sokoBotId: botId,
+        workspaceId,
+        source: "CHAT",
+        classification,
+        sharedScope: null,
+      });
+      const turn = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          source: "CHAT",
+          status: "COMPLETED",
+          clientTurnId: `lab:fixture:${randomUUID()}`,
+          userMessage: "What is on my board?",
+          capabilityNames: [],
+          deadlineAt: new Date(Date.now() + 60_000),
+          contextSnapshot: {
+            create: {
+              generatedAt: new Date(),
+              schemaVersion: 1,
+              hash: randomUUID(),
+              packet: built.packet as object,
+              byteSize: built.byteSize,
+              tokenEstimate: built.tokenEstimate,
+              counts: built.counts,
+              omissions: built.omissions,
+            },
+          },
+        },
+        select: { id: true },
+      });
+      return { turnId: turn.id, taskIds: packetTaskIds(built.packet) };
+    }
+
+    it.each([-1, 0, 1])(
+      "isolates an earlier case's schedule release %i ms from the cutoff",
+      async (offsetMs) => {
+        const schedule = await prisma.taskSchedule.create({
+          data: {
+            workspaceId,
+            creatorSokoBotId: botId,
+            name: "Earlier case's late schedule",
+            expr: "0 9 * * *",
+            timezone: "UTC",
+            anchorAt: cutoff,
+            ruleEffectiveFrom: cutoff,
+            epochId: randomUUID(),
+            endsMode: "AFTER",
+            targetRunCount: 1,
+            nextRunAt: cutoff,
+          },
+        });
+        try {
+          await prisma.taskScheduleRun.create({
+            data: {
+              scheduleId: schedule.id,
+              epochId: schedule.epochId,
+              originalScheduledAt: cutoff,
+              effectiveScheduledAt: cutoff,
+              state: "PLANNED",
+              sourceWorkspaceId: workspaceId,
+              sourceType: "WORKSPACE",
+              timezone: schedule.timezone,
+            },
+          });
+          await resetEvalLaneForSokoBot({
+            ...context.lane,
+            userId,
+            workspaceId,
+            sokoBotId: botId,
+            cusoProjectId: projectId,
+          });
+          // CI gives each worker its own database for this global scan.
+          await taskScheduleReleaseService.releaseDueSchedules({
+            abortSignal: new AbortController().signal,
+            deadlineMs: Infinity,
+            shouldContinue: () => true,
+          });
+          // Pin the cron's Task to a stored millisecond without racing the clock.
+          const createdAt = new Date(cutoff.getTime() + offsetMs);
+          await prisma.task.updateMany({
+            where: { scheduleId: schedule.id },
+            data: { createdAt },
+          });
+          const { turnId, taskIds } = await openingTurn();
+          const leaked = await prisma.task.findMany({
+            where: { scheduleId: schedule.id },
+            select: { id: true, createdAt: true, creatorSokoBotId: true },
+          });
+          // These assertions expose the false verdict if the reset lets a Task through.
+          for (const task of leaked) {
+            expect(task.createdAt).toEqual(createdAt);
+            expect(task.creatorSokoBotId).toBe(botId);
+            expect(taskIds).toContain(task.id);
+          }
+          expect(await earlierCaseTasksCheck(turnId, cutoff)).toMatchObject({
+            pass: leaked.length === 0,
+          });
+          expect(leaked).toEqual([]);
+          expect(
+            await prisma.taskSchedule.findUnique({
+              where: { id: schedule.id },
+            }),
+          ).toBeNull();
+          expect(
+            await prisma.taskScheduleRun.count({
+              where: { scheduleId: schedule.id },
+            }),
+          ).toBe(0);
+        } finally {
+          await prisma.task.deleteMany({ where: { scheduleId: schedule.id } });
+          await prisma.taskSchedule.deleteMany({ where: { id: schedule.id } });
+        }
+      },
+    );
+
+    for (const order of [
+      ["delegated", "released"],
+      ["released", "delegated"],
+    ] as const)
+      it(`keeps the first case's Tasks out of the second's opening packet (${order.join(" then ")})`, async () => {
+        const seeded = await prisma.task.create({
+          data: {
+            workspaceId,
+            name: "The owner's seeded Task",
+            creatorUserId: userId,
+            createdAt: earlierAt,
+          },
+          select: { id: true },
+        });
+        const earlier = await runCase(order[0], earlierAt);
+        // The second case starts: its reset, then its own work.
+        await clearEarlierCaseArtifacts({
+          workspaceId,
+          cusoProjectId: projectId,
+        });
+        const own = await runCase(order[1], cutoff);
+        const { turnId, taskIds } = await openingTurn();
+        expect(taskIds).not.toContain(earlier);
+        // Positive controls: the owner's seeded Task and this case's own work.
+        expect(taskIds).toContain(seeded.id);
+        expect(taskIds).toContain(own);
+        expect(await earlierCaseTasksCheck(turnId, cutoff)).toMatchObject({
+          pass: true,
+        });
+        expect(
+          await prisma.socialPost.count({
+            where: {
+              projectId,
+              text: "Earlier case's draft",
+              createdAt: { lt: cutoff },
+            },
+          }),
+        ).toBe(0);
+        await prisma.task.deleteMany({ where: { workspaceId } });
+        await prisma.taskSchedule.deleteMany({ where: { workspaceId } });
+        await prisma.socialPost.deleteMany({
+          where: { projectId, text: "Earlier case's draft" },
+        });
+      });
+
+    it("keeps an earlier case's evidence file out of the next case's Files and first reads", async () => {
+      const upload = (name: string, createdAt: Date) =>
+        prisma.fileResource.create({
+          data: {
+            workspaceId,
+            sourceKind: "DRIVE_UPLOAD",
+            sourceScope: "USER",
+            // Each upload its own object; the shown name may repeat.
+            sourceId: `drive/users/${userId}/${randomUUID()}/${name}`,
+            ownerUserId: userId,
+            displayName: name,
+            normalizedName: name.toLowerCase(),
+            mimeType: "application/pdf",
+            lifecycle: "ACTIVE",
+            createdAt,
+          },
+          select: { id: true, displayName: true },
+        });
+      const listing = async () =>
+        (
+          await searchFiles({
+            workspaceId,
+            actor: { userId, organizationId: null, kind: "soko_bot" },
+            query: null,
+            filters: {},
+            sortBy: "modified",
+            sortOrder: "desc",
+            cursor: null,
+            limit: 50,
+          })
+        ).items.map((file) => file.id);
+      // Case A's prepare seeded its evidence PDF.
+      const evidence = await upload("evidence.pdf", earlierAt);
+      expect(await listing()).toContain(evidence.id);
+      // Case B starts: the clear, its isolation point, then its own file of
+      // the same name.
+      await clearEarlierCaseArtifacts({
+        workspaceId,
+        cusoProjectId: projectId,
+      });
+      const own = await upload("evidence.pdf", cutoff);
+      expect(await listing()).toEqual([own.id]);
+      const { turnId } = await openingTurn();
+      // Its first read listed Files: its own "evidence.pdf" is fresh.
+      const ownRead = [
+        {
+          capability: "list_files",
+          result: { files: [{ id: own.id, name: own.displayName }] },
+        },
+      ];
+      expect(
+        await earlierCaseFilesCheck(turnId, cutoff, workspaceId, ownRead),
+      ).toMatchObject({ pass: true });
+      // A read that still returned case A's file, by its id, fails.
+      expect(
+        await earlierCaseFilesCheck(turnId, cutoff, workspaceId, [
+          {
+            capability: "list_files",
+            result: { files: [{ id: evidence.id, name: "evidence.pdf" }] },
+          },
+        ]),
+      ).toMatchObject({
+        pass: false,
+        actual: expect.stringContaining("evidence.pdf"),
+      });
+      await prisma.fileResource.deleteMany({
+        where: { id: { in: [evidence.id, own.id] } },
+      });
+    });
+
+    it("retries a blob delete, and keeps a failed one hidden and due for the next reset", async () => {
+      const upload = (name: string) =>
+        prisma.fileResource.create({
+          data: {
+            workspaceId,
+            sourceKind: "DRIVE_UPLOAD",
+            sourceScope: "USER",
+            sourceId: `drive/users/${userId}/${randomUUID()}/${name}`,
+            ownerUserId: userId,
+            displayName: name,
+            normalizedName: name.toLowerCase(),
+            mimeType: "application/pdf",
+            lifecycle: "ACTIVE",
+          },
+          select: { id: true, sourceId: true, tombstonedAt: true },
+        });
+      const visible = async (id: string) =>
+        (
+          await prisma.fileResource.findUniqueOrThrow({
+            where: { id },
+            select: { tombstonedAt: true },
+          })
+        ).tombstonedAt === null;
+      const pending = () =>
+        prisma.syncMetadata.findMany({
+          where: {
+            key: { startsWith: `${PENDING_BLOB_PREFIX}${workspaceId}:` },
+          },
+          select: { key: true },
+        });
+      const lane = { workspaceId, cusoProjectId: projectId };
+      // The store fails once, then deletes: the file and its blob are gone.
+      const first = await upload("flaky.pdf");
+      const flaky = vi.fn<DeleteBlobs>();
+      flaky
+        .mockRejectedValueOnce(new Error("store down"))
+        .mockResolvedValue(undefined);
+      expect(await clearEarlierCaseArtifacts(lane, flaky)).toEqual({
+        blobsPending: [],
+      });
+      expect(flaky).toHaveBeenCalledTimes(2);
+      expect(await visible(first.id)).toBe(false);
+      expect(await pending()).toEqual([]);
+      // The store keeps failing: the file is hidden, its blob waits.
+      const second = await upload("stuck.pdf");
+      const down = vi
+        .fn<DeleteBlobs>()
+        .mockRejectedValue(new Error("store down"));
+      expect(await clearEarlierCaseArtifacts(lane, down)).toEqual({
+        blobsPending: [second.sourceId],
+      });
+      expect(down).toHaveBeenCalledTimes(3);
+      expect(await visible(second.id)).toBe(false);
+      expect(await pending()).toHaveLength(1);
+      // That case, and the next while the store stays down, are unscored.
+      const journey = OWNER_JOURNEYS[0]!;
+      for (const blobs of [
+        [second.sourceId],
+        (await clearEarlierCaseArtifacts(lane, down)).blobsPending,
+      ])
+        expect(isolationFailed(journey, blobs)).toMatchObject({
+          kind: "done",
+          outcome: {
+            status: "ERROR",
+            error: expect.stringContaining(
+              `The lane was not cleaned: 1 earlier upload blob(s) could not be deleted (${second.sourceId})`,
+            ),
+          },
+        });
+      // The next reset deletes that blob: nothing waits, the case scores.
+      const back = vi.fn<DeleteBlobs>().mockResolvedValue(undefined);
+      expect(await clearEarlierCaseArtifacts(lane, back)).toEqual({
+        blobsPending: [],
+      });
+      expect(back).toHaveBeenCalledWith([second.sourceId]);
+      expect(await pending()).toEqual([]);
+      // The default deletes through Drive's store routing; a store it can't
+      // reach (none configured) keeps the pathname pending, never clears it.
+      const third = await upload("routed.pdf");
+      driveDel.mockRejectedValue(new Error("Blob storage is not configured"));
+      expect(await clearEarlierCaseArtifacts(lane)).toEqual({
+        blobsPending: [third.sourceId],
+      });
+      expect(driveDel).toHaveBeenLastCalledWith([third.sourceId]);
+      expect(await pending()).toHaveLength(1);
+      driveDel.mockResolvedValue(undefined);
+      expect(await clearEarlierCaseArtifacts(lane)).toEqual({
+        blobsPending: [],
+      });
+      expect(driveDel).toHaveBeenLastCalledWith([third.sourceId]);
+      expect(await pending()).toEqual([]);
+      await prisma.fileResource.deleteMany({
+        where: { id: { in: [first.id, second.id, third.id] } },
+      });
+    }, 20_000);
+
+    it("fails a case whose opening packet carries another case's Task", async () => {
+      const leaked = await runCase("delegated", earlierAt);
+      // The cutoff comes from the leaked Task's own stored createdAt, one
+      // millisecond later, so it can never land on or before the insert.
+      const { createdAt } = await prisma.task.findUniqueOrThrow({
+        where: { id: leaked },
+        select: { createdAt: true },
+      });
+      const startedAt = new Date(createdAt.getTime() + 1);
+      const { turnId, taskIds } = await openingTurn();
+      expect(taskIds).toContain(leaked);
+      expect(await earlierCaseTasksCheck(turnId, startedAt)).toMatchObject({
+        pass: false,
+        actual: expect.stringContaining("Earlier case's delegation"),
+      });
+    });
   });
 
   it("counts a file read only when it returned the file's text", async () => {

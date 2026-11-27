@@ -64,6 +64,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         format: input.format,
         script: input.script,
         hookLine: input.hookLine ?? null,
+        ...(input.launchDate ? { launchDate: input.launchDate } : {}),
         voice: input.voice,
         languageCode: input.languageCode,
         pictures: {

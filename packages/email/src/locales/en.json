@@ -49,6 +49,7 @@
   "jobs": {
     "failureNotification": {
       "subject": "Sokosumi - Job {jobId} failed",
+      "preprodSubject": "[Preprod] Sokosumi - Job {jobId} failed",
       "preview": "Job {jobId} has failed",
       "title": "Your job failed",
       "description": "Here is what the job reported.",
@@ -151,6 +152,14 @@
             "canceled": {
               "subject": "Sokosumi - {taskName} was canceled",
               "body": "{taskName} was canceled."
+            },
+            "seoMonitorWorse": {
+              "subject": "Sokosumi - SEO results for {site} got worse",
+              "body": "The newest scheduled check of {site} ({taskName}) is worse than the one before. New failing checks: {newFailures}. Ranking drops: {drops}. Lost AI Overview citations: {lostCitations}."
+            },
+            "seoMonitorClicksDrop": {
+              "subject": "Sokosumi - Search Console clicks for {site} fell",
+              "body": "Search Console clicks for {site} fell from {clicksFrom} to {clicksTo} against the period before. Seen with the newest scheduled check ({taskName})."
             },
             "updated": {
               "subject": "Sokosumi - {taskName} changed",

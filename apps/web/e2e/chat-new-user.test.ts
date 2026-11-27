@@ -62,10 +62,10 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
         .getByRole("button", { name: "Message a teammate" })
         .count();
       await page.getByRole("button", { name: "Create a channel" }).click();
-      // Typed, not filled: the handle drives the name and an availability check.
+      // Typed, not filled: the name drives the link and an availability check.
       await page
-        .getByRole("textbox", { name: "Handle" })
-        .pressSequentially("launch-plans", { delay: 30 });
+        .getByRole("textbox", { name: "Name" })
+        .pressSequentially("Launch Plans", { delay: 30 });
       await page.getByRole("radio", { name: "External" }).click();
       await page.getByRole("button", { name: "Next" }).click();
       await page.getByRole("button", { name: "Create" }).click();

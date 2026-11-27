@@ -11,6 +11,8 @@ export interface OAuthCredentials {
   refreshToken?: string | null;
   tokenType?: string;
   expiresAt?: string | null;
+  /** The OAuth client the tokens were issued to; refresh always uses it. */
+  clientId?: string;
 }
 
 interface UserApiKeyCredentials {
@@ -47,7 +49,7 @@ interface AuthManagerOptions {
   environment?: AuthEnvironment;
 }
 
-function envBearerCredential(environment: AuthEnvironment): {
+export function envBearerCredential(environment: AuthEnvironment): {
   method: "api-key" | "oauth";
   token: string;
 } | null {
@@ -69,8 +71,8 @@ export class AuthManager {
   private readonly apiKeyStore: CredentialStore<UserApiKeyCredentials>;
   private readonly refreshTokenFn: RefreshTokenFn;
   private readonly environment: AuthEnvironment;
-  private credentials: OAuthCredentials | null;
-  private apiKeyCredentials: UserApiKeyCredentials | null;
+  private credentials: OAuthCredentials | null | undefined;
+  private apiKeyCredentials: UserApiKeyCredentials | null | undefined;
   private apiKeyPersistent: boolean;
   private refreshPromise: Promise<string | null> | null;
 
@@ -86,16 +88,25 @@ export class AuthManager {
     this.apiKeyStore = apiKeyStore;
     this.refreshTokenFn = refreshTokenFn;
     this.environment = environment;
-    this.credentials = null;
-    this.apiKeyCredentials = null;
+    this.credentials = undefined;
+    this.apiKeyCredentials = undefined;
     this.apiKeyPersistent = true;
     this.refreshPromise = null;
-    this.loadCredentials();
   }
 
-  private loadCredentials(): void {
-    this.credentials = this.credentialStore.read();
-    this.apiKeyCredentials = this.apiKeyStore.read();
+  // Each OS vault read can trigger a macOS keychain prompt, so read lazily.
+  private storedCredentials(): OAuthCredentials | null {
+    if (this.credentials === undefined) {
+      this.credentials = this.credentialStore.read();
+    }
+    return this.credentials;
+  }
+
+  private storedApiKeyCredentials(): UserApiKeyCredentials | null {
+    if (this.apiKeyCredentials === undefined) {
+      this.apiKeyCredentials = this.apiKeyStore.read();
+    }
+    return this.apiKeyCredentials;
   }
 
   saveCredentials(credentials: OAuthCredentials): OAuthCredentials {
@@ -142,8 +153,9 @@ export class AuthManager {
   }
 
   isTokenExpired(): boolean {
-    if (!this.credentials?.expiresAt) return false;
-    const expiry = Date.parse(this.credentials.expiresAt);
+    const expiresAt = this.storedCredentials()?.expiresAt;
+    if (!expiresAt) return false;
+    const expiry = Date.parse(expiresAt);
     if (!Number.isFinite(expiry)) return true;
     return Date.now() >= expiry - 5 * 60 * 1000;
   }
@@ -153,27 +165,31 @@ export class AuthManager {
   ): "oauth" | "api-key" | null {
     const envBearer = envBearerCredential(environment);
     if (envBearer) return envBearer.method;
-    if (this.credentials?.authToken && !this.isTokenExpired()) return "oauth";
+    const credentials = this.storedCredentials();
+    if (credentials?.authToken && !this.isTokenExpired()) return "oauth";
+    const apiKeyCredentials = this.storedApiKeyCredentials();
     if (
-      this.apiKeyCredentials?.apiKey &&
-      hasUsableExpiry(this.apiKeyCredentials.expiresAt)
+      apiKeyCredentials?.apiKey &&
+      hasUsableExpiry(apiKeyCredentials.expiresAt)
     ) {
       return "api-key";
     }
-    return this.credentials?.refreshToken ? "oauth" : null;
+    return credentials?.refreshToken ? "oauth" : null;
   }
 
   getAuthToken(environment: AuthEnvironment = this.environment): string | null {
     const envBearer = envBearerCredential(environment);
     if (envBearer) return envBearer.token;
-    if (this.credentials?.authToken && !this.isTokenExpired()) {
-      return this.credentials.authToken;
+    const credentials = this.storedCredentials();
+    if (credentials?.authToken && !this.isTokenExpired()) {
+      return credentials.authToken;
     }
+    const apiKeyCredentials = this.storedApiKeyCredentials();
     if (
-      this.apiKeyCredentials?.apiKey &&
-      hasUsableExpiry(this.apiKeyCredentials.expiresAt)
+      apiKeyCredentials?.apiKey &&
+      hasUsableExpiry(apiKeyCredentials.expiresAt)
     ) {
-      return this.apiKeyCredentials.apiKey;
+      return apiKeyCredentials.apiKey;
     }
     return null;
   }
@@ -192,9 +208,14 @@ export class AuthManager {
     const existing = this.getAuthToken(environment);
     if (existing) return existing;
 
-    const refreshToken = this.credentials?.refreshToken || null;
+    const stored = this.storedCredentials();
+    const refreshToken = stored?.refreshToken || null;
+    // A refresh token only works with the client it was issued to.
     const resolvedClientId = String(
-      clientId || environment.SOKOSUMI_OAUTH_CLIENT_ID || "",
+      stored?.clientId ||
+        clientId ||
+        environment.SOKOSUMI_OAUTH_CLIENT_ID ||
+        "",
     ).trim();
     if (!refreshToken || !resolvedClientId) return null;
 
@@ -229,11 +250,11 @@ export class AuthManager {
   }
 
   getCredentials(): OAuthCredentials | null {
-    return this.credentials;
+    return this.storedCredentials();
   }
 
   getApiKeyCredentials(): UserApiKeyCredentials | null {
-    return this.apiKeyCredentials;
+    return this.storedApiKeyCredentials();
   }
   isApiKeyPersistent(): boolean {
     return this.apiKeyPersistent;

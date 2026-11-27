@@ -102,6 +102,7 @@ function notification(id: string, projectId?: string): NotificationItem {
     isRead: false,
     readAt: null,
     createdAt: HOURS_AGO,
+    network: null,
   };
 }
 

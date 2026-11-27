@@ -1,4 +1,3 @@
-import type { NotificationKind } from "@sokosumi/database";
 import type { TaskAttentionReason, TaskUpdateReason } from "@sokosumi/email";
 import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
@@ -12,6 +11,7 @@ import {
 import type { SendEmailInput } from "@/clients/email.client";
 import { TASK_COMPLETED_MESSAGE_KEY } from "@/helpers/notification-delivery";
 import {
+  type NotificationEmailLinkInput,
   notificationEmailLink,
   notificationSettingsLink,
   readString,
@@ -106,7 +106,12 @@ export function taskAttentionReasonOf(
  * until it is listed, and it gets the generic sentence rather than no email,
  * because the reader turned the row on to hear about changes as a whole.
  */
-const TASK_UPDATE_REASONS: readonly TaskUpdateReason[] = ["failed", "canceled"];
+const TASK_UPDATE_REASONS: readonly TaskUpdateReason[] = [
+  "failed",
+  "canceled",
+  "seoMonitorWorse",
+  "seoMonitorClicksDrop",
+];
 
 export function taskUpdateReasonOf(messageKey: string): TaskUpdateReason {
   const tail = messageKey.slice(messageKey.lastIndexOf(".") + 1);
@@ -139,12 +144,8 @@ export function roomUnreadCountOf(
 }
 
 /** What the notification is about, spelled the way the email needs it. */
-export interface NotificationEmailInput {
-  kind: NotificationKind;
-  referenceId: string;
-  messageKey: string;
+export interface NotificationEmailInput extends NotificationEmailLinkInput {
   messageParams: Record<string, unknown>;
-  metadata?: Record<string, unknown> | null;
   recipientEmail: string;
   recipientName: null | string;
 }
@@ -310,10 +311,26 @@ export async function buildNotificationEmail(
           projectName: readString(params, "projectName"),
           reason: taskUpdateReasonOf(input.messageKey),
           taskName: readString(params, "taskName"),
+          site: readString(params, "site"),
+          newFailures: readCount(params, "newFailures"),
+          drops: readCount(params, "drops"),
+          lostCitations: readCount(params, "lostCitations"),
+          clicksFrom: readCount(params, "clicksFrom"),
+          clicksTo: readCount(params, "clicksTo"),
         }),
       );
     }
   }
+}
+
+/** One whole-number field of the stored params, or null when it is not one. */
+function readCount(
+  values: Record<string, unknown> | null | undefined,
+  key: string,
+): null | number {
+  const value = values?.[key];
+
+  return typeof value === "number" && Number.isInteger(value) ? value : null;
 }
 
 /** One tag for all of them, so an event email is one thing to look for in Resend. */

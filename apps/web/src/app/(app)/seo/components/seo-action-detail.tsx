@@ -9,6 +9,7 @@ import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { SeoCopyButton, useSeoActionInstructions } from "./seo-action-copy";
 import { SeoActionTaskButton, useSeoActionFinding } from "./seo-action-finding";
+import { SeoActionImpact } from "./seo-action-impact";
 import { SeoBriefFollowUp, SeoBriefPagePriority } from "./seo-brief-summary";
 import { seoFollowUpText } from "./seo-followup-review";
 import { type SeoIssueSeverity, seoOverviewModel } from "./seo-overview-model";
@@ -174,6 +175,7 @@ export function SeoActionDetail({
             </p>
           </DetailPart>
         )}
+        {action.impact && <SeoActionImpact impact={action.impact} />}
         {action.followUpReview && (
           <DetailPart title={report("actions.reviewAgain")}>
             <p lang="en">{seoFollowUpText(action.followUpReview, report)}</p>
@@ -202,6 +204,17 @@ export function SeoActionDetail({
         {action.edit ? (
           <DetailPart title={report("actions.change")}>
             <div className="space-y-3">
+              {action.edit.target.trim() ? (
+                <ChangeBox label={report("actions.copyTarget")}>
+                  <p
+                    dir="auto"
+                    lang=""
+                    className="text-sm whitespace-pre-wrap break-words"
+                  >
+                    {action.edit.target}
+                  </p>
+                </ChangeBox>
+              ) : null}
               <ChangeBox label={report("actions.before")}>
                 <pre
                   dir="auto"
@@ -232,6 +245,58 @@ export function SeoActionDetail({
                 </pre>
               </ChangeBox>
             </div>
+          </DetailPart>
+        ) : null}
+        {action.bodyDraft ? (
+          <DetailPart title={report("actions.draft")}>
+            {/* A one-device draft: the other device's opening can differ. */}
+            {action.bodyDraft.devices.length === 1 ? (
+              <p lang="en" className="text-muted-foreground mb-3 text-xs">
+                {report("actions.draftDevice", {
+                  device: action.bodyDraft.devices[0],
+                })}
+              </p>
+            ) : null}
+            {"after" in action.bodyDraft ? (
+              <div className="space-y-3">
+                <ChangeBox label={report("actions.draftBefore")}>
+                  <pre
+                    dir="auto"
+                    lang=""
+                    className="bg-muted text-muted-foreground rounded-md p-3 text-xs whitespace-pre-wrap break-words"
+                  >
+                    {action.bodyDraft.before}
+                  </pre>
+                </ChangeBox>
+                <ChangeBox
+                  label={report("actions.draftAfter")}
+                  copy={
+                    <SeoCopyButton
+                      text={action.bodyDraft.after}
+                      label={t("actions.copyDraft")}
+                      className="h-7"
+                    />
+                  }
+                >
+                  <pre
+                    dir="auto"
+                    lang=""
+                    className="bg-chart-3-quinary border-chart-3 rounded-md border p-3 text-xs whitespace-pre-wrap break-words"
+                  >
+                    {action.bodyDraft.after}
+                  </pre>
+                </ChangeBox>
+                <p lang="en" className="text-muted-foreground text-xs">
+                  {report("actions.draftNote")}
+                </p>
+              </div>
+            ) : (
+              <p lang="en" className="whitespace-pre-wrap break-words">
+                {report("actions.draftHeldBack", {
+                  reason: action.bodyDraft.heldBack,
+                })}
+              </p>
+            )}
           </DetailPart>
         ) : null}
         {/* The impact chip already names the kind of rule; the part keeps to the reason of this action. A

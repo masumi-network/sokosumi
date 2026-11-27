@@ -61,7 +61,7 @@ export async function backfillTaskWorkTypePresets(
             id, "createdAt", "updatedAt", "workspaceId", kind, "displayName", "normalizedName",
             description, aliases, "vocabularyVersion", "isTaskPreset", "createdByUserId"
           )
-          SELECT gen_random_uuid(), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, "workspaceId", kind,
+          SELECT gen_random_uuid(), CURRENT_TIMESTAMP AT TIME ZONE 'UTC', CURRENT_TIMESTAMP AT TIME ZONE 'UTC', "workspaceId", kind,
             "displayName", "normalizedName", description, ARRAY[]::text[],
             ${CURATED_VOCABULARY_VERSION}, true, NULL
           FROM missing ORDER BY "workspaceId", "normalizedName"

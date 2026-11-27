@@ -6,6 +6,7 @@ function report(
   rows: Record<string, [status: string, steps: number, tokens: number | null]>,
 ): ParityReport {
   return {
+    run: { environment: "mainnet" },
     cases: Object.entries(rows).map(([caseId, [status, steps, tokens]]) => ({
       caseId,
       results: [
@@ -34,6 +35,7 @@ describe("versionDelta", () => {
     expect(delta.baseline).toEqual({
       passed: 1,
       incomplete: 0,
+      standIn: 0,
       passRate: 0.5,
       stepsPassed: 3,
       inputTokensPerTurn: 100,
@@ -41,6 +43,7 @@ describe("versionDelta", () => {
     expect(delta.candidate).toEqual({
       passed: 2,
       incomplete: 0,
+      standIn: 0,
       passRate: 1,
       stepsPassed: 4,
       inputTokensPerTurn: 95,
@@ -114,6 +117,7 @@ describe("versionDelta", () => {
 
   it("needs three scored repeats a side on the held-out set, none of them ERROR", () => {
     const runs = (statuses: string[]): ParityReport => ({
+      run: { environment: "mainnet" },
       cases: [
         {
           caseId: "owner-a",
@@ -155,6 +159,175 @@ describe("versionDelta", () => {
     expect(bar(["PASSED"]).meetsBar).toBe(false);
     // ERROR repeats on both sides still leave the bar unproven.
     expect(bar(["PASSED", "PASSED", "PASSED", "ERROR"]).meetsBar).toBe(false);
+  });
+
+  it("excludes a repeat whose Jev fell back to the stand-in: no real-Jev evidence", () => {
+    const run = (jev: string[]): ParityReport => ({
+      run: { environment: "local-chatgpt-plan-real-jev" },
+      cases: [
+        {
+          caseId: "owner-a",
+          results: [
+            {
+              status: "PASSED",
+              output: {
+                jev: "real",
+                score: { stepsPassed: 1 },
+                totals: {
+                  tokenTurns: 1,
+                  inputTokens: 1,
+                  inputTokensPerTurn: 1,
+                },
+              },
+            },
+          ],
+        },
+        {
+          caseId: "owner-holdout-a",
+          results: jev.map((label) => ({
+            status: "PASSED",
+            output: {
+              jev: label,
+              score: { stepsPassed: 1 },
+              totals: { tokenTurns: 1, inputTokens: 1, inputTokensPerTurn: 1 },
+            },
+          })),
+        },
+      ],
+    });
+    const real = run(["real", "real", "real"]);
+    expect(
+      versionDeltaBySet(real, real, ["owner-a"], ["owner-holdout-a"]).meetsBar,
+    ).toBe(true);
+    // Codex's control: one of three candidate repeats on the stand-in.
+    const fellBack = versionDeltaBySet(
+      real,
+      run(["real", "stand-in", "real"]),
+      ["owner-a"],
+      ["owner-holdout-a"],
+    );
+    expect(fellBack.meetsBar).toBe(false);
+    expect(fellBack.holdout?.meetsBar).toBe(false);
+    expect(fellBack.holdout?.candidate).toMatchObject({
+      passed: 0,
+      incomplete: 1,
+      standIn: 1,
+    });
+  });
+
+  it("on a real-Jev run, counts only repeats labelled real Jev, on either side", () => {
+    const run = (labels: (string | undefined)[]): ParityReport => ({
+      run: { environment: "local-chatgpt-plan-real-jev" },
+      cases: [
+        {
+          caseId: "owner-a",
+          results: [
+            {
+              status: "PASSED",
+              output: {
+                jev: "real",
+                score: { stepsPassed: 1 },
+                totals: {
+                  tokenTurns: 1,
+                  inputTokens: 1,
+                  inputTokensPerTurn: 1,
+                },
+              },
+            },
+          ],
+        },
+        {
+          caseId: "owner-holdout-a",
+          results: labels.map((jev) => ({
+            status: "PASSED",
+            output: {
+              ...(jev ? { jev } : {}),
+              score: { stepsPassed: 1 },
+              totals: { tokenTurns: 1, inputTokens: 1, inputTokensPerTurn: 1 },
+            },
+          })),
+        },
+      ],
+    });
+    const real = run(["real", "real", "real"]);
+    const unlabelled = run(["real", undefined, "real"]);
+    const held = ["owner-holdout-a"];
+    expect(versionDeltaBySet(real, real, ["owner-a"], held).meetsBar).toBe(
+      true,
+    );
+    // Codex's control: an unlabelled repeat passed the gate on either side.
+    for (const [before, after] of [
+      [real, unlabelled],
+      [unlabelled, real],
+    ] as const) {
+      const delta = versionDeltaBySet(before, after, ["owner-a"], held);
+      expect(delta.meetsBar).toBe(false);
+      expect(delta.holdout?.meetsBar).toBe(false);
+    }
+    // A report that doesn't say its environment can't say which Jev it used.
+    const { run: _env, ...noEnvironment } = real;
+    expect(
+      versionDeltaBySet(noEnvironment, noEnvironment, ["owner-a"], held),
+    ).toMatchObject({
+      meetsBar: false,
+      environmentProblem: expect.stringContaining("no run environment"),
+    });
+  });
+
+  it("refuses runs from different environments, and stand-in plan runs", () => {
+    const run = (environment: string): ParityReport => ({
+      run: { environment },
+      cases: [
+        {
+          caseId: "owner-a",
+          results: [
+            {
+              status: "PASSED",
+              output: {
+                jev: "real",
+                score: { stepsPassed: 1 },
+                totals: {
+                  tokenTurns: 1,
+                  inputTokens: 1,
+                  inputTokensPerTurn: 1,
+                },
+              },
+            },
+          ],
+        },
+        {
+          caseId: "owner-holdout-a",
+          results: [1, 2, 3].map(() => ({
+            status: "PASSED",
+            output: {
+              jev: "real",
+              score: { stepsPassed: 1 },
+              totals: { tokenTurns: 1, inputTokens: 1, inputTokensPerTurn: 1 },
+            },
+          })),
+        },
+      ],
+    });
+    const bar = (before: string, after: string) =>
+      versionDeltaBySet(
+        run(before),
+        run(after),
+        ["owner-a"],
+        ["owner-holdout-a"],
+      );
+    expect(
+      bar("local-chatgpt-plan-real-jev", "local-chatgpt-plan-real-jev"),
+    ).toMatchObject({ meetsBar: true, environmentProblem: null });
+    expect(
+      bar("local-chatgpt-plan", "local-chatgpt-plan-real-jev"),
+    ).toMatchObject({
+      meetsBar: false,
+      environmentProblem: expect.stringContaining("different environments"),
+    });
+    expect(bar("local-chatgpt-plan", "local-chatgpt-plan")).toMatchObject({
+      meetsBar: false,
+      environmentProblem: expect.stringContaining("stand-in"),
+    });
   });
 
   it("calls an unscored candidate incomplete, not a regression", () => {
@@ -210,6 +383,7 @@ describe("versionDelta", () => {
         "owner-holdout-a": [held, 2, 100],
       });
       return {
+        ...reported,
         cases: reported.cases.map((evalCase) =>
           evalCase.caseId === "owner-holdout-a"
             ? { ...evalCase, results: Array(3).fill(evalCase.results[0]) }
@@ -313,5 +487,64 @@ describe("versionDelta", () => {
     expect(
       versionDelta(base, report({ "owner-a": ["PASSED", 2, null] })).meetsBar,
     ).toBe(false);
+  });
+
+  it("refuses to compare a holistic run against a per-item run, and compares matching per-item runs", () => {
+    const withMode = (mode?: "holistic" | "per-item"): ParityReport => ({
+      run: { environment: "mainnet" },
+      cases: [
+        {
+          caseId: "owner-a",
+          results: [
+            {
+              status: "PASSED",
+              output: {
+                ...(mode ? { judgeMode: mode } : {}),
+                score: { stepsPassed: 1 },
+                totals: {
+                  tokenTurns: 1,
+                  inputTokens: 100,
+                  inputTokensPerTurn: 100,
+                },
+              },
+            },
+          ],
+        },
+        {
+          caseId: "owner-holdout-a",
+          results: [1, 2, 3].map(() => ({
+            status: "PASSED",
+            output: {
+              ...(mode ? { judgeMode: mode } : {}),
+              score: { stepsPassed: 1 },
+              totals: {
+                tokenTurns: 1,
+                inputTokens: 100,
+                inputTokensPerTurn: 100,
+              },
+            },
+          })),
+        },
+      ],
+    });
+    const mismatched = versionDeltaBySet(
+      withMode(undefined),
+      withMode("per-item"),
+      ["owner-a"],
+      ["owner-holdout-a"],
+    );
+    expect(mismatched.environmentProblem).toContain(
+      "different judges (holistic vs per-item)",
+    );
+    expect(mismatched.meetsBar).toBe(false);
+
+    const matched = versionDeltaBySet(
+      withMode("per-item"),
+      withMode("per-item"),
+      ["owner-a"],
+      ["owner-holdout-a"],
+    );
+    expect(matched.environmentProblem).toBeNull();
+    expect(matched.meetsBar).toBe(true);
   });
 });

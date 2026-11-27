@@ -129,6 +129,7 @@ Headless:
 ```bash
 pnpm --filter @masumi_network/sokosumi sokosumi -- discover --json
 pnpm --filter @masumi_network/sokosumi sokosumi -- agents list --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- agents input-schema AGENT_ID
 pnpm --filter @masumi_network/sokosumi sokosumi -- agents hire AGENT_ID --input-json '{"query":"hello"}' --json
 pnpm --filter @masumi_network/sokosumi sokosumi -- coworkers list --json
 pnpm --filter @masumi_network/sokosumi sokosumi -- tasks list --json
@@ -140,6 +141,25 @@ printf '%s\\n' "$SOKOSUMI_API_KEY" | pnpm --filter @masumi_network/sokosumi soko
 SOKOSUMI_API_KEY=soko_preprod_... pnpm --filter @masumi_network/sokosumi sokosumi -- auth status --json
 pnpm --filter @masumi_network/sokosumi sokosumi -- auth logout
 ```
+
+### Agent runs and macOS keychain prompts
+
+Stored credentials live in the macOS keychain. macOS asks for permission when a program that the keychain item does not trust reads the item. That program is the `node` binary that runs the CLI. The first line of the `sokosumi` launcher selects it: `#!/usr/bin/env node` uses the first `node` on `PATH`, and an absolute path uses that binary. Check it with `head -1 "$(command -v sokosumi)"`.
+
+- Homebrew `node` has an ad-hoc signature. "Always Allow" trusts only that exact binary, so the prompt comes back after each `brew upgrade node`.
+- The official Node.js build (from nodejs.org, nvm, or fnm) has a Developer ID signature. macOS can match that signature, so "Always Allow" should stay valid after upgrades.
+- Two different `node` binaries on two `PATH`s (for example, your terminal and an agent host) count as two programs. Each one gets its own prompt.
+
+For agents, give the agent process its own credential and skip the keychain:
+
+```bash
+export SOKOSUMI_API_KEY=soko_mainnet_...   # set in the agent's environment, not in chat
+sokosumi auth status --json                # reads no keychain item
+```
+
+When `SOKOSUMI_API_KEY` or `SOKOSUMI_AUTH_TOKEN` is set, commands that use it read no keychain item. `auth login` and `auth logout` still use the keychain, because they save or clear stored credentials. `runtime` commands use a separate Coworker key. With `--api-key-stdin`, `runtime` commands other than `key-import` skip the keychain; `key-import` stores the key in it.
+
+For interactive use, run the CLI on a signed `node`. Put the nvm or fnm `bin` directory before `/opt/homebrew/bin` on `PATH`, then click "Always Allow" once. Approve the same binary that the launcher runs, not only the one that `command -v node` shows.
 
 Connect the selected existing or newly provisioned Coworker with the required Vendor and organization memberships:
 
@@ -235,6 +255,7 @@ Run one executor per Task. Inspect the Task before retrying an uncertain result;
 Receipt reads the Task's payment claim through Core. `settled` is true only when the payment reached the seller on-chain.
 That means `onChainState` `Withdrawn`, or `DisputedWithdrawn` with a seller payout. Only a settled receipt carries a `txHash`, and even then it can be null.
 `settled: false` is a valid answer and exits 0. Core answers 502 when the payment node fails, so an outage never reads as unpaid.
+A person reads the same receipt with their own sign-in, on any target: `sokosumi tasks receipt TASK_ID [--organization-slug WORKSPACE_SLUG]`.
 
 [VERIFIED: `src/cli/commands/runtime.ts`, `src/api/http-client.ts`]
 Runtime calls use only a Coworker key on Preprod. They do not use developer authentication or configured API targets.
@@ -274,7 +295,7 @@ The CLI reads non-secret preferences from `~/.sokosumi/config.json`:
 
 Do not put API keys, OAuth tokens, refresh tokens, or client secrets in this file. The CLI ignores those fields. The file is optional.
 
-Configuration precedence is flags, process environment, home preferences, local `.env`, then built-in defaults. The CLI reads `.env` from the current directory and `apps/cli/.env` when present. Hosted targets have built-in registered public IDs: mainnet `GxmewjdHVAaqUEglxWdyCqVFvnTASycj`, preprod `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR`; hosted OAuth uses Core auth at `<selected-api-url>/auth` (custom `authUrl` remains an override). Local `.env`, home config, and environment values remain optional overrides. Set `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID`, `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID`, generic `SOKOSUMI_OAUTH_CLIENT_ID`, or pass `--client-id` only when you need a different registered client.
+Configuration precedence is flags, process environment, home preferences, local `.env`, then built-in defaults. The CLI reads `.env` from the current directory and `apps/cli/.env` when present. Hosted targets have built-in registered public IDs: mainnet `GxmewjdHVAaqUEglxWdyCqVFvnTASycj`, preprod `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR`; hosted OAuth uses Core auth at `<selected-api-url>/auth` (custom `authUrl` remains an override). Local `.env`, home config, and environment values remain optional overrides. Set `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID`, `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID`, generic `SOKOSUMI_OAUTH_CLIENT_ID`, or pass `--client-id` only when you need a different registered client. A custom `--api-url` has no built-in client: pass `--client-id` once at `auth login`; the CLI remembers it with that host's session, so later calls need only `--api-url`.
 
 ## Build from source
 

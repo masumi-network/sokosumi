@@ -1,5 +1,9 @@
 import { getEnv } from "@/config/env";
 import { integrationNotConfigured } from "@/helpers/error";
+import {
+  refuseEvalSocialAccount,
+  refuseEvalSocialAccountInPath,
+} from "@/lib/evals/eval-social-account";
 
 const API_BASE = "https://zernio.com/api/v1";
 
@@ -16,6 +20,22 @@ export class ZernioApiError extends Error {
   }
 }
 
+/** The accounts a request body names: its own, or each platform's on a post. */
+function zernioAccountIds(body: unknown): string[] {
+  const { accountId, platforms } = (body ?? {}) as {
+    accountId?: unknown;
+    platforms?: unknown;
+  };
+  return [
+    accountId,
+    ...(Array.isArray(platforms)
+      ? platforms.map(
+          (platform) => (platform as { accountId?: unknown })?.accountId,
+        )
+      : []),
+  ].filter((id): id is string => typeof id === "string");
+}
+
 export async function zernioRequest(
   path: string,
   options: {
@@ -27,6 +47,8 @@ export async function zernioRequest(
     headers?: Record<string, string>;
   } = {},
 ): Promise<unknown> {
+  refuseEvalSocialAccountInPath("Zernio", path);
+  refuseEvalSocialAccount("Zernio", ...zernioAccountIds(options.body));
   const apiKey = getEnv().ZERNIO_API_KEY;
   if (!apiKey) throw integrationNotConfigured();
   const response = await fetch(`${API_BASE}${path}`, {
