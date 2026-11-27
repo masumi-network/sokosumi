@@ -9,6 +9,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { setTimeout as sleep } from "node:timers/promises";
 import {
   type CmoShortFormTool,
   SOKO_BOT_TOOL_DESCRIPTIONS,
@@ -136,12 +137,17 @@ const stopped = new AbortController();
  * Only a 409 Core marks as the turn's end stops the loop; any other 409, such
  * as a tool's write that lost a race, is that call's failure. Model calls
  * reach Core through the gateway client, which keeps only the status, and
- * Core answers them 409 only for an inactive turn.
+ * Core answers them 409 only for an inactive turn. Switching Preprod off
+ * also ends the runner's access to its turn.
  */
 function isInactive(error: unknown): boolean {
   if (stopped.signal.aborted) return true;
   if (error instanceof CoreRejected)
-    return error.kind === CORE_API_ERROR_KINDS.SOKO_BOT_TURN_INACTIVE;
+    return (
+      error.kind === CORE_API_ERROR_KINDS.SOKO_BOT_TURN_INACTIVE ||
+      error.kind === CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE ||
+      error.kind === CORE_API_ERROR_KINDS.PREPROD_OFF
+    );
   return (error as { statusCode?: unknown } | null)?.statusCode === 409;
 }
 
@@ -155,13 +161,36 @@ const authHeaders: Record<string, string> = localToken
   ? { [SOKO_BOT_TURN_TOKEN_HEADER]: localToken }
   : {};
 
+/** Retry only a refusal that Core returned before the callback acted. */
+async function fetchCore(input: RequestInfo | URL, init: RequestInit) {
+  for (;;) {
+    const response = await fetch(
+      input instanceof Request ? input.clone() : input,
+      init,
+    );
+    if (response.status !== 503) return response;
+    const error: { kind?: string } | null = await response
+      .clone()
+      .json()
+      .catch(() => ({}));
+    if (
+      error?.kind !== CORE_API_ERROR_KINDS.PREPROD_PAUSED &&
+      error?.kind !== CORE_API_ERROR_KINDS.PREPROD_CONTROL_UNAVAILABLE
+    ) {
+      return response;
+    }
+    await response.body?.cancel();
+    await sleep(2_000, undefined, { signal: init.signal ?? undefined });
+  }
+}
+
 /**
  * Core answers a model call within MODEL_CALL_MAX_MS. An answer that has not
  * arrived a minute after that never will, so the call fails instead of
  * holding the turn until its deadline.
  */
 const modelFetch: typeof fetch = (input, init) =>
-  fetch(input, {
+  fetchCore(input, {
     ...init,
     signal: AbortSignal.any([
       ...(init?.signal ? [init.signal] : []),
@@ -171,7 +200,7 @@ const modelFetch: typeof fetch = (input, init) =>
 
 /** POSTs to this turn's Core endpoint; Core says when the turn is over. */
 async function callCore<T>(route: string, body: unknown): Promise<T> {
-  const response = await fetch(`${base}${route}`, {
+  const response = await fetchCore(`${base}${route}`, {
     method: "POST",
     headers: { "content-type": "application/json", ...authHeaders },
     body: JSON.stringify(body ?? {}),

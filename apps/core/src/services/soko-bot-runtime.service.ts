@@ -8,6 +8,7 @@ import {
   type SokoBotPacketAudience,
   type SokoBotTurnReader,
 } from "@/helpers/task-visibility";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import * as ads from "./soko-bot-runtime/ads";
 import * as authorization from "./soko-bot-runtime/authorization";
@@ -126,6 +127,7 @@ export interface SokoBotActionContext {
 }
 
 export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
+  scope: NetworkScope;
   meetingPrep?: true;
   grant: SokoBotTurnGrantClaims;
   toolCallLimit: number;

@@ -619,7 +619,10 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     sokoBotScheduleRun: { findFirst: scheduleRunOriginMock },
     sokoBotTurn: {
-      findUnique: turnFindUniqueMock,
+      findUnique: async (...args: unknown[]) => {
+        const row = await turnFindUniqueMock(...args);
+        return row && { network: "mainnet", preprodGeneration: null, ...row };
+      },
       update: turnUpdateMock,
       updateMany: turnUpdateManyMock,
     },

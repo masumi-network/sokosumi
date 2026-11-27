@@ -6,6 +6,10 @@ import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import {
+  DetachedNetworkRefusal,
+  detachedNetworkScope,
+} from "@/lib/soko-bot/detached-network";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
   ACTIVE_TURN_STATUSES,
@@ -194,6 +198,8 @@ export class SokoBotTurnsSyncService {
         eveSessionId: true,
         leaseToken: true,
         reconcilerHeartbeatAt: true,
+        network: true,
+        preprodGeneration: true,
       },
       orderBy: [{ reconcilerHeartbeatAt: "asc" }, { id: "asc" }],
       take: BATCH_SIZE,
@@ -203,26 +209,34 @@ export class SokoBotTurnsSyncService {
     for (const turn of stale) {
       if (!input.shouldContinue()) break;
       const leaseToken = randomUUID();
-      const updated = await prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`
+      const { network, preprodGeneration, ...claim } = turn;
+      const updated = await prisma
+        .$transaction(async (tx) => {
+          await tx.$queryRaw`
           SELECT "id" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${turn.id}::uuid
           FOR NO KEY UPDATE
         `;
-        const claimedAt = await databaseNow(tx);
-        return tx.sokoBotTurn.updateMany({
-          where: {
-            ...turn,
-            status: { in: [...ACTIVE_TURN_STATUSES] },
-            deadlineAt: { gt: claimedAt },
-            ...staleTurnLeaseWhere(claimedAt),
-          },
-          data: {
-            leaseToken,
-            leaseExpiresAt: new Date(claimedAt.getTime() + TURN_LEASE_MS),
-            reconcilerHeartbeatAt: claimedAt,
-          },
+          await detachedNetworkScope({ network, preprodGeneration }, tx);
+          const claimedAt = await databaseNow(tx);
+          return tx.sokoBotTurn.updateMany({
+            where: {
+              ...claim,
+              status: { in: [...ACTIVE_TURN_STATUSES] },
+              deadlineAt: { gt: claimedAt },
+              ...staleTurnLeaseWhere(claimedAt),
+            },
+            data: {
+              leaseToken,
+              leaseExpiresAt: new Date(claimedAt.getTime() + TURN_LEASE_MS),
+              reconcilerHeartbeatAt: claimedAt,
+            },
+          });
+        })
+        .catch(async (error: unknown) => {
+          if (!(error instanceof DetachedNetworkRefusal)) throw error;
+          if (error.final) await sokoBotControlPlane.finishStaleTurn(turn.id);
+          return { count: 0 };
         });
-      });
       if (updated.count === 0) continue;
       claimed.push({ id: turn.id, leaseToken });
     }
