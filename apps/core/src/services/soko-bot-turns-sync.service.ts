@@ -236,7 +236,7 @@ export class SokoBotTurnsSyncService {
     for (const turn of stale) {
       if (!input.shouldContinue()) break;
       // A turn with no stored Network cannot be resumed or charged.
-      if (turn.network === null) continue;
+      // The scope check below retires it without acquiring a lease.
       const leaseToken = randomUUID();
       const { network, preprodGeneration, ...claim } = turn;
       const updated = await prisma

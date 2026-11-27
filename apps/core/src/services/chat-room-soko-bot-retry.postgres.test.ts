@@ -288,6 +288,7 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     });
     await dispatch({
       mentionId: mention.id,
+      provenance: { network: "mainnet" },
       mention,
       userId,
       failWithShell: async () => {

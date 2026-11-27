@@ -13,7 +13,6 @@ import {
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import { runAsBackgroundWork } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -24,7 +23,7 @@ import {
   cursorPaginationMetaSchema,
   cursorPaginationQuerySchema,
 } from "@/schemas/pagination.schema";
-import { dispatchChatRoomMention } from "@/services/chat-room-coworker-dispatch.service";
+import { dispatchReclaimedChatRoomMentions } from "@/services/chat-room-coworker-dispatch.service";
 import { listStaleSentChatRoomMentionIds } from "@/services/chat-room-mention-state";
 
 import {
@@ -343,11 +342,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // live timeline poll.
     if (!searchQuery) {
       const staleMentionIds = await listStaleSentChatRoomMentionIds(id);
-      for (const mentionId of staleMentionIds) {
-        // Background work: its events never land on this request's event.
-        waitUntil(
-          runAsBackgroundWork(() => dispatchChatRoomMention(mentionId)),
-        );
+      for (const work of dispatchReclaimedChatRoomMentions(staleMentionIds)) {
+        waitUntil(work);
       }
     }
 

@@ -11,6 +11,7 @@ import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { planJevMode, planJevStandInDuring } from "@/lib/plan-jev";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { effectiveSokoBotRuntimeAdapter } from "@/lib/soko-bot/factory";
+import type { NewChatRoomMention } from "@/services/chat-room-mention-state";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import {
   SOKO_EVENTS_SYNC_KEY,
@@ -189,7 +190,7 @@ async function askInRoom(
           sokoBotId: botId,
           coworkerId: null,
           network: DETACHED_SOKO_BOT_NETWORK,
-        },
+        } satisfies NewChatRoomMention,
       },
     },
     select: { mentionsAsSource: { select: { id: true } } },

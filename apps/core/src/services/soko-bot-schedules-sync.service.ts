@@ -4,6 +4,7 @@ import {
   parseOwnerAuthority,
   redactSokoBotSensitiveText,
 } from "@sokosumi/soko-bot";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
@@ -11,7 +12,10 @@ import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import { createCoreLogger, emitCoreError, logCoreWarning } from "@/lib/evlog";
 import { sokoBotScheduleActingUserId } from "@/lib/soko-bot/acting-user";
-import { DetachedNetworkRefusal } from "@/lib/soko-bot/detached-network";
+import {
+  DetachedNetworkRefusal,
+  requireDetachedTurnProvenance,
+} from "@/lib/soko-bot/detached-network";
 import { isScheduleAuthorityRevoked } from "@/lib/soko-bot/owner-authority";
 import {
   isRetryableSokoBotRuntimeError,
@@ -20,7 +24,6 @@ import {
 import {
   finishStaleSchedule,
   isTemporaryScheduleRefusal,
-  requireScheduledTurnProvenance,
   type ScheduledTurnProvenance,
   scheduleTurnProvenance,
 } from "@/lib/soko-bot/schedule-resume";
@@ -660,7 +663,7 @@ export class SokoBotSchedulesSyncService {
           },
         });
         if (existing) {
-          requireScheduledTurnProvenance(provenance, existing);
+          requireDetachedTurnProvenance(provenance, existing);
           turnStatus = existing.status;
           turnErrorKind = existing.errorKind;
         } else {
@@ -777,6 +780,15 @@ export class SokoBotSchedulesSyncService {
       }
 
       if (
+        provenance.network === "preprod" &&
+        turnErrorKind === CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE
+      ) {
+        return (await finishStaleSchedule(schedule, { ...run, turnId }))
+          ? "failed"
+          : "deferred";
+      }
+
+      if (
         turnStatus === "FAILED" &&
         turnErrorKind === "runtime_start_ambiguous"
       ) {
@@ -856,7 +868,7 @@ export class SokoBotSchedulesSyncService {
         });
         return "deferred";
       }
-      if (error instanceof DetachedNetworkRefusal) {
+      if (error instanceof DetachedNetworkRefusal && error.final) {
         return (await finishStaleSchedule(schedule, run))
           ? "failed"
           : "deferred";

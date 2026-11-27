@@ -12,6 +12,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
   },
 }));
+vi.mock("@/lib/network", () => ({
+  isPreprodOn: () => false,
+}));
 
 import {
   claimMentionForDispatch,
@@ -57,6 +60,7 @@ describe("listStaleSentChatRoomMentionIds", () => {
         status: { in: ["pending", "sent"] },
         updatedAt: { lt: new Date(now.getTime() - ROOM_SENT_STALE_MS) },
         message: { roomId: "room_1" },
+        OR: [{ network: null }, { network: { not: "preprod" } }],
       },
       select: { id: true },
       orderBy: { updatedAt: "asc" },
