@@ -12,6 +12,9 @@ const TRANSIENT_RUNTIME_EVENT_TYPES = new Set([
   "action.partial",
   "message.appended",
   "reasoning.appended",
+  // Experiment E3 receipt: stays in SokoBotRuntimeEvent for replay/telemetry,
+  // never projects into owner-facing SokoBotEvent timelines.
+  "completion_decider.decided",
 ]);
 
 export function shouldPersistSokoBotRuntimeEvent(type: string): boolean {

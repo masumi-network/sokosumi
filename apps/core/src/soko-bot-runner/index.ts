@@ -82,6 +82,8 @@ interface TurnStart {
   preamble?: string;
   /** Core runs update_plan for the whole request; an older Core sends none. */
   planLoop?: boolean;
+  /** Jev completion decider (experiment E3): run doneCheck even without a plan. */
+  completionDecider?: boolean;
   /** The turn starts with a plan from earlier in its request. */
   planInherited?: boolean;
   /** Tools whose completed call Core records as a change (planLoop). */
@@ -544,10 +546,11 @@ async function main(): Promise<void> {
       shortForms: start.shortForms ?? [],
       cacheKey: start.cacheKey,
       fullCacheKey: start.fullCacheKey,
-      ...(start.planLoop
+      ...(start.planLoop || start.completionDecider
         ? {
             plan: {
               inherited: start.planInherited === true,
+              checkWithoutPlan: start.completionDecider === true,
               doneCheck: async (draft: string) =>
                 (await callCore<{ note: string | null }>("/plan", { draft }))
                   .note,

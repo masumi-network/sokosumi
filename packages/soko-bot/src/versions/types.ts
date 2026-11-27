@@ -44,6 +44,13 @@ export interface SokoBotVersion {
    */
   planLoop?: true;
   /**
+   * Before a foreground turn answers, Jev picks finish / continue / ask_owner
+   * from Core's receipts, the plan (when any), and the draft; continue sends
+   * the turn back once (experiment E3, standalone or combined with planLoop).
+   * Omitted: only planLoop's deterministic done check runs, as before.
+   */
+  completionDecider?: true;
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.

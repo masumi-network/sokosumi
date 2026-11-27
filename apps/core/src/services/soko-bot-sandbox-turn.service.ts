@@ -244,7 +244,9 @@ export async function startSandboxTurn(
     ...turn,
     message: shellNote ? `${message}\n\n${shellNote}` : message,
     ...(shell ? { shell } : {}),
-    ...(turn.planLoop ? { changeTools: [...changeTools()] } : {}),
+    ...(turn.planLoop || turn.completionDecider
+      ? { changeTools: [...changeTools()] }
+      : {}),
     deadlineAt: stored.deadlineAt.toISOString(),
     budgetMs: Math.max(
       30_000,

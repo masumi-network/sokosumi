@@ -308,10 +308,11 @@ async function runTurn(
         message: userMessage,
         cacheKey: turn.cacheKey,
         fullCacheKey: turn.fullCacheKey,
-        ...(turn.planLoop
+        ...(turn.planLoop || turn.completionDecider
           ? {
               plan: {
                 inherited: turn.planInherited,
+                checkWithoutPlan: turn.completionDecider,
                 doneCheck: (draft: string) =>
                   evaluateTurnDoneCheck({
                     turnId: input.turnId,

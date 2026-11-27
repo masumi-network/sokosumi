@@ -1290,4 +1290,31 @@ describe("the done check (planLoop)", () => {
       `${TIME_UP_PROMPT}\n\nOpen steps in your plan (revision 2):\n- s2 [pending] Rows 13 to 30`,
     );
   });
+
+  it("checks completion without a plan when checkWithoutPlan is set, at most once, without asking openSteps", async () => {
+    const { model, seen } = answeringModel();
+    let doneCalls = 0;
+    let openCalls = 0;
+    const result = await runTurnLoop(
+      loopInput(model, {
+        inherited: false,
+        checkWithoutPlan: true,
+        doneCheck: async () => {
+          doneCalls += 1;
+          return "Before you finish: complete the remaining work.";
+        },
+        openSteps: async () => {
+          openCalls += 1;
+          return "- s1";
+        },
+      }),
+    );
+    expect(doneCalls).toBe(1);
+    expect(openCalls).toBe(0);
+    expect(seen).toEqual([
+      "Do the three things.",
+      "Before you finish: complete the remaining work.",
+    ]);
+    expect(result.text).toBe("Answer 2.");
+  });
 });

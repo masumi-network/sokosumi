@@ -1,0 +1,511 @@
+import { describe, expect, it, vi } from "vitest";
+import { expectCoreLog } from "@/test/core-log";
+import {
+  buildCompletionBouncePrompt,
+  buildCompletionQuestions,
+  buildCompletionState,
+  COMPLETION_DECIDER_POLICY_VERSION,
+  type CompletionDeciderContext,
+  decideCompletionWithJev,
+  inspectDraft,
+  receiptToRuntimeEventData,
+} from "./completion-decider";
+import type { evaluateWithJev, JevAnswer } from "./jev";
+
+function makeCtx(
+  overrides: Partial<CompletionDeciderContext> = {},
+): CompletionDeciderContext {
+  return {
+    request: "Create a weekly status report and upload it to Files.",
+    rootRequest: null,
+    isFollowUpWake: false,
+    turnSource: "CHAT",
+    draft: "I looked at the tasks and here is a quick summary.",
+    plan: null,
+    openSteps: [],
+    receipts: [],
+    readCalls: [
+      { capability: "list_tasks", completedCount: 1, failedCount: 0 },
+    ],
+    pendingDecisionCount: 0,
+    unresolvedRefusals: [],
+    waitingOnOthers: false,
+    availableWriteTools: ["upload_file", "create_social_post", "create_task"],
+    availableReadToolCount: 8,
+    alreadyBounced: false,
+    hasPlanLoop: false,
+    ...overrides,
+  };
+}
+
+function mockJev(
+  answers: Record<string, JevAnswer>,
+  costUsd = 0.00005,
+): typeof evaluateWithJev {
+  return vi.fn(async () => ({
+    answers: new Map(Object.entries(answers)),
+    costUsd,
+  }));
+}
+
+describe("completion-decider (experiment E3)", () => {
+  describe("inspectDraft", () => {
+    it("parses JSON action narratives and detects questions and silence", () => {
+      expect(
+        inspectDraft(
+          JSON.stringify({
+            kind: "CLARIFY",
+            message: "Which project should I use?",
+            question: "TARGET",
+            observationToolCallIds: [],
+          }),
+        ),
+      ).toEqual({
+        silent: false,
+        kind: "CLARIFY",
+        text: "Which project should I use?",
+        asksOwner: true,
+      });
+
+      expect(
+        inspectDraft(
+          JSON.stringify({
+            kind: "SILENT",
+            message: null,
+            question: null,
+            observationToolCallIds: [],
+          }),
+        ).silent,
+      ).toBe(true);
+
+      expect(inspectDraft("   ").silent).toBe(true);
+      expect(inspectDraft("All done.").asksOwner).toBe(false);
+      expect(inspectDraft("Which account do you prefer?").asksOwner).toBe(true);
+    });
+  });
+
+  describe("host menu pre-filtering", () => {
+    it("skips Jev entirely when already bounced, silent, waiting on others, or without tools", async () => {
+      const evaluate = mockJev({});
+      for (const [reason, patch] of [
+        ["already_bounced", { alreadyBounced: true }],
+        ["silent_draft", { draft: "Nothing to add." }],
+        ["waiting_on_others", { waitingOnOthers: true }],
+        ["no_tools", { availableWriteTools: [], availableReadToolCount: 0 }],
+      ] as const) {
+        const result = await decideCompletionWithJev(makeCtx(patch), {
+          evaluate,
+        });
+        expect(result.action).toBe("finish");
+        expect(result.receipt.validation).toBe("skipped_prefilter");
+        expect(result.receipt.validationDetail).toBe(reason);
+        expect(result.receipt.bounced).toBe(false);
+        expect(result.receipt.fallback).toBe(false);
+      }
+      expect(evaluate).not.toHaveBeenCalled();
+    });
+
+    it("still checks when waitingOnOthers is true but a local step is in_progress", () => {
+      const { candidates, targetCandidates } = buildCompletionQuestions(
+        makeCtx({
+          waitingOnOthers: true,
+          openSteps: [
+            { id: "s2", step: "Draft summary", status: "in_progress" },
+          ],
+        }),
+      );
+      expect(candidates).toContain("continue");
+      expect(targetCandidates).toEqual(["step:s2"]);
+    });
+
+    it("offers named step candidates when 2+ open plan steps exist, and gap candidates without open steps", () => {
+      const withSteps = buildCompletionQuestions(
+        makeCtx({
+          openSteps: [
+            { id: "s1", step: "Prepare graphics", status: "pending" },
+            { id: "s2", step: "Draft social post", status: "pending" },
+          ],
+        }),
+      );
+      expect(withSteps.targetCandidates).toEqual(["step:s1", "step:s2"]);
+      expect(withSteps.questions.target?.type).toBe("choice");
+
+      const withoutSteps = buildCompletionQuestions(makeCtx());
+      expect(withoutSteps.targetCandidates).toEqual([
+        "gap:unread_context",
+        "gap:incomplete_work",
+        "gap:unsettled_receipt",
+      ]);
+      expect(withoutSteps.questions.target?.type).toBe("choice");
+    });
+  });
+
+  describe("decisions, validation, re-check, and fallback", () => {
+    it("lets a confident finish pass with a valid receipt", async () => {
+      const evaluate = mockJev({
+        decision: {
+          type: "choice",
+          choice: "finish",
+          probabilities: {
+            finish: 0.92,
+            continue: 0.04,
+            ask_owner: 0.02,
+            abstain: 0.02,
+          },
+        },
+      });
+      const result = await decideCompletionWithJev(makeCtx(), {
+        evaluate,
+        now: () => 1_000,
+      });
+      expect(result.action).toBe("finish");
+      expect(result.receipt).toMatchObject({
+        stage: "completion",
+        policyVersion: COMPLETION_DECIDER_POLICY_VERSION,
+        mode: "completion_decider",
+        choice: "finish",
+        abstained: false,
+        validation: "valid",
+        fallback: false,
+        fallbackPolicy: null,
+        outcome: "finish",
+        bounced: false,
+        costUsd: 0.00005,
+      });
+      expect(receiptToRuntimeEventData(result.receipt).choice).toBe("finish");
+    });
+
+    it("continues without a plan when Jev confidently spots incomplete work", async () => {
+      const ctx = makeCtx({
+        receipts: [
+          { capability: "create_task", label: "id t1", outcome: "done" },
+        ],
+      });
+      const evaluate = mockJev({
+        decision: {
+          type: "choice",
+          choice: "continue",
+          probabilities: {
+            finish: 0.08,
+            continue: 0.86,
+            ask_owner: 0.03,
+            abstain: 0.03,
+          },
+        },
+        target: {
+          type: "choice",
+          choice: "gap:incomplete_work",
+          probabilities: {
+            "gap:unread_context": 0.05,
+            "gap:incomplete_work": 0.9,
+            "gap:unsettled_receipt": 0.05,
+          },
+        },
+      });
+      const result = await decideCompletionWithJev(ctx, { evaluate });
+      expect(result.action).toBe("continue");
+      expect(result.continueGap).toBe("incomplete_work");
+      expect(result.receipt.bounced).toBe(true);
+      expect(result.receipt.chosenTarget).toBe("gap:incomplete_work");
+
+      const prompt = buildCompletionBouncePrompt({
+        ctx,
+        decision: result,
+        openStepsText: "",
+        savedNoteText: "",
+      });
+      expect(prompt).toContain("Core's receipts for this request so far:");
+      expect(prompt).toContain("- create_task (id t1): done");
+      expect(prompt).toContain("Do not repeat any save marked done");
+    });
+
+    it("names the specific open plan step Jev picked when continuing with a plan", async () => {
+      const openSteps = [
+        { id: "s2", step: "Generate two visuals", status: "pending" as const },
+        { id: "s3", step: "Draft social post", status: "pending" as const },
+      ];
+      const ctx = makeCtx({
+        hasPlanLoop: true,
+        plan: {
+          requestId: "req-1",
+          revision: 2,
+          steps: [
+            { id: "s1", step: "Read briefing", status: "done" },
+            ...openSteps,
+          ],
+        },
+        openSteps,
+      });
+      const evaluate = mockJev({
+        decision: {
+          type: "choice",
+          choice: "continue",
+          probabilities: {
+            finish: 0.05,
+            continue: 0.88,
+            ask_owner: 0.04,
+            abstain: 0.03,
+          },
+        },
+        target: {
+          type: "choice",
+          choice: "step:s2",
+          probabilities: { "step:s2": 0.82, "step:s3": 0.18 },
+        },
+      });
+
+      const result = await decideCompletionWithJev(ctx, {
+        evaluate,
+        recheckState: async () => ({
+          alreadyBounced: false,
+          waitingOnOthers: false,
+          openStepIds: ["s2", "s3"],
+          hasTools: true,
+        }),
+      });
+      expect(result.action).toBe("continue");
+      expect(result.namedStep?.id).toBe("s2");
+      expect(result.receipt.chosenTarget).toBe("step:s2");
+
+      const prompt = buildCompletionBouncePrompt({
+        ctx,
+        decision: result,
+        openStepsText:
+          "- s2 [pending] Generate two visuals\n- s3 [pending] Draft social post",
+        savedNoteText: "",
+      });
+      expect(prompt).toContain(
+        "Next open step to act on now: s2 [pending] Generate two visuals",
+      );
+      expect(prompt).toContain("update_plan (revision 2)");
+    });
+
+    it("rejects a stale step pick when recheckState shows the step is no longer open", async () => {
+      const openSteps = [
+        { id: "s2", step: "Generate two visuals", status: "pending" as const },
+        { id: "s3", step: "Draft social post", status: "pending" as const },
+      ];
+      const ctx = makeCtx({
+        hasPlanLoop: true,
+        plan: { requestId: "req-1", revision: 2, steps: openSteps },
+        openSteps,
+      });
+      const evaluate = mockJev({
+        decision: {
+          type: "choice",
+          choice: "continue",
+          probabilities: {
+            finish: 0.05,
+            continue: 0.9,
+            ask_owner: 0.03,
+            abstain: 0.02,
+          },
+        },
+        target: {
+          type: "choice",
+          choice: "step:s2",
+          probabilities: { "step:s2": 0.85, "step:s3": 0.15 },
+        },
+      });
+
+      const result = await decideCompletionWithJev(ctx, {
+        evaluate,
+        recheckState: async () => ({
+          alreadyBounced: false,
+          waitingOnOthers: false,
+          openStepIds: ["s3"],
+          hasTools: true,
+        }),
+      });
+      expect(result.receipt.validation).toBe("stale");
+      expect(result.receipt.validationDetail).toBe(
+        "chosen_step_no_longer_open:s2",
+      );
+      expect(result.receipt.fallback).toBe(true);
+      expect(result.receipt.fallbackPolicy).toBe("plan_loop_done_check");
+      expect(result.usePlanLoopFallback).toBe(true);
+    });
+
+    it("rejects continue as stale when recheck shows the turn is now waiting on others with no in-progress step", async () => {
+      const openSteps = [
+        { id: "s1", step: "Local draft", status: "in_progress" as const },
+        { id: "s2", step: "Wait on research", status: "pending" as const },
+      ];
+      const ctx = makeCtx({
+        hasPlanLoop: true,
+        plan: { requestId: "req-1", revision: 1, steps: openSteps },
+        openSteps,
+      });
+      const result = await decideCompletionWithJev(ctx, {
+        evaluate: mockJev({
+          decision: {
+            type: "choice",
+            choice: "continue",
+            probabilities: {
+              finish: 0.05,
+              continue: 0.9,
+              ask_owner: 0.03,
+              abstain: 0.02,
+            },
+          },
+          target: {
+            type: "choice",
+            choice: "step:s2",
+            probabilities: { "step:s1": 0.2, "step:s2": 0.8 },
+          },
+        }),
+        recheckState: async () => ({
+          alreadyBounced: false,
+          waitingOnOthers: true,
+          openStepIds: ["s2"],
+          hasInProgressStep: false,
+          hasTools: true,
+        }),
+      });
+      expect(result.receipt.validation).toBe("stale");
+      expect(result.receipt.validationDetail).toBe("now_waiting_on_others");
+      expect(result.receipt.fallback).toBe(true);
+      expect(result.receipt.bounced).toBe(false);
+    });
+
+    it("lets ask_owner pass when the draft already asks, and bounces when an unresolved refusal went unasked", async () => {
+      const passing = await decideCompletionWithJev(
+        makeCtx({
+          draft: "Which of your two connected accounts should I use?",
+          hasPlanLoop: true,
+          openSteps: [
+            { id: "s1", step: "Pick account", status: "pending" },
+            { id: "s2", step: "Create draft", status: "pending" },
+          ],
+        }),
+        {
+          evaluate: mockJev({
+            decision: {
+              type: "choice",
+              choice: "ask_owner",
+              probabilities: {
+                finish: 0.05,
+                continue: 0.05,
+                ask_owner: 0.88,
+                abstain: 0.02,
+              },
+            },
+          }),
+        },
+      );
+      expect(passing.action).toBe("ask_owner_pass");
+      expect(passing.receipt.bounced).toBe(false);
+
+      const bouncingCtx = makeCtx({
+        draft: "I could not finish the draft right now.",
+        unresolvedRefusals: [
+          {
+            capability: "create_social_post",
+            errorDetail: "Multiple accounts match; ask the owner which to use.",
+          },
+        ],
+      });
+      const bouncing = await decideCompletionWithJev(bouncingCtx, {
+        evaluate: mockJev({
+          decision: {
+            type: "choice",
+            choice: "ask_owner",
+            probabilities: {
+              finish: 0.1,
+              continue: 0.08,
+              ask_owner: 0.8,
+              abstain: 0.02,
+            },
+          },
+        }),
+      });
+      expect(bouncing.action).toBe("ask_owner_bounce");
+      expect(bouncing.receipt.bounced).toBe(true);
+      const prompt = buildCompletionBouncePrompt({
+        ctx: bouncingCtx,
+        decision: bouncing,
+        openStepsText: "",
+        savedNoteText: "",
+      });
+      expect(prompt).toContain("create_social_post");
+      expect(prompt).toContain("Ask the owner one concrete question");
+    });
+
+    it("falls back to plan_loop_done_check on abstain or Jev error when planLoop has open steps, and to finish otherwise", async () => {
+      const abstainJev = mockJev({
+        decision: {
+          type: "choice",
+          choice: "abstain",
+          probabilities: {
+            finish: 0.2,
+            continue: 0.25,
+            ask_owner: 0.1,
+            abstain: 0.45,
+          },
+        },
+      });
+      const withPlan = await decideCompletionWithJev(
+        makeCtx({
+          hasPlanLoop: true,
+          openSteps: [{ id: "s1", step: "Save file", status: "pending" }],
+        }),
+        { evaluate: abstainJev },
+      );
+      expect(withPlan.receipt.abstained).toBe(true);
+      expect(withPlan.receipt.validation).toBe("abstained");
+      expect(withPlan.receipt.fallback).toBe(true);
+      expect(withPlan.receipt.fallbackPolicy).toBe("plan_loop_done_check");
+      expect(withPlan.usePlanLoopFallback).toBe(true);
+
+      const warned = expectCoreLog(
+        "warn",
+        "Completion decider Jev call failed; using fallback",
+      );
+      const withoutPlan = await decideCompletionWithJev(makeCtx(), {
+        evaluate: vi.fn(async () => {
+          throw new Error("timeout");
+        }),
+      });
+      expect(warned).toHaveLength(1);
+      expect(withoutPlan.receipt.validation).toBe("error");
+      expect(withoutPlan.receipt.fallback).toBe(true);
+      expect(withoutPlan.receipt.fallbackPolicy).toBe("finish");
+      expect(withoutPlan.usePlanLoopFallback).toBe(false);
+    });
+
+    it("requires higher confidence to continue without open plan steps, avoiding false bounces", async () => {
+      const borderline = await decideCompletionWithJev(makeCtx(), {
+        evaluate: mockJev({
+          decision: {
+            type: "choice",
+            choice: "continue",
+            probabilities: {
+              finish: 0.25,
+              continue: 0.68,
+              ask_owner: 0.05,
+              abstain: 0.02,
+            },
+          },
+        }),
+      });
+      expect(borderline.action).toBe("finish");
+      expect(borderline.receipt.validation).toBe("low_confidence");
+      expect(borderline.receipt.fallback).toBe(true);
+    });
+
+    it("bounds request, rootRequest, and draft fields in Jev state", () => {
+      const state = buildCompletionState(
+        makeCtx({
+          request: "a".repeat(5_000),
+          rootRequest: "b".repeat(5_000),
+          draft: "c".repeat(5_000),
+          isFollowUpWake: true,
+        }),
+      ) as Record<string, unknown>;
+      expect((state.request as string).length).toBe(2_500);
+      expect((state.originatingOwnerRequest as string).length).toBe(1_200);
+      expect((state.draftReply as string).length).toBe(2_500);
+      expect(state.isFollowUpWake).toBe(true);
+    });
+  });
+});
