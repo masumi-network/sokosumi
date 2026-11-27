@@ -396,28 +396,30 @@ describe.skipIf(!enabled)("SEO impact queue against PostgreSQL", () => {
     const DAY_BEFORE = new Date("2026-12-01T07:00:00.000Z");
     const RETRY_DAY = new Date("2026-12-01T08:00:00.000Z");
 
-    /** A change whose worker waits until 2026-12-01, with CONTROL as its comparison page. */
-    async function waitingChange() {
-      // Five pages outrank the control page: only the pin keeps it a candidate.
-      for (const page of ["a", "b", "c", "d", "e"])
-        traffic.set(`${SITE}/${page}`, flat(30));
-      traffic.set(CONTROL, flat(10));
+    /**
+     * A change whose worker waits until 2026-12-01 with `comparisonPage`,
+     * CONTROL by default, as its comparison page. Five pages outrank the
+     * control page after that: only the pin keeps it a candidate.
+     */
+    async function waitingChange(comparisonPage = CONTROL) {
+      traffic.set(CONTROL, flat(30));
       const change = await finalChange();
       await prepareSeoImpactInputs(tick, NOW);
       const claim = (await claimSeoImpact(NOW))!;
-      await recordSeoImpactVerdict(
-        claim.claimId,
-        {
-          ...resultFor(claim.input, "waiting"),
-          comparison: { ...fixture.result.comparison, pageUrl: CONTROL },
-        },
-        NOW,
-      );
-      return change;
+      expect(claim.input.candidates.map((c) => c.pageUrl)).toEqual([CONTROL]);
+      const waiting = {
+        ...resultFor(claim.input, "waiting"),
+        comparison: { ...fixture.result.comparison, pageUrl: comparisonPage },
+      };
+      await recordSeoImpactVerdict(claim.claimId, waiting, NOW);
+      for (const page of ["a", "b", "c", "d", "e"])
+        traffic.set(`${SITE}/${page}`, flat(30));
+      traffic.set(CONTROL, flat(10));
+      return { change, waiting };
     }
 
     it("is read again on its retry day, with its comparison page pinned", async () => {
-      const change = await waitingChange();
+      const { change } = await waitingChange();
 
       expect(await prepareSeoImpactInputs(tick, DAY_BEFORE)).toMatchObject({
         prepared: 0,
@@ -453,8 +455,26 @@ describe.skipIf(!enabled)("SEO impact queue against PostgreSQL", () => {
       });
     });
 
+    it("refuses the waiting result again under the claim of its retry", async () => {
+      const { change, waiting } = await waitingChange();
+      await prepareSeoImpactInputs(tick, RETRY_DAY);
+      const claim = (await claimSeoImpact(RETRY_DAY))!;
+
+      await expect(
+        recordSeoImpactVerdict(claim.claimId, waiting, RETRY_DAY),
+      ).rejects.toMatchObject({ status: 422 });
+      expect((await rowOf(change.id)).state).toBe("ready");
+    });
+
+    it("pins no comparison page that the waiting input did not offer", async () => {
+      const { change } = await waitingChange(`${SITE}/a`);
+      await prepareSeoImpactInputs(tick, RETRY_DAY);
+      const claim = (await claimSeoImpact(RETRY_DAY))!;
+      expect(claim.input).toMatchObject({ impactId: change.id, pin: null });
+    });
+
     it("drops the pin of a comparison page that has a tracked change since", async () => {
-      const change = await waitingChange();
+      const { change } = await waitingChange();
       await finalChange({ pageUrl: CONTROL });
       await prisma.projectSeoImpactVerdict.updateMany({
         where: { projectId, pageUrl: CONTROL },

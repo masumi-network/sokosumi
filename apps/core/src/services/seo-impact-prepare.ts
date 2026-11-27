@@ -56,6 +56,7 @@ interface FinalRow {
   id: string;
   projectId: string;
   state: string;
+  input: Prisma.JsonValue;
   verdict: Prisma.JsonValue;
   pageUrl: string;
   property: string | null;
@@ -206,20 +207,19 @@ function unconfirmedInput(row: PreparedRow, now: Date): SeoImpactInput {
 
 /**
  * The comparison page of a waiting result, kept for its next read so the
- * retry tests against the same control. None once that page has a tracked
- * change of its own, or is on another origin than the page.
+ * retry tests against the same control. Only a candidate of the input that
+ * result answers counts, and none once that page has a tracked change of
+ * its own.
  */
-function pinnedPage(row: PreparedRow, page: URL, tracked: Set<string>) {
+function pinnedPage(row: PreparedRow, tracked: Set<string>) {
   if (row.state !== "waiting_retry") return null;
-  const saved = seoImpactResultSchema.safeParse(row.verdict);
-  const pin = workerUrl(saved.data?.comparison?.pageUrl ?? "");
-  if (
-    !pin ||
-    pin.origin !== page.origin ||
-    tracked.has(seoPageComparisonKey(pin.href))
-  )
-    return null;
-  return pin.href;
+  const pin = seoImpactResultSchema.safeParse(row.verdict).data?.comparison
+    ?.pageUrl;
+  const offered = seoImpactInputSchema
+    .safeParse(row.input)
+    .data?.candidates.some((candidate) => candidate.pageUrl === pin);
+  if (!pin || !offered || tracked.has(seoPageComparisonKey(pin))) return null;
+  return pin;
 }
 
 /** The worker's input for one verified change, read now from Search Console. */
@@ -246,7 +246,7 @@ async function buildInput(
   };
   const beforeChange = addDays(searchConsoleDay(row.changedAt), -1);
   const tracked = await trackedPages(row.projectId);
-  const pin = pinnedPage(row, page, tracked);
+  const pin = pinnedPage(row, tracked);
   const [pageByDate, siteByDate, ranked] = await Promise.all([
     readDaily(
       read,
@@ -402,6 +402,7 @@ export async function prepareSeoImpactInputs(
       id: true,
       projectId: true,
       state: true,
+      input: true,
       verdict: true,
       pageUrl: true,
       property: true,
