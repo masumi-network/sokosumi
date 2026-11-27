@@ -66,6 +66,19 @@ describe("e1Prompts version flag", () => {
     expect(prompt).toContain(
       "Delete a recurring schedule only when the owner explicitly asks to stop or remove it",
     );
+    expect(prompt).toContain("keepCapabilities: true");
+    expect(prompt).toContain(
+      "still create the requested draft attributed to that report and state plainly what was not independently verified",
+    );
+    expect(prompt).toContain(
+      "Never answer `Nothing to add.` to a human's chat message.",
+    );
+    expect(prompt).toContain(
+      "call `update_plan` up front to list every requested deliverable and constraint before executing",
+    );
+    expect(prompt).toContain(
+      "mark external actions and retrieved artifacts done only from confirmed tool results, and mark reply-only writing or analysis steps done once you have written them for the reply",
+    );
     expect(prompt).not.toContain(E1_CUSO_CHANGE_SCOPE_SECTION);
     expect(prompt).toContain(
       "Your owner's mail, calendar, files, memory, pending decisions, and costs are theirs to share",
@@ -90,6 +103,28 @@ describe("e1Prompts version flag", () => {
       "Never put a review deadline or unrequested suggested date into `scheduledAt`",
     );
     expect(social.content).toContain("unscheduled proposals");
+    // Still-image request: raster format, never SVG.
+    expect(social.content).toContain(
+      "for still images, generate a raster image with `generate_image` (or attach PNG/JPEG/WebP), never SVG",
+    );
+    // Video request / video-only destination: preserve requested media type, never substitute a still image.
+    expect(social.content).toContain(
+      "for videos, generate or attach a supported video format (never substitute a still image for a requested video or a video-only destination)",
+    );
+    expect(social.content).toContain(
+      "regenerate or convert it into a supported format of that same media type",
+    );
+
+    const resultCards = getSokoBotSkillForVersion("result-cards", e1);
+    expect(resultCards.content).not.toContain(
+      "(also before Content Studio generation)",
+    );
+    expect(resultCards.content).toContain(
+      "When one project clearly fits the request",
+    );
+    expect(getSokoBotSkillForVersion("result-cards", base).content).toContain(
+      "(also before Content Studio generation)",
+    );
 
     const preamble = composeTurnPreamble(e1, undefined, {
       clientTurnId: null,
@@ -155,6 +190,14 @@ describe("e1Prompts version flag", () => {
     );
     expect(promptA).toContain(
       "Delete a recurring schedule only when the owner explicitly asks to stop or remove it.",
+    );
+    expect(promptA).toContain("keepCapabilities: true");
+    expect(promptA).toContain(
+      "Never answer `Nothing to add.` to a human's chat message.",
+    );
+    expect(promptA).not.toContain("- Plan first, ask later.");
+    expect(promptA).toContain(
+      "Never invent scope, cadence, or channel targets for an open-ended or ambiguous request",
     );
     expect(promptA).toContain("Single-post edits stay on that post.");
     expect(promptA).toContain(
@@ -231,6 +274,22 @@ Change the strategy only as far as the owner has said what to change.
     );
     expect(asksOn.content).toContain(
       "act without adding extra confirmation questions",
+    );
+
+    const resultCardsSendMsg = {
+      id: "result-cards-send-message",
+      name: "Chat result previews",
+      description: "Cards",
+      content:
+        'When the owner must choose a project (also before Content Studio generation), show a selector rather than asking them to type a name: preview_result with `{kind:"project_selection",projectIds:[...]}` holding up to 12 real projects from context or `refresh_context` (more: ask for a search term), then a short question. Selecting is not approval to publish or spend.',
+    };
+    expect(applyE1Skill(resultCardsSendMsg, off)).toBe(resultCardsSendMsg);
+    const cardsOn = applyE1Skill(resultCardsSendMsg, on);
+    expect(cardsOn.content).not.toContain(
+      "(also before Content Studio generation)",
+    );
+    expect(cardsOn.content).toContain(
+      "Only when two or more unrelated projects genuinely fit",
     );
   });
 });
