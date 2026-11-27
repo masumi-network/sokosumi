@@ -1019,10 +1019,9 @@ async function ownerNarrative(
       return { ...narrative, message: null, replyCheck: "cut" };
     }
     const recheck = await answerClaims.claimsAction(kept, confirmed);
-    // A second check that cannot run leaves the strictly cut scrub as unchecked:
-    // it already removed every sentence matching CHANGE_CLAIM.
-    if (recheck === null)
-      return { ...narrative, message: kept, replyCheck: "unchecked" };
+    // After a known whole-reply rejection, a regex-only remainder (with no
+    // sentences individually cleared by Jev) must be positively cleared by
+    // recheck before it can be shown.
     return {
       ...narrative,
       message: recheck === false ? kept : null,

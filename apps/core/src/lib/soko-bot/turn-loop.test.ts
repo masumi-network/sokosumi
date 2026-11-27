@@ -378,20 +378,21 @@ describe("finishTurn", () => {
     );
   });
 
-  it("shows the cut reply as unchecked when the second check cannot run", async () => {
+  it("keeps individually cleared sentences when the final recheck cannot run", async () => {
     expectCoreLogWhys(
       "warn",
       "Cut a Soko Bot reply's claim of an unconfirmed change",
       ["The reply claims a change that no action receipt confirms"],
     );
     claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(null);
+    claimsActionBySentenceMock.mockResolvedValueOnce([false, true]);
     await finish(
       "Your Padierfind project has an X account. I created the schedule.",
       true,
     );
     expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
       message: "Your Padierfind project has an X account.",
-      replyCheck: "unchecked",
+      replyCheck: "cut",
     });
   });
 
@@ -503,6 +504,21 @@ describe("finishTurn", () => {
     });
   });
 
+  it("withholds an unverified remainder when all sentence checks and the recheck time out", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(null);
+    claimsActionBySentenceMock.mockResolvedValueOnce([null, null]);
+    await finish("I created a task. I forwarded the invoice to Finance.", true);
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: null,
+      replyCheck: "cut",
+    });
+  });
+
   it("does not restore an unchanged reply already rejected as a whole", async () => {
     expectCoreLogWhys(
       "warn",
@@ -559,7 +575,7 @@ describe("finishTurn", () => {
       "Cut a Soko Bot reply's claim of an unconfirmed change",
       ["The reply claims a change that no action receipt confirms"],
     );
-    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(null);
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
     claimsActionBySentenceMock.mockResolvedValueOnce([null, null]);
 
     await finish(
@@ -569,7 +585,7 @@ describe("finishTurn", () => {
 
     expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
       message: "The file is ready for review.",
-      replyCheck: "unchecked",
+      replyCheck: "cut",
     });
   });
 
