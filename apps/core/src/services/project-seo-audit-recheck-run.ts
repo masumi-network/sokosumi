@@ -21,8 +21,16 @@ import { normalizeSeoUrl } from "./project-seo-store";
 const RECHECK_HISTORY = 50;
 /** A status that says something about the action. A not_compared result keeps the stored one. */
 const COMPARED = new Set(["done", "partial", "open"]);
+/** The Cuso suggestion statuses impact tracking records as a change (seo-impact-record.ts). */
+const CUSO_DONE = ["done", "verified"];
+/** A first recheck can write a status for every action of 50 audits. */
+const RECHECK_TRANSACTION = { timeout: 30_000 } as const;
 
 type Stored = { id: string; observedAt: Date; payload: Prisma.JsonValue };
+type Prior = (
+  observationId: string,
+  actionId: string,
+) => PriorRecheck | undefined;
 
 function readAudit(row: Stored): RecheckAudit | null {
   const parsed = publicSeoPayloadSchema.safeParse(row.payload);
@@ -30,6 +38,24 @@ function readAudit(row: Stored): RecheckAudit | null {
     ? { id: row.id, observedAt: row.observedAt, payload: parsed.data }
     : null;
 }
+
+const closedPairs = (pairs: RecheckPair[]) =>
+  JSON.stringify(
+    pairs
+      .filter((pair) => pair.outcome === "closed")
+      .map((pair) => JSON.stringify([pair.pageUrl, pair.rowId, pair.device]))
+      .sort(),
+  );
+
+/** A status is written when its label or its closed pairs change: a later recheck reads the closed pairs back. */
+export const isChangedRecheck = (
+  item: ActionRecheck,
+  prior: PriorRecheck | undefined,
+) =>
+  COMPARED.has(item.status) &&
+  (!prior ||
+    prior.status !== item.status ||
+    closedPairs(prior.pairs) !== closedPairs(item.pairs));
 
 /** One tracked change per page: its closing rows and the span the change went live in. */
 function pageChanges(done: ActionRecheck[]) {
@@ -69,13 +95,16 @@ function pageChanges(done: ActionRecheck[]) {
 }
 
 /** Only a customer's change is tracked: no test copy, no eval project. */
-async function isCustomerProject(projectId: string) {
-  const project = await prisma.project.findUnique({
+async function isCustomerProject(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+) {
+  const project = await tx.project.findUnique({
     where: { id: projectId },
     select: { workspaceId: true, testCopyOfProjectId: true },
   });
   if (!project || project.testCopyOfProjectId) return false;
-  const evalLanes = await prisma.evalLane.count({
+  const evalLanes = await tx.evalLane.count({
     where: {
       OR: [{ workspaceId: project.workspaceId }, { cusoProjectId: projectId }],
     },
@@ -83,10 +112,130 @@ async function isCustomerProject(projectId: string) {
   return evalLanes === 0;
 }
 
+/** Writes the changed statuses: one insert for the new rows, one update per stored row. */
+async function writeStatuses(
+  tx: Prisma.TransactionClient,
+  next: RecheckAudit,
+  changed: ActionRecheck[],
+  prior: Prior,
+) {
+  const data = (item: ActionRecheck) => ({
+    status: item.status,
+    checkedObservationId: next.id,
+    pairs: jsonInput(item.pairs),
+    closedAt: item.status === "done" ? next.observedAt : null,
+  });
+  const fresh = changed.filter(
+    (item) => !prior(item.observationId, item.actionId),
+  );
+  if (fresh.length)
+    await tx.projectSeoAuditActionStatus.createMany({
+      data: fresh.map((item) => ({
+        observationId: item.observationId,
+        actionId: item.actionId,
+        ...data(item),
+      })),
+    });
+  for (const item of changed) {
+    if (!prior(item.observationId, item.actionId)) continue;
+    await tx.projectSeoAuditActionStatus.update({
+      where: {
+        observationId_actionId: {
+          observationId: item.observationId,
+          actionId: item.actionId,
+        },
+      },
+      data: data(item),
+    });
+  }
+}
+
+/** The pages Cuso already recorded a change on in the span: its own record is the better source. */
+async function cusoChanges(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  span: { gte: Date; lte: Date },
+) {
+  const [verdicts, suggestions] = await Promise.all([
+    tx.projectSeoImpactVerdict.findMany({
+      where: { projectId, changeSource: "cuso_done", changedAt: span },
+      select: { pageUrl: true, changedAt: true },
+    }),
+    // A done suggestion the impact tick has not recorded yet.
+    tx.projectSeoSuggestion.findMany({
+      where: {
+        projectId,
+        kind: "page_change",
+        status: { in: CUSO_DONE },
+        pageUrl: { not: null },
+        doneAt: span,
+      },
+      select: { pageUrl: true, doneAt: true },
+    }),
+  ]);
+  return [
+    ...verdicts,
+    ...suggestions.flatMap((item) =>
+      item.pageUrl && item.doneAt
+        ? [{ pageUrl: item.pageUrl, changedAt: item.doneAt }]
+        : [],
+    ),
+  ];
+}
+
+async function trackPages(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  next: RecheckAudit,
+  done: ActionRecheck[],
+  latest: Date,
+) {
+  const pages = pageChanges(done);
+  const cuso = await cusoChanges(tx, projectId, {
+    gte: new Date(Math.min(...pages.map((page) => +page.earliest))),
+    lte: latest,
+  });
+  const rows = pages
+    .filter(
+      (page) =>
+        !cuso.some(
+          (change) =>
+            normalizeSeoUrl(change.pageUrl) === page.key &&
+            change.changedAt >= page.earliest,
+        ),
+    )
+    .map((page) => ({
+      projectId,
+      changeSource: "audit_recheck",
+      changedAt: page.earliest,
+      changeEarliest: page.earliest,
+      changeLatest: latest,
+      pageUrl: page.pageUrl,
+      recheckAuditId: next.id,
+      closingEvidence: jsonInput(
+        page.evidence.map((pair) => ({
+          observationId: pair.observationId,
+          actionId: pair.actionId,
+          rowId: pair.rowId,
+          device: pair.device,
+          ruleKey: pair.ruleKey,
+          finalUrl: pair.finalUrl,
+          baselineObservationId: pair.baselineObservationId,
+          checkedObservationId: pair.checkedObservationId,
+        })),
+      ),
+    }));
+  if (rows.length)
+    await tx.projectSeoImpactVerdict.createMany({
+      data: rows,
+      skipDuplicates: true,
+    });
+}
+
 /**
  * The newest audit of a Project or SEO audit checks the actions of the earlier ones. An action whose rules all close
  * becomes done, and while impact tracking is on each page it closed on becomes a tracked audit_recheck change. An older
- * audit imported late changes nothing.
+ * audit imported late changes nothing. One recheck per owner runs at a time, so each one reads what the last one wrote.
  */
 export async function recheckSeoAudit(observationId: string): Promise<void> {
   const row = await prisma.projectSeoObservation.findUnique({
@@ -98,6 +247,7 @@ export async function recheckSeoAudit(observationId: string): Promise<void> {
       kind: true,
       payload: true,
       observedAt: true,
+      createdAt: true,
     },
   });
   if (!row || !PAGE_RULE_KINDS.has(row.kind)) return;
@@ -106,129 +256,64 @@ export async function recheckSeoAudit(observationId: string): Promise<void> {
     : row.auditId
       ? { auditId: row.auditId }
       : null;
-  if (!owner) return;
-  const kind = { in: [...PAGE_RULE_KINDS] };
-  const newer = await prisma.projectSeoObservation.count({
-    where: { ...owner, kind, observedAt: { gt: row.observedAt } },
-  });
   const next = readAudit(row);
-  if (newer || !next) return;
-  const earlier = (
-    await prisma.projectSeoObservation.findMany({
-      where: { ...owner, kind, observedAt: { lt: row.observedAt } },
-      orderBy: { observedAt: "desc" },
-      take: RECHECK_HISTORY,
-      select: { id: true, observedAt: true, payload: true },
-    })
-  ).flatMap((item) => readAudit(item) ?? []);
-  if (!earlier.length) return;
-  const stored = await prisma.projectSeoAuditActionStatus.findMany({
-    where: { observationId: { in: earlier.map((audit) => audit.id) } },
-    select: { observationId: true, actionId: true, status: true, pairs: true },
-  });
-  const prior = new Map(
-    stored.map((item) => [
-      JSON.stringify([item.observationId, item.actionId]),
-      // This job wrote both fields.
-      {
-        status: item.status as RecheckStatus,
-        pairs: item.pairs as unknown as RecheckPair[],
-      } satisfies PriorRecheck,
-    ]),
-  );
-  const priorOf = (id: string, actionId: string) =>
-    prior.get(JSON.stringify([id, actionId]));
-  const changed = recheckSeoAuditActions(next, earlier, priorOf).filter(
-    (item) =>
-      COMPARED.has(item.status) &&
-      priorOf(item.observationId, item.actionId)?.status !== item.status,
-  );
-  if (!changed.length) return;
-  const done = changed.filter((item) => item.status === "done");
-  const track =
-    done.length > 0 &&
-    getEnv().SEO_IMPACT_TRACKING_ENABLED &&
-    !!row.projectId &&
-    (await isCustomerProject(row.projectId));
+  if (!owner || !next) return;
+  const kind = { in: [...PAGE_RULE_KINDS] };
+  const lock = `seo-audit-recheck:${JSON.stringify(owner)}`;
   await prisma.$transaction(async (tx) => {
-    for (const item of changed) {
-      const data = {
-        status: item.status,
-        checkedObservationId: next.id,
-        pairs: jsonInput(item.pairs),
-        closedAt: item.status === "done" ? next.observedAt : null,
-      };
-      // A done action stays done, also against a concurrent recheck.
-      const { count } = await tx.projectSeoAuditActionStatus.updateMany({
-        where: {
-          observationId: item.observationId,
-          actionId: item.actionId,
-          status: { not: "done" },
-        },
-        data,
-      });
-      if (!count)
-        await tx.projectSeoAuditActionStatus.createMany({
-          data: [
-            {
-              observationId: item.observationId,
-              actionId: item.actionId,
-              ...data,
-            },
-          ],
-          skipDuplicates: true,
-        });
-    }
-    if (!track || !row.projectId) return;
-    const pages = pageChanges(done);
-    // Cuso's own record of a change on the page in the same span is the better source.
-    const cuso = await tx.projectSeoImpactVerdict.findMany({
-      where: {
-        projectId: row.projectId,
-        changeSource: "cuso_done",
-        changedAt: {
-          gte: new Date(Math.min(...pages.map((page) => +page.earliest))),
-          lte: next.observedAt,
-        },
-      },
-      select: { pageUrl: true, changedAt: true },
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lock}::TEXT, 0))`;
+    const newer = await tx.projectSeoObservation.count({
+      where: { ...owner, kind, observedAt: { gt: row.observedAt } },
     });
-    const rows = pages
-      .filter(
-        (page) =>
-          !cuso.some(
-            (change) =>
-              normalizeSeoUrl(change.pageUrl) === page.key &&
-              change.changedAt >= page.earliest,
-          ),
-      )
-      .map((page) => ({
-        projectId: row.projectId!,
-        changeSource: "audit_recheck",
-        changedAt: page.earliest,
-        changeEarliest: page.earliest,
-        changeLatest: next.observedAt,
-        pageUrl: page.pageUrl,
-        recheckAuditId: next.id,
-        closingEvidence: jsonInput(
-          page.evidence.map((pair) => ({
-            observationId: pair.observationId,
-            actionId: pair.actionId,
-            rowId: pair.rowId,
-            device: pair.device,
-            ruleKey: pair.ruleKey,
-            finalUrl: pair.finalUrl,
-            baselineObservationId: pair.baselineObservationId,
-            checkedObservationId: pair.checkedObservationId,
-          })),
-        ),
-      }));
-    if (rows.length)
-      await tx.projectSeoImpactVerdict.createMany({
-        data: rows,
-        skipDuplicates: true,
-      });
-  });
+    if (newer) return;
+    const earlier = (
+      await tx.projectSeoObservation.findMany({
+        where: { ...owner, kind, observedAt: { lt: row.observedAt } },
+        orderBy: { observedAt: "desc" },
+        take: RECHECK_HISTORY,
+        select: { id: true, observedAt: true, payload: true },
+      })
+    ).flatMap((item) => readAudit(item) ?? []);
+    if (!earlier.length) return;
+    const stored = await tx.projectSeoAuditActionStatus.findMany({
+      where: { observationId: { in: earlier.map((audit) => audit.id) } },
+      select: {
+        observationId: true,
+        actionId: true,
+        status: true,
+        pairs: true,
+      },
+    });
+    const statuses = new Map(
+      stored.map((item) => [
+        JSON.stringify([item.observationId, item.actionId]),
+        // This job wrote both fields.
+        {
+          status: item.status as RecheckStatus,
+          pairs: item.pairs as unknown as RecheckPair[],
+        } satisfies PriorRecheck,
+      ]),
+    );
+    const prior: Prior = (id, actionId) =>
+      statuses.get(JSON.stringify([id, actionId]));
+    const changed = recheckSeoAuditActions(next, earlier, prior).filter(
+      (item) =>
+        isChangedRecheck(item, prior(item.observationId, item.actionId)),
+    );
+    if (!changed.length) return;
+    await writeStatuses(tx, next, changed, prior);
+    const done = changed.filter((item) => item.status === "done");
+    if (
+      !done.length ||
+      !row.projectId ||
+      !getEnv().SEO_IMPACT_TRACKING_ENABLED ||
+      !(await isCustomerProject(tx, row.projectId))
+    )
+      return;
+    // A site audit's time is its first page's read. The import came after every page's read.
+    const latest = new Date(Math.max(+row.observedAt, +row.createdAt));
+    await trackPages(tx, row.projectId, next, done, latest);
+  }, RECHECK_TRANSACTION);
 }
 
 /** After the import committed. A failed recheck never fails the import. */
