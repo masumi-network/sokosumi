@@ -671,7 +671,7 @@
           "emailError": "Einladungen konnten nicht gesendet werden"
         },
         "Errors": {
-          "createFailed": "Organisation konnte nicht erstellt werden",
+          "createFailed": "Die Organisation konnte nicht erstellt werden. Versuche es erneut.",
           "unauthorizedAction": "Anmelden"
         }
       },

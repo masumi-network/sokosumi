@@ -447,6 +447,30 @@ describe("createOrganizationWorkspaceAction", () => {
     expect(createMyWorkspaceMock).not.toHaveBeenCalled();
   });
 
+  /**
+   * A thrown error reaches the browser as React's redacted error #441 and a
+   * 500, so the wizard could not tell it from a bug. A Core stall is a
+   * failed create the person can retry.
+   */
+  it("returns an error for an unreadable session instead of throwing", async () => {
+    readRouteSessionMock.mockResolvedValue({
+      status: "unavailable",
+      reason: "timeout",
+    });
+    const { createOrganizationWorkspaceAction } = await import("./action");
+
+    const result = await createOrganizationWorkspaceAction({
+      name: "Acme",
+      websiteUrl: "https://acme.com",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: "INTERNAL_SERVER_ERROR" },
+    });
+    expect(createMyWorkspaceMock).not.toHaveBeenCalled();
+  });
+
   it("creates the organization through Core's workspaces resource", async () => {
     createMyWorkspaceMock.mockResolvedValue({
       data: { id: "ws-org-1", kind: "organization", organizationId: "org-1" },
