@@ -204,6 +204,7 @@
     "ProjectImageSession": "project_image_session",
     "ProjectSeoActionTask": "project_seo_action_task",
     "ProjectSeoAnalysis": "project_seo_analysis",
+    "ProjectSeoAuditActionStatus": "project_seo_audit_action_status",
     "ProjectSeoCompetitor": "project_seo_competitor",
     "ProjectSeoImpactVerdict": "project_seo_impact_verdict",
     "ProjectSeoKeyword": "project_seo_keyword",

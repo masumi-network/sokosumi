@@ -137,6 +137,7 @@ export type SharedTableName =
   | "project_image_session"
   | "project_seo_action_task"
   | "project_seo_analysis"
+  | "project_seo_audit_action_status"
   | "project_seo_competitor"
   | "project_seo_impact_verdict"
   | "project_seo_keyword"
