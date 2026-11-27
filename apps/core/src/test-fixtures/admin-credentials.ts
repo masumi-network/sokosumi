@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { MemberRole } from "@sokosumi/database";
 import { expect } from "vitest";
 
+import { createPersonalWorkspace } from "@/helpers/personal-workspace";
 import { auth } from "@/lib/auth";
 import {
   hashStoredOAuthToken,
@@ -131,7 +132,9 @@ export async function createAdminCredentials(
   const workspace =
     (await prisma.workspace.findFirst({
       where: { userId: admin.id, organizationId: null },
-    })) ?? (await prisma.workspace.create({ data: { userId: admin.id } }));
+    })) ??
+    // The product's creation path, so the workspace has its Files vocabulary.
+    (await createPersonalWorkspace(admin.id));
   const sokoBot = await prisma.sokoBot.create({
     data: { userId: admin.id, workspaceId: workspace.id },
   });
