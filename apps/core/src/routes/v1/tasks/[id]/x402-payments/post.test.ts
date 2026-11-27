@@ -64,6 +64,8 @@ const {
   requireTaskCollaborationMock: vi.fn(),
   waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
+/** Whether this test's deployment has Preprod on. */
+const preprod = vi.hoisted(() => ({ on: false }));
 
 vi.mock("@sentry/node", () => ({
   captureException: captureExceptionMock,
@@ -80,6 +82,7 @@ vi.mock("@/config/env", async (importOriginal) => {
     getEnv: () => ({
       ...actual.getEnv(),
       NETWORK: "Preprod" as const,
+      NETWORK_PREPROD_ENABLED: preprod.on,
     }),
   };
 });
@@ -578,6 +581,7 @@ describe("POST /{id}/x402-payments", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     waitUntilCapturedPromises.length = 0;
+    preprod.on = false;
 
     tx = createTxMock();
     prismaTransactionMock.mockImplementation(
@@ -2011,6 +2015,97 @@ describe("POST /{id}/x402-payments", () => {
       expect(tx.taskEvent.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ network: "preprod" }),
       });
+    });
+
+    describe("with Preprod on, where the 402's chain names the payment's Network", () => {
+      /** The read of the billed party's Preprod flag, on the open transaction. */
+      let billedUser: ReturnType<typeof vi.fn>;
+
+      beforeEach(() => {
+        preprod.on = true;
+        billedUser = vi.fn().mockResolvedValue({ preprodEnabled: true });
+        Object.assign(tx, { user: { findUnique: billedUser } });
+      });
+
+      const pay = (
+        authContext: AuthenticationContext,
+        headers: Record<string, string> = {},
+      ) =>
+        createApp(authContext).request(
+          `http://localhost/${TASK_ID}/x402-payments`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...headers },
+            // Base Sepolia: Preprod's chain.
+            body: JSON.stringify(validBody()),
+          },
+        );
+
+      function expectNothingCharged() {
+        expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+        expect(tx.taskEvent.create).not.toHaveBeenCalled();
+        expect(tx.taskX402Payment.create).not.toHaveBeenCalled();
+        expect(payX402Mock).not.toHaveBeenCalled();
+      }
+
+      it("refuses a header that names the other Network, before the charge", async () => {
+        const response = await pay(COWORKER_AGENT_CONTEXT, {
+          "X-Sokosumi-Network": "mainnet",
+        });
+
+        expect(response.status).toBe(400);
+        expect(await response.json()).toMatchObject({
+          kind: CORE_API_ERROR_KINDS.NETWORK_MISMATCH,
+        });
+        expectNothingCharged();
+      });
+
+      it("refuses a billed party without Preprod access, before the charge", async () => {
+        billedUser.mockResolvedValue({ preprodEnabled: false });
+
+        const response = await pay(COWORKER_AGENT_CONTEXT);
+
+        expect(response.status).toBe(403);
+        expect(await response.json()).toMatchObject({
+          kind: CORE_API_ERROR_KINDS.PREPROD_ACCESS_REQUIRED,
+        });
+        expectNothingCharged();
+      });
+
+      it("refuses a Soko Bot, whose payments stay on Mainnet", async () => {
+        const response = await pay(SOKO_BOT_CONTEXT);
+
+        expect(response.status).toBe(403);
+        expect(await response.json()).toMatchObject({
+          kind: CORE_API_ERROR_KINDS.PREPROD_ACCESS_REQUIRED,
+        });
+        expectNothingCharged();
+      });
+
+      it.each([
+        ["without the header", {}],
+        ["with the header that names it", { "X-Sokosumi-Network": "preprod" }],
+      ])(
+        "charges the chain's Network for a billed party with access, %s",
+        async (_name, headers) => {
+          const response = await pay(COWORKER_AGENT_CONTEXT, headers);
+
+          expect(response.status).toBe(200);
+          // The Task's Owner is asked, not the Coworker that calls.
+          expect(billedUser).toHaveBeenCalledWith({
+            where: { id: USER_ID },
+            select: { preprodEnabled: true },
+          });
+          expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              scope: expect.objectContaining({ network: "preprod" }),
+            }),
+          );
+          expect(tx.taskEvent.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ network: "preprod" }),
+          });
+        },
+      );
     });
 
     it("charges, records, signs, verifies, and returns the header", async () => {

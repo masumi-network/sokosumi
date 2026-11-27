@@ -93,6 +93,33 @@ vi.mock("@/clients/masumi-payment.client", async (importOriginal) => ({
   paymentClient: () => ({ payX402: outside.payX402 }),
 }));
 
+// shortcut: the event's response read joins Transaction on the default client,
+// which has no Network table on the split layout until ticket 27. There this
+// reads the same event without that join; drop it when that read moves.
+vi.mock(
+  "@/routes/v1/tasks/[id]/events/map-created-event",
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import("@/routes/v1/tasks/[id]/events/map-created-event")
+      >();
+    if (!onSplitLayout) return actual;
+    const { mapTaskEvent } = await import("@/helpers/task");
+    const { taskEventApiInclude } = await import("@/types/task");
+    const { transaction: _joined, ...include } = taskEventApiInclude;
+    return {
+      mapCreatedTaskEventForResponse: (async (tx, eventId) =>
+        mapTaskEvent({
+          ...(await tx.taskEvent.findUniqueOrThrow({
+            where: { id: eventId },
+            include,
+          })),
+          transaction: null,
+        })) satisfies typeof actual.mapCreatedTaskEventForResponse,
+    };
+  },
+);
+
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
@@ -487,12 +514,26 @@ async function send(
       };
     }),
     rows: await world.ledger(),
-  }) as {
-    status: number;
-    body: { kind?: string; message?: string } | null;
-    rows: Record<string, unknown>;
-  };
+  }) as Sent;
 }
+
+interface Sent {
+  status: number;
+  body: { kind?: string; message?: string } | null;
+  rows: Record<
+    NetworkName,
+    { transactions: { amount: string }[]; usage: unknown[]; claims: unknown[] }
+  > & { events: { network: string | null; cents: string | null }[] };
+}
+
+/** The debits on a Network, in cents. */
+function spent(answer: Sent, network: NetworkName): string[] {
+  return answer.rows[network].transactions
+    .map((transaction) => transaction.amount)
+    .filter((amount) => amount.startsWith("-"));
+}
+
+const ONE_CREDIT = `-${convertCreditsToCents(1)}`;
 
 /** A credit cost of 1 credit per unit, removed with the fixture. */
 async function creditCost(loaded: Loaded, world: World, unit: string) {
@@ -811,6 +852,31 @@ describe.runIf(enabled && !onSplitLayout).each(["Mainnet", "Preprod"] as const)(
         }),
     );
 
+    // Not as on origin/main, which charged this call on Mainnet (decision 7).
+    it("refuses usage that names Preprod, and charges nothing", () =>
+      withWorld(async (world) => {
+        const owner = await world.person("usage owner", { mainnet: 10 });
+        await world.task(owner);
+        const answer = await send(
+          loaded,
+          world,
+          "/v1/coworkers/me/usage",
+          {
+            credits: 1,
+            idempotencyKey: randomUUID(),
+            userId: owner.id,
+            organizationId: null,
+          },
+          { [HEADER]: "preprod" },
+        );
+        expect(answer).toMatchObject({
+          status: 403,
+          body: { kind: "preprod_off" },
+        });
+        expect(spent(answer, "mainnet")).toEqual([]);
+        expect(answer.rows.mainnet.usage).toEqual([]);
+      }));
+
     it(
       "answers an x402 payment as on origin/main",
       {
@@ -867,6 +933,220 @@ describe.runIf(enabled && !onSplitLayout).each(["Mainnet", "Preprod"] as const)(
             answers[name] = await send(loaded, world, path, body, headers);
           }
           expectAsOnBase(baseKey("x402 payments"), answers);
+        }),
+    );
+  },
+);
+
+// Preprod is on only on the split layout. There usage, the x402 payment and a
+// Masumi payment's price still read Network tables on the default client
+// (tickets 22 and 29) and answer 500 before or after the resolver, so their
+// Network is proven with the database mocked (`coworkers/me/usage/post.test.ts`,
+// `tasks/[id]/x402-payments/post.test.ts`) and by the refusals below.
+describe.runIf(enabled && onSplitLayout)(
+  "A Coworker's payments with Preprod on, on the split layout",
+  () => {
+    let loaded: Loaded;
+
+    let setup: Promise<void> | undefined;
+    beforeAll(() => {
+      setup = (async () => {
+        loaded = await load({
+          NETWORK: "Mainnet",
+          NETWORK_PREPROD_ENABLED: "true",
+        });
+      })();
+      return setup;
+    }, SETUP_TIMEOUT);
+
+    // A setup that timed out keeps running: wait for it.
+    afterAll(() => setup?.catch(() => undefined), SETUP_TIMEOUT);
+
+    /** Runs a test with its own Coworker, people and rows, removed after it. */
+    async function withWorld(run: (world: World) => Promise<void>) {
+      const world = createWorld(loaded, ["mainnet", "preprod"]);
+      try {
+        await run(world);
+      } finally {
+        await world.remove();
+      }
+    }
+
+    const credits = { mainnet: 10, preprod: 20 };
+    const preprod = { [HEADER]: "preprod" };
+    const mainnet = { [HEADER]: "mainnet" };
+    const refused = { status: 403, body: { kind: "preprod_access_required" } };
+    const mismatch = { status: 400, body: { kind: "network_mismatch" } };
+    const outOfCredits = {
+      status: 422,
+      body: { kind: "insufficient_balance" },
+    };
+
+    function expectNothingWritten(answer: Sent) {
+      expect(spent(answer, "mainnet")).toEqual([]);
+      expect(spent(answer, "preprod")).toEqual([]);
+      expect(answer.rows.mainnet.claims).toEqual([]);
+      expect(answer.rows.preprod.claims).toEqual([]);
+      expect(answer.rows.mainnet.usage).toEqual([]);
+      expect(answer.rows.preprod.usage).toEqual([]);
+      expect(answer.rows.events).toEqual([]);
+    }
+
+    // A Preprod charge cannot commit here yet: the event's `transactionId`
+    // has a foreign key to Mainnet's Transaction (ticket 29). So the proof is
+    // whose credits the charge looks for: a Network without credits pauses
+    // the Task as out of credits while the other Network's stay untouched.
+    it(
+      "charges a Task event's credits on the Network the request names, and only there",
+      {
+        timeout: MANY_REQUESTS,
+      },
+      () =>
+        withWorld(async (world) => {
+          const onMainnet = await world.person(
+            "owner with Mainnet credits",
+            { mainnet: 10 },
+            true,
+          );
+          const onPreprod = await world.person(
+            "owner with Preprod credits",
+            { preprod: 20 },
+            true,
+          );
+          const charge = async (
+            owner: { id: string; workspaceId: string },
+            headers?: Record<string, string>,
+          ) =>
+            send(
+              loaded,
+              world,
+              `/v1/tasks/${await world.task(owner)}/events`,
+              { credits: 1 },
+              headers,
+            );
+
+          const namedPreprod = await charge(onMainnet, preprod);
+          expect(namedPreprod).toMatchObject(outOfCredits);
+          expect(spent(namedPreprod, "mainnet")).toEqual([]);
+
+          for (const headers of [undefined, mainnet]) {
+            const answer = await charge(onPreprod, headers);
+            expect(answer).toMatchObject(outOfCredits);
+            expect(spent(answer, "preprod")).toEqual([]);
+          }
+
+          const noHeader = await charge(onMainnet);
+          expect(noHeader.status).toBe(201);
+          expect(spent(noHeader, "mainnet")).toEqual([ONE_CREDIT]);
+          expect(noHeader.rows.events.at(-1)?.network).toBe("mainnet");
+          const namedMainnet = await charge(onMainnet, mainnet);
+          expect(namedMainnet.status).toBe(201);
+          expect(spent(namedMainnet, "mainnet")).toEqual([
+            ONE_CREDIT,
+            ONE_CREDIT,
+          ]);
+          expect(spent(namedMainnet, "preprod")).toEqual([]);
+        }),
+    );
+
+    it(
+      "asks the billed party for Preprod access: the Task's Organization, else its Owner",
+      {
+        timeout: MANY_REQUESTS,
+      },
+      () =>
+        withWorld(async (world) => {
+          const optedIn = await world.person("opted-in owner", credits, true);
+          const plain = await world.person("owner not opted in", credits);
+          const events = async (taskId: Promise<string>) =>
+            `/v1/tasks/${await taskId}/events`;
+
+          const personal = await send(
+            loaded,
+            world,
+            await events(world.task(plain)),
+            { credits: 1 },
+            preprod,
+          );
+          expect(personal).toMatchObject(refused);
+          expectNothingWritten(personal);
+
+          // The Organization's flag is off; its member's own flag does not count.
+          const closed = await world.organization(optedIn.id, credits, false);
+          const inClosed = await send(
+            loaded,
+            world,
+            await events(world.task(optedIn, closed)),
+            { credits: 1 },
+            preprod,
+          );
+          expect(inClosed).toMatchObject(refused);
+          expectNothingWritten(inClosed);
+
+          // The Organization's flag is on; its member needs none. With no
+          // Preprod credits the charge passes the access check and pauses.
+          const open = await world.organization(
+            plain.id,
+            { mainnet: 10 },
+            true,
+          );
+          const inOpen = await send(
+            loaded,
+            world,
+            await events(world.task(plain, open)),
+            { credits: 1 },
+            preprod,
+          );
+          expect(inOpen).toMatchObject(outOfCredits);
+          expect(spent(inOpen, "mainnet")).toEqual([]);
+          expect(spent(inOpen, "preprod")).toEqual([]);
+        }),
+    );
+
+    it(
+      "takes a Masumi payment's Network from its payload, and refuses a header that disagrees",
+      {
+        timeout: MANY_REQUESTS,
+      },
+      () =>
+        withWorld(async (world) => {
+          const optedIn = await world.person("opted-in owner", credits, true);
+          const plain = await world.person("owner not opted in", credits);
+          const payment = await masumiPayments(loaded, world);
+          const paid = (network: string) => ({
+            masumiPayment: payment(`${network} payment`, { network }),
+          });
+          const path = `/v1/tasks/${await world.task(optedIn)}/events`;
+
+          for (const [named, headers] of [
+            ["Preprod", mainnet],
+            ["Mainnet", preprod],
+          ] as const) {
+            const answer = await send(
+              loaded,
+              world,
+              path,
+              paid(named),
+              headers,
+            );
+            expect([named, answer.status, answer.body?.kind]).toEqual([
+              named,
+              mismatch.status,
+              mismatch.body.kind,
+            ]);
+            expectNothingWritten(answer);
+          }
+
+          // No header: the payload alone names Preprod, on a deployment whose
+          // `NETWORK` is Mainnet, and the Owner has no access to it.
+          const answer = await send(
+            loaded,
+            world,
+            `/v1/tasks/${await world.task(plain)}/events`,
+            paid("Preprod"),
+          );
+          expect(answer).toMatchObject(refused);
+          expectNothingWritten(answer);
         }),
     );
   },
