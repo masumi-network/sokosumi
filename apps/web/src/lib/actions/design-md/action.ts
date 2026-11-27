@@ -1,9 +1,10 @@
 "use server";
 
 import type { DesignMdJobPayload } from "@sokosumi/masumi/tools";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
-import { fetchDesignMdMarkdown } from "@/components/design-md/design-md-edit-page-shared";
+import { unstable_rethrow } from "next/navigation";
 import {
   type ActionResultDto,
   toActionResult,
@@ -252,9 +253,9 @@ export const removeDesignMd = withSession<
 
 /**
  * Copies the active organization's DESIGN.md into a Project as the Project's
- * own file. A copy, not a link: later edits on either side stay separate.
- * The organization file is resolved here from the session, never taken from
- * the caller, so only a member's own organization brand can be copied.
+ * own file. Core reads the organization file from the caller's workspace and
+ * writes only into an empty Project brand, so a brand saved meanwhile is never
+ * replaced (409 `project_design_md_exists`, passed on as the error's kind).
  */
 export const copyOrganizationDesignMdToProject = withSession<
   AuthenticatedRequest & { projectId: string },
@@ -264,40 +265,43 @@ export const copyOrganizationDesignMdToProject = withSession<
   if (!normalizedProjectId) {
     return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
+  const owner = { type: "project" as const, projectId: normalizedProjectId };
 
   try {
-    const effective = await designMdService.resolveEffectiveDesignMd();
-    if (effective?.owner.type !== "organization") {
-      return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
-    }
-
-    const loaded = await fetchDesignMdMarkdown(effective.url);
-    if (!("markdown" in loaded)) {
-      throw new Error("Organization DESIGN.md could not be read");
-    }
-
-    const owner = { type: "project" as const, projectId: normalizedProjectId };
-    try {
-      const persisted = await designMdService.persistUploadedDesignMd(
-        owner,
-        loaded.markdown,
-        // Never replace a brand saved since the card showed it empty.
-        { onlyIfEmpty: true },
+    const persisted =
+      await designMdService.copyOrganizationDesignMdToProject(
+        normalizedProjectId,
       );
-      await revalidateOwner(owner);
-      return toActionResult(ok(persisted));
-    } catch (error) {
-      if (error instanceof CoreApiRequestError && error.status === 409) {
-        // The re-rendered project shows the brand that won.
-        await revalidateOwner(owner);
-        return toActionResult(
-          err({ code: CommonErrorCode.BAD_INPUT, message: error.message }),
-        );
-      }
-      throw error;
-    }
+    await revalidateOwner(owner);
+    return toActionResult(ok(persisted));
   } catch (error) {
+    // An expired session arrives as the sign-in redirect.
+    unstable_rethrow(error);
+    if (
+      error instanceof CoreApiRequestError &&
+      error.kind === CORE_API_ERROR_KINDS.PROJECT_DESIGN_MD_EXISTS
+    ) {
+      // The re-rendered Project shows the brand that won.
+      await revalidateOwner(owner);
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          kind: error.kind,
+          status: error.status,
+        }),
+      );
+    }
     console.error("Failed to copy the organization DESIGN.md", error);
-    return toActionResult(err(toActionError(error)));
+    return toActionResult(
+      err(
+        error instanceof CoreApiRequestError
+          ? {
+              code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+              kind: error.kind,
+              status: error.status,
+            }
+          : toActionError(error),
+      ),
+    );
   }
 });

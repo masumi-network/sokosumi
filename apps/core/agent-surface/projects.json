@@ -426,6 +426,10 @@
       "cli": "projects set-design",
       "mcp": "projects_set_design"
     },
+    "POST /projects/{id}/design-md/from-organization": {
+      "cli": "projects copy-organization-design",
+      "mcp": "projects_copy_organization_design"
+    },
     "DELETE /projects/{id}/design-md": {
       "cli": "projects clear-design",
       "mcp": "projects_clear_design"

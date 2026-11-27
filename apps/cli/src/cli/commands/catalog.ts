@@ -1187,6 +1187,12 @@ export const CLI_COMMAND_CATALOG = [
     operation: "PUT /projects/{id}/design-md",
   },
   {
+    command: "projects copy-organization-design",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/design-md/from-organization",
+    noBody: true,
+  },
+  {
     command: "projects clear-design",
     usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
     operation: "DELETE /projects/{id}/design-md",

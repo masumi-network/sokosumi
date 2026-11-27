@@ -137,7 +137,7 @@ describe("project DESIGN.md routes", () => {
     expect(response.status).toBe(200);
     expect(projectFindFirstMock).toHaveBeenCalledWith({
       where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
-      select: { id: true, designMdUrl: true },
+      select: { id: true },
     });
     expect(uploadDesignMdContentMock).toHaveBeenCalledWith({
       content: "# Brand",
@@ -183,63 +183,6 @@ describe("project DESIGN.md routes", () => {
 
     expect(response.status).toBe(503);
     expect(projectUpdateMock).not.toHaveBeenCalled();
-  });
-
-  it("writes only into an empty brand when asked, and refuses a filled one", async () => {
-    projectFindFirstMock.mockResolvedValue({
-      id: PROJECT_ID,
-      designMdUrl: null,
-    });
-    const put = (body: object) =>
-      createApp().request(`http://localhost/${PROJECT_ID}/design-md`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-    const written = await put({ content: "# Org brand", onlyIfEmpty: true });
-
-    expect(written.status).toBe(200);
-    // The empty check is part of the write, so a brand saved in between wins.
-    expect(projectUpdateMock).toHaveBeenCalledWith({
-      where: { id: PROJECT_ID, designMdUrl: null },
-      data: { designMdUrl: DESIGN_MD_URL, designMdExtractionId: null },
-    });
-
-    projectFindFirstMock.mockResolvedValue({
-      id: PROJECT_ID,
-      designMdUrl: "https://blob.example/other.md",
-    });
-    uploadDesignMdContentMock.mockClear();
-
-    const filled = await put({ content: "# Org brand", onlyIfEmpty: true });
-
-    expect(filled.status).toBe(409);
-    expect(uploadDesignMdContentMock).not.toHaveBeenCalled();
-  });
-
-  it("refuses an empty-only write that lost the race to another save", async () => {
-    projectFindFirstMock.mockResolvedValue({
-      id: PROJECT_ID,
-      designMdUrl: null,
-    });
-    // Prisma's "record to update not found": the filter no longer matched.
-    projectUpdateMock.mockRejectedValue(
-      Object.assign(new Error("Record to update not found."), {
-        code: "P2025",
-      }),
-    );
-
-    const response = await createApp().request(
-      `http://localhost/${PROJECT_ID}/design-md`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: "# Org brand", onlyIfEmpty: true }),
-      },
-    );
-
-    expect(response.status).toBe(409);
   });
 
   it("clears both project DESIGN.md fields", async () => {

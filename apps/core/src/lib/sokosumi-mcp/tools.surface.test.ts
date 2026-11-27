@@ -411,6 +411,7 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   projects_posting_instructions: { id: "p-1" },
   projects_set_design: { id: "p-1", body: { content: "# Design\n" } },
   projects_clear_design: { id: "p-1" },
+  projects_copy_organization_design: { id: "p-1" },
   projects_needs_attention: { id: "p-1" },
   projects_close_status: { id: "p-1" },
   projects_close: {

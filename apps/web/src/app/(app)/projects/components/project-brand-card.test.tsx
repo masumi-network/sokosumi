@@ -132,6 +132,29 @@ vi.mock("@/components/design-md/use-design-md-generation", () => ({
   },
 }));
 
+const SAVED_ELSEWHERE = {
+  extractionId: null,
+  url: "https://blob.example/project/DESIGN.md",
+};
+
+/** The card keyed by its file, as the project pages render it. */
+function remountableCard(designMd: typeof SAVED_ELSEWHERE | null) {
+  return (
+    <ProjectBrandProvider
+      key={designMd?.url ?? "empty"}
+      projectId="project-1"
+      initialDesignMd={designMd}
+      websiteUrl={null}
+    >
+      <ProjectBrandCard
+        projectId="project-1"
+        websiteUrl={null}
+        organizationName="Acme"
+      />
+    </ProjectBrandProvider>
+  );
+}
+
 const FAILURE_KEY = "sokosumi:project-brand-failure:viewer-1:project-1";
 
 function generationCallback<T>(name: string) {
@@ -957,23 +980,90 @@ describe("ProjectBrandCard", () => {
     expect(screen.getByRole("button", { name: "Brand actions" })).toHaveFocus();
   });
 
-  it("says so when the project got a brand while the card showed it empty", async () => {
+  it("names a brand saved meanwhile and moves focus to it once the page refreshes", async () => {
     vi.mocked(copyOrganizationDesignMdToProject).mockResolvedValue({
       ok: false,
-      error: { code: "BAD_INPUT", message: "Project already has a DESIGN.md" },
+      error: {
+        code: "BAD_INPUT",
+        kind: "project_design_md_exists",
+        status: 409,
+      },
     } as Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>);
     const user = userEvent.setup();
-    renderBrandDashboard({
-      designMd: null,
-      websiteUrl: null,
-      organizationName: "Acme",
-    });
+    const view = render(remountableCard(null));
 
-    await user.click(screen.getByRole("button", { name: "Copy Acme brand" }));
-
+    screen.getByRole("button", { name: "Copy Acme brand" }).focus();
+    await user.keyboard("{Enter}");
     expect(toast.error).toHaveBeenCalledWith(
       "This project already has a brand.",
     );
+    // The action's refresh brings the brand another tab saved.
+    view.rerender(remountableCard(SAVED_ELSEWHERE));
+
+    expect(screen.getByRole("button", { name: "Brand actions" })).toHaveFocus();
+  });
+
+  it("keeps other refusals apart and leaves focus on the button", async () => {
+    vi.mocked(copyOrganizationDesignMdToProject).mockResolvedValue({
+      ok: false,
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        kind: "cmo_project_read_only",
+        status: 409,
+      },
+    } as Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>);
+    const user = userEvent.setup();
+    const view = render(remountableCard(null));
+    const copyButton = screen.getByRole("button", { name: "Copy Acme brand" });
+
+    copyButton.focus();
+    await user.keyboard("{Enter}");
+
+    expect(toast.error).toHaveBeenCalledWith(
+      "Couldn't update project brand context",
+    );
+    expect(copyButton).toHaveFocus();
+    // A later brand from elsewhere does not pull focus to its menu.
+    copyButton.blur();
+    view.rerender(remountableCard(SAVED_ELSEWHERE));
+    expect(
+      screen.getByRole("button", { name: "Brand actions" }),
+    ).not.toHaveFocus();
+  });
+
+  it("leaves focus where the user moved it while the copy was pending", async () => {
+    const pending =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>
+      >();
+    vi.mocked(copyOrganizationDesignMdToProject).mockReturnValue(
+      pending.promise,
+    );
+    const user = userEvent.setup();
+    render(
+      <>
+        {remountableCard(null)}
+        <button type="button">Elsewhere</button>
+      </>,
+    );
+
+    screen.getByRole("button", { name: "Copy Acme brand" }).focus();
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Elsewhere" })).toHaveFocus();
+    await act(async () => {
+      pending.resolve({
+        ok: true,
+        value: {
+          extractionId: null,
+          previewUrl: null,
+          url: SAVED_ELSEWHERE.url,
+        },
+      } as Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>);
+    });
+
+    expect(await screen.findByText("Ready")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Elsewhere" })).toHaveFocus();
   });
 
   it("lets a long organization name wrap inside the card", () => {

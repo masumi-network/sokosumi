@@ -1,7 +1,7 @@
 "use client";
 
 import type { ProjectDesignMd } from "@sokosumi/core-client";
-import { normalizeWebsiteUrl } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, normalizeWebsiteUrl } from "@sokosumi/utils";
 import {
   Building2,
   ExternalLink,
@@ -350,11 +350,14 @@ export function ProjectBrandCard({
     startCopy(async () => {
       const result = await copyOrganizationDesignMdToProject({ projectId });
       if (!result.ok) {
-        brandMenuFocus = null;
-        // BAD_INPUT: the project got a brand meanwhile; the action refreshed
-        // the page to show it.
+        const alreadySet =
+          result.error.kind === CORE_API_ERROR_KINDS.PROJECT_DESIGN_MD_EXISTS;
+        // Already set: the action refreshed the page, which swaps this form
+        // for the saved brand, so a focus request stands for its menu.
+        // Otherwise the button stays, and so does focus.
+        if (!alreadySet) brandMenuFocus = null;
         toast.error(
-          result.error.code === "BAD_INPUT"
+          alreadySet
             ? t("brandCard.organizationAlreadySet")
             : t("errors.brand"),
         );
@@ -593,6 +596,11 @@ export function ProjectBrandCard({
                 onClick={(event) =>
                   handleCopyOrganization(organizationName, event.currentTarget)
                 }
+                onBlur={(event) => {
+                  // Moving on while the copy runs cancels the focus request;
+                  // the button leaving the page has no next control.
+                  if (event.relatedTarget) brandMenuFocus = null;
+                }}
                 className="h-auto min-h-10 w-full max-w-full whitespace-normal wrap-anywhere py-2 text-start sm:min-h-8 sm:w-auto sm:py-1"
               >
                 <Building2 aria-hidden />

@@ -1,29 +1,28 @@
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { expectConsole } from "@sokosumi/utils/test-console";
+import { redirect } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  fetchMarkdownMock,
-  persistMock,
-  resolveEffectiveMock,
-  revalidatePathMock,
-  CoreApiRequestError,
-} = vi.hoisted(() => ({
-  fetchMarkdownMock: vi.fn(),
-  persistMock: vi.fn(),
-  resolveEffectiveMock: vi.fn(),
-  revalidatePathMock: vi.fn(),
-  CoreApiRequestError: class extends Error {
-    constructor(
-      message: string,
-      readonly options: { status: number },
-    ) {
-      super(message);
-    }
-    get status() {
-      return this.options.status;
-    }
-  },
-}));
+const { copyMock, revalidatePathMock, CoreApiRequestError } = vi.hoisted(
+  () => ({
+    copyMock: vi.fn(),
+    revalidatePathMock: vi.fn(),
+    CoreApiRequestError: class extends Error {
+      constructor(
+        message: string,
+        readonly options: { status: number; kind?: string },
+      ) {
+        super(message);
+      }
+      get status() {
+        return this.options.status;
+      }
+      get kind() {
+        return this.options.kind;
+      }
+    },
+  }),
+);
 
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
@@ -39,27 +38,14 @@ vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError,
 }));
 
-vi.mock("@/components/design-md/design-md-edit-page-shared", () => ({
-  fetchDesignMdMarkdown: fetchMarkdownMock,
-}));
-
 vi.mock("@/lib/services/design-md.service", () => ({
   DesignMdServiceError: class extends Error {},
-  designMdService: {
-    persistUploadedDesignMd: persistMock,
-    resolveEffectiveDesignMd: resolveEffectiveMock,
-  },
+  designMdService: { copyOrganizationDesignMdToProject: copyMock },
 }));
 
 const { copyOrganizationDesignMdToProject } = await import(
   "@/lib/actions/design-md/action"
 );
-
-const ORGANIZATION_DESIGN_MD = {
-  label: "DESIGN.md",
-  url: "https://blob.example/org/DESIGN.md",
-  owner: { type: "organization", name: "Acme", logo: null },
-};
 
 function copy() {
   return copyOrganizationDesignMdToProject({
@@ -72,74 +58,68 @@ describe("copyOrganizationDesignMdToProject", () => {
     vi.clearAllMocks();
   });
 
-  it("stores the organization's DESIGN.md as the project's own copy", async () => {
-    resolveEffectiveMock.mockResolvedValue(ORGANIZATION_DESIGN_MD);
-    fetchMarkdownMock.mockResolvedValue({ markdown: "# Acme brand" });
-    persistMock.mockResolvedValue({
+  it("asks Core for the copy and refreshes the Project", async () => {
+    const copied = {
       extractionId: null,
       previewUrl: null,
       url: "https://blob.example/project/DESIGN.md",
-    });
+    };
+    copyMock.mockResolvedValue(copied);
 
     const result = await copy();
 
-    expect(fetchMarkdownMock).toHaveBeenCalledWith(ORGANIZATION_DESIGN_MD.url);
-    // Only into an empty brand: a brand saved meanwhile is never replaced.
-    expect(persistMock).toHaveBeenCalledWith(
-      { type: "project", projectId: "project-1" },
-      "# Acme brand",
-      { onlyIfEmpty: true },
-    );
-    expect(result).toEqual({
-      ok: true,
-      value: {
-        extractionId: null,
-        previewUrl: null,
-        url: "https://blob.example/project/DESIGN.md",
-      },
-    });
+    expect(copyMock).toHaveBeenCalledWith("project-1");
+    expect(result).toEqual({ ok: true, value: copied });
+    expect(revalidatePathMock).toHaveBeenCalledWith("/projects/project-1");
   });
 
-  it("refuses when the workspace has no organization DESIGN.md", async () => {
-    // A personal workspace resolves to the user's own DESIGN.md.
-    resolveEffectiveMock.mockResolvedValue({
-      ...ORGANIZATION_DESIGN_MD,
-      owner: { type: "user" },
-    });
-
-    const result = await copy();
-
-    expect(result.ok).toBe(false);
-    expect(fetchMarkdownMock).not.toHaveBeenCalled();
-    expect(persistMock).not.toHaveBeenCalled();
-  });
-
-  it("fails without writing when the organization file can't be read", async () => {
-    resolveEffectiveMock.mockResolvedValue(ORGANIZATION_DESIGN_MD);
-    fetchMarkdownMock.mockResolvedValue({ error: true });
-
-    expectConsole("error", "Failed to copy the organization DESIGN.md");
-    const result = await copy();
-
-    expect(result.ok).toBe(false);
-    expect(persistMock).not.toHaveBeenCalled();
-  });
-
-  it("keeps a brand saved meanwhile and refreshes the project to show it", async () => {
-    resolveEffectiveMock.mockResolvedValue(ORGANIZATION_DESIGN_MD);
-    fetchMarkdownMock.mockResolvedValue({ markdown: "# Acme brand" });
-    persistMock.mockRejectedValue(
+  it("names a brand saved meanwhile, and refreshes the Project to show it", async () => {
+    copyMock.mockRejectedValue(
       new CoreApiRequestError("Project already has a DESIGN.md", {
         status: 409,
+        kind: CORE_API_ERROR_KINDS.PROJECT_DESIGN_MD_EXISTS,
       }),
     );
 
     const result = await copy();
 
-    expect(result).toEqual({
-      ok: false,
-      error: { code: "BAD_INPUT", message: "Project already has a DESIGN.md" },
-    });
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error.kind).toBe(
+      CORE_API_ERROR_KINDS.PROJECT_DESIGN_MD_EXISTS,
+    );
     expect(revalidatePathMock).toHaveBeenCalledWith("/projects/project-1");
+  });
+
+  it("keeps other refusals apart from an existing brand", async () => {
+    // A CMO Project is also a 409, and a missing organization brand a 404.
+    for (const [status, kind] of [
+      [409, CORE_API_ERROR_KINDS.CMO_PROJECT_READ_ONLY],
+      [404, CORE_API_ERROR_KINDS.ORGANIZATION_DESIGN_MD_MISSING],
+      [404, undefined],
+    ] as const) {
+      copyMock.mockRejectedValueOnce(
+        new CoreApiRequestError("Refused", { status, kind }),
+      );
+      expectConsole("error", "Failed to copy the organization DESIGN.md");
+
+      const result = await copy();
+
+      expect(result.ok).toBe(false);
+      expect(!result.ok && result.error.kind).not.toBe(
+        CORE_API_ERROR_KINDS.PROJECT_DESIGN_MD_EXISTS,
+      );
+    }
+  });
+
+  it("lets a sign-in redirect through instead of turning it into an error", async () => {
+    let signInRedirect: unknown;
+    try {
+      redirect("/signin");
+    } catch (error) {
+      signInRedirect = error;
+    }
+    copyMock.mockRejectedValue(signInRedirect);
+
+    await expect(copy()).rejects.toBe(signInRedirect);
   });
 });

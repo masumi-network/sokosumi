@@ -223,12 +223,7 @@ function toPersistedDesignMd(designMd: {
 
 async function persistDesignMdToProfile(
   owner: ManageableDesignMdOwnerSchemaType,
-  designMd: {
-    extractionId?: null | string;
-    content?: null | string;
-    /** Project only: refuse (Core 409) when the Project already has one. */
-    onlyIfEmpty?: boolean;
-  },
+  designMd: { extractionId?: null | string; content?: null | string },
 ): Promise<PersistedDesignMd | null> {
   await assertCanManageOwner(owner);
 
@@ -241,7 +236,6 @@ async function persistDesignMdToProfile(
     const { data } = await coreClient.putProjectsByIdDesignMd(owner.projectId, {
       content,
       extractionId: designMd.extractionId ?? null,
-      onlyIfEmpty: designMd.onlyIfEmpty,
     });
 
     if (!data.designMd) return null;
@@ -398,12 +392,10 @@ export const designMdService = (() => {
   async function persistUploadedDesignMd(
     owner: ManageableDesignMdOwnerSchemaType,
     content: string,
-    options?: { onlyIfEmpty?: boolean },
   ): Promise<PersistedDesignMd> {
     const persisted = await persistDesignMdToProfile(owner, {
       extractionId: null,
       content,
-      onlyIfEmpty: options?.onlyIfEmpty,
     });
 
     if (!persisted) {
@@ -430,6 +422,21 @@ export const designMdService = (() => {
     });
   }
 
+  /**
+   * Core copies the workspace organization's DESIGN.md into a Project that
+   * has none; it refuses (409 `project_design_md_exists`) rather than replace.
+   */
+  async function copyOrganizationDesignMdToProject(
+    projectId: string,
+  ): Promise<PersistedDesignMd> {
+    const { data } =
+      await coreClient.postProjectsByIdDesignMdFromOrganization(projectId);
+    if (!data.designMd) {
+      throw new DesignMdServiceError("internal", "DESIGN.md was not copied");
+    }
+    return toPersistedDesignMd(data.designMd);
+  }
+
   const resolveEffectiveDesignMd = cache(
     async (): Promise<EffectiveDesignMdAttachment | null> => {
       const { data } = await coreClient.getWorkspaceDesignMd();
@@ -439,6 +446,7 @@ export const designMdService = (() => {
   );
 
   return {
+    copyOrganizationDesignMdToProject,
     finalizeAndPersistDesignMd,
     getDesignMdPreviewUrl,
     persistUploadedDesignMd,

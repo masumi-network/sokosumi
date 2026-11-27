@@ -1493,6 +1493,12 @@ export const MCP_TOOLS: readonly McpTool[] = [
     destructive: true,
   },
   {
+    name: "projects_copy_organization_design",
+    operation: "POST /projects/{id}/design-md/from-organization",
+    description:
+      "Copy the organization's DESIGN.md into a Project that has none. Never replaces one: 409 `project_design_md_exists` when the Project has a DESIGN.md.",
+  },
+  {
     name: "projects_clear_design",
     operation: "DELETE /projects/{id}/design-md",
     description: "Clear a Project's DESIGN.md assignment.",

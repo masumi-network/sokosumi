@@ -10252,10 +10252,6 @@ export type MarketingStrategyRequest = {
 export type ProjectDesignMdWrite = {
     content: string;
     extractionId?: string | null;
-    /**
-     * Write only while the Project has no DESIGN.md; 409 when it has one. Leave out to replace.
-     */
-    onlyIfEmpty?: boolean;
 };
 
 export type WorkspaceCalendarEntry = {
@@ -66858,7 +66854,7 @@ export type PutProjectsByIdDesignMdErrors = {
         };
     };
     /**
-     * CMO project is read-only, or onlyIfEmpty and the Project has a DESIGN.md
+     * CMO project is read-only
      */
     409: {
         error: string;
@@ -66906,6 +66902,117 @@ export type PutProjectsByIdDesignMdResponses = {
 };
 
 export type PutProjectsByIdDesignMdResponse = PutProjectsByIdDesignMdResponses[keyof PutProjectsByIdDesignMdResponses];
+
+export type PostProjectsByIdDesignMdFromOrganizationData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/design-md/from-organization';
+};
+
+export type PostProjectsByIdDesignMdFromOrganizationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project not found, or the organization has no DESIGN.md
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The Project already has a DESIGN.md, or is a read-only CMO Project
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdDesignMdFromOrganizationError = PostProjectsByIdDesignMdFromOrganizationErrors[keyof PostProjectsByIdDesignMdFromOrganizationErrors];
+
+export type PostProjectsByIdDesignMdFromOrganizationResponses = {
+    /**
+     * Project DESIGN.md copied
+     */
+    200: {
+        data: Project;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdDesignMdFromOrganizationResponse = PostProjectsByIdDesignMdFromOrganizationResponses[keyof PostProjectsByIdDesignMdFromOrganizationResponses];
 
 export type GetProjectsByIdCalendarData = {
     body?: never;
