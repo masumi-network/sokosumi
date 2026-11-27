@@ -20,6 +20,7 @@ const CACHE_MS = 60_000;
 let cache: {
   at: number;
   workspaceIds: Set<string>;
+  organizationIds: Set<string>;
   cusoProjectIds: Set<string>;
 } | null = null;
 
@@ -28,11 +29,12 @@ async function evalLanes(): Promise<NonNullable<typeof cache> | null> {
   if (typeof prisma.evalLane?.findMany !== "function") return null;
   if (!cache || Date.now() - cache.at > CACHE_MS) {
     const lanes = await prisma.evalLane.findMany({
-      select: { workspaceId: true, cusoProjectId: true },
+      select: { workspaceId: true, organizationId: true, cusoProjectId: true },
     });
     cache = {
       at: Date.now(),
       workspaceIds: new Set(lanes.map((lane) => lane.workspaceId)),
+      organizationIds: new Set(lanes.map((lane) => lane.organizationId)),
       cusoProjectIds: new Set(
         lanes.flatMap((lane) =>
           lane.cusoProjectId ? [lane.cusoProjectId] : [],
@@ -58,6 +60,13 @@ export async function evalWorkspaceIds(): Promise<string[]> {
 
 export async function isEvalWorkspace(workspaceId: string): Promise<boolean> {
   return (await evalLanes())?.workspaceIds.has(workspaceId) ?? false;
+}
+
+/** A lane's organization: its chat rooms belong to the eval world too. */
+export async function isEvalOrganization(
+  organizationId: string,
+): Promise<boolean> {
+  return (await evalLanes())?.organizationIds.has(organizationId) ?? false;
 }
 
 /**

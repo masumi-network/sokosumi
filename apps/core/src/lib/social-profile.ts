@@ -1,5 +1,6 @@
 import { ssrfSafeFetch } from "@sokosumi/net";
 
+import { evalWorldWorkspace } from "@/lib/evals/eval-world-context";
 import { decodeEntities } from "@/lib/open-graph-html";
 import { readPageText, withBrowser } from "@/lib/site-capture";
 
@@ -186,6 +187,15 @@ export async function readSocialProfile(url: string): Promise<SocialProfile> {
       note: "Not a social network this tool reads; use web_fetch for websites and blogs.",
     };
   }
+  // An eval lane has no live web, and a profile read must not differ by run.
+  if (evalWorldWorkspace())
+    return {
+      network,
+      url,
+      recent: [],
+      readable: false,
+      note: "This profile could not be read right now; ask the owner what it shows.",
+    };
   try {
     if (network === "instagram") return await readInstagram(url);
     if (network === "youtube") return await readYouTube(url);

@@ -27,6 +27,13 @@ const {
   deleteSnapshotsMock: vi.fn(),
 }));
 
+const { isEvalOrganizationMock } = vi.hoisted(() => ({
+  isEvalOrganizationMock: vi.fn(async () => false),
+}));
+vi.mock("@/lib/evals/eval-guard", () => ({
+  isEvalOrganization: isEvalOrganizationMock,
+}));
+
 vi.mock("@/lib/chat-unfurl-snapshot", () => ({
   snapshotChatRoomUnfurlImage: snapshotImageMock,
   deleteChatRoomUnfurlSnapshotsIfOwned: deleteSnapshotsMock,
@@ -101,6 +108,25 @@ describe("scheduleChatRoomMessageUnfurls", () => {
 
     const result = await scheduleChatRoomMessageUnfurls(MESSAGE_ID);
 
+    expect(result.attempted).toBe(0);
+    expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
+  });
+
+  it("never fetches a link posted in an eval lane's room", async () => {
+    isEvalOrganizationMock.mockResolvedValueOnce(true);
+    messageFindUniqueMock.mockResolvedValue({
+      id: MESSAGE_ID,
+      roomId: "room-eval",
+      content: "We changed our pricing, see https://cal.com/pricing",
+      deletedAt: null,
+      editedAt: null,
+      metadata: null,
+      room: { organizationId: "org-eval" },
+    });
+
+    const result = await scheduleChatRoomMessageUnfurls(MESSAGE_ID);
+
+    expect(isEvalOrganizationMock).toHaveBeenCalledWith("org-eval");
     expect(result.attempted).toBe(0);
     expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
   });

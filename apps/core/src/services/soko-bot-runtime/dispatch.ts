@@ -4,6 +4,7 @@ import {
   isEvalWorkspace,
   simulatedEvalTool,
 } from "@/lib/evals/eval-guard";
+import { runInEvalWorld } from "@/lib/evals/eval-world-context";
 import { withModelCallTurn } from "@/lib/soko-bot/model-calls";
 import {
   type ExecuteSokoBotToolInput,
@@ -56,8 +57,20 @@ async function executeTool(
     if (refusal) throw new SokoBotRuntimeValidationError(refusal);
     const simulated = simulatedEvalTool(input.capability, input.input);
     if (simulated) return simulated;
+    // What the tool reaches underneath (Exa, Composio) answers from the
+    // eval world too.
+    return runInEvalWorld(authorized.turn.workspaceId, () =>
+      runTool(runtime, input, authorized),
+    );
   }
+  return runTool(runtime, input, authorized);
+}
 
+async function runTool(
+  runtime: RuntimeOperations,
+  input: ExecuteSokoBotToolInput,
+  authorized: Awaited<ReturnType<RuntimeOperations["authorize"]>>,
+): Promise<unknown> {
   if (isSokoBotSeoCapability(input.capability))
     return runtime.executeSeoTool(input, authorized);
   switch (input.capability) {
