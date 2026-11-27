@@ -6,6 +6,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TableCell } from "@/app/drive/tables/table-cell";
@@ -645,7 +646,7 @@ it("R1: table archive retry preserves pre-poll metadata and intent", async () =>
     ctrlKey: false,
   });
   fireEvent.click(await screen.findByRole("menuitem", { name: "archive" }));
-  fireEvent.click(screen.getByRole("button", { name: "save" }));
+  fireEvent.click(screen.getByRole("button", { name: "archive" }));
   await waitFor(() => expect(f.update).toHaveBeenCalledOnce());
   await waitFor(() =>
     expect(
@@ -655,6 +656,17 @@ it("R1: table archive retry preserves pre-poll metadata and intent", async () =>
   f.tableVersion = 2;
   f.tableArchived = new Date();
   view.rerender(<TableEditor id={f.column.tableId} />);
+  // Polling now says archived, but the open dialog still means Archive, and
+  // only Retry can send it again.
+  const confirm = screen.getByRole("button", { name: "archive" });
+  expect(confirm.hasAttribute("disabled")).toBe(true);
+  // The page's own banner now offers Restore; the dialog must not.
+  expect(
+    within(screen.getByRole("dialog")).queryByRole("button", {
+      name: "restore",
+    }),
+  ).toBeNull();
+  expect(screen.getByText("archiveDescription")).toBeTruthy();
   fireEvent.click(screen.getAllByRole("button", { name: "retry" })[0]);
   await waitFor(() => expect(f.update).toHaveBeenCalledTimes(2));
   expect(f.update.mock.calls[1]).toEqual(f.update.mock.calls[0]);
@@ -1417,4 +1429,112 @@ it("opens Find and replace from the table menu, not on an archived table", async
   expect(
     screen.queryByRole("menuitem", { name: "findReplace.title" }),
   ).not.toBeInTheDocument();
+});
+
+it("archive and restore confirm in their own words, not Save", async () => {
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.pointerDown(screen.getByRole("button", { name: "tableMenu" }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "archive" }));
+  expect(screen.getByRole("button", { name: "archive" })).toBeTruthy();
+  expect(screen.getByText("archiveDescription")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "save" })).toBeNull();
+  cleanup();
+
+  f.tableArchived = new Date();
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.pointerDown(screen.getByRole("button", { name: "tableMenu" }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "restore" }));
+  expect(screen.getByRole("button", { name: "restore" })).toBeTruthy();
+  expect(screen.getByText("restoreDescription")).toBeTruthy();
+  expect(screen.queryByText("archiveDescription")).toBeNull();
+});
+
+it("an archived table restores from its banner and says how to add rows", async () => {
+  f.tableArchived = new Date();
+  f.shown = [];
+  f.update.mockResolvedValue({});
+  render(<TableEditor id={f.column.tableId} />);
+
+  expect(screen.getByText("noRowsArchived")).toBeTruthy();
+  expect(screen.queryByText("noRows")).toBeNull();
+
+  fireEvent.click(screen.getByRole("button", { name: "restore" }));
+  const dialog = await screen.findByRole("dialog", { name: "restore" });
+  expect(within(dialog).getByText("restoreDescription")).toBeTruthy();
+  fireEvent.click(within(dialog).getByRole("button", { name: "restore" }));
+  await waitFor(() => expect(f.update).toHaveBeenCalledOnce());
+  expect(f.update.mock.calls[0][1]).toMatchObject({
+    version: 1,
+    archived: false,
+  });
+});
+
+it("an archived table's filtered empty grid keeps the filter hint", () => {
+  f.tableArchived = new Date();
+  f.shown = [];
+  f.views = [
+    {
+      id: "00000000-0000-4000-8000-000000000007",
+      tableId: f.column.tableId,
+      name: "Filtered",
+      version: 1,
+      definition: {
+        filters: [
+          { columnId: f.column.id, operator: "contains", value: "zzz" },
+        ],
+        sort: null,
+        visibleColumnIds: [],
+      },
+    },
+  ] as TableView[];
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.change(screen.getByLabelText("view"), {
+    target: { value: f.views[0].id },
+  });
+
+  expect(screen.getByText("noRowsArchivedFiltered")).toBeTruthy();
+  expect(screen.queryByText("noRows")).toBeNull();
+  expect(screen.queryByText("noRowsArchived")).toBeNull();
+});
+
+it("closing the restore dialog returns focus to the notice's Restore", async () => {
+  f.tableArchived = new Date();
+  render(<TableEditor id={f.column.tableId} />);
+  const opener = screen.getByRole("button", { name: "restore" });
+  opener.focus();
+  fireEvent.click(opener);
+  await screen.findByRole("dialog", { name: "restore" });
+  fireEvent.keyDown(document.activeElement ?? document.body, {
+    key: "Escape",
+  });
+  await waitFor(() => expect(document.activeElement).toBe(opener));
+});
+
+it("a restore from the notice leaves focus on Table options", async () => {
+  f.tableArchived = new Date();
+  f.update.mockResolvedValue({});
+  const view = render(<TableEditor id={f.column.tableId} />);
+  fireEvent.click(screen.getByRole("button", { name: "restore" }));
+  const dialog = await screen.findByRole("dialog", { name: "restore" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "restore" }));
+  await waitFor(() => expect(f.update).toHaveBeenCalledOnce());
+  // The table GET is still held: the dialog closes while the notice and its
+  // Restore button are still on the page.
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  const menu = screen.getByRole("button", { name: "tableMenu" });
+  expect(screen.getByText("archivedNotice")).toBeTruthy();
+  await waitFor(() => expect(document.activeElement).toBe(menu));
+  // The GET lands and the notice goes; focus stays on Table options.
+  f.tableArchived = null;
+  view.rerender(<TableEditor id={f.column.tableId} />);
+  expect(screen.queryByText("archivedNotice")).toBeNull();
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "tableMenu" }),
+  );
 });

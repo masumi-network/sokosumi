@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { ReactNode } from "react";
@@ -158,5 +158,44 @@ describe("DataRoomClient", () => {
     expect(await navigator.clipboard.readText()).toBe(
       `${window.location.origin}/share/rooms/tok`,
     );
+  });
+});
+
+describe("DataRoomClient load failure", () => {
+  it("says what may have happened and offers a way back and a retry", async () => {
+    api.fetchDataRoom.mockRejectedValue(new Error("Not found"));
+    render(
+      <Frame search="">
+        <DataRoomClient roomId="room-1" />
+      </Frame>,
+    );
+
+    expect(await screen.findByText("loadFailed")).toBeTruthy();
+    expect(screen.getByText("loadFailedDescription")).toBeTruthy();
+    const back = screen.getByRole("link", { name: "backToFiles" });
+    expect(back.getAttribute("href")).toBe("/drive?view=workspace");
+    // The live region carries the message only, not the controls.
+    const alert = screen.getByRole("alert");
+    expect(within(alert).getByText("loadFailed")).toBeTruthy();
+    expect(within(alert).queryByRole("link")).toBeNull();
+    expect(within(alert).queryByRole("button")).toBeNull();
+  });
+
+  it("loads the room again from Try again", async () => {
+    const room = await api.fetchDataRoom();
+    api.fetchDataRoom.mockReset();
+    api.fetchDataRoom
+      .mockRejectedValueOnce(new Error("Network"))
+      .mockResolvedValue(room);
+    render(
+      <Frame search="?tab=activity">
+        <DataRoomClient roomId="room-1" />
+      </Frame>,
+    );
+
+    await userEvent
+      .setup()
+      .click(await screen.findByRole("button", { name: "retry" }));
+    expect(await screen.findByText("activity panel")).toBeTruthy();
   });
 });

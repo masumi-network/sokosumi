@@ -164,6 +164,12 @@ export interface DriveAllFilesPanelProps {
   onShareFile?: (item: DriveShareItem) => void;
   /** Opens the move dialog for the ticked uploads. */
   onMoveFiles?: (files: { pathname: string; name: string }[]) => void;
+  /**
+   * The page's create controls (Upload, New folder), shown in an empty folder
+   * or Workspace so the first step sits where the eye already is. The page
+   * owns them because it owns the picker, the dialog and the target folder.
+   */
+  emptyActions?: ReactNode;
 }
 
 export function DriveAllFilesPanel({
@@ -178,6 +184,7 @@ export function DriveAllFilesPanel({
   dataRoomPaths,
   onShareFile,
   onMoveFiles,
+  emptyActions,
 }: DriveAllFilesPanelProps) {
   const t = useTranslations("App.Drive.Files");
   const queryClient = useQueryClient();
@@ -1066,7 +1073,14 @@ export function DriveAllFilesPanel({
             >
               {t("filterClear")}
             </Button>
-          ) : null}
+          ) : appliedQuery || !emptyActions ? null : (
+            <div
+              className="mt-4 flex flex-wrap justify-center gap-2"
+              data-testid="drive-empty-actions"
+            >
+              {emptyActions}
+            </div>
+          )}
         </div>
       ) : (
         <>
