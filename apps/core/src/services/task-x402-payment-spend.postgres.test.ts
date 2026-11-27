@@ -158,6 +158,12 @@ const base = baseFile(
   { debitMoved: false },
 );
 
+const catalogBase = baseFile(
+  fileURLToPath(new URL("./task-payment-catalog.base.json", import.meta.url)),
+  process.env.RECORD_TASK_PAYMENT_CATALOG_BASE === "true",
+  { debitMoved: false },
+);
+
 type DeploymentNetwork = "Mainnet" | "Preprod";
 
 /** Core's modules as a fresh start in this environment loads them. */
@@ -315,6 +321,7 @@ function createWorld(loaded: Loaded, deploymentNetwork: DeploymentNetwork) {
     labels,
     made,
     grant,
+    creditCost,
 
     /** A Coworker that may work on Tasks, and its key. */
     async coworker() {
@@ -950,6 +957,7 @@ async function pay(
   world: World,
   taskId: string,
   body: unknown,
+  network?: "mainnet",
 ) {
   const response = await loaded.app.request(
     `${ORIGIN}/v1/tasks/${taskId}/x402-payments`,
@@ -959,6 +967,7 @@ async function pay(
         origin: ORIGIN,
         "content-type": "application/json",
         authorization: `Bearer ${(await world.coworker()).token}`,
+        ...(network && { "X-Sokosumi-Network": network }),
       },
       body: JSON.stringify(body),
     },
@@ -1031,8 +1040,145 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
     }
 
     it(
-      "charges a fresh payment to the Owner's personal credits, signs it, and replays it",
+      "keeps the catalog refusal order before any charge",
       () =>
+        withWorld(async (world) => {
+          const scope = loaded.createNetworkScope("mainnet");
+          const payer = await world.person("catalog refusal payer");
+          const taskId = await world.task(payer, "catalog refusal Task");
+          const wrongChain = await world.x402Agent("wrong chain", otherChain);
+          const ready = await world.x402Agent("ready", deploymentNetwork);
+          const badSource = wrongChain.pay("bad source", {
+            payTo: OTHER_PAY_TO,
+          });
+          const badDemand = ready.pay("bad demand", { payTo: OTHER_PAY_TO });
+          const before = await world.rows();
+          stopsOnTheSplitLayout(6);
+          for (const header of [undefined, "mainnet"] as const) {
+            for (const [reason, body, status] of [
+              ["not listed", badSource, "OFFLINE"],
+              ["not payable", badSource, "ONLINE"],
+              ["demand mismatch", badDemand, "ONLINE"],
+            ] as const) {
+              await scope.networkDb.agent.update({
+                where: { id: body.agentId },
+                data: { status },
+              });
+              const { outcome, log } = await loaded.observing(() =>
+                pay(loaded, world, taskId, body, header),
+              );
+              expect(log.length).toBeGreaterThan(0);
+              expect(await world.rows()).toEqual(before);
+              catalogBase.expectAsOnBase(
+                key(`${reason}, ${header ?? "no header"}`),
+                plain({ outcome, statements: statements(log) }, world.labels),
+              );
+            }
+          }
+        }),
+      CASE_TIMEOUT,
+    );
+
+    it(
+      "quotes the V2 Task event on its open transaction",
+      () =>
+        withWorld(async (world) => {
+          const { settleTaskEventCharge } = await import(
+            "@/routes/v1/tasks/[id]/events/settle-charge"
+          );
+          const scope = loaded.createNetworkScope("mainnet");
+          const metadata = { key: "cardano-v2-rail-readiness" };
+          const saved = await loaded.prisma.syncMetadata.findUnique({
+            where: metadata,
+          });
+          const payer = await world.person("V2 event payer");
+          const before = await world.rows();
+          const unit = randomBytes(30).toString("hex");
+          world.labels.set(unit, "<event unit>");
+          await world.creditCost(unit);
+          const policyId = randomBytes(28).toString("hex");
+          const source = {
+            policyId,
+            smartContractAddress: "addr_test1_catalog",
+          };
+          const rollback = new Error(
+            "Roll back the quoted event and its readiness",
+          );
+          await expect(
+            loaded.prisma.$transaction(async (tx) => {
+              const cursorId = JSON.stringify([source]);
+              await tx.syncMetadata.upsert({
+                where: metadata,
+                create: { ...metadata, cursorId, lastSyncedAt: new Date() },
+                update: { cursorId },
+              });
+              const { outcome, log } = await loaded.observing(async () => {
+                try {
+                  const result = await settleTaskEventCharge({
+                    scope,
+                    tx,
+                    task: { ...payer, status: "RUNNING" },
+                    masumiPayment: {
+                      paymentSourceType: "Web3CardanoV2",
+                      PaymentSource: { ...source, network: deploymentNetwork },
+                      Amounts: [{ amount: "3", unit }],
+                      agentIdentifier: `${policyId}01`,
+                      blockchainIdentifier: "event",
+                      identifierFromPurchaser: "aabbccddeeff0011",
+                      sellerVkey: "ab".repeat(28),
+                      inputHash: "ab".repeat(32),
+                      submitResultTime: "1",
+                      payByTime: "2",
+                      unlockTime: "3",
+                      externalDisputeUnlockTime: "4",
+                    },
+                  });
+                  expect(result.cents).toBe(3n * CREDIT);
+                  return result;
+                } catch (error) {
+                  // The legacy charge transaction has no CreditCost table after the split.
+                  if (
+                    onSplitLayout &&
+                    error instanceof Error &&
+                    "code" in error &&
+                    error.code === "P2021"
+                  )
+                    return { code: error.code };
+                  throw error;
+                }
+              });
+              expect(outcome).not.toHaveProperty("threw");
+              expect(log.length).toBeGreaterThan(0);
+              expect(new Set(log.map((s) => s.connection)).size).toBe(1);
+              // Observation starts on the already-open connection, so retain its exact statement order.
+              catalogBase.expectAsOnBase(
+                key("V2 event price"),
+                plain(
+                  {
+                    outcome,
+                    statements: {
+                      transactions: [
+                        statements(log, { asSent: true }).outsideTransactions,
+                      ],
+                    },
+                  },
+                  world.labels,
+                ),
+              );
+              throw rollback;
+            }),
+          ).rejects.toBe(rollback);
+          expect(
+            await loaded.prisma.syncMetadata.findUnique({ where: metadata }),
+          ).toEqual(saved);
+          expect(await world.rows()).toEqual(before);
+        }),
+      CASE_TIMEOUT,
+    );
+
+    it.each([undefined, "mainnet"] as const)(
+      "charges a fresh payment to the Owner's personal credits, signs it, and replays it (Network header %s)",
+      (header) =>
         withWorld(async (world) => {
           stopsOnTheSplitLayout(2);
           const payer = await world.person("paying person");
@@ -1044,10 +1190,10 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
           );
 
           const fresh = await observe(loaded, world, () =>
-            pay(loaded, world, taskId, body),
+            pay(loaded, world, taskId, body, header),
           );
           const verifiedReplay = await observe(loaded, world, () =>
-            pay(loaded, world, taskId, body),
+            pay(loaded, world, taskId, body, header),
           );
 
           expectStepsAsOnBase(key("an Owner's personal credits"), {
