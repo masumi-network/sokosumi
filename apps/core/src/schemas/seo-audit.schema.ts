@@ -2,16 +2,13 @@ import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 import { cursorPaginationQuerySchema } from "./pagination.schema";
-import {
-  addSeoPageSchema,
-  seoAnalysisKindSchema,
-  seoIdSchema,
-} from "./project-seo.schema";
+import { addSeoPageSchema, seoIdSchema } from "./project-seo.schema";
+import { seoAnalysisOutputKindSchema } from "./seo-analysis-enums.schema";
 
 /** The newest check of an Audit, so the list can say whether it runs, failed or when it last finished. */
 export const seoAuditLastCheckSchema = z
   .object({
-    kind: seoAnalysisKindSchema,
+    kind: seoAnalysisOutputKindSchema,
     status: z.enum(["requested", "running", "completed", "failed"]),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,

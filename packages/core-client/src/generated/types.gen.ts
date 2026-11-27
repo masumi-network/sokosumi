@@ -13228,6 +13228,9 @@ export type SeoAuditPlan = {
 
 export type ProjectSeoSiteCrawl = {
     state: 'crawled';
+    snapshotId?: string;
+    startUrl?: string;
+    continues?: string;
     fetched: number;
     read: number;
     stop: 'complete' | 'page cap' | 'depth cap' | 'template cap' | 'link cap' | 'time' | 'rate limited' | 'robots.txt' | 'fetch failed';
@@ -13312,6 +13315,21 @@ export type ProjectSeoSiteCrawl = {
             notDetermined: number;
         };
     } | null;
+    deepAudit?: {
+        pages: Array<{
+            url: string;
+            pickedFor: Array<string>;
+            findings: Array<{
+                title: string;
+                severity: 'critical' | 'major' | 'minor' | 'note' | 'test' | 'measure';
+            }>;
+            findingsTotal: number;
+        }>;
+        skipped: Array<{
+            url: string;
+            reason: string;
+        }>;
+    };
     gaps: Array<{
         item: string;
         reason: string;
@@ -14010,7 +14028,7 @@ export type ProjectSeoRunDiff = {
 
 export type ProjectSeoAnalysis = {
     id: string;
-    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
+    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full' | 'crawl_next';
     status: 'requested' | 'running' | 'completed' | 'failed';
     taskId: string | null;
     pageIds: Array<string>;
@@ -14454,7 +14472,7 @@ export type SeoAuditSummary = {
 };
 
 export type SeoAuditLastCheck = {
-    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
+    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full' | 'crawl_next';
     status: 'requested' | 'running' | 'completed' | 'failed';
     createdAt: Date;
     updatedAt: Date;

@@ -28,6 +28,7 @@ import {
   parsePublicSeoArtifact,
 } from "@/helpers/project-seo-report";
 import { readAuditPlan } from "@/helpers/seo-audit-plan";
+import { assertCrawlNextMatchesRequest } from "@/helpers/seo-crawl-next-report";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { SeoActor } from "@/schemas/project-seo.schema";
@@ -261,7 +262,10 @@ export async function importProjectSeoAudit(
     payload.strategy.marketNote = "unavailable";
   if (payload.requestId && (!analysis || payload.requestId !== analysis.id))
     throw badRequest("The SEO result does not match its requested analysis");
-  if (analysis) assertSeoArtifactMatchesRequest(raw, payload, analysis);
+  // A crawl continuation is never imported without its request: only the request names the crawl it goes on from.
+  if (payload.kind === "crawl_next" || analysis?.kind === "crawl_next")
+    assertCrawlNextMatchesRequest(payload, analysis);
+  else if (analysis) assertSeoArtifactMatchesRequest(raw, payload, analysis);
   let createdId: string | null = null;
   const result = await serializableTransaction(async (tx) => {
     createdId = null;

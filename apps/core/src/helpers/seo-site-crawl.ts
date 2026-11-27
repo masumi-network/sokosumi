@@ -1,9 +1,11 @@
 import { z } from "@hono/zod-openapi";
 import {
+  type SeoCrawlDeepAudit,
   type SeoSiteCrawl,
   seoBadCanonicalKindSchema,
   seoCrawlUrlSchema,
   seoSiteCrawlSchema,
+  seoSnapshotIdSchema,
 } from "@/schemas/seo-site-crawl.schema";
 import { reportObject as object } from "./project-seo-public-report";
 
@@ -45,6 +47,7 @@ const canonical = { canonical: z.string() };
 
 /** The fields of the SEO bot's SiteReport crawl section that Sokosumi shows. */
 const botCrawl = z.object({
+  snapshotId: z.string().optional(),
   crawl: z.object({ fetched: count, read: count, stop: z.string() }),
   links: z
     .object({
@@ -255,15 +258,67 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
     if (!missing || object(report?.request)?.crawl === false) return undefined;
     return parse({ state: "not crawled", reason: cut(missing.reason) });
   }
-  const section = botCrawl.safeParse(report.crawl);
+  const url = object(report.request)?.url;
+  return readSection(report.crawl, {
+    startUrl: typeof url === "string" ? url : undefined,
+    // The site Report holds every module's gaps: the crawl's carry its prefix.
+    gaps: couldNotSee.flatMap((gap) =>
+      gap.item.startsWith(CRAWL_PREFIX)
+        ? [{ ...gap, item: gap.item.slice(CRAWL_PREFIX.length) }]
+        : [],
+    ),
+  });
+}
+
+/**
+ * The crawl of an SEO bot crawl_next Report, with its full audits of problem pages, in the shape Sokosumi stores.
+ * Undefined when the crawl section does not match: the import then refuses the Report, as it holds nothing else.
+ */
+export function readCrawlNext(
+  raw: unknown,
+  deepAudit: SeoCrawlDeepAudit,
+): SeoSiteCrawl | undefined {
+  const crawl = object(object(raw)?.crawl);
+  const url = object(crawl?.request)?.url;
+  const continues = object(object(raw)?.request)?.continues;
+  if (
+    typeof url !== "string" ||
+    !seoSnapshotIdSchema.safeParse(continues).success
+  )
+    return undefined;
+  // A crawl Report holds the crawl's gaps only, so they carry no prefix.
+  return readSection(crawl, {
+    startUrl: url,
+    continues,
+    gaps: readGaps(crawl?.couldNotSee, ""),
+    deepAudit,
+  });
+}
+
+function readSection(
+  raw: unknown,
+  more: {
+    startUrl: string | undefined;
+    continues?: unknown;
+    gaps: { item: string; reason: string }[];
+    deepAudit?: SeoCrawlDeepAudit;
+  },
+) {
+  const section = botCrawl.safeParse(raw);
   if (!section.success) return undefined;
-  const { crawl, links, javascript, orphans, pageChecks } = section.data;
+  const { snapshotId, crawl, links, javascript, orphans, pageChecks } =
+    section.data;
   const rawScriptPages = Math.max(
     pageChecks?.scriptPagesRawOnly ?? 0,
     javascript?.scriptPagesRawOnly ?? 0,
   );
   return parse({
     state: "crawled",
+    // An id Sokosumi cannot read only stops a continuation: the crawl itself stays.
+    ...(seoSnapshotIdSchema.safeParse(snapshotId).success && { snapshotId }),
+    ...(more.startUrl && { startUrl: more.startUrl }),
+    ...(more.continues !== undefined && { continues: more.continues }),
+    ...(more.deepAudit && { deepAudit: more.deepAudit }),
     fetched: crawl.fetched,
     read: crawl.read,
     stop: crawl.stop,
@@ -372,16 +427,10 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
             },
           ]
         : []),
-      ...couldNotSee.flatMap((gap) =>
-        gap.item.startsWith(CRAWL_PREFIX)
-          ? [
-              {
-                item: cut(gap.item.slice(CRAWL_PREFIX.length)),
-                reason: cut(gap.reason),
-              },
-            ]
-          : [],
-      ),
+      ...more.gaps.map((gap) => ({
+        item: cut(gap.item),
+        reason: cut(gap.reason),
+      })),
     ]),
   });
 }
