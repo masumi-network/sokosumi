@@ -27,14 +27,23 @@ import {
   readPreprodControl,
   setPreprodPaused,
 } from "@/helpers/preprod-control";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
+import { coreEvlogMiddleware, runAsBackgroundWork } from "@/lib/evlog";
 import syncRouter from "@/routes/sync/index";
+import { expectCoreLog } from "@/test/core-log";
+import { drainWaitUntil } from "@/test/wait-until";
 import {
   type Credential,
   createAdminCredentials,
 } from "@/test-fixtures/admin-credentials";
 import { createCoreApp, ORIGIN } from "@/test-fixtures/core-session";
 
+// Recorded, so a test can await the cron's background work (`drainWaitUntil`).
+vi.mock("@vercel/functions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/functions")>()),
+  waitUntil: vi.fn(),
+}));
 vi.mock("@/helpers/background-email", () => ({
   sendEmailInBackground: vi.fn(),
 }));
@@ -179,7 +188,7 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
   describe("the module", () => {
     it("is paused at generation 0 with neither row", async () => {
       await expect(readPreprodControl()).resolves.toEqual({
-        paused: true,
+        state: "paused",
         generation: 0,
       });
     });
@@ -193,20 +202,91 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
     ])("is paused with %s in the pause row", async (_, cursorId) => {
       await writePause(cursorId);
       await expect(readPreprodControl()).resolves.toMatchObject({
-        paused: true,
+        state: "paused",
       });
     });
 
-    it("is paused, with no generation, when the read fails", async () => {
+    it("is unavailable when the read fails, and records it in a request and in background work", async () => {
       await writePause("open");
-      vi.spyOn(prisma.syncMetadata, "findMany").mockRejectedValueOnce(
-        new Error("connection lost"),
+      const findMany = vi.spyOn(prisma.syncMetadata, "findMany");
+      const probe = new Hono();
+      probe.use("*", coreEvlogMiddleware());
+      probe.get("/probe", async (c) => c.json(await readPreprodControl()));
+      const logged = expectCoreLog(
+        "error",
+        "Could not read the Preprod pause and generation",
+        2,
       );
 
-      await expect(readPreprodControl()).resolves.toEqual({
-        paused: true,
-        generation: null,
+      findMany.mockRejectedValueOnce(new Error("connection lost"));
+      const response = await probe.request("/probe");
+      findMany.mockRejectedValueOnce(new Error("connection lost"));
+      const background = await runAsBackgroundWork(() => readPreprodControl(), {
+        syncRunId: "preprod-pause-test",
       });
+
+      expect(await response.json()).toEqual({ state: "unavailable" });
+      expect(background).toEqual({ state: "unavailable" });
+      // One on the request's wide event, one standalone with the run's id.
+      expect(logged.map((entry) => entry.event.syncRunId)).toEqual([
+        undefined,
+        "preprod-pause-test",
+      ]);
+      expect(logged[0]?.event.path).toBe("/probe");
+    });
+
+    it.each([
+      ["no value", null],
+      ["an empty value", ""],
+      ["blanks", "  "],
+      ["a negative", "-1"],
+      ["negative zero", "-0"],
+      ["a leading zero", "01"],
+      ["an exponent", "1e1"],
+      ["hexadecimal", "0x10"],
+      ["a fraction", "1.0"],
+      ["a number past the safe integers", "9007199254740992"],
+    ])("is unavailable with %s in the generation row", async (_, cursorId) => {
+      await writePause("open");
+      await prisma.syncMetadata.create({
+        data: {
+          key: PREPROD_GENERATION_KEY,
+          cursorId,
+          lastSyncedAt: new Date(),
+        },
+      });
+      expectCoreLog("error", "Could not read the Preprod pause and generation");
+
+      await expect(readPreprodControl()).resolves.toEqual({
+        state: "unavailable",
+      });
+      await expect(raisePreprodGeneration()).rejects.toThrow(
+        "The stored Preprod generation is not a count; it was not raised",
+      );
+      await expect(
+        prisma.syncMetadata.findUnique({
+          where: { key: PREPROD_GENERATION_KEY },
+          select: { cursorId: true },
+        }),
+      ).resolves.toEqual({ cursorId });
+    });
+
+    it("reads the largest safe generation and raises no further", async () => {
+      await prisma.syncMetadata.create({
+        data: {
+          key: PREPROD_GENERATION_KEY,
+          cursorId: String(Number.MAX_SAFE_INTEGER),
+          lastSyncedAt: new Date(),
+        },
+      });
+
+      await expect(readPreprodControl()).resolves.toEqual({
+        state: "paused",
+        generation: Number.MAX_SAFE_INTEGER,
+      });
+      await expect(raisePreprodGeneration()).rejects.toThrow(
+        "The stored Preprod generation is not a count",
+      );
     });
 
     it("reads both values in one statement", async () => {
@@ -225,7 +305,7 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
         recorded.restore();
       }
 
-      expect(control).toEqual({ paused: false, generation: 1 });
+      expect(control).toEqual({ state: "open", generation: 1 });
       expect(recorded.statements).toHaveLength(1);
       expect(recorded.statements[0]).toEqual(expect.arrayContaining(KEYS));
     });
@@ -233,7 +313,7 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
     it("reads a change another host made, with no cache", async () => {
       await writePause("open");
       await expect(readPreprodControl()).resolves.toEqual({
-        paused: false,
+        state: "open",
         generation: 0,
       });
 
@@ -248,7 +328,7 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
       });
 
       await expect(readPreprodControl()).resolves.toEqual({
-        paused: true,
+        state: "paused",
         generation: 7,
       });
     });
@@ -267,7 +347,7 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
       const fresh = await import("@/helpers/preprod-control");
 
       await expect(fresh.readPreprodControl()).resolves.toEqual({
-        paused: false,
+        state: "open",
         generation: 2,
       });
     });
@@ -339,6 +419,147 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
       expect(await records()).toHaveLength(1);
     });
 
+    it("answers a repeat with one moment's state and history while an opposite switch waits", async () => {
+      const operatorId = credentials.admin.id;
+      await setPreprodPaused({
+        paused: false,
+        operatorId,
+        reason: "SOK-20: open",
+      });
+      await setPreprodPaused({
+        paused: true,
+        operatorId,
+        reason: "SOK-20: pause",
+      });
+      const transaction = prisma.$transaction.bind(prisma);
+      let reached!: () => void;
+      const reaching = new Promise<void>((resolve) => {
+        reached = resolve;
+      });
+      let release!: () => void;
+      const released = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      // The repeat stops before it reads the history, after its state.
+      vi.spyOn(prisma, "$transaction").mockImplementationOnce(
+        async (callback, options) =>
+          transaction(
+            async (tx) =>
+              callback(
+                new Proxy(tx, {
+                  get(target, key, receiver) {
+                    const value = Reflect.get(target, key, receiver);
+                    if (key !== "preprodAccessChange") return value;
+                    return new Proxy(value, {
+                      get(delegate, method) {
+                        const call = Reflect.get(delegate, method);
+                        if (method !== "findMany") return call;
+                        return async (...args: unknown[]) => {
+                          reached();
+                          await released;
+                          return call.apply(delegate, args);
+                        };
+                      },
+                    });
+                  },
+                }),
+              ),
+            options,
+          ),
+      );
+
+      const repeat = setPreprodPaused({
+        paused: true,
+        operatorId,
+        reason: "SOK-20: pause again",
+      });
+      let opening: ReturnType<typeof setPreprodPaused> | undefined;
+      let meanwhile: string;
+      try {
+        await reaching;
+        opening = setPreprodPaused({
+          paused: false,
+          operatorId,
+          reason: "SOK-20: open meanwhile",
+        });
+        meanwhile = await Promise.race([
+          opening.then(() => "committed"),
+          new Promise<string>((resolve) =>
+            setTimeout(() => resolve("waiting"), 500),
+          ),
+        ]);
+      } finally {
+        release();
+      }
+
+      expect(meanwhile).toBe("waiting");
+      const answer = await repeat;
+      expect(answer.paused).toBe(true);
+      expect(answer.changes.map(({ reason }) => reason)).toEqual([
+        "SOK-20: pause",
+        "SOK-20: open",
+      ]);
+      const opened = await opening;
+      expect(opened?.paused).toBe(false);
+      expect(opened?.changes[0]?.reason).toBe("SOK-20: open meanwhile");
+    });
+
+    it("stamps the record with the database's clock, not the host's", async () => {
+      const before = await databaseNow();
+      // Only the application's clock: the database keeps its own.
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(Date.now() - 60_000);
+      try {
+        await setPreprodPaused({
+          paused: false,
+          operatorId: credentials.admin.id,
+          reason: "SOK-21: open",
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+      const after = await databaseNow();
+
+      const [record] = await prisma.preprodAccessChange.findMany({
+        where: { targetType: "network", targetId: "preprod" },
+      });
+      expect(record?.createdAt.getTime()).toBeGreaterThanOrEqual(
+        before.getTime(),
+      );
+      expect(record?.createdAt.getTime()).toBeLessThanOrEqual(after.getTime());
+    });
+
+    it("answers from its own transaction, not from what commits after it", async () => {
+      const transaction = prisma.$transaction.bind(prisma);
+      vi.spyOn(prisma, "$transaction").mockImplementationOnce(
+        async (callback, options) => {
+          const result = await transaction(callback, options);
+          await writePause("paused");
+          await prisma.preprodAccessChange.create({
+            data: {
+              targetType: "network",
+              targetId: "preprod",
+              enabled: false,
+              operatorId: credentials.admin.id,
+              reason: "SOK-22: after the commit",
+            },
+          });
+          return result;
+        },
+      );
+
+      const answer = await setPreprodPaused({
+        paused: false,
+        operatorId: credentials.admin.id,
+        reason: "SOK-22: open",
+      });
+
+      expect(answer.paused).toBe(false);
+      expect(answer.changes.map(({ reason }) => reason)).toEqual([
+        "SOK-22: open",
+      ]);
+    });
+
     it("writes only its own two keys", async () => {
       const others = () =>
         prisma.syncMetadata.findMany({
@@ -389,7 +610,7 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
       });
 
       await expect(readPreprodControl()).resolves.toEqual({
-        paused: false,
+        state: "open",
         generation: 1,
       });
     });
@@ -418,7 +639,7 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
       });
       // What the module reads in the same process: no deploy, no restart.
       await expect(readPreprodControl()).resolves.toEqual({
-        paused: false,
+        state: "open",
         generation: 0,
       });
       expect(await records()).toEqual([
@@ -435,7 +656,7 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
       });
       expect(paused.status).toBe(200);
       await expect(readPreprodControl()).resolves.toMatchObject({
-        paused: true,
+        state: "paused",
       });
 
       const read = await request(admin());
@@ -461,6 +682,23 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
         generation: 2,
         changes: [],
       });
+    });
+
+    it.each([
+      ["a value that is not a count", "1e1"],
+      ["no value", null],
+    ])("answers 500 for %s in the generation row", async (_, cursorId) => {
+      await prisma.syncMetadata.create({
+        data: {
+          key: PREPROD_GENERATION_KEY,
+          cursorId,
+          lastSyncedAt: new Date(),
+        },
+      });
+
+      const read = await request(admin());
+
+      expect(read.status).toBe(500);
     });
 
     it("records nothing for a value it already has", async () => {
@@ -509,7 +747,7 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
         expect(await pauseRow()).toBeNull();
         expect(await records()).toEqual([]);
         await expect(readPreprodControl()).resolves.toMatchObject({
-          paused: true,
+          state: "paused",
         });
       } finally {
         await prisma.$executeRaw`
@@ -586,7 +824,46 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
   });
 
   describe("Mainnet", () => {
-    it("reads neither key on a Mainnet request or a Mainnet cron tick", async () => {
+    /**
+     * Runs `work` while another connection holds an ACCESS EXCLUSIVE lock on
+     * `sync_metadata`: any read of it, through the client or raw SQL, waits.
+     * Answers whether the work finished or waited on the table.
+     */
+    async function underTableLock(work: () => Promise<unknown>) {
+      let locked!: () => void;
+      const locking = new Promise<void>((resolve) => {
+        locked = resolve;
+      });
+      let release!: () => void;
+      const released = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const holder = prisma.$transaction(
+        async (tx) => {
+          await tx.$executeRaw`
+            LOCK TABLE ${sharedTable("sync_metadata")} IN ACCESS EXCLUSIVE MODE`;
+          locked();
+          await released;
+        },
+        { timeout: 30_000 },
+      );
+      await locking;
+      const running = work();
+      try {
+        return await Promise.race([
+          running.then(() => "finished"),
+          new Promise<string>((resolve) =>
+            setTimeout(() => resolve("waited on sync_metadata"), 3_000),
+          ),
+        ]);
+      } finally {
+        release();
+        await holder;
+        await running;
+      }
+    }
+
+    it("reads nothing of sync_metadata on a Mainnet request or a Mainnet cron tick, its background work included", async () => {
       await writePause("open");
       const sync = new Hono();
       sync.route("/sync", syncRouter);
@@ -594,8 +871,7 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
         cookie: string;
       };
 
-      const recorded = recordStatements();
-      try {
+      const mainnet = await underTableLock(async () => {
         for (const path of [
           "/v1/users/me",
           `/v1/users/${credentials.userId}/workspaces`,
@@ -610,21 +886,14 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
           { headers: { authorization: "Bearer test-cron-secret" } },
         );
         expect(tick.status).toBe(200);
-        const served = recorded.statements.length;
+        // The tick's run, its lock release included, is `waitUntil` work.
+        expect(await drainWaitUntil()).toEqual([]);
+      });
+      // The control: the module's own read waits on the lock.
+      const control = await underTableLock(() => readPreprodControl());
 
-        // The control: the same recorder sees the module's read.
-        await readPreprodControl();
-
-        expect(served).toBeGreaterThan(0);
-        const touching = recorded.statements.map((values) =>
-          KEYS.some((key) => values.includes(key)),
-        );
-        // The control's statement alone, among the tick's late ones too.
-        expect(touching.filter(Boolean)).toHaveLength(1);
-        expect(touching.indexOf(true)).toBeGreaterThanOrEqual(served);
-      } finally {
-        recorded.restore();
-      }
-    });
+      expect(mainnet).toBe("finished");
+      expect(control).toBe("waited on sync_metadata");
+    }, 30_000);
   });
 });
