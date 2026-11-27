@@ -54,6 +54,7 @@ const parent = (assigneeId: string, status: string, sokoBotId = "bot_1") => ({
 describe("adoptCoworkerSpawnedTasks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryRaw.mockReset();
     taskFindManyMock.mockResolvedValue([subtask]);
     createManyMock.mockResolvedValue({ count: 1 });
   });
@@ -132,6 +133,57 @@ describe("adoptCoworkerSpawnedTasks", () => {
     ]);
     expect(await adoptCoworkerSpawnedTasks()).toBe(0);
     expect(createManyMock).not.toHaveBeenCalled();
+  });
+
+  it("adopts a Mainnet Task behind 100 refused Preprod Tasks within the same tick", async () => {
+    const older = Array.from({ length: 100 }, (_, index) => ({
+      ...subtask,
+      id: `older-${index}`,
+      ownerId: "preprod-owner",
+    }));
+    taskFindManyMock
+      .mockResolvedValueOnce(older)
+      .mockResolvedValueOnce([subtask]);
+    delegationFindManyMock.mockImplementation(async ({ where }) => {
+      const source = parent("coworker_elena", "RUNNING");
+      return where.task.ownerId === "preprod-owner"
+        ? [
+            {
+              ...source,
+              turn: {
+                ...source.turn,
+                network: "preprod",
+                preprodGeneration: 3,
+              },
+            },
+          ]
+        : [source];
+    });
+    queryRaw.mockImplementation(async (_sql, _table, key) => [
+      { key, cursorId: key === PREPROD_PAUSE_KEY ? "paused" : "3" },
+    ]);
+
+    expect(await adoptCoworkerSpawnedTasks()).toBe(1);
+    expect(taskFindManyMock).toHaveBeenCalledTimes(2);
+    expect(taskFindManyMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { createdAt: { gt: subtask.createdAt } },
+            { createdAt: subtask.createdAt, id: { gt: "older-99" } },
+          ],
+        }),
+        take: 100,
+      }),
+    );
+    expect(txCreate).not.toHaveBeenCalled();
+    expect(createManyMock).toHaveBeenCalledExactlyOnceWith({
+      data: [
+        expect.objectContaining({ network: "mainnet", taskId: subtask.id }),
+      ],
+      skipDuplicates: true,
+    });
   });
 
   it("does not count the sub-task's own Coworker as its source", async () => {

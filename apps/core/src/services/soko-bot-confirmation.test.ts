@@ -189,6 +189,34 @@ describe("trusted scoped owner confirmation", () => {
     expect(resolveDecision).not.toHaveBeenCalled();
     expect(toolUpsert).toHaveBeenCalledOnce();
   });
+
+  it("looks up the receipt in the Preprod confirmation's own generation", async () => {
+    const turn = {
+      ...confirmation(),
+      network: "preprod",
+      preprodGeneration: 3,
+    };
+    turn.intent.decisions[0].status = "ACCEPTED";
+    turn.intent.state = "IN_PROGRESS";
+    turnFindUnique.mockResolvedValue(turn);
+    turnFindFirst.mockResolvedValue(turn);
+
+    await expect(
+      new SokoBotControlPlane()["settleOwnerConfirmation"](
+        "confirmation-1",
+        "lease",
+      ),
+    ).resolves.toBe(true);
+    expect(toolFindUnique).toHaveBeenCalledWith({
+      where: {
+        turnId_toolCallId: {
+          turnId: "original-turn",
+          toolCallId: "decision:decision",
+        },
+        turn: { network: "preprod", preprodGeneration: 3 },
+      },
+    });
+  });
   it("does not turn another actor, room, ambiguous proposal, quotation or bot message into approval", async () => {
     for (const change of [
       { askedByUserId: "teammate" },

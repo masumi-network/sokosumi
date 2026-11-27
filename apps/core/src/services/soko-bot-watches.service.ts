@@ -615,7 +615,10 @@ export async function syncSokoBotWatches(input: {
       status: "WAITING",
       ...(input.sokoBotId ? { sokoBotId: input.sokoBotId } : {}),
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [
+      { turn: { network: { sort: "asc", nulls: "first" } } },
+      { createdAt: "asc" },
+    ],
     take: BATCH,
     select: {
       id: true,
