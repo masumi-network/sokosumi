@@ -137,22 +137,36 @@ const UNLIKELY_SIGNAL = 0.2;
 const OFF_TOPIC_TASKS = 8;
 
 /**
- * True when the owner explicitly asks for a proposal/review-only draft,
- * asks to leave existing/scheduled posts unchanged, or scopes the rule to
- * future months only.
+ * True when the owner explicitly asks for a proposal/review-only strategy
+ * draft, asks to leave existing/scheduled posts unchanged, or scopes the rule
+ * to future months only — without separately authorizing changes to current
+ * posts (e.g. "send me a summary for my review" after moving this month's
+ * posts still authorizes the calendar change).
  */
 export function preservesCurrentCmoPosts(
   message: string | null | undefined,
 ): boolean {
   if (!message) return false;
-  return (
-    /\b(?:for\s+(?:my|our)\s+review|proposal\s+only|just\s+a\s+(?:proposal|draft|option|alternative)|alternat(?:e|ive)\s+strategy|wait\s+for\s+(?:my|our)\s+approval|(?:don'?t|do\s+not)\s+apply\s+(?:it|this|yet))\b/i.test(
-      message,
-    ) ||
+  const explicitlyPreservesPosts =
     /\b(?:leave|keep)\b[^.!?\n]{0,45}\b(?:scheduled|existing|current|live|upcoming)\b[^.!?\n]{0,25}\b(?:posts?|calendar|month)\b[^.!?\n]{0,25}\b(?:as\s+they\s+are|alone|unchanged|untouched|intact)\b/i.test(
       message,
     ) ||
     /\b(?:don'?t|do\s+not)\s+(?:touch|change|edit|modify|update|cancel|move)\b[^.!?\n]{0,45}\b(?:scheduled|existing|current|live|upcoming|already[- ]scheduled)\b[^.!?\n]{0,20}\b(?:posts?|calendar|month)\b/i.test(
+      message,
+    );
+  if (explicitlyPreservesPosts) return true;
+
+  const authorizesCurrentPostsChange =
+    /\b(?:move|cancel|reschedule|update|edit|change|apply|remove|delete|shift|drop|clear|rewrite)\b[^.!?\n]{0,45}\b(?:this\s+month'?s?|current|existing|scheduled|upcoming|live)\b[^.!?\n]{0,30}\b(?:posts?|calendar)\b/i.test(
+      message,
+    );
+  if (authorizesCurrentPostsChange) return false;
+
+  return (
+    /\b(?:proposal\s+only|just\s+a\s+(?:proposal|draft|option|alternative)|alternat(?:e|ive)\s+strategy|wait\s+for\s+(?:my|our)\s+approval|(?:don'?t|do\s+not)\s+apply\s+(?:it|this|yet))\b/i.test(
+      message,
+    ) ||
+    /\b(?:strategy|proposal|plan|option|alternative)\b[^.!?\n]{0,30}\bfor\s+(?:my|our)\s+review\b/i.test(
       message,
     ) ||
     /\b(?:starting\s+next\s+month|for\s+next\s+month|future\s+months?\s+only|only\s+for\s+(?:next|future)\s+months?|going\s+forward\s+next\s+month)\b/i.test(

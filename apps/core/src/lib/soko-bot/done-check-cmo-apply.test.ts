@@ -333,6 +333,70 @@ describe("evaluateTurnDoneCheck with cmoApplyChanges", () => {
     ).toBeNull();
   });
 
+  it("recognizes saved post IDs from the actual update_social_posts receipt and ignores refused/stillSaving/notTried", async () => {
+    mocks.toolCallFindMany.mockImplementation(async ({ where }) =>
+      where?.capability
+        ? [
+            {
+              targetId: null,
+              result: {
+                saved: [],
+                refused: [{ postId: "calendar-post", problem: "conflict" }],
+                stillSaving: "calendar-post-2",
+                notTried: ["calendar-post-3"],
+              },
+            },
+          ]
+        : [],
+    );
+    mocks.socialPostFindFirst.mockImplementation(async ({ where }) =>
+      where.id.in.includes("calendar-post") ? { id: "calendar-post" } : null,
+    );
+    const unsaved = await evaluateTurnDoneCheck({
+      turnId: "turn-1",
+      sessionId: "sess-1",
+      draft: "Updated the posts.",
+    });
+    expect(unsaved).toContain("list_social_posts");
+
+    mocks.toolCallFindMany.mockImplementation(async ({ where }) =>
+      where?.capability
+        ? [
+            {
+              targetId: null,
+              result: {
+                saved: [
+                  { postId: "calendar-post", revision: 2, status: "DRAFT" },
+                ],
+                refused: [],
+              },
+            },
+          ]
+        : [],
+    );
+    const saved = await evaluateTurnDoneCheck({
+      turnId: "turn-1",
+      sessionId: "sess-1",
+      draft: "I updated the post you named.",
+    });
+    expect(saved).toBeNull();
+  });
+
+  it("applies an authorized change when the review is for the summary", async () => {
+    mocks.turnFindUnique.mockResolvedValue(
+      cmoTurn({
+        userMessage:
+          "Move this month's Friday posts to Thursday now, then send me a summary for my review.",
+      }),
+    );
+    const prompt = await evaluateTurnDoneCheck({
+      turnId: "turn-1",
+      sessionId: "sess-1",
+      draft: "Done.",
+    });
+    expect(prompt).toContain("list_social_posts");
+  });
+
   it("does not count independent manual drafts as upcoming posts in the approved strategy", async () => {
     mocks.socialPostCount.mockImplementation(async ({ where }) =>
       where.marketingStrategyId === undefined ? 1 : 0,

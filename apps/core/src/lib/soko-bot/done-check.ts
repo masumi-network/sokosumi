@@ -460,19 +460,13 @@ async function ownerBlocker(turnId: string): Promise<boolean> {
 const socialWriteResultSchema = z.object({
   id: z.string().optional(),
   postId: z.string().optional(),
-  updated: z
+  /** `update_social_posts` confirmed batch saves (excludes `refused`, `notTried`, `stillSaving`). */
+  saved: z
     .array(
-      z.object({ id: z.string().optional(), postId: z.string().optional() }),
-    )
-    .optional(),
-  results: z
-    .array(
-      z.object({ id: z.string().optional(), postId: z.string().optional() }),
-    )
-    .optional(),
-  posts: z
-    .array(
-      z.object({ id: z.string().optional(), postId: z.string().optional() }),
+      z.object({
+        id: z.string().optional(),
+        postId: z.string().optional(),
+      }),
     )
     .optional(),
 });
@@ -487,11 +481,9 @@ function affectedSocialPostIds(
     if (!parsed) continue;
     if (parsed.id) ids.add(parsed.id);
     if (parsed.postId) ids.add(parsed.postId);
-    for (const list of [parsed.updated, parsed.results, parsed.posts]) {
-      for (const item of list ?? []) {
-        if (item.id) ids.add(item.id);
-        if (item.postId) ids.add(item.postId);
-      }
+    for (const item of parsed.saved ?? []) {
+      if (item.id) ids.add(item.id);
+      if (item.postId) ids.add(item.postId);
     }
   }
   return [...ids];
