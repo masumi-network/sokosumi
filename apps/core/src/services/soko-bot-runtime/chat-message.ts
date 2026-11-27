@@ -254,6 +254,35 @@ export async function resolveRecipient(
   );
 }
 
+/**
+ * Why open_direct_chat found nobody, and what to do instead: a Coworker,
+ * assistant or room by that name is reached with send_message, and anyone
+ * else gets the members it could have meant.
+ */
+export async function unknownPersonRefusal(
+  runtime: RuntimeOperations,
+  authorized: AuthorizedSokoBotRuntime,
+  person: string,
+): Promise<string> {
+  const notPeople = matching(
+    await directory(runtime, authorized, searchWords(person)),
+    person,
+  ).filter((recipient) => recipient.kind !== "person");
+  if (notPeople.length > 0)
+    return `"${person}" is ${notPeople.map(describe).join(", or ")}, not a member of this organization. Write to it with send_message instead.`;
+  const people = (await directory(runtime, authorized)).filter(
+    (recipient) => recipient.kind === "person",
+  );
+  return `No member of this organization matches "${person}". ${
+    people.length
+      ? `Members: ${people
+          .slice(0, 30)
+          .map((p) => p.name)
+          .join("; ")}.`
+      : "There are no other members."
+  } If it is none of them, ask the owner who they mean.`;
+}
+
 const ANSWER_DAYS = 30;
 
 /** The latest answer each recipient gave the bot in the last 30 days, so it does not ask again. */

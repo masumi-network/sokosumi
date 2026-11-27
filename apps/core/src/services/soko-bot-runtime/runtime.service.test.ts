@@ -71,6 +71,7 @@ const {
   transactionJobCountMock,
   coworkerFindManyMock,
   userFindManyMock,
+  sokoBotFindManyMock,
   integrationListMock,
   mcpServerListMock,
   transactionBotFindUniqueOrThrowMock,
@@ -217,6 +218,7 @@ const {
   transactionJobCountMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
   userFindManyMock: vi.fn(),
+  sokoBotFindManyMock: vi.fn(),
   integrationListMock: vi.fn(),
   mcpServerListMock: vi.fn(async () => [] as unknown[]),
   transactionBotFindUniqueOrThrowMock: vi.fn(),
@@ -581,6 +583,7 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBot: {
       findFirst: botFindFirstMock,
       findUnique: botFindUniqueMock,
+      findMany: sokoBotFindManyMock,
       updateMany: botUpdateManyMock,
     },
     chatRoom: {
@@ -9681,14 +9684,22 @@ describe("open_direct_chat", () => {
     // name, from a workspace they have nothing to do with.
     const authorized = arm();
     memberFindManyMock.mockResolvedValue([]);
+    coworkerFindManyMock.mockResolvedValue([]);
+    sokoBotFindManyMock.mockResolvedValue([]);
+    chatRoomFindManyMock.mockResolvedValue([]);
+    userFindManyMock.mockResolvedValue([
+      { id: "user_colleague", name: "Nina Weber", email: "nina@x.io" },
+    ]);
 
-    await expect(
-      new SokoBotRuntimeService()["openDirectChat"](authorized, {
-        person: "Stranger",
-        message: "Hi, I am Ana.",
-        toolCallId: "call_1",
-      }),
-    ).rejects.toThrow(/No member of this organization matches/i);
+    const opened = new SokoBotRuntimeService()["openDirectChat"](authorized, {
+      person: "Stranger",
+      message: "Hi, I am Ana.",
+      toolCallId: "call_1",
+    });
+    await expect(opened).rejects.toThrow(SokoBotRuntimeValidationError);
+    await expect(opened).rejects.toThrow(
+      'No member of this organization matches "Stranger". Members: Nina Weber.',
+    );
     expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
   });
 

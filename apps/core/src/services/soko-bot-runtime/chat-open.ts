@@ -21,6 +21,7 @@ import {
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
 import { actingMemberOf } from "./acting-scope";
+import { unknownPersonRefusal } from "./chat-message";
 import {
   MAX_COWORKER_QUESTIONS_PER_TURN,
   MAX_DIRECTS_OPENED_PER_TURN,
@@ -105,8 +106,8 @@ export async function openDirectChat(
     take: 5,
   });
   if (members.length === 0) {
-    throw new SokoBotRuntimeAuthorizationError(
-      `No member of this organization matches "${needle}". Ask the owner who they mean.`,
+    throw new SokoBotRuntimeValidationError(
+      await unknownPersonRefusal(runtime, authorized, needle),
     );
   }
   if (members.length > 1) {

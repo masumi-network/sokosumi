@@ -53,7 +53,11 @@ vi.mock("../soko-bot-runtime.service", () => ({
   SokoBotRuntimeValidationError: class extends Error {},
 }));
 
-import { resolveRecipient, sendMessage } from "./chat-message";
+import {
+  resolveRecipient,
+  sendMessage,
+  unknownPersonRefusal,
+} from "./chat-message";
 
 const runtime = {
   findCoworkers: vi.fn(),
@@ -115,6 +119,28 @@ beforeEach(() => {
   });
   runtime.postChat.mockResolvedValue({ roomId: "launch", messageId: "m-2" });
   runtime.openDirectChat.mockResolvedValue({ roomId: "dm", messageId: "m-3" });
+});
+
+describe("unknownPersonRefusal", () => {
+  it("sends a Coworker, an assistant or a room to send_message", async () => {
+    const refuse = (person: string) =>
+      unknownPersonRefusal(runtime as never, authorized(), person);
+    expect(await refuse("Mira")).toBe(
+      '"Mira" is Mira (Coworker), not a member of this organization. Write to it with send_message instead.',
+    );
+    expect(await refuse("Juno")).toMatch(
+      /"Juno" is Juno \(Hannah Weber's assistant\).*send_message/,
+    );
+    expect(await refuse("#Launch team")).toMatch(/#Launch team \(room\)/);
+  });
+
+  it("lists the members when nobody by that name is here", async () => {
+    expect(
+      await unknownPersonRefusal(runtime as never, authorized(), "Nina"),
+    ).toBe(
+      'No member of this organization matches "Nina". Members: Hannah Weber. If it is none of them, ask the owner who they mean.',
+    );
+  });
 });
 
 describe("resolveRecipient", () => {
