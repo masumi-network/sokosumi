@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { type Prisma, TaskVisibility } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import {
   netTable,
   sharedTable,
@@ -71,19 +72,82 @@ function refuse(
 }
 
 /**
- * A payment on one of `taskIds` refuses, as `task_x402_payment.taskId`
- * restricts.
+ * Each refusal reads its blocker in one statement, together with what ties it
+ * to the deletion (a subtask's tree, a bot's Workspace or Project), so a row
+ * that moved away in between never refuses. The candidate ids read beside
+ * them feed only the guarded statements after the delete.
  */
+
+/** A recursive `doomed` CTE: the Tasks `roots` selects, with their subtasks. */
+function doomedTasks(roots: PrismaRaw.Sql) {
+  return PrismaRaw.sql`
+    WITH RECURSIVE doomed AS (
+      SELECT "id" FROM ${sharedTable("task")} WHERE ${roots}
+      UNION
+      SELECT child."id"
+      FROM ${sharedTable("task")} AS child
+      INNER JOIN doomed ON child."parentTaskId" = doomed."id"
+    )
+  `;
+}
+
+function workspaceTasks(workspaceId: string) {
+  return PrismaRaw.sql`"workspaceId" = ${workspaceId}::uuid`;
+}
+
+function privateTasksOf(userId: string) {
+  return PrismaRaw.sql`"ownerId" = ${userId}
+    AND "visibility" = ${TaskVisibility.PRIVATE}::${sharedType("TaskVisibility")}`;
+}
+
+/**
+ * A payment on a Task the deletion takes refuses, as
+ * `task_x402_payment.taskId` restricts. `roots` selects the Tasks deleted
+ * directly; `outside`, when given, keeps only the subtasks that are not in
+ * that Workspace (the erasure sweeps the payments of its own Tasks).
+ */
+export async function findPaymentOnDoomedTasks(
+  tx: Tx,
+  network: Network,
+  roots: PrismaRaw.Sql,
+  outside?: string,
+) {
+  const [payment] = await tx.$queryRaw<{ id: string }[]>`
+    ${doomedTasks(roots)}
+    SELECT payment."id"
+    FROM ${netTable(network, "task_x402_payment")} AS payment
+    INNER JOIN doomed ON doomed."id" = payment."taskId"
+    INNER JOIN ${sharedTable("task")} AS task ON task."id" = doomed."id"
+    WHERE ${outside === undefined ? PrismaRaw.sql`TRUE` : PrismaRaw.sql`task."workspaceId" IS DISTINCT FROM ${outside}::uuid`}
+    LIMIT 1
+  `;
+  return payment;
+}
+
+/** Subtasks outside `workspaceId` that its Tasks take with them. */
+export function findPaymentOnSubtasksOutside(
+  tx: Tx,
+  network: Network,
+  workspaceId: string,
+) {
+  return findPaymentOnDoomedTasks(
+    tx,
+    network,
+    workspaceTasks(workspaceId),
+    workspaceId,
+  );
+}
+
 async function refuseOnPayments(
   tx: Tx,
-  taskIds: string[],
+  roots: PrismaRaw.Sql,
+  outside: string | undefined,
   ids: { userId?: string; workspaceId?: string },
 ): Promise<void> {
-  if (taskIds.length === 0) return;
   for (const network of networksThatAreOn()) {
     // Follow-up (ticket 26, decision D5): the payment sweep reaches the
     // Tasks this user owns, not the subtasks deleted with them.
-    const payment = await findPaymentOnTasks(tx, network, taskIds);
+    const payment = await findPaymentOnDoomedTasks(tx, network, roots, outside);
     if (payment) {
       refuse("ACCOUNT_DELETION_SUBTASK_HAS_PAYMENT", network, {
         ...ids,
@@ -93,35 +157,20 @@ async function refuseOnPayments(
   }
 }
 
-export async function findPaymentOnTasks(
-  tx: Tx,
-  network: Network,
-  taskIds: string[],
-) {
-  if (taskIds.length === 0) return;
-  const [payment] = await tx.$queryRaw<{ id: string }[]>`
-    SELECT "id" FROM ${netTable(network, "task_x402_payment")}
-    WHERE "taskId" = ANY(${taskIds})
-    LIMIT 1
-  `;
-  return payment;
-}
-
 /**
- * A Job one of `sokoBotIds` hired refuses, as `Job.creatorSokoBotId`
- * restricts.
+ * A Job hired by a Soko Bot that `bots` selects (as `bot`) refuses, as
+ * `Job.creatorSokoBotId` restricts.
  */
 async function refuseOnHiredJobs(
   tx: Tx,
-  sokoBotIds: string[],
+  bots: PrismaRaw.Sql,
   ids: { userId?: string; workspaceId?: string },
 ): Promise<void> {
-  if (sokoBotIds.length === 0) return;
   for (const network of networksThatAreOn()) {
     // Follow-up (ticket 26, decision D5): any Job a Soko Bot hired blocks the
     // account deletion, also one in the personal workspace that the deletion
     // would remove a few statements later.
-    const job = await findJobHiredByBots(tx, network, sokoBotIds);
+    const job = await findJobHiredByBotsWhere(tx, network, bots);
     if (job) {
       refuse("ACCOUNT_DELETION_SOKO_BOT_HIRED_JOB", network, {
         ...ids,
@@ -131,18 +180,33 @@ async function refuseOnHiredJobs(
   }
 }
 
-export async function findJobHiredByBots(
+/** A Job whose creating Soko Bot `bots` selects, in the same statement. */
+export async function findJobHiredByBotsWhere(
   tx: Tx,
   network: Network,
-  sokoBotIds: string[],
+  bots: PrismaRaw.Sql,
 ) {
-  if (sokoBotIds.length === 0) return;
   const [job] = await tx.$queryRaw<{ id: string }[]>`
-    SELECT "id" FROM ${netTable(network, "Job")}
-    WHERE "creatorSokoBotId" = ANY(${sokoBotIds}::uuid[])
+    SELECT job."id"
+    FROM ${netTable(network, "Job")} AS job
+    INNER JOIN ${sharedTable("soko_bot")} AS bot ON bot."id" = job."creatorSokoBotId"
+    WHERE ${bots}
     LIMIT 1
   `;
   return job;
+}
+
+/**
+ * The Soko Bots a Workspace's delete takes: those of its Projects, and with
+ * `ownBots` also those placed in it directly.
+ */
+export function botsOfWorkspace(workspaceId: string, ownBots: boolean) {
+  const inProjects = PrismaRaw.sql`bot."projectId" IN (
+    SELECT "id" FROM ${sharedTable("project")} WHERE "workspaceId" = ${workspaceId}::uuid
+  )`;
+  return ownBots
+    ? PrismaRaw.sql`(${inProjects} OR bot."workspaceId" = ${workspaceId}::uuid)`
+    : inProjects;
 }
 
 export async function findJobInWorkspaces(
@@ -169,13 +233,7 @@ export async function eventsOf(tx: Tx, taskIds: string[]): Promise<string[]> {
 
 export function workspaceTasksWithDescendants(tx: Tx, workspaceId: string) {
   return tx.$queryRaw<{ id: string; inWorkspace: boolean }[]>`
-    WITH RECURSIVE doomed AS (
-      SELECT "id" FROM ${sharedTable("task")} WHERE "workspaceId" = ${workspaceId}::uuid
-      UNION
-      SELECT child."id"
-      FROM ${sharedTable("task")} AS child
-      INNER JOIN doomed ON child."parentTaskId" = doomed."id"
-    )
+    ${doomedTasks(workspaceTasks(workspaceId))}
     SELECT task."id", task."workspaceId" = ${workspaceId}::uuid AS "inWorkspace"
     FROM ${sharedTable("task")} AS task
     INNER JOIN doomed ON doomed."id" = task."id"
@@ -215,17 +273,16 @@ export async function checkPersonalWorkspace(
 ): Promise<DeletionCandidates> {
   const tasks = await workspaceTasksWithDescendants(tx, workspaceId);
   const taskIds = tasks.map((task) => task.id);
-  // The erasure sweeps the payments on this workspace's own Tasks, after its
-  // lock refused the ones it must keep.
-  await refuseOnPayments(
-    tx,
-    tasks.filter((task) => !task.inWorkspace).map((task) => task.id),
-    { workspaceId },
-  );
-
   const projectIds = await workspaceProjectIds(tx, workspaceId);
   const sokoBotIds = await workspaceBotIds(tx, projectIds, []);
-  await refuseOnHiredJobs(tx, sokoBotIds, { workspaceId });
+  // The erasure sweeps the payments on this workspace's own Tasks, after its
+  // lock refused the ones it must keep.
+  await refuseOnPayments(tx, workspaceTasks(workspaceId), workspaceId, {
+    workspaceId,
+  });
+  await refuseOnHiredJobs(tx, botsOfWorkspace(workspaceId, false), {
+    workspaceId,
+  });
   return {
     taskIds,
     taskEventIds: await eventsOf(tx, taskIds),
@@ -240,19 +297,11 @@ export async function checkPrivateTasks(
   userId: string,
 ): Promise<DeletionCandidates> {
   const tasks = await tx.$queryRaw<{ id: string }[]>`
-    WITH RECURSIVE doomed AS (
-      SELECT "id" FROM ${sharedTable("task")}
-      WHERE "ownerId" = ${userId}
-        AND "visibility" = ${TaskVisibility.PRIVATE}::${sharedType("TaskVisibility")}
-      UNION
-      SELECT child."id"
-      FROM ${sharedTable("task")} AS child
-      INNER JOIN doomed ON child."parentTaskId" = doomed."id"
-    )
+    ${doomedTasks(privateTasksOf(userId))}
     SELECT "id" FROM doomed
   `;
   const taskIds = tasks.map((task) => task.id);
-  await refuseOnPayments(tx, taskIds, { userId });
+  await refuseOnPayments(tx, privateTasksOf(userId), undefined, { userId });
   return {
     taskIds,
     taskEventIds: await eventsOf(tx, taskIds),
@@ -279,20 +328,30 @@ export async function checkUser(
     WHERE "userId" = ${userId} OR "workspaceId" = ANY(${workspaceIds}::uuid[])
   `;
   const sokoBotIds = sokoBots.map((sokoBot) => sokoBot.id);
-  if (workspaceIds.length > 0) {
-    for (const network of networksThatAreOn()) {
-      // `Job.workspaceId` restricts. The deletion removed the Jobs of these
-      // workspaces a moment ago, so only a Job created since can be here.
-      const job = await findJobInWorkspaces(tx, network, workspaceIds);
-      if (job) {
-        refuse("ACCOUNT_DELETION_WORKSPACE_HAS_JOB", network, {
-          userId,
-          id: job.id,
-        });
-      }
+  for (const network of networksThatAreOn()) {
+    // `Job.workspaceId` restricts. The deletion removed the Jobs of these
+    // workspaces a moment ago, so only a Job created since can be here.
+    const [job] = await tx.$queryRaw<{ id: string }[]>`
+      SELECT job."id"
+      FROM ${netTable(network, "Job")} AS job
+      INNER JOIN ${sharedTable("workspace")} AS workspace ON workspace."id" = job."workspaceId"
+      WHERE workspace."userId" = ${userId}
+      LIMIT 1
+    `;
+    if (job) {
+      refuse("ACCOUNT_DELETION_WORKSPACE_HAS_JOB", network, {
+        userId,
+        id: job.id,
+      });
     }
   }
-  await refuseOnHiredJobs(tx, sokoBotIds, { userId });
+  await refuseOnHiredJobs(
+    tx,
+    PrismaRaw.sql`(bot."userId" = ${userId} OR bot."workspaceId" IN (
+      SELECT "id" FROM ${sharedTable("workspace")} WHERE "userId" = ${userId}
+    ))`,
+    { userId },
+  );
   return { taskIds: [], taskEventIds: [], projectIds: [], sokoBotIds };
 }
 
