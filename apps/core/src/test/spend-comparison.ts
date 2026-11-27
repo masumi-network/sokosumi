@@ -225,9 +225,15 @@ interface Observed {
  * A payer's base file. While `recording`, `expectAsOnBase` writes what it
  * observes under the key; otherwise it compares: the answer, the rows and
  * every statement are `origin/main`'s, only the debit's own statements are
- * the ones `recordSpend` sends.
+ * the ones `recordSpend` sends. A payer whose debit `recordSpend` already
+ * wrote on `origin/main` passes `debitMoved: false`: nothing is rewritten,
+ * and a compensating refund's own insert stays as recorded.
  */
-export function baseFile(path: string, recording: boolean) {
+export function baseFile(
+  path: string,
+  recording: boolean,
+  { debitMoved = true }: { debitMoved?: boolean } = {},
+) {
   const recorded = (): Record<string, unknown> =>
     existsSync(path)
       ? (JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>)
@@ -255,9 +261,11 @@ export function baseFile(path: string, recording: boolean) {
         ...base,
         statements: {
           ...base.statements,
-          transactions: rewrite(base.statements.transactions).map(
-            withTheDebitAsWrittenNow,
-          ),
+          transactions: debitMoved
+            ? rewrite(base.statements.transactions).map(
+                withTheDebitAsWrittenNow,
+              )
+            : rewrite(base.statements.transactions),
         },
       });
     },
