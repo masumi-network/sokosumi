@@ -4,20 +4,17 @@ const { oauthAuthServerMetadataMock } = vi.hoisted(() => ({
   oauthAuthServerMetadataMock: vi.fn(),
 }));
 
-vi.mock("@better-auth/oauth-provider", () => ({
-  oauthProviderAuthServerMetadata: oauthAuthServerMetadataMock,
-  oauthProviderOpenIdConfigMetadata: vi.fn(),
+vi.mock("@/lib/auth-issuer-metadata.js", () => ({
+  handleOAuthAuthServerMetadata: oauthAuthServerMetadataMock,
 }));
 
-vi.mock("@/lib/auth.js", () => ({
-  auth: { api: { getOAuthServerConfig: vi.fn(), getOpenIdConfig: vi.fn() } },
-}));
+vi.mock("@/lib/auth.js", () => ({ auth: {} }));
 
 describe("well-known oauth issuer routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    oauthAuthServerMetadataMock.mockReturnValue(async () =>
+    oauthAuthServerMetadataMock.mockImplementation(async () =>
       Response.json({
         issuer: "https://core.sokosumi.com/auth",
         authorization_endpoint:
