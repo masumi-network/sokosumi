@@ -3,7 +3,6 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { STUDIO_JOB_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
 import { parseActionNarrativeText } from "@/lib/soko-bot/action-response";
-import { preservesCurrentCmoPosts } from "@/lib/soko-bot/context-packet";
 import { isOwnerRequest, ownerAskedIn } from "@/lib/soko-bot/owner-request";
 import {
   type ChainPlan,
@@ -86,7 +85,6 @@ const OWNER_TURN = {
   sokoBotId: true,
   versionId: true,
   source: true,
-  userMessage: true,
   chainDepth: true,
   askedByUserId: true,
   requestedByUserId: true,
@@ -501,7 +499,6 @@ async function checkCmoUnappliedStrategyChange(input: {
   turn: {
     sokoBotId: string;
     source: string | null;
-    userMessage?: string | null;
     chainDepth: number;
     askedByUserId: string | null;
     requestedByUserId: string | null;
@@ -516,8 +513,7 @@ async function checkCmoUnappliedStrategyChange(input: {
     !projectId ||
     input.turn.source !== "CHAT" ||
     input.turn.parentTurnId !== null ||
-    !ownerAskedIn(input.turn) ||
-    preservesCurrentCmoPosts(input.turn.userMessage)
+    !ownerAskedIn(input.turn)
   ) {
     return null;
   }
@@ -598,7 +594,7 @@ async function checkCmoUnappliedStrategyChange(input: {
   if (!claimed) return null;
 
   const postWord = upcomingCount === 1 ? "post" : "posts";
-  return `This turn saved a new unapproved strategy version, so none of the approved running month's posts changed yet, and the approved strategy currently has ${upcomingCount} upcoming unpublished social ${postWord}. If the owner asked for a change to take effect now (not a proposal-only or future-only draft), inspect those upcoming posts with list_social_posts and apply the requested change to every affected post (update_social_post, update_social_posts, create_social_post, schedule_social_post, or cancel_social_post), then report what actually changed from receipts. If none of the approved strategy's upcoming posts are affected (or the owner asked only for a proposal to review), confirm that plainly and state that the new strategy version still waits for approval.`;
+  return `Core records show this turn saved an unapproved strategy version and changed 0 of the ${upcomingCount} upcoming unpublished social ${postWord} on the approved strategy. Compare the owner's request with these receipts before replying: if the owner asked for specific upcoming posts to change now, inspect the approved strategy's posts with list_social_posts and update only those authorized posts (leaving any posts or days they asked to preserve unchanged), then report what changed from receipts; if the owner asked only for a proposal/review draft, a future-only rule, or to leave existing scheduled posts unchanged, make no post writes and reply plainly that the new strategy version waits for approval and the running month's posts are unchanged.`;
 }
 
 /**

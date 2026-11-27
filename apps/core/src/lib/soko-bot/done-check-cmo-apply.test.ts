@@ -165,21 +165,12 @@ describe("cmoApplyChanges preference hint", () => {
 
     const on = triggerHints({ ...baseInput, cmoApplyChanges: true });
     expect(on[0]).toContain(
-      "apply this change to any affected upcoming unpublished posts",
+      "Compare the owner's requested scope before acting",
     );
-    expect(on[0]).toContain("not only memory or an unapproved strategy draft");
-    expect(on[0]).toContain("Unless the owner asked for a proposal-only");
-
-    const proposalOnly = triggerHints({
-      ...baseInput,
-      cmoApplyChanges: true,
-      turnMessage:
-        "Draft an alternate strategy for my review. Leave the scheduled posts as they are.",
-    });
-    expect(proposalOnly[0]).toContain(
-      "leave existing scheduled posts unchanged",
+    expect(on[0]).toContain(
+      "leaving any posts they asked to preserve unchanged",
     );
-    expect(proposalOnly[0]).not.toContain("apply this change to any affected");
+    expect(on[0]).toContain("leave existing scheduled posts unchanged");
   });
 });
 
@@ -207,7 +198,7 @@ describe("evaluateTurnDoneCheck with cmoApplyChanges", () => {
 
     expect(prompt).toContain("4 upcoming unpublished social posts");
     expect(prompt).toContain("list_social_posts");
-    expect(prompt).toContain("update_social_posts");
+    expect(prompt).toContain("Compare the owner's request with these receipts");
     expect(mocks.appendUnless).toHaveBeenCalledWith(
       expect.objectContaining({ type: CMO_UPCOMING_POSTS_BOUNCED_EVENT }),
       [CMO_UPCOMING_POSTS_BOUNCED_EVENT],
@@ -301,7 +292,7 @@ describe("evaluateTurnDoneCheck with cmoApplyChanges", () => {
     ).toBeNull();
   });
 
-  it("preserves the live posts when the owner asks for a proposal only or future-only change", async () => {
+  it("never instructs overwriting live posts on a proposal-only request, and requires comparing receipts when scoped exceptions exist", async () => {
     mocks.turnFindUnique.mockResolvedValue(
       cmoTurn({
         userMessage:
@@ -317,20 +308,24 @@ describe("evaluateTurnDoneCheck with cmoApplyChanges", () => {
     expect(proposal ?? "").not.toContain(
       "apply the requested change to every affected post",
     );
-    expect(proposal).toBeNull();
+    expect(proposal).toContain("make no post writes");
+    expect(proposal).toContain("waits for approval");
 
     mocks.turnFindUnique.mockResolvedValue(
       cmoTurn({
-        userMessage: "Starting next month, skip Fridays.",
+        userMessage:
+          "Move the scheduled Friday posts to Thursday this month. Leave the scheduled Tuesday posts unchanged.",
       }),
     );
-    expect(
-      await evaluateTurnDoneCheck({
-        turnId: "turn-1",
-        sessionId: "sess-1",
-        draft: "Saved the updated strategy for next month.",
-      }),
-    ).toBeNull();
+    const scoped = await evaluateTurnDoneCheck({
+      turnId: "turn-1",
+      sessionId: "sess-1",
+      draft: "Done.",
+    });
+    expect(scoped).toContain("list_social_posts");
+    expect(scoped).toContain(
+      "leaving any posts or days they asked to preserve unchanged",
+    );
   });
 
   it("recognizes saved post IDs from the actual update_social_posts receipt and ignores refused/stillSaving/notTried", async () => {
