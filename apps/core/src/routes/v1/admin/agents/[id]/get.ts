@@ -1,13 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import {
-  adminAgentDetailInclude,
-  mapAdminAgentDetail,
-} from "@/helpers/admin-agent";
+import { mapAdminAgentDetail } from "@/helpers/admin-agent";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { getAgent } from "@/lib/agent-catalog/admin";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   adminAgentDetailSchema,
@@ -39,10 +36,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    const agent = await prisma.agent.findUnique({
-      where: { id },
-      include: adminAgentDetailInclude,
-    });
+    const agent = await getAgent(c.var.networkScope, id);
 
     if (!agent) {
       throw notFound("Agent not found");

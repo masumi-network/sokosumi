@@ -1,7 +1,5 @@
 apps/core/src/helpers/access-control.job-share.ts
 apps/core/src/helpers/access-control.ts
-apps/core/src/helpers/admin-agent-override.ts
-apps/core/src/helpers/admin-agent.ts
 apps/core/src/helpers/agent-rating.ts
 apps/core/src/helpers/agent.ts
 apps/core/src/helpers/billing-notifications.ts
@@ -19,10 +17,6 @@ apps/core/src/lib/soko-bot/classification-context.ts
 apps/core/src/lib/soko-bot/context-packet.ts
 apps/core/src/lib/soko-bot/decision-proposal.ts
 apps/core/src/lib/soko-bot/write-scope.ts
-apps/core/src/routes/v1/admin/agents/[id]/get.ts
-apps/core/src/routes/v1/admin/agents/[id]/metadata-override/delete.ts
-apps/core/src/routes/v1/admin/agents/[id]/metadata-override/patch.ts
-apps/core/src/routes/v1/admin/agents/get.ts
 apps/core/src/routes/v1/admin/task-payment-claims/get.ts
 apps/core/src/routes/v1/admin/task-x402-payments/aggregate/get.ts
 apps/core/src/routes/v1/admin/task-x402-payments/get.ts
@@ -31,10 +25,6 @@ apps/core/src/routes/v1/agents/[id]/reviews/get.ts
 apps/core/src/routes/v1/agents/[id]/reviews/me/get.ts
 apps/core/src/routes/v1/categories/get.ts
 apps/core/src/routes/v1/coworkers/me/usage/post.ts
-apps/core/src/routes/v1/credit-costs/[id]/delete.ts
-apps/core/src/routes/v1/credit-costs/[id]/get.ts
-apps/core/src/routes/v1/credit-costs/[id]/patch.ts
-apps/core/src/routes/v1/credit-costs/post.ts
 apps/core/src/routes/v1/jobs/[id]/events/get.ts
 apps/core/src/routes/v1/jobs/[id]/files/[fileId]/content/get.ts
 apps/core/src/routes/v1/jobs/[id]/files/get.ts

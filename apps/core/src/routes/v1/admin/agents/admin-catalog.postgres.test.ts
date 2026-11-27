@@ -335,6 +335,9 @@ async function scenario(
           `/v1/agents/${agentId(suffix)}`,
         );
       }
+      // The hire's lookup still reads the default client, which has no
+      // Agent table on the split layout (pull request 3 of the catalog).
+      if (onSplitLayout) return;
       await call(
         `${label} hire under the price`,
         "POST",
@@ -451,6 +454,39 @@ function interned(runs: Record<string, unknown>) {
   return { sql, results: results.map((row) => JSON.parse(row)), calls };
 }
 
+type Interned = ReturnType<typeof interned>;
+
+// Every call with its own record and statement texts, for a comparison that
+// leaves some calls out.
+function resolved({ sql, results, calls }: Interned) {
+  return Object.fromEntries(
+    Object.entries(calls).map(([label, index]) => {
+      const record = results[index] as {
+        transactions?: [number, unknown][][];
+        outside?: [number, number][];
+      };
+      return [
+        label,
+        {
+          ...record,
+          ...(record.transactions && {
+            transactions: record.transactions.map((tx) =>
+              tx.map(([text, values]) => [sql[text], values]),
+            ),
+            outside: record.outside?.map(([text, count]) => [sql[text], count]),
+          }),
+        },
+      ];
+    }),
+  );
+}
+
+function withoutHire(records: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(records).filter(([label]) => !label.includes(" hire ")),
+  );
+}
+
 it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
   "preserves admin catalog responses and SQL with deployment NETWORK=%s",
   async (network) => {
@@ -508,7 +544,12 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
         expect(onSplitLayout).toBe(false);
         writeFileSync(path, JSON.stringify(result, null, 2) + "\n");
       } else {
-        expect(result).toEqual(JSON.parse(readFileSync(path, "utf8")));
+        const base = JSON.parse(readFileSync(path, "utf8")) as typeof result;
+        if (onSplitLayout) {
+          expect(resolved(result)).toEqual(withoutHire(resolved(base)));
+        } else {
+          expect(result).toEqual(base);
+        }
       }
     } finally {
       await shared.apikey.deleteMany({ where: { referenceId: admin.id } });
@@ -519,4 +560,97 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
     }
   },
   120_000,
+);
+
+// The one change from `origin/main`: there these routes ignored the request's
+// Network and answered from the default client's tables. Now a request naming
+// Preprod while Preprod is off gets the scope's refusal and touches no row.
+it.skipIf(!enabled || onSplitLayout)(
+  "refuses every admin Agent and rate route for Preprod while it is off",
+  async () => {
+    state.network = "Mainnet";
+    const scope = createNetworkScope("mainnet");
+    const app = createCoreApp();
+    const admin = await createPasswordUser("Admin catalog refusal", "admin");
+    const prefix = `adm${randomUUID().slice(0, 8)}`;
+    try {
+      await createPersonalWorkspace(admin.id);
+      const token = await createApiKey(admin.id);
+      await scope.networkDb.agent.create({
+        data: {
+          id: prefix,
+          name: prefix,
+          description: "Admin catalog fixture",
+          blockchainIdentifier: prefix,
+          lastUptimeCheck: createdAt,
+          uptimeCount: 1,
+          uptimeCheckCount: 1,
+          isShown: true,
+          pricing: { create: { id: `${prefix}-pricing`, pricingType: "FREE" } },
+        },
+      });
+      const rate = await scope.networkDb.creditCost.create({
+        data: { unit: `${prefix}unit`, centsPerUnit: 7n },
+      });
+      const requests: [string, string, unknown?][] = [
+        ["GET", `/v1/admin/agents?q=${prefix}&sortBy=displayName`],
+        ["GET", `/v1/admin/agents?q=${prefix}&sortBy=createdAt`],
+        ["GET", `/v1/admin/agents/${prefix}`],
+        [
+          "PATCH",
+          `/v1/admin/agents/${prefix}/metadata-override`,
+          { name: "x" },
+        ],
+        ["DELETE", `/v1/admin/agents/${prefix}/metadata-override`],
+        [
+          "POST",
+          "/v1/credit-costs",
+          { unit: `${prefix}new`, creditsPerUnit: 1 },
+        ],
+        ["GET", `/v1/credit-costs/${rate.id}`],
+        ["PATCH", `/v1/credit-costs/${rate.id}`, { creditsPerUnit: 9 }],
+        ["DELETE", `/v1/credit-costs/${rate.id}`],
+      ];
+      for (const [method, path, body] of requests) {
+        const response = await app.request(path, {
+          method,
+          headers: {
+            authorization: `Bearer ${token}`,
+            "X-Sokosumi-Network": "preprod",
+            ...(body !== undefined && { "content-type": "application/json" }),
+          },
+          ...(body !== undefined && { body: JSON.stringify(body) }),
+        });
+        expect([method, path, response.status]).toEqual([method, path, 403]);
+        expect(await response.json()).toMatchObject({ kind: "preprod_off" });
+      }
+      expect(
+        await scope.networkDb.agentMetadataOverride.count({
+          where: { agentId: prefix },
+        }),
+      ).toBe(0);
+      expect(
+        await scope.networkDb.creditCost.findMany({
+          where: { unit: { startsWith: prefix } },
+          select: { id: true, centsPerUnit: true },
+        }),
+      ).toEqual([{ id: rate.id, centsPerUnit: 7n }]);
+    } finally {
+      await scope.networkDb.agent.deleteMany({ where: { id: prefix } });
+      await scope.networkDb.agentPricing.deleteMany({
+        where: { id: `${prefix}-pricing` },
+      });
+      await scope.networkDb.creditCost.deleteMany({
+        where: { unit: { startsWith: prefix } },
+      });
+      await scope.sharedDb.apikey.deleteMany({
+        where: { referenceId: admin.id },
+      });
+      await scope.sharedDb.subscription.deleteMany({
+        where: { referenceId: admin.id },
+      });
+      await scope.sharedDb.user.delete({ where: { id: admin.id } });
+    }
+  },
+  60_000,
 );

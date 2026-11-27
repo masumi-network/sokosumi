@@ -3,7 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { getRate } from "@/lib/agent-catalog/admin";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import {
@@ -39,9 +39,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     requireAdminAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    const record = await prisma.creditCost.findUnique({
-      where: { id },
-    });
+    const record = await getRate(c.var.networkScope, id);
 
     if (!record) {
       throw notFound("Credit cost not found");
