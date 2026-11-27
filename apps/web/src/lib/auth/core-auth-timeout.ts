@@ -7,7 +7,7 @@
  * deployments (measured 2026-11-27), so 8s failed the first request of every
  * deploy and the person saw a session error instead of a slow page. 12s covers
  * that and stays under the 20s the background chat reads allow
- * (`fetch-background-json.ts`).
+ * (`fetch-sidebar-room-collection.ts`).
  *
  * One constant for both callers. `auth.server.ts` reads the session directly
  * and `auth.server.client.ts` drives the Better Auth client; they held separate

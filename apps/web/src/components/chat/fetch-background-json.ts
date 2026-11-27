@@ -45,9 +45,10 @@ function jittered(delayMs: number): number {
  *
  * 13s sits above the route's own 12s session-read budget
  * (`CORE_AUTH_REQUEST_TIMEOUT_MS`), so a read slowed by a Core cold start is
- * never killed for being slow, and below the smallest caller budget (20s in
- * `fetch-sidebar-room-collection.ts`) by enough for one retry against a warm
- * Core.
+ * never killed for being slow, and below the chat reads' 20s budget
+ * (`fetch-sidebar-room-collection.ts`) by enough for one retry against a warm
+ * Core. The 10s callers (feature badges, skill search) end at their own
+ * deadline first; a cold Core outlasts them with or without a retry.
  */
 const ATTEMPT_STALL_TIMEOUT_MS = 13_000;
 
