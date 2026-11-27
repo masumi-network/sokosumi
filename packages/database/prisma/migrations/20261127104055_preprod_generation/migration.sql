@@ -9,7 +9,7 @@
 -- that table waits behind it, so it gives up after 5 seconds. The deploy then
 -- fails with 55P03 and the statements before it stay applied. Every statement
 -- can run again: run
--- `prisma migrate resolve --rolled-back 20261127140000_preprod_generation` on
+-- `prisma migrate resolve --rolled-back 20261127104055_preprod_generation` on
 -- the direct URL (DATABASE_URL_UNPOOLED), then deploy again. A plain redeploy
 -- stops at P3009.
 SET lock_timeout = '5s';
