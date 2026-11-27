@@ -17,6 +17,7 @@ const CACHE_MS = 60_000;
 let cache: {
   at: number;
   workspaceIds: Set<string>;
+  organizationIds: Set<string>;
   cusoProjectIds: Set<string>;
 } | null = null;
 
@@ -25,11 +26,12 @@ async function evalLanes(): Promise<NonNullable<typeof cache> | null> {
   if (typeof prisma.evalLane?.findMany !== "function") return null;
   if (!cache || Date.now() - cache.at > CACHE_MS) {
     const lanes = await prisma.evalLane.findMany({
-      select: { workspaceId: true, cusoProjectId: true },
+      select: { workspaceId: true, organizationId: true, cusoProjectId: true },
     });
     cache = {
       at: Date.now(),
       workspaceIds: new Set(lanes.map((lane) => lane.workspaceId)),
+      organizationIds: new Set(lanes.map((lane) => lane.organizationId)),
       cusoProjectIds: new Set(
         lanes.flatMap((lane) =>
           lane.cusoProjectId ? [lane.cusoProjectId] : [],
@@ -58,21 +60,45 @@ export async function isEvalWorkspace(workspaceId: string): Promise<boolean> {
 }
 
 /**
- * Read now, in the caller's transaction: a guard that keeps a lane from
- * sending must see a lane another Core process registered a moment ago,
- * which the cache above can miss for a minute.
+ * Fail-closed: whether the workspace is a lane's, read at call time. The
+ * cache is per process, so another worker can lack a lane registered a
+ * moment ago; a "no" from the cache is checked against the table, so a new
+ * lane is never treated as live.
  */
 export async function isEvalWorkspaceNow(
-  db: Pick<typeof prisma, "evalLane">,
   workspaceId: string,
+  // A transaction reads it there, beside what it guards.
+  db: Pick<typeof prisma, "evalLane"> = prisma,
 ): Promise<boolean> {
+  if (await isEvalWorkspace(workspaceId)) return true;
   if (typeof db.evalLane?.findUnique !== "function") return false;
-  return (
-    (await db.evalLane.findUnique({
-      where: { workspaceId },
-      select: { lane: true },
-    })) !== null
-  );
+  const lane = await db.evalLane.findUnique({
+    where: { workspaceId },
+    select: { lane: true },
+  });
+  if (lane) forgetEvalWorkspaces();
+  return lane !== null;
+}
+
+/** isEvalWorkspaceNow for a lane's organization (its chat rooms). */
+export async function isEvalOrganizationNow(
+  organizationId: string,
+): Promise<boolean> {
+  if (await isEvalOrganization(organizationId)) return true;
+  if (typeof prisma.evalLane?.findFirst !== "function") return false;
+  const lane = await prisma.evalLane.findFirst({
+    where: { organizationId },
+    select: { lane: true },
+  });
+  if (lane) forgetEvalWorkspaces();
+  return lane !== null;
+}
+
+/** A lane's organization: its chat rooms belong to the eval world too. */
+export async function isEvalOrganization(
+  organizationId: string,
+): Promise<boolean> {
+  return (await evalLanes())?.organizationIds.has(organizationId) ?? false;
 }
 
 /**

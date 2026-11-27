@@ -1418,7 +1418,7 @@ export async function publishSocialPostNow(
       }
       // An eval lane publishes on its stand-in accounts only, never a real one.
       if (
-        (await isEvalWorkspaceNow(tx, input.workspaceId)) &&
+        (await isEvalWorkspaceNow(input.workspaceId, tx)) &&
         !(
           post.socialConnection &&
           isEvalSocialAccount(post.socialConnection.composioConnectedAccountId)

@@ -1,0 +1,49 @@
+# Eval-world mocks: Composio, web and analytics
+
+Benchmark lanes must not reach the live web, a search key, or a real connected account. This page covers botctx's part of the mock layer: Composio toolkits, web fetch and search, and analytics reads. Social networks are cusoctx's part. Wiring into the lane reset, the B2 re-check and the full audit table are ownerbench's.
+
+## Audit: batch 3 (runs `01a21cd7`, `01a21d0a`, `01a21d2e`, `01a21d56`), these areas only
+
+Tool calls in eval-lane workspaces since 2026-11-27 11:50 UTC, from the ownerbench database (read-only):
+
+| Call                                                                                                                                  | Calls (failed)                  | What it reached                                                                                                                   | Status before this change                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `web_search`                                                                                                                          | 10 (10)                         | Exa, no key locally                                                                                                               | **Unavailable**: every call answered "Web search is unavailable right now"                                               |
+| `web_fetch`                                                                                                                           | 12 (4)                          | The live web: sokosumi.com ×4, cal.com ×2, eic.ec.europa.eu, innosuisse.admin.ch; notes.padierfind.com ×4 failed ("fetch failed") | **Real**                                                                                                                 |
+| Composio integrations (`search_inbox`, `read_email`, `draft_email`, `send_email_draft`, `list_calendar_events`, `*_integration_tool`) | 0                               | —                                                                                                                                 | **Unavailable**: lane bots have 0 integrations, so no journey could use Gmail, Calendar, Drive, Sheets, GitHub or Notion |
+| `find_integrations`                                                                                                                   | 2 (0)                           | Composio's toolkit catalog when configured                                                                                        | Real or empty, depending on the env                                                                                      |
+| GSC / GA4 (`sync_seo_statistics`, `request_seo_analysis`, `import_seo_audit`)                                                         | 0                               | Composio                                                                                                                          | **Mocked by refusal**: provider-backed SEO tools refuse in eval workspaces (`lib/soko-bot/seo-tools.ts`)                 |
+| `read_seo` (Cuso)                                                                                                                     | 0                               | Composio GSC when the cache is older than a day                                                                                   | **Mocked by cache**: lanes seed a fresh research payload (`eval-cmo-seo-report.ts`)                                      |
+| `read_calendar`                                                                                                                       | 19 (1)                          | Cuso's marketing calendar in Core, not Composio                                                                                   | n/a                                                                                                                      |
+| `list_social_post_statistics`, `get_seo_workspace`, `list_ad_accounts`, `read_file`                                                   | 2, 1, 11, 11                    | Core data only                                                                                                                    | n/a                                                                                                                      |
+| Chat link previews (not a tool)                                                                                                       | every owner message with a link | The live web, via `scrapeUnfurlCards`                                                                                             | **Real**                                                                                                                 |
+| `read_social_profile`                                                                                                                 | 0                               | The live web (youtube.com, x.com, instagram.com…), HTML or a headless browser                                                     | **Real**                                                                                                                 |
+| YouTube statistics and comments (`refresh_social_*_statistics`, `list_social_comments`)                                               | 0                               | Composio's tool router with the connection's `eval:` id, which fails                                                              | **Unavailable** (cusoctx's social path; see below)                                                                       |
+
+## What this change does
+
+One rule: work done for an eval lane's turn never leaves the eval world.
+
+- **The mark.** `dispatch.ts` runs every tool of an eval-workspace turn inside `runInEvalWorld(workspaceId)` (`lib/evals/eval-world-context.ts`, an AsyncLocalStorage). `runCoreWebTool` does the same for `web_search`/`web_fetch`. Any client underneath can now tell it is serving an eval lane.
+- **Web fetch.** In a lane, `web_fetch` answers from `services/evals/eval-web-world.ts`.
+  - Fixed pages: sokosumi.com, cal.com/pricing, the owner's YouTube video, and each investor's notes page. The notes pages are generated from the same `investorLine` as the owner's notes file.
+  - An address the world lacks is a 404. The network is never called.
+- **Web search.** `searchExa` answers from the same pages inside the mark: ranked by shared words, ties broken by address, cost 0. That covers `web_search`, `search_exa` and any Core Exa call made during a lane's turn.
+- **Composio.** `composio-integration-tools.service.ts` checks every call at its three entry points: list tools, describe a tool, execute a tool.
+  - A call on an `eval:` account is answered from `services/evals/eval-integration-world.ts`, whether or not a lane's turn is running, so ingest and crons on lane bots are covered too. This covers Gmail, Google Calendar, Drive, Sheets, GitHub, Notion, Search Console, GA4 and YouTube.
+  - Reads return fixed data. Writes (draft, send, create issue, create page, sheet update) answer that they worked and change nothing.
+  - **Fail closed:**
+    - A tool the world lacks is refused.
+    - A real account used inside a lane's turn is refused ("An eval lane cannot use a real connected account").
+    - Nothing ever reaches Composio.
+- **Seeding.** `seedEvalIntegrations({ lane, sokoBotId, userId, providers? })` (`services/evals/eval-integration-seed.ts`) connects a lane bot to those accounts with `eval:` ids. It is idempotent. **ownerbench wires it into the lane reset** and chooses which journeys get which accounts: a connected Gmail also makes ingest run on the fixed inbox.
+- **Link previews and social profiles.**
+  - **Link previews:** a link posted in a lane's organization gets its preview from the same fixed pages: the title, the first paragraph, no image. An address the world lacks gets no preview, and nothing is fetched.
+  - **`read_social_profile`:** in a lane it answers from fixed profiles of the owner's accounts: x.com, linkedin.com/company, youtube.com/@ and instagram.com, all `padierfind`, with followers, post count and recent posts. Any other profile is "could not be read". No HTML fetch, no headless browser.
+
+## Not covered here
+
+- **Social networks:** posting, scheduling and the YouTube statistics/comment reads through `createComposioToolSession`/`executeComposioTool` (`clients/social-post-providers/tools.ts`). This is the social path, which is cusoctx's. `runEvalIntegrationTool("youtube", slug, args)` already answers `YOUTUBE_LIST_CHANNELS`, `YOUTUBE_LIST_CHANNEL_VIDEOS`, `YOUTUBE_GET_VIDEO_DETAILS_BATCH`, `YOUTUBE_QUERY_ANALYTICS` and `YOUTUBE_LIST_COMMENT_THREADS2` for that path to call.
+- **The sandbox runner's own `web_fetch`.** Eval runs use the in-process runtime (`SOKO_BOT_EVALUATION_ALLOWANCE` forces it in `lib/soko-bot/factory.ts`), so it is not reachable from a lane.
+- **Native SEO statistics readers.** These are already refused or cached in lanes, as above. They describe tool schemas through Composio, which the eval world answers without a schema, so they would not parse its data. Answering them needs their own fixture, if a journey ever needs them.
+- **Core jobs outside a turn** (competitor checks, industry research) on lane projects still call Exa when it is configured.
