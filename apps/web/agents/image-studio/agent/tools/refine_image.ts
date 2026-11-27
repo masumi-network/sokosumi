@@ -12,6 +12,13 @@ export default defineTool({
     "Make a new version from an existing one, using it as a visual reference. The original is never altered: this always produces a new version.",
   inputSchema: z.object({
     route: z.enum(ImageStudioRoute).optional(),
+    brandAssetIds: z
+      .array(z.uuid())
+      .max(4)
+      .optional()
+      .describe(
+        "Relevant image IDs from read_brand_context. Use gemini-pro with references; allow four total, including the source version and product photo.",
+      ),
     catalogProductId: z
       .string()
       .uuid()
@@ -67,6 +74,9 @@ export default defineTool({
       parentAssetId: input.sourceVersionId,
       // The same version is both the lineage parent and the visual reference.
       referenceAssetIds: [input.sourceVersionId],
+      ...(input.brandAssetIds?.length
+        ? { brandAssetIds: input.brandAssetIds }
+        : {}),
       ...(input.catalogProductId
         ? { catalogProductId: input.catalogProductId }
         : {}),

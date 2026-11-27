@@ -526,6 +526,7 @@ export async function startGeneration(
     prompt: string;
     parentAssetId: string | null;
     referenceAssetIds: string[];
+    brandAssetIds?: string[];
     catalogProductId?: string;
     aspectRatio: string;
     resolution: string;

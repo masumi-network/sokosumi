@@ -4760,6 +4760,13 @@
         "error": "Could not prepare suggestions from the project website. Try again."
       },
       "BrandKit": {
+        "assets": "Brand images",
+        "assetHint": "Add mascots, illustrations, or other images for Content Studio to use as visual references.",
+        "addAsset": "Add image",
+        "removeAsset": "Remove {name}",
+        "removeImage": "Remove",
+        "assetError": "Could not update the brand images.",
+        "retryAsset": "Try again",
         "websiteLookDraft": "Colors and fonts suggested from your website. Edit them before saving the look.",
         "discardWebsiteLook": "Discard suggested look",
         "cancelLook": "Cancel look edits",

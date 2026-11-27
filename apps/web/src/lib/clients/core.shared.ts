@@ -20,12 +20,14 @@ import {
   saveStudioPairwisePick as coreSaveStudioPairwisePick,
   setStudioAssetFeedback as coreSetStudioAssetFeedback,
   suggestTaskTags as coreSuggestTaskTags,
+  updateStudioBrandAssets as coreUpdateStudioBrandAssets,
   uploadStudioProjectLogo as coreUploadStudioProjectLogo,
   type SaveStudioBrandCopy,
   type SaveStudioBrandLook,
   type SaveStudioPairwisePick,
   type SetStudioAssetFeedbackData,
   type StudioProductCatalog,
+  type UpdateStudioBrandAssets,
 } from "@sokosumi/core-client";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 
@@ -4381,6 +4383,17 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function updateStudioBrandAssets(
+    id: string,
+    body: UpdateStudioBrandAssets,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreUpdateStudioBrandAssets({ client, path: { id }, body }),
+      "Failed to update Studio brand images",
+    );
+  }
+
   async function saveStudioBrandLook(id: string, body: SaveStudioBrandLook) {
     return executeCoreOperation(
       getClient,
@@ -7658,6 +7671,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getStudioModelScoreboard,
     saveStudioAdHeadline,
     saveStudioBrandCopy,
+    updateStudioBrandAssets,
     saveStudioBrandLook,
     uploadStudioProjectLogo,
     findStudioWebsiteLogo,
