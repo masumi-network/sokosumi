@@ -424,56 +424,69 @@ async function race(name: string, first: 0 | 1) {
       return consumptions;
     });
   try {
-    return await observe(payer, auditIds.slice(-2), generate, async () => {
-      const replies = actors.map(async (actor, index) => {
-        // The second reservation starts after the first has its turn.
-        if (index === 1) await entered[0]?.opened;
-        return sendSeoChat(actor, request(`${name}-${index}`), { generate });
-      });
-      await entered[1]?.opened;
-      answer[first]?.open();
-      await chosen.opened;
-      answer[1 - first]?.open();
-      await untilALockIsAwaited();
-      holdOpen.open();
-      return (await Promise.allSettled(replies)).map(settled);
-    });
+    const observed = (await observe(
+      payer,
+      auditIds.slice(-2),
+      generate,
+      async () => {
+        const replies = actors.map(async (actor, index) => {
+          // The second reservation starts after the first has its turn.
+          if (index === 1) await entered[0]?.opened;
+          return sendSeoChat(actor, request(`${name}-${index}`), { generate });
+        });
+        await entered[1]?.opened;
+        answer[first]?.open();
+        await chosen.opened;
+        answer[1 - first]?.open();
+        await untilALockIsAwaited();
+        holdOpen.open();
+        return (await Promise.allSettled(replies)).map(settled);
+      },
+    )) as { statements: { transactions: Statement[][] } };
+    return {
+      ...observed,
+      statements: {
+        ...observed.statements,
+        transactions: withoutTheLosersCancelPoint(
+          observed.statements.transactions,
+        ),
+      },
+    };
   } finally {
     spy.mockRestore();
   }
 }
 
 const BUCKET_READ = /^WITH bucket_avail AS \(/;
+const TURN_CLAIM =
+  /^UPDATE "public"\."seo_audit_chat_turn" SET "status" = \$1, "response"/;
 
 /**
- * The race's one difference beyond the debit, measured, not chosen. On
- * `origin/main` PostgreSQL cancels the loser's first attempt at its bucket
- * read ("conflict out to pivot, during read"); now it cancels it one
- * statement earlier, at the update of its turn ("identification as a pivot,
- * during write"), so that attempt sends no bucket read. The retry, the
- * answer and every row are the same. The only statements that differ in the
- * winner's transaction are its debit's; its read-back is not the cause (put
- * back, the cancel stays at the write). Base's transactions in order: two
- * reservations, the winner's settlement, the loser's two attempts.
+ * Where PostgreSQL cancels the loser's first attempt is its own choice, the
+ * same on `origin/main` and here: at its turn update ("identification as a
+ * pivot, during write") or, one statement later, at its bucket read
+ * ("conflict out to pivot, during read"). Measured on both codes with the
+ * same statements: on a fresh database the read, on one that earlier runs
+ * have filled the write; it follows the database's state, not the code. So this
+ * attempt is compared up to its turn update and its ROLLBACK, on both sides;
+ * the retry, the answer and every row are compared whole. The transactions
+ * in order: two reservations, the winner's settlement, the loser's two
+ * attempts.
  */
-function withTheLosersFirstAttemptCanceledAtItsWrite(
+function withoutTheLosersCancelPoint(
   transactions: Statement[][],
 ): Statement[][] {
   const [first, second, winner, attempt, retry, ...more] = transactions;
   if (!first || !second || !winner || !attempt || !retry || more.length > 0)
     throw new Error("The race is not two reservations and three settlements");
-  const at = attempt.length - 2;
+  const cancelled = BUCKET_READ.test(attempt.at(-2)?.sql ?? "")
+    ? [...attempt.slice(0, -2), ...attempt.slice(-1)]
+    : attempt;
   expect([
-    BUCKET_READ.test(attempt[at]?.sql ?? ""),
-    attempt.at(-1)?.sql,
+    TURN_CLAIM.test(cancelled.at(-2)?.sql ?? ""),
+    cancelled.at(-1)?.sql,
   ]).toEqual([true, "ROLLBACK"]);
-  return [
-    first,
-    second,
-    winner,
-    [...attempt.slice(0, at), ...attempt.slice(at + 1)],
-    retry,
-  ];
+  return [first, second, winner, cancelled, retry];
 }
 
 describe.skipIf(!enabled)(
@@ -614,7 +627,7 @@ describe.skipIf(!enabled)(
         expectAsOnBase(
           "a person, two replies race, the first reserved settles first",
           await race("first wins", 0),
-          withTheLosersFirstAttemptCanceledAtItsWrite,
+          withoutTheLosersCancelPoint,
         );
       },
       CASE_TIMEOUT,
@@ -626,7 +639,7 @@ describe.skipIf(!enabled)(
         expectAsOnBase(
           "a person, two replies race, the second reserved settles first",
           await race("second wins", 1),
-          withTheLosersFirstAttemptCanceledAtItsWrite,
+          withoutTheLosersCancelPoint,
         );
       },
       CASE_TIMEOUT,
