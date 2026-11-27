@@ -2675,6 +2675,22 @@ describe("one catalog, not two", () => {
     });
   });
 
+  it("closing New folder returns focus to the empty state's New folder", async () => {
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams("view=workspace");
+    listDriveItemsMock.mockResolvedValue([]);
+
+    renderDrive();
+    const opener = within(
+      await screen.findByTestId("drive-all-files-empty"),
+    ).getByRole("button", { name: "emptyNewFolder" });
+    await user.click(opener);
+    await screen.findByRole("dialog", { name: "createFolderDialogTitle" });
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(document.activeElement).toBe(opener));
+  });
+
   it("follows a folder the reader navigated to rather than applied", async () => {
     /**
      * Back, Forward, or a link pasted into an open tab. The catalog follows the

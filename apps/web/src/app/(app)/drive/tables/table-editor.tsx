@@ -373,6 +373,10 @@ function TableWorkspace({
   const [findReplace, setFindReplace] = useState(false);
   const [appendCsv, setAppendCsv] = useState(false);
   const tableMenu = useRef<HTMLButtonElement>(null);
+  // The notice's Restore table, which opened the dialog without a Radix
+  // trigger. Focus returns to it, or to Table options once the restore
+  // removes the notice.
+  const restoreOpener = useRef<HTMLButtonElement | null>(null);
   const [dialog, setDialog] = useState<
     "views" | "history" | "enrich" | "rename" | "archive" | null
   >(null);
@@ -897,7 +901,8 @@ function TableWorkspace({
             type="button"
             size="sm"
             className="min-h-11 gap-1.5 md:min-h-8"
-            onClick={() => {
+            onClick={(event) => {
+              restoreOpener.current = event.currentTarget;
               setArchiving(false);
               setDialog("archive");
             }}
@@ -1506,7 +1511,13 @@ function TableWorkspace({
         ) : (
           !displayedRows.length && (
             <p className="text-muted-foreground p-8 text-center text-sm">
-              {t(table.archivedAt ? "noRowsArchived" : "noRows")}
+              {/* A filter or archived-rows mode can hide rows; then the
+                  filter hint still applies. */}
+              {t(
+                table.archivedAt && !definition.filters?.length && !archivedRows
+                  ? "noRowsArchived"
+                  : "noRows",
+              )}
             </p>
           )
         )}
@@ -1587,7 +1598,16 @@ function TableWorkspace({
           if (!open) setDialog(null);
         }}
       >
-        <DialogContent className="app-scrollbar max-h-[85dvh] overflow-y-auto sm:max-w-xl">
+        <DialogContent
+          className="app-scrollbar max-h-[85dvh] overflow-y-auto sm:max-w-xl"
+          onCloseAutoFocus={(event) => {
+            const opener = restoreOpener.current;
+            if (!opener) return;
+            restoreOpener.current = null;
+            event.preventDefault();
+            (opener.isConnected ? opener : tableMenu.current)?.focus();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>
               {dialogKind === "views"

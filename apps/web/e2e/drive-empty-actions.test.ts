@@ -73,8 +73,15 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await page.goto(`${BASE_URL}/drive?view=workspace`);
       const main = page.getByRole("main");
       await main.getByText("Your files will appear here").waitFor();
-      const upload = main.getByRole("button", { name: "Upload", exact: true });
-      const newFolder = main.getByRole("button", { name: "New folder" });
+      // The header has its own Upload; these are the empty state's.
+      const emptyActions = main.getByTestId("drive-empty-actions");
+      const upload = emptyActions.getByRole("button", {
+        name: "Upload",
+        exact: true,
+      });
+      const newFolder = emptyActions.getByRole("button", {
+        name: "New folder",
+      });
       await upload.waitFor();
       await newFolder.waitFor();
       for (const button of [upload, newFolder]) {
@@ -96,11 +103,18 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await create.waitFor({ state: "hidden" });
       await page.waitForURL(/folder=E2E/);
       await main.getByText("Nothing in this folder yet").waitFor();
+      // Focus is back on a control, not lost on the page.
+      assert.notEqual(
+        await page.evaluate(() => document.activeElement?.tagName),
+        "BODY",
+      );
       await shot(page, size, "2-folder");
 
       // Upload from the empty folder puts the file in that folder.
       const chooser = page.waitForEvent("filechooser");
-      await main.getByRole("button", { name: "Upload", exact: true }).click();
+      await emptyActions
+        .getByRole("button", { name: "Upload", exact: true })
+        .click();
       await (await chooser).setFiles({
         name: "e2e-note.txt",
         mimeType: "text/plain",
@@ -144,6 +158,13 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       assert.ok(
         await main.getByRole("button", { name: "Add row" }).isEnabled(),
         "the restored table is editable",
+      );
+      // The notice is gone, so focus lands on Table options.
+      assert.equal(
+        await page.evaluate(() =>
+          document.activeElement?.getAttribute("aria-label"),
+        ),
+        "Table options",
       );
       await shot(page, size, "4-restored");
 

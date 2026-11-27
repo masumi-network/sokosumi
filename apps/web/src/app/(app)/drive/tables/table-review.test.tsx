@@ -1474,3 +1474,60 @@ it("an archived table restores from its banner and says how to add rows", async 
     archived: false,
   });
 });
+
+it("an archived table's filtered empty grid keeps the filter hint", () => {
+  f.tableArchived = new Date();
+  f.shown = [];
+  f.views = [
+    {
+      id: "00000000-0000-4000-8000-000000000007",
+      tableId: f.column.tableId,
+      name: "Filtered",
+      version: 1,
+      definition: {
+        filters: [
+          { columnId: f.column.id, operator: "contains", value: "zzz" },
+        ],
+        sort: null,
+        visibleColumnIds: [],
+      },
+    },
+  ] as TableView[];
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.change(screen.getByLabelText("view"), {
+    target: { value: f.views[0].id },
+  });
+
+  expect(screen.getByText("noRows")).toBeTruthy();
+  expect(screen.queryByText("noRowsArchived")).toBeNull();
+});
+
+it("closing the restore dialog returns focus to the notice's Restore", async () => {
+  f.tableArchived = new Date();
+  render(<TableEditor id={f.column.tableId} />);
+  const opener = screen.getByRole("button", { name: "restore" });
+  opener.focus();
+  fireEvent.click(opener);
+  await screen.findByRole("dialog", { name: "restore" });
+  fireEvent.keyDown(document.activeElement ?? document.body, {
+    key: "Escape",
+  });
+  await waitFor(() => expect(document.activeElement).toBe(opener));
+});
+
+it("a restore from the notice leaves focus on Table options", async () => {
+  f.tableArchived = new Date();
+  f.update.mockResolvedValue({});
+  const view = render(<TableEditor id={f.column.tableId} />);
+  fireEvent.click(screen.getByRole("button", { name: "restore" }));
+  const dialog = await screen.findByRole("dialog", { name: "restore" });
+  f.tableArchived = null;
+  fireEvent.click(within(dialog).getByRole("button", { name: "restore" }));
+  await waitFor(() => expect(f.update).toHaveBeenCalledOnce());
+  view.rerender(<TableEditor id={f.column.tableId} />);
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "tableMenu" }),
+    ),
+  );
+});

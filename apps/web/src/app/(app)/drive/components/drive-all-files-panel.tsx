@@ -1057,7 +1057,10 @@ export function DriveAllFilesPanel({
               {t("filterClear")}
             </Button>
           ) : appliedQuery || !emptyActions ? null : (
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <div
+              className="mt-4 flex flex-wrap justify-center gap-2"
+              data-testid="drive-empty-actions"
+            >
               {emptyActions}
             </div>
           )}
