@@ -47,7 +47,7 @@ function same(left: string | null | undefined, right: string): boolean {
   return (left ?? "").trim().toLowerCase() === right.trim().toLowerCase();
 }
 
-function describe(recipient: SokoBotRecipient): string {
+export function describeRecipient(recipient: SokoBotRecipient): string {
   switch (recipient.kind) {
     case "room":
       return `#${recipient.name} (room)`;
@@ -174,7 +174,7 @@ export async function listRecipients(
           : recipient.kind === "person"
             ? recipient.email
             : recipient.name,
-      who: describe(recipient),
+      who: describeRecipient(recipient),
       ...(recipient.kind === "coworker"
         ? { handle: `@${recipient.slug}` }
         : {}),
@@ -244,12 +244,12 @@ export async function resolveRecipient(
   if (matches.length === 1) return matches[0]!;
   if (matches.length > 1)
     throw new SokoBotRuntimeValidationError(
-      `"${to}" could be ${matches.map(describe).join(", or ")}. Use the exact name, or ask the person you work for which one.`,
+      `"${to}" could be ${matches.map(describeRecipient).join(", or ")}. Use the exact name, or ask the person you work for which one.`,
     );
   const everyone = await directory(runtime, authorized);
   throw new SokoBotRuntimeValidationError(
     `Nobody here is called "${to}". You can message: ${
-      everyone.slice(0, 30).map(describe).join("; ") || "nobody yet"
+      everyone.slice(0, 30).map(describeRecipient).join("; ") || "nobody yet"
     }.`,
   );
 }
@@ -385,7 +385,7 @@ async function postToRecipient(
 ): Promise<{ roomId: string; messageId: string }> {
   const via = (result: Record<string, unknown>) => ({
     capability: "send_message" as const,
-    result: { to: describe(recipient), ...result },
+    result: { to: describeRecipient(recipient), ...result },
   });
   switch (recipient.kind) {
     case "room":
@@ -545,7 +545,7 @@ export async function sendMessage(
     );
   if (sent.toThem >= MAX_MESSAGES_PER_RECIPIENT)
     throw new SokoBotRuntimeValidationError(
-      `You have sent ${describe(recipient)} ${sent.toThem} messages in this conversation. Stop and report what you have and what is still open.`,
+      `You have sent ${describeRecipient(recipient)} ${sent.toThem} messages in this conversation. Stop and report what you have and what is still open.`,
     );
   const toThem = sent.toThem + 1;
   const { message, handoff } = await composeHandoff(authorized, input);
@@ -565,7 +565,7 @@ export async function sendMessage(
   await deliverNow(authorized.turn.id, input.toolCallId).catch(() => undefined);
   const result = {
     ...posted,
-    to: describe(recipient),
+    to: describeRecipient(recipient),
     messagesToThem: toThem,
     ...(toThem >= MAX_MESSAGES_PER_RECIPIENT
       ? {

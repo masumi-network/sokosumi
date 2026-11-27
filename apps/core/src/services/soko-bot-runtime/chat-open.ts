@@ -21,6 +21,7 @@ import {
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
 import { actingMemberOf } from "./acting-scope";
+import { describeRecipient, resolveRecipient } from "./chat-message";
 import {
   MAX_COWORKER_QUESTIONS_PER_TURN,
   MAX_DIRECTS_OPENED_PER_TURN,
@@ -105,8 +106,16 @@ export async function openDirectChat(
     take: 5,
   });
   if (members.length === 0) {
+    // A Coworker or an assistant is reached with send_message, not a direct.
+    const other = await resolveRecipient(
+      runtime,
+      authorized,
+      input.person,
+    ).catch(() => null);
     throw new SokoBotRuntimeAuthorizationError(
-      `No member of this organization matches "${needle}". Ask the owner who they mean.`,
+      other && other.kind !== "person"
+        ? `"${needle}" is ${describeRecipient(other)}, not a person in this organization: write to them with send_message, to "${input.person}".`
+        : `No member of this organization matches "${needle}". Ask the owner who they mean.`,
     );
   }
   if (members.length > 1) {

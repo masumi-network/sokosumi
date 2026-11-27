@@ -21,6 +21,7 @@ import { dispatchFilesTools } from "./dispatch-files";
 
 const {
   botFindFirstMock,
+  botFindManyMock,
   botFindUniqueMock,
   brandBrainFindUniqueMock,
   marketingStrategyFindFirstMock,
@@ -132,6 +133,7 @@ const {
   runtimeEventCreateMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
+  botFindManyMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
   brandBrainFindUniqueMock: vi.fn(),
   marketingStrategyFindFirstMock: vi.fn(),
@@ -580,6 +582,7 @@ vi.mock("@/lib/db/prisma", () => ({
     brandBrain: { findUnique: brandBrainFindUniqueMock },
     sokoBot: {
       findFirst: botFindFirstMock,
+      findMany: botFindManyMock,
       findUnique: botFindUniqueMock,
       updateMany: botUpdateManyMock,
     },
@@ -9692,6 +9695,33 @@ describe("open_direct_chat", () => {
     expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
   });
 
+  it("points a Coworker's name to send_message", async () => {
+    const authorized = arm();
+    memberFindManyMock.mockResolvedValue([]);
+    chatRoomFindManyMock.mockResolvedValue([]);
+    const service = new SokoBotRuntimeService();
+    const finders = service as unknown as Record<
+      "findCoworkers" | "findTeammates",
+      () => Promise<unknown[]>
+    >;
+    vi.spyOn(finders, "findCoworkers").mockResolvedValue([
+      { id: "cow_elena", name: "Elena", slug: "elena", capabilities: ["chat"] },
+    ]);
+    vi.spyOn(finders, "findTeammates").mockResolvedValue([]);
+    botFindManyMock.mockResolvedValue([]);
+
+    await expect(
+      service["openDirectChat"](authorized, {
+        person: "Elena",
+        message: "Hi, I am Ana.",
+        toolCallId: "call_1",
+      }),
+    ).rejects.toThrow(
+      '"Elena" is Elena (Coworker), not a person in this organization: write to them with send_message, to "Elena".',
+    );
+    expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+  });
+
   it("refuses when the workspace has no organization", async () => {
     const authorized = arm();
     workspaceFindUniqueMock.mockResolvedValue({ organizationId: null });
@@ -14349,6 +14379,46 @@ describe("Drive file tools", () => {
           attachmentUrl: "https://evil.example/users/u/chats/r/x.png",
         }),
       ).rejects.toThrow("not a file attached in a Sokosumi chat");
+      expect(files.put).not.toHaveBeenCalled();
+    });
+
+    it("names the fileId of a link to a file already in Files", async () => {
+      workspaceFindUniqueMock.mockResolvedValue({
+        id: SCOPE.workspaceId,
+        organizationId: null,
+      });
+      const pathname = `drive/users/${SCOPE.userId}/plan.pdf`;
+      files.resourceFindFirst.mockResolvedValueOnce({
+        id: "file-9",
+        sourceId: pathname,
+        displayName: "plan.pdf",
+      });
+      await expect(
+        service["uploadFile"](chatAuthorized as never, {
+          filename: "plan.pdf",
+          attachmentUrl: `https://abc.private.blob.vercel-storage.com/${pathname}`,
+        }),
+      ).rejects.toThrow(/already in your owner's Files .*fileId file-9/);
+      expect(files.resourceFindFirst).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            sourceId: pathname,
+            workspaceId: SCOPE.workspaceId,
+            ownerUserId: SCOPE.userId,
+          }),
+        }),
+      );
+      expect(files.put).not.toHaveBeenCalled();
+    });
+
+    it("says a Task's file stays with its Task", async () => {
+      await expect(
+        service["uploadFile"](chatAuthorized as never, {
+          filename: "report.pdf",
+          attachmentUrl:
+            "https://abc.public.blob.vercel-storage.com/tasks/t-1/report.pdf",
+        }),
+      ).rejects.toThrow(/files from Tasks stay with their Task/);
       expect(files.put).not.toHaveBeenCalled();
     });
 

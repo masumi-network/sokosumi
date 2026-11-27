@@ -89,10 +89,24 @@ export async function ownerDriveFile(
   authorized: AuthorizedSokoBotRuntime,
   fileId: string,
 ) {
+  const found = await findOwnerDriveFile(runtime, authorized, { id: fileId });
+  if (!found.resource)
+    throw new SokoBotRefusedUnsentError(
+      "No file with that id in your owner's Files; files from Tasks stay with their Task",
+    );
+  return { drive: found.drive, resource: found.resource };
+}
+
+/** A file in the owner's Files by id or by its blob pathname, or null. */
+export async function findOwnerDriveFile(
+  runtime: RuntimeOperations,
+  authorized: AuthorizedSokoBotRuntime,
+  by: { id: string } | { sourceId: string },
+) {
   const drive = await runtime.ownerDrive(authorized);
   const resource = await prisma.fileResource.findFirst({
     where: {
-      id: fileId,
+      ...by,
       workspaceId: drive.key.workspaceId,
       sourceKind: FileSourceKind.DRIVE_UPLOAD,
       sourceScope:
@@ -112,8 +126,6 @@ export async function ownerDriveFile(
     (drive.key.scope === "organization" &&
       (await isInDataRoom(resource.sourceId)))
   )
-    throw new SokoBotRefusedUnsentError(
-      "No file with that id in your owner's Files; files from Tasks stay with their Task",
-    );
+    return { drive, resource: null };
   return { drive, resource };
 }

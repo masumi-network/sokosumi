@@ -31,6 +31,7 @@ import {
 } from "../soko-bot-runtime.service";
 import { unsafeSvgReason } from "../soko-bot-svg";
 import { driveFolderFor } from "./acting-scope";
+import { findOwnerDriveFile } from "./drive-access";
 import {
   dataRoomRefusal,
   isTextMimeType,
@@ -242,6 +243,43 @@ export async function deleteFile(
 }
 
 /**
+ * What to do with a link upload_file cannot copy: bots pass links of files
+ * already in Files and of Task files.
+ */
+async function notAttachmentHint(
+  runtime: RuntimeOperations,
+  authorized: AuthorizedSokoBotRuntime,
+  url: string,
+): Promise<string> {
+  const pathname = blobPathname(url);
+  if (pathname === null)
+    return "attachmentUrl takes the https link of a file someone posted in a chat; give text you wrote as content.";
+  if (pathname.startsWith("drive/")) {
+    const { resource } = await findOwnerDriveFile(runtime, authorized, {
+      sourceId: pathname,
+    });
+    return resource
+      ? `It is already in your owner's Files as "${resource.displayName}", fileId ${resource.id}: use that id (move_file puts it in another folder).`
+      : "It is not in your owner's Files either; find their files with list_files.";
+  }
+  if (pathname.startsWith("tasks/"))
+    return "It is a Task's file, and files from Tasks stay with their Task: point your owner to the Task instead.";
+  return "Only a file posted in a chat you and your owner are in can be saved.";
+}
+
+function blobPathname(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" &&
+      parsed.hostname.endsWith(".blob.vercel-storage.com")
+      ? decodeURIComponent(parsed.pathname.replace(/^\/+/, ""))
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Copy a file someone attached in chat into the owner's Drive. Chat
  * attachments live under the sender's chat prefix, out of reach of
  * list_files and the Social tools, so "post these screenshots" had no way
@@ -261,7 +299,7 @@ export async function saveChatAttachment(
   const file = parseChatRoomFileUrl(input.url);
   if (!file)
     throw new SokoBotRefusedUnsentError(
-      "That link is not a file attached in a Sokosumi chat",
+      `That link is not a file attached in a Sokosumi chat. ${await notAttachmentHint(runtime, authorized, input.url)}`,
     );
   const room = await runtime.requireChatMembership(authorized, file.roomId);
   const posted = await prisma.chatRoomMessage.findFirst({
