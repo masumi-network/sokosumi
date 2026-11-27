@@ -7,6 +7,7 @@ import { err } from "neverthrow";
 import { afterAll, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { createAgentJobForUser } from "@/helpers/job";
+import { PREPROD_PAUSE_KEY } from "@/helpers/preprod-control";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import * as transactions from "@/lib/db/transaction";
@@ -170,6 +171,23 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
           acceptedAt: new Date().toISOString(),
         });
       onTestFinished(() => session.mockRestore());
+      if (network === "preprod") {
+        // A Preprod turn starts only while Preprod is open (ticket 24).
+        await prisma.syncMetadata.upsert({
+          where: { key: PREPROD_PAUSE_KEY },
+          create: {
+            key: PREPROD_PAUSE_KEY,
+            cursorId: "open",
+            lastSyncedAt: new Date(),
+          },
+          update: { cursorId: "open" },
+        });
+        onTestFinished(async () => {
+          await prisma.syncMetadata.deleteMany({
+            where: { key: PREPROD_PAUSE_KEY },
+          });
+        });
+      }
       const started = await sokoBotControlPlane.startTurn({
         network,
         userId,
