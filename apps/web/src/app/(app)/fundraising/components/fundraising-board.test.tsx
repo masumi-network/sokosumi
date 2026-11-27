@@ -1,5 +1,6 @@
 import type {
   ContactSuggestion,
+  FundraisingPipeline,
   FundraisingProspect,
 } from "@sokosumi/core-client";
 import { render, screen, waitFor, within } from "@testing-library/react";
@@ -23,6 +24,8 @@ const service = vi.hoisted(() => {
     suggestions: vi.fn(async () => [] as ContactSuggestion[]),
     paths: never,
     updateProspect: vi.fn(),
+    dismissSuggestions: vi.fn(async () => undefined),
+    find: vi.fn(),
   };
 });
 
@@ -38,12 +41,15 @@ vi.mock("@/lib/auth/auth.client", () => ({
   }),
 }));
 
-function renderBoard(prospect: FundraisingProspect = testProspect()) {
+function renderBoard(
+  prospect: FundraisingProspect = testProspect(),
+  pipeline: Partial<FundraisingPipeline> = {},
+) {
   render(
     <TestQueryProvider>
       <NextIntlClientProvider locale="en" messages={en}>
         <FundraisingBoard
-          initialData={testPipeline({ prospects: [prospect] })}
+          initialData={testPipeline({ prospects: [prospect], ...pipeline })}
         />
       </NextIntlClientProvider>
     </TestQueryProvider>,
@@ -151,5 +157,46 @@ describe("FundraisingBoard", () => {
     );
 
     expect(screen.getByText("No reply · 30d")).toBeTruthy();
+  });
+
+  it("moves focus to Find investors when the last suggestion goes, and keeps a new batch folded", async () => {
+    service.suggestions
+      .mockResolvedValueOnce([testSuggestion()])
+      .mockResolvedValueOnce([
+        testSuggestion({ id: "suggestion-2", name: "Rae Suggested" }),
+      ]);
+    service.find.mockResolvedValueOnce({
+      found: 1,
+      costUsd: 0.5,
+      research: testPipeline().research,
+    });
+    const user = renderBoard();
+    await user.click(await screen.findByRole("button", { name: "Review" }));
+
+    screen.getByRole("button", { name: "Dismiss" }).focus();
+    await user.keyboard("{Enter}");
+
+    const find = screen.getByRole("button", { name: "Find investors" });
+    await waitFor(() => expect(document.activeElement).toBe(find));
+    expect(screen.queryByRole("button", { name: "Review" })).toBeNull();
+
+    await user.click(find);
+    await user.type(
+      await screen.findByLabelText("Who are you looking for?"),
+      "Seed investors in agent tooling",
+    );
+    await user.click(screen.getByRole("button", { name: /Search for/ }));
+
+    const review = await screen.findByRole("button", { name: "Review" });
+    expect(review.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("Rae Suggested")).toBeNull();
+  });
+
+  it("says why search is off at every width", () => {
+    renderBoard(testProspect(), {
+      research: { ...testPipeline().research, exaConfigured: false },
+    });
+
+    expect(screen.getByText("Search is off")).toBeTruthy();
   });
 });

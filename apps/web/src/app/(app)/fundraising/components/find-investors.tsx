@@ -7,7 +7,7 @@ import type {
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronRight, ExternalLink, UserSearch } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { type FormEvent, useId, useState } from "react";
+import { type FormEvent, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ContactAvatar } from "@/app/contacts/components/contact-visuals";
 import { coreErrorOf } from "@/app/contacts/contacts-view";
@@ -64,6 +64,10 @@ export function FindInvestors({ pipeline }: { pipeline: FundraisingPipeline }) {
     pipeline.research,
   );
   const rows = suggestions.data ?? [];
+  // An emptied list closes Review, so the next batch arrives folded too.
+  if (reviewing && rows.length === 0) setReviewing(false);
+  const section = useRef<HTMLElement>(null);
+  const findButton = useRef<HTMLButtonElement>(null);
   const key = [organizationId, ...SUGGESTIONS_KEY] as const;
 
   async function decide(action: "add" | "dismiss", ids: string[]) {
@@ -73,6 +77,12 @@ export function FindInvestors({ pipeline }: { pipeline: FundraisingPipeline }) {
         current?.filter((row) => !ids.includes(row.id)),
       );
     void cache.cancelQueries({ queryKey: key });
+    // The last decision removes Review and the panel; focus goes to the control that stays.
+    if (
+      rows.every((row) => ids.includes(row.id)) &&
+      section.current?.contains(document.activeElement)
+    )
+      (findButton.current?.disabled ? section : findButton).current?.focus();
     hide();
     try {
       if (action === "add") {
@@ -98,8 +108,10 @@ export function FindInvestors({ pipeline }: { pipeline: FundraisingPipeline }) {
 
   return (
     <section
+      ref={section}
+      tabIndex={-1}
       aria-label={t("title")}
-      className="border-border-tertiary rounded-xl border"
+      className="border-border-tertiary rounded-xl border outline-hidden"
       data-testid="find-investors"
     >
       {/* One line at every width, so suggestions that load late never push the pipeline down. */}
@@ -130,11 +142,19 @@ export function FindInvestors({ pipeline }: { pipeline: FundraisingPipeline }) {
             />
           </Button>
         ) : (
-          <p className="text-muted-foreground hidden min-w-0 truncate text-sm sm:block">
-            {research.exaConfigured ? t("hint") : t("hintNoExa")}
-          </p>
+          <>
+            <p className="text-muted-foreground hidden min-w-0 truncate text-sm sm:block">
+              {research.exaConfigured ? t("hint") : t("hintNoExa")}
+            </p>
+            {research.exaConfigured ? null : (
+              <p className="text-muted-foreground min-w-0 truncate text-sm sm:hidden">
+                {t("hintNoExaShort")}
+              </p>
+            )}
+          </>
         )}
         <Button
+          ref={findButton}
           size="sm"
           variant="outline"
           className="ms-auto shrink-0"
