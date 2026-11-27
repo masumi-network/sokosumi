@@ -99,7 +99,11 @@ app.post("/turns/:turnId/tools/:capability", async (c) => {
     });
     return c.json({ result: result ?? null });
   } catch (error) {
-    throw toSandboxToolHttpException(error, c.req.param("capability"));
+    throw toSandboxToolHttpException(
+      error,
+      c.req.param("capability"),
+      call.input,
+    );
   }
 });
 

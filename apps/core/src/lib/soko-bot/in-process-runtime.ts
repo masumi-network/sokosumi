@@ -193,7 +193,7 @@ async function runTurn(
             });
           } catch (error) {
             if (turn.typedToolErrors) {
-              throw toTypedToolError(error, capability);
+              throw toTypedToolError(error, capability, toolInput);
             }
             throw error;
           }

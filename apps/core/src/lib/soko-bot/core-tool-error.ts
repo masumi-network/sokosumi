@@ -6,7 +6,7 @@ import {
   type HTTPExceptionMetadata,
   unprocessableEntity,
 } from "@/helpers/error";
-import { ACTION_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
+import { isMutatingOrPaidToolCall } from "@/lib/soko-bot/tool-effects";
 import {
   classifyCoreToolError,
   isUncertainToolOutcome,
@@ -14,7 +14,6 @@ import {
   type TypedToolErrorPayload,
 } from "@/lib/soko-bot/tool-errors";
 import {
-  RECORDED_SAVES,
   SokoBotTaintedActionError,
   SokoBotToolNotOpenError,
   SokoBotToolTimeoutError,
@@ -29,10 +28,6 @@ import {
 } from "@/services/soko-bot-runtime.service";
 
 const MAX_CAUSE_DEPTH = 6;
-
-export function isMutatingSokoBotCapability(capability: string): boolean {
-  return ACTION_CAPABILITIES.has(capability) || capability in RECORDED_SAVES;
-}
 
 function httpExceptionMetadata(
   error: HTTPException,
@@ -103,6 +98,7 @@ function semanticErrorName(chain: readonly unknown[]): string | undefined {
 export function classifyThrownToolError(
   error: unknown,
   capability: string,
+  toolInput?: unknown,
 ): TypedToolErrorPayload {
   if (error instanceof TypedToolError) return error.payload;
   const chain = causeChain(error);
@@ -113,7 +109,8 @@ export function classifyThrownToolError(
     (node) => node instanceof SokoBotRefusedUnsentError,
   );
   const uncertain = isUncertainToolOutcome(error);
-  const mutating = isMutatingSokoBotCapability(capability) && !refusedUnsent;
+  const mutating =
+    isMutatingOrPaidToolCall(capability, toolInput) && !refusedUnsent;
   return classifyCoreToolError({
     message: messageOf(error),
     status: http?.status,
@@ -128,11 +125,15 @@ export function classifyThrownToolError(
 export function toTypedToolError(
   error: unknown,
   capability: string,
+  toolInput?: unknown,
 ): TypedToolError {
   if (error instanceof TypedToolError) return error;
-  return new TypedToolError(classifyThrownToolError(error, capability), {
-    cause: error,
-  });
+  return new TypedToolError(
+    classifyThrownToolError(error, capability, toolInput),
+    {
+      cause: error,
+    },
+  );
 }
 
 /**
@@ -143,12 +144,13 @@ export function toTypedToolError(
 export function toSandboxToolHttpException(
   error: unknown,
   capability: string,
+  toolInput?: unknown,
 ): HTTPException {
   if (error instanceof HTTPException) {
     const kind = httpExceptionKind(error);
     if (kind === CORE_API_ERROR_KINDS.SOKO_BOT_TURN_INACTIVE) return error;
     const metadata = httpExceptionMetadata(error);
-    const toolError = classifyThrownToolError(error, capability);
+    const toolError = classifyThrownToolError(error, capability, toolInput);
     const nextMetadata: HTTPExceptionMetadata = {
       ...metadata,
       extensions: {
@@ -161,7 +163,7 @@ export function toSandboxToolHttpException(
       cause: nextMetadata,
     });
   }
-  const toolError = classifyThrownToolError(error, capability);
+  const toolError = classifyThrownToolError(error, capability, toolInput);
   // A refused or failed tool is the model's to read, not a transport error.
   return unprocessableEntity(toolError.message, {
     ...(toolError.coreKind ? { kind: toolError.coreKind } : {}),

@@ -100,19 +100,46 @@ describe("classifyThrownToolError", () => {
     expect(payload.message).toContain("title");
   });
 
-  it("classifies timeouts as uncertain for mutating tools and transient for read tools", () => {
-    const onWrite = classifyThrownToolError(
-      new SokoBotToolTimeoutError("create_social_post timed out after 90000ms"),
-      "create_social_post",
-    );
-    const onRead = classifyThrownToolError(
-      new SokoBotToolTimeoutError("list_tasks timed out after 90000ms"),
-      "list_tasks",
-    );
-    expect(onWrite.kind).toBe("uncertain");
-    expect(onWrite.retryable).toBe(false);
-    expect(onRead.kind).toBe("transient");
-    expect(onRead.retryable).toBe(true);
+  it("classifies timeouts and lost responses as uncertain for paid or mutating calls and transient for read-only controls", () => {
+    const contactId = "0196a001-0001-7001-8001-000000000011";
+    const taskId = "0196a001-0001-7001-8001-000000000022";
+    const timeout = new SokoBotToolTimeoutError("tool timed out after 90000ms");
+    const gatewayError = badGateway("Upstream disconnected");
+
+    const paidOrMutating: readonly [string, unknown][] = [
+      ["investor_warm_paths", { contactId, research: true }],
+      ["investor_warm_paths", undefined],
+      ["find_investors", { query: "seed fintech" }],
+      ["find_people", { query: "VP Engineering" }],
+      ["generate_image", { prompt: "banner" }],
+      ["generate_video", { prompt: "demo" }],
+      ["hire_agent", { agentId: "agent_1" }],
+      ["create_ad_campaign", { name: "Launch" }],
+      ["search_exa", { query: "pricing" }],
+      ["research_keywords", { topic: "crm" }],
+      ["request_seo_analysis", { kind: "audit_full" }],
+      ["create_social_post", { text: "launch" }],
+    ];
+
+    for (const error of [timeout, gatewayError]) {
+      for (const [capability, input] of paidOrMutating) {
+        const payload = classifyThrownToolError(error, capability, input);
+        expect(payload.kind, `${capability} (${error.name})`).toBe("uncertain");
+        expect(payload.retryable, `${capability} (${error.name})`).toBe(false);
+        expect(payload.hint).toMatch(/read back/i);
+      }
+
+      for (const [capability, input] of [
+        ["get_task_status", { taskId }],
+        ["list_tasks", {}],
+        ["investor_warm_paths", { contactId, research: false }],
+        ["investor_warm_paths", { contactId }],
+      ] as const) {
+        const payload = classifyThrownToolError(error, capability, input);
+        expect(payload.kind, `${capability} (${error.name})`).toBe("transient");
+        expect(payload.retryable, `${capability} (${error.name})`).toBe(true);
+      }
+    }
   });
 
   it("keeps explicitly marked uncertain outcomes uncertain even for 502 errors", () => {
@@ -170,5 +197,31 @@ describe("toSandboxToolHttpException", () => {
       coreKind: "image_studio_project_busy",
       retryable: true,
     });
+  });
+
+  it("uses tool input when classifying sandbox HTTP timeouts on investor_warm_paths", () => {
+    const contactId = "0196a001-0001-7001-8001-000000000011";
+    const timeout = new SokoBotToolTimeoutError(
+      "investor_warm_paths timed out after 90000ms",
+    );
+    const paidHttp = toSandboxToolHttpException(
+      timeout,
+      "investor_warm_paths",
+      { contactId, research: true },
+    );
+    const readHttp = toSandboxToolHttpException(
+      timeout,
+      "investor_warm_paths",
+      { contactId, research: false },
+    );
+
+    expect(
+      (paidHttp.cause as { extensions?: { toolError?: unknown } }).extensions
+        ?.toolError,
+    ).toMatchObject({ kind: "uncertain", retryable: false });
+    expect(
+      (readHttp.cause as { extensions?: { toolError?: unknown } }).extensions
+        ?.toolError,
+    ).toMatchObject({ kind: "transient", retryable: true });
   });
 });

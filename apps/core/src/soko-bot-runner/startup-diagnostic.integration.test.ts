@@ -1,7 +1,8 @@
 import { spawn } from "node:child_process";
+import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
-import { serve } from "@hono/node-server";
+import { getRequestListener } from "@hono/node-server";
 import { SOKO_BOT_TURN_TOKEN_HEADER } from "@sokosumi/soko-bot";
 import { Hono } from "hono";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -66,28 +67,41 @@ afterEach(() => {
  * Core's runtime routes behind a stand-in for the sandbox network proxy,
  * which adds the turn's token to requests for this turn's endpoints.
  */
-async function coreBehindSandboxProxy(): Promise<string> {
+async function coreBehindSandboxProxy(options?: {
+  dropToolRequests?: boolean;
+}): Promise<string> {
   const token = issueTurnToken({
     turnId: TURN_ID,
     sessionId: "0196a001-0001-7001-8001-0000000000a1",
     expiresAt: Date.now() + 60_000,
   });
-  const server = serve({
-    port: 0,
-    hostname: "127.0.0.1",
-    fetch: (request) => {
-      const url = new URL(request.url);
+  const listener = getRequestListener((request) => {
+    const url = new URL(request.url);
+    requests.push({
+      path: url.pathname.slice(PREFIX.length),
+      at: Date.now(),
+    });
+    const headers = new Headers(request.headers);
+    if (url.pathname.startsWith(PREFIX))
+      headers.set(SOKO_BOT_TURN_TOKEN_HEADER, token);
+    return core.fetch(new Request(request, { headers }));
+  });
+  const server = createServer((req, res) => {
+    if (options?.dropToolRequests && req.url?.includes("/tools/")) {
       requests.push({
-        path: url.pathname.slice(PREFIX.length),
+        path: new URL(req.url, "http://127.0.0.1").pathname.slice(
+          PREFIX.length,
+        ),
         at: Date.now(),
       });
-      const headers = new Headers(request.headers);
-      if (url.pathname.startsWith(PREFIX))
-        headers.set(SOKO_BOT_TURN_TOKEN_HEADER, token);
-      return core.fetch(new Request(request, { headers }));
-    },
+      req.socket.destroy();
+      return;
+    }
+    return listener(req, res);
   });
-  await new Promise<void>((resolve) => server.once("listening", resolve));
+  await new Promise<void>((resolve) =>
+    server.listen(0, "127.0.0.1", () => resolve()),
+  );
   closers.push(() => server.close());
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 }
@@ -188,5 +202,134 @@ it("completes a turn when older Core sends only an absolute deadline", async () 
   expect(service.completeSandboxTurn).toHaveBeenCalledExactlyOnceWith(
     expect.objectContaining({ turnId: TURN_ID }),
     { text: "Hello there.", finishReason: "stop" },
+  );
+}, 30_000);
+
+it("classifies dropped tool responses as uncertain for paid calls and transient for a read-only control", async () => {
+  const contactId = "0196a001-0001-7001-8001-000000000011";
+  const listId = "0196a001-0001-7001-8001-000000000012";
+  const taskId = "0196a001-0001-7001-8001-000000000022";
+  const gatewayBodies: string[] = [];
+
+  service.startSandboxTurn.mockResolvedValueOnce({
+    message: "Research investors and check task status",
+    system: "Use the tools and follow recovery notes.",
+    model: "google/gemini-3.6-flash",
+    capabilities: [
+      "find_investors",
+      "find_people",
+      "investor_warm_paths",
+      "get_task_status",
+    ],
+    deadlineAt: new Date(Date.now() + 60_000).toISOString(),
+    maxSteps: 4,
+    typedToolErrors: true,
+  });
+
+  service.proxySandboxModelCall
+    .mockImplementationOnce(async (_turn, req: { body: string }) => {
+      gatewayBodies.push(req.body);
+      return {
+        status: 200,
+        contentType: "text/event-stream",
+        body: [
+          {
+            type: "tool-call",
+            toolCallId: "call_investors",
+            toolName: "find_investors",
+            input: JSON.stringify({
+              brief: "Seed stage fintech investors in Europe",
+              size: 10,
+            }),
+          },
+          {
+            type: "tool-call",
+            toolCallId: "call_people",
+            toolName: "find_people",
+            input: JSON.stringify({ listId, size: 10 }),
+          },
+          {
+            type: "tool-call",
+            toolCallId: "call_warm_paid",
+            toolName: "investor_warm_paths",
+            input: JSON.stringify({ contactId, research: true }),
+          },
+          {
+            type: "tool-call",
+            toolCallId: "call_warm_read",
+            toolName: "investor_warm_paths",
+            input: JSON.stringify({ contactId, research: false }),
+          },
+          {
+            type: "tool-call",
+            toolCallId: "call_task_read",
+            toolName: "get_task_status",
+            input: JSON.stringify({ taskId }),
+          },
+          {
+            type: "finish",
+            finishReason: { unified: "tool-calls", raw: "tool_calls" },
+            usage: { inputTokens: { total: 10 }, outputTokens: { total: 10 } },
+          },
+        ]
+          .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+          .join(""),
+      };
+    })
+    .mockImplementationOnce(async (_turn, req: { body: string }) => {
+      gatewayBodies.push(req.body);
+      return {
+        status: 200,
+        contentType: "text/event-stream",
+        body: [
+          { type: "text-start", id: "answer" },
+          {
+            type: "text-delta",
+            id: "answer",
+            delta: "I will check state before retrying paid work.",
+          },
+          { type: "text-end", id: "answer" },
+          {
+            type: "finish",
+            finishReason: { unified: "stop", raw: "stop" },
+            usage: { inputTokens: { total: 20 }, outputTokens: { total: 10 } },
+          },
+        ]
+          .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+          .join(""),
+      };
+    });
+
+  const result = await runRunner(
+    await coreBehindSandboxProxy({ dropToolRequests: true }),
+  );
+
+  expect(result.code, result.output).toBe(0);
+  expect(gatewayBodies).toHaveLength(2);
+  const stepTwoRequest = JSON.parse(gatewayBodies[1] ?? "{}") as {
+    prompt?: Array<{ role?: string; content?: unknown }>;
+  };
+  const recoveryMessage = stepTwoRequest.prompt?.find(
+    (msg) =>
+      msg.role === "user" &&
+      JSON.stringify(msg.content).includes(
+        "Tool error recovery note (from Core, not the owner):",
+      ),
+  );
+  const recoveryText = JSON.stringify(recoveryMessage?.content ?? "");
+  expect(recoveryText).toContain(
+    '- find_investors: {\\"kind\\":\\"uncertain\\",\\"retryable\\":false',
+  );
+  expect(recoveryText).toContain(
+    '- find_people: {\\"kind\\":\\"uncertain\\",\\"retryable\\":false',
+  );
+  expect(recoveryText).toContain(
+    '- investor_warm_paths: {\\"kind\\":\\"uncertain\\",\\"retryable\\":false',
+  );
+  expect(recoveryText).toContain(
+    '- investor_warm_paths: {\\"kind\\":\\"transient\\",\\"retryable\\":true',
+  );
+  expect(recoveryText).toContain(
+    '- get_task_status: {\\"kind\\":\\"transient\\",\\"retryable\\":true',
   );
 }, 30_000);

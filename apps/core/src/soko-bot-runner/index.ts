@@ -340,7 +340,7 @@ function buildTools(
         } catch (error) {
           if (isInactive(error)) throw error;
           if (options.typedToolErrors) {
-            throw classifyRunnerToolError(error, capability);
+            throw classifyRunnerToolError(error, capability, input);
           }
           throw new Error(
             error instanceof Error ? error.message : "Tool failed",

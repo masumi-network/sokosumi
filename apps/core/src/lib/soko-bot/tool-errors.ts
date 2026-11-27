@@ -1,4 +1,6 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+// Relative: the sandbox runner bundle (`soko-bot-runner.mjs`) has no `@/` alias.
+import { isMutatingOrPaidToolCall } from "./tool-effects";
 
 /**
  * General tool-error classes Core hands the model behind `typedToolErrors`.
@@ -67,7 +69,7 @@ export const TOOL_ERROR_RECOVERY_RULES: Readonly<
   },
   uncertain: {
     retryable: false,
-    hint: "The outcome of this change could not be confirmed; it may already have happened. Do not repeat the call blindly: read back current state first to check whether it took effect, and if you still cannot tell, stop and report the uncertainty to the owner.",
+    hint: "The outcome of this action or paid call could not be confirmed; it may already have taken effect or incurred spend. Do not repeat the call blindly: read back current state first to check whether it took effect, and if you still cannot tell, stop and report the uncertainty to the owner.",
   },
 };
 
@@ -371,23 +373,22 @@ export class CoreRejected extends Error {
     readonly toolError?: TypedToolErrorPayload,
   ) {
     super(message);
-    this.name = "CoreRejected";
   }
 }
-
-const READ_ONLY_CAPABILITY =
-  /^(get|list|read|search|find)_|^(refresh_context|preview_result|read_memory|workspace_read|workspace_list|workspace_search)$/;
 
 /**
  * Converts a sandbox runner tool failure into a `TypedToolError` without
  * dropping `CoreRejected.status`, `CoreRejected.kind`, or Core's classified payload.
+ * Uses the same input-aware effect classification as Core so lost responses on
+ * writes or paid calls classify as `uncertain` (`retryable: false`).
  */
 export function classifyRunnerToolError(
   error: unknown,
   capability: string,
+  toolInput?: unknown,
 ): TypedToolError {
   if (error instanceof TypedToolError) return error;
-  const mutating = !READ_ONLY_CAPABILITY.test(capability);
+  const mutating = isMutatingOrPaidToolCall(capability, toolInput);
   if (error instanceof CoreRejected) {
     const payload =
       error.toolError ??

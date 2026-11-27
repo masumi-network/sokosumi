@@ -7,6 +7,7 @@ import { conflict, tooManyRequests } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { coreEvlogMiddleware } from "@/lib/evlog";
 import { issueTurnToken } from "@/lib/soko-bot/sandbox/turn-token";
+import { SokoBotToolTimeoutError } from "@/lib/soko-bot/turn-loop";
 import { SokoBotImageRefusedError } from "@/services/soko-bot-runtime.service";
 import { coreLogEvents } from "@/test/core-log";
 
@@ -251,5 +252,38 @@ describe("POST /turns/:turnId/tools/:capability typed tool errors", () => {
     const body = (await response.json()) as Record<string, unknown>;
     expect(body.kind).toBe(CORE_API_ERROR_KINDS.SOKO_BOT_TURN_INACTIVE);
     expect(body.toolError).toBeUndefined();
+  });
+
+  it("classifies investor_warm_paths timeouts using research input (uncertain when paid, transient when read-only)", async () => {
+    const contactId = "0196a001-0001-7001-8001-000000000011";
+    service.runSandboxTool
+      .mockRejectedValueOnce(
+        new SokoBotToolTimeoutError(
+          "investor_warm_paths timed out after 90000ms",
+        ),
+      )
+      .mockRejectedValueOnce(
+        new SokoBotToolTimeoutError(
+          "investor_warm_paths timed out after 90000ms",
+        ),
+      );
+
+    const paidResponse = await post("/tools/investor_warm_paths", {
+      toolCallId: "call_paid",
+      input: { contactId, research: true },
+    });
+    const readResponse = await post("/tools/investor_warm_paths", {
+      toolCallId: "call_read",
+      input: { contactId, research: false },
+    });
+
+    expect(paidResponse.status).toBe(422);
+    expect(await paidResponse.json()).toMatchObject({
+      toolError: { kind: "uncertain", retryable: false },
+    });
+    expect(readResponse.status).toBe(422);
+    expect(await readResponse.json()).toMatchObject({
+      toolError: { kind: "transient", retryable: true },
+    });
   });
 });

@@ -221,17 +221,72 @@ describe("classifyRunnerToolError & CoreRejected preservation", () => {
     expect(typed.payload).toEqual(corePayload);
   });
 
-  it("marks unexpected transport errors as uncertain for writes and transient for reads", () => {
-    const networkFailure = new TypeError("fetch failed");
-    const onWrite = classifyRunnerToolError(
-      networkFailure,
-      "create_social_post",
-    );
-    const onRead = classifyRunnerToolError(networkFailure, "list_tables");
-    expect(onWrite.payload.kind).toBe("uncertain");
-    expect(onWrite.payload.retryable).toBe(false);
-    expect(onRead.payload.kind).toBe("transient");
-    expect(onRead.payload.retryable).toBe(true);
+  it("marks lost responses as uncertain for writes and paid calls, and transient for free reads", () => {
+    const contactId = "0196a001-0001-7001-8001-000000000011";
+    const taskId = "0196a001-0001-7001-8001-000000000022";
+    const lostResponses = [
+      new TypeError("fetch failed"),
+      Object.assign(new Error("The operation was aborted due to timeout"), {
+        name: "TimeoutError",
+      }),
+      new CoreRejected("Bad Gateway", 502),
+    ];
+
+    const paidOrMutatingCalls: readonly [string, unknown][] = [
+      ["find_investors", { query: "seed fintech" }],
+      ["find_people", { query: "VP Engineering" }],
+      ["enrich_contact", { contactId }],
+      ["investor_warm_paths", { contactId, research: true }],
+      ["investor_warm_paths", undefined],
+      ["investor_warm_paths", {}],
+      ["generate_image", { prompt: "banner" }],
+      ["generate_video", { prompt: "demo" }],
+      ["generate_talking_video", { prompt: "intro" }],
+      ["generate_voiceover", { text: "hello" }],
+      ["hire_agent", { agentId: "agent_1" }],
+      ["provide_job_input", { jobId: "job_1" }],
+      ["create_ad_campaign", { name: "Launch" }],
+      ["update_ad_campaign", { campaignId: "123" }],
+      ["search_exa", { query: "pricing" }],
+      ["web_search", { query: "pricing" }],
+      ["research_keywords", { topic: "crm" }],
+      ["research_competitor_keywords", {}],
+      ["check_search_rankings", { keywords: ["crm"] }],
+      ["request_seo_analysis", { kind: "audit_full" }],
+      ["evaluate_with_jev", { text: "draft" }],
+      ["create_social_post", { text: "launch" }],
+      ["future_unlisted_paid_tool", { query: "anything" }],
+    ];
+
+    const freeReadControls: readonly [string, unknown][] = [
+      ["get_task_status", { taskId }],
+      ["investor_warm_paths", { contactId, research: false }],
+      ["investor_warm_paths", { contactId }],
+      ["list_tables", {}],
+    ];
+
+    for (const error of lostResponses) {
+      for (const [capability, input] of paidOrMutatingCalls) {
+        const typed = classifyRunnerToolError(error, capability, input);
+        expect(typed.payload.kind, `${capability} (${error.name})`).toBe(
+          "uncertain",
+        );
+        expect(typed.payload.retryable, `${capability} (${error.name})`).toBe(
+          false,
+        );
+        expect(typed.payload.hint).toMatch(/read back/i);
+      }
+
+      for (const [capability, input] of freeReadControls) {
+        const typed = classifyRunnerToolError(error, capability, input);
+        expect(typed.payload.kind, `${capability} (${error.name})`).toBe(
+          "transient",
+        );
+        expect(typed.payload.retryable, `${capability} (${error.name})`).toBe(
+          true,
+        );
+      }
+    }
   });
 
   it("validates serialized toolError payloads strictly", () => {
