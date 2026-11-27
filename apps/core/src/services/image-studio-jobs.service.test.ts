@@ -290,6 +290,16 @@ describe("image studio job submission", () => {
       );
     });
 
+    it("does not hold stub images to the owner's hourly spend cap", async () => {
+      // In flight: 0. Started this hour: far past the cap.
+      jobCountMock.mockImplementation(
+        async (args: { where: { createdAt?: unknown } }) =>
+          args.where.createdAt ? 10_000 : 0,
+      );
+      await expect(createImageJob(BASE_INPUT)).resolves.toBeDefined();
+      jobCountMock.mockResolvedValue(0);
+    });
+
     it("fails a talking video closed: unsent, uncharged, no provider call", async () => {
       expectCoreLogWhys(
         "warn",
