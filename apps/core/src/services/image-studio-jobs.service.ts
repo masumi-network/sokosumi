@@ -256,6 +256,8 @@ export interface CreateImageJobInput {
    * Files in this workspace sent as references after the assets: a brand's
    * product photos. The caller checks the person may open them.
    */
+  /** Number of leading file references selected from the brand kit. */
+  brandReferenceCount?: number;
   referenceFileIds?: string[];
   /** The REST caller, whose file access must be checked for new requests. */
   referenceFileActor?: FileActor;
@@ -457,6 +459,9 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
                 select: {
                   productId: true,
                   productName: true,
+                  ...(input.reuseParentPhotoIfAvailable
+                    ? { brandReferenceCount: true }
+                    : {}),
                   referenceFileIds: true,
                   ...(input.reuseParentCutout
                     ? { useProductCutout: true, productCutoutChecksum: true }
@@ -475,7 +480,8 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
       (source?.job.batchId ? source.job.id : undefined);
     const sameProduct = input.product
       ? input.product.id === source?.job.productId
-      : !input.referenceFileIds?.length;
+      : (input.referenceFileIds?.length ?? 0) ===
+        (input.brandReferenceCount ?? 0);
     const inheritedHeadline = sameProduct ? source?.headline?.text : undefined;
     let exportHeadline = input.exportHeadline;
     if (exportHeadline || inheritedHeadline) {
@@ -541,7 +547,9 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
       );
     }
     const inheritedPhotoId = input.reuseParentPhotoIfAvailable
-      ? source?.job.referenceFileIds.at(-1)
+      ? source?.job.referenceFileIds
+          .slice(source.job.brandReferenceCount)
+          .at(-1)
       : undefined;
     if (!inheritsCutout && inheritedPhotoId && input.referenceFileActor) {
       try {
@@ -674,6 +682,9 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
               }
             : {}),
         }),
+        ...(input.brandReferenceCount
+          ? { brandReferenceCount: input.brandReferenceCount }
+          : {}),
         referenceAssetIds: input.referenceAssetIds,
         referenceFileIds,
         referenceLibraryIds: input.referenceLibraryIds ?? [],
@@ -1124,6 +1135,15 @@ export async function createImageJob(input: CreateImageJobInput) {
   const requestedModelId = startsLettering ? "gemini-pro" : input.modelId;
   // A library style is a reference too: without it the job takes the model's
   // generate endpoint, which refuses the reference it is then sent.
+  if (
+    input.brandReferenceCount &&
+    (input.brandReferenceCount > (input.referenceFileIds?.length ?? 0) ||
+      input.useProductCutout)
+  ) {
+    throw unprocessableEntity(
+      "Brand image references must match the attached files.",
+    );
+  }
   const references =
     input.referenceAssetIds.length +
     (input.referenceLibraryIds?.length ?? 0) +
@@ -2210,7 +2230,12 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
     } else {
       const settings = readSettings(job.settings);
       const photoCount =
-        job.useProductCutout || styled ? 0 : job.referenceFileIds.length;
+        job.useProductCutout || styled
+          ? 0
+          : job.referenceFileIds.length - (job.brandReferenceCount ?? 0);
+      const brandGuidance = job.brandReferenceCount
+        ? "\n\nUse the supplied brand images as visual references for the subjects in the brief. Preserve their identifying shapes, colors, and details."
+        : "";
       const productPhotoGuidance = photoCount
         ? `\n\nUse the ${photoCount === 1 ? "last reference image" : `last ${photoCount} reference images`} for the advertised product's appearance. Keep its shape, colors, materials, packaging, and any legible label text unless the brief explicitly asks to change them.`
         : "";
@@ -2238,7 +2263,7 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
         });
         preflightReason = "request_not_supported";
       }
-      finalPrompt += productPhotoGuidance + headlineGuidance;
+      finalPrompt += brandGuidance + productPhotoGuidance + headlineGuidance;
       input = buildFalInput(
         {
           prompt: finalPrompt,

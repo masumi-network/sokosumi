@@ -6929,8 +6929,14 @@ export type StudioAgentBrandContext = {
         goals: Array<string>;
         themes: Array<string>;
     };
+    assets?: Array<StudioProductPhoto>;
     colors?: Array<string>;
     fonts?: Array<string>;
+};
+
+export type StudioProductPhoto = {
+    id: string;
+    name: string;
 };
 
 export type StudioAgentAdHeadline = {
@@ -7115,6 +7121,7 @@ export type ProjectImageJob = {
     video: ProjectVideoSettings | null;
     talkingVideo?: ProjectTalkingVideo;
     referenceAssetIds: Array<string>;
+    brandReferenceCount?: number;
     referenceFileIds?: Array<string>;
     exportHeadline?: string;
     useProductCutout?: boolean;
@@ -12358,6 +12365,7 @@ export type StudioModelScoreboard = {
 
 export type StudioBrandKit = {
     logo: string | null;
+    assets?: Array<StudioProductPhoto>;
     studioLogoPosition?: StudioLogoPosition | null;
     colors: Array<string>;
     fonts: Array<string>;
@@ -12393,11 +12401,6 @@ export type StudioProduct = {
     photo?: StudioProductPhoto;
 };
 
-export type StudioProductPhoto = {
-    id: string;
-    name: string;
-};
-
 export type StudioWebsiteVisual = StudioBrandLook & {
     logo: string | null;
 };
@@ -12422,6 +12425,12 @@ export type StudioBrandCopy = {
     tone: string;
     audience: Array<string>;
     approvedLines: Array<string>;
+};
+
+export type UpdateStudioBrandAssets = {
+    add: StudioProductPhoto;
+} | {
+    remove: string;
 };
 
 export type StudioBrandLookState = {
@@ -12449,6 +12458,7 @@ export type CreateProjectImageJobRequest = {
     lettering?: 'overlay' | 'ideogram';
     settings?: ProjectImageSettings;
     referenceAssetIds?: Array<string>;
+    brandReferenceCount?: number;
     referenceFileIds?: Array<string>;
     parentAssetId?: string | null;
     sessionId?: string | null;
@@ -79900,6 +79910,117 @@ export type ResearchStudioWebsiteDraftResponses = {
 };
 
 export type ResearchStudioWebsiteDraftResponse = ResearchStudioWebsiteDraftResponses[keyof ResearchStudioWebsiteDraftResponses];
+
+export type UpdateStudioBrandAssetsData = {
+    body: UpdateStudioBrandAssets;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/brand-kit/assets';
+};
+
+export type UpdateStudioBrandAssetsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid reference image or full brand kit
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateStudioBrandAssetsError = UpdateStudioBrandAssetsErrors[keyof UpdateStudioBrandAssetsErrors];
+
+export type UpdateStudioBrandAssetsResponses = {
+    /**
+     * Updated brand images
+     */
+    200: {
+        data: Array<StudioProductPhoto>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateStudioBrandAssetsResponse = UpdateStudioBrandAssetsResponses[keyof UpdateStudioBrandAssetsResponses];
 
 export type SaveStudioBrandLookData = {
     body: SaveStudioBrandLook;

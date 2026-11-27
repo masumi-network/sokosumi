@@ -1,12 +1,16 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { serializableTransaction } from "@/lib/db/transaction";
+import { resolveFileActor } from "@/lib/files/actor";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireProjectAccess } from "@/lib/image-studio/access";
+import { requireStudioReferenceFiles } from "@/lib/image-studio/reference-files";
 import {
   prepareStudioWebsiteDraft,
   readStudioBrandKit,
@@ -19,10 +23,12 @@ import { imageStudioProjectParamsSchema } from "@/schemas/project-image-studio.s
 import {
   saveStudioBrandCopySchema,
   saveStudioBrandLookSchema,
+  studioBrandAssetsSchema,
   studioBrandKitSchema,
   studioBrandLookStateSchema,
   studioWebsiteCopySchema,
   studioWebsiteDraftSchema,
+  updateStudioBrandAssetsSchema,
 } from "@/schemas/studio-brand-kit.schema";
 import { saveStudioBrandCopy } from "@/services/brand-brain.service";
 
@@ -78,6 +84,30 @@ const putRoute = withOrganizationSlugHeaderParameter(
       ...accessErrors,
       409: jsonErrorResponse("Brand kit changed"),
       422: jsonErrorResponse("Unprocessable Entity"),
+    },
+  }),
+);
+
+const assetsRoute = withOrganizationSlugHeaderParameter(
+  createRoute({
+    method: "patch",
+    path: `${path}/assets`,
+    operationId: "updateStudioBrandAssets",
+    tags,
+    request: {
+      params: imageStudioProjectParamsSchema,
+      body: {
+        required: true,
+        content: {
+          "application/json": { schema: updateStudioBrandAssetsSchema },
+        },
+      },
+    },
+    responses: {
+      200: jsonSuccessResponse(studioBrandAssetsSchema, "Updated brand images"),
+      ...accessErrors,
+      409: jsonErrorResponse("Concurrent edit"),
+      422: jsonErrorResponse("Invalid reference image or full brand kit"),
     },
   }),
 );
@@ -192,6 +222,54 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
     return ok(c, {
       version: await saveStudioBrandCopy(projectId, copy, version),
     });
+  });
+
+  app.openapi(assetsRoute, async (c) => {
+    const user = requireUserAuthContext(c.var.authContext);
+    const { workspaceId, organizationId } = requireWorkspaceContext(
+      c.var.workspaceContext,
+    );
+    const { id: projectId } = c.req.valid("param");
+    const change = c.req.valid("json");
+    const assets = await serializableTransaction(async (tx) => {
+      await requireProjectAccess(
+        { projectId, workspaceId, userId: user.userId },
+        tx,
+      );
+      const project = await tx.project.findUniqueOrThrow({
+        where: { id: projectId, workspaceId },
+        select: { studioBrandAssets: true },
+      });
+      const current = studioBrandAssetsSchema.parse(
+        project.studioBrandAssets ?? [],
+      );
+      let next;
+      if ("add" in change) {
+        await requireStudioReferenceFiles(
+          {
+            workspaceId,
+            actor: resolveFileActor(
+              { source: "session", ...user },
+              { organizationId },
+            ),
+            resourceIds: [change.add.id],
+          },
+          tx,
+        );
+        if (current.some(({ id }) => id === change.add.id)) return current;
+        next = [...current, change.add];
+        if (!studioBrandAssetsSchema.safeParse(next).success)
+          throw unprocessableEntity("The brand kit holds up to 20 images.");
+      } else {
+        next = current.filter(({ id }) => id !== change.remove);
+      }
+      await tx.project.update({
+        where: { id: projectId },
+        data: { studioBrandAssets: next },
+      });
+      return next;
+    }, "The brand images changed. Try again.");
+    return ok(c, assets);
   });
 
   app.openapi(lookRoute, async (c) => {

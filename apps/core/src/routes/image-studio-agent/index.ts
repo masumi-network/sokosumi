@@ -8,8 +8,8 @@ import {
   describeImageStudioRefusal,
   IMAGE_PROMPT_MAX_LENGTH,
 } from "@/lib/image-studio/request-validation";
-
 import { createAgentImageJobSchema } from "@/schemas/project-image-studio.schema";
+import { studioBrandAssetsSchema } from "@/schemas/studio-brand-kit.schema";
 import { isCmoProject } from "@/services/cmo-cuso.service";
 import {
   getAsset,
@@ -157,16 +157,30 @@ app.post("/generations", async (c) => {
     );
   }
   const input = parsed.data;
-  const replay = input.catalogProductId
-    ? await prisma.projectImageJob.findUnique({
-        where: {
-          projectId_idempotencyKey: {
-            projectId: context.projectId,
-            idempotencyKey: input.idempotencyKey,
+  const brandAssetIds = [...new Set(input.brandAssetIds)];
+  const replay =
+    input.catalogProductId || brandAssetIds.length
+      ? await prisma.projectImageJob.findUnique({
+          where: {
+            projectId_idempotencyKey: {
+              projectId: context.projectId,
+              idempotencyKey: input.idempotencyKey,
+            },
           },
-        },
-      })
-    : null;
+        })
+      : null;
+
+  if (brandAssetIds.length && !replay) {
+    const project = await prisma.project.findUniqueOrThrow({
+      where: { id: context.projectId, workspaceId: context.workspaceId },
+      select: { studioBrandAssets: true },
+    });
+    const assets = studioBrandAssetsSchema.parse(
+      project.studioBrandAssets ?? [],
+    );
+    if (!brandAssetIds.every((id) => assets.some((asset) => asset.id === id)))
+      return c.json({ ok: false, error: "brand_asset_not_found" }, 404);
+  }
 
   let prompt = input.prompt;
   let product: { id: string; name: string } | undefined;
@@ -202,6 +216,10 @@ app.post("/generations", async (c) => {
     }
   }
 
+  const referenceFileIds = [
+    ...brandAssetIds.filter((id) => id !== photoId),
+    ...(photoId ? [photoId] : []),
+  ];
   const job =
     replay ??
     (await createImageJob({
@@ -216,7 +234,10 @@ app.post("/generations", async (c) => {
       experimentArm: input.experimentArm,
       settings: { ...DEFAULT_SETTINGS, ...input.settings },
       referenceAssetIds: input.referenceAssetIds,
-      ...(photoId ? { referenceFileIds: [photoId] } : {}),
+      ...(brandAssetIds.length
+        ? { brandReferenceCount: referenceFileIds.length - (photoId ? 1 : 0) }
+        : {}),
+      ...(referenceFileIds.length ? { referenceFileIds } : {}),
       referenceFileActor: {
         kind: "interactive",
         userId: context.userId,

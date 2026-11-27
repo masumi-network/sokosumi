@@ -87,7 +87,7 @@ beforeAll(async () => {
   );
   await waitFor(() =>
     expect(
-      screen.getByLabelText<HTMLTextAreaElement>(LABELS.approvedLines).disabled,
+      screen.getByLabelText(LABELS.approvedLines).matches(":disabled"),
     ).toBe(false),
   );
   markup = document.body.innerHTML;

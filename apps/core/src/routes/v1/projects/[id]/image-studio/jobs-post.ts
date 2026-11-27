@@ -93,6 +93,9 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
             : studioImageModelId(),
         settings: { ...DEFAULT_SETTINGS, ...input.settings },
         referenceAssetIds: input.referenceAssetIds,
+        ...(input.brandReferenceCount
+          ? { brandReferenceCount: input.brandReferenceCount }
+          : {}),
         referenceFileIds: input.referenceFileIds,
         referenceFileActor: resolveFileActor(
           { source: "session", ...userContext },

@@ -6,6 +6,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { readDesignMdContent } from "@/lib/design-md-blob";
 import type { AgentGrantContext } from "@/routes/image-studio-agent/authorize";
+import { studioBrandAssetsSchema } from "@/schemas/studio-brand-kit.schema";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
   newestMarketingStrategy,
@@ -43,6 +44,7 @@ const route = createRoute({
               themes: list,
             })
             .optional(),
+          assets: studioBrandAssetsSchema.optional(),
           colors: list.optional(),
           fonts: list.optional(),
         })
@@ -71,17 +73,25 @@ export default function mount(
     const [project, version] = await Promise.all([
       prisma.project.findUniqueOrThrow({
         where: { id: projectId, workspaceId },
-        select: { brandBrain: { select: { body: true } }, designMdUrl: true },
+        select: {
+          studioBrandAssets: true,
+          brandBrain: { select: { body: true } },
+          designMdUrl: true,
+        },
       }),
       newestMarketingStrategy(projectId),
     ]);
     const brain = parseBrandBrain(project.brandBrain?.body);
     const plan = parseMarketingPlan(version?.plan);
-    if (!brain && !plan) return ok(c, {});
+    const assets = studioBrandAssetsSchema.parse(
+      project.studioBrandAssets ?? [],
+    );
+    if (!brain && !plan) return ok(c, assets.length ? { assets } : {});
 
     const design = await readDesignMdContent(project.designMdUrl);
     const look = designMdBrandLook(design ?? "");
     return ok(c, {
+      assets: assets.length ? assets : undefined,
       brand: brain
         ? {
             positioning: clip(brain.reveal?.positioning ?? brain.summary),

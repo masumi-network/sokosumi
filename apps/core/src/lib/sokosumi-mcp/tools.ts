@@ -1224,6 +1224,14 @@ export const MCP_TOOLS: readonly McpTool[] = [
     destructive: true,
   },
   {
+    name: "projects_image_studio_brand_assets_update",
+    toolset: "image-studio",
+    operation: "PATCH /projects/{id}/image-studio/brand-kit/assets",
+    description:
+      "Add a Files image to the project brand kit by resource ID and filename, or remove one by ID.",
+    destructive: true,
+  },
+  {
     name: "projects_image_studio_brand_look_update",
     toolset: "image-studio",
     operation: "PUT /projects/{id}/image-studio/brand-kit/look",

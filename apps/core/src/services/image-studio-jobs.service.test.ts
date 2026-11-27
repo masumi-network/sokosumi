@@ -905,101 +905,121 @@ describe("image studio job submission", () => {
     );
   });
 
-  it("keeps a private product photo after the source ad and guides the provider to preserve it", async () => {
-    jobCreateMock.mockImplementation(async ({ data }) =>
-      jobRow({
-        kind: data.kind,
-        model: data.model,
-        referenceAssetIds: data.referenceAssetIds,
-        referenceFileIds: data.referenceFileIds,
-      }),
-    );
-    jobFindUniqueOrThrowMock.mockResolvedValue(
-      jobRow({
-        kind: "EDIT",
-        model: DEFAULT_IMAGE_ENDPOINT_EDIT,
+  it.each([
+    {
+      brandReferenceCount: 0,
+      guidance:
+        "Use the last reference image for the advertised product's appearance. Keep its shape, colors, materials, packaging, and any legible label text",
+    },
+    {
+      brandReferenceCount: 1,
+      guidance: "Use the supplied brand images as visual references",
+    },
+  ])(
+    "sends the uploaded reference after the source ad with the correct role ($brandReferenceCount brand images)",
+    async ({ brandReferenceCount, guidance }) => {
+      jobCreateMock.mockImplementation(async ({ data }) =>
+        jobRow({
+          kind: data.kind,
+          model: data.model,
+          referenceAssetIds: data.referenceAssetIds,
+          referenceFileIds: data.referenceFileIds,
+        }),
+      );
+      jobFindUniqueOrThrowMock.mockResolvedValue(
+        jobRow({
+          kind: "EDIT",
+          brandReferenceCount,
+          model: DEFAULT_IMAGE_ENDPOINT_EDIT,
+          referenceAssetIds: ["asset-1"],
+          referenceFileIds: ["file-1"],
+        }),
+      );
+      assetFindManyMock.mockResolvedValueOnce([
+        {
+          id: "asset-1",
+          blobPathname: "private/source.png",
+          bytes: 2,
+          contentType: "image/png",
+        },
+      ]);
+      readAssetBytesMock.mockResolvedValueOnce(new Uint8Array([3, 4]));
+      loadLiveResourcesMock.mockResolvedValueOnce([
+        {
+          id: "file-1",
+          sourceKind: "DRIVE_UPLOAD",
+          sourceId: "drive/w/leggings.jpg",
+          mimeType: "image/jpeg",
+        },
+      ]);
+      driveHeadMock.mockResolvedValue({
+        access: "private",
+        url: "https://store.private.blob.vercel-storage.com/drive/w/leggings.jpg",
+        size: 2,
+      });
+      const signedUrl = "https://store.private.blob.vercel-storage.com/signed";
+      driveReadUrlMock.mockResolvedValue(signedUrl);
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        new Response(new Uint8Array([1, 2]), {
+          headers: { "content-type": "image/jpeg" },
+        }),
+      );
+      uploadReferenceMock
+        .mockResolvedValueOnce("https://v3b.fal.media/files/source.png")
+        .mockResolvedValueOnce("https://v3b.fal.media/files/l.jpg");
+      submitToQueueMock.mockResolvedValue({
+        kind: "queued",
+        requestId: "fal-3",
+      });
+
+      await createImageJob({
+        ...BASE_INPUT,
+        brandReferenceCount,
         referenceAssetIds: ["asset-1"],
         referenceFileIds: ["file-1"],
-      }),
-    );
-    assetFindManyMock.mockResolvedValueOnce([
-      {
-        id: "asset-1",
-        blobPathname: "private/source.png",
-        bytes: 2,
-        contentType: "image/png",
-      },
-    ]);
-    readAssetBytesMock.mockResolvedValueOnce(new Uint8Array([3, 4]));
-    loadLiveResourcesMock.mockResolvedValueOnce([
-      {
-        id: "file-1",
-        sourceKind: "DRIVE_UPLOAD",
-        sourceId: "drive/w/leggings.jpg",
-        mimeType: "image/jpeg",
-      },
-    ]);
-    driveHeadMock.mockResolvedValue({
-      access: "private",
-      url: "https://store.private.blob.vercel-storage.com/drive/w/leggings.jpg",
-      size: 2,
-    });
-    const signedUrl = "https://store.private.blob.vercel-storage.com/signed";
-    driveReadUrlMock.mockResolvedValue(signedUrl);
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(new Uint8Array([1, 2]), {
-        headers: { "content-type": "image/jpeg" },
-      }),
-    );
-    uploadReferenceMock
-      .mockResolvedValueOnce("https://v3b.fal.media/files/source.png")
-      .mockResolvedValueOnce("https://v3b.fal.media/files/l.jpg");
-    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-3" });
+      });
 
-    await createImageJob({
-      ...BASE_INPUT,
-      referenceAssetIds: ["asset-1"],
-      referenceFileIds: ["file-1"],
-    });
-
-    expect(jobCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          kind: "EDIT",
-          referenceFileIds: ["file-1"],
-          prompt: BASE_INPUT.prompt,
+      expect(jobCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            kind: "EDIT",
+            referenceFileIds: ["file-1"],
+            prompt: BASE_INPUT.prompt,
+          }),
         }),
-      }),
-    );
-    expect(loadLiveResourcesMock).toHaveBeenCalledWith(
-      {
-        workspaceId: BASE_INPUT.workspaceId,
-        actor: photoInput.referenceFileActor,
-        resourceIds: ["file-1"],
-      },
-      expect.any(Object),
-    );
-    expect(driveReadUrlMock).toHaveBeenCalledWith("drive/w/leggings.jpg");
-    expect(fetchMock).toHaveBeenCalledWith(signedUrl, expect.any(Object));
-    expect(snapshotUpsertMock.mock.calls[0]![0].create.finalPrompt).toBe(
-      submitToQueueMock.mock.calls[0]![0].input.prompt,
-    );
-    expect(submitToQueueMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        model: DEFAULT_IMAGE_ENDPOINT_EDIT,
-        input: expect.objectContaining({
-          image_urls: [
-            "https://v3b.fal.media/files/source.png",
-            "https://v3b.fal.media/files/l.jpg",
-          ],
-          prompt: expect.stringContaining(
-            "Use the last reference image for the advertised product's appearance. Keep its shape, colors, materials, packaging, and any legible label text",
-          ),
+      );
+      expect(loadLiveResourcesMock).toHaveBeenCalledWith(
+        {
+          workspaceId: BASE_INPUT.workspaceId,
+          actor: photoInput.referenceFileActor,
+          resourceIds: ["file-1"],
+        },
+        expect.any(Object),
+      );
+      expect(driveReadUrlMock).toHaveBeenCalledWith("drive/w/leggings.jpg");
+      expect(fetchMock).toHaveBeenCalledWith(signedUrl, expect.any(Object));
+      expect(snapshotUpsertMock.mock.calls[0]![0].create.finalPrompt).toBe(
+        submitToQueueMock.mock.calls[0]![0].input.prompt,
+      );
+      expect(submitToQueueMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: DEFAULT_IMAGE_ENDPOINT_EDIT,
+          input: expect.objectContaining({
+            image_urls: [
+              "https://v3b.fal.media/files/source.png",
+              "https://v3b.fal.media/files/l.jpg",
+            ],
+            prompt: expect.stringContaining(guidance),
+          }),
         }),
-      }),
-    );
-    fetchMock.mockRestore();
-  });
+      );
+      if (brandReferenceCount)
+        expect(submitToQueueMock.mock.calls[0]![0].input.prompt).not.toContain(
+          "advertised product",
+        );
+      fetchMock.mockRestore();
+    },
+  );
 
   it("sends reference bytes to the provider's storage, not one of our URLs", async () => {
     jobFindUniqueOrThrowMock.mockResolvedValue(
