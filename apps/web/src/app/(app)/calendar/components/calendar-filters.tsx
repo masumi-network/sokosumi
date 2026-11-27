@@ -201,7 +201,9 @@ export function CalendarFilters({
         socialOnly
           ? "min-h-11 min-w-11 sm:min-h-8 sm:min-w-0"
           : hasQuick
-            ? "min-h-11 sm:min-h-8"
+            ? // 40px from `sm`, the height of the view switch and
+              // "Schedule a task" beside it in the Calendar toolbar.
+              "min-h-11 sm:min-h-10"
             : undefined
       }
       dropdownOpen={surface === "menu"}

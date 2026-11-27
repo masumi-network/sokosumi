@@ -10982,6 +10982,7 @@
         "bulkClear": "Clear selection",
         "bulkDelete": "Delete",
         "bulkMove": "Move",
+        "bulkCombinePdf": "Combine PDFs",
         "bulkShare": "Share",
         "bulkDeleteTitle": "Delete {count, plural, one {# file} other {# files}}?",
         "bulkDeleteDescription": "They are removed for everyone in this Files workspace. This can't be undone.",
@@ -11304,6 +11305,23 @@
           "saved": "Settings saved",
           "saveFailed": "Could not save the settings"
         }
+      },
+      "CombinePdf": {
+        "title": "Combine {count, plural, one {# PDF} other {# PDFs}}",
+        "description": "Pages follow this order. You get one PDF to download; nothing is saved in Files and the originals stay as they are.",
+        "moveUp": "Move {name} up",
+        "moveDown": "Move {name} down",
+        "nameLabel": "File name",
+        "defaultName": "Combined",
+        "cancel": "Cancel",
+        "download": "Download",
+        "downloaded": "Downloaded {name}",
+        "tooLarge": "These files add up to more than 50 MB. Combine fewer at once.",
+        "tooComplex": "{name} has too many pages or too much data to combine. Combine fewer at once.",
+        "resultTooLarge": "The combined PDF would be too large. Combine fewer at once.",
+        "unreadable": "{name} could not be read as a PDF. It may be broken or password-protected. Nothing was downloaded.",
+        "mixedRoom": "Combine files from one data room, or files outside any room.",
+        "failed": "Failed to combine the PDFs. Try again."
       },
       "Crop": {
         "open": "Crop for social",

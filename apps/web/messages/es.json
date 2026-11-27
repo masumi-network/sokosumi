@@ -10982,6 +10982,7 @@
         "bulkClear": "Quitar selección",
         "bulkDelete": "Eliminar",
         "bulkMove": "Mover",
+        "bulkCombinePdf": "Combinar PDF",
         "bulkShare": "Compartir",
         "bulkDeleteTitle": "¿Eliminar {count, plural, one {# archivo} other {# archivos}}?",
         "bulkDeleteDescription": "Se eliminan para todos en este espacio de archivos. No se puede deshacer.",
@@ -11304,6 +11305,23 @@
           "saved": "Ajustes guardados",
           "saveFailed": "No se pudieron guardar los ajustes"
         }
+      },
+      "CombinePdf": {
+        "title": "Combinar {count, plural, one {# PDF} other {# PDF}}",
+        "description": "Las páginas siguen este orden. Recibes un PDF para descargar; no se guarda nada en Archivos y los originales no cambian.",
+        "moveUp": "Subir {name}",
+        "moveDown": "Bajar {name}",
+        "nameLabel": "Nombre del archivo",
+        "defaultName": "Combinado",
+        "cancel": "Cancelar",
+        "download": "Descargar",
+        "downloaded": "{name} descargado",
+        "tooLarge": "Estos archivos suman más de 50 MB. Combina menos a la vez.",
+        "tooComplex": "{name} tiene demasiadas páginas o demasiados datos para combinar. Combina menos a la vez.",
+        "resultTooLarge": "El PDF combinado sería demasiado grande. Combina menos a la vez.",
+        "unreadable": "No se pudo leer {name} como PDF. Puede estar dañado o protegido con contraseña. No se descargó nada.",
+        "mixedRoom": "Combina archivos de una misma sala de datos, o archivos que no estén en ninguna.",
+        "failed": "No se pudieron combinar los PDF. Inténtalo de nuevo."
       },
       "Crop": {
         "open": "Recortar para redes",
