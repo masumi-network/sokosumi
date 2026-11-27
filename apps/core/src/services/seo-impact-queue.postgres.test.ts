@@ -240,6 +240,8 @@ describe.skipIf(!enabled)("SEO impact queue against PostgreSQL", () => {
     traffic.clear();
     traffic.set(PAGE, flat(70));
     await prisma.projectSeoSuggestion.deleteMany({ where: { projectId } });
+    // An audit recheck has no suggestion to take it along.
+    await prisma.projectSeoImpactVerdict.deleteMany({ where: { projectId } });
   });
 
   afterAll(async () => {
@@ -363,6 +365,40 @@ describe.skipIf(!enabled)("SEO impact queue against PostgreSQL", () => {
       ),
     ).rejects.toMatchObject({ status: 422 });
     expect((await rowOf(change.id)).state).toBe("ready");
+  });
+
+  it("prepares an audit recheck with its change bounds as a verified change", async () => {
+    const window = impactWindow(CHANGED_AT, CRAWLED_AT);
+    const latest = new Date(CHANGED_AT.getTime() + DAY_MS);
+    const change = await prisma.projectSeoImpactVerdict.create({
+      data: {
+        projectId,
+        changeSource: "audit_recheck",
+        changedAt: CHANGED_AT,
+        changeEarliest: CHANGED_AT,
+        changeLatest: latest,
+        pageUrl: PAGE,
+        property: "sc-domain:battery-sensei.app",
+        state: "waiting_window",
+        crawledAt: CRAWLED_AT,
+        measuredUrl: PAGE,
+        windowStart: new Date(`${window.windowStart}T00:00:00Z`),
+        windowEnd: new Date(`${window.windowEnd}T00:00:00Z`),
+      },
+    });
+
+    expect(await prepareSeoImpactInputs(tick, NOW)).toMatchObject({
+      prepared: 1,
+      failed: 0,
+    });
+    expect((await rowOf(change.id)).input).toMatchObject({
+      changeSource: "audit_recheck",
+      changeBounds: {
+        earliest: CHANGED_AT.toISOString(),
+        latest: latest.toISOString(),
+      },
+      changeCheck: "verified",
+    });
   });
 
   it("keeps the pin of a waiting result for the next read", async () => {
