@@ -13,11 +13,18 @@ import {
   resolveUserUploadContentType,
   STUDIO_LOGO_MIME_TYPES,
 } from "@sokosumi/utils";
-import { ExternalLink, Globe, ImagePlus, Palette, Pipette } from "lucide-react";
+import {
+  ExternalLink,
+  Globe,
+  ImageIcon,
+  ImagePlus,
+  Palette,
+  Pipette,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useRef, useState, useTransition } from "react";
+import { type ReactNode, useId, useRef, useState, useTransition } from "react";
 
 import { DesignMdGenerateDialog } from "@/components/design-md/design-md-generate-dialog";
 import { Button } from "@/components/ui/button";
@@ -33,6 +40,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   findStudioWebsiteLogo,
   getStudioBrandKit,
@@ -62,6 +74,70 @@ function lines(value: string): string[] {
     .filter(Boolean);
 }
 
+/** One titled group of the kit, with its actions beside the title. */
+function BrandKitSection({
+  action,
+  children,
+  title,
+}: {
+  action?: ReactNode;
+  children: ReactNode;
+  title: string;
+}) {
+  const id = useId();
+  return (
+    <section
+      aria-labelledby={id}
+      className="min-w-0 space-y-3 py-5 first:pt-0 last:pb-0"
+    >
+      <div className="flex min-h-8 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h3 id={id} className="text-sm font-medium">
+          {title}
+        </h3>
+        {action ? (
+          <div className="flex flex-wrap items-center gap-1">{action}</div>
+        ) : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * An always-visible icon control on the logo tile, so touch and keyboard
+ * users find it without hovering. The label is its accessible name.
+ */
+function LogoTileButton({
+  icon,
+  label,
+  loading,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  loading?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          aria-label={label}
+          className="size-8"
+          loading={loading}
+          onClick={onClick}
+          size="icon"
+          type="button"
+          variant="outline"
+        >
+          {icon}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function StudioBrandKitDialog({
   disabled,
   onLogoChange,
@@ -85,6 +161,7 @@ export function StudioBrandKitDialog({
   websiteUrl?: string | null;
 }) {
   const t = useTranslations("App.Studio");
+  const websiteStyleHelpId = useId();
   const [open, setOpen] = useState(false);
   const [kit, setKit] = useState<StudioBrandKit | null>(null);
   const [draft, setDraft] = useState({
@@ -130,6 +207,8 @@ export function StudioBrandKitDialog({
   const websiteLogo =
     websiteVisual?.logo !== kit?.logo ? websiteVisual?.logo : null;
   const logoCandidate = foundLogo ?? websiteLogo;
+  const logoPositionChanged =
+    !!kit && logoPositionDraft !== (kit.studioLogoPosition ?? null);
   const [logoMessage, setLogoMessage] = useState<
     | "logoSaved"
     | "logoPositionSaved"
@@ -498,48 +577,61 @@ export function StudioBrandKitDialog({
         </DialogTrigger>
       </StudioToolbarTip>
       <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden"
+        className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden max-sm:gap-3 max-sm:p-4 sm:max-w-xl"
         showCloseButton={false}
       >
         <DialogHeader>
           <DialogTitle>{t("brandKit")}</DialogTitle>
           <DialogDescription>{t("BrandKit.description")}</DialogDescription>
         </DialogHeader>
-        <div className="app-scrollbar -mx-6 -my-1 flex min-h-0 flex-col gap-4 overflow-y-auto px-6 py-1">
-          {kit && websiteUrl ? (
-            <div className="space-y-2">
-              <Button
-                disabled={pending}
-                loading={websitePending}
-                onClick={addWebsiteCopy}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                <Globe aria-hidden />
-                {t("BrandKit.addWebsiteCopy")}
-              </Button>
-              {websiteMessage ? (
-                <p role="status" className="text-muted-foreground text-sm">
-                  {t(`BrandKit.${websiteMessage}`)}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
+        <div className="app-scrollbar -mx-4 -my-1 flex min-h-0 flex-col gap-4 overflow-y-auto px-4 py-1 sm:-mx-6 sm:px-6">
           {kit ? (
-            <fieldset className="min-w-0 space-y-4" disabled={pending}>
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  {kit.logo ? (
-                    <Image
-                      alt={t("BrandKit.currentLogo")}
-                      className="h-8 w-auto max-w-36 object-contain"
-                      height={32}
-                      src={kit.logo}
-                      unoptimized
-                      width={144}
-                    />
-                  ) : null}
+            <fieldset
+              className="divide-border min-w-0 divide-y"
+              disabled={pending}
+            >
+              <BrandKitSection title={t("BrandKit.logo")}>
+                <div className="flex items-start gap-4">
+                  <div
+                    role="group"
+                    aria-label={t("BrandKit.logo")}
+                    className="border-border bg-muted relative size-28 shrink-0 overflow-hidden rounded-xl border"
+                  >
+                    {kit.logo ? (
+                      <Image
+                        alt={t("BrandKit.currentLogo")}
+                        className="size-full object-contain px-3 pt-3 pb-11"
+                        height={112}
+                        src={kit.logo}
+                        unoptimized
+                        width={112}
+                      />
+                    ) : (
+                      <div className="text-muted-foreground flex size-full items-center justify-center pb-9">
+                        <ImageIcon aria-hidden className="size-6" />
+                      </div>
+                    )}
+                    <div className="absolute inset-x-0 bottom-0 flex justify-center gap-1.5 p-1.5">
+                      <LogoTileButton
+                        icon={<ImagePlus aria-hidden />}
+                        label={t(
+                          kit.logo
+                            ? "BrandKit.replaceLogo"
+                            : "BrandKit.uploadLogo",
+                        )}
+                        loading={logoPending}
+                        onClick={() => logoInput.current?.click()}
+                      />
+                      {websiteUrl && !logoCandidate ? (
+                        <LogoTileButton
+                          icon={<Globe aria-hidden />}
+                          label={t("BrandKit.findWebsiteLogo")}
+                          loading={websiteLogoPending}
+                          onClick={findWebsiteLogo}
+                        />
+                      ) : null}
+                    </div>
+                  </div>
                   <input
                     accept={STUDIO_LOGO_MIME_TYPES.join(",")}
                     aria-label={t("BrandKit.logoFile")}
@@ -552,73 +644,50 @@ export function StudioBrandKitDialog({
                     ref={logoInput}
                     type="file"
                   />
-                  <Button
-                    loading={logoPending}
-                    onClick={() => logoInput.current?.click()}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    <ImagePlus aria-hidden />
-                    {t(
-                      kit.logo ? "BrandKit.replaceLogo" : "BrandKit.uploadLogo",
-                    )}
-                  </Button>
-                  {websiteUrl && !logoCandidate ? (
-                    <Button
-                      loading={websiteLogoPending}
-                      onClick={findWebsiteLogo}
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      <Globe aria-hidden />
-                      {t("BrandKit.findWebsiteLogo")}
-                    </Button>
-                  ) : null}
-                </div>
-                <p className="text-muted-foreground text-xs">
-                  {t("BrandKit.logoRequirements")}
-                </p>
-                {kit.logo ? (
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <StudioLogoPositionSelect
-                        label={t("BrandKit.logoPosition")}
-                        onChange={(position) =>
-                          setLogoPositionDraft(position ?? null)
-                        }
-                        value={logoPositionDraft ?? undefined}
-                      />
-                      <Button
-                        disabled={
-                          logoPositionDraft === (kit.studioLogoPosition ?? null)
-                        }
-                        loading={logoPending}
-                        onClick={saveLogoPosition}
-                        size="sm"
-                        type="button"
-                        variant="outline"
-                      >
-                        {t("BrandKit.saveLogoPosition")}
-                      </Button>
-                    </div>
+                  <div className="min-w-0 flex-1 space-y-2">
+                    {kit.logo ? (
+                      <>
+                        <StudioLogoPositionSelect
+                          label={t("BrandKit.logoPosition")}
+                          onChange={(position) =>
+                            setLogoPositionDraft(position ?? null)
+                          }
+                          value={logoPositionDraft ?? undefined}
+                        />
+                        {logoPositionChanged ? (
+                          <>
+                            <Button
+                              loading={logoPending}
+                              onClick={saveLogoPosition}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              {t("BrandKit.saveLogoPosition")}
+                            </Button>
+                            <p className="text-muted-foreground text-xs">
+                              {t("BrandKit.logoPositionHint")}
+                            </p>
+                          </>
+                        ) : null}
+                      </>
+                    ) : null}
                     <p className="text-muted-foreground text-xs">
-                      {t("BrandKit.logoPositionHint")}
+                      {t("BrandKit.logoRequirements")}
                     </p>
                   </div>
-                ) : null}
+                </div>
                 {logoCandidate ? (
-                  <div className="border-border space-y-2 rounded-md border p-3">
+                  <div className="border-border flex flex-wrap items-center gap-3 rounded-lg border p-2">
                     <Image
                       alt={t("BrandKit.websiteLogoPreview")}
-                      className="h-14 w-auto max-w-full object-contain"
-                      height={56}
+                      className="h-10 w-auto max-w-32 object-contain"
+                      height={40}
                       src={logoCandidate}
                       unoptimized
-                      width={160}
+                      width={128}
                     />
-                    <div className="flex flex-wrap gap-2">
+                    <div className="ml-auto flex flex-wrap gap-2">
                       <Button
                         loading={websiteLogoPending}
                         onClick={approveWebsiteLogo}
@@ -648,42 +717,11 @@ export function StudioBrandKitDialog({
                     {t(`BrandKit.${logoMessage}`)}
                   </p>
                 ) : null}
-                <section
-                  className="space-y-2"
-                  aria-label={t("BrandKit.assets")}
-                >
-                  <h3 className="text-sm font-medium">
-                    {t("BrandKit.assets")}
-                  </h3>
-                  <p className="text-muted-foreground text-sm">
-                    {t("BrandKit.assetHint")}
-                  </p>
-                  {kit.assets?.length ? (
-                    <ul className="space-y-1">
-                      {kit.assets.map((asset) => (
-                        <li
-                          key={asset.id}
-                          className="flex min-w-0 items-center justify-between gap-2"
-                        >
-                          <span className="truncate text-sm" title={asset.name}>
-                            {asset.name}
-                          </span>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            aria-label={t("BrandKit.removeAsset", {
-                              name: asset.name,
-                            })}
-                            onClick={() => updateAssets({ remove: asset.id })}
-                          >
-                            {t("BrandKit.removeImage")}
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                  {(kit.assets?.length ?? 0) < 20 && (
+              </BrandKitSection>
+              <BrandKitSection
+                title={t("BrandKit.assets")}
+                action={
+                  (kit.assets?.length ?? 0) < 20 ? (
                     <StudioProductPhotoControl
                       photo={null}
                       uploading={assetUploading}
@@ -693,23 +731,131 @@ export function StudioBrandKitDialog({
                         if (photo) updateAssets({ add: photo });
                       }}
                     />
-                  )}
-                  {failedAssetChange && (
-                    <div className="flex items-center gap-2">
-                      <span role="status" className="text-sm">
-                        {t("BrandKit.assetError")}
-                      </span>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => updateAssets(failedAssetChange)}
+                  ) : null
+                }
+              >
+                {kit.assets?.length ? (
+                  <ul className="border-border divide-border divide-y rounded-lg border">
+                    {kit.assets.map((asset) => (
+                      <li
+                        key={asset.id}
+                        className="flex min-w-0 items-center justify-between gap-2 py-1 pr-1 pl-3"
                       >
-                        {t("BrandKit.retryAsset")}
+                        <span className="truncate text-sm" title={asset.name}>
+                          {asset.name}
+                        </span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          aria-label={t("BrandKit.removeAsset", {
+                            name: asset.name,
+                          })}
+                          onClick={() => updateAssets({ remove: asset.id })}
+                        >
+                          {t("BrandKit.removeImage")}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted-foreground text-sm">
+                    {t("BrandKit.assetHint")}
+                  </p>
+                )}
+                {failedAssetChange && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span role="status" className="text-sm">
+                      {t("BrandKit.assetError")}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => updateAssets(failedAssetChange)}
+                    >
+                      {t("BrandKit.retryAsset")}
+                    </Button>
+                  </div>
+                )}
+              </BrandKitSection>
+              <BrandKitSection
+                title={t("BrandKit.look")}
+                action={
+                  <>
+                    <Button
+                      aria-expanded={lookDraft !== null}
+                      onClick={() => {
+                        if (reviewsCurrentWebsiteLook)
+                          onWebsiteVisualReviewed?.("look");
+                        setLookDraft(
+                          lookDraft
+                            ? null
+                            : {
+                                colors: kit.colors.join("\n"),
+                                fonts: kit.fonts.join("\n"),
+                              },
+                        );
+                        if (lookMessage !== "lookConflict")
+                          setLookMessage(null);
+                      }}
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      {t(
+                        lookDraft?.websiteColors
+                          ? "BrandKit.discardWebsiteLook"
+                          : lookDraft
+                            ? "BrandKit.cancelLook"
+                            : "BrandKit.editLook",
+                      )}
+                    </Button>
+                    {!lookDraft && kit.hasCustomLook ? (
+                      <Button
+                        loading={lookPending}
+                        disabled={lookMessage === "lookConflict"}
+                        onClick={() => updateLook(null)}
+                        size="sm"
+                        type="button"
+                        variant="ghost"
+                      >
+                        {t("BrandKit.resetLook")}
                       </Button>
-                    </div>
-                  )}
-                </section>
+                    ) : null}
+                    {websiteUrl && !lookDraft ? (
+                      <DesignMdGenerateDialog
+                        owner={{ type: "project", projectId }}
+                        websiteUrl={websiteUrl}
+                        trigger={
+                          <Button
+                            aria-describedby={websiteStyleHelpId}
+                            size="sm"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <Pipette aria-hidden />
+                            {t("BrandKit.extractWebsiteStyle")}
+                          </Button>
+                        }
+                        onGenerated={({ look }) => {
+                          if (!look) return;
+                          setKit((current) =>
+                            current && !current.hasCustomLook
+                              ? {
+                                  ...current,
+                                  colors: look.colors,
+                                  fonts: look.fonts,
+                                }
+                              : current,
+                          );
+                          setWebsiteStyleSaved(true);
+                        }}
+                      />
+                    ) : null}
+                  </>
+                }
+              >
                 {swatches.length ? (
                   <ul
                     aria-hidden={lookDraft ? true : undefined}
@@ -732,116 +878,77 @@ export function StudioBrandKitDialog({
                   </ul>
                 ) : null}
                 {!lookDraft && kit.fonts.length ? (
-                  <p className="text-muted-foreground text-sm break-words">
-                    {kit.fonts.join(" · ")}
-                  </p>
+                  <p className="text-sm break-words">{kit.fonts.join(" · ")}</p>
                 ) : null}
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    aria-expanded={lookDraft !== null}
-                    onClick={() => {
-                      if (reviewsCurrentWebsiteLook)
-                        onWebsiteVisualReviewed?.("look");
-                      setLookDraft(
-                        lookDraft
-                          ? null
-                          : {
-                              colors: kit.colors.join("\n"),
-                              fonts: kit.fonts.join("\n"),
-                            },
-                      );
-                      if (lookMessage !== "lookConflict") setLookMessage(null);
-                    }}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    {t(
-                      lookDraft?.websiteColors
-                        ? "BrandKit.discardWebsiteLook"
-                        : lookDraft
-                          ? "BrandKit.cancelLook"
-                          : "BrandKit.editLook",
-                    )}
-                  </Button>
-                  {!lookDraft && kit.hasCustomLook ? (
-                    <Button
-                      loading={lookPending}
-                      disabled={lookMessage === "lookConflict"}
-                      onClick={() => updateLook(null)}
-                      size="sm"
-                      type="button"
-                      variant="ghost"
-                    >
-                      {t("BrandKit.resetLook")}
-                    </Button>
-                  ) : null}
-                </div>
                 {lookDraft ? (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {lookDraft.websiteColors ? (
                       <p className="text-muted-foreground text-sm">
                         {t("BrandKit.websiteLookDraft")}
                       </p>
                     ) : null}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="studio-brand-colors">
-                        {t("BrandKit.colors")}
-                      </Label>
-                      <Textarea
-                        id="studio-brand-colors"
-                        aria-describedby="studio-brand-colors-help"
-                        aria-invalid={!!invalidColors}
-                        className="font-mono"
-                        rows={3}
-                        value={lookDraft.colors}
-                        onChange={(event) =>
-                          setLookDraft({
-                            ...lookDraft,
-                            colors: event.currentTarget.value,
-                          })
-                        }
-                      />
-                      <p
-                        id="studio-brand-colors-help"
-                        className="text-muted-foreground text-xs"
-                      >
-                        {t("BrandKit.colorsHelp")}
-                      </p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="studio-brand-colors">
+                          {t("BrandKit.colors")}
+                        </Label>
+                        <Textarea
+                          id="studio-brand-colors"
+                          aria-describedby="studio-brand-colors-help"
+                          aria-invalid={!!invalidColors}
+                          className="font-mono"
+                          rows={3}
+                          value={lookDraft.colors}
+                          onChange={(event) =>
+                            setLookDraft({
+                              ...lookDraft,
+                              colors: event.currentTarget.value,
+                            })
+                          }
+                        />
+                        <p
+                          id="studio-brand-colors-help"
+                          className="text-muted-foreground text-xs"
+                        >
+                          {t("BrandKit.colorsHelp")}
+                        </p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="studio-brand-fonts">
+                          {t("BrandKit.fonts")}
+                        </Label>
+                        <Textarea
+                          id="studio-brand-fonts"
+                          aria-describedby="studio-brand-fonts-help"
+                          aria-invalid={!!invalidFonts}
+                          rows={3}
+                          value={lookDraft.fonts}
+                          onChange={(event) =>
+                            setLookDraft({
+                              ...lookDraft,
+                              fonts: event.currentTarget.value,
+                            })
+                          }
+                        />
+                        <p
+                          id="studio-brand-fonts-help"
+                          className="text-muted-foreground text-xs"
+                        >
+                          {t("BrandKit.fontsHelp")}
+                        </p>
+                      </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="studio-brand-fonts">
-                        {t("BrandKit.fonts")}
-                      </Label>
-                      <Textarea
-                        id="studio-brand-fonts"
-                        aria-describedby="studio-brand-fonts-help"
-                        aria-invalid={!!invalidFonts}
-                        rows={2}
-                        value={lookDraft.fonts}
-                        onChange={(event) =>
-                          setLookDraft({
-                            ...lookDraft,
-                            fonts: event.currentTarget.value,
-                          })
-                        }
-                      />
-                      <p
-                        id="studio-brand-fonts-help"
-                        className="text-muted-foreground text-xs"
+                    <div className="flex justify-end">
+                      <Button
+                        disabled={invalidLook || lookMessage === "lookConflict"}
+                        loading={lookPending}
+                        onClick={() => updateLook(look)}
+                        size="sm"
+                        type="button"
                       >
-                        {t("BrandKit.fontsHelp")}
-                      </p>
+                        {t("BrandKit.saveLook")}
+                      </Button>
                     </div>
-                    <Button
-                      disabled={invalidLook || lookMessage === "lookConflict"}
-                      loading={lookPending}
-                      onClick={() => updateLook(look)}
-                      size="sm"
-                      type="button"
-                    >
-                      {t("BrandKit.saveLook")}
-                    </Button>
                   </div>
                 ) : null}
                 {lookMessage ? (
@@ -861,94 +968,97 @@ export function StudioBrandKitDialog({
                   </Button>
                 ) : null}
                 {websiteUrl && !lookDraft ? (
-                  <div className="space-y-2">
-                    <DesignMdGenerateDialog
-                      owner={{ type: "project", projectId }}
-                      websiteUrl={websiteUrl}
-                      trigger={
-                        <Button size="sm" type="button" variant="outline">
-                          <Pipette aria-hidden />
-                          {t("BrandKit.extractWebsiteStyle")}
-                        </Button>
-                      }
-                      onGenerated={({ look }) => {
-                        if (!look) return;
-                        setKit((current) =>
-                          current && !current.hasCustomLook
-                            ? {
-                                ...current,
-                                colors: look.colors,
-                                fonts: look.fonts,
-                              }
-                            : current,
-                        );
-                        setWebsiteStyleSaved(true);
-                      }}
-                    />
-                    <p className="text-muted-foreground text-xs">
-                      {t("BrandKit.websiteStyleHelp")}
-                    </p>
-                    {websiteStyleSaved ? (
-                      <p
-                        role="status"
-                        className="text-muted-foreground text-sm"
-                      >
-                        {t("BrandKit.websiteStyleSaved")}
-                      </p>
-                    ) : null}
-                  </div>
+                  <p
+                    id={websiteStyleHelpId}
+                    className="text-muted-foreground text-xs"
+                  >
+                    {t("BrandKit.websiteStyleHelp")}
+                  </p>
                 ) : null}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="studio-brand-summary">
-                  {t("BrandKit.summary")}
-                </Label>
-                <Textarea
-                  id="studio-brand-summary"
-                  maxLength={MAX_COPY_LENGTH}
-                  value={draft.summary}
-                  onChange={(event) =>
-                    update("summary", event.currentTarget.value)
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="studio-brand-tone">{t("BrandKit.tone")}</Label>
-                <Input
-                  id="studio-brand-tone"
-                  maxLength={MAX_AUDIENCE_LENGTH}
-                  value={draft.tone}
-                  onChange={(event) =>
-                    update("tone", event.currentTarget.value)
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="studio-brand-audience">
-                  {t("BrandKit.audience")}
-                </Label>
-                <Textarea
-                  id="studio-brand-audience"
-                  placeholder={t("BrandKit.onePerLine")}
-                  value={draft.audience}
-                  onChange={(event) =>
-                    update("audience", event.currentTarget.value)
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="studio-brand-copy">
-                  {t("BrandKit.approvedLines")}
-                </Label>
-                <Textarea
-                  id="studio-brand-copy"
-                  placeholder={t("BrandKit.onePerLine")}
-                  value={draft.approvedLines}
-                  onChange={(event) =>
-                    update("approvedLines", event.currentTarget.value)
-                  }
-                />
-              </div>
+                {websiteUrl && !lookDraft && websiteStyleSaved ? (
+                  <p role="status" className="text-muted-foreground text-sm">
+                    {t("BrandKit.websiteStyleSaved")}
+                  </p>
+                ) : null}
+              </BrandKitSection>
+              <BrandKitSection
+                title={t("BrandKit.copy")}
+                action={
+                  websiteUrl ? (
+                    <Button
+                      loading={websitePending}
+                      onClick={addWebsiteCopy}
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <Globe aria-hidden />
+                      {t("BrandKit.addWebsiteCopy")}
+                    </Button>
+                  ) : null
+                }
+              >
+                {websiteMessage ? (
+                  <p role="status" className="text-muted-foreground text-sm">
+                    {t(`BrandKit.${websiteMessage}`)}
+                  </p>
+                ) : null}
+                <div className="space-y-1.5">
+                  <Label htmlFor="studio-brand-summary">
+                    {t("BrandKit.summary")}
+                  </Label>
+                  <Textarea
+                    id="studio-brand-summary"
+                    maxLength={MAX_COPY_LENGTH}
+                    rows={3}
+                    value={draft.summary}
+                    onChange={(event) =>
+                      update("summary", event.currentTarget.value)
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="studio-brand-tone">
+                    {t("BrandKit.tone")}
+                  </Label>
+                  <Input
+                    id="studio-brand-tone"
+                    maxLength={MAX_AUDIENCE_LENGTH}
+                    value={draft.tone}
+                    onChange={(event) =>
+                      update("tone", event.currentTarget.value)
+                    }
+                  />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="studio-brand-audience">
+                      {t("BrandKit.audience")}
+                    </Label>
+                    <Textarea
+                      id="studio-brand-audience"
+                      placeholder={t("BrandKit.onePerLine")}
+                      value={draft.audience}
+                      onChange={(event) =>
+                        update("audience", event.currentTarget.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="studio-brand-copy">
+                      {t("BrandKit.approvedLines")}
+                    </Label>
+                    <Textarea
+                      id="studio-brand-copy"
+                      placeholder={t("BrandKit.onePerLine")}
+                      value={draft.approvedLines}
+                      onChange={(event) =>
+                        update("approvedLines", event.currentTarget.value)
+                      }
+                    />
+                  </div>
+                </div>
+              </BrandKitSection>
             </fieldset>
           ) : pending ? (
             <p role="status" className="text-muted-foreground text-sm">
@@ -961,35 +1071,44 @@ export function StudioBrandKitDialog({
             </p>
           ) : null}
           {message ? (
-            <p role="status" className="text-muted-foreground text-sm">
-              {t(`BrandKit.${message}`)}
-            </p>
-          ) : null}
-          {message === "conflict" || message === "loadError" ? (
-            <Button
-              disabled={pending}
-              onClick={load}
-              type="button"
-              size="sm"
-              variant="outline"
-            >
-              {t("BrandKit.reload")}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <p role="status" className="text-muted-foreground text-sm">
+                {t(`BrandKit.${message}`)}
+              </p>
+              {message === "conflict" || message === "loadError" ? (
+                <Button
+                  disabled={pending}
+                  onClick={load}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                >
+                  {t("BrandKit.reload")}
+                </Button>
+              ) : null}
+            </div>
           ) : null}
         </div>
-        <DialogFooter>
-          <Button asChild variant="outline">
+        <DialogFooter className="border-border -mx-4 border-t items-center px-4 pt-3 max-sm:flex-row max-sm:flex-wrap sm:-mx-6 sm:px-6 sm:pt-4">
+          <Button
+            asChild
+            title={t("BrandKit.editDesign")}
+            className="mr-auto max-sm:size-9 max-sm:p-0"
+            size="sm"
+            variant="ghost"
+          >
             <Link
               href={`/projects/${encodeURIComponent(projectId)}/design-md`}
               aria-label={t("brandKitNewTab")}
               rel="noopener noreferrer"
               target="_blank"
             >
-              {t("BrandKit.editDesign")}
+              <span className="max-sm:sr-only">{t("BrandKit.editDesign")}</span>
               <ExternalLink aria-hidden />
             </Link>
           </Button>
           <Button
+            className="max-sm:flex-1"
             disabled={pending}
             onClick={() => setOpen(false)}
             type="button"
@@ -999,6 +1118,7 @@ export function StudioBrandKitDialog({
           </Button>
           {kit ? (
             <Button
+              className="max-sm:flex-1"
               disabled={
                 pending ||
                 !dirty ||

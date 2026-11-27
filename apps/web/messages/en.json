@@ -4760,6 +4760,9 @@
         "error": "Could not prepare suggestions from the project website. Try again."
       },
       "BrandKit": {
+        "logo": "Logo",
+        "look": "Colors and fonts",
+        "copy": "Brand copy",
         "assets": "Brand images",
         "assetHint": "Add mascots, illustrations, or other images for Content Studio to use as visual references.",
         "addAsset": "Add image",
@@ -4770,7 +4773,7 @@
         "websiteLookDraft": "Colors and fonts suggested from your website. Edit them before saving the look.",
         "discardWebsiteLook": "Discard suggested look",
         "cancelLook": "Cancel look edits",
-        "editLook": "Edit colors and fonts",
+        "editLook": "Edit",
         "resetLook": "Use project design",
         "colorsHelp": "Enter up to eight hex colors, one per line, such as #23453C.",
         "fonts": "Fonts",
@@ -4786,7 +4789,7 @@
         "websiteProfileAdded": "Website suggestions added. Review the brand voice and audience before saving.",
         "websiteCopyEmpty": "There’s no new website copy to add.",
         "websiteCopyError": "Could not read copy from the project website. Try again.",
-        "extractWebsiteStyle": "Extract colors and fonts",
+        "extractWebsiteStyle": "From website",
         "websiteStyleHelp": "Extracting the website’s style replaces the project design guide.",
         "websiteStyleSaved": "Website style saved to the project design guide.",
         "logoFile": "Project logo file",

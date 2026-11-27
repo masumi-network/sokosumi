@@ -4760,6 +4760,9 @@
         "error": "Die Vorschläge von der Projekt-Website konnten nicht erstellt werden. Versuche es erneut."
       },
       "BrandKit": {
+        "logo": "Logo",
+        "look": "Farben und Schriften",
+        "copy": "Markentexte",
         "assets": "Markenbilder",
         "assetHint": "Füge Maskottchen, Illustrationen oder andere Bilder hinzu, die Content Studio als visuelle Vorlagen verwenden kann.",
         "addAsset": "Bild hinzufügen",
@@ -4770,7 +4773,7 @@
         "websiteLookDraft": "Farben und Schriften von deiner Website. Du kannst sie vor dem Speichern bearbeiten.",
         "discardWebsiteLook": "Vorgeschlagenes Design verwerfen",
         "cancelLook": "Änderungen am Design verwerfen",
-        "editLook": "Farben und Schriften bearbeiten",
+        "editLook": "Bearbeiten",
         "resetLook": "Projektdesign verwenden",
         "colorsHelp": "Gib bis zu acht Hex-Farbwerte ein, je einen pro Zeile, zum Beispiel #23453C.",
         "fonts": "Schriften",
@@ -4786,7 +4789,7 @@
         "websiteProfileAdded": "Website-Vorschläge hinzugefügt. Prüfe Tonalität und Zielgruppe vor dem Speichern.",
         "websiteCopyEmpty": "Es gibt keine neuen Website-Texte zum Hinzufügen.",
         "websiteCopyError": "Die Texte konnten nicht von der Projekt-Website gelesen werden. Versuche es erneut.",
-        "extractWebsiteStyle": "Farben und Schriftarten extrahieren",
+        "extractWebsiteStyle": "Von Website",
         "websiteStyleHelp": "Beim Extrahieren des Website-Stils wird der Designleitfaden des Projekts ersetzt.",
         "websiteStyleSaved": "Der Website-Stil wurde im Designleitfaden des Projekts gespeichert.",
         "logoFile": "Datei für das Projektlogo",
