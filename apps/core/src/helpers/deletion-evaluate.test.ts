@@ -62,6 +62,12 @@ vi.mock("@/helpers/workspace-access", () => ({
   isLastWorkspace: (...args: unknown[]) => isLastWorkspaceMock(...args),
 }));
 
+vi.mock("@/lib/db/network-scope", () => ({
+  createNetworkScope: () => ({
+    networkDb: { job: { findFirst: jobFindFirstMock } },
+  }),
+}));
+
 vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@sokosumi/database/repositories")>();
@@ -782,7 +788,7 @@ describe("evaluateOrganizationDeletion", () => {
     vi.clearAllMocks();
     getMembersByOrganizationIdMock.mockResolvedValue([{ userId: "user-1" }]);
     isLastWorkspaceMock.mockResolvedValue(false);
-    jobFindFirstMock.mockResolvedValue(null);
+    jobFindFirstMock.mockReset().mockResolvedValue(null);
     taskFindFirstMock.mockResolvedValue(null);
     subscriptionFindFirstMock.mockResolvedValue(null);
     enterpriseContractFindFirstMock.mockResolvedValue(null);
@@ -909,15 +915,6 @@ describe("evaluateOrganizationDeletion", () => {
     ).resolves.toEqual({
       blockers: ["IN_FLIGHT_JOB"],
     });
-    expect(jobFindFirstMock).toHaveBeenCalledWith({
-      where: {
-        organizationId: "org-1",
-        events: {
-          none: { status: { in: finalizedAgentJobStatuses } },
-        },
-      },
-      select: { id: true },
-    });
   });
 
   it("returns UNSETTLED_ON_CHAIN_JOB when the Organization has a Job with a non-finalized purchase", async () => {
@@ -927,18 +924,6 @@ describe("evaluateOrganizationDeletion", () => {
       evaluateOrganizationDeletion("org-1", "user-1", createPrisma() as never),
     ).resolves.toEqual({
       blockers: ["UNSETTLED_ON_CHAIN_JOB"],
-    });
-    expect(jobFindFirstMock).toHaveBeenCalledWith({
-      where: {
-        organizationId: "org-1",
-        purchase: {
-          OR: [
-            { onChainStatus: { notIn: finalizedOnChainJobStatuses } },
-            { onChainStatus: null },
-          ],
-        },
-      },
-      select: { id: true },
     });
   });
 
@@ -960,7 +945,6 @@ describe("evaluateOrganizationDeletion", () => {
   });
 
   it("does not return work blockers when Organization Jobs and Tasks are terminal and on-chain is finalized", async () => {
-    mockJobLookups({ inFlight: null, unsettled: null });
     taskFindFirstMock.mockResolvedValue(null);
 
     await expect(

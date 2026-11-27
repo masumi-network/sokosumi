@@ -8,17 +8,27 @@ import {
   type CalendarErasureCleanup,
   cleanupCalendarErasureResources,
   eraseWorkspaceCalendarData,
+  findForeignWorkspaceX402Charge,
   lockCalendarErasureUser,
   lockWorkspaceCalendarForErasure,
 } from "@/helpers/calendar-erasure";
 import { lockCalendarScope } from "@/helpers/calendar-locks";
 import {
-  evaluateOrganizationDeletion,
+  evaluateLockedOrganizationDeletion,
   throwIfOrganizationDeletionBlocked,
 } from "@/helpers/deletion-evaluate";
 
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
-import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
+import {
+  applyRulesAfterDelete,
+  workspaceTasksWithDescendants,
+} from "@/helpers/user-deletion-crossing-rules";
+import {
+  applyOrganizationRules,
+  checkWorkspaceDeletion,
+  refuseJobsInWorkspace,
+  refuseOrganizationWorkspaceDeletion,
+} from "@/helpers/workspace-deletion-crossing-rules";
 
 type PrismaClient = ReturnType<typeof createPrismaClient>;
 
@@ -63,7 +73,7 @@ export async function prepareOrganizationForDeletion(
           });
         }
 
-        const evaluation = await evaluateOrganizationDeletion(
+        const evaluation = await evaluateLockedOrganizationDeletion(
           organizationId,
           actorUserId,
           tx,
@@ -74,25 +84,25 @@ export async function prepareOrganizationForDeletion(
           scheduledEmails: [],
           taskFiles: [],
         };
+        const refuse = refuseOrganizationWorkspaceDeletion.bind(
+          null,
+          organizationId,
+        );
         try {
+          let candidates:
+            | Awaited<ReturnType<typeof checkWorkspaceDeletion>>
+            | undefined;
           if (
             workspace &&
             (await lockWorkspaceCalendarForErasure(tx, workspace.id))
           ) {
             // Organization erasure must not remove a surviving user's payment
             // evidence, including charges for tasks retained after membership ends.
-            const foreignCharge = await tx.taskX402Payment.findFirst({
-              where: {
-                task: { workspaceId: workspace.id },
-                status: { in: SWEEPABLE_X402_STATUSES },
-                transaction: { userId: { not: actorUserId } },
-              },
-              select: {
-                id: true,
-                taskId: true,
-                transaction: { select: { userId: true } },
-              },
-            });
+            const foreignCharge = await findForeignWorkspaceX402Charge(
+              tx,
+              workspace.id,
+              actorUserId,
+            );
             if (foreignCharge) {
               Sentry.captureMessage(
                 "Organization deletion would remove a task x402 payment charged to another user",
@@ -107,7 +117,7 @@ export async function prepareOrganizationForDeletion(
                     userId: actorUserId,
                     taskX402PaymentId: foreignCharge.id,
                     taskId: foreignCharge.taskId,
-                    chargedUserId: foreignCharge.transaction.userId,
+                    chargedUserId: foreignCharge.chargedUserId,
                     repair:
                       "No admin endpoint clears this. Repair payment ownership or move the task out of the organization before retrying deletion.",
                   },
@@ -119,9 +129,20 @@ export async function prepareOrganizationForDeletion(
                   "A task payment belongs to another user. Contact support to repair it, then retry organization deletion.",
               });
             }
+            candidates = await checkWorkspaceDeletion(
+              tx,
+              workspace.id,
+              refuse,
+              await workspaceTasksWithDescendants(tx, workspace.id),
+            );
             cleanup = await eraseWorkspaceCalendarData(tx, workspace.id);
           }
+          if (workspace) {
+            await refuseJobsInWorkspace(tx, workspace.id, refuse);
+          }
           await tx.organization.deleteMany({ where: { id: organizationId } });
+          if (candidates) await applyRulesAfterDelete(tx, candidates);
+          await applyOrganizationRules(tx, organizationId);
         } catch (error) {
           if (error instanceof CalendarErasureBlockedError) {
             Sentry.captureMessage(
