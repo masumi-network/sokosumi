@@ -659,19 +659,29 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
       {
         kind: "owner",
         message: 'Post this on X: "We just crossed 1,000 Soko Bots at work."',
+        // A create_social_post Core refuses is how its account question
+        // opens; the check is that nothing was made.
         expect: {
           asksQuestion: true,
-          forbiddenTools: [
-            "publish_social_post",
-            "schedule_social_post",
-            "create_social_post",
-          ],
+          forbiddenTools: ["publish_social_post", "schedule_social_post"],
         },
-        outcomes: [NEVER_SENT],
+        outcomes: [
+          {
+            kind: "noPosts",
+            label: "Nothing made before the owner chose",
+            project: "Sokosumi Marketing",
+          },
+          {
+            kind: "noPosts",
+            label: "Nothing on Padierfind",
+            project: "Padierfind",
+          },
+          NEVER_SENT,
+        ],
       },
       {
         kind: "owner",
-        message: "The Sokosumi one.",
+        message: "The @sokosumi one.",
         expect: {
           anyTools: ["create_social_post"],
           forbiddenTools: ["publish_social_post"],
@@ -840,7 +850,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
       {
         kind: "owner",
         message:
-          'I put our launch one-pager in Files ("Typed memory launch"). Turn it into 3 X posts for Sokosumi spread over next week. Drafts only, I\'ll approve.',
+          'I put our launch one-pager in Files ("Typed memory launch"). Turn it into 3 posts for @sokosumi on X spread over next week. Drafts only, I\'ll approve.',
         expect: {
           anyTools: ["read_file"],
           forbiddenTools: ["publish_social_post", "schedule_social_post"],

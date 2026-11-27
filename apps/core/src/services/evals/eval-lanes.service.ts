@@ -659,6 +659,9 @@ export async function resetEvalLaneForSokoBot(
   await prisma.socialPost.deleteMany({ where: { workspaceId } });
   await prisma.newsletterIssue.deleteMany({ where: { workspaceId } });
   await prisma.contact.deleteMany({ where: { workspaceId } });
+  // An earlier case's table (and its retry keys, which cascade) would refuse
+  // a later case's create_table that reuses the same natural key.
+  await prisma.dataTable.deleteMany({ where: { workspaceId } });
   await prisma.sokoBotIntegration.deleteMany({
     where: { sokoBotId, composioAccountId: evalXAccountId(sokoBotId) },
   });
