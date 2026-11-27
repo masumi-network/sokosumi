@@ -1512,11 +1512,13 @@ function TableWorkspace({
           !displayedRows.length && (
             <p className="text-muted-foreground p-8 text-center text-sm">
               {/* A filter or archived-rows mode can hide rows; then the
-                  filter hint still applies. */}
+                  filter hint still applies, without the disabled Add row. */}
               {t(
-                table.archivedAt && !definition.filters?.length && !archivedRows
-                  ? "noRowsArchived"
-                  : "noRows",
+                !table.archivedAt
+                  ? "noRows"
+                  : definition.filters?.length || archivedRows
+                    ? "noRowsArchivedFiltered"
+                    : "noRowsArchived",
               )}
             </p>
           )
@@ -2051,7 +2053,7 @@ function TableWorkspace({
                           { version: renameVersion, title },
                           (body) => dataTableService.update(table.id, body),
                         );
-                      else if (dialog === "archive")
+                      else if (dialog === "archive") {
                         await mutate(
                           "archive",
                           {
@@ -2060,7 +2062,11 @@ function TableWorkspace({
                           },
                           (body) => dataTableService.update(table.id, body),
                         );
-                      else if (dialog === "enrich") {
+                        // Saved: the notice goes once the table refreshes,
+                        // however long that takes, so focus Table options.
+                        if (restoreOpener.current)
+                          restoreOpener.current = tableMenu.current;
+                      } else if (dialog === "enrich") {
                         const [kind, id] = agent.split(":");
                         const request = enrichmentRequest ?? {
                           key: enrichmentKey,

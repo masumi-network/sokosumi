@@ -12156,6 +12156,7 @@
       "sortDescending": "Absteigend sortieren",
       "noRows": "Keine Zeilen in dieser Ansicht. Füge eine Zeile hinzu oder ändere die Filter.",
       "noRowsArchived": "Keine Zeilen. Stelle die Tabelle wieder her, um welche hinzuzufügen.",
+      "noRowsArchivedFiltered": "Keine Zeilen in dieser Ansicht. Ändere die Ansicht oder ihre Filter.",
       "liveUpdates": "Live-Aktualisierung alle 3 Sekunden. Änderungen werden auf Konflikte geprüft.",
       "enrichDescription": "Die Aufgabe darf nur ausgewählte Zeilen und Ausgabespalten ändern. Versand oder Kontaktaufnahme sind nicht erlaubt.",
       "historyDescription": "Jeder Stapel dokumentiert Änderungen und Quellen. Rückgängig wird blockiert, wenn ein Wert später geändert wurde.",

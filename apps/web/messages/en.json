@@ -12156,6 +12156,7 @@
       "sortDescending": "Sort descending",
       "noRows": "No rows in this view. Add a row or change your filters.",
       "noRowsArchived": "No rows. Restore the table to add some.",
+      "noRowsArchivedFiltered": "No rows in this view. Change the view or its filters.",
       "liveUpdates": "Live updates every 3 seconds. Edits are checked for conflicts.",
       "enrichDescription": "The task can write only to your selected rows and output columns. No sending or outreach is authorized.",
       "historyDescription": "Each batch records changes and sources. Undo stops if a value was changed later.",

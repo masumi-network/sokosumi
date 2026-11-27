@@ -12156,6 +12156,7 @@
       "sortDescending": "Ordenar descendente",
       "noRows": "No hay filas en esta vista. Añade una fila o cambia los filtros.",
       "noRowsArchived": "No hay filas. Restaura la tabla para añadir algunas.",
+      "noRowsArchivedFiltered": "No hay filas en esta vista. Cambia la vista o sus filtros.",
       "liveUpdates": "Actualizaciones cada 3 segundos. Se comprueban los conflictos al editar.",
       "enrichDescription": "La tarea solo puede escribir en las filas y columnas de salida seleccionadas. No se autoriza enviar mensajes ni contactar a nadie.",
       "historyDescription": "Cada lote registra cambios y fuentes. No se deshace si un valor cambió después.",

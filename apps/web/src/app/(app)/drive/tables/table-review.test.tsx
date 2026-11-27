@@ -1498,7 +1498,8 @@ it("an archived table's filtered empty grid keeps the filter hint", () => {
     target: { value: f.views[0].id },
   });
 
-  expect(screen.getByText("noRows")).toBeTruthy();
+  expect(screen.getByText("noRowsArchivedFiltered")).toBeTruthy();
+  expect(screen.queryByText("noRows")).toBeNull();
   expect(screen.queryByText("noRowsArchived")).toBeNull();
 });
 
@@ -1521,13 +1522,19 @@ it("a restore from the notice leaves focus on Table options", async () => {
   const view = render(<TableEditor id={f.column.tableId} />);
   fireEvent.click(screen.getByRole("button", { name: "restore" }));
   const dialog = await screen.findByRole("dialog", { name: "restore" });
-  f.tableArchived = null;
   fireEvent.click(within(dialog).getByRole("button", { name: "restore" }));
   await waitFor(() => expect(f.update).toHaveBeenCalledOnce());
+  // The table GET is still held: the dialog closes while the notice and its
+  // Restore button are still on the page.
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  const menu = screen.getByRole("button", { name: "tableMenu" });
+  expect(screen.getByText("archivedNotice")).toBeTruthy();
+  await waitFor(() => expect(document.activeElement).toBe(menu));
+  // The GET lands and the notice goes; focus stays on Table options.
+  f.tableArchived = null;
   view.rerender(<TableEditor id={f.column.tableId} />);
-  await waitFor(() =>
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "tableMenu" }),
-    ),
+  expect(screen.queryByText("archivedNotice")).toBeNull();
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "tableMenu" }),
   );
 });
