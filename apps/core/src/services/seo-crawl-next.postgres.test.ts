@@ -498,7 +498,7 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
           request: { url: SITE },
           crawl: { fetched: 500, read: 480, stop: "page cap" },
         },
-        head: { skipped: [] },
+        head: { parent: AUDIT_CRAWL, crawl: snapshotId, skipped: [] },
         pages: [],
       });
     // The two names the SEO bot may give a JSON Report.
@@ -552,7 +552,7 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
           request: { url: SITE },
           crawl: { fetched: 500, read: 480, stop: "page cap" },
         },
-        head: { skipped: [] },
+        head: { parent: AUDIT_CRAWL, crawl: NEXT_CRAWL, skipped: [] },
         pages: [],
         padding: "x".repeat(bytes),
       });

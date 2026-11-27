@@ -660,6 +660,18 @@ describe("imported crawl continuation", () => {
     });
   });
 
+  it("refuses a continuation whose parts name different crawls", () => {
+    const report = crawlNextReport();
+    const other = "9".repeat(64);
+    for (const head of [
+      { ...report.head, parent: other },
+      { ...report.head, crawl: other },
+    ])
+      expect(() => parsePublicSeoArtifact(crawlNextReport({ head }))).toThrow(
+        "names two different crawls",
+      );
+  });
+
   it("refuses a continuation whose crawl it cannot read, as it holds nothing else", () => {
     expect(() =>
       parsePublicSeoArtifact(

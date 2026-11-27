@@ -23,6 +23,9 @@ const crawlNextReport = z.object({
   kind: z.literal("crawl_next"),
   request: z.object({ url: z.string(), continues: seoSnapshotIdSchema }),
   head: z.object({
+    /** The crawl this run went on from, and the crawl of its new pages: both must be the Report's own. */
+    parent: seoSnapshotIdSchema,
+    crawl: seoSnapshotIdSchema,
     skipped: z
       .array(z.object({ url: z.string(), reason: z.string() }))
       .max(SEO_CRAWL_NEXT_MAX_AUDITS),
@@ -133,6 +136,12 @@ export function parseCrawlNextArtifact(
     siteCrawl.snapshotId === siteCrawl.continues
   )
     throw badRequest("The crawl continuation has no readable crawl");
+  // A Report whose parts name different crawls could put a paid crawl on another branch of the chain.
+  if (
+    report.head.parent !== report.request.continues ||
+    report.head.crawl !== siteCrawl.snapshotId
+  )
+    throw badRequest("The crawl continuation names two different crawls");
   const pages = audited.flatMap(({ payload }) => (payload ? [payload] : []));
   const first = pages[0];
   const observed = pages.map((page) => Date.parse(page.observedAt));
