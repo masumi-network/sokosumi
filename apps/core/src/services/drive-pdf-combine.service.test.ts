@@ -1,5 +1,11 @@
-import { PDFDocument, PDFName, type PDFPageTree } from "pdf-lib";
-import { describe, expect, it } from "vitest";
+import {
+  PDFDocument,
+  PDFName,
+  type PDFPageTree,
+  PDFRef,
+  PDFWriter,
+} from "pdf-lib";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   combinePdfs,
@@ -77,6 +83,32 @@ describe("combinePdfs", () => {
         { name: "pages.pdf", bytes: broken },
       ]),
     ).rejects.toEqual(new UnreadablePdfError("pages.pdf"));
+  });
+
+  it("names a file whose page tree lists something that is not a page", async () => {
+    const odd = await withPageTree((root, pdf) => {
+      root.Kids().push(pdf.context.obj(42));
+    });
+
+    await expect(
+      combinePdfs([
+        { name: "good.pdf", bytes: await pdfWithPages([100]) },
+        { name: "odd.pdf", bytes: odd },
+      ]),
+    ).rejects.toEqual(new UnreadablePdfError("odd.pdf"));
+  });
+
+  it("names a file whose page tree points at a missing object", async () => {
+    const missing = await withPageTree((root) => {
+      root.Kids().push(PDFRef.of(9_999));
+    });
+
+    await expect(
+      combinePdfs([
+        { name: "good.pdf", bytes: await pdfWithPages([100]) },
+        { name: "missing.pdf", bytes: missing },
+      ]),
+    ).rejects.toEqual(new UnreadablePdfError("missing.pdf"));
   });
 
   it("names a file whose page tree lists the same node twice", async () => {
@@ -171,15 +203,31 @@ describe("combinePdfs", () => {
     ).rejects.toEqual(new PdfLimitError("b.pdf"));
   });
 
-  it("refuses an output larger than the cap", async () => {
+  it("refuses an output larger than the cap before writing it", async () => {
+    const sources = [
+      { name: "a.pdf", bytes: await pdfWithPages([100]) },
+      { name: "b.pdf", bytes: await pdfWithPages([100]) },
+    ];
+    const write = vi.spyOn(PDFWriter.prototype, "serializeToBuffer");
+
+    await expect(combinePdfs(sources, { maxOutputBytes: 64 })).rejects.toEqual(
+      new PdfLimitError(null),
+    );
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it("writes an output exactly at the cap", async () => {
+    const sources = [
+      { name: "a.pdf", bytes: await pdfWithPages([100]) },
+      { name: "b.pdf", bytes: await pdfWithPages([200]) },
+    ];
+    const { bytes } = await combinePdfs(sources);
+
     await expect(
-      combinePdfs(
-        [
-          { name: "a.pdf", bytes: await pdfWithPages([100]) },
-          { name: "b.pdf", bytes: await pdfWithPages([100]) },
-        ],
-        { maxOutputBytes: 64 },
-      ),
+      combinePdfs(sources, { maxOutputBytes: bytes.byteLength }),
+    ).resolves.toMatchObject({ pageCount: 2 });
+    await expect(
+      combinePdfs(sources, { maxOutputBytes: bytes.byteLength - 1 }),
     ).rejects.toEqual(new PdfLimitError(null));
   });
 

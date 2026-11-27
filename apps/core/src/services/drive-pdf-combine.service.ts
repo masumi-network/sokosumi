@@ -9,6 +9,7 @@ import {
   PDFPageLeaf,
   PDFPageTree,
   type PDFRawStream,
+  PDFWriter,
   PDFXRefStreamParser,
 } from "pdf-lib";
 
@@ -49,6 +50,22 @@ const DEFAULT_LIMITS: CombinePdfLimits = {
   maxDecodedBytes: 64 * 1024 * 1024,
   maxOutputBytes: 100 * 1024 * 1024,
 };
+
+/**
+ * pdf-lib's plain writer, which `save({ useObjectStreams: false })` uses,
+ * with its size calculation exposed. The size it reports is the length of the
+ * buffer `serializeToBuffer` allocates. Only copied pages are in a combine, so
+ * there is nothing for `save`'s flush of fonts, images or forms to add.
+ */
+class OutputWriter extends PDFWriter {
+  static of(pdf: PDFDocument) {
+    return new OutputWriter(pdf.context, 50);
+  }
+
+  async size(): Promise<number> {
+    return (await this.computeBufferSize()).size;
+  }
+}
 
 /** Deeper page trees than any real document, shallow enough for recursion. */
 const MAX_PAGE_TREE_DEPTH = 64;
@@ -128,7 +145,8 @@ for (const Parser of [PDFObjectStreamParser, PDFXRefStreamParser]) {
 /**
  * The page count, walking the tree as pdf-lib's own traversal does, but
  * refusing a node met twice (a loop, or a shared branch that would multiply
- * pages) and stopping once `maxPages` is passed.
+ * pages), an entry that is missing or not a page or page tree (pdf-lib would
+ * skip it and drop pages silently), and stopping once `maxPages` is passed.
  */
 function countPages(pdf: PDFDocument, maxPages: number): number {
   const seen = new Set<unknown>();
@@ -144,7 +162,7 @@ function countPages(pdf: PDFDocument, maxPages: number): number {
         if (seen.has(kid)) throw new Error("tree");
         seen.add(kid);
         if (++pages > maxPages) throw new PdfLimitError(null);
-      }
+      } else throw new Error("page tree entry");
     }
   };
   walk(pdf.catalog.Pages(), 0);
@@ -200,7 +218,10 @@ export async function combinePdfs(
       throw fail(error);
     }
   }
-  const bytes = await combined.save();
-  if (bytes.byteLength > maxOutputBytes) throw new PdfLimitError(null);
+  // The writer sizes the whole file before allocating it; asking for that
+  // size first keeps an oversized result from ever being allocated.
+  const writer = OutputWriter.of(combined);
+  if ((await writer.size()) > maxOutputBytes) throw new PdfLimitError(null);
+  const bytes = await writer.serializeToBuffer();
   return { bytes, pageCount: combined.getPageCount() };
 }
