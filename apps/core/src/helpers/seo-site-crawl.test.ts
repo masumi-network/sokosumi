@@ -666,6 +666,41 @@ describe("imported crawl continuation", () => {
     ).toThrow("supported format");
   });
 
+  it("refuses a continuation that would never join the chain: no own Snapshot, or its parent's", () => {
+    for (const snapshotId of [undefined, "not hex", PARENT])
+      expect(() =>
+        parsePublicSeoArtifact(
+          crawlNextReport({
+            crawl: { ...crawlNextReport().crawl, snapshotId },
+          }),
+        ),
+      ).toThrow("no readable crawl");
+  });
+
+  it("skips a page whose audit is of another page, or whose report is no object", () => {
+    const report = crawlNextReport();
+    const audit = report.pages[0]!;
+    report.pages = [
+      { ...audit, url: `${SITE}/other` },
+      { ...audit, url: `${SITE}/text`, report: "the page Run failed" as never },
+    ];
+    const crawl = parsePublicSeoArtifact(report).siteCrawl;
+    if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+    expect(crawl.deepAudit?.pages).toEqual([]);
+    expect(crawl.deepAudit?.skipped.map((row) => row.url)).toEqual([
+      `${SITE}/slow`,
+      `${SITE}/other`,
+      `${SITE}/text`,
+    ]);
+    // Private evidence in a page's report still refuses the whole Report.
+    report.pages = [
+      { ...audit, report: { ...audit.report, searchConsole: {} } as never },
+    ];
+    expect(() => parsePublicSeoArtifact(report)).toThrow(
+      "Only public SEO evidence",
+    );
+  });
+
   it("keeps the site audit crawl's Snapshot and start URL, so a continuation can go on from it", () => {
     const crawl = stored(
       siteReport({ request: { url: SITE }, crawl: botCrawl() }),

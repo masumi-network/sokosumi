@@ -49,9 +49,12 @@ export function refusePrivateReport(raw: unknown): void {
   )
     throw badRequest("Private search evidence cannot be imported");
   if (Array.isArray(input.pages))
-    input.pages.forEach((page) =>
-      refusePrivateReport(reportObject(page)?.report ?? page),
-    );
+    input.pages.forEach((page) => {
+      const child = reportObject(page)?.report ?? page;
+      // A text or a number holds no private field: its parser decides whether the page is readable.
+      if (child !== null && typeof child === "object")
+        refusePrivateReport(child);
+    });
 }
 
 const SEARCH_CONSOLE_FIELDS = [

@@ -277,6 +277,35 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
     expect(started.status).toBe(201);
   });
 
+  it("waits for a completed continuation's Report before it buys the same pages again", async () => {
+    await storeCrawl(
+      "audit_full",
+      { snapshotId: AUDIT_CRAWL, stop: "page cap" },
+      new Date("2026-11-01"),
+    );
+    await setBalance(100n);
+    const first = await requestSeoCrawlNext(actor, request());
+    await prisma.task.update({
+      where: { id: first.taskId! },
+      data: { status: "COMPLETED" },
+    });
+    // The chain still ends at the audit's crawl, as the Report has not arrived.
+    expect(await continueFrom()).toBe(AUDIT_CRAWL);
+    await expect(requestSeoCrawlNext(actor, request())).rejects.toMatchObject({
+      status: 409,
+      message: expect.stringContaining("has not arrived yet"),
+    });
+    // A Report that never arrives stops blocking: the balance check is next.
+    await prisma.task.update({
+      where: { id: first.taskId! },
+      data: { updatedAt: new Date(Date.now() - 16 * 60_000) },
+    });
+    await setBalance(99n);
+    await expect(requestSeoCrawlNext(actor, request())).rejects.toMatchObject({
+      status: 422,
+    });
+  });
+
   it("refuses a crawl that stopped for good", async () => {
     await storeCrawl(
       "audit_full",

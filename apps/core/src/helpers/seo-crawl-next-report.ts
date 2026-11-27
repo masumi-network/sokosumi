@@ -65,7 +65,12 @@ export function parseCrawlNextArtifact(
   const audited = report.pages.map((page) => {
     try {
       const payload = parsePage(page.report);
-      return payload.kind === "audit_full" ? { page, payload } : { page };
+      // One page's audit, of the page it is listed for: else its findings would show under another URL.
+      return payload.kind === "audit_full" &&
+        payload.pageUrls.length === 1 &&
+        auditedSeoPageKey(payload.pageUrls[0]!) === auditedSeoPageKey(page.url)
+        ? { page, payload }
+        : { page };
     } catch {
       return { page };
     }
@@ -99,7 +104,13 @@ export function parseCrawlNextArtifact(
     ].slice(0, SEO_CRAWL_NEXT_MAX_AUDITS),
   };
   const siteCrawl = readCrawlNext(raw, deepAudit);
-  if (siteCrawl?.state !== "crawled" || !siteCrawl.startUrl)
+  // A continuation with no own Snapshot, or one that repeats its parent, would never join the chain.
+  if (
+    siteCrawl?.state !== "crawled" ||
+    !siteCrawl.startUrl ||
+    !siteCrawl.snapshotId ||
+    siteCrawl.snapshotId === siteCrawl.continues
+  )
     throw badRequest("The crawl continuation has no readable crawl");
   const pages = audited.flatMap(({ payload }) => (payload ? [payload] : []));
   const first = pages[0];

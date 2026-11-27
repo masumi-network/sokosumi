@@ -34,6 +34,11 @@ const CRAWLED_KINDS = ["audit_full", "crawl_next"];
 /** The observations the tip reads: a chain longer than this is past what any owner pays for. */
 const MAX_CRAWLS = 200;
 const RETRY = "The crawl request changed. Retry with the same key.";
+/**
+ * How long a completed continuation's Report may take to arrive. Until it does, the chain still ends at its parent,
+ * so a second request would buy the same pages again. Past this, Sokosumi takes the Report as lost.
+ */
+const REPORT_WAIT_MS = 15 * 60_000;
 
 export function isSeoCrawlNextEnabled(): boolean {
   return getEnv().SEO_CRAWL_NEXT_ENABLED;
@@ -111,6 +116,7 @@ export async function requestSeoCrawlNext(
       return commitSeoMutation(tx, previous, hooks);
     }
     await requireNoActiveSeoAnalysis(tx, actor);
+    await requireNoArrivingCrawl(tx, actor);
     const tip = crawlContinuationTip(await readSeoCrawls(tx, actor));
     if (!tip)
       throw conflict(
@@ -201,4 +207,34 @@ export async function requestSeoCrawlNext(
     });
     return commitSeoMutation(tx, result, hooks);
   }, RETRY);
+}
+
+/** Refuses while a completed continuation's Report has not arrived: its crawl is not yet the chain's tip. */
+async function requireNoArrivingCrawl(
+  tx: Prisma.TransactionClient,
+  actor: Pick<SeoActor, "owner">,
+) {
+  const waiting = await tx.projectSeoAnalysis.findMany({
+    where: {
+      ...seoOwnerWhere(actor),
+      kind: "crawl_next",
+      status: "requested",
+      taskId: { not: null },
+    },
+    select: { taskId: true },
+  });
+  const taskIds = waiting.flatMap((row) => (row.taskId ? [row.taskId] : []));
+  if (!taskIds.length) return;
+  const arriving = await tx.task.count({
+    where: {
+      id: { in: taskIds },
+      status: "COMPLETED",
+      archivedAt: null,
+      updatedAt: { gt: new Date(Date.now() - REPORT_WAIT_MS) },
+    },
+  });
+  if (arriving)
+    throw conflict(
+      "The last crawl of the next pages has not arrived yet. Wait until it shows, then start the next one.",
+    );
 }
