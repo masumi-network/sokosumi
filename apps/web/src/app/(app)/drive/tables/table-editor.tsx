@@ -29,6 +29,7 @@ import {
   ListFilter,
   MoreHorizontal,
   Plus,
+  RotateCcw,
   Table2,
   X,
 } from "lucide-react";
@@ -886,9 +887,25 @@ function TableWorkspace({
         </div>
       </div>
       {table.archivedAt && (
-        <p role="status" className="bg-muted rounded-md p-3 text-sm">
-          {t("archivedNotice")}
-        </p>
+        // Restore sits in the notice that asks for it, not only in the menu.
+        // Same confirmation and save as the menu item.
+        <div className="bg-muted flex flex-wrap items-center justify-between gap-3 rounded-md p-3">
+          <p role="status" className="text-sm">
+            {t("archivedNotice")}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            className="min-h-11 gap-1.5 md:min-h-8"
+            onClick={() => {
+              setArchiving(false);
+              setDialog("archive");
+            }}
+          >
+            <RotateCcw className="size-4" aria-hidden />
+            {t("restore")}
+          </Button>
+        </div>
       )}
       <div className="flex flex-wrap items-center gap-2">
         <select
@@ -1489,7 +1506,7 @@ function TableWorkspace({
         ) : (
           !displayedRows.length && (
             <p className="text-muted-foreground p-8 text-center text-sm">
-              {t("noRows")}
+              {t(table.archivedAt ? "noRowsArchived" : "noRows")}
             </p>
           )
         )}

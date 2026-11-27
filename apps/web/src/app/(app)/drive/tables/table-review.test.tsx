@@ -6,6 +6,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TableCell } from "@/app/drive/tables/table-cell";
@@ -659,7 +660,12 @@ it("R1: table archive retry preserves pre-poll metadata and intent", async () =>
   // only Retry can send it again.
   const confirm = screen.getByRole("button", { name: "archive" });
   expect(confirm.hasAttribute("disabled")).toBe(true);
-  expect(screen.queryByRole("button", { name: "restore" })).toBeNull();
+  // The page's own banner now offers Restore; the dialog must not.
+  expect(
+    within(screen.getByRole("dialog")).queryByRole("button", {
+      name: "restore",
+    }),
+  ).toBeNull();
   expect(screen.getByText("archiveDescription")).toBeTruthy();
   fireEvent.click(screen.getAllByRole("button", { name: "retry" })[0]);
   await waitFor(() => expect(f.update).toHaveBeenCalledTimes(2));
@@ -1447,4 +1453,24 @@ it("archive and restore confirm in their own words, not Save", async () => {
   expect(screen.getByRole("button", { name: "restore" })).toBeTruthy();
   expect(screen.getByText("restoreDescription")).toBeTruthy();
   expect(screen.queryByText("archiveDescription")).toBeNull();
+});
+
+it("an archived table restores from its banner and says how to add rows", async () => {
+  f.tableArchived = new Date();
+  f.shown = [];
+  f.update.mockResolvedValue({});
+  render(<TableEditor id={f.column.tableId} />);
+
+  expect(screen.getByText("noRowsArchived")).toBeTruthy();
+  expect(screen.queryByText("noRows")).toBeNull();
+
+  fireEvent.click(screen.getByRole("button", { name: "restore" }));
+  const dialog = await screen.findByRole("dialog", { name: "restore" });
+  expect(within(dialog).getByText("restoreDescription")).toBeTruthy();
+  fireEvent.click(within(dialog).getByRole("button", { name: "restore" }));
+  await waitFor(() => expect(f.update).toHaveBeenCalledOnce());
+  expect(f.update.mock.calls[0][1]).toMatchObject({
+    version: 1,
+    archived: false,
+  });
 });
