@@ -122,6 +122,7 @@ const NOTIFICATION: NotificationEventData = {
   isRead: false,
   readAt: null,
   createdAt: "2026-01-01T00:00:00.000Z",
+  network: null,
   inApp: true,
   osBanner: true,
   created: true,
