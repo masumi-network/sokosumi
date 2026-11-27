@@ -43,6 +43,16 @@ import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { driveHead, driveReadUrl } from "@/lib/drive-blob";
+import { isEvalWorkspace } from "@/lib/evals/eval-guard";
+import {
+  BENCHMARK_PAID_MEDIA_REFUSAL,
+  EVAL_STUB_REQUEST_PREFIX,
+  EVAL_STUB_SOURCE,
+  isEvalStubRequest,
+  isEvalStubSource,
+  stubImage,
+  stubVideo,
+} from "@/lib/evals/media-stub";
 import {
   emitCoreWarning,
   recordCoreError,
@@ -2103,11 +2113,42 @@ async function reserveAndSend(input: ReserveImageJobInput) {
   return await sendClaimedJob(job.id, input.organizationId);
 }
 
+/**
+ * A benchmark lane's job, "sent" to the in-process stub: queued with a stub
+ * request id, then settled with deterministic media at once, as fal's webhook
+ * would settle it. A talking video (voice, lip-sync, a second provider step)
+ * has no stub and fails closed, unsent and uncharged.
+ */
+async function sendToEvalStub(job: { id: string; kind: ProjectImageJobKind }) {
+  if (job.kind === ProjectImageJobKind.TALKING_VIDEO)
+    return await failBeforeSend(
+      job.id,
+      "request_not_supported",
+      new Error(BENCHMARK_PAID_MEDIA_REFUSAL),
+    );
+  await prisma.projectImageJob.update({
+    where: { id: job.id },
+    data: {
+      status: ProjectImageJobStatus.QUEUED,
+      falRequestId: `${EVAL_STUB_REQUEST_PREFIX}${job.id}`,
+      submittedAt: new Date(),
+      submitLeaseAt: null,
+    },
+  });
+  await settleWithMedia(job.id, EVAL_STUB_SOURCE);
+  return await prisma.projectImageJob.findUniqueOrThrow({
+    where: { id: job.id },
+  });
+}
+
 /** Sends a job whose lease this caller already holds. */
 async function sendClaimedJob(jobId: string, organizationId: string | null) {
   const job = await prisma.projectImageJob.findUniqueOrThrow({
     where: { id: jobId },
   });
+  // A benchmark lane buys no media: the job goes to the in-process stub
+  // before anything below could prepare or send a paid request.
+  if (await isEvalWorkspace(job.workspaceId)) return await sendToEvalStub(job);
 
   // Everything that has to happen before the paid call, in one try, because
   // everything that can fail in here is provably unsent: `submitToQueue` has not
@@ -2455,6 +2496,11 @@ export async function reconcileJob(jobId: string): Promise<void> {
   // still tell us it succeeded. Refusing to look was what made paid images
   // behind an outage permanently unreachable.
   if (!(LIVE_STATUSES as readonly string[]).includes(job.status)) {
+    return;
+  }
+  // A benchmark lane's stub job: fal never saw it, so it's never asked.
+  if (isEvalStubRequest(job.falRequestId)) {
+    await settleWithMedia(job.id, EVAL_STUB_SOURCE);
     return;
   }
 
@@ -3225,15 +3271,19 @@ async function storeMedia(
 
   let downloaded: Awaited<ReturnType<typeof downloadMedia>>;
   try {
-    downloaded = video
-      ? await downloadMedia(
-          clipUrl,
-          job.kind === ProjectImageJobKind.TALKING_VIDEO
-            ? LIMITS.IMAGE_STUDIO_MAX_TALKING_VIDEO_BYTES
-            : LIMITS.IMAGE_STUDIO_MAX_VIDEO_BYTES,
-          short ? "audio/wav" : "video/mp4",
-        )
-      : await downloadMedia(sourceUrl, LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES);
+    downloaded = isEvalStubSource(sourceUrl)
+      ? video
+        ? await stubVideo()
+        : await stubImage(job.id)
+      : video
+        ? await downloadMedia(
+            clipUrl,
+            job.kind === ProjectImageJobKind.TALKING_VIDEO
+              ? LIMITS.IMAGE_STUDIO_MAX_TALKING_VIDEO_BYTES
+              : LIMITS.IMAGE_STUDIO_MAX_VIDEO_BYTES,
+            short ? "audio/wav" : "video/mp4",
+          )
+        : await downloadMedia(sourceUrl, LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES);
     // A CDN that calls an mp4 `application/octet-stream` would make it
     // unplayable in the gallery and unattachable in Social.
     if (video && !short && !downloaded.contentType.startsWith("video/"))

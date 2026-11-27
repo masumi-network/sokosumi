@@ -11,6 +11,8 @@ import {
   publicDriveStore,
   transferBetweenStores,
 } from "@/lib/drive-blob";
+import { isEvalWorkspace } from "@/lib/evals/eval-guard";
+import { BENCHMARK_PAID_MEDIA_REFUSAL } from "@/lib/evals/media-stub";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
 import {
   speakVoiceover,
@@ -125,6 +127,9 @@ export async function generateVoiceover(
   },
 ) {
   runtime.refuseCmoRunMedia(authorized);
+  // A voice-over is a paid call with no benchmark stub: refused, unsent.
+  if (await isEvalWorkspace(authorized.turn.workspaceId))
+    throw new SokoBotRefusedUnsentError(BENCHMARK_PAID_MEDIA_REFUSAL);
   const filename = /\.mp3$/i.test(input.filename)
     ? input.filename
     : `${input.filename}.mp3`;

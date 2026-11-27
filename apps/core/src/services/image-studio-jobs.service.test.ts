@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { FileSourceKind, Prisma } from "@sokosumi/database";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   jobCountMock,
@@ -60,8 +60,15 @@ const {
   adEventCreateMock: vi.fn(),
   readReferenceImageMock: vi.fn(async () => null),
 }));
+const { isEvalWorkspaceMock, fetchQueueStatusMock } = vi.hoisted(() => ({
+  isEvalWorkspaceMock: vi.fn(async () => false),
+  fetchQueueStatusMock: vi.fn(),
+}));
 
 vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
+vi.mock("@/lib/evals/eval-guard", () => ({
+  isEvalWorkspace: isEvalWorkspaceMock,
+}));
 
 vi.mock("@/lib/drive-blob", () => ({
   driveHead: driveHeadMock,
@@ -135,6 +142,7 @@ vi.mock("@/lib/image-studio/fal-client", async () => ({
     "@/lib/image-studio/fal-client",
   )),
   submitToQueue: submitToQueueMock,
+  fetchQueueStatus: fetchQueueStatusMock,
   uploadReference: uploadReferenceMock,
 }));
 
@@ -159,6 +167,7 @@ import { STUDIO_PROMPT_ASSEMBLY_VERSION } from "@/lib/image-studio/studio-brand"
 import {
   createImageJob,
   readProviderSize,
+  reconcileJob,
   recoverUnclaimedReservations,
   sweepStalledSubmissions,
 } from "@/services/image-studio-jobs.service";
@@ -249,6 +258,65 @@ describe("image studio job submission", () => {
     projectFindUniqueMock.mockResolvedValue({
       designMdUrl: null,
       contextMd: null,
+    });
+  });
+
+  describe("in a benchmark lane", () => {
+    beforeEach(() => {
+      isEvalWorkspaceMock.mockResolvedValue(true);
+      submitToQueueMock.mockRejectedValue(
+        new Error("a benchmark lane must never reach fal"),
+      );
+      fetchQueueStatusMock.mockRejectedValue(
+        new Error("a benchmark lane must never ask fal"),
+      );
+    });
+    afterEach(() => {
+      isEvalWorkspaceMock.mockResolvedValue(false);
+      submitToQueueMock.mockReset();
+      fetchQueueStatusMock.mockReset();
+    });
+
+    it("queues an image job on the stub, never on fal", async () => {
+      await createImageJob(BASE_INPUT);
+      expect(submitToQueueMock).not.toHaveBeenCalled();
+      expect(jobUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "QUEUED",
+            falRequestId: expect.stringMatching(/^eval-stub:/),
+          }),
+        }),
+      );
+    });
+
+    it("fails a talking video closed: unsent, uncharged, no provider call", async () => {
+      expectCoreLogWhys(
+        "warn",
+        "An image generation failed before it was sent",
+        ["Preparing the request for the image provider threw"],
+      );
+      jobFindUniqueOrThrowMock.mockImplementation(async () =>
+        jobRow({ kind: "TALKING_VIDEO" }),
+      );
+      await createImageJob(BASE_INPUT);
+      expect(submitToQueueMock).not.toHaveBeenCalled();
+      expect(jobUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "FAILED",
+            failureReason: "request_not_supported",
+          }),
+        }),
+      );
+    });
+
+    it("settles a stub job without asking fal", async () => {
+      jobFindUniqueMock.mockResolvedValue(
+        jobRow({ status: "QUEUED", falRequestId: "eval-stub:job-1" }),
+      );
+      await reconcileJob("job-1");
+      expect(fetchQueueStatusMock).not.toHaveBeenCalled();
     });
   });
 
