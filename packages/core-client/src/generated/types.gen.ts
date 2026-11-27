@@ -174,6 +174,10 @@ export type ProjectSeoActionImpact = {
 
 export type AdminSeoImpactVerdicts = {
     total: number;
+    counts: Array<{
+        state: 'waiting_crawl' | 'waiting_window' | 'ready' | 'waiting_retry' | 'measured' | 'not_measurable';
+        count: number;
+    }>;
     rows: Array<{
         id: string;
         organizationSlug: string | null;
@@ -19744,6 +19748,8 @@ export type ListAdminSeoImpactVerdictsData = {
     path?: never;
     query?: {
         period?: '90' | '365' | 'all';
+        state?: 'waiting_crawl' | 'waiting_window' | 'ready' | 'waiting_retry' | 'measured' | 'not_measurable';
+        source?: 'cuso_done' | 'audit_recheck';
     };
     url: '/admin/seo-impact';
 };

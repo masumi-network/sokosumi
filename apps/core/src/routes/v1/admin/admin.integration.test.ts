@@ -68,7 +68,9 @@ vi.mock("@/lib/db/prisma", () => ({
     organization: { findMany: searchOrganizationsMock },
     projectSeoObservation: { groupBy: vi.fn().mockResolvedValue([]) },
     projectSeoImpactVerdict: {
-      count: vi.fn(async () => 1),
+      groupBy: vi.fn(async () => [
+        { state: "waiting_crawl", _count: { _all: 1 } },
+      ]),
       findMany: seoImpactRowsMock,
     },
   },
