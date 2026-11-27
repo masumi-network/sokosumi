@@ -32,6 +32,7 @@ vi.mock("@/services/soko-bot-version.service", () => ({
 vi.mock("@sentry/node", () => ({ captureException }));
 
 import prisma from "@/lib/db/prisma";
+import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 import { prepareTurnActionResultPreviews } from "./turn-action-result-previews.service";
 
 const turn = {
@@ -449,6 +450,155 @@ describe("automatic result previews", () => {
       }
       expect(captureException).not.toHaveBeenCalled();
     });
+
+    it("marks an existing file preview unavailable when the owner deletes it in the same turn", async () => {
+      const reference = { kind: "file", id: "file-before" };
+      const snapshot = {
+        workspaceId: "workspace",
+        reference,
+        data: {
+          id: "550e8400-e29b-41d4-a716-446655440010",
+          state: "available",
+          capturedAt: "2026-10-06T09:22:00.000Z",
+          kind: "file",
+          title: "Owner's draft",
+          status: "READY",
+          sourceHref: "/drive/files/file-before",
+        },
+      };
+      expect(chatResultSnapshotSchema.safeParse(snapshot).success).toBe(true);
+      calls.mockResolvedValue([
+        {
+          capability: "preview_result",
+          status: "COMPLETED",
+          toolCallId: "existing-preview",
+          result: snapshot,
+        },
+        { ...receipt, capability: "delete_file", targetId: reference.id },
+      ]);
+      await prepareTurnActionResultPreviews("turn", autoTurn, tx);
+      expect(resolve).not.toHaveBeenCalled();
+      expect(upsert).toHaveBeenCalledTimes(1);
+      expect(upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            turnId_toolCallId: {
+              turnId: "turn",
+              toolCallId: "existing-preview",
+            },
+          },
+          update: {
+            result: expect.objectContaining({
+              reference,
+              data: expect.objectContaining({
+                state: "unavailable",
+                id: snapshot.data.id,
+              }),
+            }),
+          },
+        }),
+      );
+      expect(captureException).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      [
+        "archive_task",
+        { kind: "task", id: "task-before" },
+        {
+          id: "550e8400-e29b-41d4-a716-446655440011",
+          state: "available",
+          capturedAt: "2026-10-06T09:22:00.000Z",
+          kind: "task",
+          title: "Task",
+          status: "READY",
+          sourceHref: "/tasks/task-before",
+        },
+      ],
+      [
+        "delete_schedule",
+        { kind: "bot_schedule", id: "sched-before" },
+        {
+          id: "550e8400-e29b-41d4-a716-446655440012",
+          state: "available",
+          capturedAt: "2026-10-06T09:22:00.000Z",
+          kind: "bot_schedule",
+          title: "Daily check",
+          status: "ACTIVE",
+          sourceHref: "/schedules/sched-before",
+        },
+      ],
+      [
+        "delete_task_schedule",
+        { kind: "task_schedule", id: "ts-before" },
+        {
+          id: "550e8400-e29b-41d4-a716-446655440013",
+          state: "available",
+          capturedAt: "2026-10-06T09:22:00.000Z",
+          kind: "task_schedule",
+          title: "Weekly report",
+          status: "ACTIVE",
+          sourceHref: "/schedules/ts-before",
+        },
+      ],
+    ] as const)(
+      "marks an existing preview unavailable when %s removes it, and ignores uncommitted removals",
+      async (capability, reference, data) => {
+        const snapshot = { workspaceId: "workspace", reference, data };
+        expect(chatResultSnapshotSchema.safeParse(snapshot).success).toBe(true);
+
+        // Failed / uncommitted removal leaves the existing preview intact.
+        calls.mockResolvedValue([
+          {
+            capability: "preview_result",
+            status: "COMPLETED",
+            toolCallId: "existing-preview",
+            result: snapshot,
+          },
+          {
+            ...receipt,
+            capability,
+            targetId: reference.id,
+            disposition: "UNKNOWN",
+          },
+        ]);
+        await prepareTurnActionResultPreviews("turn", autoTurn, tx);
+        expect(upsert).not.toHaveBeenCalled();
+
+        // Committed removal marks the existing preview unavailable with its original ID.
+        calls.mockResolvedValue([
+          {
+            capability: "preview_result",
+            status: "COMPLETED",
+            toolCallId: "existing-preview",
+            result: snapshot,
+          },
+          { ...receipt, capability, targetId: reference.id },
+        ]);
+        await prepareTurnActionResultPreviews("turn", autoTurn, tx);
+        expect(resolve).not.toHaveBeenCalled();
+        expect(upsert).toHaveBeenCalledTimes(1);
+        expect(upsert).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: {
+              turnId_toolCallId: {
+                turnId: "turn",
+                toolCallId: "existing-preview",
+              },
+            },
+            update: {
+              result: expect.objectContaining({
+                reference,
+                data: expect.objectContaining({
+                  state: "unavailable",
+                  id: data.id,
+                }),
+              }),
+            },
+          }),
+        );
+      },
+    );
 
     it("skips link-only writes that have no native card kind", async () => {
       calls.mockResolvedValue([

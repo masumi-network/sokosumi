@@ -140,6 +140,17 @@ export async function prepareTurnActionResultPreviews(
     if (parsed.success)
       references.set(actionInputHash(parsed.data), parsed.data);
   }
+  // When a turn already showed an item and later removed it, update that
+  // existing preview to unavailable; a removal with no prior preview or write
+  // still emits no card.
+  if (autoCards) {
+    for (const [key, { snapshot }] of prepared) {
+      const ref = snapshot.reference;
+      if ("id" in ref && removed.has(`${ref.kind}\0${ref.id}`)) {
+        references.set(key, ref);
+      }
+    }
+  }
   let count = prepared.size;
   for (const [key, reference] of references) {
     const existing = prepared.get(key);
