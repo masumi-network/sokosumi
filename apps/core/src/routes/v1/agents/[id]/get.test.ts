@@ -41,15 +41,18 @@ const {
 }));
 
 vi.mock("@/helpers/agent", () => ({
-  AGENT_PRICING_READ_TRANSACTION_OPTIONS: { isolationLevel: "RepeatableRead" },
-  getCardanoV2ReadySources: () => Promise.resolve([]),
-  buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
   calculateAverageExecutionTime: calculateAverageExecutionTimeMock,
   getAgentAuthorImage: getAgentAuthorImageMock,
   getAgentDescription: getAgentDescriptionMock,
   getAgentIcon: getAgentIconMock,
   getAgentImage: getAgentImageMock,
   getAgentName: getAgentNameMock,
+}));
+
+vi.mock("@/lib/agent-catalog/availability", async (load) => ({
+  ...(await load<typeof import("@/lib/agent-catalog/availability")>()),
+  getCardanoV2ReadySources: () => Promise.resolve([]),
+  buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
   getCreditCostsOrThrow: getCreditCostsOrThrowMock,
 }));
 
@@ -62,12 +65,13 @@ vi.mock("@/helpers/agent-cost", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: {
+  default: {},
+  networkPrisma: () => ({
     agent: {
       findFirst: agentFindFirstMock,
     },
     $transaction: prismaTransactionMock,
-  },
+  }),
 }));
 
 function createApp() {
@@ -188,10 +192,10 @@ describe("GET /agents/{id}", () => {
     );
   });
 
-  it("reads the agent in one snapshot without an interactive transaction", async () => {
+  it("requests Repeatable Read in a batch without an interactive transaction", async () => {
     // Nested pricing rows must share one snapshot. The BATCH form does that
     // without holding a pool connection across application code. Metrics stay
-    // on the default client — they are not part of the pricing snapshot.
+    // outside the pricing batch on the request’s Network scope.
     const app = createApp();
     const response = await app.request("http://localhost/agent_123");
     const body = await response.json();
@@ -220,7 +224,7 @@ describe("GET /agents/{id}", () => {
     });
     expect(calculateAverageExecutionTimeMock).toHaveBeenCalledWith(
       "agent_123",
-      expect.objectContaining({ $transaction: prismaTransactionMock }),
+      expect.objectContaining({ network: "mainnet" }),
     );
     expect(calculateAgentRatingMock).toHaveBeenCalledWith(
       "agent_123",

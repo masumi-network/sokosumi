@@ -1744,7 +1744,8 @@ function DrivePageWorkspace({
       {!isTasksView && isRecentsView && (
         <div className="mb-6 flex items-center gap-2 @2xl:hidden">
           <PageSearchField
-            className="min-w-0 flex-1"
+            // Fill the stacked row up to Tags on a tablet, as Projects does.
+            className="min-w-0 flex-1 sm:max-w-none"
             placeholder={t("searchPlaceholder")}
             value={searchQuery}
             onValueChange={handleSearchChange}

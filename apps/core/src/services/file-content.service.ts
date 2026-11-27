@@ -166,8 +166,15 @@ export function contentDispositionFor(
    * surrogate pair either.
    */
   let encoded = "";
-  for (const character of displayName) {
-    const next = encoded + encodeURIComponent(character);
+  // A lone surrogate makes encodeURIComponent throw; U+FFFD stands in.
+  for (const character of displayName.toWellFormed()) {
+    // RFC 5987 allows none of ' ( ) * unescaped; encodeURIComponent keeps them.
+    const next =
+      encoded +
+      encodeURIComponent(character).replace(
+        /['()*]/g,
+        (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+      );
     if (next.length > 240) break;
     encoded = next;
   }
