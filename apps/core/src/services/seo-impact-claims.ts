@@ -100,14 +100,17 @@ export async function recordSeoImpactVerdict(
 ) {
   const row = await prisma.projectSeoImpactVerdict.findUnique({
     where: { claimId },
-    select: { id: true, input: true, verdict: true },
+    select: { id: true, state: true, input: true, verdict: true },
   });
   if (!row) throw notFound("No claim has this id. A newer claim took it.");
   const receipt = { impactId: row.id, state: result.state };
   const verdict = jsonInput(result);
+  const saved = isFinal(result.state) ? "measured" : "waiting_retry";
   // A replay of the result this claim saved gets its answer, also when the
-  // input rules changed since.
-  if (isDeepStrictEqual(row.verdict, verdict)) return receipt;
+  // input rules changed since. A change prepared again, or ended, keeps the
+  // result of its waiting input: that one is no replay.
+  if (row.state === saved && isDeepStrictEqual(row.verdict, verdict))
+    return receipt;
   const parsed = seoImpactInputSchema.safeParse(row.input);
   // Stored under older rules: the next claim sends the change back to be prepared.
   if (!parsed.success)
