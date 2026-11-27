@@ -10353,7 +10353,7 @@
         "back": "Atrás",
         "create": "Crear",
         "addPeopleTitle": "Añadir personas a {name}",
-        "addAll": "Añadir a todos en {organization} ({count, plural, one {# miembro} other {# miembros}})",
+        "addAll": "Añadir a todos en {organization} ({count, plural, one {# miembro} other {# miembros}})",
         "addSpecific": "Añadir personas concretas",
         "addSpecificHelp": "Selecciona personas y compañeros de IA para añadir a este canal."
       },

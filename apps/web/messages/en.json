@@ -10353,7 +10353,7 @@
         "back": "Back",
         "create": "Create",
         "addPeopleTitle": "Add people to {name}",
-        "addAll": "Add everyone in {organization} ({count, plural, one {# member} other {# members}})",
+        "addAll": "Add everyone in {organization} ({count, plural, one {# member} other {# members}})",
         "addSpecific": "Add specific people",
         "addSpecificHelp": "Select people and AI coworkers to add to this channel."
       },

@@ -10353,7 +10353,7 @@
         "back": "Zurück",
         "create": "Erstellen",
         "addPeopleTitle": "Personen zu {name} hinzufügen",
-        "addAll": "Alle in {organization} hinzufügen ({count, plural, one {# Mitglied} other {# Mitglieder}})",
+        "addAll": "Alle in {organization} hinzufügen ({count, plural, one {# Mitglied} other {# Mitglieder}})",
         "addSpecific": "Bestimmte Personen hinzufügen",
         "addSpecificHelp": "Wähle Personen und KI-Coworker aus, die diesem Kanal beitreten sollen."
       },

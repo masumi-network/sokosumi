@@ -43,10 +43,11 @@ describe("chat copy", () => {
     },
   );
 
+  // A no-break space keeps the count on the same line as its noun.
   it.each([
-    ["en", "1 member", "3 members"],
-    ["de", "1 Mitglied", "3 Mitglieder"],
-    ["es", "1 miembro", "3 miembros"],
+    ["en", "1\u00a0member", "3\u00a0members"],
+    ["de", "1\u00a0Mitglied", "3\u00a0Mitglieder"],
+    ["es", "1\u00a0miembro", "3\u00a0miembros"],
   ] as const)(
     "%s: the add-everyone option counts one member in the singular",
     (locale, singular, plural) => {
