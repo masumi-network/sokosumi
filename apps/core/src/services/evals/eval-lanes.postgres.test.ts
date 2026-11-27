@@ -214,6 +214,40 @@ describe.skipIf(!enabled)("eval lanes", () => {
     await resetEvalLaneForSokoBot(lane);
   });
 
+  it("removes an earlier case's table, so its retry key cannot block a rerun", async () => {
+    const [lane] = await ensureEvalLanes(1);
+    if (!lane) throw new Error("no lane");
+    const table = await prisma.dataTable.create({
+      data: {
+        workspaceId: lane.workspaceId,
+        title: "Left by an earlier case",
+        createdBy: lane.userId,
+      },
+      select: { id: true },
+    });
+    await prisma.tableOperation.create({
+      data: {
+        workspaceId: lane.workspaceId,
+        actorId: lane.sokoBotId,
+        key: "investor-table",
+        requestHash: "earlier",
+        tableId: table.id,
+        result: {},
+      },
+    });
+    await resetEvalLaneForSokoBot(lane);
+    expect(
+      await prisma.dataTable.count({
+        where: { workspaceId: lane.workspaceId },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.tableOperation.count({
+        where: { workspaceId: lane.workspaceId },
+      }),
+    ).toBe(0);
+  });
+
   it("resets what earlier eval turns made, keeping the seeded world", async () => {
     const [lane] = await ensureEvalLanes(1);
     if (!lane) throw new Error("no lane");
