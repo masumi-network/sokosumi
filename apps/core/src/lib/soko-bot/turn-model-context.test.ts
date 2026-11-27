@@ -11,6 +11,40 @@ vi.mock("@/lib/db/database-now", () => ({
   databaseNow: async () => new Date(),
 }));
 
+describe("contextBlock with a small packet (v38 on)", () => {
+  const now = Date.parse("2026-09-30T21:27:00Z");
+  const turns = [
+    {
+      id: "old",
+      source: "CHAT",
+      userMessage: "Earlier",
+      finalAnswer: "Earlier answer",
+      completedAt: "2026-09-30T20:00:00Z",
+    },
+    {
+      id: "latest",
+      source: "CHAT",
+      userMessage: "Write the mail",
+      finalAnswer: `Draft ready. ${"x".repeat(900)} Want me to send it?`,
+      completedAt: "2026-09-30T21:26:00Z",
+    },
+  ];
+
+  it("shows the latest answer once, after the packet", () => {
+    const text = contextBlock({ map: {}, recentTurns: turns }, now).join("\n");
+    expect(text.split("Want me to send it?")).toHaveLength(2);
+    expect(text).toContain("Earlier answer");
+    expect(text.indexOf("LATEST EXCHANGE")).toBeGreaterThan(
+      text.indexOf("Earlier answer"),
+    );
+  });
+
+  it("leaves an older packet as it is", () => {
+    const text = contextBlock({ recentTurns: turns }, now).join("\n");
+    expect(text.split("Want me to send it?")).toHaveLength(3);
+  });
+});
+
 describe("contextBlock", () => {
   it("states the reply language last, after the packet and the latest exchange", () => {
     const now = Date.parse("2026-09-30T21:27:00Z");

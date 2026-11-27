@@ -157,6 +157,25 @@ export const SKILL_INDEX: Readonly<Record<string, SkillIndexEntry>> = {
       "read_file",
     ],
   },
+  "cmo-core-writes-strategy": {
+    useWhen:
+      "every turn: writing the strategy, or any change the owner asks for to it, goes through write_strategy.",
+    preloadOn: ["always"],
+  },
+  "cmo-playbooks": {
+    useWhen:
+      "work outside the month's posts: a landing, pricing or comparison page, a page fix, an email sequence, cold outreach, a press pitch, a launch, an offer, a free download or a referral ask.",
+  },
+  "cmo-asks-before-strategy-change": {
+    useWhen:
+      "an owner's chat message about the strategy: do the clear parts, ask about a part left to guess, decide when they leave it to you.",
+    preloadOn: ["chat"],
+  },
+  "cmo-compact-production": {
+    useWhen:
+      "a production run: what its small context holds and how to read the rest.",
+    preloadOn: ["production"],
+  },
   "cmo-tool-highlights": {
     useWhen: "every turn: the tools for this turn and the short save tools.",
     preloadOn: ["always"],
@@ -217,6 +236,31 @@ export const SKILL_INDEX: Readonly<Record<string, SkillIndexEntry>> = {
     useWhen:
       "asking a person, Coworker or another assistant something with send_message, or handing work over to them.",
     preloadOn: ["DELEGATE_TASK", "MIXED"],
+  },
+  // v39
+  "inbox-calendar-x": {
+    useWhen:
+      "reading, triaging, drafting or sending mail or X direct messages, the morning briefing, or anything on the calendar.",
+    preloadOn: ["mail", "schedule"],
+  },
+  "context-on-demand": {
+    useWhen:
+      "every turn: what your context packet shows, its map, and how to read the rest.",
+    preloadOn: ["always"],
+  },
+  "result-cards-send-message": {
+    useWhen:
+      "every turn that creates or changes something: the result card for each Task, schedule, post, image, Job or file.",
+    preloadOn: ["always"],
+  },
+  "social-posting-account": {
+    useWhen:
+      "drafting, scheduling or publishing a Social post (asking which account first when several fit), or analysing a social account's performance.",
+  },
+  playbooks: {
+    useWhen:
+      "writing a page, an email sequence, cold outreach, a press pitch, a launch, an offer, a referral ask, or tightening copy.",
+    preloadOn: ["always"],
   },
 };
 
