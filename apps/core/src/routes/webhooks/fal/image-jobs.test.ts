@@ -51,6 +51,8 @@ const app = new Hono();
 mountFalImageJobsWebhook(app);
 
 const REQUEST_ID = "fal-request-1";
+/** The handler states Mainnet by name: fal's callback carries no Network. */
+const MAINNET = expect.objectContaining({ network: "mainnet" });
 const JOB_ID = "01a0e585-473f-7381-9cc3-fcef2989e9a4";
 
 async function deliver(body: unknown) {
@@ -81,6 +83,7 @@ describe("fal completion callback", () => {
     // Through `failImageJob` and nowhere else. This handler writing FAILED itself
     // is exactly what let a failed generation keep a charge.
     expect(failImageJobMock).toHaveBeenCalledExactlyOnceWith(
+      MAINNET,
       JOB_ID,
       "provider_error",
       "Unexpected status code: 422",
@@ -95,10 +98,10 @@ describe("fal completion callback", () => {
       error: "Unexpected status code: 422",
     });
 
-    // The reason is a stable code. The raw transport string is the third
+    // The reason is a stable code. The raw transport string is the fourth
     // argument, which `failImageJob` logs and does not store — it is not
     // something a person waiting for an image can act on.
-    const [, reason] = failImageJobMock.mock.calls[0]!;
+    const [, , reason] = failImageJobMock.mock.calls[0]!;
     expect(reason).toBe("provider_error");
   });
 
@@ -106,6 +109,7 @@ describe("fal completion callback", () => {
     await deliver({ request_id: REQUEST_ID, status: "ERROR" });
 
     expect(failImageJobMock).toHaveBeenCalledExactlyOnceWith(
+      MAINNET,
       JOB_ID,
       "provider_error",
       undefined,
@@ -130,6 +134,7 @@ describe("fal completion callback", () => {
     // The provider's dimensions go with the URL. Dropping them here is half of why
     // stored assets read 0x0 in the lightbox.
     expect(settleWithMediaMock).toHaveBeenCalledExactlyOnceWith(
+      MAINNET,
       JOB_ID,
       "https://v3b.fal.media/files/a.png",
       expect.objectContaining({ width: 1344, height: 768 }),
@@ -204,6 +209,7 @@ describe("fal completion callback", () => {
       expect.objectContaining({ where: { falRequestId: REQUEST_ID } }),
     );
     expect(failImageJobMock).toHaveBeenCalledWith(
+      MAINNET,
       JOB_ID,
       "provider_error",
       "boom",

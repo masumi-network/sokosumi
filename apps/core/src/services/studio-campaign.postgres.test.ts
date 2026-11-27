@@ -59,6 +59,7 @@ vi.mock("@/services/image-studio-drive.service", () => ({
 }));
 
 import { errorHandler } from "@/helpers/error-handler";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import { mintAgentGrant } from "@/lib/image-studio/agent-grant";
@@ -81,6 +82,9 @@ import {
 } from "@/schemas/studio-brand-kit.schema";
 import { settleWithMedia } from "@/services/image-studio-jobs.service";
 import { expectCoreLogWhys } from "@/test/core-log";
+
+/** The charge's Network, created by name as the entry points do. */
+const scope = createNetworkScope("mainnet");
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -426,7 +430,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
         status: "QUEUED",
         product: submission.product,
       });
-      await settleWithMedia(job.id, "https://fal.example/campaign.png");
+      await settleWithMedia(scope, job.id, "https://fal.example/campaign.png");
     }
     const replay = await studio.request(
       `${path}/jobs`,
@@ -637,7 +641,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       const body = await response.json();
       const job = body.data ?? body.job;
       expect(job).toMatchObject({ status: "QUEUED" });
-      await settleWithMedia(job.id, "https://fal.example/campaign.png");
+      await settleWithMedia(scope, job.id, "https://fal.example/campaign.png");
       const result = await prisma.projectImageAsset.findUniqueOrThrow({
         where: { jobId: job.id },
         select: {
@@ -853,7 +857,11 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
         bytes: originalBackdrop,
         contentType: "image/png",
       });
-      await settleWithMedia(accepted.id, "https://fal.example/campaign.png");
+      await settleWithMedia(
+        scope,
+        accepted.id,
+        "https://fal.example/campaign.png",
+      );
       const asset = await prisma.projectImageAsset.findUniqueOrThrow({
         where: { jobId: accepted.id },
       });
@@ -920,7 +928,11 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
           bytes: darkerBackdrop,
           contentType: "image/png",
         });
-        await settleWithMedia(job.id, "https://fal.example/campaign.png");
+        await settleWithMedia(
+          scope,
+          job.id,
+          "https://fal.example/campaign.png",
+        );
         const version = await prisma.projectImageAsset.findUniqueOrThrow({
           where: { jobId: job.id },
         });
@@ -963,7 +975,11 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
         failureReason: "product_cutout_unavailable",
       });
       expect(external.submit).toHaveBeenCalledTimes(sentBeforeChangedEdit);
-      await settleWithMedia(changed.id, "https://fal.example/campaign.png");
+      await settleWithMedia(
+        scope,
+        changed.id,
+        "https://fal.example/campaign.png",
+      );
       expect(
         await prisma.projectImageJob.findUniqueOrThrow({
           where: { id: changed.id },
@@ -988,7 +1004,11 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
         where: { id: file.id },
         data: { tombstonedAt: new Date() },
       });
-      await settleWithMedia(revoked.id, "https://fal.example/campaign.png");
+      await settleWithMedia(
+        scope,
+        revoked.id,
+        "https://fal.example/campaign.png",
+      );
       expect(
         await prisma.projectImageJob.findUniqueOrThrow({
           where: { id: revoked.id },
