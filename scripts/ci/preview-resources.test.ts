@@ -319,7 +319,7 @@ for (const pooled of [true, false]) {
         deployTargets(["preprod"]),
       ),
       new RegExp(
-        `${key} does not match the read-write endpoint of Neon branch br-preview`,
+        `${key} does not match the read-write endpoint of Neon branch "preview/gh-99-pr-7"`,
       ),
     );
     assert.deepEqual(envs, []);
@@ -349,7 +349,7 @@ test("provision refuses an endpoint response belonging to another branch", async
       { ...options, neonFetchImpl },
       deployTargets(["preprod"]),
     ),
-    /Neon branch br-preview has no read-write endpoint host/,
+    /Neon branch "preview\/gh-99-pr-7" has no read-write endpoint host/,
   );
   assert.deepEqual(envs, []);
 });

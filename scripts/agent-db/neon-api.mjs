@@ -249,25 +249,25 @@ export async function getBranchConnectionUrls(config, branchId) {
 /**
  * Verify the URLs against the branch's read-write compute and return its direct host.
  * @param {NeonConfig} config
- * @param {string} branchId
+ * @param {{ id: string, name: string }} branch
  * @param {{ databaseUrl: string, databaseUrlUnpooled: string }} urls
  */
-export async function assertBranchConnectionUrls(config, branchId, urls) {
+export async function assertBranchConnectionUrls(config, branch, urls) {
   const body = await neonFetch(
     config,
-    `/projects/${config.projectId}/branches/${branchId}/endpoints`,
+    `/projects/${config.projectId}/branches/${branch.id}/endpoints`,
   );
   const endpoint = Array.isArray(body?.endpoints)
     ? body.endpoints.find(
         (compute) =>
-          compute?.branch_id === branchId && compute.type === "read_write",
+          compute?.branch_id === branch.id && compute.type === "read_write",
       )
     : undefined;
   const host =
     typeof endpoint?.host === "string" ? endpoint.host.toLowerCase() : "";
   if (!host) {
     throw new Error(
-      `Neon branch ${branchId} has no read-write endpoint host. Check its compute in Neon and retry provisioning.`,
+      `Neon branch "${branch.name}" has no read-write endpoint host. Check its compute in Neon and retry provisioning.`,
     );
   }
   const direct = parseNeonDatabaseUrl(urls.databaseUrlUnpooled);
@@ -280,7 +280,7 @@ export async function assertBranchConnectionUrls(config, branchId, urls) {
         : null;
   if (mismatch) {
     throw new Error(
-      `${mismatch} does not match the read-write endpoint of Neon branch ${branchId}. Check the branch connection settings in Neon and retry provisioning.`,
+      `${mismatch} does not match the read-write endpoint of Neon branch "${branch.name}". Check the branch connection settings in Neon and retry provisioning.`,
     );
   }
   return host;

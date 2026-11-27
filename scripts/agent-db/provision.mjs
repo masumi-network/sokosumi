@@ -134,7 +134,7 @@ export async function provisionAgentBranch(config, branchName) {
   assertAgentBranchSafety(branch, branchName, parent.id);
   const databaseUrlUnpooledHost = await assertBranchConnectionUrls(
     config,
-    branch.id,
+    branch,
     urls,
   );
   if (reused) {

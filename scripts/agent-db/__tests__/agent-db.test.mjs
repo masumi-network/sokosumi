@@ -642,7 +642,7 @@ describe("provisionAgentBranch", () => {
     ]);
     await assert.rejects(
       () => provisionAgentBranch(config, AGENT_BRANCH_NAME),
-      /DATABASE_URL_UNPOOLED does not match the read-write endpoint of Neon branch br-agent/,
+      /DATABASE_URL_UNPOOLED does not match the read-write endpoint of Neon branch "cloud-agent-/,
     );
     assert.ok(calls.every(({ method }) => method === "GET"));
   });
