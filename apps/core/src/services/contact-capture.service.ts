@@ -70,7 +70,7 @@ import {
   type XFollower,
 } from "@/lib/contacts/x-followers";
 import prisma from "@/lib/db/prisma";
-import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
+import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-social-account";
 import {
   type CoreError,
   createCoreLogger,

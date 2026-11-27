@@ -42,8 +42,10 @@ const {
   ssrfSafeFetchMock,
   resolveXSubscriptionTypeMock,
   recordAdEventsMock,
+  evalLaneFindManyMock,
 } = vi.hoisted(() => ({
   publishingAccessMock: vi.fn(),
+  evalLaneFindManyMock: vi.fn(),
   attemptFindFirstMock: vi.fn(),
   attemptAggregateMock: vi.fn(),
   attemptCreateMock: vi.fn(),
@@ -101,6 +103,7 @@ vi.mock("@/lib/db/prisma", () => ({
       update: attemptUpdateMock,
     },
     socialPostThreadPart: { update: threadPartUpdateMock },
+    evalLane: { findMany: evalLaneFindManyMock },
   },
 }));
 
@@ -221,6 +224,7 @@ describe("social post publisher service", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.useFakeTimers();
+    evalLaneFindManyMock.mockResolvedValue([]);
     vi.setSystemTime(NOW);
     resolveXSubscriptionTypeMock.mockImplementation(
       async (connection) => connection.subscriptionType ?? null,
@@ -1592,6 +1596,22 @@ describe("social post publisher service", () => {
     expect(settleCall().data.status).not.toBe("PUBLISHING");
   });
 
+  it("never claims a post in an eval lane's workspace, whatever its account", async () => {
+    evalLaneFindManyMock.mockResolvedValue([{ workspaceId: "ws-eval-3" }]);
+    const { publishDueSocialPosts } = await loadService();
+
+    await publishDueSocialPosts(syncContext);
+
+    expect(socialPostFindFirstMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          workspaceId: { notIn: ["ws-eval-3"] },
+        }),
+      }),
+    );
+  });
+
   it("claims a due post, publishes it, and records the attempt", async () => {
     const { publishDueSocialPosts } = await loadService();
 
@@ -1609,6 +1629,7 @@ describe("social post publisher service", () => {
       1,
       expect.objectContaining({
         where: {
+          workspaceId: { notIn: [] },
           NOT: {
             socialConnection: {
               is: { composioConnectedAccountId: { startsWith: "eval:" } },
@@ -2189,6 +2210,7 @@ describe("social post publisher service", () => {
         1,
         expect.objectContaining({
           where: {
+            workspaceId: { notIn: [] },
             NOT: {
               socialConnection: {
                 is: { composioConnectedAccountId: { startsWith: "eval:" } },

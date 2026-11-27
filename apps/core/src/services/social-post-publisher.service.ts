@@ -57,7 +57,8 @@ import {
 } from "@/helpers/social-post-quote";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
+import { evalWorkspaceIds } from "@/lib/evals/eval-guard";
+import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-social-account";
 import { recordCoreError, recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { CoworkerAuthenticationContext } from "@/middleware/auth";
@@ -1236,7 +1237,9 @@ async function claimDuePost(held: string[]): Promise<ClaimResult> {
   const now = new Date();
   const candidate = await prisma.socialPost.findFirst({
     where: {
-      // An eval lane's posts sit on stand-in accounts: never publish them.
+      // An eval lane never publishes: not its stand-in accounts, and not a
+      // real account someone connected inside a lane.
+      workspaceId: { notIn: await evalWorkspaceIds() },
       NOT: {
         socialConnection: {
           is: {

@@ -13,9 +13,6 @@ import prisma from "@/lib/db/prisma";
  *   check the bot did, or did not, try.
  */
 
-/** Social connections the eval world seeds: no Composio account behind them. */
-export const EVAL_CONNECTED_ACCOUNT_PREFIX = "eval:";
-
 const CACHE_MS = 60_000;
 let cache: {
   at: number;

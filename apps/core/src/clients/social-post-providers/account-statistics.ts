@@ -19,6 +19,10 @@ import {
   executeComposioTool,
 } from "@/clients/social-post-providers/tools";
 import { getZernioAccountId, zernioRequest } from "@/clients/zernio.client";
+import {
+  EVAL_ACCOUNT_FOLLOWERS,
+  isEvalSocialAccount,
+} from "@/lib/evals/eval-social-account";
 import type {
   SocialAccountMetric,
   SocialAccountPostMedia,
@@ -1283,6 +1287,13 @@ export async function fetchSocialAccountStatisticsPage(
     historyError: null,
     metricWarning: null,
   };
+  if (isEvalSocialAccount(context.connectedAccountId))
+    return {
+      ...result,
+      accountMetrics: context.includeProfile
+        ? [metric("followers_count", EVAL_ACCOUNT_FOLLOWERS)]
+        : null,
+    };
   const accountId =
     (context.provider === "tiktok" || context.provider === "linkedin") &&
     getZernioAccountId(context.connectedAccountId);
