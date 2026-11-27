@@ -13,6 +13,7 @@ import {
 import { forbidden } from "@/helpers/error";
 import { summarizeSocialPostThread } from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
+import { forgetEvalWorkspaces } from "@/lib/evals/eval-guard";
 import {
   causeMessage,
   coreLogEvents,
@@ -2069,6 +2070,41 @@ describe("social post publisher service", () => {
       );
     },
   );
+
+  it("publishes now in an eval lane's workspace only on a stand-in account", async () => {
+    forgetEvalWorkspaces();
+    evalLaneFindManyMock.mockResolvedValue([
+      { workspaceId: WORKSPACE_ID, cusoProjectId: null },
+    ]);
+    const draft = (composioConnectedAccountId: string) => ({
+      ...duePost,
+      status: "DRAFT",
+      socialConnection: { ...activeConnection, composioConnectedAccountId },
+    });
+    const input = {
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: 1,
+    };
+    const { publishSocialPostNow } = await loadService();
+
+    socialPostFindFirstMock.mockReset().mockResolvedValue(draft("ca_real"));
+    await expect(publishSocialPostNow(input)).rejects.toMatchObject({
+      status: 409,
+      message: "An eval lane publishes only on its stand-in accounts",
+    });
+    expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    expect(publishXPostMock).not.toHaveBeenCalled();
+
+    socialPostFindFirstMock.mockReset().mockResolvedValue(draft("eval:3:x"));
+    await publishSocialPostNow(input).catch(() => undefined);
+    expect(publishXPostMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ connectedAccountId: "eval:3:x" }),
+    );
+    forgetEvalWorkspaces();
+  });
 
   it("fails a due post on our own TikTok app outside utxo's workspace, unsent", async () => {
     vi.stubEnv("ZERNIO_API_KEY", "configured");

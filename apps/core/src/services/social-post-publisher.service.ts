@@ -57,7 +57,7 @@ import {
 } from "@/helpers/social-post-quote";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { evalWorkspaceIds } from "@/lib/evals/eval-guard";
+import { evalWorkspaceIds, isEvalWorkspace } from "@/lib/evals/eval-guard";
 import {
   EVAL_CONNECTED_ACCOUNT_PREFIX,
   isEvalSocialAccount,
@@ -101,6 +101,8 @@ const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
 const CONNECTION_INACTIVE_ERROR = "Social connection needs reconnecting";
 /** A test copy schedules real posts and never sends one (ADR 0073). */
 export const TEST_COPY_NEVER_PUBLISHES = "A test copy never publishes";
+export const EVAL_REAL_ACCOUNT_NEVER_PUBLISHES =
+  "An eval lane publishes only on its stand-in accounts";
 const PROJECT_CLOSED_ERROR =
   "Cannot publish Social posts in a closing or closed Project";
 const AUTHORIZATION_REVOKED_ERROR =
@@ -1413,6 +1415,16 @@ export async function publishSocialPostNow(
         throw conflict(
           `Thread part ${post.publishingThreadPartPosition} has an unconfirmed publishing result. Check X before retrying to avoid a duplicate post.`,
         );
+      }
+      // An eval lane publishes on its stand-in accounts only, never a real one.
+      if (
+        (await isEvalWorkspace(input.workspaceId)) &&
+        !(
+          post.socialConnection &&
+          isEvalSocialAccount(post.socialConnection.composioConnectedAccountId)
+        )
+      ) {
+        throw conflict(EVAL_REAL_ACCOUNT_NEVER_PUBLISHES);
       }
       requireSocialProviderEnabled(post.provider, post.project);
       if (post.socialConnection) {
