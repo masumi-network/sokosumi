@@ -196,7 +196,7 @@ export async function moveFile(
     });
   } catch (error) {
     if (error instanceof HTTPException && error.status < 500)
-      throw new SokoBotRefusedUnsentError(error.message);
+      throw new SokoBotRefusedUnsentError(error.message, { cause: error });
     throw error;
   }
   return runtime.commitReceipt(authorized, toolCallId, resource.id, {

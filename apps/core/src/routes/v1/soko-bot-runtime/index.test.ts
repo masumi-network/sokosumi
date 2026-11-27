@@ -3,9 +3,11 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { Hono } from "hono";
 import { requestId } from "hono/request-id";
 import { describe, expect, it, vi } from "vitest";
+import { conflict, tooManyRequests } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { coreEvlogMiddleware } from "@/lib/evlog";
 import { issueTurnToken } from "@/lib/soko-bot/sandbox/turn-token";
+import { SokoBotImageRefusedError } from "@/services/soko-bot-runtime.service";
 import { coreLogEvents } from "@/test/core-log";
 
 const service = vi.hoisted(() => ({
@@ -178,5 +180,76 @@ describe("POST /turns/:turnId/reasoning", () => {
     const response = await post("/reasoning", { text: "" });
 
     expect(response.status).toBe(400);
+  });
+});
+
+describe("POST /turns/:turnId/tools/:capability typed tool errors", () => {
+  it("preserves HTTP 409 and attaches a conflict toolError payload", async () => {
+    service.runSandboxTool.mockRejectedValueOnce(
+      conflict("Table identifier already exists"),
+    );
+
+    const response = await post("/tools/create_table", {
+      toolCallId: "call_1",
+      input: { title: "Investors" },
+    });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      message: "Table identifier already exists",
+      toolError: {
+        kind: "conflict",
+        status: 409,
+        retryable: true,
+      },
+    });
+  });
+
+  it("carries underlying busy kind and status through SokoBotImageRefusedError", async () => {
+    service.runSandboxTool.mockRejectedValueOnce(
+      new SokoBotImageRefusedError(
+        "This project already has 3 images being generated. Wait for one to finish.",
+        {
+          cause: tooManyRequests(
+            "This project already has 3 images being generated. Wait for one to finish.",
+            { kind: "image_studio_project_busy" },
+          ),
+        },
+      ),
+    );
+
+    const response = await post("/tools/generate_image", {
+      toolCallId: "call_2",
+      input: { prompt: "banner" },
+    });
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({
+      kind: "image_studio_project_busy",
+      toolError: {
+        kind: "busy",
+        status: 429,
+        coreKind: "image_studio_project_busy",
+        retryable: true,
+      },
+    });
+  });
+
+  it("keeps SOKO_BOT_TURN_INACTIVE untouched without toolError", async () => {
+    service.runSandboxTool.mockRejectedValueOnce(
+      conflict("Turn is not active", {
+        kind: CORE_API_ERROR_KINDS.SOKO_BOT_TURN_INACTIVE,
+      }),
+    );
+
+    const response = await post("/tools/create_table", {
+      toolCallId: "call_3",
+      input: {},
+    });
+
+    expect(response.status).toBe(409);
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.SOKO_BOT_TURN_INACTIVE);
+    expect(body.toolError).toBeUndefined();
   });
 });

@@ -275,6 +275,13 @@ async function settleNow(
   }
 }
 
+export class SokoBotToolTimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SokoBotToolTimeoutError";
+  }
+}
+
 async function withTimeout<T>(
   work: Promise<T>,
   ms: number,
@@ -286,7 +293,10 @@ async function withTimeout<T>(
       work,
       new Promise<never>((_resolve, reject) => {
         timer = setTimeout(
-          () => reject(new Error(`${label} timed out after ${ms}ms`)),
+          () =>
+            reject(
+              new SokoBotToolTimeoutError(`${label} timed out after ${ms}ms`),
+            ),
           ms,
         );
       }),
@@ -343,6 +353,11 @@ export interface PreparedTurn {
    * version's planLoop), so the runner offers it with Core's schema.
    */
   planLoop: boolean;
+  /**
+   * Core classifies failed tool calls into typed recovery hints delivered as a
+   * fresh note (experiment E5).
+   */
+  typedToolErrors: boolean;
   /**
    * The turn starts with a plan from earlier in its request: the runner asks
    * Core about the plan from the start, not only once the turn writes one.
@@ -620,6 +635,7 @@ export async function prepareTurn(
     requiresActionProof,
     meetingPrep,
     planLoop,
+    typedToolErrors: version.typedToolErrors === true,
     planInherited: requestPlan !== null,
     requestPlan,
     parts,
@@ -695,13 +711,20 @@ export class SokoBotTaintedActionError extends Error {
 /** Runs one Sokosumi tool with its audit events, as the model sees it. */
 const NOT_GRANTED = "Capability is not granted for this turn";
 
+export class SokoBotToolNotOpenError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SokoBotToolNotOpenError";
+  }
+}
+
 /**
  * A version with one fixed tool set offers tools this turn's route does not
  * open: the model reads why and works on without it. Other errors pass.
  */
 function notOpen(capability: string, error: unknown): unknown {
   return error instanceof Error && error.message === NOT_GRANTED
-    ? new Error(
+    ? new SokoBotToolNotOpenError(
         `${capability} is not open on this turn (Core started it for narrower work). Do the work with the tools it opens, or say in your answer what you would do with ${capability}.`,
       )
     : error;

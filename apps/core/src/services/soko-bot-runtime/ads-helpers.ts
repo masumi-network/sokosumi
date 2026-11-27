@@ -27,9 +27,10 @@ export async function callAds<T>(call: () => Promise<T>): Promise<T> {
     // unknown — never retry an ads write after an unclear failure.
     if (error instanceof HTTPException) {
       if (error.status >= 400 && error.status < 500)
-        throw new SokoBotRefusedUnsentError(error.message);
+        throw new SokoBotRefusedUnsentError(error.message, { cause: error });
       throw new SokoBotRuntimeValidationError(
         "The ads provider could not complete the request.",
+        { cause: error },
       );
     }
     if (error instanceof ComposioConfigError)

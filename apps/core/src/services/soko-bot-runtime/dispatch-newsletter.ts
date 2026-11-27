@@ -197,6 +197,7 @@ export async function dispatchNewsletterTools(
         if (error instanceof HTTPException && error.status === 409)
           throw new SokoBotRuntimeConflictError(
             `${error.message}. Read the issue again with get_newsletter_issue, keep any human edits, and retry with its current revision only if the change still applies.`,
+            { cause: error },
           );
         throw error;
       }
@@ -249,6 +250,7 @@ export async function dispatchNewsletterTools(
         if (error instanceof HTTPException && error.status === 409)
           throw new SokoBotRuntimeConflictError(
             `${error.message}. Read the settings again with get_newsletter and retry only if the change still applies.`,
+            { cause: error },
           );
         throw error;
       }
@@ -317,8 +319,10 @@ export async function dispatchNewsletterTools(
         // The Subscribers page's refusals: the model reads why.
         if (error instanceof HTTPException && error.status < 500)
           throw error.status === 409
-            ? new SokoBotRuntimeConflictError(error.message)
-            : new SokoBotRuntimeValidationError(error.message);
+            ? new SokoBotRuntimeConflictError(error.message, { cause: error })
+            : new SokoBotRuntimeValidationError(error.message, {
+                cause: error,
+              });
         throw error;
       }
     }

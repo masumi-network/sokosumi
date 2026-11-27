@@ -18,6 +18,12 @@ import {
   withPromptCache,
 } from "../lib/soko-bot/stream-model-call";
 import {
+  classifyCoreToolError,
+  formatToolErrorRecoveryNote,
+  type ToolErrorRecoveryEntry,
+  TypedToolError,
+} from "../lib/soko-bot/tool-errors";
+import {
   PART_OUT_OF_BUDGET_NOTE,
   StepAdmission,
   type TurnTokenBudget,
@@ -76,6 +82,8 @@ export interface TurnLoopInput {
   shortForms?: readonly CmoShortFormTool[];
   /** Core's plan for the request (planLoop); none on other versions. */
   plan?: TurnLoopPlan;
+  /** Deliver typed tool-error recovery hints as a fresh user-side note (E5). */
+  typedToolErrors?: boolean;
 }
 
 export interface TurnLoopPlan {
@@ -149,6 +157,39 @@ export interface TurnLoopResult {
  */
 function modelIdOf(model: TurnLoopInput["model"]): string {
   return typeof model === "string" ? model : model.modelId;
+}
+
+function recoveryNoteForLastStep(
+  steps: readonly {
+    content: readonly { type: string; toolName?: string; error?: unknown }[];
+  }[],
+): string | null {
+  const last = steps.at(-1);
+  if (!last) return null;
+  const entries: ToolErrorRecoveryEntry[] = [];
+  for (const part of last.content) {
+    if (part.type !== "tool-error" || typeof part.toolName !== "string")
+      continue;
+    if (part.error instanceof TypedToolError) {
+      entries.push({ toolName: part.toolName, payload: part.error.payload });
+      continue;
+    }
+    if (
+      part.error instanceof Error &&
+      (part.error.name === "AI_InvalidToolInputError" ||
+        part.error.name === "AI_NoSuchToolError" ||
+        part.error.name === "ZodError")
+    ) {
+      entries.push({
+        toolName: part.toolName,
+        payload: classifyCoreToolError({
+          errorName: part.error.name,
+          message: part.error.message,
+        }),
+      });
+    }
+  }
+  return entries.length > 0 ? formatToolErrorRecoveryNote(entries) : null;
 }
 
 export async function runTurnLoop(
@@ -260,8 +301,15 @@ export async function runTurnLoop(
         endedByShortForm(short),
         budgetSpent,
       ],
-      prepareStep: ({ messages: current }) => {
+      prepareStep: ({ steps, messages: current }) => {
         const compacted = compact(current);
+        const base = compacted ?? current;
+        const note = input.typedToolErrors
+          ? recoveryNoteForLastStep(steps)
+          : null;
+        if (note) {
+          return { messages: [...base, { role: "user", content: note }] };
+        }
         return compacted ? { messages: compacted } : {};
       },
       // Ask for the provider's reasoning summary (never raw thoughts) so the

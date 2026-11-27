@@ -44,6 +44,12 @@ export interface SokoBotVersion {
    */
   planLoop?: true;
   /**
+   * Core classifies failed tool calls into a general failure class with one
+   * safe recovery hint, delivered to the model as a fresh note after the tool
+   * error (experiment E5). Omitted: plain error messages only, as before.
+   */
+  typedToolErrors?: true;
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.

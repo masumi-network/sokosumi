@@ -248,7 +248,7 @@ export async function executeFundraisingTool(
     );
   } catch (error) {
     if (!dispatched && error instanceof HTTPException && error.status < 500)
-      throw new SokoBotRefusedUnsentError(error.message);
+      throw new SokoBotRefusedUnsentError(error.message, { cause: error });
     throw error;
   }
 }
