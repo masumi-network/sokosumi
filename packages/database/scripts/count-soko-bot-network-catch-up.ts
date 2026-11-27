@@ -3,8 +3,12 @@ import { Client } from "pg";
 import { createSqlTables, sqlTableLayoutFromEnv } from "../src/sql-tables.js";
 
 async function main() {
-  const connectionString = process.env.DATABASE_URL?.trim();
-  if (!connectionString) throw new Error("Set DATABASE_URL.");
+  const connectionString =
+    process.env.DATABASE_URL_UNPOOLED?.trim() ||
+    process.env.DATABASE_URL?.trim();
+  if (!connectionString) {
+    throw new Error("Set DATABASE_URL_UNPOOLED or DATABASE_URL.");
+  }
   const { sharedTable } = createSqlTables(sqlTableLayoutFromEnv(process.env));
   const client = new Client({
     connectionString,

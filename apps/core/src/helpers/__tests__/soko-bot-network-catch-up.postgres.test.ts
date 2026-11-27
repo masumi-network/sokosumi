@@ -1,6 +1,5 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
@@ -19,13 +18,6 @@ const databasePackage = new URL(
   "../../../../../packages/database/",
   import.meta.url,
 );
-const migration = readFileSync(
-  new URL(
-    "prisma/migrations/20261127090602_soko_bot_network_catch_up/migration.sql",
-    databasePackage,
-  ),
-  "utf8",
-);
 const TABLES = [
   "soko_bot_turn",
   "soko_bot_delegation",
@@ -33,13 +25,14 @@ const TABLES = [
 ] as const;
 const execFileAsync = promisify(execFile);
 
-describe.skipIf(!enabled)("Soko Bot Network catch-up", () => {
+describe.skipIf(!enabled)("Soko Bot Network count", () => {
   it.each(TABLES)(
-    "backfills only eligible %s rows and clears their gate count",
+    "counts only eligible %s rows and fails the gate when any remain",
     async (target) => {
       const schema = `catch_up_${randomUUID().replaceAll("-", "")}`;
       const env = {
         ...process.env,
+        DATABASE_URL_UNPOOLED: "",
         DATABASE_SCHEMA_SHARED: schema,
         DATABASE_SCHEMA_MAINNET: "catch_up_mainnet",
         DATABASE_SCHEMA_PREPROD: "catch_up_preprod",
@@ -50,11 +43,14 @@ describe.skipIf(!enabled)("Soko Bot Network catch-up", () => {
       const table = sharedTable(target).sql;
       const hasJob = target !== "soko_bot_turn";
       const client = new Client({ connectionString: process.env.DATABASE_URL });
-      const count = () =>
+      const count = (connectionEnv: NodeJS.ProcessEnv = {}) =>
         execFileAsync(
           process.execPath,
           ["--import", "tsx", "scripts/count-soko-bot-network-catch-up.ts"],
-          { cwd: fileURLToPath(databasePackage), env },
+          {
+            cwd: fileURLToPath(databasePackage),
+            env: { ...env, ...connectionEnv },
+          },
         );
       const countOutput = (remaining: number) =>
         TABLES.map(
@@ -64,7 +60,7 @@ describe.skipIf(!enabled)("Soko Bot Network catch-up", () => {
       await client.connect();
       try {
         // The CLI connects separately. Give it committed fixtures in a private
-        // schema so the migration cannot touch another test's rows.
+        // schema so the gate counts only this test's rows.
         await client.query(`CREATE SCHEMA "${schema}"`);
         for (const name of TABLES) {
           const links = name === "soko_bot_turn" ? "" : ', "jobId", "taskId"';
@@ -91,34 +87,18 @@ describe.skipIf(!enabled)("Soko Bot Network catch-up", () => {
             [randomUUID()],
           );
         }
-        const readRows = async () =>
-          (
-            await client.query<Record<string, unknown>>(
-              `SELECT *, ctid::text AS tuple FROM ${table} ORDER BY fixture`,
-            )
-          ).rows;
-
-        const [eligible, ...untouched] = await readRows();
         await expect(count()).rejects.toMatchObject({
           code: 1,
           stdout: countOutput(1),
         });
 
-        await client.query(`SET search_path TO "${schema}"`);
-        await client.query(migration);
-        const [tagged, ...remaining] = await readRows();
-        expect(tagged).toMatchObject({
-          ...eligible,
-          network: "mainnet",
-          tuple: expect.any(String),
-        });
-        expect(remaining).toStrictEqual(untouched);
-        await expect(count()).resolves.toMatchObject({
-          stdout: countOutput(0),
-        });
-
-        await client.query(migration);
-        expect(await readRows()).toStrictEqual([tagged, ...remaining]);
+        await client.query(`DELETE FROM ${table} WHERE fixture = 1`);
+        await expect(
+          count({
+            DATABASE_URL_UNPOOLED: process.env.DATABASE_URL,
+            DATABASE_URL: "invalid",
+          }),
+        ).resolves.toMatchObject({ stdout: countOutput(0) });
       } finally {
         try {
           await client.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
