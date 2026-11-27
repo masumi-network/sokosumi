@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import { publicExplorationText, publicExplorationUrl } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { seoActionImpactSchema } from "./seo-action-impact.schema";
+import { seoDeviceSchema } from "./seo-audit-coverage.schema";
 import { seoIdSchema, seoUrlSchema } from "./seo-page.schema";
 
 export const MAX_RANKED_DECISIONS = 5;
@@ -205,6 +206,27 @@ export const seoFollowUpReview = z.discriminatedUnion("kind", [
     afterPeriod: measuredPeriod,
   }),
 ]);
+const draftText = z.string().min(1).max(20_000);
+const draftDevices = z.array(seoDeviceSchema).min(1);
+/**
+ * The SEO bot's draft of a page's opening text for an action: the page's opening and a rewrite that passed the
+ * bot's claim check, or only why the bot held its draft back. Older reports have none.
+ */
+export const seoBodyDraftSchema = z
+  .union([
+    z.object({
+      target: z.literal("opening"),
+      devices: draftDevices,
+      before: draftText,
+      after: draftText,
+    }),
+    z.object({
+      target: z.literal("opening"),
+      devices: draftDevices,
+      heldBack: draftText,
+    }),
+  ])
+  .openapi("ProjectSeoBodyDraft");
 export const seoActionSchema = z
   .object({
     id: z.string(),
@@ -223,6 +245,7 @@ export const seoActionSchema = z
       }),
       z.null(),
     ]),
+    bodyDraft: seoBodyDraftSchema.optional(),
     decision: decisionDetail.optional(),
     followUpReview: seoFollowUpReview.optional(),
     taskId: z.string().nullable(),

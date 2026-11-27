@@ -4,6 +4,7 @@ import {
   seoEditorialKeywordSchema,
   seoSeveritySchema,
 } from "@/schemas/project-seo.schema";
+import { seoBodyDraftSchema } from "@/schemas/project-seo-action.schema";
 import { seoAuditFinalUrls, seoUrlSchema } from "@/schemas/seo-page.schema";
 import { difficulty, estimate } from "./project-seo-report-keywords";
 
@@ -67,6 +68,8 @@ export const legacySeoReportSchema = z.object({
         edit: z
           .object({ target: text, before: text.optional(), after: text })
           .optional(),
+        // A draft Core cannot read is dropped, not the report.
+        bodyDraft: seoBodyDraftSchema.optional().catch(undefined),
       }),
     )
     .max(100),

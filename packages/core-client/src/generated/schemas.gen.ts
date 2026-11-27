@@ -52123,6 +52123,9 @@ export const ProjectSeoActionSchema = {
                 }
             ]
         },
+        bodyDraft: {
+            $ref: '#/components/schemas/ProjectSeoBodyDraft'
+        },
         decision: {
             type: 'object',
             properties: {
@@ -52383,6 +52386,81 @@ export const ProjectSeoActionSchema = {
         'status',
         'kind',
         'evidence'
+    ]
+} as const;
+
+export const ProjectSeoBodyDraftSchema = {
+    anyOf: [
+        {
+            type: 'object',
+            properties: {
+                target: {
+                    type: 'string',
+                    enum: [
+                        'opening'
+                    ]
+                },
+                devices: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        enum: [
+                            'mobile',
+                            'desktop'
+                        ]
+                    },
+                    minItems: 1
+                },
+                before: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 20000
+                },
+                after: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 20000
+                }
+            },
+            required: [
+                'target',
+                'devices',
+                'before',
+                'after'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                target: {
+                    type: 'string',
+                    enum: [
+                        'opening'
+                    ]
+                },
+                devices: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        enum: [
+                            'mobile',
+                            'desktop'
+                        ]
+                    },
+                    minItems: 1
+                },
+                heldBack: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 20000
+                }
+            },
+            required: [
+                'target',
+                'devices',
+                'heldBack'
+            ]
+        }
     ]
 } as const;
 

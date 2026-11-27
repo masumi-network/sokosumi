@@ -117,6 +117,43 @@ describe("public SEO report trust boundary", () => {
     expect(report.actions[0].findingIds).toEqual(["title.desktop:desktop"]);
   });
 
+  it("keeps an action's opening text draft or held-back note through page and site import and the stored re-parse", () => {
+    const drafted = {
+      target: "opening" as const,
+      devices: ["mobile" as const, "desktop" as const],
+      before: "Widgets for every room.",
+      after: "Example Corp makes widgets for every room.",
+    };
+    const heldBack = {
+      target: "opening" as const,
+      devices: ["mobile" as const],
+      heldBack: 'The draft names "Acme", which the page does not state.',
+    };
+    const raw = legacyReport();
+    raw.actions = [
+      { ...raw.actions[0], n: 1, bodyDraft: drafted },
+      { ...raw.actions[0], n: 2, bodyDraft: heldBack },
+      // No device: Core cannot read this draft, so it drops the draft and keeps the action.
+      { ...raw.actions[0], n: 3, bodyDraft: { ...drafted, devices: [] } },
+      { ...raw.actions[0], n: 4 },
+    ] as typeof raw.actions;
+    const drafts = (payload: { actions: { bodyDraft?: unknown }[] }) =>
+      payload.actions.map((row) => row.bodyDraft);
+    const expected = [drafted, heldBack, undefined, undefined];
+    const page = parsePublicSeoArtifact(raw);
+    expect(drafts(page)).toEqual(expected);
+    expect(page.actions[3]).not.toHaveProperty("bodyDraft");
+    // The projection reads the stored JSON with the same schema: a plain object would strip the new key.
+    expect(
+      drafts(publicSeoPayloadSchema.parse(JSON.parse(JSON.stringify(page)))),
+    ).toEqual(expected);
+    const site = parsePublicSeoArtifact({
+      ...siteStrategyReport(),
+      pages: [raw],
+    });
+    expect(drafts(site)).toEqual(expected);
+  });
+
   it("retains site-wide findings without inventing page or device evidence", () => {
     const raw = {
       ...siteStrategyReport(),
