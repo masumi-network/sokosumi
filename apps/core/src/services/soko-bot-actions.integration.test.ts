@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-
 import type { createPrismaClient } from "@sokosumi/database/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -48,6 +47,9 @@ describe.skipIf(!databaseUrl)(
     let turnId: string;
 
     beforeAll(async () => {
+      const { testNetworkScope } = await import(
+        "@/test-fixtures/network-scope"
+      );
       db = (await import("@/lib/db/prisma")).default;
       commit = (await import("@/lib/soko-bot/action-receipts"))
         .commitActionReceipt;
@@ -71,6 +73,7 @@ describe.skipIf(!databaseUrl)(
         data: { id: botId, userId, workspaceId, status: "RUNNING" },
       });
       vi.spyOn(service, "authorize").mockImplementation(async () => ({
+        scope: testNetworkScope(),
         toolCallLimit: 64,
         turn: {
           id: turnId,

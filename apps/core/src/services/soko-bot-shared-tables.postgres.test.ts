@@ -96,6 +96,7 @@ async function liveTurn(
 ) {
   return prisma.sokoBotTurn.create({
     data: {
+      network: "mainnet",
       sokoBotId: of.botId,
       requestedByUserId: asked.by,
       askedByUserId: asked.by,
