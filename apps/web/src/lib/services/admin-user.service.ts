@@ -1,7 +1,8 @@
 import "server-only";
 
+import type { AdminPreprodAccess } from "@sokosumi/core-client";
 import { hasAdminRole } from "@sokosumi/utils";
-import { coreClient } from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 export interface AdminUserOption {
   id: string;
@@ -69,5 +70,24 @@ export const adminUserService = {
       total: result.meta.pagination.total,
       nextCursor: result.meta.pagination.nextCursor,
     };
+  },
+
+  /** Null when Core has no such user. */
+  async getPreprodAccess(userId: string): Promise<AdminPreprodAccess | null> {
+    try {
+      return (await coreClient.getAdminUserPreprodAccess(userId)).data;
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  },
+
+  async setPreprodAccess(
+    userId: string,
+    body: { enabled: boolean; reason: string },
+  ): Promise<AdminPreprodAccess> {
+    return (await coreClient.setAdminUserPreprodAccess(userId, body)).data;
   },
 };

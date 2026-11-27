@@ -266,7 +266,9 @@ import {
   getAdminInvoice as coreGetAdminInvoice,
   getAdminMatchedChannel as coreGetAdminMatchedChannel,
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
+  getAdminOrganizationPreprodAccess as coreGetAdminOrganizationPreprodAccess,
   getAdminTask as coreGetAdminTask,
+  getAdminUserPreprodAccess as coreGetAdminUserPreprodAccess,
   getAgents as coreGetAgents,
   getAgentsById as coreGetAgentsById,
   getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
@@ -611,6 +613,8 @@ import {
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
   searchChatSkills as coreSearchChatSkills,
+  setAdminOrganizationPreprodAccess as coreSetAdminOrganizationPreprodAccess,
+  setAdminUserPreprodAccess as coreSetAdminUserPreprodAccess,
   setProjectCompetitorChecks as coreSetProjectCompetitorChecks,
   startAdminBadgeCampaign as coreStartAdminBadgeCampaign,
   startAdminImpersonation as coreStartAdminImpersonation,
@@ -2963,6 +2967,66 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch organization overview",
+    );
+  }
+
+  async function getAdminUserPreprodAccess(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminUserPreprodAccess({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Preprod access",
+    );
+  }
+
+  async function setAdminUserPreprodAccess(
+    id: string,
+    body: { enabled: boolean; reason: string },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSetAdminUserPreprodAccess({
+          client,
+          path: { id },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to change Preprod access",
+    );
+  }
+
+  async function getAdminOrganizationPreprodAccess(slug: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminOrganizationPreprodAccess({
+          client,
+          path: { slug },
+          cache: "no-store",
+        }),
+      "Failed to fetch Preprod access",
+    );
+  }
+
+  async function setAdminOrganizationPreprodAccess(
+    slug: string,
+    body: { enabled: boolean; reason: string },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSetAdminOrganizationPreprodAccess({
+          client,
+          path: { slug },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to change Preprod access",
     );
   }
 
@@ -7419,6 +7483,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     getDeveloperOwnedCoworkerTask,
     searchAdminOrganizations,
     getAdminOrganizationBySlug,
+    getAdminUserPreprodAccess,
+    setAdminUserPreprodAccess,
+    getAdminOrganizationPreprodAccess,
+    setAdminOrganizationPreprodAccess,
     listAdminOrganizations,
     listAdminOrganizationMembers,
     listAdminMatchedChannels,
