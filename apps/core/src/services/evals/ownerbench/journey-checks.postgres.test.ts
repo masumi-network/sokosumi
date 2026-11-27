@@ -13,6 +13,7 @@ import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
 import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
 import { searchFiles } from "@/services/file-search.service";
+import { connectCusoPlanChannels } from "../eval-cmo-runner";
 import {
   clearEarlierCaseArtifacts,
   closeLaneImageJobs,
@@ -1011,6 +1012,48 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     });
     await prisma.fileResource.deleteMany({
       where: { workspaceId, displayName: "made-new.png" },
+    });
+    await prisma.sokoBot.deleteMany({ where: { id: bot.id } });
+  });
+
+  it("seeds a Cuso journey's posts on X and LinkedIn accounts when the month plans neither", async () => {
+    const bot = await prisma.sokoBot.create({
+      data: { userId, workspaceId },
+      select: { id: true },
+    });
+    const lane = { ...context.lane, cusoBotId: bot.id };
+    await connectCusoPlanChannels(lane);
+    const seeded = await seedPicturePosts(
+      lane,
+      [
+        { text: "One.", pictureText: "1", provider: "x", inDays: 3 },
+        {
+          text: "Two.",
+          pictureText: "2",
+          provider: "linkedin",
+          inDays: 4,
+          target: true,
+        },
+        { text: "Three.", pictureText: "3", provider: "linkedin", inDays: 5 },
+      ],
+      async (_lane, image) =>
+        (await file(`seeded-${image.name}`, "image/svg+xml")).sourceId,
+    );
+    const ids = [seeded.postId, ...seeded.others.map((other) => other.postId)];
+    const posts = await prisma.socialPost.findMany({
+      where: { id: { in: ids } },
+      select: {
+        provider: true,
+        socialConnection: { select: { provider: true } },
+      },
+    });
+    expect(posts).toHaveLength(3);
+    for (const post of posts)
+      expect(post.socialConnection?.provider).toBe(post.provider);
+    await prisma.socialPost.deleteMany({ where: { id: { in: ids } } });
+    await prisma.projectSocialConnection.deleteMany({ where: { projectId } });
+    await prisma.fileResource.deleteMany({
+      where: { workspaceId, displayName: { startsWith: "seeded-" } },
     });
     await prisma.sokoBot.deleteMany({ where: { id: bot.id } });
   });

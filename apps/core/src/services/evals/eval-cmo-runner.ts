@@ -167,9 +167,9 @@ export async function connectPlanChannels(
 }
 
 /**
- * Stand-in accounts for every network the approved month plans or the
- * Project already posts on, as an owner whose month is running has them,
- * and the Project's posts on those accounts.
+ * Stand-in accounts for X, LinkedIn, every network the approved month plans
+ * and every network the Project already posts on, as an owner whose month is
+ * running has them, and the Project's posts on those accounts.
  */
 export async function connectCusoPlanChannels(lane: EvalLaneRecord) {
   const [approved, posted] = await Promise.all([
@@ -186,6 +186,8 @@ export async function connectCusoPlanChannels(lane: EvalLaneRecord) {
   ]);
   const plan = parseMarketingPlan(approved?.plan);
   const networks = [
+    "x",
+    "linkedin",
     ...(plan?.calendar ?? []).map((entry) => entry.channel),
     ...posted.map((post) => post.provider),
   ].map((channel) => ({ channel }));
