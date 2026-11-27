@@ -55,15 +55,18 @@ vi.mock("@/config/env", async (importOriginal) => {
 });
 
 vi.mock("@/lib/db/prisma", () => {
-  const client = {
+  const network = {
     agent: { findMany: agentFindManyMock, count: agentCountMock },
     creditCost: { findMany: creditCostFindManyMock },
-    syncMetadata: { findUnique: syncMetadataFindUniqueMock },
     userAgentRating: { groupBy: () => Promise.resolve([]) },
     $transaction: prismaTransactionMock,
   };
-  // The list reads its Network's rows through its scope's client.
-  return { default: client, networkPrisma: () => client };
+  // The shared side holds no Network model: the list reads those through
+  // its scope's Network client.
+  return {
+    default: { syncMetadata: { findUnique: syncMetadataFindUniqueMock } },
+    networkPrisma: () => network,
+  };
 });
 
 function seedReadiness(pairs: ReadinessPairFixture[]) {

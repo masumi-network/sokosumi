@@ -822,11 +822,8 @@ describe.runIf(enabled && onSplitLayout)(
     const userIds: string[] = [];
     const organizationIds: string[] = [];
     const removals: (() => Promise<unknown>)[] = [];
-    const agentId = randomUUID();
-    const names = {
-      mainnet: `Mainnet agent ${agentId}`,
-      preprod: `Preprod agent ${agentId}`,
-    };
+    let agentId: string;
+    let names: Record<"mainnet" | "preprod", string>;
     let admin: Person;
     let optedIn: Person;
     let notOptedIn: Person;
@@ -863,6 +860,11 @@ describe.runIf(enabled && onSplitLayout)(
 
     beforeAll(async () => {
       loaded = await load({ NETWORK_PREPROD_ENABLED: "true" });
+      agentId = randomUUID();
+      names = {
+        mainnet: `Mainnet agent ${agentId}`,
+        preprod: `Preprod agent ${agentId}`,
+      };
       const { seedCatalogAgent } = await import(
         "@/test-fixtures/network-catalog"
       );

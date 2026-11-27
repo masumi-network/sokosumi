@@ -60,7 +60,7 @@ vi.mock("@/helpers/agent-cost", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => {
-  const client = {
+  const network = {
     agent: {
       findMany: agentFindManyMock,
       count: agentCountMock,
@@ -70,8 +70,9 @@ vi.mock("@/lib/db/prisma", () => {
     },
     $transaction: prismaTransactionMock,
   };
-  // The list reads its Network's rows through its scope's client.
-  return { default: client, networkPrisma: () => client };
+  // The shared side holds no Network model: the list reads those through
+  // its scope's Network client.
+  return { default: {}, networkPrisma: () => network };
 });
 
 function createApp() {
