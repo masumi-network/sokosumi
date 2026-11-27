@@ -338,4 +338,67 @@ describe("CreateChannelDialog", () => {
     expect(link).toHaveFocus();
     expect(screen.getByRole("button", { name: "next" })).toBeDisabled();
   });
+
+  function takenThenDeferred() {
+    let settle: (value: unknown) => void = () => {};
+    checkChannelSlugAvailabilityActionMock
+      .mockResolvedValueOnce({ ok: true, value: { status: "taken" } })
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            settle = resolve;
+          }),
+      );
+    return () => settle({ ok: true, value: { status: "free" } });
+  }
+
+  it("keeps Link open and focused when a pending check turns taken into free", async () => {
+    const free = takenThenDeferred();
+    const user = userEvent.setup();
+    render(<CreateChannelDialog />);
+
+    await user.click(screen.getByRole("button", { name: "createChannel" }));
+    const name = await screen.findByLabelText("nameLabel");
+    await user.type(name, "Launch");
+    await screen.findByRole("alert");
+    await user.type(name, " plans");
+    await waitFor(() =>
+      expect(checkChannelSlugAvailabilityActionMock).toHaveBeenCalledTimes(2),
+    );
+    await user.tab();
+    const link = screen.getByLabelText("slugLabel");
+    expect(link).toHaveFocus();
+    await act(async () => free());
+
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveFocus();
+    expect(link).toHaveValue("launch-plans");
+    expect(link).toHaveAccessibleDescription("slugHelp");
+
+    await user.tab();
+    expect(screen.getByLabelText("topicLabel")).toHaveFocus();
+    expect(screen.queryByLabelText("slugLabel")).toBeNull();
+    expect(name).toHaveAccessibleDescription(/linkHelp/);
+  });
+
+  it("closes Link and keeps focus in Name when a pending check turns taken into free", async () => {
+    const free = takenThenDeferred();
+    const user = userEvent.setup();
+    render(<CreateChannelDialog />);
+
+    await user.click(screen.getByRole("button", { name: "createChannel" }));
+    const name = await screen.findByLabelText("nameLabel");
+    await user.type(name, "Launch");
+    await screen.findByRole("alert");
+    await user.type(name, " plans");
+    await waitFor(() =>
+      expect(checkChannelSlugAvailabilityActionMock).toHaveBeenCalledTimes(2),
+    );
+    expect(screen.getByLabelText("slugLabel")).toBeInTheDocument();
+    await act(async () => free());
+
+    expect(screen.queryByLabelText("slugLabel")).toBeNull();
+    expect(name).toHaveFocus();
+    expect(name).toHaveAccessibleDescription(/linkHelp/);
+  });
 });

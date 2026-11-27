@@ -99,6 +99,8 @@ export function CreateChannelDialog({
   // While a new link is checked, the field keeps the last answer's shape
   // instead of closing and reopening on every keystroke.
   const [settled, setSettled] = useState(availability);
+  // A field the person is in stays put; it closes after focus moves on.
+  const [linkFocused, setLinkFocused] = useState(false);
   if (availability !== "unknown" && availability !== settled) {
     setSettled(availability);
   }
@@ -134,6 +136,7 @@ export function CreateChannelDialog({
   const showLinkField =
     wizard.step === "create" &&
     (wizard.slugDirty ||
+      linkFocused ||
       linkError(availability === "unknown" ? settled : availability) !== null);
   const orgMemberCount = members.length;
   const allMemberUserIds = members.map((member) => member.user.id);
@@ -142,6 +145,7 @@ export function CreateChannelDialog({
     setWizard(createInitialWizard());
     setAvailability("invalid");
     setConflictSlug(null);
+    setLinkFocused(false);
     resetRoster();
   }
 
@@ -172,6 +176,8 @@ export function CreateChannelDialog({
     ) {
       return;
     }
+    // Enter in Link leaves the step without a blur.
+    setLinkFocused(false);
     setWizard(toAddPeople(wizard, currentUserId));
   }
 
@@ -384,6 +390,8 @@ export function CreateChannelDialog({
                   <Input
                     ref={linkInputRef}
                     id="create-channel-slug"
+                    onFocus={() => setLinkFocused(true)}
+                    onBlur={() => setLinkFocused(false)}
                     value={wizard.slug}
                     onChange={(event) =>
                       setWizard(setSlug(wizard, event.target.value))
