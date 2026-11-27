@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { capabilitiesForClassification } from "@sokosumi/soko-bot";
 import { describe, expect, it, vi } from "vitest";
 import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
@@ -510,10 +511,19 @@ describe("Jev route selection", () => {
     expect(v4.classification.route).toBe("DELEGATE_TASK");
   });
 
-  it("gates v4 route and write-scope criteria behind policy v4 while leaving default v3 untouched", () => {
+  it("gates v4 route and write-scope criteria behind policy v4 while leaving default v3 byte-identical to main", () => {
     const v3 = routeQuestions(false);
+    const v3Pending = routeQuestions(true);
+    expect(
+      createHash("sha256")
+        .update(JSON.stringify([v3, v3Pending]))
+        .digest("hex"),
+    ).toBe("92abcbfcf1d086b77a563b1b0b78d6f1a35a29312b8ba2e5616d6911c7e310bf");
     expect(v3.route.instructions).toContain(
       "Choose how a personal project-manager assistant should handle",
+    );
+    expect(v3.writeScope.criteria.WORK).toContain(
+      "owner-reported SEO page change",
     );
     expect(v3.writeScope.criteria.MEMORY).toBe(
       "remembering or forgetting something",

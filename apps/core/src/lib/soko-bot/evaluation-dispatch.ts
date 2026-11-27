@@ -538,9 +538,6 @@ export function evaluationClassifierContext(
     coworkerIds: [],
     agentIds: [],
     jobIds: [],
-    ...(context.previousReply !== undefined
-      ? { previousReply: context.previousReply }
-      : {}),
     ...(context.classifierPolicy
       ? { classifierPolicy: context.classifierPolicy }
       : {}),
