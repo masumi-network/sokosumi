@@ -30,18 +30,15 @@ const ON_POSTGRES =
 // (`POSTGRES_TEST_DATABASE_PER_WORKER=true`), or run this file alone: it
 // compares every table, and drops the keys inside its transaction, which
 // locks their tables against every other session until it rolls back.
-const core = vi.hoisted(() => ({ appliesTheRules: true }));
+const core = vi.hoisted(() => ({
+  appliesTheRules: true,
+  counts: {} as Record<string, number>,
+}));
 vi.mock("./user-deletion-crossing-rules", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("./user-deletion-crossing-rules")>();
-  return Object.fromEntries(
-    Object.entries(actual).map(([name, apply]) => [
-      name,
-      (...args: unknown[]) =>
-        core.appliesTheRules
-          ? (apply as (...args: unknown[]) => unknown)(...args)
-          : undefined,
-    ]),
+  const { recordedRules } = await import("@/test-fixtures/user-deletion-world");
+  return recordedRules(
+    await importOriginal<typeof import("./user-deletion-crossing-rules")>(),
+    core,
   );
 });
 vi.mock("@sentry/node", () => ({ captureMessage: vi.fn() }));
@@ -272,6 +269,7 @@ describe.runIf(ON_POSTGRES)(
       options: { rules: boolean; beforeUserDelete?: () => Promise<void> },
     ): Promise<void> {
       core.appliesTheRules = options.rules;
+      core.counts = {};
       // The chat rooms are read after the Jobs went and before the User does.
       const chatRoom = {
         ...tx.chatRoom,
@@ -334,6 +332,8 @@ describe.runIf(ON_POSTGRES)(
         let parents: ReferencedParents[] = [];
         let keysThatFired: string[] = [];
         let droppedKeys = 0;
+        let changedBesideTheKeys: Record<string, number> = {};
+        let changedAlone: Record<string, number> = {};
 
         await inWorld(async (tx, world) => {
           const { ada } = world;
@@ -347,12 +347,14 @@ describe.runIf(ON_POSTGRES)(
           await backToTheWorld(tx);
 
           await deleteAccount(tx, ada, { rules: true });
+          changedBesideTheKeys = core.counts;
           await expectTheNamedRows(tx, world);
           byCoreBesideTheKeys = await tableDigests(tx);
           await backToTheWorld(tx);
 
           droppedKeys = await dropCrossingKeys(tx);
           await deleteAccount(tx, ada, { rules: true });
+          changedAlone = core.counts;
           await expectTheNamedRows(tx, world);
           byCoreAlone = await tableDigests(tx);
           orphansByCoreAlone = await countOrphans(tx);
@@ -363,6 +365,21 @@ describe.runIf(ON_POSTGRES)(
         expect(byTheKeys).not.toEqual(seeded);
         expect(byCoreBesideTheKeys).toEqual(byTheKeys);
         expect(byCoreAlone).toEqual(byTheKeys);
+
+        // While the keys exist they do the work where the parent is deleted,
+        // and each of Core's statements after it changes no row. Any other
+        // count is a row Core changed that the keys would not have.
+        expect(
+          Object.entries(changedBesideTheKeys).filter(([, rows]) => rows > 0),
+        ).toEqual([]);
+        // Without them every statement does its key's work.
+        const keys = [
+          ...new Set(parents.map(({ key }) => key.split(" ")[1])),
+        ].sort();
+        expect(Object.keys(changedAlone).sort()).toEqual(keys);
+        expect(
+          Object.entries(changedAlone).filter(([, rows]) => rows === 0),
+        ).toEqual([]);
         expect(orphansByCoreAlone.filter(({ count }) => count > 0n)).toEqual(
           [],
         );

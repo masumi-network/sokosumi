@@ -23,9 +23,11 @@ import {
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import {
   applyJobRules,
-  applyPersonalWorkspaceRules,
-  applyPrivateTaskRules,
+  applyRulesAfterDelete,
   applyUserRules,
+  checkPersonalWorkspace,
+  checkPrivateTasks,
+  checkUser,
 } from "@/helpers/user-deletion-crossing-rules";
 import {
   deleteJobsOfUser,
@@ -466,11 +468,12 @@ export async function prepareTasksForUserDeletion(
         };
         for (const workspace of affectedWorkspaces) {
           if (workspace.userId === userId) {
-            await applyPersonalWorkspaceRules(tx, workspace.id);
+            const erased = await checkPersonalWorkspace(tx, workspace.id);
             const workspaceCleanup = await eraseWorkspaceCalendarData(
               tx,
               workspace.id,
             );
+            await applyRulesAfterDelete(tx, erased);
             cleanup.scheduledEmails.push(...workspaceCleanup.scheduledEmails);
             // Owned files were captured across all workspaces above. Also retain
             // any other-owner files removed with the personal workspace.
@@ -493,8 +496,9 @@ export async function prepareTasksForUserDeletion(
           const jobIds = await deleteJobsOfUser(tx, network, userId);
           await applyJobRules(tx, network, jobIds);
         }
-        await applyPrivateTaskRules(tx, userId);
+        const privateTasks = await checkPrivateTasks(tx, userId);
         await tx.task.deleteMany({ where: privateTaskWhere });
+        await applyRulesAfterDelete(tx, privateTasks);
 
         const createdRooms = await tx.chatRoom.findMany({
           where: { createdByUserId: userId },
@@ -527,8 +531,9 @@ export async function prepareTasksForUserDeletion(
         // Better Auth's subsequent adapter delete is intentionally a not-found
         // no-op. Keeping this delete inside the lock/sweep transaction closes
         // the otherwise-unprotected gap after beforeDelete returns.
-        await applyUserRules(tx, userId);
+        const deletedWithUser = await checkUser(tx, userId);
         await tx.user.deleteMany({ where: { id: userId } });
+        await applyUserRules(tx, userId, deletedWithUser);
         // Pending revocations in surviving organization workspaces still own
         // delayed-email cancellation. Keep them until the outbox delivers them.
         await tx.calendarInvalidationOutbox.deleteMany({

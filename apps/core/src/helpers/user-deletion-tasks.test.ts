@@ -63,9 +63,11 @@ const {
     deleteJobsOfUser: vi.fn(),
   },
   rules: {
-    applyPersonalWorkspaceRules: vi.fn(),
+    checkPersonalWorkspace: vi.fn(),
+    checkPrivateTasks: vi.fn(),
+    checkUser: vi.fn(),
+    applyRulesAfterDelete: vi.fn(),
     applyJobRules: vi.fn(),
-    applyPrivateTaskRules: vi.fn(),
     applyUserRules: vi.fn(),
   },
   chatRoomFindManyMock: vi.fn(),
@@ -428,7 +430,7 @@ describe("prepareTasksForUserDeletion", () => {
     });
   });
 
-  it("applies each crossing rule before the delete of its parent, and the Jobs' after theirs", async () => {
+  it("checks each refusal before the delete of its parent and applies each rule after it, to what the check read", async () => {
     queryRawMock.mockImplementation(
       async (strings: TemplateStringsArray, ...values: unknown[]) =>
         PrismaRaw.sql(strings, ...values).sql.includes(
@@ -437,6 +439,9 @@ describe("prepareTasksForUserDeletion", () => {
           ? [{ id: "workspace_personal", userId: "user_delete" }]
           : [],
     );
+    rules.checkPersonalWorkspace.mockResolvedValue("read for the workspace");
+    rules.checkPrivateTasks.mockResolvedValue("read for the private Tasks");
+    rules.checkUser.mockResolvedValue("read for the user");
     network.deleteJobsOfUser.mockResolvedValue(["job_private"]);
     taskDeleteManyMock.mockResolvedValue({ count: 1 });
 
@@ -444,45 +449,41 @@ describe("prepareTasksForUserDeletion", () => {
       $transaction: transactionMock,
     } as never);
 
-    expect(rules.applyPersonalWorkspaceRules.mock.calls).toEqual([
+    expect(rules.checkPersonalWorkspace.mock.calls).toEqual([
       [expect.any(Object), "workspace_personal"],
     ]);
-    expect(rules.applyJobRules.mock.calls).toEqual([
-      [expect.any(Object), "mainnet", ["job_private"]],
+    expect(rules.applyRulesAfterDelete.mock.calls).toEqual([
+      [expect.any(Object), "read for the workspace"],
+      [expect.any(Object), "read for the private Tasks"],
     ]);
     // The delete decides which Jobs go; the rules get the ids it returned.
     expect(network.deleteJobsOfUser.mock.calls).toEqual([
       [expect.any(Object), "mainnet", "user_delete"],
     ]);
-    const order = (mock: { mock: { invocationCallOrder: number[] } }) =>
-      mock.mock.invocationCallOrder[0];
-    expect(
-      [
-        network.deleteSweepableX402Payments,
-        rules.applyPersonalWorkspaceRules,
-        eraseWorkspaceCalendarDataMock,
-        network.deleteJobsOfUser,
-        rules.applyJobRules,
-        rules.applyPrivateTaskRules,
-        taskDeleteManyMock,
-        rules.applyUserRules,
-        userDeleteManyMock,
-      ].map(order),
-    ).toEqual(
-      [
-        network.deleteSweepableX402Payments,
-        rules.applyPersonalWorkspaceRules,
-        eraseWorkspaceCalendarDataMock,
-        network.deleteJobsOfUser,
-        rules.applyJobRules,
-        rules.applyPrivateTaskRules,
-        taskDeleteManyMock,
-        rules.applyUserRules,
-        userDeleteManyMock,
-      ]
-        .map(order)
-        .sort((a, b) => a - b),
-    );
+    expect(rules.applyJobRules.mock.calls).toEqual([
+      [expect.any(Object), "mainnet", ["job_private"]],
+    ]);
+    expect(rules.applyUserRules.mock.calls).toEqual([
+      [expect.any(Object), "user_delete", "read for the user"],
+    ]);
+    const at = (mock: { mock: { invocationCallOrder: number[] } }, call = 0) =>
+      mock.mock.invocationCallOrder[call];
+    const steps = [
+      at(network.deleteSweepableX402Payments),
+      at(rules.checkPersonalWorkspace),
+      at(eraseWorkspaceCalendarDataMock),
+      at(rules.applyRulesAfterDelete, 0),
+      at(network.deleteJobsOfUser),
+      at(rules.applyJobRules),
+      at(rules.checkPrivateTasks),
+      at(taskDeleteManyMock),
+      at(rules.applyRulesAfterDelete, 1),
+      at(rules.checkUser),
+      at(userDeleteManyMock),
+      at(rules.applyUserRules),
+    ];
+    expect(steps).toEqual([...steps].sort((a, b) => a - b));
+    expect(steps).not.toContain(undefined);
   });
 
   it("pauses the public Task Schedules the user owned", async () => {
@@ -632,7 +633,7 @@ describe("prepareTasksForUserDeletion", () => {
     ]);
     expect(
       network.deleteTerminalClaims.mock.invocationCallOrder[0],
-    ).toBeLessThan(rules.applyUserRules.mock.invocationCallOrder[0]);
+    ).toBeLessThan(userDeleteManyMock.mock.invocationCallOrder[0]);
     expect(taskDeleteManyMock).toHaveBeenCalled();
   });
 

@@ -82,6 +82,40 @@ export async function seedJob(
   });
 }
 
+/** Whether Core's crossing rules run, and the rows their statements changed. */
+export interface RuleRecorder {
+  appliesTheRules: boolean;
+  counts: Record<string, number>;
+}
+
+/**
+ * The crossing rules module for a test's `vi.mock`: every function switched
+ * off while `recorder.appliesTheRules` is false, and the counts each `apply`
+ * function returns summed per key into `recorder.counts`.
+ */
+export function recordedRules<Module extends object>(
+  actual: Module,
+  recorder: RuleRecorder,
+): Module {
+  return Object.fromEntries(
+    Object.entries(actual).map(([name, rule]) => [
+      name,
+      async (...args: unknown[]) => {
+        if (!recorder.appliesTheRules) return undefined;
+        const result = await (rule as (...args: unknown[]) => unknown)(...args);
+        if (name.startsWith("apply")) {
+          for (const [key, rows] of Object.entries(
+            result as Record<string, number>,
+          )) {
+            recorder.counts[key] = (recorder.counts[key] ?? 0) + rows;
+          }
+        }
+        return result;
+      },
+    ]),
+  ) as Module;
+}
+
 export interface DeletionWorld {
   /** The account to delete. */
   ada: string;

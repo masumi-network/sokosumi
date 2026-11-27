@@ -6,6 +6,7 @@ import {
   afterAll,
   afterEach,
   beforeAll,
+  beforeEach,
   describe,
   expect,
   it,
@@ -25,6 +26,21 @@ const ON_POSTGRES =
   Boolean(process.env.DATABASE_URL?.startsWith("postgres"));
 
 vi.mock("@sentry/node", () => ({ captureMessage: vi.fn() }));
+
+// Every test here runs with the keys in place: they act where the parent is
+// deleted, so none of Core's own deletes and clears may change a row. A
+// count above 0 is a row Core changed that the keys would not have.
+const core = vi.hoisted(() => ({
+  appliesTheRules: true,
+  counts: {} as Record<string, number>,
+}));
+vi.mock("./user-deletion-crossing-rules", async (importOriginal) => {
+  const { recordedRules } = await import("@/test-fixtures/user-deletion-world");
+  return recordedRules(
+    await importOriginal<typeof import("./user-deletion-crossing-rules")>(),
+    core,
+  );
+});
 
 type Tx = Prisma.TransactionClient;
 const AT = "2026-01-01T00:00:00";
@@ -55,8 +71,15 @@ describe.runIf(ON_POSTGRES)(
       ));
     }, 60_000);
 
+    beforeEach(() => {
+      core.counts = {};
+    });
+
     afterEach(async () => {
       for (const remove of cleanup.splice(0).reverse()) await remove();
+      expect(
+        Object.entries(core.counts).filter(([, rows]) => rows > 0),
+      ).toEqual([]);
     }, 60_000);
 
     afterAll(() => vi.unstubAllEnvs());
@@ -420,6 +443,142 @@ describe.runIf(ON_POSTGRES)(
         }
       }, 60_000);
     });
+
+    // Bob's subtask two levels below Ada's private Task. The triggers accept
+    // the tree once the root turns private after it was built. A detach locks
+    // the leaf and its parent, neither of which the deletion holds.
+    it("leaves a subtask that was detached before the Task delete, and its Job's Task", async () => {
+      const { moveTask } = await import("@/helpers/task-subtask-move");
+      const { userId: ada, agentId } = await account();
+      const bob = randomUUID();
+      const organizationId = randomUUID();
+      const workspaceId = randomUUID();
+      const [root, branch, leaf, jobId] = [1, 2, 3, 4].map(() => randomUUID());
+      cleanup.push(async () => {
+        await prisma.$executeRaw`DELETE FROM ${netTable("mainnet", "Job")} WHERE "id" = ${jobId}`;
+        await prisma.task.deleteMany({
+          where: { id: { in: [leaf, branch, root] } },
+        });
+        await prisma.organization.deleteMany({ where: { id: organizationId } });
+        await prisma.user.deleteMany({ where: { id: bob } });
+      });
+      await prisma.user.create({
+        data: {
+          id: bob,
+          name: "Bob",
+          email: `${bob}@example.test`,
+          emailVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+      await prisma.organization.create({
+        data: {
+          id: organizationId,
+          name: "Tree",
+          slug: `tree-${organizationId}`,
+          members: {
+            create: [
+              { userId: ada, role: "member" },
+              { userId: bob, role: "member" },
+            ],
+          },
+          workspace: { create: { id: workspaceId } },
+        },
+      });
+      const task = {
+        workspaceId,
+        organizationId,
+        status: "COMPLETED" as const,
+      };
+      await prisma.task.create({
+        data: { ...task, id: root, name: "Ada's root", ownerId: ada },
+      });
+      await prisma.task.create({
+        data: {
+          ...task,
+          id: branch,
+          name: "Bob's branch",
+          ownerId: bob,
+          parentTaskId: root,
+          position: 1,
+        },
+      });
+      await prisma.task.create({
+        data: {
+          ...task,
+          id: leaf,
+          name: "Bob's leaf",
+          ownerId: bob,
+          parentTaskId: branch,
+          position: 1,
+        },
+      });
+      await prisma.task.update({
+        where: { id: root },
+        data: { visibility: "PRIVATE" },
+      });
+      await seedJob(prisma, "mainnet", {
+        id: jobId,
+        agentId,
+        workspaceId,
+        organizationId,
+        ownerId: bob,
+        taskId: leaf,
+      });
+
+      let detached = false;
+      await prepareTasksForUserDeletion(ada, {
+        $transaction: (
+          callback: (client: Tx) => Promise<unknown>,
+          options: object,
+        ) =>
+          prisma.$transaction(async (tx) => {
+            const deleteMany = async (
+              ...args: Parameters<Tx["task"]["deleteMany"]>
+            ) => {
+              // The personal workspace's Tasks are deleted first; that
+              // is not the delete this test waits for.
+              const where = args[0]?.where as { ownerId?: string } | undefined;
+              if (!where?.ownerId) return tx.task.deleteMany(...args);
+              // The move of `POST /v1/tasks/{id}/move`, committed right
+              // before the private Tasks are deleted.
+              await prisma.$transaction(
+                (writer) =>
+                  moveTask(
+                    writer,
+                    { source: "session", userId: bob } as never,
+                    { taskId: leaf, parentTaskId: null },
+                  ),
+                { isolationLevel: "Serializable", timeout: 10_000 },
+              );
+              detached = true;
+              return tx.task.deleteMany(...args);
+            };
+            return callback(
+              new Proxy(tx, {
+                get: (target, property, receiver) =>
+                  property === "task"
+                    ? { ...target.task, deleteMany }
+                    : Reflect.get(target, property, receiver),
+              }),
+            );
+          }, options),
+      } as never);
+
+      expect(detached).toBe(true);
+      expect(await prisma.user.count({ where: { id: ada } })).toBe(0);
+      expect(
+        await prisma.task.findMany({
+          where: { id: { in: [root, branch, leaf] } },
+          select: { id: true, parentTaskId: true, ownerId: true },
+        }),
+      ).toEqual([{ id: leaf, parentTaskId: null, ownerId: bob }]);
+      expect(
+        await prisma.$queryRaw`
+          SELECT "taskId", "ownerId" FROM ${netTable("mainnet", "Job")} WHERE "id" = ${jobId}`,
+      ).toEqual([{ taskId: leaf, ownerId: bob }]);
+    }, 60_000);
 
     describe("a share of a Job that goes with the account", () => {
       async function accountWithAJob() {
