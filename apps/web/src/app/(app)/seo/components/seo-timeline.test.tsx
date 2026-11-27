@@ -356,32 +356,39 @@ describe("SEO timeline recovery", () => {
       issues: 0,
       coverage: { checked: 12, skipped: 0, failed: 0 },
     });
-    // Newest first, as the workspace gives them.
-    workspace.observations = [check("gb", 2, "GB"), check("us", 1, "US")];
-    workspace.timeline = workspace.observations.map((observation) => ({
-      id: observation.id,
-      kind: "check",
-      title: "SEO check results imported",
-      status: "completed",
-      detail: "",
-      at: observation.observedAt,
-      pageIds: observation.pageIds,
-      taskId: null,
-      observationId: observation.id,
-    }));
-    render(
-      <NextIntlClientProvider
-        locale="en"
-        timeZone="UTC"
-        formats={createFormats()}
-        messages={messages}
-      >
-        <SeoTimeline workspace={workspace} nodes={allNodes(workspace)} />
-      </NextIntlClientProvider>,
-    );
+    const show = (observations: ReturnType<typeof check>[]) => {
+      // Newest first, as the workspace gives them.
+      workspace.observations = observations;
+      workspace.timeline = workspace.observations.map((observation) => ({
+        id: observation.id,
+        kind: "check",
+        title: "SEO check results imported",
+        status: "completed",
+        detail: "",
+        at: observation.observedAt,
+        pageIds: observation.pageIds,
+        taskId: null,
+        observationId: observation.id,
+      }));
+      return render(
+        <NextIntlClientProvider
+          locale="en"
+          timeZone="UTC"
+          formats={createFormats()}
+          messages={messages}
+        >
+          <SeoTimeline workspace={workspace} nodes={allNodes(workspace)} />
+        </NextIntlClientProvider>,
+      );
+    };
+    const { unmount } = show([check("gb", 2, "GB"), check("us", 1, "US")]);
     // The tiles name no market, so the last check keeps its row here, also on an Audit with several pages.
     expect(screen.getAllByText("No issues found")).toHaveLength(2);
     expect(screen.getByText(/United Kingdom · English/)).toBeVisible();
+    unmount();
+    // A crawl continuation stores no market, so one market stays one.
+    show([check("next", 2, ""), check("us", 1, "US")]);
+    expect(screen.queryByText(/United States · English/)).toBeNull();
   });
 
   it("does not claim no issues for an incomplete check", () => {

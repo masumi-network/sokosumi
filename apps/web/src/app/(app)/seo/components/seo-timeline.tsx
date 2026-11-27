@@ -91,11 +91,11 @@ export function SeoTimeline({
   const taskStatus = useTranslations("App.Tasks.Filters.statusOptions");
   const viewed = new Set(workspace.scope.pageIds);
   const resultOf = (node: SeoTimelineNode) => seoNodeResult(workspace, node);
-  // The market only tells runs apart when they used different ones.
+  // The market only tells runs apart when they used different ones. A crawl continuation has none.
   const manyMarkets =
     new Set(
-      workspace.observations.map(
-        ({ countryCode, languageCode }) => `${countryCode}/${languageCode}`,
+      workspace.observations.flatMap(({ countryCode, languageCode }) =>
+        countryCode ? [`${countryCode}/${languageCode}`] : [],
       ),
     ).size > 1;
   const onePage = workspace.scope.pageIds.length <= 1;
