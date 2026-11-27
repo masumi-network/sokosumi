@@ -27,6 +27,7 @@ import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
+import { worldCheckMode, worldCheckModel } from "@/lib/evals/world-check";
 import { runAsBackgroundWork } from "@/lib/evlog";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { modelCallTelemetryFor } from "@/lib/soko-bot/model-call-roles";
@@ -202,12 +203,17 @@ async function runTurn(
       inferenceRegion: turn.inferenceRegion,
       purpose,
     });
+    // A benchmark world check runs the turn on a script, never a model.
+    const scripted = worldCheckMode()
+      ? worldCheckModel(input.message, input.turnId)
+      : null;
     const callModel: typeof streamModelCall = async (options) => {
       await log.append(runtimeEvent("step.started", { modelId: turn.model }));
       const result = await withEvaluationTurn(input.turnId, () =>
         streamModelCall({
           ...options,
           ...request,
+          ...(scripted ? { model: scripted } : {}),
           providerOptions: {
             ...options.providerOptions,
             ...request.providerOptions,

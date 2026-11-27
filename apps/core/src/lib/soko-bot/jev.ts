@@ -1,6 +1,7 @@
 import { experimental_evaluate, gateway } from "ai";
 import { z } from "zod";
 import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
+import { worldCheckJevAnswers, worldCheckMode } from "@/lib/evals/world-check";
 import { evaluateOnChatGptPlan } from "@/lib/local-chatgpt-plan-stand-ins";
 import {
   type PlanJevMode,
@@ -61,24 +62,26 @@ export async function evaluateWithJev(options: {
 }): Promise<{ answers: Map<string, JevAnswer>; costUsd: number }> {
   const mode = planJevMode();
   const result: { answers?: unknown; providerMetadata?: unknown } =
-    mode === "stand-in"
-      ? await evaluateOnChatGptPlan({
-          state: options.state,
-          questions: options.questions,
-          abortSignal: AbortSignal.timeout(options.timeoutMs),
-        })
-      : await recordedOnPlan(
-          mode,
-          experimental_evaluate({
-            model: gateway.evaluationModel(SOKO_BOT_JEV_MODEL),
-            // Clipped text can end in half an emoji, which the Gateway refuses.
-            state: wellFormed(options.state),
+    worldCheckMode()
+      ? { answers: worldCheckJevAnswers("", options.questions) }
+      : mode === "stand-in"
+        ? await evaluateOnChatGptPlan({
+            state: options.state,
             questions: options.questions,
             abortSignal: AbortSignal.timeout(options.timeoutMs),
-            maxRetries: 1,
-            providerOptions: JEV_PROVIDER_OPTIONS,
-          }).catch(rethrowAiGatewayFailure),
-        );
+          })
+        : await recordedOnPlan(
+            mode,
+            experimental_evaluate({
+              model: gateway.evaluationModel(SOKO_BOT_JEV_MODEL),
+              // Clipped text can end in half an emoji, which the Gateway refuses.
+              state: wellFormed(options.state),
+              questions: options.questions,
+              abortSignal: AbortSignal.timeout(options.timeoutMs),
+              maxRetries: 1,
+              providerOptions: JEV_PROVIDER_OPTIONS,
+            }).catch(rethrowAiGatewayFailure),
+          );
   const answers = new Map<string, JevAnswer>();
   for (const [key, raw] of Object.entries(
     (result.answers ?? {}) as Record<string, unknown>,
