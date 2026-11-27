@@ -215,6 +215,7 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
     const at = (offsetMs: number) => new Date(now.getTime() + offsetMs);
     const created = await prisma.sokoBotTurn.create({
       data: {
+        network: "mainnet",
         sokoBotId: botId,
         requestedByUserId: userId,
         workspaceId,

@@ -78,6 +78,8 @@ export const CORE_API_ERROR_KINDS = {
   PERSON_APPROVAL_REQUIRED: "person_approval_required",
   /** The request names Preprod, and Preprod is switched off on this deployment. */
   PREPROD_OFF: "preprod_off",
+  PREPROD_PAUSED: "preprod_paused",
+  PREPROD_CONTROL_UNAVAILABLE: "preprod_control_unavailable",
   /** The request names Preprod, and the caller has no Preprod access in this Workspace. */
   PREPROD_ACCESS_REQUIRED: "preprod_access_required",
   PROJECT_DELETION_REMOVED: "project_deletion_removed",
@@ -102,6 +104,7 @@ export const CORE_API_ERROR_KINDS = {
   SOCIAL_POST_REVISION_CONFLICT: "social_post_revision_conflict",
   /** A Soko Bot turn was cancelled, paused or expired; its runner stops. */
   SOKO_BOT_TURN_INACTIVE: "soko_bot_turn_inactive",
+  SOKO_BOT_NETWORK_STALE: "soko_bot_network_stale",
   SOCIAL_FACEBOOK_PAGE_REQUIRED: "social_facebook_page_required",
   SOCIAL_YOUTUBE_CHANNEL_REQUIRED: "social_youtube_channel_required",
   TASK_WORKSPACE_TAGS_CHANGED: "task_workspace_tags_changed",

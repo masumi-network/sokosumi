@@ -23,6 +23,7 @@ import {
   type AuthorizedSokoBotRuntime,
   SokoBotRuntimeService,
 } from "@/services/soko-bot-runtime.service";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 
 const pending = vi.hoisted(() => [] as Promise<unknown>[]);
 
@@ -126,6 +127,7 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
         },
       });
       const authorized: AuthorizedSokoBotRuntime = {
+        scope: testNetworkScope(),
         toolCallLimit: 64,
         turn: { ...turn, actingUserId: userId },
         classificationConfidence: 1,
