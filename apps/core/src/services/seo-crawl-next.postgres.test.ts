@@ -340,7 +340,7 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
     });
   });
 
-  it("offers the continuation only in a view that shows the crawl's start page", async () => {
+  it("offers the continuation only in a view that shows the crawl's start page and has no end date", async () => {
     await storeCrawl(
       "audit_full",
       { snapshotId: AUDIT_CRAWL, stop: "page cap" },
@@ -356,6 +356,9 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
         pageId: related.id,
       });
       expect(filtered.availableActions.continueCrawlFrom).toBeNull();
+      // A view that ends at a date hides the continuation's result.
+      const ended = await getProjectSeoWorkspace(actor, { to: "2026-12-31" });
+      expect(ended.availableActions.continueCrawlFrom).toBeNull();
     } finally {
       await prisma.projectSeoPage.delete({ where: { id: related.id } });
     }

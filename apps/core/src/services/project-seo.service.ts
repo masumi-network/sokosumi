@@ -681,7 +681,7 @@ export async function getProjectSeoWorkspace(
         .map((task) => task.id),
     ),
     privateMetricsAllowed,
-    ...(await seoDispatchInputs(actor, executor, { scope, pages })),
+    ...(await seoDispatchInputs(actor, executor, { query, scope, pages })),
     monitors,
   });
   const reviewedActions = await pendingSeoActionReviews(

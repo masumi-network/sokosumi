@@ -13,7 +13,7 @@ import {
 } from "@/lib/seo/analysis-dispatch";
 import { requireSeoAnalysisBalance } from "@/lib/seo/analysis-price";
 import { fullAuditBillingContext } from "@/lib/seo/audit-settlement";
-import type { SeoActor } from "@/schemas/project-seo.schema";
+import type { SeoActor, SeoWorkspaceQuery } from "@/schemas/project-seo.schema";
 import type { RequestSeoCrawlNext } from "@/schemas/seo-audit-price.schema";
 import { seoSiteCrawlSchema } from "@/schemas/seo-site-crawl.schema";
 import { requireNotCmoProject } from "./cmo-cuso.service";
@@ -116,6 +116,7 @@ export async function seoDispatchInputs(
   actor: SeoActor,
   executor: Awaited<ReturnType<typeof findSeoAnalysisExecutor>>,
   view: {
+    query: Pick<SeoWorkspaceQuery, "to">;
     /** The pages the view shows. */
     scope: { pages: readonly { url: string }[] };
     /** Every page of the owner: the sale reads the crawl's ledger over all of them. */
@@ -129,6 +130,8 @@ export async function seoDispatchInputs(
   // The continuation's Task and result link only to its start page: a view without that page could not show them.
   const shown =
     tip &&
+    // A view that ends at a date would hide the continuation's result.
+    !view.query.to &&
     view.scope.pages.some(
       (page) => page.url === normalizeSeoUrl(tip.startUrl),
     ) &&
