@@ -204,7 +204,7 @@ describe("Content Studio brand kit dialog", () => {
           };
         });
         expect(placement?.inside).toBe(true);
-        expect(placement?.size).toBeGreaterThanOrEqual(32);
+        expect(placement?.size).toBeGreaterThanOrEqual(width < 768 ? 40 : 32);
       }
     },
   );

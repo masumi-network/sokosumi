@@ -123,7 +123,6 @@ function LogoTileButton({
       <TooltipTrigger asChild>
         <Button
           aria-label={label}
-          className="size-8"
           loading={loading}
           onClick={onClick}
           size="icon"
