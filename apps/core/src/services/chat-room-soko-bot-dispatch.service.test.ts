@@ -102,6 +102,7 @@ function input(
 ) {
   return {
     mentionId: "mention-a",
+    provenance: { network: "mainnet" as const },
     mention: {
       message: {
         id: "source-a",

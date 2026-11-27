@@ -304,8 +304,11 @@ export function RoomComposer({
   openingDirectParticipantKey = null,
   skills = [],
   onSkillsChange,
+  className,
 }: {
   ref?: Ref<RoomComposerEditHandle>;
+  /** Overrides the composer's outer gutter where the page already pads it. */
+  className?: string;
   /** When set, attaches mint via room chat file endpoint. */
   roomId?: string;
   value: string;
@@ -625,7 +628,7 @@ export function RoomComposer({
         onSubmit={onSubmit}
         withOuterPadding={false}
         withSafeAreaPadding
-        className="px-3 md:px-5"
+        className={cn("px-3 md:px-5", className)}
         attachments={attachments}
         onRemoveAttachment={(attachment) =>
           removeAttachment({

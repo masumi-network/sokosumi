@@ -2,22 +2,17 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import {
-  AGENT_PRICING_READ_TRANSACTION_OPTIONS,
-  buildAvailableAgentWhereClause,
   calculateAverageExecutionTime,
   getAgentDescription,
   getAgentIcon,
   getAgentImage,
   getAgentName,
-  getCardanoV2ReadySources,
-  getCreditCostsOrThrow,
 } from "@/helpers/agent";
-import { getAgentCost } from "@/helpers/agent-cost";
 import { calculateAgentRating } from "@/helpers/agent-rating";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { getAvailableAgent } from "@/lib/agent-catalog/detail";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -30,7 +25,6 @@ import {
   getAuthorFromAgent,
 } from "@/schemas/agent.schema";
 import { mapCategoryForApi } from "@/schemas/category.schema";
-import { agentDetailInclude } from "@/types/agent";
 
 const params = z.object({
   id: z.string().openapi({
@@ -60,35 +54,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    const [creditCosts, cardanoV2ReadySources] = await Promise.all([
-      getCreditCostsOrThrow(),
-      getCardanoV2ReadySources(),
-    ]);
-
-    // Nested pricing rows must share one snapshot. Credit-cost and Cardano
-    // readiness are not that graph; metrics are not either. See
-    // AGENT_PRICING_READ_TRANSACTION_OPTIONS.
-    const [agent] = await prisma.$transaction(
-      [
-        prisma.agent.findFirst({
-          where: {
-            id,
-            ...buildAvailableAgentWhereClause(
-              creditCosts,
-              cardanoV2ReadySources,
-            ),
-          },
-          include: agentDetailInclude,
-        }),
-      ],
-      AGENT_PRICING_READ_TRANSACTION_OPTIONS,
-    );
-
-    if (!agent) {
-      throw notFound("Agent not found");
-    }
-
-    const cost = getAgentCost(agent, creditCosts);
+    const scope = c.var.networkScope;
+    const available = await getAvailableAgent(scope, id);
+    if (!available) throw notFound("Agent not found");
+    const { agent, cost } = available;
 
     const agentWithDetails = {
       ...agent,
@@ -106,8 +75,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     };
 
     const [averageExecutionTime, ratingMetrics] = await Promise.all([
-      calculateAverageExecutionTime(id, prisma),
-      calculateAgentRating(id, prisma),
+      calculateAverageExecutionTime(id, scope),
+      calculateAgentRating(id, scope.networkDb),
     ]);
 
     return ok(

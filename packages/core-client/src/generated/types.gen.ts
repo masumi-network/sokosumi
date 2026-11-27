@@ -36683,7 +36683,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors 
         };
     };
     /**
-     * Mention is not failed
+     * Mention is not failed or its Network is stale
      */
     409: {
         error: string;
@@ -36701,6 +36701,21 @@ export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors 
      * Internal Server Error
      */
     500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Preprod is paused or unavailable
+     */
+    503: {
         error: string;
         message: string;
         kind?: string;
@@ -48085,6 +48100,137 @@ export type PatchDriveFilesMoveResponses = {
 };
 
 export type PatchDriveFilesMoveResponse = PatchDriveFilesMoveResponses[keyof PatchDriveFilesMoveResponses];
+
+export type PostDriveFilesCombinePdfData = {
+    body: {
+        pathnames: Array<string>;
+        filename: string;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/files/combine-pdf';
+};
+
+export type PostDriveFilesCombinePdfErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - a source is gone (`fileName`)
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        fileName?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Payload Too Large - the sources pass the size cap (`too_large`), or `fileName` passes the page or decompression limit, or the result would be too large (`too_complex`)
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        fileName?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - `fileName` is not a readable PDF (`unreadable_pdf`), or the files cross a data room (`mixed_data_room`)
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        fileName?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveFilesCombinePdfError = PostDriveFilesCombinePdfErrors[keyof PostDriveFilesCombinePdfErrors];
+
+export type PostDriveFilesCombinePdfResponses = {
+    /**
+     * The combined PDF
+     */
+    200: Blob | File;
+};
+
+export type PostDriveFilesCombinePdfResponse = PostDriveFilesCombinePdfResponses[keyof PostDriveFilesCombinePdfResponses];
 
 export type PatchDriveFilesRenameData = {
     body: RenameDriveFileRequest;
@@ -67830,6 +67976,117 @@ export type PutProjectsByIdDesignMdResponses = {
 };
 
 export type PutProjectsByIdDesignMdResponse = PutProjectsByIdDesignMdResponses[keyof PutProjectsByIdDesignMdResponses];
+
+export type PostProjectsByIdDesignMdFromOrganizationData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/design-md/from-organization';
+};
+
+export type PostProjectsByIdDesignMdFromOrganizationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project not found, or the organization has no DESIGN.md
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The Project already has a DESIGN.md, or is a read-only CMO Project
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdDesignMdFromOrganizationError = PostProjectsByIdDesignMdFromOrganizationErrors[keyof PostProjectsByIdDesignMdFromOrganizationErrors];
+
+export type PostProjectsByIdDesignMdFromOrganizationResponses = {
+    /**
+     * Project DESIGN.md copied
+     */
+    200: {
+        data: Project;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdDesignMdFromOrganizationResponse = PostProjectsByIdDesignMdFromOrganizationResponses[keyof PostProjectsByIdDesignMdFromOrganizationResponses];
 
 export type GetProjectsByIdCalendarData = {
     body?: never;

@@ -14,6 +14,7 @@ import {
   ProjectWorkspaceShell,
 } from "@/app/projects/components/project-workspace-shell";
 import { PROJECT_LINE_DATE } from "@/app/projects/constants";
+import { organizationBrandName } from "@/app/projects/organization-brand-name";
 import { fetchDesignMdMarkdown } from "@/components/design-md/design-md-edit-page-shared";
 import { projectService } from "@/lib/services/project.service";
 
@@ -58,10 +59,11 @@ export default async function ProjectDesignPage({
     notFound();
   }
 
-  const [t, tDesignMd, formatter] = await Promise.all([
+  const [t, tDesignMd, formatter, organizationName] = await Promise.all([
     getTranslations("App.Projects.Detail"),
     getTranslations("App.DesignMd"),
     getFormatter(),
+    organizationBrandName(project),
   ]);
   const workspaceLabels = await getProjectWorkspaceLabels();
 
@@ -105,6 +107,7 @@ export default async function ProjectDesignPage({
             readOnly={project.cmo}
             projectId={project.id}
             websiteUrl={project.websiteUrl}
+            organizationName={organizationName}
             headerAction={
               loaded && "markdown" in loaded ? (
                 <BrandKitDownloadButton

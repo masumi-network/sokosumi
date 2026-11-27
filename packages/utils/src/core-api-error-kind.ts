@@ -63,6 +63,8 @@ export const CORE_API_ERROR_KINDS = {
   /** The person may own or join no more organizations. */
   ORGANIZATION_LIMIT_REACHED: "organization_limit_reached",
   ORGANIZATION_NOT_FOUND: "organization_not_found",
+  /** The organization has no DESIGN.md a Project could start from. */
+  ORGANIZATION_DESIGN_MD_MISSING: "organization_design_md_missing",
   ORGANIZATION_ROLE_FORBIDDEN: "organization_role_forbidden",
   ORGANIZATION_SEAT_REQUIRED: "organization_seat_required",
   SEAT_CAPACITY_EXCEEDED: "seat_capacity_exceeded",
@@ -83,6 +85,8 @@ export const CORE_API_ERROR_KINDS = {
   /** The request names Preprod, and the caller has no Preprod access in this Workspace. */
   PREPROD_ACCESS_REQUIRED: "preprod_access_required",
   PROJECT_DELETION_REMOVED: "project_deletion_removed",
+  /** The Project already has a DESIGN.md; a copy only fills an empty one. */
+  PROJECT_DESIGN_MD_EXISTS: "project_design_md_exists",
   SEO_AUDIT_ACTIVE_CHECK: "seo_audit_active_check",
   SEO_AUDIT_ACTIVE_CHAT: "seo_audit_active_chat",
   SEO_AUDIT_RESUMABLE_MONITOR: "seo_audit_resumable_monitor",

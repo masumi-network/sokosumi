@@ -1,9 +1,44 @@
-import type { Prisma } from "@sokosumi/database";
+import type { ChatRoomMention, Prisma } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import { readSokoBotAttemptAt } from "@sokosumi/utils";
-import prisma from "@/lib/db/prisma";
+import prisma, { type DbClient } from "@/lib/db/prisma";
 import { emitCoreError } from "@/lib/evlog";
+import { isPreprodOn, type Network } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import {
+  detachedNetworkScope,
+  requireDetachedTurnProvenance,
+} from "@/lib/soko-bot/detached-network";
+import type { StartSokoBotTurnInput } from "@/lib/soko-bot/turn-start";
+
+export type NewChatRoomMention = Omit<
+  Prisma.ChatRoomMentionCreateManyInput,
+  "messageId" | "network"
+> & { messageId?: string; network: Network };
+
+export type MentionTurnProvenance = Pick<
+  StartSokoBotTurnInput,
+  "network" | "expectedPreprodGeneration"
+>;
+
+export async function mentionTurnProvenance(
+  mention: Pick<ChatRoomMention, "network" | "preprodGeneration">,
+  db?: DbClient,
+): Promise<MentionTurnProvenance> {
+  const scope = await detachedNetworkScope(
+    {
+      network: mention.network ?? "mainnet",
+      preprodGeneration: mention.preprodGeneration,
+    },
+    db,
+  );
+  return scope.network === "mainnet"
+    ? { network: scope.network }
+    : {
+        network: scope.network,
+        expectedPreprodGeneration: mention.preprodGeneration,
+      };
+}
 
 /** Hard ceiling for streamText only (not conversation create ≤25s). */
 export const ROOM_COWORKER_TOTAL_MS = 240_000;
@@ -80,6 +115,24 @@ export async function listStaleSentChatRoomMentionIds(
 ): Promise<string[]> {
   const now = options?.now ?? new Date();
   const staleBefore = new Date(now.getTime() - ROOM_SENT_STALE_MS);
+  const limit = options?.limit ?? STALE_SENT_RECLAIM_LIMIT;
+  if (isPreprodOn()) {
+    // Preserve age order among both tagged and legacy Mainnet rows without
+    // reading control on a Mainnet poll. Preprod can use the remaining slots.
+    const rows = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT mention."id"
+      FROM ${sharedTable("chat_room_mention")} mention
+      WHERE mention."status" IN ('pending', 'sent')
+        AND mention."updatedAt" < ${staleBefore}
+        AND EXISTS (
+          SELECT 1 FROM ${sharedTable("chat_room_message")} message
+          WHERE message."id" = mention."messageId"
+            AND message."roomId" = ${roomId}::uuid
+        )
+      ORDER BY (mention."network" = 'preprod') IS TRUE, mention."updatedAt"
+      LIMIT ${limit}`;
+    return rows.map((row) => row.id);
+  }
   const rows = await prisma.chatRoomMention.findMany({
     where: {
       // `pending` too: a mention is written in one transaction and handed to
@@ -89,10 +142,11 @@ export async function listStaleSentChatRoomMentionIds(
       status: { in: ["pending", "sent"] },
       updatedAt: { lt: staleBefore },
       message: { roomId },
+      OR: [{ network: null }, { network: { not: "preprod" } }],
     },
     select: { id: true },
     orderBy: { updatedAt: "asc" },
-    take: options?.limit ?? STALE_SENT_RECLAIM_LIMIT,
+    take: limit,
   });
   return rows.map((row) => row.id);
 }
@@ -150,12 +204,15 @@ export async function claimMentionForDispatch(
 export async function releaseFailedTurnForRetry(
   tx: Prisma.TransactionClient,
   mentionId: string,
+  provenance?: MentionTurnProvenance,
 ): Promise<void> {
   const turn = await tx.sokoBotTurn.findUnique({
     where: { chatMentionId: mentionId },
     select: {
       id: true,
       status: true,
+      network: true,
+      preprodGeneration: true,
       deliveries: {
         where: { status: { in: ["PENDING", "PERSISTED"] } },
         select: { id: true },
@@ -163,6 +220,7 @@ export async function releaseFailedTurnForRetry(
       },
     },
   });
+  if (turn && provenance) requireDetachedTurnProvenance(provenance, turn);
   if (
     !turn ||
     (turn.status !== "FAILED" && turn.status !== "CANCELLED") ||

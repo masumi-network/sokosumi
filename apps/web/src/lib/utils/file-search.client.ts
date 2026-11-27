@@ -22,6 +22,7 @@ import {
   patchDriveLabelsById,
   patchDriveResourcesByIdMetadata,
   postDriveCollections,
+  postDriveFilesCombinePdf,
   postDriveLabels,
   postDriveResourcesByIdSuggestionsBySuggestionIdDecision,
   putDriveShares,
@@ -372,6 +373,39 @@ export async function deleteDriveUploads(
     ),
   );
   return pathnames.filter((_, index) => results[index].status === "rejected");
+}
+
+/** Core refused a combine: `kind` says why, `fileName` names the file. */
+export class DriveCombinePdfError extends Error {
+  constructor(
+    readonly status: number,
+    readonly kind: string | null,
+    readonly fileName: string | null,
+  ) {
+    super(`Combine failed: ${status} ${kind ?? ""}`);
+    this.name = "DriveCombinePdfError";
+  }
+}
+
+/** The PDFs, pages in this order, as one PDF to download. Nothing is saved. */
+export async function combineDrivePdfs(body: {
+  pathnames: string[];
+  filename: string;
+}): Promise<Blob> {
+  const { data, error, response } = await postDriveFilesCombinePdf({
+    client: getBrowserCoreClient(),
+    body,
+    parseAs: "blob",
+  });
+  // The generated `Blob | File` names a Core schema called File; with
+  // `parseAs: "blob"` the body is always a Blob.
+  if (data) return data as Blob;
+  const fields: { kind?: string; fileName?: string } = error ?? {};
+  throw new DriveCombinePdfError(
+    response?.status ?? 0,
+    fields.kind ?? null,
+    fields.fileName ?? null,
+  );
 }
 
 /** One Drive file (catalog id) or folder (path in the store). */

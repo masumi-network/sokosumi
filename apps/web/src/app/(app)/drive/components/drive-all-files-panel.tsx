@@ -8,6 +8,7 @@ import type {
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Bookmark,
+  FileStack,
   FolderInput,
   Link2,
   Search,
@@ -18,6 +19,10 @@ import { useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
+import {
+  type CombinePdfFile,
+  DriveCombinePdfDialog,
+} from "@/app/drive/components/drive-combine-pdf-dialog";
 import { DriveFileFilters } from "@/app/drive/components/drive-file-filters";
 import { DriveFileRow } from "@/app/drive/components/drive-file-row";
 import {
@@ -164,6 +169,12 @@ export interface DriveAllFilesPanelProps {
   onShareFile?: (item: DriveShareItem) => void;
   /** Opens the move dialog for the ticked uploads. */
   onMoveFiles?: (files: { pathname: string; name: string }[]) => void;
+  /**
+   * The page's create controls (Upload, New folder), shown in an empty folder
+   * or Workspace so the first step sits where the eye already is. The page
+   * owns them because it owns the picker, the dialog and the target folder.
+   */
+  emptyActions?: ReactNode;
 }
 
 export function DriveAllFilesPanel({
@@ -178,6 +189,7 @@ export function DriveAllFilesPanel({
   dataRoomPaths,
   onShareFile,
   onMoveFiles,
+  emptyActions,
 }: DriveAllFilesPanelProps) {
   const t = useTranslations("App.Drive.Files");
   const queryClient = useQueryClient();
@@ -208,6 +220,10 @@ export function DriveAllFilesPanel({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [combineFiles, setCombineFiles] = useState<CombinePdfFile[] | null>(
+    null,
+  );
+  const combineButtonRef = useRef<HTMLButtonElement>(null);
 
   /**
    * The one way filters change, so a folder change cannot reach the list
@@ -526,6 +542,14 @@ export function DriveAllFilesPanel({
   const deletableSelection = items.filter(
     (item) => activeSelectedIds.includes(item.id) && item.pathname !== null,
   );
+
+  // Combine is offered only when every selected row is an uploaded PDF, so
+  // the dialog never has to explain what it left out.
+  const combinable =
+    deletableSelection.length === activeSelectedIds.length &&
+    deletableSelection.length >= 2 &&
+    deletableSelection.length <= 20 &&
+    deletableSelection.every((item) => item.mimeType === "application/pdf");
 
   async function deleteSelected() {
     const targets = deletableSelection;
@@ -948,6 +972,26 @@ export function DriveAllFilesPanel({
               {t("bulkMove")}
             </Button>
           ) : null}
+          {combinable ? (
+            <Button
+              ref={combineButtonRef}
+              size="sm"
+              variant="ghost"
+              disabled={bulkBusy}
+              onClick={() =>
+                setCombineFiles(
+                  deletableSelection.flatMap((item) =>
+                    item.pathname
+                      ? [{ pathname: item.pathname, name: item.displayName }]
+                      : [],
+                  ),
+                )
+              }
+            >
+              <FileStack aria-hidden className="size-4" />
+              {t("bulkCombinePdf")}
+            </Button>
+          ) : null}
           {onShareFile &&
           activeSelectedIds.length === 1 &&
           deletableSelection.length === 1 ? (
@@ -989,6 +1033,15 @@ export function DriveAllFilesPanel({
           </Button>
         </div>
       ) : null}
+
+      <DriveCombinePdfDialog
+        files={combineFiles}
+        onOpenChange={(open) => {
+          if (open) return;
+          setCombineFiles(null);
+        }}
+        onCloseFocus={() => combineButtonRef.current?.focus()}
+      />
 
       <AlertDialog
         open={confirmDeleteOpen}
@@ -1066,7 +1119,14 @@ export function DriveAllFilesPanel({
             >
               {t("filterClear")}
             </Button>
-          ) : null}
+          ) : appliedQuery || !emptyActions ? null : (
+            <div
+              className="mt-4 flex flex-wrap justify-center gap-2"
+              data-testid="drive-empty-actions"
+            >
+              {emptyActions}
+            </div>
+          )}
         </div>
       ) : (
         <>

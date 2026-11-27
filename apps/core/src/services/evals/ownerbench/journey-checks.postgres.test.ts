@@ -8,16 +8,27 @@
  */
 import { randomUUID } from "node:crypto";
 import { convertCreditsToCents } from "@sokosumi/utils";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import { jsonInput } from "@/helpers/prisma-json";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
 import { searchFiles } from "@/services/file-search.service";
+import { taskScheduleReleaseService } from "@/services/task-schedule-runs.service";
 import {
   clearEarlierCaseArtifacts,
   type DeleteBlobs,
   type EvalLaneRecord,
   PENDING_BLOB_PREFIX,
+  resetEvalLaneForSokoBot,
 } from "../eval-lanes.service";
 import {
   type CheckContext,
@@ -861,8 +872,9 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       credits: 4,
     };
     const blockchainIdentifier = `sokosumi-evals-${agent.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+    const db = createNetworkScope("mainnet").networkDb;
     const read = () =>
-      prisma.agent.findMany({
+      db.agent.findMany({
         where: { blockchainIdentifier },
         select: {
           id: true,
@@ -877,7 +889,38 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
           },
         },
       });
-    await Promise.all([seedAgent(agent), seedAgent(agent), seedAgent(agent)]);
+    const rateWhere = { unit: "sokosumi-evals-credit" };
+    const existingRate = await db.creditCost.findUnique({ where: rateWhere });
+    let createdRate: { id: string } | null = null;
+    onTestFinished(async () => {
+      const [fixture] = await read();
+      if (fixture) {
+        await db.agent.delete({ where: { id: fixture.id } });
+        await db.agentPricing.delete({ where: { id: fixture.pricingId } });
+        const fixed = fixture.pricing.fixedPricing;
+        if (fixed) {
+          await db.unitValue.deleteMany({
+            where: { agentFixedPricingId: fixed.id },
+          });
+          await db.agentFixedPricing.delete({ where: { id: fixed.id } });
+        }
+      }
+      if (createdRate)
+        await db.creditCost.delete({ where: { id: createdRate.id } });
+    });
+    // All three writers must finish before taking ownership of a newly seeded rate.
+    const seeds = await Promise.allSettled([
+      seedAgent(agent),
+      seedAgent(agent),
+      seedAgent(agent),
+    ]);
+    if (!existingRate) {
+      createdRate = await db.creditCost.findUnique({
+        where: rateWhere,
+        select: { id: true },
+      });
+    }
+    for (const seed of seeds) if (seed.status === "rejected") throw seed.reason;
     const [made, ...extra] = await read();
     expect(extra).toEqual([]);
     expect(made?.pricing.fixedPricing?.amounts).toEqual([
@@ -889,17 +932,6 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     expect(refreshed?.pricing.fixedPricing?.amounts).toEqual([
       { amount: convertCreditsToCents(6) },
     ]);
-    const fixedId = refreshed?.pricing.fixedPricing?.id;
-    await prisma.agent.deleteMany({ where: { blockchainIdentifier } });
-    await prisma.agentPricing.deleteMany({
-      where: { id: refreshed?.pricingId },
-    });
-    if (fixedId) {
-      await prisma.unitValue.deleteMany({
-        where: { agentFixedPricingId: fixedId },
-      });
-      await prisma.agentFixedPricing.deleteMany({ where: { id: fixedId } });
-    }
   });
 
   it("seats the journey's own bot in the teammate room", async () => {
@@ -1031,6 +1063,8 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     let workspaceId: string;
     let projectId: string;
     let botId: string;
+    const cutoff = new Date("2026-01-01T09:00:00.000Z");
+    const earlierAt = new Date(cutoff.getTime() - 1);
     const classification = {
       schemaVersion: 1 as const,
       route: "MANAGE_WORK" as const,
@@ -1083,7 +1117,10 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     });
 
     /** What one case leaves: a Task it delegated, a Task its schedule released, a post. */
-    async function runCase(kind: "delegated" | "released"): Promise<string> {
+    async function runCase(
+      kind: "delegated" | "released",
+      createdAt: Date,
+    ): Promise<string> {
       if (kind === "delegated")
         return (
           await prisma.task.create({
@@ -1091,6 +1128,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
               workspaceId,
               name: "Earlier case's delegation",
               creatorSokoBotId: botId,
+              createdAt,
             },
             select: { id: true },
           })
@@ -1115,9 +1153,10 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
           provider: "x",
           text: "Earlier case's draft",
           creatorSokoBotId: botId,
+          createdAt,
         },
       });
-      // A released Task carries the member who owns the schedule, not the bot.
+      // This fixture covers a Task whose bot provenance comes from its schedule.
       return (
         await prisma.task.create({
           data: {
@@ -1125,6 +1164,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
             name: "Earlier case's released Task",
             creatorUserId: userId,
             scheduleId: schedule.id,
+            createdAt,
           },
           select: { id: true },
         })
@@ -1173,6 +1213,88 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       return { turnId: turn.id, taskIds: packetTaskIds(built.packet) };
     }
 
+    it.each([-1, 0, 1])(
+      "isolates an earlier case's schedule release %i ms from the cutoff",
+      async (offsetMs) => {
+        const schedule = await prisma.taskSchedule.create({
+          data: {
+            workspaceId,
+            creatorSokoBotId: botId,
+            name: "Earlier case's late schedule",
+            expr: "0 9 * * *",
+            timezone: "UTC",
+            anchorAt: cutoff,
+            ruleEffectiveFrom: cutoff,
+            epochId: randomUUID(),
+            endsMode: "AFTER",
+            targetRunCount: 1,
+            nextRunAt: cutoff,
+          },
+        });
+        try {
+          await prisma.taskScheduleRun.create({
+            data: {
+              scheduleId: schedule.id,
+              epochId: schedule.epochId,
+              originalScheduledAt: cutoff,
+              effectiveScheduledAt: cutoff,
+              state: "PLANNED",
+              sourceWorkspaceId: workspaceId,
+              sourceType: "WORKSPACE",
+              timezone: schedule.timezone,
+            },
+          });
+          await resetEvalLaneForSokoBot({
+            ...context.lane,
+            userId,
+            workspaceId,
+            sokoBotId: botId,
+            cusoProjectId: projectId,
+          });
+          // CI gives each worker its own database for this global scan.
+          await taskScheduleReleaseService.releaseDueSchedules({
+            abortSignal: new AbortController().signal,
+            deadlineMs: Infinity,
+            shouldContinue: () => true,
+          });
+          // Pin the cron's Task to a stored millisecond without racing the clock.
+          const createdAt = new Date(cutoff.getTime() + offsetMs);
+          await prisma.task.updateMany({
+            where: { scheduleId: schedule.id },
+            data: { createdAt },
+          });
+          const { turnId, taskIds } = await openingTurn();
+          const leaked = await prisma.task.findMany({
+            where: { scheduleId: schedule.id },
+            select: { id: true, createdAt: true, creatorSokoBotId: true },
+          });
+          // These assertions expose the false verdict if the reset lets a Task through.
+          for (const task of leaked) {
+            expect(task.createdAt).toEqual(createdAt);
+            expect(task.creatorSokoBotId).toBe(botId);
+            expect(taskIds).toContain(task.id);
+          }
+          expect(await earlierCaseTasksCheck(turnId, cutoff)).toMatchObject({
+            pass: leaked.length === 0,
+          });
+          expect(leaked).toEqual([]);
+          expect(
+            await prisma.taskSchedule.findUnique({
+              where: { id: schedule.id },
+            }),
+          ).toBeNull();
+          expect(
+            await prisma.taskScheduleRun.count({
+              where: { scheduleId: schedule.id },
+            }),
+          ).toBe(0);
+        } finally {
+          await prisma.task.deleteMany({ where: { scheduleId: schedule.id } });
+          await prisma.taskSchedule.deleteMany({ where: { id: schedule.id } });
+        }
+      },
+    );
+
     for (const order of [
       ["delegated", "released"],
       ["released", "delegated"],
@@ -1183,23 +1305,23 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
             workspaceId,
             name: "The owner's seeded Task",
             creatorUserId: userId,
+            createdAt: earlierAt,
           },
           select: { id: true },
         });
-        const earlier = await runCase(order[0]);
+        const earlier = await runCase(order[0], earlierAt);
         // The second case starts: its reset, then its own work.
         await clearEarlierCaseArtifacts({
           workspaceId,
           cusoProjectId: projectId,
         });
-        const startedAt = new Date();
-        const own = await runCase(order[1]);
+        const own = await runCase(order[1], cutoff);
         const { turnId, taskIds } = await openingTurn();
         expect(taskIds).not.toContain(earlier);
         // Positive controls: the owner's seeded Task and this case's own work.
         expect(taskIds).toContain(seeded.id);
         expect(taskIds).toContain(own);
-        expect(await earlierCaseTasksCheck(turnId, startedAt)).toMatchObject({
+        expect(await earlierCaseTasksCheck(turnId, cutoff)).toMatchObject({
           pass: true,
         });
         expect(
@@ -1207,7 +1329,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
             where: {
               projectId,
               text: "Earlier case's draft",
-              createdAt: { lt: startedAt },
+              createdAt: { lt: cutoff },
             },
           }),
         ).toBe(0);
@@ -1219,7 +1341,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       });
 
     it("keeps an earlier case's evidence file out of the next case's Files and first reads", async () => {
-      const upload = (name: string) =>
+      const upload = (name: string, createdAt: Date) =>
         prisma.fileResource.create({
           data: {
             workspaceId,
@@ -1232,6 +1354,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
             normalizedName: name.toLowerCase(),
             mimeType: "application/pdf",
             lifecycle: "ACTIVE",
+            createdAt,
           },
           select: { id: true, displayName: true },
         });
@@ -1249,7 +1372,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
           })
         ).items.map((file) => file.id);
       // Case A's prepare seeded its evidence PDF.
-      const evidence = await upload("evidence.pdf");
+      const evidence = await upload("evidence.pdf", earlierAt);
       expect(await listing()).toContain(evidence.id);
       // Case B starts: the clear, its isolation point, then its own file of
       // the same name.
@@ -1257,8 +1380,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
         workspaceId,
         cusoProjectId: projectId,
       });
-      const isolatedAt = new Date();
-      const own = await upload("evidence.pdf");
+      const own = await upload("evidence.pdf", cutoff);
       expect(await listing()).toEqual([own.id]);
       const { turnId } = await openingTurn();
       // Its first read listed Files: its own "evidence.pdf" is fresh.
@@ -1269,11 +1391,11 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
         },
       ];
       expect(
-        await earlierCaseFilesCheck(turnId, isolatedAt, workspaceId, ownRead),
+        await earlierCaseFilesCheck(turnId, cutoff, workspaceId, ownRead),
       ).toMatchObject({ pass: true });
       // A read that still returned case A's file, by its id, fails.
       expect(
-        await earlierCaseFilesCheck(turnId, isolatedAt, workspaceId, [
+        await earlierCaseFilesCheck(turnId, cutoff, workspaceId, [
           {
             capability: "list_files",
             result: { files: [{ id: evidence.id, name: "evidence.pdf" }] },
@@ -1385,8 +1507,14 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     }, 20_000);
 
     it("fails a case whose opening packet carries another case's Task", async () => {
-      const leaked = await runCase("delegated");
-      const startedAt = new Date();
+      const leaked = await runCase("delegated", earlierAt);
+      // The cutoff comes from the leaked Task's own stored createdAt, one
+      // millisecond later, so it can never land on or before the insert.
+      const { createdAt } = await prisma.task.findUniqueOrThrow({
+        where: { id: leaked },
+        select: { createdAt: true },
+      });
+      const startedAt = new Date(createdAt.getTime() + 1);
       const { turnId, taskIds } = await openingTurn();
       expect(taskIds).toContain(leaked);
       expect(await earlierCaseTasksCheck(turnId, startedAt)).toMatchObject({

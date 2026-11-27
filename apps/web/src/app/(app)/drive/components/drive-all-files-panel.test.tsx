@@ -251,6 +251,19 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
     api.fetchFolderReadme.mockResolvedValue(null);
   });
 
+  it("offers the page's create actions in an empty catalog, not in an empty search", async () => {
+    const user = userEvent.setup();
+    renderPanel({ emptyActions: <button type="button">emptyUpload</button> });
+
+    expect(await screen.findByText("emptyTitle")).toBeVisible();
+    expect(screen.getByRole("button", { name: "emptyUpload" })).toBeVisible();
+
+    await user.type(screen.getByLabelText("searchLabel"), "nothing{Enter}");
+
+    expect(await screen.findByText("noMatchesTitle")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "emptyUpload" })).toBeNull();
+  });
+
   it("removes deleted files from catalog and mounted DriveFilePicker on mixed-success bulk delete while GETs are held", async () => {
     const user = userEvent.setup();
     const fileKeep = makeFile("res_keep", "keep.pdf");
@@ -429,6 +442,37 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
       });
       await refetchDeferred.promise;
     });
+  });
+
+  it("offers Combine PDFs only when every selected file is an uploaded PDF", async () => {
+    const user = userEvent.setup();
+    api.fetchFileSearchPage.mockResolvedValueOnce({
+      items: [
+        makeFile("res_a", "a.pdf"),
+        makeFile("res_b", "b.pdf"),
+        makeFile("res_c", "c.png", { mimeType: "image/png" }),
+      ],
+      search: makeMeta({ windowCount: 3 }),
+    });
+
+    renderPanel();
+
+    for (const name of ["a.pdf", "b.pdf"])
+      await user.click(
+        await screen.findByRole("checkbox", {
+          name: `selectFile:{"name":"${name}"}`,
+        }),
+      );
+    expect(
+      screen.getByRole("button", { name: "bulkCombinePdf" }),
+    ).toBeVisible();
+
+    await user.click(
+      screen.getByRole("checkbox", { name: 'selectFile:{"name":"c.png"}' }),
+    );
+    expect(
+      screen.queryByRole("button", { name: "bulkCombinePdf" }),
+    ).not.toBeInTheDocument();
   });
 
   it("disables Load more while page one refreshes and does not cancel an in-flight refresh on an interleaved click", async () => {

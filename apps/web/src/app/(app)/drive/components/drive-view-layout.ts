@@ -60,7 +60,9 @@ export const DRIVE_SURFACE_PANEL_CLASS =
  * leave the page looking broken. False for the folder strip at the Workspace
  * root, where the catalog sits directly underneath: there the minimum reserves a
  * screen of blank space between two or three folders and the search field below
- * them, which reads as a list that failed to load.
+ * them, which reads as a list that failed to load. Also false for Recents once
+ * it has rows: its loading and empty states keep the reserved height, and a
+ * short list ends under its last file.
  */
 export function driveItemsPanelClass(
   _viewMode: FilesViewMode,

@@ -1,20 +1,21 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
-import { describe, expect, it, vi } from "vitest";
-import { expectCoreLog } from "@/test/core-log";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cardFontDir } from "@/test/card-font";
+import { causeMessage, expectCoreLog } from "@/test/core-log";
 
-const { withBrowser } = vi.hoisted(() => ({ withBrowser: vi.fn() }));
+const { withBrowser, captionFontsDir } = vi.hoisted(() => ({
+  withBrowser: vi.fn(),
+  captionFontsDir: vi.fn(),
+}));
 vi.mock("@/lib/site-capture", () => ({ withBrowser }));
 vi.mock("@/config/env", () => ({ getEnv: () => ({}) }));
 vi.mock("@/lib/ffmpeg", () => ({
   CAPTION_FONT_FAMILY: "Montserrat Black",
-  captionFontsDir: async () => {
-    const dir = await mkdtemp(path.join(tmpdir(), "card-font-"));
-    await writeFile(path.join(dir, "Montserrat-Black.ttf"), "font");
-    return dir;
-  },
+  captionFontsDir,
 }));
+
+beforeEach(() => {
+  captionFontsDir.mockImplementation(cardFontDir);
+});
 
 import {
   CARD_PAGE_NAME_SHIM,
@@ -89,6 +90,47 @@ describe("rendering cards past the deadline", () => {
     expectCoreLog("warn", "Could not draw a video's cards in time");
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(newPage).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the caption font while cards are drawn", () => {
+  it("returns no cards when the font is still loading as the budget ends", async () => {
+    vi.useFakeTimers();
+    try {
+      captionFontsDir.mockReturnValue(new Promise(() => undefined));
+      withBrowser.mockClear();
+      const drawn = renderVideoCards(
+        [{ kind: "title", text: "One" }],
+        { colors: [], font: null },
+        "9:16",
+        50,
+      );
+      await vi.advanceTimersByTimeAsync(50);
+
+      await expect(drawn).resolves.toBeNull();
+      expect(withBrowser).not.toHaveBeenCalled();
+      expectCoreLog("warn", "Could not draw a video's cards in time");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("returns no cards when the font cannot be loaded", async () => {
+    captionFontsDir.mockRejectedValue(new Error("font download failed"));
+    withBrowser.mockClear();
+    const entries = expectCoreLog("warn", "Could not draw a video's cards");
+
+    const pngs = await renderVideoCards(
+      [{ kind: "title", text: "One" }],
+      { colors: [], font: null },
+      "9:16",
+    );
+
+    expect(pngs).toBeNull();
+    expect(withBrowser).not.toHaveBeenCalled();
+    expect(entries.map((entry) => causeMessage(entry.cause))).toEqual([
+      "font download failed",
+    ]);
   });
 });
 
