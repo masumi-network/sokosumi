@@ -18,6 +18,10 @@
  * transaction on the same database can make a settlement retry, and a retry
  * is a second transaction in the statements.
  *
+ * On the split layout every case but the stale Preprod turn stops at the
+ * usage check, before any debit: `chargeSokoBotUsage` reads `soko_bot_usage`
+ * through the shared client. `origin/main` stops at the same statement.
+ *
  * What runs after a settlement commits and is not the payer's, the delivery
  * of the turn and the log of its route, does nothing here; the low-balance
  * notice, which the charge decides, runs.
