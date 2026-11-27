@@ -6,29 +6,45 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  agentFindFirst,
   evalResultFindMany,
   turnFindUnique,
+  turnFindMany,
+  delegationFindMany,
+  watchFindMany,
   runtimeEventFindMany,
   runtimeEventFindFirst,
   runtimeEventCreate,
+  contextSnapshotFindFirst,
   transactionMock,
   resolveVersionMock,
+  loadPersonaMock,
   emitMock,
 } = vi.hoisted(() => ({
+  agentFindFirst: vi.fn(),
   evalResultFindMany: vi.fn(),
   turnFindUnique: vi.fn(),
+  turnFindMany: vi.fn(),
+  delegationFindMany: vi.fn(),
+  watchFindMany: vi.fn(),
   runtimeEventFindMany: vi.fn(),
   runtimeEventFindFirst: vi.fn(),
   runtimeEventCreate: vi.fn(),
+  contextSnapshotFindFirst: vi.fn(),
   transactionMock: vi.fn(),
   resolveVersionMock: vi.fn(),
+  loadPersonaMock: vi.fn(),
   emitMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    agent: { findFirst: agentFindFirst },
     evalResult: { findMany: evalResultFindMany },
-    sokoBotTurn: { findUnique: turnFindUnique },
+    sokoBotTurn: { findUnique: turnFindUnique, findMany: turnFindMany },
+    sokoBotDelegation: { findMany: delegationFindMany },
+    sokoBotWatch: { findMany: watchFindMany },
+    sokoBotContextSnapshot: { findFirst: contextSnapshotFindFirst },
     sokoBotRuntimeEvent: {
       findMany: runtimeEventFindMany,
       findFirst: runtimeEventFindFirst,
@@ -46,16 +62,23 @@ vi.mock("@/services/soko-bot-version.service", () => ({
   resolveSokoBotVersion: resolveVersionMock,
 }));
 
+vi.mock("@/helpers/soko-bot-owner", () => ({
+  loadSokoBotPersona: loadPersonaMock,
+}));
+
 vi.mock("@/lib/evlog", () => ({
   createCoreLogger: () => ({ set: vi.fn(), emit: emitMock }),
   recordCoreWarning: vi.fn(),
 }));
 
+import { getContext } from "@/services/soko-bot-runtime/context";
 import { jevRoute } from "@/test/jev-routes";
 import { JevTurnClassifier } from "./classifier";
 import {
   buildRouteDecisionReceipt,
+  emitStoredRouteDecisionReceipt,
   exportDecisionReceiptsFromDb,
+  hasHireableMarketplaceAgent,
   receiptToReplayScenario,
   recordDecisionReceiptOnce,
   routeCandidatesForTurn,
@@ -65,11 +88,36 @@ import { logSokoBotRouteOutcome } from "./route-outcome";
 import { RuntimeEventLog } from "./turn-loop";
 
 describe("routeCandidatesForTurn & buildRouteDecisionReceipt", () => {
-  it("filters out HIRE_AGENT on cmo versions and all write routes on bot-to-bot turns", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("filters out HIRE_AGENT on cmo versions, when no marketplace agent is online, and all write routes on bot-to-bot turns", async () => {
     const cmo = getSokoBotVersion("cmo-v25");
     const cmoMenu = routeCandidatesForTurn({ version: cmo });
     expect(cmoMenu.find((c) => c.id === "HIRE_AGENT")?.available).toBe(false);
     expect(cmoMenu.find((c) => c.id === "MANAGE_WORK")?.available).toBe(true);
+
+    const noAgentsMenu = routeCandidatesForTurn({
+      version: getSokoBotVersion("v37"),
+      hasHireableAgent: false,
+    });
+    expect(noAgentsMenu.find((c) => c.id === "HIRE_AGENT")).toMatchObject({
+      available: false,
+      filteredOutReason: "no hireable marketplace agent online",
+    });
+
+    agentFindFirst.mockResolvedValueOnce({ id: "agent_override_1" });
+    expect(await hasHireableMarketplaceAgent()).toBe(true);
+    expect(agentFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            { metadataOverride: { apiBaseUrl: { not: null } } },
+          ]),
+        }),
+      }),
+    );
 
     const botMenu = routeCandidatesForTurn({
       version: getSokoBotVersion("v37"),
@@ -81,7 +129,7 @@ describe("routeCandidatesForTurn & buildRouteDecisionReceipt", () => {
     ]);
   });
 
-  it("captures raw probabilities, low-confidence fallback, and scrubs secrets", async () => {
+  it("captures actual offered routes, raw probabilities, low-confidence fallback, and scrubs secrets", async () => {
     const classifier = new JevTurnClassifier(async () => ({
       ...jevRoute("MANAGE_WORK", { writeScope: "SOCIAL" }),
       answers: {
@@ -109,6 +157,7 @@ describe("routeCandidatesForTurn & buildRouteDecisionReceipt", () => {
       fallbackApplied: true,
       fallbackReason: "low_confidence",
     });
+    expect(classified.rawDecision?.offeredCandidateIds).toContain("HIRE_AGENT");
 
     const receipt = buildRouteDecisionReceipt({
       turnId: "turn_1",
@@ -122,6 +171,9 @@ describe("routeCandidatesForTurn & buildRouteDecisionReceipt", () => {
       grantedCapabilities: ["list_tasks"],
       now: "2026-11-27T06:00:00.000Z",
     });
+    expect(receipt.offeredCandidateIds).toEqual(
+      classified.rawDecision?.offeredCandidateIds,
+    );
     expect(receipt.choice).toBe("MANAGE_WORK");
     expect(receipt.abstain).toBe(true);
     expect(receipt.fallback).toMatchObject({
@@ -137,27 +189,37 @@ describe("routeCandidatesForTurn & buildRouteDecisionReceipt", () => {
     );
   });
 
-  it("flags stale route selection when granted capabilities lack hire_agent at dispatch", async () => {
+  it("flags stale HIRE_AGENT when the last marketplace agent goes offline during classification", async () => {
+    const version = getSokoBotVersion("v37");
+    const preCandidates = routeCandidatesForTurn({
+      version,
+      hasHireableAgent: true,
+    });
     const classified = await new JevTurnClassifier(async () =>
       jevRoute("HIRE_AGENT"),
     ).classify("Book a marketplace agent", {
       projectIds: [],
       coworkerIds: [],
-      agentIds: [],
+      agentIds: ["agent_1"],
       taskIds: [],
       jobIds: [],
     });
     const receipt = buildRouteDecisionReceipt({
-      turnId: "turn_stale",
+      turnId: "turn_stale_agent",
       message: "Book a marketplace agent",
       classification: classified,
-      version: getSokoBotVersion("v37"),
+      version,
       source: "CHAT",
       personAsked: false,
       cmoOwnerRequest: false,
-      grantedCapabilities: ["list_tasks"],
+      candidatesAtClassification: preCandidates,
+      liveHasHireableAgent: false,
+      grantedCapabilities: ["hire_agent", "list_tasks"],
       now: "2026-11-27T06:00:00.000Z",
     });
+    expect(
+      receipt.candidates.find((c) => c.id === "HIRE_AGENT")?.available,
+    ).toBe(true);
     expect(receipt.validation).toMatchObject({
       status: "stale",
       rejectedChoice: "HIRE_AGENT",
@@ -167,9 +229,61 @@ describe("routeCandidatesForTurn & buildRouteDecisionReceipt", () => {
       reason: "stale_option",
     });
   });
+
+  it("keeps raw decision receipts out of model-visible getContext / refresh_context results", async () => {
+    const version = {
+      ...getSokoBotVersion("v37"),
+      decisionReceipts: true as const,
+    };
+    const receipt = buildRouteDecisionReceipt({
+      turnId: "turn_ctx",
+      message: "Save the revised caption.",
+      classification: await new JevTurnClassifier(async () =>
+        jevRoute("CLARIFY"),
+      ).classify("Save the revised caption.", {
+        projectIds: [],
+        coworkerIds: [],
+        agentIds: [],
+        taskIds: [],
+        jobIds: [],
+      }),
+      version,
+      source: "CHAT",
+      personAsked: true,
+      cmoOwnerRequest: false,
+      grantedCapabilities: ["list_tasks"],
+    });
+    contextSnapshotFindFirst.mockResolvedValueOnce({
+      packet: { trigger: { source: "CHAT" } },
+      hash: "h1",
+      schemaVersion: 1,
+      generatedAt: new Date("2026-11-27T06:00:00.000Z"),
+    });
+    resolveVersionMock.mockResolvedValueOnce(version);
+    loadPersonaMock.mockResolvedValueOnce({ name: "Nova" });
+    turnFindUnique.mockResolvedValueOnce({
+      clientTurnId: "chat:1",
+      source: "CHAT",
+      route: "CLARIFY",
+      classification: { decisionReceipt: receipt },
+    });
+
+    const ctx = await getContext(
+      {
+        authorize: vi.fn(async () => ({
+          turn: { id: "turn_ctx", sokoBotId: "bot_1", versionId: "v37" },
+          grant: { contextSnapshotId: "snap_1" },
+        })),
+      } as never,
+      { sessionId: "sess_1", turnId: "turn_ctx" },
+    );
+    expect(ctx).not.toHaveProperty("routeDecisionReceipt");
+    expect(ctx).not.toHaveProperty("decisionReceipt");
+    expect(JSON.stringify(ctx)).not.toContain(receipt.receiptId);
+  });
 });
 
-describe("runtime persistence, outcome gating, and export", () => {
+describe("runtime persistence, outcome gating, and approved dev-only export", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     transactionMock.mockImplementation(
@@ -182,9 +296,12 @@ describe("runtime persistence, outcome gating, and export", () => {
           },
         }),
     );
+    turnFindMany.mockResolvedValue([]);
+    delegationFindMany.mockResolvedValue([]);
+    watchFindMany.mockResolvedValue([]);
   });
 
-  it("deduplicates route decision receipts by receiptId", async () => {
+  it("deduplicates route decision receipts by receiptId and emits via Core-internal helper", async () => {
     const receipt = buildRouteDecisionReceipt({
       turnId: "turn_1",
       message: "List my tasks",
@@ -217,6 +334,14 @@ describe("runtime persistence, outcome gating, and export", () => {
         data: expect.objectContaining({ type: DECISION_RECEIPT_EVENT }),
       }),
     );
+
+    turnFindUnique.mockResolvedValueOnce({
+      classification: { decisionReceipt: receipt },
+    });
+    runtimeEventFindFirst.mockResolvedValueOnce({ id: "evt_existing" });
+    expect(await emitStoredRouteDecisionReceipt("turn_1", "sess_1")).toBe(
+      false,
+    );
   });
 
   it("writes decision.outcome only when version.decisionReceipts is enabled", async () => {
@@ -240,12 +365,10 @@ describe("runtime persistence, outcome gating, and export", () => {
       ],
     });
 
-    // Live version without flag: no decision.outcome written.
     resolveVersionMock.mockResolvedValueOnce(getSokoBotVersion("v37"));
     await logSokoBotRouteOutcome("turn_live");
     expect(runtimeEventCreate).not.toHaveBeenCalled();
 
-    // Test version with flag: writes decision.outcome once.
     resolveVersionMock.mockResolvedValueOnce({
       ...getSokoBotVersion("v37"),
       decisionReceipts: true,
@@ -267,13 +390,13 @@ describe("runtime persistence, outcome gating, and export", () => {
     );
   });
 
-  it("exports stored receipts joined with outcomes and excludes holdout turns", async () => {
-    const receipt = buildRouteDecisionReceipt({
-      turnId: "turn_exp",
-      message: "Push launch posts to Thursday",
+  it("exports ONLY approved dev eval turn chains, never ordinary user chat or holdout chains, and leaves expect unlabelled", async () => {
+    const failedCaptionReceipt = buildRouteDecisionReceipt({
+      turnId: "turn_dev_1",
+      message: "Save the revised caption.",
       classification: await new JevTurnClassifier(async () =>
         jevRoute("CLARIFY"),
-      ).classify("Push launch posts to Thursday", {
+      ).classify("Save the revised caption.", {
         projectIds: [],
         coworkerIds: [],
         agentIds: [],
@@ -286,40 +409,45 @@ describe("runtime persistence, outcome gating, and export", () => {
       cmoOwnerRequest: true,
       grantedCapabilities: ["update_social_posts"],
     });
-    const holdoutReceipt = {
-      ...receipt,
-      receiptId: "rcpt_holdout",
-      turnId: "turn_holdout",
-    };
-    evalResultFindMany.mockResolvedValueOnce([
-      {
-        id: "eval_res_holdout",
-        turnId: "turn_holdout_root",
-        state: { steps: [{ turnIds: ["turn_holdout"] }] },
-      },
-    ]);
-    runtimeEventFindMany
+
+    // Approved dev result owns turn_dev_1; holdout owns turn_holdout_root -> turn_holdout_child.
+    // An ordinary customer turn ("turn_customer_chat") is NOT in any dev eval result.
+    evalResultFindMany
       .mockResolvedValueOnce([
         {
-          turnId: "turn_holdout",
-          data: holdoutReceipt,
-          turn: {
-            clientTurnId: "lab:eval:eval_res_holdout:0",
-            parentTurnId: null,
-          },
-        },
-        {
-          turnId: "turn_exp",
-          data: receipt,
-          turn: { clientTurnId: "chat:1", parentTurnId: null },
+          id: "res_dev_1",
+          runId: "run_dev_01",
+          caseId: "owner-cuso-change-plan",
+          turnId: "turn_dev_1",
+          state: { steps: [{ turnIds: ["turn_dev_1"] }] },
         },
       ])
       .mockResolvedValueOnce([
         {
-          turnId: "turn_exp",
+          id: "res_holdout_1",
+          turnId: "turn_holdout_root",
+          state: { steps: [{ turnIds: ["turn_holdout_root"] }] },
+        },
+      ]);
+    turnFindMany
+      .mockResolvedValueOnce([]) // dev children
+      .mockResolvedValueOnce([{ id: "turn_holdout_child" }]) // holdout children
+      .mockResolvedValueOnce([]); // holdout grandchildren
+
+    runtimeEventFindMany
+      .mockResolvedValueOnce([
+        {
+          turnId: "turn_dev_1",
+          data: failedCaptionReceipt,
+          turn: { clientTurnId: "lab:eval:res_dev_1:0" },
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          turnId: "turn_dev_1",
           data: {
             schemaVersion: 1,
-            turnId: "turn_exp",
+            turnId: "turn_dev_1",
             recordedAt: "2026-11-27T06:01:00.000Z",
             turnStatus: "COMPLETED",
             writes: ["update_social_posts"],
@@ -335,20 +463,43 @@ describe("runtime persistence, outcome gating, and export", () => {
         },
       ]);
 
-    const exported = await exportDecisionReceiptsFromDb({ limit: 10 });
-    expect(evalResultFindMany).toHaveBeenCalledWith(
+    const exported = await exportDecisionReceiptsFromDb({
+      evalRunId: "run_dev_01",
+      limit: 10,
+    });
+    // Query strictly restricts to positively approved dev turn IDs (never customer turns or holdout).
+    expect(runtimeEventFindMany).toHaveBeenNthCalledWith(
+      1,
       expect.objectContaining({
-        where: { caseId: { startsWith: "owner-holdout-" } },
+        where: expect.objectContaining({
+          turnId: { in: ["turn_dev_1"] },
+        }),
       }),
     );
     expect(exported).toHaveLength(1);
-    expect(exported[0]?.id).toContain(receipt.receiptId);
-    expect(exported[0]?.tags).toContain("route-disagreed");
-    expect(exported[0]?.observedOutcome?.writes).toEqual([
-      "update_social_posts",
-    ]);
+    expect(exported[0]?.source).toBe(
+      "dev-eval:run_dev_01:owner-cuso-change-plan",
+    );
+    // Critical: failed CLARIFY decision must NOT grade itself correct.
+    expect(exported[0]?.expect).toBeUndefined();
+    expect(exported[0]?.observedOutcome).toMatchObject({
+      originalChoice: "CLARIFY",
+      originalEffectiveChoice: "CLARIFY",
+      writes: ["update_social_posts"],
+    });
 
-    const direct = receiptToReplayScenario(receipt, null);
-    expect(direct.id).toContain(receipt.receiptId);
+    // When no approved dev eval results exist, returns [] without scanning ordinary turns.
+    vi.clearAllMocks();
+    evalResultFindMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    expect(await exportDecisionReceiptsFromDb({ limit: 10 })).toEqual([]);
+    expect(runtimeEventFindMany).not.toHaveBeenCalled();
+
+    // Direct helper leaves expect omitted unless caller supplies an explicit reviewed label.
+    const rawDirect = receiptToReplayScenario(failedCaptionReceipt, null);
+    expect(rawDirect.expect).toBeUndefined();
+    const reviewedDirect = receiptToReplayScenario(failedCaptionReceipt, null, {
+      expect: { acceptedChoices: ["MANAGE_WORK"] },
+    });
+    expect(reviewedDirect.expect).toEqual({ acceptedChoices: ["MANAGE_WORK"] });
   });
 });

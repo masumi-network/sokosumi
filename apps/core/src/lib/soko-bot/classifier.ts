@@ -222,6 +222,8 @@ export interface ClassifierUsage {
 
 /** Raw selector output kept in memory so decision-receipt versions can audit it. */
 export interface RouteRawDecision {
+  /** Exact route option IDs sent to Jev at classification time. */
+  offeredCandidateIds: string[];
   rawChoice: string | null;
   probabilities: Record<string, number>;
   writeScopeChoice: string | null;
@@ -728,6 +730,7 @@ export class JevTurnClassifier implements TurnClassifier {
       const lowConfidenceFallback =
         !invalidChoice && classification.unsureRoute !== undefined;
       const fallbackApplied = invalidChoice || lowConfidenceFallback;
+      const offeredCandidateIds = Object.keys(ROUTE_CRITERIA);
       return {
         classification,
         model: routeModelName(),
@@ -736,6 +739,7 @@ export class JevTurnClassifier implements TurnClassifier {
         failed: false,
         usage,
         rawDecision: {
+          offeredCandidateIds,
           rawChoice,
           probabilities: { ...(parsedAnswers.route.probabilities ?? {}) },
           writeScopeChoice: parsedAnswers.writeScope.choice,
@@ -784,6 +788,7 @@ export class JevTurnClassifier implements TurnClassifier {
         failed: true,
         usage,
         rawDecision: {
+          offeredCandidateIds: Object.keys(ROUTE_CRITERIA),
           rawChoice: null,
           probabilities: {},
           writeScopeChoice: null,

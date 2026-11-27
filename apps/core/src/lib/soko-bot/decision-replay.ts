@@ -13,12 +13,11 @@ import {
 } from "@sokosumi/soko-bot";
 import type { JSONValue } from "ai";
 import pLimit from "p-limit";
-
-type JsonObject = { [key: string]: JSONValue };
-
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
+import { planJevMode } from "@/lib/plan-jev";
 import {
-  classificationFromAnswers,
-  type RouteAnswers,
+  JevTurnClassifier,
+  type RouteEvaluator,
   routeQuestions,
   unwrapTitleTags,
 } from "./classifier";
@@ -29,6 +28,8 @@ import {
   type JevState,
   SOKO_BOT_JEV_MODEL,
 } from "./jev";
+
+type JsonObject = { [key: string]: JSONValue };
 
 const REPLAY_TIMEOUT_MS = 10_000;
 const ABSTAIN_OPTION = "ABSTAIN";
@@ -44,6 +45,34 @@ export type ReplayJevEvaluator = (options: {
   timeoutMs: number;
   requireChoiceProbability?: boolean;
 }) => Promise<{ answers: Map<string, JevAnswer>; costUsd: number }>;
+
+export class RealJevUnavailableError extends Error {
+  constructor(mode: ReturnType<typeof planJevMode>) {
+    super(
+      mode === "stand-in"
+        ? "Real Jev is currently paused or disabled on this ChatGPT plan run (SOKO_BOT_PLAN_REAL_JEV=0 or breaker active); refusing to fall back to stand-in."
+        : "Decision replay requires real-Jev plan mode (SOKO_BOT_LOCAL_CHATGPT_PLAN=1 and SOKO_BOT_PLAN_REAL_JEV=1) so every call stays in the plan Jev ledger and pause breaker.",
+    );
+    this.name = "RealJevUnavailableError";
+  }
+}
+
+/**
+ * Default evaluator for live replays: requires `planJevMode() === "real"`
+ * before every call so real Jev stays inside `recordedOnPlan` accounting and
+ * honors budget or failure-rate pauses instead of bypassing them.
+ */
+export function requireRealJevPlanEvaluator(
+  base: ReplayJevEvaluator = evaluateWithJev,
+): ReplayJevEvaluator {
+  return async (options) => {
+    const mode = planJevMode();
+    if (mode !== "real") {
+      throw new RealJevUnavailableError(mode);
+    }
+    return base(options);
+  };
+}
 
 export interface DecisionReplayPolicy {
   id: string;
@@ -108,133 +137,131 @@ function routeStateFromScenario(scenario: ReplayScenario) {
   };
 }
 
+function answersMapToRecord(answers: Map<string, JevAnswer>) {
+  const out: Record<string, unknown> = {};
+  for (const [key, answer] of answers) {
+    if (answer.type === "choice") {
+      out[key] = {
+        choice: answer.choice,
+        probabilities: answer.probabilities,
+      };
+    } else {
+      out[key] = { probability: answer.probability };
+    }
+  }
+  return out;
+}
+
 /**
- * Exact current `origin/main` classifier baseline: unfiltered 6-route menu,
- * existing `classifier.ts` criteria/thresholds, and no execution-time stale
- * option re-check.
+ * Invokes Core's actual `JevTurnClassifier` directly so baseline replay runs
+ * the exact same route questions, prompt text, parsing, thresholds, and
+ * fallback rules as production.
  */
 const routeBaselinePolicy: DecisionReplayPolicy = {
   id: "route-baseline",
   kind: "route",
   description:
-    "Current main route classifier (unfiltered 6-route menu, existing thresholds, no stale re-check).",
+    "Actual production JevTurnClassifier (unfiltered 6-route menu, production thresholds, no stale re-check).",
   async evaluate(scenario, jev) {
-    const startedAt = performance.now();
-    const state = routeStateFromScenario(scenario);
-    const questions = routeQuestions(state.pendingProposals.length > 0);
-    const allOfferedIds = Object.keys(questions.route.criteria);
-    try {
-      const { answers, costUsd } = await jev({
-        state,
-        questions,
-        timeoutMs: REPLAY_TIMEOUT_MS,
-      });
-      const latencyMs = Math.round(performance.now() - startedAt);
-      const routeAnswer = choiceFromAnswers(answers, "route");
-      const scopeAnswer = choiceFromAnswers(answers, "writeScope");
-      if (!routeAnswer.choice || !scopeAnswer.choice) {
-        return resolveSelectorDecision({
-          receiptId: `replay:${scenario.id}:route-baseline`,
-          kind: "route",
-          turnId: `replay:${scenario.id}`,
-          policyVersion: "route-baseline",
-          model: SOKO_BOT_JEV_MODEL,
-          candidates: scenario.candidates,
-          rawChoice: null,
-          probabilities: {},
-          failed: true,
-          failureReason: "missing route or writeScope answer",
-          fallbackChoice: "CLARIFY",
-          fallbackPolicy: "read_only_clarify",
-          latencyMs,
-          costUsd,
-          input: scenario.input,
+    let unavailableError: RealJevUnavailableError | null = null;
+    const adapter: RouteEvaluator = async ({ state, hasPendingProposals }) => {
+      try {
+        const { answers, costUsd } = await jev({
+          state,
+          questions: routeQuestions(hasPendingProposals),
+          timeoutMs: REPLAY_TIMEOUT_MS,
         });
+        return {
+          answers: answersMapToRecord(answers),
+          usage: { inputTokens: 0, outputTokens: 0 },
+          providerMetadata: { gateway: { cost: costUsd } },
+        };
+      } catch (error) {
+        if (error instanceof RealJevUnavailableError) {
+          unavailableError = error;
+          // Stop JevTurnClassifier.evaluateWithRetry on attempt 1.
+          throw new AiGatewayBudgetError();
+        }
+        throw error;
       }
-      const routeAnswers: RouteAnswers = {
-        route: {
-          choice: routeAnswer.choice,
-          probabilities: routeAnswer.probabilities,
-        },
-        writeScope: {
-          choice: scopeAnswer.choice,
-          probabilities: scopeAnswer.probabilities,
-        },
-      };
-      const classified = classificationFromAnswers(
-        scenario.input.message ?? "",
-        routeAnswers,
-        [],
-      );
-      const fallbackApplied = classified.unsureRoute !== undefined;
-      const now = new Date().toISOString();
-      // Baseline does not re-check availableAtExecution before acting: if a
-      // stale choice was picked, it stays effectiveChoice so replay exposes it.
-      return {
-        schemaVersion: 1,
-        receiptId: `replay:${scenario.id}:route-baseline`,
-        kind: "route",
-        turnId: `replay:${scenario.id}`,
-        policyVersion: "route-baseline",
-        model: SOKO_BOT_JEV_MODEL,
-        recordedAt: now,
-        candidates: [...scenario.candidates],
-        offeredCandidateIds: allOfferedIds,
-        choice: routeAnswer.choice,
-        confidence:
-          routeAnswer.probabilities[routeAnswer.choice] ??
-          classified.confidence,
-        probabilities: routeAnswer.probabilities,
-        aux: {
-          ...(classified.writeScope
-            ? { writeScope: classified.writeScope }
-            : {}),
-          ...(classified.unsureRoute
-            ? { unsureRoute: classified.unsureRoute }
-            : {}),
-        },
-        abstain: fallbackApplied,
-        ...(fallbackApplied
-          ? { abstainReason: classified.rationaleSummary }
-          : {}),
-        validation: {
-          status: fallbackApplied ? "abstained" : "valid",
-          ...(fallbackApplied ? { rejectedChoice: routeAnswer.choice } : {}),
-          checkedAt: now,
-        },
-        fallback: {
-          applied: fallbackApplied,
-          ...(fallbackApplied
-            ? {
-                reason: "low_confidence" as const,
-                policy: "read_only_clarify",
-              }
-            : {}),
-          effectiveChoice: classified.route,
-        },
-        latencyMs,
-        costUsd,
-        input: scenario.input,
-      };
-    } catch (error) {
-      return resolveSelectorDecision({
-        receiptId: `replay:${scenario.id}:route-baseline`,
-        kind: "route",
-        turnId: `replay:${scenario.id}`,
-        policyVersion: "route-baseline",
-        model: SOKO_BOT_JEV_MODEL,
-        candidates: scenario.candidates,
-        rawChoice: null,
-        probabilities: {},
-        failed: true,
-        failureReason: error instanceof Error ? error.message : String(error),
-        fallbackChoice: "CLARIFY",
-        fallbackPolicy: "read_only_clarify",
-        latencyMs: Math.round(performance.now() - startedAt),
-        costUsd: 0,
-        input: scenario.input,
-      });
+    };
+    const classifier = new JevTurnClassifier(adapter);
+    const result = await classifier.classify(scenario.input.message ?? "", {
+      previousReply: scenario.input.previousReply ?? null,
+      projectIds: [],
+      coworkerIds: [],
+      agentIds: [],
+      taskIds: [],
+      jobIds: [],
+    });
+    if (unavailableError) {
+      throw unavailableError;
     }
+    const raw = result.rawDecision;
+    const effectiveChoice = result.classification.route;
+    const rawChoice = result.failed
+      ? null
+      : (raw?.rawChoice ?? effectiveChoice);
+    const probabilities = raw?.probabilities ?? {};
+    const fallbackApplied = result.failed || (raw?.fallbackApplied ?? false);
+    const now = new Date().toISOString();
+    // Baseline does not re-check availableAtExecution before acting: if a
+    // stale choice was picked, it stays effectiveChoice so replay exposes it.
+    return {
+      schemaVersion: 1,
+      receiptId: `replay:${scenario.id}:route-baseline`,
+      kind: "route",
+      turnId: `replay:${scenario.id}`,
+      policyVersion: result.version,
+      model: result.model,
+      recordedAt: now,
+      candidates: [...scenario.candidates],
+      offeredCandidateIds:
+        raw?.offeredCandidateIds ??
+        Object.keys(routeQuestions(false).route.criteria),
+      choice: rawChoice,
+      confidence:
+        rawChoice !== null && Object.hasOwn(probabilities, rawChoice)
+          ? (probabilities[rawChoice] ?? null)
+          : result.failed
+            ? null
+            : result.classification.confidence,
+      probabilities,
+      aux: {
+        ...(result.classification.writeScope
+          ? { writeScope: result.classification.writeScope }
+          : {}),
+        ...(result.classification.unsureRoute
+          ? { unsureRoute: result.classification.unsureRoute }
+          : {}),
+      },
+      abstain: result.failed || (raw?.abstained ?? false),
+      ...(raw?.abstainReason ? { abstainReason: raw.abstainReason } : {}),
+      validation: {
+        status: result.failed
+          ? "error"
+          : fallbackApplied
+            ? raw?.fallbackReason === "invalid_choice"
+              ? "invalid"
+              : "abstained"
+            : "valid",
+        ...(fallbackApplied && rawChoice ? { rejectedChoice: rawChoice } : {}),
+        checkedAt: now,
+      },
+      fallback: {
+        applied: fallbackApplied,
+        ...(fallbackApplied
+          ? {
+              reason: raw?.fallbackReason ?? "selector_error",
+              policy: "read_only_clarify",
+            }
+          : {}),
+        effectiveChoice,
+      },
+      latencyMs: result.latencyMs,
+      costUsd: result.usage?.costUsd ?? 0,
+      input: scenario.input,
+    };
   },
 };
 
@@ -247,99 +274,102 @@ const KEEL_ABSTAIN_DESCRIPTION =
 const READ_ONLY_ROUTES = new Set(["DIRECT_RESPONSE", "CLARIFY"]);
 
 /**
- * E1 / Keel candidate route policy: pre-filters the Jev choice menu to host-
- * available routes, offers explicit ABSTAIN, enforces execution-time stale
- * option re-checks via `resolveSelectorDecision`, and applies a defined
- * fallback without counting fallbacks as selector wins.
+ * Shared Keel route policy seam (host-filtered menu + explicit ABSTAIN +
+ * execution-time stale re-check via `resolveSelectorDecision`). Callable by
+ * both Core experiments and offline replay so both execute identical code.
  */
+export async function evaluateKeelRoutePolicy(
+  scenario: ReplayScenario,
+  jev: ReplayJevEvaluator,
+): Promise<DecisionReceipt> {
+  const startedAt = performance.now();
+  const state = {
+    ...routeStateFromScenario(scenario),
+    profile: scenario.input.profile ?? "soko-bot",
+  };
+  const available = scenario.candidates.filter(
+    (candidate) => candidate.available,
+  );
+  const baseQuestions = routeQuestions(state.pendingProposals.length > 0);
+  const filteredCriteria: Record<string, string> = {};
+  for (const candidate of available) {
+    filteredCriteria[candidate.id] = candidate.description;
+  }
+  filteredCriteria[ABSTAIN_OPTION] = KEEL_ABSTAIN_DESCRIPTION;
+  const fallbackChoice = available.some((c) => c.id === "CLARIFY")
+    ? "CLARIFY"
+    : (available[0]?.id ?? "CLARIFY");
+
+  try {
+    const { answers, costUsd } = await jev({
+      state,
+      questions: {
+        route: {
+          type: "choice",
+          instructions: KEEL_ROUTE_INSTRUCTIONS,
+          criteria: filteredCriteria,
+        },
+        writeScope: baseQuestions.writeScope,
+      },
+      timeoutMs: REPLAY_TIMEOUT_MS,
+    });
+    const latencyMs = Math.round(performance.now() - startedAt);
+    const routeAnswer = choiceFromAnswers(answers, "route");
+    const scopeAnswer = choiceFromAnswers(answers, "writeScope");
+    const minConfidence =
+      routeAnswer.choice && READ_ONLY_ROUTES.has(routeAnswer.choice)
+        ? undefined
+        : routeAnswer.choice === "HIRE_AGENT"
+          ? MIN_HIRE_CONFIDENCE
+          : MIN_ROUTE_CONFIDENCE;
+    return resolveSelectorDecision({
+      receiptId: `replay:${scenario.id}:route-keel`,
+      kind: "route",
+      turnId: `replay:${scenario.id}`,
+      policyVersion: "route-keel-v1",
+      model: SOKO_BOT_JEV_MODEL,
+      candidates: scenario.candidates,
+      availableAtExecution: scenario.availableAtExecution,
+      rawChoice: routeAnswer.choice,
+      probabilities: routeAnswer.probabilities,
+      minConfidence,
+      abstainOptionId: ABSTAIN_OPTION,
+      fallbackChoice,
+      fallbackPolicy: "read_only_clarify",
+      aux: scopeAnswer.choice ? { writeScope: scopeAnswer.choice } : undefined,
+      latencyMs,
+      costUsd,
+      input: scenario.input,
+    });
+  } catch (error) {
+    if (error instanceof RealJevUnavailableError) throw error;
+    return resolveSelectorDecision({
+      receiptId: `replay:${scenario.id}:route-keel`,
+      kind: "route",
+      turnId: `replay:${scenario.id}`,
+      policyVersion: "route-keel-v1",
+      model: SOKO_BOT_JEV_MODEL,
+      candidates: scenario.candidates,
+      availableAtExecution: scenario.availableAtExecution,
+      rawChoice: null,
+      probabilities: {},
+      failed: true,
+      failureReason: error instanceof Error ? error.message : String(error),
+      fallbackChoice,
+      fallbackPolicy: "read_only_clarify",
+      latencyMs: Math.round(performance.now() - startedAt),
+      costUsd: 0,
+      input: scenario.input,
+    });
+  }
+}
+
 const routeKeelPolicy: DecisionReplayPolicy = {
   id: "route-keel",
   kind: "route",
   description:
     "Keel host-filtered route menu with explicit ABSTAIN, imperative-change guidance, and execution-time stale-option re-check.",
-  async evaluate(scenario, jev) {
-    const startedAt = performance.now();
-    const state = {
-      ...routeStateFromScenario(scenario),
-      profile: scenario.input.profile ?? "soko-bot",
-    };
-    const available = scenario.candidates.filter(
-      (candidate) => candidate.available,
-    );
-    const baseQuestions = routeQuestions(state.pendingProposals.length > 0);
-    const filteredCriteria: Record<string, string> = {};
-    for (const candidate of available) {
-      filteredCriteria[candidate.id] = candidate.description;
-    }
-    filteredCriteria[ABSTAIN_OPTION] = KEEL_ABSTAIN_DESCRIPTION;
-    const fallbackChoice = available.some((c) => c.id === "CLARIFY")
-      ? "CLARIFY"
-      : (available[0]?.id ?? "CLARIFY");
-
-    try {
-      const { answers, costUsd } = await jev({
-        state,
-        questions: {
-          route: {
-            type: "choice",
-            instructions: KEEL_ROUTE_INSTRUCTIONS,
-            criteria: filteredCriteria,
-          },
-          writeScope: baseQuestions.writeScope,
-        },
-        timeoutMs: REPLAY_TIMEOUT_MS,
-      });
-      const latencyMs = Math.round(performance.now() - startedAt);
-      const routeAnswer = choiceFromAnswers(answers, "route");
-      const scopeAnswer = choiceFromAnswers(answers, "writeScope");
-      const minConfidence =
-        routeAnswer.choice && READ_ONLY_ROUTES.has(routeAnswer.choice)
-          ? undefined
-          : routeAnswer.choice === "HIRE_AGENT"
-            ? MIN_HIRE_CONFIDENCE
-            : MIN_ROUTE_CONFIDENCE;
-      return resolveSelectorDecision({
-        receiptId: `replay:${scenario.id}:route-keel`,
-        kind: "route",
-        turnId: `replay:${scenario.id}`,
-        policyVersion: "route-keel-v1",
-        model: SOKO_BOT_JEV_MODEL,
-        candidates: scenario.candidates,
-        availableAtExecution: scenario.availableAtExecution,
-        rawChoice: routeAnswer.choice,
-        probabilities: routeAnswer.probabilities,
-        minConfidence,
-        abstainOptionId: ABSTAIN_OPTION,
-        fallbackChoice,
-        fallbackPolicy: "read_only_clarify",
-        aux: scopeAnswer.choice
-          ? { writeScope: scopeAnswer.choice }
-          : undefined,
-        latencyMs,
-        costUsd,
-        input: scenario.input,
-      });
-    } catch (error) {
-      return resolveSelectorDecision({
-        receiptId: `replay:${scenario.id}:route-keel`,
-        kind: "route",
-        turnId: `replay:${scenario.id}`,
-        policyVersion: "route-keel-v1",
-        model: SOKO_BOT_JEV_MODEL,
-        candidates: scenario.candidates,
-        availableAtExecution: scenario.availableAtExecution,
-        rawChoice: null,
-        probabilities: {},
-        failed: true,
-        failureReason: error instanceof Error ? error.message : String(error),
-        fallbackChoice,
-        fallbackPolicy: "read_only_clarify",
-        latencyMs: Math.round(performance.now() - startedAt),
-        costUsd: 0,
-        input: scenario.input,
-      });
-    }
-  },
+  evaluate: evaluateKeelRoutePolicy,
 };
 
 const FOCUS_BASELINE_INSTRUCTIONS =
@@ -482,6 +512,7 @@ function buildMenuPolicy(config: {
           input: scenario.input,
         });
       } catch (error) {
+        if (error instanceof RealJevUnavailableError) throw error;
         return resolveSelectorDecision({
           receiptId: `replay:${scenario.id}:${config.id}`,
           kind: config.kind,
@@ -574,14 +605,14 @@ export interface ReplayRunResult {
   summary: ReplaySummary;
 }
 
-/** Runs one policy across scenarios against Jev (or an injected mock). */
+/** Runs one policy across scenarios against real Jev (plan-accounted) or a test stub. */
 export async function runDecisionReplay(options: {
   scenarios: readonly ReplayScenario[];
   policy: DecisionReplayPolicy;
   jev?: ReplayJevEvaluator;
   concurrency?: number;
 }): Promise<ReplayRunResult> {
-  const jev = options.jev ?? evaluateWithJev;
+  const jev = options.jev ?? requireRealJevPlanEvaluator();
   const limit = pLimit(Math.max(1, options.concurrency ?? 4));
   const matching = options.scenarios.filter(
     (scenario) => scenario.kind === options.policy.kind,
@@ -669,6 +700,11 @@ function pct(rate: number): string {
   return `${Math.round(rate * 100)}%`;
 }
 
+function passLabel(pass: boolean | null): string {
+  if (pass === null) return "UNLABELLED";
+  return pass ? "PASS" : "FAIL";
+}
+
 /** Concise Markdown report for PRs, human approval, and experiment logs. */
 export function formatReplayComparisonMarkdown(
   comparison: ReplayComparison,
@@ -681,9 +717,9 @@ export function formatReplayComparisonMarkdown(
     "",
     "| Metric | Baseline | Candidate | Delta |",
     "| --- | ---: | ---: | ---: |",
-    `| Scenarios | ${b.total} | ${c.total} | 0 |`,
-    `| Selector wins (excl. fallbacks) | ${b.selectorWins}/${b.total} (${pct(b.selectorWinRate)}) | ${c.selectorWins}/${c.total} (${pct(c.selectorWinRate)}) | ${comparison.selectorWinDelta >= 0 ? "+" : ""}${comparison.selectorWinDelta} |`,
-    `| Effective passes | ${b.effectivePasses}/${b.total} (${pct(b.effectivePassRate)}) | ${c.effectivePasses}/${c.total} (${pct(c.effectivePassRate)}) | ${comparison.effectivePassDelta >= 0 ? "+" : ""}${comparison.effectivePassDelta} |`,
+    `| Scenarios (scored / unlabelled) | ${b.total} (${b.scored} / ${b.unlabelled}) | ${c.total} (${c.scored} / ${c.unlabelled}) | 0 |`,
+    `| Selector wins (excl. fallbacks) | ${b.selectorWins}/${b.scored} (${pct(b.selectorWinRate)}) | ${c.selectorWins}/${c.scored} (${pct(c.selectorWinRate)}) | ${comparison.selectorWinDelta >= 0 ? "+" : ""}${comparison.selectorWinDelta} |`,
+    `| Effective passes | ${b.effectivePasses}/${b.scored} (${pct(b.effectivePassRate)}) | ${c.effectivePasses}/${c.scored} (${pct(c.effectivePassRate)}) | ${comparison.effectivePassDelta >= 0 ? "+" : ""}${comparison.effectivePassDelta} |`,
     `| Fallbacks (never selector wins) | ${b.fallbacks} (${pct(b.fallbackRate)}) | ${c.fallbacks} (${pct(c.fallbackRate)}) | ${comparison.fallbackDelta >= 0 ? "+" : ""}${comparison.fallbackDelta} |`,
     `| Stale options caught | ${b.staleCaught} | ${c.staleCaught} | ${c.staleCaught - b.staleCaught >= 0 ? "+" : ""}${c.staleCaught - b.staleCaught} |`,
     `| Safety violations | ${b.safetyViolations} | ${c.safetyViolations} | ${comparison.safetyViolationDelta >= 0 ? "+" : ""}${comparison.safetyViolationDelta} |`,
@@ -701,7 +737,7 @@ export function formatReplayComparisonMarkdown(
     );
     for (const [kind, pair] of kinds) {
       lines.push(
-        `| \`${kind}\` | ${pair.baseline.selectorWins}/${pair.baseline.total} · ${pair.baseline.effectivePasses}/${pair.baseline.total} · ${pair.baseline.fallbacks} fb · ${pair.baseline.safetyViolations} unsafe | ${pair.candidate.selectorWins}/${pair.candidate.total} · ${pair.candidate.effectivePasses}/${pair.candidate.total} · ${pair.candidate.fallbacks} fb · ${pair.candidate.safetyViolations} unsafe |`,
+        `| \`${kind}\` | ${pair.baseline.selectorWins}/${pair.baseline.scored} · ${pair.baseline.effectivePasses}/${pair.baseline.scored} · ${pair.baseline.fallbacks} fb · ${pair.baseline.safetyViolations} unsafe | ${pair.candidate.selectorWins}/${pair.candidate.scored} · ${pair.candidate.effectivePasses}/${pair.candidate.scored} · ${pair.candidate.fallbacks} fb · ${pair.candidate.safetyViolations} unsafe |`,
       );
     }
   }
@@ -725,8 +761,8 @@ export function formatReplayComparisonMarkdown(
       "| --- | --- | --- | --- |",
     );
     for (const flip of comparison.flips) {
-      const bStr = `${flip.baselineEffective}${flip.baselineFallback ? " (fb)" : ""} ${flip.baselinePass ? "PASS" : "FAIL"}`;
-      const cStr = `${flip.candidateEffective}${flip.candidateFallback ? " (fb)" : ""} ${flip.candidatePass ? "PASS" : "FAIL"}`;
+      const bStr = `${flip.baselineEffective}${flip.baselineFallback ? " (fb)" : ""} ${passLabel(flip.baselinePass)}`;
+      const cStr = `${flip.candidateEffective}${flip.candidateFallback ? " (fb)" : ""} ${passLabel(flip.candidatePass)}`;
       lines.push(
         `| \`${flip.scenarioId}\` | \`${flip.kind}\` | ${bStr} | ${cStr} |`,
       );

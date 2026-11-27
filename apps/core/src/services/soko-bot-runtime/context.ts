@@ -5,7 +5,6 @@ import {
 } from "@sokosumi/soko-bot";
 import { loadSokoBotPersona } from "@/helpers/soko-bot-owner";
 import prisma from "@/lib/db/prisma";
-import { storedRouteDecisionReceipt } from "@/lib/soko-bot/decision-receipts";
 import { ONBOARDING_TURN_PREFIX } from "@/services/cmo-cuso.service";
 import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
 import {
@@ -84,23 +83,12 @@ export async function getContext(
   // that loads skills on demand preloads those its kind of turn needs.
   const turn = await prisma.sokoBotTurn.findUnique({
     where: { id: authorized.turn.id },
-    select: {
-      clientTurnId: true,
-      source: true,
-      route: true,
-      ...(version.decisionReceipts ? { classification: true } : {}),
-    },
+    select: { clientTurnId: true, source: true, route: true },
   });
   const occasions = turn ? skillOccasions(turn, snapshot.packet) : [];
   const promptTurn = { clientTurnId: turn?.clientTurnId ?? null, occasions };
-  const routeDecisionReceipt = version.decisionReceipts
-    ? storedRouteDecisionReceipt(
-        (turn as { classification?: unknown } | null)?.classification,
-      )
-    : null;
   return {
     ...snapshot,
-    ...(routeDecisionReceipt ? { routeDecisionReceipt } : {}),
     version: {
       id: version.id,
       name: version.name,

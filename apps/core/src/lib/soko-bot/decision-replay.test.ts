@@ -1,10 +1,22 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { getSokoBotVersion } from "@sokosumi/soko-bot";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
+import { recordRealJevCall, resetPlanJevForTests } from "@/lib/plan-jev";
+import { expectCoreLog } from "@/test/core-log";
+import { jevRoute } from "@/test/jev-routes";
+import { JevTurnClassifier } from "./classifier";
+import {
+  buildRouteDecisionReceipt,
+  receiptToReplayScenario,
+} from "./decision-receipts";
 import {
   formatReplayComparisonMarkdown,
   parseReplayScenarios,
   REPLAY_POLICIES,
+  RealJevUnavailableError,
   type ReplayJevEvaluator,
+  requireRealJevPlanEvaluator,
   runDecisionReplay,
   runDecisionReplayComparison,
   serializeReplayScenariosJsonl,
@@ -36,7 +48,6 @@ describe("seeded replay fixture", () => {
       scenarios.filter((s) => s.availableAtExecution !== undefined).length,
     ).toBeGreaterThanOrEqual(4);
 
-    // Round-trip JSONL serialization.
     const roundTripped = parseReplayScenarios(
       serializeReplayScenariosJsonl(scenarios),
     );
@@ -45,7 +56,7 @@ describe("seeded replay fixture", () => {
 });
 
 describe("runDecisionReplay & comparison", () => {
-  it("pre-filters menu in route-keel, catches stale options as fallback (never selector win), and compares against baseline", async () => {
+  it("runs actual JevTurnClassifier in route-baseline, pre-filters menu in route-keel, and catches stale options without selector-win credit", async () => {
     const scenarios = parseReplayScenarios(FIXTURE_RAW).filter((s) =>
       [
         "route-cmo-no-fridays-shift-network",
@@ -68,14 +79,12 @@ describe("runDecisionReplay & comparison", () => {
 
       const answers = new Map<string, JevAnswer>();
       if (msg.includes("Company Researcher")) {
-        // Both policies get HIRE_AGENT from Jev; only keel catches it as stale.
         answers.set("route", {
           type: "choice",
           choice: "HIRE_AGENT",
           probabilities: { HIRE_AGENT: 0.92, CLARIFY: 0.08 },
         });
       } else {
-        // Baseline misfires as CLARIFY; keel picks MANAGE_WORK.
         answers.set("route", {
           type: "choice",
           choice: isKeel ? "MANAGE_WORK" : "CLARIFY",
@@ -92,7 +101,7 @@ describe("runDecisionReplay & comparison", () => {
       return { answers, costUsd: 0.00004 };
     };
 
-    const { comparison } = await runDecisionReplayComparison({
+    const { comparison, baselineReceipts } = await runDecisionReplayComparison({
       scenarios,
       baselinePolicies: [REPLAY_POLICIES["route-baseline"]!],
       candidatePolicies: [REPLAY_POLICIES["route-keel"]!],
@@ -100,17 +109,17 @@ describe("runDecisionReplay & comparison", () => {
       concurrency: 2,
     });
 
-    // Host pre-filtering removed HIRE_AGENT & DELEGATE_TASK on CMO in keel.
+    // Baseline runs production JevTurnClassifier and records its real classifier version.
+    expect(baselineReceipts[0]?.policyVersion).toContain(
+      "soko-bot-classifier-jev",
+    );
     expect(seenOfferedByPolicy.get("baseline")).toContain("HIRE_AGENT");
     expect(seenOfferedByPolicy.get("keel")).not.toContain("HIRE_AGENT");
     expect(seenOfferedByPolicy.get("keel")).not.toContain("DELEGATE_TASK");
     expect(seenOfferedByPolicy.get("keel")).toContain("ABSTAIN");
 
-    // Baseline fails both (CLARIFY misfire + stale HIRE_AGENT safety violation).
     expect(comparison.baseline.effectivePasses).toBe(0);
     expect(comparison.baseline.safetyViolations).toBe(1);
-
-    // Candidate passes both: 1 genuine selector win + 1 stale fallback (NOT a selector win!).
     expect(comparison.candidate.effectivePasses).toBe(2);
     expect(comparison.candidate.selectorWins).toBe(1);
     expect(comparison.candidate.fallbacks).toBe(1);
@@ -121,6 +130,99 @@ describe("runDecisionReplay & comparison", () => {
     const md = formatReplayComparisonMarkdown(comparison);
     expect(md).toContain("Selector wins (excl. fallbacks)");
     expect(md).toContain("APPROVE");
+  });
+
+  it("never self-grades an exported failed CLARIFY decision for 'Save the revised caption.' as correct", async () => {
+    const failedClassified = await new JevTurnClassifier(async () =>
+      jevRoute("CLARIFY"),
+    ).classify("Save the revised caption.", {
+      projectIds: [],
+      coworkerIds: [],
+      agentIds: [],
+      taskIds: [],
+      jobIds: [],
+    });
+    const receipt = buildRouteDecisionReceipt({
+      turnId: "turn_caption_fail",
+      message: "Save the revised caption.",
+      classification: failedClassified,
+      version: getSokoBotVersion("cmo-v25"),
+      source: "CHAT",
+      personAsked: true,
+      cmoOwnerRequest: true,
+      grantedCapabilities: ["update_social_posts"],
+    });
+    const exportedScenario = receiptToReplayScenario(receipt, null, {
+      source: "dev-eval:run_1:case_caption",
+    });
+    expect(exportedScenario.expect).toBeUndefined();
+
+    const scriptedJev: ReplayJevEvaluator = async ({ questions }) => {
+      const offered =
+        questions.route?.type === "choice"
+          ? Object.keys(questions.route.criteria)
+          : [];
+      const isKeel = offered.includes("ABSTAIN");
+      return {
+        answers: new Map<string, JevAnswer>([
+          [
+            "route",
+            {
+              type: "choice",
+              choice: isKeel ? "MANAGE_WORK" : "CLARIFY",
+              probabilities: isKeel
+                ? { MANAGE_WORK: 0.94, CLARIFY: 0.06 }
+                : { CLARIFY: 0.72, MANAGE_WORK: 0.28 },
+            },
+          ],
+          [
+            "writeScope",
+            {
+              type: "choice",
+              choice: "SOCIAL",
+              probabilities: { SOCIAL: 0.95 },
+            },
+          ],
+        ]),
+        costUsd: 0.00004,
+      };
+    };
+
+    const { comparison } = await runDecisionReplayComparison({
+      scenarios: [exportedScenario],
+      baselinePolicies: [REPLAY_POLICIES["route-baseline"]!],
+      candidatePolicies: [REPLAY_POLICIES["route-keel"]!],
+      jev: scriptedJev,
+    });
+    // Neither CLARIFY nor MANAGE_WORK is scored pass/fail without a reviewed label.
+    expect(comparison.baseline.scored).toBe(0);
+    expect(comparison.baseline.unlabelled).toBe(1);
+    expect(comparison.baseline.effectivePasses).toBe(0);
+    expect(comparison.candidate.effectivePasses).toBe(0);
+    expect(comparison.regressed).toEqual([]);
+    expect(comparison.flips).toHaveLength(1);
+    expect(comparison.flips[0]).toMatchObject({
+      scored: false,
+      baselineEffective: "CLARIFY",
+      candidateEffective: "MANAGE_WORK",
+    });
+    expect(comparison.verdict).toBe("review");
+
+    // Once independently labelled, corrected MANAGE_WORK wins and CLARIFY fails.
+    const labelled = {
+      ...exportedScenario,
+      expect: { acceptedChoices: ["MANAGE_WORK"] },
+    };
+    const scored = await runDecisionReplayComparison({
+      scenarios: [labelled],
+      baselinePolicies: [REPLAY_POLICIES["route-baseline"]!],
+      candidatePolicies: [REPLAY_POLICIES["route-keel"]!],
+      jev: scriptedJev,
+    });
+    expect(scored.comparison.baseline.effectivePasses).toBe(0);
+    expect(scored.comparison.candidate.selectorWins).toBe(1);
+    expect(scored.comparison.candidate.effectivePasses).toBe(1);
+    expect(scored.comparison.verdict).toBe("approve");
   });
 
   it("handles focus and completion policies with stale-option fallbacks", async () => {
@@ -152,6 +254,7 @@ describe("runDecisionReplay & comparison", () => {
     });
     expect(focusRun.summary).toMatchObject({
       total: 1,
+      scored: 1,
       selectorWins: 0,
       effectivePasses: 1,
       fallbacks: 1,
@@ -166,11 +269,82 @@ describe("runDecisionReplay & comparison", () => {
     });
     expect(completionRun.summary).toMatchObject({
       total: 1,
+      scored: 1,
       selectorWins: 0,
       effectivePasses: 1,
       fallbacks: 1,
       staleCaught: 1,
       safetyViolations: 0,
     });
+  });
+});
+
+describe("requireRealJevPlanEvaluator", () => {
+  const prevPlan = process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN;
+  const prevRealJev = process.env.SOKO_BOT_PLAN_REAL_JEV;
+
+  afterEach(() => {
+    resetPlanJevForTests();
+    if (prevPlan === undefined) delete process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN;
+    else process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN = prevPlan;
+    if (prevRealJev === undefined) delete process.env.SOKO_BOT_PLAN_REAL_JEV;
+    else process.env.SOKO_BOT_PLAN_REAL_JEV = prevRealJev;
+  });
+
+  it("refuses to call Jev outside real-Jev plan mode or while real Jev is paused", async () => {
+    expectCoreLog(
+      "warn",
+      "Real Jev paused for 30 min (the Gateway budget stopped it)",
+    );
+    expectCoreLog(
+      "warn",
+      "The Soko Bot classifier failed, so the request became a clarification",
+    );
+    const transport = vi.fn<ReplayJevEvaluator>();
+    const guarded = requireRealJevPlanEvaluator(transport);
+
+    // Outside plan mode (bypasses plan ledger): refused.
+    process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN = "0";
+    process.env.SOKO_BOT_PLAN_REAL_JEV = "1";
+    await expect(
+      guarded({ state: { message: "hi" }, questions: {}, timeoutMs: 1_000 }),
+    ).rejects.toBeInstanceOf(RealJevUnavailableError);
+    expect(transport).not.toHaveBeenCalled();
+
+    // Plan mode enabled, real Jev explicitly off: refused.
+    process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN = "1";
+    process.env.SOKO_BOT_PLAN_REAL_JEV = "0";
+    await expect(
+      guarded({ state: { message: "hi" }, questions: {}, timeoutMs: 1_000 }),
+    ).rejects.toBeInstanceOf(RealJevUnavailableError);
+    expect(transport).not.toHaveBeenCalled();
+
+    // Plan mode + real Jev enabled, then tripped by budget stop: refused (including inside route-baseline's JevTurnClassifier).
+    process.env.SOKO_BOT_PLAN_REAL_JEV = "1";
+    recordRealJevCall({ ok: false, error: new AiGatewayBudgetError() });
+    await expect(
+      guarded({ state: { message: "hi" }, questions: {}, timeoutMs: 1_000 }),
+    ).rejects.toBeInstanceOf(RealJevUnavailableError);
+    const [routeScenario] = parseReplayScenarios(FIXTURE_RAW).filter(
+      (s) => s.kind === "route",
+    );
+    await expect(
+      runDecisionReplay({
+        scenarios: [routeScenario!],
+        policy: REPLAY_POLICIES["route-baseline"]!,
+        jev: guarded,
+      }),
+    ).rejects.toBeInstanceOf(RealJevUnavailableError);
+    expect(transport).not.toHaveBeenCalled();
+
+    // Active real-Jev plan mode: allowed.
+    resetPlanJevForTests();
+    transport.mockResolvedValueOnce({ answers: new Map(), costUsd: 0.00001 });
+    await guarded({
+      state: { message: "hi" },
+      questions: {},
+      timeoutMs: 1_000,
+    });
+    expect(transport).toHaveBeenCalledTimes(1);
   });
 });

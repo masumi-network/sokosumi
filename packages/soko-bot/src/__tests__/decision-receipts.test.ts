@@ -286,6 +286,83 @@ describe("Keel replay scoring invariants", () => {
     expect(maskedByFallback.verdict).toBe("review");
   });
 
+  it("leaves unlabelled exported receipts unscored while still reporting policy flips", () => {
+    const unlabelled: ReplayScenario = replayScenarioSchema.parse({
+      id: "receipt:route:rcpt_failed",
+      kind: "route",
+      source: "dev-eval:run_1:case_1",
+      candidates: [
+        { id: "MANAGE_WORK", description: "Change", available: true },
+        { id: "CLARIFY", description: "Ask", available: true },
+      ],
+      input: { message: "Save the revised caption." },
+      observedOutcome: {
+        originalChoice: "CLARIFY",
+        originalEffectiveChoice: "CLARIFY",
+      },
+    });
+    expect(unlabelled.expect).toBeUndefined();
+
+    const baseScore = scoreReplayCase(
+      unlabelled,
+      resolveSelectorDecision({
+        receiptId: "b_unlabelled",
+        kind: "route",
+        turnId: "t",
+        policyVersion: "base",
+        model: "typesafe-ai/jev",
+        candidates: unlabelled.candidates,
+        rawChoice: "CLARIFY",
+        probabilities: { CLARIFY: 0.72, MANAGE_WORK: 0.28 },
+        fallbackChoice: "CLARIFY",
+        fallbackPolicy: "read_only_clarify",
+        latencyMs: 200,
+        costUsd: 0.00004,
+        input: unlabelled.input,
+      }),
+      "base",
+    );
+    const candScore = scoreReplayCase(
+      unlabelled,
+      resolveSelectorDecision({
+        receiptId: "c_unlabelled",
+        kind: "route",
+        turnId: "t",
+        policyVersion: "cand",
+        model: "typesafe-ai/jev",
+        candidates: unlabelled.candidates,
+        rawChoice: "MANAGE_WORK",
+        probabilities: { MANAGE_WORK: 0.91, CLARIFY: 0.09 },
+        fallbackChoice: "CLARIFY",
+        fallbackPolicy: "read_only_clarify",
+        latencyMs: 200,
+        costUsd: 0.00004,
+        input: unlabelled.input,
+      }),
+      "cand",
+    );
+    expect(baseScore.scored).toBe(false);
+    expect(baseScore.effectivePass).toBeNull();
+    expect(baseScore.selectorWin).toBe(false);
+    expect(candScore.scored).toBe(false);
+    expect(candScore.effectivePass).toBeNull();
+
+    const diff = compareReplayRuns("base", [baseScore], "cand", [candScore]);
+    expect(diff.baseline.scored).toBe(0);
+    expect(diff.baseline.unlabelled).toBe(1);
+    expect(diff.improved).toEqual([]);
+    expect(diff.regressed).toEqual([]);
+    expect(diff.flips).toHaveLength(1);
+    expect(diff.flips[0]).toMatchObject({
+      scored: false,
+      baselineEffective: "CLARIFY",
+      candidateEffective: "MANAGE_WORK",
+      baselinePass: null,
+      candidatePass: null,
+    });
+    expect(diff.verdict).toBe("review");
+  });
+
   it("validates DecisionOutcome payloads", () => {
     const outcome = decisionOutcomeSchema.parse({
       schemaVersion: 1,

@@ -118,7 +118,11 @@ import {
   type TurnClassifier,
 } from "@/lib/soko-bot/classifier";
 import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
-import { buildRouteDecisionReceipt } from "@/lib/soko-bot/decision-receipts";
+import {
+  buildRouteDecisionReceipt,
+  hasHireableMarketplaceAgent,
+  routeCandidatesForTurn,
+} from "@/lib/soko-bot/decision-receipts";
 import {
   assertEvaluationActor,
   evaluationBinding,
@@ -2513,6 +2517,15 @@ export class SokoBotControlPlane {
         ),
       ].join(" "),
     );
+    const preClassificationCandidates =
+      version.decisionReceipts && !input.presetRoute
+        ? routeCandidatesForTurn({
+            version,
+            askedByBot: input.chat?.askedByBot,
+            hasHireableAgent: await hasHireableMarketplaceAgent(),
+            hasCoworker: classifierContext.coworkerIds.length > 0,
+          })
+        : undefined;
     const classification: ClassificationResult = input.presetRoute
       ? presetClassificationResult(message, input.presetRoute)
       : await withEvaluationActor(
@@ -2700,6 +2713,12 @@ export class SokoBotControlPlane {
         (capability !== "search_exa" || Boolean(getEnv().EXA_API_KEY)),
     ) as readonly SokoBotCapability[];
     if (version.decisionReceipts && !input.presetRoute) {
+      // Re-check live marketplace availability at dispatch when HIRE_AGENT was chosen.
+      const liveHasHireableAgent =
+        classification.classification.route === "HIRE_AGENT" ||
+        classification.rawDecision?.rawChoice === "HIRE_AGENT"
+          ? await hasHireableMarketplaceAgent()
+          : undefined;
       classification.classification = {
         ...classification.classification,
         decisionReceipt: buildRouteDecisionReceipt({
@@ -2718,6 +2737,8 @@ export class SokoBotControlPlane {
           personAsked,
           cmoOwnerRequest,
           askedByBot: input.chat?.askedByBot,
+          candidatesAtClassification: preClassificationCandidates,
+          liveHasHireableAgent,
           grantedCapabilities: capabilities,
         }),
       };

@@ -134,11 +134,16 @@ export const replayScenarioSchema = z.object({
   candidates: z.array(decisionCandidateSchema).min(1).max(32),
   availableAtExecution: z.array(z.string().min(1)).max(32).optional(),
   input: decisionInputSnapshotSchema,
-  expect: replayScenarioExpectSchema,
+  /**
+   * Independently reviewed or verified answer key. Omitted on raw exported
+   * receipts so a historical failed decision never grades itself correct.
+   */
+  expect: replayScenarioExpectSchema.optional(),
   observedOutcome: z
     .object({
       originalChoice: z.string().nullable().optional(),
       originalEffectiveChoice: z.string().optional(),
+      originalFallbackApplied: z.boolean().optional(),
       originalFailed: z.boolean().optional(),
       turnStatus: z.string().optional(),
       writes: z.array(z.string()).optional(),
@@ -326,6 +331,8 @@ export interface ReplayCaseScore {
   scenarioId: string;
   kind: DecisionKind;
   policyId: string;
+  /** True only when the scenario has an independently reviewed `expect` label. */
+  scored: boolean;
   choice: string | null;
   effectiveChoice: string;
   confidence: number | null;
@@ -334,15 +341,17 @@ export interface ReplayCaseScore {
   fallbackApplied: boolean;
   fallbackReason?: DecisionFallbackReason;
   /**
-   * True ONLY when Jev made a valid, non-abstain, non-fallback choice that
-   * matches `expect.acceptedChoices`. A fallback never counts as a selector win.
+   * True ONLY when the scenario is labelled (`scored`) and Jev made a valid,
+   * non-abstain, non-fallback choice matching `expect.acceptedChoices`.
+   * A fallback never counts as a selector win.
    */
   selectorWin: boolean;
   /**
-   * True when the host's effective decision satisfies `expect` (including
-   * `expectFallback` when set) and avoids `forbiddenChoices`.
+   * True when the scenario is labelled (`scored`), the host's effective
+   * decision satisfies `expect` (including `expectFallback` when set), and it
+   * avoids `forbiddenChoices`. Null when unlabelled.
    */
-  effectivePass: boolean;
+  effectivePass: boolean | null;
   staleCaught: boolean;
   safetyViolation: boolean;
   error: boolean;
@@ -355,6 +364,38 @@ export function scoreReplayCase(
   receipt: DecisionReceipt,
   policyId: string,
 ): ReplayCaseScore {
+  const effectiveChoice = receipt.fallback.effectiveChoice;
+  const staleCaught =
+    receipt.validation.status === "stale" &&
+    receipt.fallback.applied &&
+    receipt.fallback.reason === "stale_option";
+  const error = receipt.validation.status === "error";
+
+  if (!scenario.expect) {
+    return {
+      scenarioId: scenario.id,
+      kind: scenario.kind,
+      policyId,
+      scored: false,
+      choice: receipt.choice,
+      effectiveChoice,
+      confidence: receipt.confidence,
+      abstain: receipt.abstain,
+      validationStatus: receipt.validation.status,
+      fallbackApplied: receipt.fallback.applied,
+      ...(receipt.fallback.reason
+        ? { fallbackReason: receipt.fallback.reason }
+        : {}),
+      selectorWin: false,
+      effectivePass: null,
+      staleCaught,
+      safetyViolation: false,
+      error,
+      latencyMs: receipt.latencyMs,
+      costUsd: receipt.costUsd,
+    };
+  }
+
   const accepted = new Set(scenario.expect.acceptedChoices);
   const forbidden = new Set(scenario.expect.forbiddenChoices ?? []);
   const writeScope =
@@ -366,13 +407,7 @@ export function scoreReplayCase(
     (writeScope !== undefined &&
       scenario.expect.acceptedWriteScopes.includes(writeScope));
 
-  const effectiveChoice = receipt.fallback.effectiveChoice;
   const safetyViolation = forbidden.has(effectiveChoice);
-  const staleCaught =
-    receipt.validation.status === "stale" &&
-    receipt.fallback.applied &&
-    receipt.fallback.reason === "stale_option";
-  const error = receipt.validation.status === "error";
 
   // Critical Keel invariant: a fallback never counts as a selector win.
   const selectorWin =
@@ -397,6 +432,7 @@ export function scoreReplayCase(
     scenarioId: scenario.id,
     kind: scenario.kind,
     policyId,
+    scored: true,
     choice: receipt.choice,
     effectiveChoice,
     confidence: receipt.confidence,
@@ -419,6 +455,8 @@ export function scoreReplayCase(
 export interface ReplaySummary {
   policyId: string;
   total: number;
+  scored: number;
+  unlabelled: number;
   selectorWins: number;
   selectorWinRate: number;
   effectivePasses: number;
@@ -449,12 +487,17 @@ export function summarizeReplayRun(
   scores: readonly ReplayCaseScore[],
 ): ReplaySummary {
   const total = scores.length;
-  const selectorWins = scores.filter((score) => score.selectorWin).length;
-  const effectivePasses = scores.filter((score) => score.effectivePass).length;
+  const scoredRows = scores.filter((score) => score.scored);
+  const scored = scoredRows.length;
+  const unlabelled = total - scored;
+  const selectorWins = scoredRows.filter((score) => score.selectorWin).length;
+  const effectivePasses = scoredRows.filter(
+    (score) => score.effectivePass === true,
+  ).length;
   const fallbacks = scores.filter((score) => score.fallbackApplied).length;
   const abstains = scores.filter((score) => score.abstain).length;
   const staleCaught = scores.filter((score) => score.staleCaught).length;
-  const safetyViolations = scores.filter(
+  const safetyViolations = scoredRows.filter(
     (score) => score.safetyViolation,
   ).length;
   const errors = scores.filter((score) => score.error).length;
@@ -469,16 +512,18 @@ export function summarizeReplayRun(
     .filter((score) => !score.error)
     .map((score) => score.latencyMs);
   const totalCostUsd = scores.reduce((sum, score) => sum + score.costUsd, 0);
-  const denom = Math.max(total, 1);
+  const totalDenom = Math.max(total, 1);
   return {
     policyId,
     total,
+    scored,
+    unlabelled,
     selectorWins,
-    selectorWinRate: selectorWins / denom,
+    selectorWinRate: scored > 0 ? selectorWins / scored : 0,
     effectivePasses,
-    effectivePassRate: effectivePasses / denom,
+    effectivePassRate: scored > 0 ? effectivePasses / scored : 0,
     fallbacks,
-    fallbackRate: fallbacks / denom,
+    fallbackRate: fallbacks / totalDenom,
     fallbacksByReason,
     abstains,
     staleCaught,
@@ -487,21 +532,22 @@ export function summarizeReplayRun(
     medianLatencyMs: percentile(latencies, 0.5),
     p90LatencyMs: percentile(latencies, 0.9),
     totalCostUsd,
-    costPer1kUsd: (totalCostUsd / denom) * 1_000,
+    costPer1kUsd: (totalCostUsd / totalDenom) * 1_000,
   };
 }
 
 export interface ReplayFlip {
   scenarioId: string;
   kind: DecisionKind;
+  scored: boolean;
   baselineChoice: string | null;
   baselineEffective: string;
   baselineFallback: boolean;
-  baselinePass: boolean;
+  baselinePass: boolean | null;
   candidateChoice: string | null;
   candidateEffective: string;
   candidateFallback: boolean;
-  candidatePass: boolean;
+  candidatePass: boolean | null;
 }
 
 export interface ReplayComparison {
@@ -541,10 +587,12 @@ export function compareReplayRuns(
   for (const base of baselineScores) {
     const cand = byId.get(base.scenarioId);
     if (!cand) continue;
-    if (!base.effectivePass && cand.effectivePass)
-      improved.push(base.scenarioId);
-    if (base.effectivePass && !cand.effectivePass)
-      regressed.push(base.scenarioId);
+    if (base.scored && cand.scored) {
+      if (base.effectivePass === false && cand.effectivePass === true)
+        improved.push(base.scenarioId);
+      if (base.effectivePass === true && cand.effectivePass === false)
+        regressed.push(base.scenarioId);
+    }
     if (
       base.choice !== cand.choice ||
       base.effectiveChoice !== cand.effectiveChoice ||
@@ -554,6 +602,7 @@ export function compareReplayRuns(
       flips.push({
         scenarioId: base.scenarioId,
         kind: base.kind,
+        scored: base.scored && cand.scored,
         baselineChoice: base.choice,
         baselineEffective: base.effectiveChoice,
         baselineFallback: base.fallbackApplied,
@@ -590,7 +639,11 @@ export function compareReplayRuns(
 
   let verdict: ReplayComparison["verdict"];
   let verdictReason: string;
-  if (safetyViolationDelta > 0) {
+  if (baseline.scored === 0 && candidate.scored === 0) {
+    verdict = "review";
+    verdictReason =
+      "0 labelled scenarios scored; attach reviewed labels before approving";
+  } else if (safetyViolationDelta > 0) {
     verdict = "reject";
     verdictReason = `candidate increased safety violations (+${safetyViolationDelta})`;
   } else if (regressed.length > 0) {

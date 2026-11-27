@@ -1,25 +1,27 @@
 /**
- * Export stored Jev decision receipts (`decision.receipt`) to JSONL or replay
- * scenarios against real Jev (`typesafe-ai/jev`) under baseline vs candidate
- * policies. Jev-only and cheap: never invokes non-Jev models.
+ * Export stored Jev decision receipts (`decision.receipt`) from approved dev
+ * eval runs to JSONL, or replay scenarios against real Jev (`typesafe-ai/jev`)
+ * inside the ChatGPT plan's real-Jev accounting and pause breaker.
  *
  * Examples:
  *   pnpm --filter @sokosumi/core soko-bot:decision-replay --markdown
  *   pnpm --filter @sokosumi/core soko-bot:decision-replay --kind route \
  *     --baseline route-baseline --candidate route-keel --markdown
  *   pnpm --filter @sokosumi/core soko-bot:decision-replay --export \
- *     --limit 50 --out /tmp/receipts.jsonl
+ *     --eval-run-id <RUN_ID> --limit 50 --out /tmp/receipts.jsonl
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import type { DecisionKind } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
+import { planJevMode, planJevStats } from "@/lib/plan-jev";
 import { exportDecisionReceiptsFromDb } from "@/lib/soko-bot/decision-receipts";
 import {
   type DecisionReplayPolicy,
   formatReplayComparisonMarkdown,
   parseReplayScenarios,
   REPLAY_POLICIES,
+  RealJevUnavailableError,
   runDecisionReplayComparison,
   serializeReplayScenariosJsonl,
 } from "@/lib/soko-bot/decision-replay";
@@ -38,6 +40,7 @@ const DEFAULT_PAIRS: Record<DecisionKind, [string, string]> = {
 const { values } = parseArgs({
   options: {
     export: { type: "boolean", default: false },
+    "eval-run-id": { type: "string" },
     scenarios: { type: "string" },
     kind: { type: "string", default: "all" },
     baseline: { type: "string" },
@@ -79,6 +82,7 @@ const kindFilter = resolveKindFilter(values.kind);
 
 if (values.export) {
   const exported = await exportDecisionReceiptsFromDb({
+    evalRunId: values["eval-run-id"],
     kind: kindFilter === "all" ? undefined : kindFilter,
     sokoBotId: values["bot-id"],
     turnId: values["turn-id"],
@@ -88,7 +92,7 @@ if (values.export) {
   if (values.out) {
     writeFileSync(values.out, jsonl ? `${jsonl}\n` : "", "utf8");
     console.log(
-      `Exported ${exported.length} decision receipt(s) to ${values.out}`,
+      `Exported ${exported.length} decision receipt(s) from approved dev eval runs to ${values.out}`,
     );
   } else {
     console.log(jsonl);
@@ -97,8 +101,13 @@ if (values.export) {
   process.exit(0);
 }
 
-// Replays use real Jev via AI_GATEWAY_API_KEY (never the ChatGPT plan stand-in).
-process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN = "0";
+// Keep every real-Jev replay call inside the plan Jev ledger and pause breaker.
+process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN = "1";
+process.env.SOKO_BOT_PLAN_REAL_JEV ??= "1";
+const mode = planJevMode();
+if (mode !== "real") {
+  throw new RealJevUnavailableError(mode);
+}
 
 const rawScenarios = values.scenarios
   ? readFileSync(values.scenarios, "utf8")
@@ -139,12 +148,13 @@ const { comparison, baselineReceipts, candidateReceipts } =
     candidatePolicies,
     concurrency: Number(values.concurrency),
   });
+const jevLedger = planJevStats();
 
 if (values["json-out"]) {
   writeFileSync(
     values["json-out"],
     JSON.stringify(
-      { comparison, baselineReceipts, candidateReceipts },
+      { comparison, baselineReceipts, candidateReceipts, jevLedger },
       null,
       2,
     ),
@@ -154,15 +164,21 @@ if (values["json-out"]) {
 
 if (values.markdown) {
   console.log(formatReplayComparisonMarkdown(comparison));
+  console.log(
+    `\n_Plan Jev ledger: ${jevLedger.calls} calls, ${jevLedger.failures} failed, $${jevLedger.costUsd.toFixed(6)}, ${jevLedger.standInWindows.length} pause window(s)._`,
+  );
 } else {
   const { baseline: b, candidate: c } = comparison;
   console.log(
-    `Baseline  (${b.policyId}): wins ${b.selectorWins}/${b.total}, pass ${b.effectivePasses}/${b.total}, fb ${b.fallbacks}, stale ${b.staleCaught}, unsafe ${b.safetyViolations}, err ${b.errors}, p50 ${b.medianLatencyMs}ms, $${b.totalCostUsd.toFixed(6)}`,
+    `Baseline  (${b.policyId}): wins ${b.selectorWins}/${b.scored}, pass ${b.effectivePasses}/${b.scored} (${b.unlabelled} unlabelled), fb ${b.fallbacks}, stale ${b.staleCaught}, unsafe ${b.safetyViolations}, err ${b.errors}, p50 ${b.medianLatencyMs}ms, $${b.totalCostUsd.toFixed(6)}`,
   );
   console.log(
-    `Candidate (${c.policyId}): wins ${c.selectorWins}/${c.total}, pass ${c.effectivePasses}/${c.total}, fb ${c.fallbacks}, stale ${c.staleCaught}, unsafe ${c.safetyViolations}, err ${c.errors}, p50 ${c.medianLatencyMs}ms, $${c.totalCostUsd.toFixed(6)}`,
+    `Candidate (${c.policyId}): wins ${c.selectorWins}/${c.scored}, pass ${c.effectivePasses}/${c.scored} (${c.unlabelled} unlabelled), fb ${c.fallbacks}, stale ${c.staleCaught}, unsafe ${c.safetyViolations}, err ${c.errors}, p50 ${c.medianLatencyMs}ms, $${c.totalCostUsd.toFixed(6)}`,
   );
   console.log(
     `Verdict: ${comparison.verdict.toUpperCase()} — ${comparison.verdictReason}`,
+  );
+  console.log(
+    `Plan Jev ledger: ${jevLedger.calls} calls, ${jevLedger.failures} failed, $${jevLedger.costUsd.toFixed(6)}, ${jevLedger.standInWindows.length} pause window(s)`,
   );
 }
