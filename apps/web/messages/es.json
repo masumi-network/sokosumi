@@ -14809,7 +14809,7 @@
         "changeProperty": "Cambiar propiedad",
         "chooseProperty": "Elegir propiedad",
         "fixState": {
-          "failing": "Seguía fallando en la comprobación del {day}",
+          "failing": "Siguió fallando en la comprobación del {day}",
           "notTested": "No se ha vuelto a comprobar desde el {day}"
         }
       },
