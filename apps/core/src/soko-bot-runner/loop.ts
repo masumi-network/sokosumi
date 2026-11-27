@@ -37,6 +37,13 @@ import {
   reportText,
   TIME_UP_PROMPT,
 } from "./rounds";
+import {
+  type StallDetection,
+  stallBlockedPrompt,
+  stallNudgePrompt,
+  TurnStallDetector,
+  type TurnStallEvent,
+} from "./stall-detector";
 
 export interface TurnLoopInput {
   /** The provider's prompt cache key for this system and tool set. */
@@ -76,6 +83,10 @@ export interface TurnLoopInput {
   shortForms?: readonly CmoShortFormTool[];
   /** Core's plan for the request (planLoop); none on other versions. */
   plan?: TurnLoopPlan;
+  /** E8 deterministic stall detector; off on versions without the flag. */
+  stallDetector?: boolean;
+  /** Told when the stall detector nudges or stops a turn. */
+  onStall?: (event: TurnStallEvent) => void | Promise<void>;
 }
 
 export interface TurnLoopPlan {
@@ -226,6 +237,9 @@ export async function runTurnLoop(
   const compact = (history: readonly ModelMessage[]) =>
     compactHistory(history, undefined, historyOptions);
   let doneChecked = false;
+  const stallDetector =
+    input.stallDetector && !input.part ? new TurnStallDetector() : undefined;
+  let stalledOut: StallDetection | null = null;
   // Core is asked about the plan only once there is one: inherited, or
   // written in this turn.
   let activePlan = input.plan?.inherited ? input.plan : undefined;
@@ -246,6 +260,8 @@ export async function runTurnLoop(
   for (let round = 0; ; round++) {
     // The turn's other calls may have spent the allowance already.
     if (budgetSpent()) break;
+    let roundStepCursor = 0;
+    let pendingStall: StallDetection | null = null;
     const result = await callModel({
       model: input.model,
       system: input.system,
@@ -258,6 +274,29 @@ export async function runTurnLoop(
         timeUp,
         endedByTool,
         endedByShortForm(short),
+        ...(stallDetector
+          ? [
+              ({
+                steps,
+              }: {
+                steps: readonly {
+                  toolResults?: readonly {
+                    toolName: string;
+                    input: unknown;
+                    output: unknown;
+                  }[];
+                }[];
+              }) => {
+                const hit = stallDetector.observeSteps(steps, roundStepCursor);
+                roundStepCursor = steps.length;
+                if (hit) {
+                  pendingStall = hit;
+                  return true;
+                }
+                return false;
+              },
+            ]
+          : []),
         budgetSpent,
       ],
       prepareStep: ({ messages: current }) => {
@@ -343,6 +382,36 @@ export async function runTurnLoop(
       short = [];
       continue;
     }
+    if (
+      stallDetector &&
+      !pendingStall &&
+      roundStepCursor < result.steps.length
+    ) {
+      pendingStall = stallDetector.observeSteps(result.steps, roundStepCursor);
+    }
+    if (pendingStall && stallDetector) {
+      const strike = stallDetector.recordStrike();
+      if (strike === 1 && roomForAnotherRound()) {
+        await input.onStall?.({ ...pendingStall, strike, action: "nudged" });
+        stallDetector.resetWindow();
+        messages.push({
+          role: "user",
+          content: await withOpenSteps(
+            stallNudgePrompt(pendingStall, {
+              background: input.background,
+              hasWaitFor: "wait_for" in tools,
+              hasUpdatePlan: "update_plan" in tools,
+            }),
+            activePlan,
+            reportAt - now() - minRoundMs,
+          ),
+        });
+        continue;
+      }
+      await input.onStall?.({ ...pendingStall, strike, action: "stopped" });
+      stalledOut = pendingStall;
+      break;
+    }
     const keepGoing =
       input.background &&
       !isFinalReport(text) &&
@@ -405,10 +474,17 @@ export async function runTurnLoop(
           : text,
       finishReason: finishReason || "budget",
     };
-  const needsReport = input.background
-    ? !isFinalReport(text) && idleRounds < MAX_IDLE_ROUNDS
-    : (cutOff || workedAfterCheck) && noNewAnswer;
+  const needsReport =
+    stalledOut !== null ||
+    (input.background
+      ? !isFinalReport(text) && idleRounds < MAX_IDLE_ROUNDS
+      : (cutOff || workedAfterCheck) && noNewAnswer);
   if (needsReport) {
+    const wrapUpPrompt = stalledOut
+      ? stallBlockedPrompt(stalledOut, input.background)
+      : input.background
+        ? TIME_UP_PROMPT
+        : FOREGROUND_TIME_UP_PROMPT;
     const result = await callModel({
       model: input.model,
       system: input.system,
@@ -417,7 +493,7 @@ export async function runTurnLoop(
         {
           role: "user",
           content: await withOpenSteps(
-            input.background ? TIME_UP_PROMPT : FOREGROUND_TIME_UP_PROMPT,
+            wrapUpPrompt,
             activePlan,
             Math.min(REPORT_PLAN_WAIT_MS, (input.deadline - now()) / 10),
           ),

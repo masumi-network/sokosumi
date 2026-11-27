@@ -308,6 +308,24 @@ async function runTurn(
         message: userMessage,
         cacheKey: turn.cacheKey,
         fullCacheKey: turn.fullCacheKey,
+        stallDetector: turn.stallDetector,
+        ...(turn.stallDetector
+          ? {
+              onStall: async (event) => {
+                await log
+                  .append(
+                    runtimeEvent("stall.detected", {
+                      pattern: event.pattern,
+                      tools: [...event.tools],
+                      count: event.count,
+                      strike: event.strike,
+                      action: event.action,
+                    }),
+                  )
+                  .catch(() => undefined);
+              },
+            }
+          : {}),
         ...(turn.planLoop
           ? {
               plan: {

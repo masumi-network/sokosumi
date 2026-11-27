@@ -343,6 +343,8 @@ export interface PreparedTurn {
    * version's planLoop), so the runner offers it with Core's schema.
    */
   planLoop: boolean;
+  /** E8 deterministic stall detector in the runner loop; off when omitted. */
+  stallDetector: boolean;
   /**
    * The turn starts with a plan from earlier in its request: the runner asks
    * Core about the plan from the start, not only once the turn writes one.
@@ -620,6 +622,7 @@ export async function prepareTurn(
     requiresActionProof,
     meetingPrep,
     planLoop,
+    stallDetector: version.stallDetector === true,
     planInherited: requestPlan !== null,
     requestPlan,
     parts,
