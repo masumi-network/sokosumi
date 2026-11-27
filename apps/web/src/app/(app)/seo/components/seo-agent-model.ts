@@ -136,5 +136,7 @@ export function seoActionHeadline(
   return {
     count: actions.length,
     parts: named === actions.length ? parts : [],
+    // A list of ideas only has nothing to fix: it reads as suggestions.
+    suggestions: actions.every((action) => action.kind === "opportunity"),
   };
 }

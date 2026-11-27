@@ -246,7 +246,7 @@ it("uses a measured organic outcome to choose between comparable actions only fo
 
 describe("seoActionHeadline", () => {
   type Action = ProjectSeoWorkspace["actions"][number];
-  const action = (id: string) => ({ id }) as Action;
+  const action = (id: string, kind = "fix") => ({ id, kind }) as Action;
   const steps: SeoAgentStep[] = [
     { kind: "action", action: action("a") },
     { kind: "strategy", count: 2, places: false },
@@ -264,12 +264,24 @@ describe("seoActionHeadline", () => {
         { severity: "major", count: 2 },
         { severity: "minor", count: 1 },
       ],
+      suggestions: false,
     });
   });
 
   it("names no split when an action has no issue, so the split never adds up to less than the count", () => {
     expect(
       seoActionHeadline(steps, (row) => (row.id === "a" ? null : "major")),
-    ).toEqual({ count: 3, parts: [] });
+    ).toEqual({ count: 3, parts: [], suggestions: false });
+  });
+
+  it("reads a list of ideas only as suggestions, and a list with one fix as things to fix", () => {
+    const ideas: SeoAgentStep[] = ["a", "b"].map((id) => ({
+      kind: "action",
+      action: action(id, "opportunity"),
+    }));
+    expect(seoActionHeadline(ideas, () => null).suggestions).toBe(true);
+    expect(
+      seoActionHeadline([...ideas, ...steps], () => null).suggestions,
+    ).toBe(false);
   });
 });

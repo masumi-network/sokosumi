@@ -911,10 +911,12 @@ describe("SEO workspace integration", () => {
     const workspace = seoTestCheckedAudit();
     const observationId = workspace.observations[0].id;
     const pageUrl = workspace.pages[0].url;
-    for (const [id, severity] of [
-      ["one", "major"],
-      ["two", "major"],
-      ["three", "minor"],
+    // A done fix leaves the list, so the headline must not count it.
+    for (const [id, severity, status] of [
+      ["one", "major", "recommended"],
+      ["two", "major", "recommended"],
+      ["three", "minor", "recommended"],
+      ["four", "major", "implemented"],
     ] as const) {
       workspace.findings.push({
         id,
@@ -939,7 +941,7 @@ describe("SEO workspace integration", () => {
         expectedEffect: "Effect",
         edit: null,
         taskId: null,
-        status: "recommended",
+        status,
         kind: "fix",
         evidence: [],
       });
@@ -957,6 +959,9 @@ describe("SEO workspace integration", () => {
       expect(
         screen.getByRole("button", { name: new RegExp(`^${title}`) }),
       ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /^Fix four/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("filters the Actions worklist by impact, with suggestions apart", async () => {

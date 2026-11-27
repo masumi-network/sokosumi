@@ -395,7 +395,9 @@ function SeoAgentPanel({
             aria-describedby={trafficLead ? periodId : undefined}
           >
             {headline.count
-              ? `${report("agent.verdict.actions", { count: headline.count })}${headlineSplit}`
+              ? headline.suggestions
+                ? report("agent.verdict.waiting", { count: headline.count })
+                : `${report("agent.verdict.actions", { count: headline.count })}${headlineSplit}`
               : brief.issues
                 ? `${report("agent.verdict.issues", { count: brief.issues })}${severitySplit}`
                 : brief.fixes

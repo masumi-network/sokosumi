@@ -14845,7 +14845,7 @@
         "stillOpen": "Weiter fehlgeschlagen ({count, number})",
         "none": "Keine",
         "more": "und {count, number} weitere",
-        "notCheckedAgain": "{count, plural, one {# früheres Problem hat in dieser Prüfung kein klares Ergebnis. Es zählt weder als behoben noch als offen.} other {# frühere Probleme haben in dieser Prüfung kein klares Ergebnis. Sie zählen weder als behoben noch als offen.}}",
+        "notCheckedAgain": "{count, plural, one {# früheres Problem hat in dieser Prüfung kein klares Ergebnis. Es zählt weder als behoben noch als weiter fehlgeschlagen.} other {# frühere Probleme haben in dieser Prüfung kein klares Ergebnis. Sie zählen weder als behoben noch als weiter fehlgeschlagen.}}",
         "notCheckedBefore": "{count, plural, one {# offenes Problem hat in der früheren Prüfung kein klares Ergebnis. Es zählt nicht als neu.} other {# offene Probleme haben in der früheren Prüfung kein klares Ergebnis. Sie zählen nicht als neu.}}",
         "moves": "Ranking-Bewegungen ({count, number})",
         "noMoves": "Keine Ranking-Bewegungen zu zeigen.",

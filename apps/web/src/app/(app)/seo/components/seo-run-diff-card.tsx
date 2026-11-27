@@ -13,8 +13,8 @@ import { SEO_RUN_DIFF_CARD_ISSUES, seoRunDiffView } from "./seo-run-diff-model";
 import { SeoFoldSummary } from "./seo-shared";
 
 /**
- * What the newest check changed, open on the Agent tab: how many issues are new, fixed and still open, the first new
- * issues, and every change in a fold. A comparison with no issue counts stays in its fold.
+ * What the newest check changed, open on the Agent tab: how many failed tests are new, fixed and still failing, the
+ * first new failed tests, and every change in a fold. A comparison with no issue counts stays in its fold.
  */
 export function SeoRunDiffCard({ diff }: { diff: ProjectSeoRunDiff }) {
   const t = useSeoResultTranslations("App.Seo");
