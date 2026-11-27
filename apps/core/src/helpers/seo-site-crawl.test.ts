@@ -387,6 +387,31 @@ describe("imported site crawl", () => {
     expect(crawl.pageChecks?.badCanonicals.total).toBe(3);
   });
 
+  it("says how many pages with a script the crawl read as raw HTML, so no check of what a script sets is clear", () => {
+    const raw = botCrawl();
+    raw.pageChecks.checked =
+      raw.pageChecks.pages - raw.pageChecks.notDetermined;
+    const read = (crawl: unknown) => {
+      const result = stored(siteReport({ crawl }));
+      if (result?.state !== "crawled") throw new Error("expected a crawl");
+      return result.gaps.filter(
+        (gap) => gap.item === "Pages with a script read as raw HTML",
+      );
+    };
+    expect(read(raw)).toEqual([]);
+    // The page checks and the link checks each count them.
+    for (const crawl of [
+      { ...raw, pageChecks: { ...raw.pageChecks, scriptPagesRawOnly: 7 } },
+      { ...raw, javascript: { ...raw.javascript, scriptPagesRawOnly: 7 } },
+    ])
+      expect(read(crawl)).toEqual([
+        {
+          item: "Pages with a script read as raw HTML",
+          reason: expect.stringContaining("7 pages"),
+        },
+      ]);
+  });
+
   it("counts at least the examples a check lists, so a total too low clears no check", () => {
     const raw = botCrawl();
     raw.links.brokenTotal = 0;

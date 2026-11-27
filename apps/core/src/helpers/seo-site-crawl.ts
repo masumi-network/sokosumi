@@ -87,6 +87,7 @@ const botCrawl = z.object({
           reason: z.string().optional(),
         }),
       ),
+      scriptPagesRawOnly: count.optional(),
     })
     .optional(),
   orphans: z
@@ -111,6 +112,8 @@ const botCrawl = z.object({
       checked: count,
       /** Pages with no stored head: no check reads them. */
       notDetermined: count.optional(),
+      /** Pages with a script that the bot read as raw HTML: what the script sets is in no check. */
+      scriptPagesRawOnly: count.optional(),
       missingTitle: pageList({}),
       missingH1: pageList({}),
       duplicatesNotDetermined: count.optional(),
@@ -191,6 +194,8 @@ const cut = (text: string) =>
     : text;
 /** The gap item of the duplicate check, which Sokosumi words from the bot's count. */
 const DUPLICATES_GAP = "Duplicate titles";
+/** The gap item of the pages whose script the crawl did not run, which Sokosumi words from the bot's count. */
+const RAW_SCRIPT_GAP = "Pages with a script read as raw HTML";
 
 /** noHead: pages whose canonical the bot never read. */
 function badCanonicals(c: BotCanonicals["canonicals"], noHead: number) {
@@ -243,6 +248,10 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
   const section = botCrawl.safeParse(report.crawl);
   if (!section.success) return undefined;
   const { crawl, links, javascript, orphans, pageChecks } = section.data;
+  const rawScriptPages = Math.max(
+    pageChecks?.scriptPagesRawOnly ?? 0,
+    javascript?.scriptPagesRawOnly ?? 0,
+  );
   return parse({
     state: "crawled",
     fetched: crawl.fetched,
@@ -328,6 +337,14 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
         }
       : null,
     gaps: capGaps([
+      ...(rawScriptPages
+        ? [
+            {
+              item: RAW_SCRIPT_GAP,
+              reason: `the crawl read ${rawScriptPages} page${rawScriptPages === 1 ? "" : "s"} that hold a script as raw HTML and ran no script there: a noindex, a canonical, a title or a link that a script sets is in no check`,
+            },
+          ]
+        : []),
       // The bot counts a page here when its title or its description is not compared, so the count is no
       // count of titles: it goes in words, not into the check's not-determined count.
       ...(pageChecks?.duplicatesNotCompared
