@@ -52123,6 +52123,9 @@ export const ProjectSeoActionSchema = {
                 }
             ]
         },
+        bodyDraft: {
+            $ref: '#/components/schemas/ProjectSeoBodyDraft'
+        },
         decision: {
             type: 'object',
             properties: {
@@ -52383,6 +52386,85 @@ export const ProjectSeoActionSchema = {
         'status',
         'kind',
         'evidence'
+    ]
+} as const;
+
+export const ProjectSeoBodyDraftSchema = {
+    anyOf: [
+        {
+            type: 'object',
+            properties: {
+                target: {
+                    type: 'string',
+                    enum: [
+                        'opening'
+                    ]
+                },
+                devices: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        enum: [
+                            'mobile',
+                            'desktop'
+                        ]
+                    },
+                    minItems: 1
+                },
+                heldBack: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 20000,
+                    pattern: '\\S'
+                }
+            },
+            required: [
+                'target',
+                'devices',
+                'heldBack'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                target: {
+                    type: 'string',
+                    enum: [
+                        'opening'
+                    ]
+                },
+                devices: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        enum: [
+                            'mobile',
+                            'desktop'
+                        ]
+                    },
+                    minItems: 1
+                },
+                before: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 20000,
+                    pattern: '\\S'
+                },
+                after: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 20000,
+                    pattern: '\\S'
+                }
+            },
+            required: [
+                'target',
+                'devices',
+                'before',
+                'after'
+            ],
+            additionalProperties: false
+        }
     ]
 } as const;
 

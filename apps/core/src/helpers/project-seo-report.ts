@@ -12,6 +12,7 @@ import {
   OPEN_STRATEGY,
   publicDecisionSourceSchema,
   publicPageSnapshotSchema,
+  seoBodyDraftSchema,
   storedSeoDecisionsSchema,
 } from "@/schemas/project-seo-action.schema";
 import { seoSeasonalIdeaSchema } from "@/schemas/project-seo-seasonal.schema";
@@ -120,6 +121,8 @@ const action = z.object({
   edit: z
     .object({ target: text, before: text.nullable(), after: text })
     .nullable(),
+  // Focused results and stored payloads read actions here: a draft Core cannot read is dropped, not the result.
+  bodyDraft: seoBodyDraftSchema.optional().catch(undefined),
 });
 const publicSeoPayload = z.object({
   version: z.literal(1),
@@ -582,6 +585,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       effort: row.effort,
       expectedEffect: row.whatToExpect,
       edit: row.edit ? { ...row.edit, before: row.edit.before ?? null } : null,
+      ...(row.bodyDraft && { bodyDraft: row.bodyDraft }),
     })),
     coverage: {
       checked: result.checklist.filter(
