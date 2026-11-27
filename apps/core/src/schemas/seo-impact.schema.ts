@@ -3,6 +3,11 @@ import { z } from "@hono/zod-openapi";
 export const SEO_IMPACT_STATES = [
   "waiting_crawl",
   "waiting_window",
+  /** Core stored the worker's input: the SEO worker can claim it. */
+  "ready",
+  /** The worker said the window can still fill: Core reads again on its day. */
+  "waiting_retry",
+  "measured",
   "not_measurable",
 ] as const;
 
@@ -13,6 +18,8 @@ export const SEO_IMPACT_REASONS = [
   "no_property",
   "inspection_failed",
   "not_crawled_yet",
+  /** Every claim of the change ended without a verdict. */
+  "worker_failed",
 ] as const;
 export type SeoImpactReason = (typeof SEO_IMPACT_REASONS)[number];
 
@@ -24,7 +31,7 @@ export const adminSeoImpactQuery = z.object({
 });
 
 // Not z.iso.date(): the generated client would read `format: date` as a Date.
-const searchConsoleDate = z
+export const searchConsoleDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .openapi({ example: "2026-11-27" });

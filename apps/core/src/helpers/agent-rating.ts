@@ -2,6 +2,7 @@ import { JobType, OnChainJobStatus, type Prisma } from "@sokosumi/database";
 import { finalizedAgentJobStatuses } from "@sokosumi/database/types/job";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
+import type { NetworkDb } from "@/lib/db/network-scope";
 import {
   type AgentMyReview,
   type AgentReview,
@@ -93,11 +94,11 @@ export const calculateAgentRating = async (
 
 export const calculateAgentRatings = async (
   agentIds: string[],
-  tx: Prisma.TransactionClient,
+  db: NetworkDb,
 ): Promise<Map<string, RatingMetrics>> => {
   if (agentIds.length === 0) return new Map();
 
-  const ratings = await tx.userAgentRating.groupBy({
+  const ratings = await db.userAgentRating.groupBy({
     by: ["agentId"],
     where: {
       agentId: { in: agentIds },

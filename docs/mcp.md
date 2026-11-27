@@ -14,6 +14,14 @@ claude mcp add --transport http sokosumi https://api.sokosumi.com/mcp
 
 Then run `/mcp` in Claude Code, pick `sokosumi` and sign in.
 
+**Codex**
+
+```bash
+codex mcp add sokosumi --url https://api.sokosumi.com/mcp
+```
+
+Codex opens the sign-in page itself. If it is closed before you finish, run `codex mcp login sokosumi`. No `--scopes` flag is needed: Codex asks for every scope the authorization server lists, and Sokosumi lists only the ones an MCP client may have.
+
 **Claude.ai**
 
 Add a custom connector (in Claude.ai's settings, under Connectors) with the URL `https://api.sokosumi.com/mcp`, then connect it and sign in.
@@ -72,8 +80,8 @@ Some tools have a view: an interactive rendering of their result inside the chat
 ## For developers
 
 - Route: `apps/core/src/routes/mcp/index.ts`. Tools: `MCP_TOOLS` in `apps/core/src/lib/sokosumi-mcp/tools.ts`. Adding a tool: [Agent surface](./agents/agent-surface.md#mcp-tools).
-- The whole sign-in, from the first 401 to a tool call, is tested for a native (Claude Code) and a web (Claude.ai) client in `apps/core/src/routes/mcp/mcp-oauth.integration.test.ts`.
+- The whole sign-in, from the first 401 to a tool call, is tested for a native (Claude Code) and a web (Claude.ai) client, and for Codex, which asks for every scope in the authorization server's metadata, in `apps/core/src/routes/mcp/mcp-oauth.integration.test.ts`.
 - Views: `MCP_UI_TOOLS` in `apps/core/src/lib/sokosumi-mcp/ui-tools.ts`, HTML from `packages/mcp-ui`. Core serves each as a `ui://sokosumi/<id>.<hash8>.html` resource (`text/html;profile=mcp-app`) and resolves it by id, so an old hash reads the current HTML.
 - Previews: `claude mcp add --transport http sokosumi <preview Core URL>/mcp`. Previews run live Turnstile, so a person signs in, not an agent.
 
-Last updated: 2026-11-25
+Last updated: 2026-11-26

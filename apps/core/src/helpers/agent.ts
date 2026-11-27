@@ -16,7 +16,9 @@ import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { TIME } from "@/config/constants";
 import { getEnv } from "@/config/env";
+import type { SharedDb } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
+import { type Network, networkKey } from "@/lib/network";
 
 import { listCardanoBillableUnitSpellings } from "./agent-cost";
 import { internalServerError, notFound, unprocessableEntity } from "./error";
@@ -260,10 +262,12 @@ const CARDANO_POLICY_ID_PATTERN = /^[0-9a-f]{56}$/;
  * cron's own lag while letting instances disagree with each other.
  */
 export const getCardanoV2ReadySources = async (
-  tx: Prisma.TransactionClient = prisma,
+  tx: SharedDb = prisma,
+  // shortcut: callers off the Network scope read Mainnet's row; they pass their scope's Network when they move to it.
+  network: Network = "mainnet",
 ): Promise<CardanoV2ReadySource[]> => {
   const readiness = await tx.syncMetadata.findUnique({
-    where: { key: CARDANO_V2_RAIL_READINESS_KEY },
+    where: { key: networkKey(network, CARDANO_V2_RAIL_READINESS_KEY) },
   });
   if (!readiness?.cursorId) {
     return [];
