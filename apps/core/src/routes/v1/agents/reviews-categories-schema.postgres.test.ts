@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { Hono } from "hono";
 import type { Pool } from "pg";
-import { afterAll, expect, it, vi } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { createPersonalWorkspace } from "@/helpers/personal-workspace";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import { coreEvlogMiddleware } from "@/lib/evlog";
@@ -20,6 +20,7 @@ import {
 
 const state = vi.hoisted(() => ({
   network: "Mainnet" as "Mainnet" | "Preprod",
+  preprodEnabled: false,
   pools: [] as Pool[],
   work: [] as Promise<unknown>[],
   sellerCalls: [] as { id: string; name: string; apiBaseUrl: string }[],
@@ -29,7 +30,11 @@ vi.mock("@/config/env", async (load) => {
   const actual = await load<typeof import("@/config/env")>();
   return {
     ...actual,
-    getEnv: () => ({ ...actual.getEnv(), NETWORK: state.network }),
+    getEnv: () => ({
+      ...actual.getEnv(),
+      NETWORK: state.network,
+      NETWORK_PREPROD_ENABLED: state.preprodEnabled,
+    }),
   };
 });
 
@@ -119,10 +124,95 @@ function labelValues(
   ) as unknown[];
 }
 
+/*
+ * Two exact SQL differences between origin/main (single-schema default client)
+ * and the Network-scoped implementation:
+ * 1. Inside POST /ratings's Network transaction, shared `sync_metadata` cannot
+ *    be read with a NetworkDb delegate on the split layout; it runs as one
+ *    qualified raw SELECT on the same transaction connection.
+ * 2. Separating the cross-schema `UserAgentRating -> user` include skips
+ *    Prisma's redundant `WHERE "user"."id" IN (NULL)` when an agent has zero
+ *    commented reviews.
+ */
+const BASE_TX_READINESS_SQL =
+  'SELECT "public"."sync_metadata"."id", "public"."sync_metadata"."key", "public"."sync_metadata"."lastSyncedAt", "public"."sync_metadata"."cursorId", "public"."sync_metadata"."updatedAt", "public"."sync_metadata"."createdAt" FROM "public"."sync_metadata" WHERE ("public"."sync_metadata"."key" = $1 AND 1=1) LIMIT $2 OFFSET $3';
+const HEAD_TX_READINESS_SQL =
+  'SELECT "cursorId" FROM "public"."sync_metadata" WHERE "key" = $1 LIMIT 1';
+const BASE_EMPTY_USER_INCLUDE_SQL =
+  'SELECT "public"."user"."id", "public"."user"."name", "public"."user"."image" FROM "public"."user" WHERE "public"."user"."id" IN (NULL) OFFSET $1';
+
+interface RecordedSnapshot {
+  sql: string[];
+  results: {
+    status: number;
+    body: string;
+    row?: unknown;
+    count: number;
+    transactions: [number, unknown[]][][];
+    outside: [number, number][];
+  }[];
+  calls: Record<string, number>;
+}
+
+function expandRecorded(snapshot: RecordedSnapshot) {
+  const expanded: Record<
+    string,
+    {
+      status: number;
+      body: string;
+      row?: unknown;
+      count: number;
+      transactions: [string, unknown[]][][];
+      outside: Record<string, number>;
+    }
+  > = {};
+  for (const [callKey, index] of Object.entries(snapshot.calls)) {
+    const entry = snapshot.results[index];
+    if (!entry) throw new Error(`Missing recorded entry ${index}`);
+    expanded[callKey] = {
+      status: entry.status,
+      body: entry.body,
+      ...(entry.row === undefined ? {} : { row: entry.row }),
+      count: entry.count,
+      transactions: entry.transactions.map((tx) =>
+        tx.map(([sqlIndex, values]) => [snapshot.sql[sqlIndex] ?? "", values]),
+      ),
+      outside: Object.fromEntries(
+        entry.outside.map(([sqlIndex, count]) => [
+          snapshot.sql[sqlIndex] ?? "",
+          count,
+        ]),
+      ),
+    };
+  }
+  return expanded;
+}
+
+function expectedFromBase(base: RecordedSnapshot) {
+  const expanded = expandRecorded(base);
+  for (const entry of Object.values(expanded)) {
+    entry.transactions = entry.transactions.map((tx) =>
+      tx.map(([statementSql, values]) => {
+        if (statementSql !== BASE_TX_READINESS_SQL) {
+          return [statementSql, values];
+        }
+        expect(values).toEqual([values[0], "1", "0"]);
+        return [HEAD_TX_READINESS_SQL, [values[0]]];
+      }),
+    );
+    if (entry.outside[BASE_EMPTY_USER_INCLUDE_SQL] === 1) {
+      delete entry.outside[BASE_EMPTY_USER_INCLUDE_SQL];
+      entry.count -= 1;
+    }
+  }
+  return expanded;
+}
+
 it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
   "preserves reviews, ratings, categories and input schema with deployment NETWORK=%s",
   async (network) => {
     state.network = network;
+    state.preprodEnabled = false;
     state.sellerCalls = [];
     const scope = createNetworkScope("mainnet");
     const shared = scope.sharedDb;
@@ -929,13 +1019,92 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
         sql,
         results: results.map((row) => JSON.parse(row)),
         calls,
-      };
+      } as RecordedSnapshot;
       if (recording) {
         expect(onSplitLayout).toBe(false);
         writeFileSync(path, `${JSON.stringify(result, null, 2)}\n`);
       } else {
-        expect(result).toEqual(JSON.parse(readFileSync(path, "utf8")));
+        const base = JSON.parse(readFileSync(path, "utf8")) as RecordedSnapshot;
+        expect(expandRecorded(result)).toEqual(expectedFromBase(base));
       }
+
+      // Allowed behaviour change: naming Preprod while Preprod is off returns
+      // 403 preprod_off on every route before any catalog read or seller call.
+      const sellerBeforeRefusal = state.sellerCalls.length;
+      const catalogTablePattern =
+        /"(Agent|CreditCost|Category|UserAgentRating|Job|sync_metadata)"/;
+      for (const [label, path, opts] of [
+        [
+          "preprod-off/reviews",
+          `/v1/agents/${agentAvailId}/reviews`,
+          { token: eligible.token },
+        ],
+        [
+          "preprod-off/reviews-me",
+          `/v1/agents/${agentAvailId}/reviews/me`,
+          { token: eligible.token },
+        ],
+        [
+          "preprod-off/eligibility",
+          `/v1/agents/${agentAvailId}/ratings/eligibility`,
+          { token: eligible.token },
+        ],
+        [
+          "preprod-off/rating-write",
+          `/v1/agents/${agentAvailId}/ratings`,
+          {
+            token: eligible.token,
+            method: "POST" as const,
+            jsonBody: { rating: 5, comment: "Refused" },
+          },
+        ],
+        ["preprod-off/categories", "/v1/categories", {}],
+        [
+          "preprod-off/input-schema",
+          `/v1/agents/${agentAvailId}/input-schema`,
+          { token: eligible.token },
+        ],
+      ] as const) {
+        const obs = await observing(async () => {
+          const response = await app.request(path, {
+            method: "method" in opts ? opts.method : "GET",
+            headers: {
+              ...("token" in opts && opts.token
+                ? { authorization: `Bearer ${opts.token}` }
+                : {}),
+              ...("jsonBody" in opts
+                ? { "content-type": "application/json" }
+                : {}),
+              "X-Sokosumi-Network": "preprod",
+            },
+            ...("jsonBody" in opts
+              ? { body: JSON.stringify(opts.jsonBody) }
+              : {}),
+          });
+          const body = await response.text();
+          await Promise.all(state.work.splice(0));
+          return { status: response.status, body };
+        });
+        if ("threw" in obs.outcome) {
+          throw new Error(JSON.stringify(obs.outcome.threw));
+        }
+        expect(obs.outcome.status, label).toBe(403);
+        expect(JSON.parse(obs.outcome.body), label).toMatchObject({
+          error: "Forbidden",
+          kind: "preprod_off",
+        });
+        const catalogStatements = obs.log.filter((entry) =>
+          catalogTablePattern.test(entry.text),
+        );
+        expect(
+          catalogStatements,
+          `${label} must send zero catalog SQL`,
+        ).toEqual([]);
+        if (label === "preprod-off/categories") {
+          expect(obs.log, `${label} must send zero SQL`).toEqual([]);
+        }
+      }
+      expect(state.sellerCalls.length).toBe(sellerBeforeRefusal);
     } finally {
       vi.useRealTimers();
       await scope.netTransaction(async (tx) => {
@@ -999,3 +1168,399 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
   },
   60_000,
 );
+
+describe.runIf(enabled && onSplitLayout)(
+  "Preprod scope isolation and refusals on the split layout",
+  () => {
+    it("serves Preprod reviews, ratings, categories and input schema on the Preprod schema and refuses unauthorized callers before any catalog read", async () => {
+      state.network = "Mainnet";
+      state.preprodEnabled = true;
+      state.sellerCalls = [];
+
+      const mainnet = createNetworkScope("mainnet");
+      const preprod = createNetworkScope("preprod");
+      const shared = preprod.sharedDb;
+      const app = new Hono();
+      app.use(coreEvlogMiddleware());
+      app.use(async (c, next) => {
+        c.set("requestId", "catalog-pr2-preprod");
+        await next();
+      });
+      app.route("/", createCoreApp());
+
+      const run = randomUUID().slice(0, 8);
+      const preprodReadinessKey = `preprod:${readinessKey}`;
+      const previousPreprodReadiness = await shared.syncMetadata.findUnique({
+        where: { key: preprodReadinessKey },
+      });
+      const createdUserIds: string[] = [];
+      const createdAgentIds: string[] = [];
+      const createdPricingIds: string[] = [];
+      const createdCategoryIds: string[] = [];
+      const createdJobIds: string[] = [];
+      const createdRatingIds: string[] = [];
+      const createdRateIds: string[] = [];
+
+      try {
+        const optedIn = await createPasswordUser(`PR2 Preprod OptIn ${run}`);
+        createdUserIds.push(optedIn.id);
+        await shared.user.update({
+          where: { id: optedIn.id },
+          data: { preprodEnabled: true },
+        });
+        const optedInWs = await createPersonalWorkspace(optedIn.id);
+        const preprodKey = await createApiKey(optedIn.id, "soko_preprod_");
+        const mainnetKey = await createApiKey(optedIn.id, "soko_mainnet_");
+
+        const plain = await createPasswordUser(`PR2 Preprod Plain ${run}`);
+        createdUserIds.push(plain.id);
+        await createPersonalWorkspace(plain.id);
+        const plainKey = await createApiKey(plain.id, "soko_preprod_");
+
+        const agentId = randomUUID();
+        const pricingId = randomUUID();
+        const categoryId = randomUUID();
+        const jobId = randomUUID();
+        const seededRatingId = randomUUID();
+        createdAgentIds.push(agentId);
+        createdPricingIds.push(pricingId);
+        createdCategoryIds.push(categoryId);
+        createdJobIds.push(jobId);
+        createdRatingIds.push(seededRatingId);
+
+        await preprod.netTransaction(async (tx) => {
+          const existingRate = await tx.creditCost.findFirst({
+            where: { unit: "lovelace" },
+            select: { id: true },
+          });
+          if (!existingRate) {
+            const rateId = randomUUID();
+            await tx.creditCost.create({
+              data: {
+                id: rateId,
+                unit: "lovelace",
+                centsPerUnit: 10_000_000_000n,
+              },
+            });
+            createdRateIds.push(rateId);
+          }
+          await tx.category.create({
+            data: {
+              id: categoryId,
+              name: `Preprod Cat ${run}`,
+              slug: `preprod-cat-${run}`,
+              priority: 0,
+              createdAt: agentTime,
+              updatedAt: agentTime,
+            },
+          });
+          await tx.agent.create({
+            data: {
+              id: agentId,
+              name: `Preprod Agent ${run}`,
+              description: "Preprod fixture",
+              blockchainIdentifier: `pr2-preprod-${run}`,
+              createdAt: agentTime,
+              updatedAt: agentTime,
+              lastUptimeCheck: agentTime,
+              uptimeCount: 1,
+              uptimeCheckCount: 1,
+              isShown: true,
+              status: "ONLINE",
+              type: "STANDARD",
+              paymentType: "NONE",
+              apiBaseUrl: "https://preprod-agent.example.com",
+              pricing: { create: { id: pricingId, pricingType: "FREE" } },
+              categories: { connect: [{ id: categoryId }] },
+            },
+          });
+          await tx.userAgentRating.create({
+            data: {
+              id: seededRatingId,
+              userId: plain.id,
+              agentId,
+              rating: 5,
+              comment: "Preprod review",
+              createdAt: reviewTime1,
+              updatedAt: reviewTime1,
+            },
+          });
+          await tx.job.create({
+            data: {
+              id: jobId,
+              ownerId: optedIn.id,
+              creatorUserId: optedIn.id,
+              workspaceId: optedInWs.id,
+              agentId,
+              agentJobId: `preprod-job-${run}`,
+              jobType: "FREE",
+              events: {
+                create: {
+                  status: "COMPLETED",
+                  createdAt: agentTime,
+                  updatedAt: agentTime,
+                },
+              },
+              purchase: {
+                create: {
+                  externalId: `preprod-purchase-${run}`,
+                  onChainStatus: null,
+                },
+              },
+            },
+          });
+        }, "Preprod fixture conflict");
+
+        await shared.syncMetadata.upsert({
+          where: { key: preprodReadinessKey },
+          create: {
+            key: preprodReadinessKey,
+            cursorId: "[]",
+            lastSyncedAt: agentTime,
+          },
+          update: { cursorId: "[]", lastSyncedAt: agentTime },
+        });
+
+        const catalogTablePattern =
+          /"(Agent|CreditCost|Category|UserAgentRating|Job|sync_metadata)"/;
+
+        // Unauthorized / mismatched callers get 403 with zero catalog SQL.
+        for (const [label, path, headers, expectedKind, method, body] of [
+          [
+            "anon categories preprod",
+            "/v1/categories",
+            { "X-Sokosumi-Network": "preprod" },
+            "preprod_access_required",
+            "GET",
+            undefined,
+          ],
+          [
+            "plain user reviews preprod",
+            `/v1/agents/${agentId}/reviews`,
+            {
+              authorization: `Bearer ${plainKey}`,
+              "X-Sokosumi-Network": "preprod",
+            },
+            "preprod_access_required",
+            "GET",
+            undefined,
+          ],
+          [
+            "mismatched key reviews preprod",
+            `/v1/agents/${agentId}/reviews`,
+            {
+              authorization: `Bearer ${mainnetKey}`,
+              "X-Sokosumi-Network": "preprod",
+            },
+            "api_key_network_mismatch",
+            "GET",
+            undefined,
+          ],
+          [
+            "mismatched key categories preprod",
+            "/v1/categories",
+            {
+              authorization: `Bearer ${mainnetKey}`,
+              "X-Sokosumi-Network": "preprod",
+            },
+            "api_key_network_mismatch",
+            "GET",
+            undefined,
+          ],
+          [
+            "mismatched key rating write preprod",
+            `/v1/agents/${agentId}/ratings`,
+            {
+              authorization: `Bearer ${mainnetKey}`,
+              "X-Sokosumi-Network": "preprod",
+              "content-type": "application/json",
+            },
+            "api_key_network_mismatch",
+            "POST",
+            JSON.stringify({ rating: 5 }),
+          ],
+          [
+            "mismatched key input-schema preprod",
+            `/v1/agents/${agentId}/input-schema`,
+            {
+              authorization: `Bearer ${mainnetKey}`,
+              "X-Sokosumi-Network": "preprod",
+            },
+            "api_key_network_mismatch",
+            "GET",
+            undefined,
+          ],
+        ] as const) {
+          const obs = await observing(async () => {
+            const response = await app.request(path, {
+              method,
+              headers,
+              ...(body ? { body } : {}),
+            });
+            const text = await response.text();
+            await Promise.all(state.work.splice(0));
+            return { status: response.status, text };
+          });
+          if ("threw" in obs.outcome) {
+            throw new Error(JSON.stringify(obs.outcome.threw));
+          }
+          expect(obs.outcome.status, label).toBe(403);
+          expect(JSON.parse(obs.outcome.text), label).toMatchObject({
+            kind: expectedKind,
+          });
+          expect(
+            obs.log.filter((entry) => catalogTablePattern.test(entry.text)),
+            `${label} must send zero catalog SQL`,
+          ).toEqual([]);
+        }
+
+        // Allowed Preprod caller reads and writes on the Preprod schema.
+        const preprodHeaders = {
+          authorization: `Bearer ${preprodKey}`,
+          "X-Sokosumi-Network": "preprod",
+        };
+        const reviewsRes = await app.request(`/v1/agents/${agentId}/reviews`, {
+          headers: preprodHeaders,
+        });
+        expect(reviewsRes.status).toBe(200);
+        expect(await reviewsRes.json()).toMatchObject({
+          data: {
+            distribution: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 1 },
+            ratingsWithComments: [{ id: seededRatingId }],
+          },
+        });
+
+        const eligRes = await app.request(
+          `/v1/agents/${agentId}/ratings/eligibility`,
+          { headers: preprodHeaders },
+        );
+        expect(eligRes.status).toBe(200);
+        expect(await eligRes.json()).toMatchObject({
+          data: { eligible: true },
+        });
+
+        const postRes = await app.request(`/v1/agents/${agentId}/ratings`, {
+          method: "POST",
+          headers: {
+            ...preprodHeaders,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ rating: 4, comment: "On Preprod" }),
+        });
+        expect(postRes.status).toBe(201);
+        const posted = (await postRes.json()) as {
+          data: { id: string; rating: number; comment: string };
+        };
+        createdRatingIds.push(posted.data.id);
+
+        // The rating exists in Preprod and NOT in Mainnet.
+        expect(
+          await preprod.networkDb.userAgentRating.findUnique({
+            where: { id: posted.data.id },
+          }),
+        ).not.toBeNull();
+        expect(
+          await mainnet.networkDb.userAgentRating.findUnique({
+            where: { id: posted.data.id },
+          }),
+        ).toBeNull();
+
+        const myReviewRes = await app.request(
+          `/v1/agents/${agentId}/reviews/me`,
+          { headers: preprodHeaders },
+        );
+        expect(myReviewRes.status).toBe(200);
+        expect(await myReviewRes.json()).toMatchObject({
+          data: { id: posted.data.id, rating: 4, comment: "On Preprod" },
+        });
+
+        const categoriesRes = await app.request("/v1/categories", {
+          headers: preprodHeaders,
+        });
+        expect(categoriesRes.status).toBe(200);
+        expect(
+          ((await categoriesRes.json()) as { data: { id: string }[] }).data.map(
+            (c) => c.id,
+          ),
+        ).toContain(categoryId);
+
+        const schemaRes = await app.request(
+          `/v1/agents/${agentId}/input-schema`,
+          { headers: preprodHeaders },
+        );
+        expect(schemaRes.status).toBe(200);
+        expect(await schemaRes.json()).toMatchObject({
+          data: {
+            input_data: [
+              { name: "Prompt for https://preprod-agent.example.com" },
+            ],
+          },
+        });
+
+        // Mainnet does not see Preprod's agent.
+        const mainnetSchemaRes = await app.request(
+          `/v1/agents/${agentId}/input-schema`,
+          { headers: { authorization: `Bearer ${mainnetKey}` } },
+        );
+        expect(mainnetSchemaRes.status).toBe(404);
+        await Promise.all(state.work.splice(0));
+      } finally {
+        await preprod.netTransaction(async (tx) => {
+          await tx.userAgentRating.deleteMany({
+            where: { id: { in: createdRatingIds } },
+          });
+          await tx.job.deleteMany({ where: { id: { in: createdJobIds } } });
+          await tx.agent.deleteMany({
+            where: { id: { in: createdAgentIds } },
+          });
+          await tx.agentPricing.deleteMany({
+            where: { id: { in: createdPricingIds } },
+          });
+          await tx.category.deleteMany({
+            where: { id: { in: createdCategoryIds } },
+          });
+          await tx.creditCost.deleteMany({
+            where: { id: { in: createdRateIds } },
+          });
+        }, "Preprod cleanup conflict");
+        await shared.history.deleteMany({
+          where: { entityId: { in: createdJobIds } },
+        });
+        if (previousPreprodReadiness) {
+          await shared.syncMetadata.update({
+            where: { key: preprodReadinessKey },
+            data: previousPreprodReadiness,
+          });
+        } else {
+          await shared.syncMetadata.deleteMany({
+            where: { key: preprodReadinessKey },
+          });
+        }
+        await shared.apikey.deleteMany({
+          where: { referenceId: { in: createdUserIds } },
+        });
+        await shared.subscription.deleteMany({
+          where: { referenceId: { in: createdUserIds } },
+        });
+        await shared.user.deleteMany({
+          where: { id: { in: createdUserIds } },
+        });
+        state.preprodEnabled = false;
+      }
+    }, 60_000);
+  },
+);
+
+// Checked by tsc without issuing a query.
+export function _pr2CatalogReadersRequireScope(
+  requireAgent: typeof import("@/lib/agent-catalog/availability").requireAvailableAgent,
+  listCategories: typeof import("@/lib/agent-catalog/categories").listCategoriesInUse,
+  getEndpoint: typeof import("@/lib/agent-catalog/endpoint").getAgentEndpoint,
+) {
+  // @ts-expect-error An availability check must supply its scope.
+  requireAgent(undefined, "agent-1");
+  // @ts-expect-error A categories reader must supply its scope.
+  listCategories(undefined);
+  // @ts-expect-error An endpoint reader must supply its scope.
+  getEndpoint(undefined, "agent-1");
+}

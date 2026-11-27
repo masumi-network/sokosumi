@@ -15,8 +15,8 @@ const {
   syncMetadataFindUniqueMock: vi.fn(),
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     creditCost: {
       findMany: creditCostFindManyMock,
     },
@@ -26,8 +26,9 @@ vi.mock("@/lib/db/prisma", () => ({
     syncMetadata: {
       findUnique: syncMetadataFindUniqueMock,
     },
-  },
-}));
+  };
+  return { default: client, networkPrisma: () => client };
+});
 
 function createApp() {
   const app = new OpenAPIHono({
