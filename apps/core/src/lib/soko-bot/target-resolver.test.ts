@@ -205,6 +205,51 @@ describe("destination-bound target matching (ask-policy-match)", () => {
         { id: P2, name: "Acme EU" },
       ]),
     ).toEqual([]);
+
+    // Source project mentions must never win over a destination phrase or attach a target.
+    expect(
+      namedProjectsByTargetResolver(
+        "Use the notes from Beta to create a task for Acme.",
+        projects,
+      ).map((p) => p.id),
+    ).toEqual([P1]);
+    expect(
+      namedProjectsByTargetResolver(
+        "Use Beta's notes to create a task for Acme.",
+        projects,
+      ).map((p) => p.id),
+    ).toEqual([P1]);
+    expect(
+      namedProjectsByTargetResolver(
+        "Use the notes in Beta to create a task for Acme.",
+        projects,
+      ).map((p) => p.id),
+    ).toEqual([P1]);
+    expect(
+      namedProjectsByTargetResolver(
+        "Use the notes from Beta to create a task.",
+        projects,
+      ),
+    ).toEqual([]);
+    expect(
+      namedSocialDestinationsByTargetResolver(
+        "Use the notes from Beta to draft an X post for Acme.",
+        socialCandidates,
+      ).map((c) => c.id),
+    ).toEqual([C1]);
+    expect(
+      namedSocialDestinationsByTargetResolver(
+        "Draft an X post from Beta's notes.",
+        socialCandidates,
+      ),
+    ).toEqual([]);
+    // Exact full-name destination still wins when another project shares its leading token.
+    expect(
+      namedProjectsByTargetResolver("Create a task for Acme.", [
+        { id: P1, name: "Acme" },
+        { id: P2, name: "Acme Marketing" },
+      ]).map((p) => p.id),
+    ).toEqual([P1]);
   });
 
   it("refuses project-name social resolution when that project holds 2 accounts", () => {
@@ -329,6 +374,28 @@ describe("resolveProjectTargetForWrite", () => {
         capability: "create_task",
       }),
     ).resolves.toEqual({ projectId: P2 });
+  });
+
+  it("does not file a task in the source project named in the owner's request", async () => {
+    db.projectFindMany.mockResolvedValue([
+      { id: P1, name: "Acme Marketing" },
+      { id: P2, name: "Beta" },
+    ]);
+    ownerSays("Use the notes from Beta to create a task for Acme.");
+    const result = await resolveProjectTargetForWrite(auth(), {
+      mode: "optional",
+      capability: "create_task",
+    });
+    expect(result.projectId).toBe(P1);
+    expect(result.projectId).not.toBe(P2);
+
+    // Source-only mention with no destination project leaves projectId unset.
+    ownerSays("Use the notes from Beta to create a task.");
+    const sourceOnly = await resolveProjectTargetForWrite(auth(), {
+      mode: "optional",
+      capability: "create_task",
+    });
+    expect(sourceOnly.projectId).toBeUndefined();
   });
 
   it("checks studio media project against the sole project holding an active requested social account", async () => {
@@ -655,6 +722,49 @@ describe("list-tool targetResolution annotations", () => {
       status: "only_candidate",
       editableCount: 1,
       onlyCandidate: { postId: POST1, revision: 3 },
+    });
+    expect(
+      buildSocialPostsTargetResolution(
+        P1,
+        [{ id: POST1, status: "DRAFT", revision: 1 }],
+        { hasMore: true },
+      ),
+    ).toMatchObject({
+      status: "partial",
+      editableCount: 1,
+    });
+    expect(
+      buildSocialPostsTargetResolution(
+        P1,
+        [{ id: POST1, status: "DRAFT", revision: 1 }],
+        { hasCursor: true },
+      ),
+    ).toMatchObject({
+      status: "partial",
+      editableCount: 1,
+    });
+    expect(
+      buildSocialPostsTargetResolution(P1, [], { hasMore: true }),
+    ).toMatchObject({
+      status: "partial",
+      editableCount: 0,
+    });
+
+    expect(
+      buildSchedulesTargetResolution({
+        botSchedules: [
+          {
+            id: SCHED1,
+            name: "Weekly coworker report",
+            createdBy: "Robin",
+            youCanChange: true,
+          },
+        ],
+        hasMore: true,
+      }),
+    ).toMatchObject({
+      status: "partial",
+      editableCustomBotCount: 1,
     });
 
     expect(

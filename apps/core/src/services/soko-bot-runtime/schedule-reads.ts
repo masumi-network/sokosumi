@@ -224,6 +224,7 @@ export async function listSchedules(
           ...mine,
           targetResolution: buildSchedulesTargetResolution({
             botSchedules: mine.schedules,
+            hasMore: Boolean(mine.more),
           }),
         }
       : mine;
@@ -265,6 +266,7 @@ export async function listSchedules(
           targetResolution: buildSchedulesTargetResolution({
             botSchedules: bots.schedules,
             taskSchedules: tasks.schedules,
+            hasMore: Boolean(bots.more || tasks.more),
           }),
         }
       : {}),

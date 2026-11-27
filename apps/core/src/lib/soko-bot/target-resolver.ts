@@ -933,10 +933,26 @@ export async function buildSocialAccountsTargetResolution(
 export function buildSocialPostsTargetResolution(
   projectId: string,
   posts: ReadonlyArray<{ id: string; status: string; revision: number }>,
+  pagination?: { hasMore?: boolean; hasCursor?: boolean },
 ) {
   const editable = posts.filter((post) =>
     EDITABLE_POST_STATUSES.has(post.status),
   );
+  const hasMore = Boolean(pagination?.hasMore);
+  const hasCursor = Boolean(pagination?.hasCursor);
+  if (hasMore || hasCursor) {
+    const scopeDetail =
+      hasCursor && hasMore
+        ? "earlier pages were skipped and more pages exist"
+        : hasCursor
+          ? "earlier pages were skipped"
+          : "more pages exist";
+    return {
+      editableCount: editable.length,
+      status: "partial" as const,
+      note: `Only one page of social posts was returned (${editable.length} editable post(s) on this page; ${scopeDetail}). Do not assume uniqueness or absence from a partial page; fetch remaining pages or narrow the query before updating or cancelling.`,
+    };
+  }
   if (editable.length === 0) {
     return {
       editableCount: 0,
@@ -978,6 +994,7 @@ export function buildSchedulesTargetResolution(input: {
     name: string;
     youCanChange?: boolean;
   }>;
+  hasMore?: boolean;
 }) {
   const editableCustomBot = input.botSchedules.filter(
     (schedule) =>
@@ -990,6 +1007,16 @@ export function buildSchedulesTargetResolution(input: {
     (schedule) => schedule.youCanChange !== false,
   );
   const totalEditable = editableCustomBot.length + editableTasks.length;
+
+  if (input.hasMore) {
+    return {
+      editableCustomBotCount: editableCustomBot.length,
+      editableTaskScheduleCount: editableTasks.length,
+      builtInRhythmCount: builtInRhythms.length,
+      status: "partial" as const,
+      note: `Only the first 40 schedules of a kind were returned (${totalEditable} editable custom schedule(s) in this slice; more exist). Narrow with query before assuming a single schedule matches or that none exist.`,
+    };
+  }
 
   if (totalEditable === 0) {
     return {

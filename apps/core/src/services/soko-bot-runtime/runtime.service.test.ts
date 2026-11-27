@@ -11236,6 +11236,85 @@ describe("Soko Bot project social tools", () => {
     );
   });
 
+  it("does not advise cancelling the only editable post visible on a partial or cursor-offset page", async () => {
+    const resolver = await import("@/lib/soko-bot/target-resolver");
+    const flag = vi
+      .spyOn(resolver, "isTargetResolverEnabled")
+      .mockReturnValue(true);
+    try {
+      social.list.mockResolvedValueOnce({
+        posts: [{ ...post, status: "DRAFT" }],
+        pagination: { cursor: null, limit: 1, total: 2, nextCursor: postId },
+      });
+      const firstPageReal = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_social_posts",
+        toolCallId: "partial-page-real",
+        input: { projectId, limit: 1 },
+      });
+      expect(firstPageReal).not.toMatchObject({
+        targetResolution: { status: "only_candidate" },
+      });
+      expect(firstPageReal).toMatchObject({
+        targetResolution: { status: "partial", editableCount: 1 },
+      });
+
+      social.list.mockResolvedValueOnce({
+        posts: [{ ...post, status: "DRAFT" }],
+        pagination: { hasMore: true, nextCursor: postId },
+      });
+      const firstPage = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_social_posts",
+        toolCallId: "partial-page",
+        input: { projectId, limit: 1 },
+      });
+      expect(firstPage).not.toMatchObject({
+        targetResolution: { status: "only_candidate" },
+      });
+      expect(firstPage).toMatchObject({
+        targetResolution: { status: "partial", editableCount: 1 },
+      });
+
+      social.list.mockResolvedValueOnce({
+        posts: [{ ...post, status: "DRAFT" }],
+        pagination: { cursor: postId, limit: 10, total: 2, nextCursor: null },
+      });
+      const cursorPage = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_social_posts",
+        toolCallId: "cursor-page",
+        input: { projectId, cursor: postId, limit: 10 },
+      });
+      expect(cursorPage).not.toMatchObject({
+        targetResolution: { status: "only_candidate" },
+      });
+      expect(cursorPage).toMatchObject({
+        targetResolution: { status: "partial", editableCount: 1 },
+      });
+
+      social.list.mockResolvedValueOnce({
+        posts: [{ ...post, status: "DRAFT" }],
+        pagination: { cursor: null, limit: 10, total: 1, nextCursor: null },
+      });
+      const completePage = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_social_posts",
+        toolCallId: "complete-page",
+        input: { projectId, limit: 10 },
+      });
+      expect(completePage).toMatchObject({
+        targetResolution: {
+          status: "only_candidate",
+          editableCount: 1,
+          onlyCandidate: { postId: post.id },
+        },
+      });
+    } finally {
+      flag.mockRestore();
+    }
+  });
+
   it("forwards status filters, cursor, and page size without changing workspace", async () => {
     await new SokoBotRuntimeService().executeTool({
       ...SCOPE,

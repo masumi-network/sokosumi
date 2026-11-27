@@ -48,6 +48,52 @@ function labels(candidates: readonly Candidate[]): string {
   return candidates.map(socialDestinationLabel).join("; ");
 }
 
+function formatProviderList(providers: readonly SocialPostProvider[]): string {
+  return providers.map(socialPostProviderLabel).join(" / ");
+}
+
+function hasFullCandidateShape(
+  row: Partial<Candidate & { provider?: string }>,
+): row is Candidate & { provider: string } {
+  return Boolean(
+    typeof row.id === "string" &&
+      row.project &&
+      typeof row.project.id === "string" &&
+      typeof row.project.name === "string",
+  );
+}
+
+function refuseWrongProvider(input: {
+  mentionedProviders: readonly SocialPostProvider[];
+  pickedProvider: string;
+  matching: readonly Candidate[];
+  scopeProjectName?: string;
+  scopeText: string;
+}): never {
+  const wantedLabel = formatProviderList(input.mentionedProviders);
+  const pickedLabel = socialPostProviderLabel(
+    input.pickedProvider as SocialPostProvider,
+  );
+  if (input.matching.length === 0) {
+    if (input.scopeProjectName) {
+      throw new SokoBotRefusedUnsentError(
+        `The owner requested ${wantedLabel}, not ${pickedLabel}. Project "${input.scopeProjectName}" has 0 active ${wantedLabel} accounts connected. Tell the owner no ${wantedLabel} account is connected on the requested project, do not substitute another project, and make no social changes.`,
+      );
+    }
+    throw new SokoBotRefusedUnsentError(
+      `The owner requested ${wantedLabel}, not ${pickedLabel}. 0 active ${wantedLabel} accounts are connected ${input.scopeText}. Tell the owner no ${wantedLabel} account is connected and make no social changes.`,
+    );
+  }
+  if (input.matching.length === 1) {
+    throw new SokoBotRefusedUnsentError(
+      `The owner requested ${wantedLabel}, not ${pickedLabel}. Use ${socialDestinationLabel(input.matching[0]!)} instead.`,
+    );
+  }
+  throw new SokoBotRefusedUnsentError(
+    `The owner requested ${wantedLabel}, not ${pickedLabel}. Active ${wantedLabel} accounts in scope: ${labels(input.matching.slice(0, SHOWN))}. Use the matching socialConnectionId or ask the owner once which account to use.`,
+  );
+}
+
 /** The owner's own chat turn: the only turn that asks the owner anything. */
 function ownersOwnChat(authorized: AuthorizedSokoBotRuntime): boolean {
   return (
@@ -172,13 +218,61 @@ export async function requireChosenSocialDestination(
   const targetResolver = isTargetResolverEnabled(authorized.turn.versionId);
 
   // CMO bots stay strictly confined to their one Project; under targetResolver
-  // an omitted socialConnectionId auto-resolves when 1 active account fits on
-  // that project while preserving unconnected drafting when 0 accounts exist.
+  // enforce explicit network constraints before accepting a supplied connection,
+  // and auto-resolve omitted socialConnectionId only when 1 active account fits
+  // (preserving unconnected drafting when 0 active accounts exist).
   if (version.profile === "cmo") {
-    if (!targetResolver || params.socialConnectionId) return {};
+    if (!targetResolver) return {};
     const request = ownersOwnChat(authorized)
       ? await ownerRequest(authorized)
       : null;
+    const mentioned = request
+      ? mentionedSocialProviders(request.userMessage)
+      : [];
+    if (params.socialConnectionId) {
+      if (mentioned.length === 0) return {};
+      const pickedCmo = await prisma.projectSocialConnection.findFirst({
+        where: { id: params.socialConnectionId, projectId: params.projectId },
+        select: { id: true, provider: true, externalHandle: true },
+      });
+      if (
+        pickedCmo &&
+        !mentioned.includes(pickedCmo.provider as SocialPostProvider)
+      ) {
+        const projectConnections =
+          await prisma.projectSocialConnection.findMany({
+            where: {
+              projectId: params.projectId,
+              provider: { in: mentioned },
+              status: "active",
+              project: {
+                workspaceId: authorized.turn.workspaceId,
+                closedAt: null,
+                closingAt: null,
+              },
+            },
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            select: {
+              id: true,
+              provider: true,
+              externalHandle: true,
+              project: { select: { id: true, name: true } },
+            },
+          });
+        const matching = projectConnections.filter(
+          (row) =>
+            hasFullCandidateShape(row) &&
+            mentioned.includes(row.provider as SocialPostProvider),
+        );
+        refuseWrongProvider({
+          mentionedProviders: mentioned,
+          pickedProvider: pickedCmo.provider,
+          matching,
+          scopeText: "on this project",
+        });
+      }
+      return {};
+    }
     const projectConnections = await prisma.projectSocialConnection.findMany({
       where: {
         projectId: params.projectId,
@@ -198,13 +292,18 @@ export async function requireChosenSocialDestination(
       },
     });
     if (projectConnections.length === 0) return {};
-    const mentioned = request
-      ? mentionedSocialProviders(request.userMessage)
-      : [];
     const pool =
-      mentioned.length === 1
-        ? projectConnections.filter((c) => c.provider === mentioned[0])
+      mentioned.length > 0
+        ? projectConnections.filter((c) =>
+            mentioned.includes(c.provider as SocialPostProvider),
+          )
         : projectConnections;
+    if (mentioned.length > 0 && pool.length === 0) {
+      const wantedLabel = formatProviderList(mentioned);
+      throw new SokoBotRefusedUnsentError(
+        `This project has 0 active ${wantedLabel} accounts connected. Tell the owner no ${wantedLabel} account is connected and make no social changes.`,
+      );
+    }
     if (pool.length === 1) {
       const only = pool[0]!;
       const providerLabel = socialPostProviderLabel(
@@ -222,26 +321,32 @@ export async function requireChosenSocialDestination(
         },
       };
     }
-    if (pool.length >= 2 && request) {
-      const named = namedSocialDestinationsByTargetResolver(
-        request.userMessage,
-        pool,
-      );
-      if (named.length === 1) {
-        const only = named[0]!;
-        return {
-          resolvedSocialConnectionId: only.id,
-          resolvedTarget: {
-            kind: "account",
-            id: only.id,
-            label: socialDestinationLabel(only),
-            projectId: only.project.id,
-            autoResolved: true,
-            reason: `Resolved to ${socialDestinationLabel(only)} named in the owner's request.`,
-          },
-        };
+    if (pool.length >= 2) {
+      if (mentioned.length >= 2) {
+        const wantedLabel = formatProviderList(mentioned);
+        throw new SokoBotRefusedUnsentError(
+          `The request names multiple networks (${wantedLabel}). Pass socialConnectionId explicitly for each post from: ${labels(pool.slice(0, SHOWN))}.`,
+        );
       }
-      if (mentioned.length === 1) {
+      if (request) {
+        const named = namedSocialDestinationsByTargetResolver(
+          request.userMessage,
+          pool,
+        );
+        if (named.length === 1) {
+          const only = named[0]!;
+          return {
+            resolvedSocialConnectionId: only.id,
+            resolvedTarget: {
+              kind: "account",
+              id: only.id,
+              label: socialDestinationLabel(only),
+              projectId: only.project.id,
+              autoResolved: true,
+              reason: `Resolved to ${socialDestinationLabel(only)} named in the owner's request.`,
+            },
+          };
+        }
         throw new SokoBotRefusedUnsentError(
           `${ASK_WHICH_ACCOUNT}, and the owner has not named one: ${labels(pool.slice(0, SHOWN))}. Ask the owner once which account to use and make no changes until they answer.`,
         );
@@ -318,6 +423,47 @@ export async function requireChosenSocialDestination(
       : [];
   if (
     targetResolver &&
+    picked &&
+    mentionedProviders.length > 0 &&
+    !mentionedProviders.includes(picked.provider as SocialPostProvider)
+  ) {
+    const namedScope = namedProjects.length === 1 ? namedProjects[0]! : null;
+    const providerCandidates = await prisma.projectSocialConnection.findMany({
+      where: {
+        provider: { in: mentionedProviders },
+        status: "active",
+        ...(namedScope ? { projectId: namedScope.id } : {}),
+        project: {
+          workspaceId: authorized.turn.workspaceId,
+          closedAt: null,
+          closingAt: null,
+        },
+      },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        provider: true,
+        externalHandle: true,
+        project: { select: { id: true, name: true } },
+      },
+    });
+    const matching = providerCandidates.filter(
+      (row) =>
+        hasFullCandidateShape(row) &&
+        mentionedProviders.includes(row.provider as SocialPostProvider) &&
+        (!namedScope || row.project.id === namedScope.id),
+    );
+    refuseWrongProvider({
+      mentionedProviders,
+      pickedProvider: picked.provider,
+      matching,
+      scopeProjectName: namedScope?.name,
+      scopeText: "in this workspace",
+    });
+  }
+
+  if (
+    targetResolver &&
     namedProjects.length === 1 &&
     params.projectId !== namedProjects[0]!.id
   ) {
@@ -328,14 +474,19 @@ export async function requireChosenSocialDestination(
   }
 
   let provider: string = picked?.provider ?? "x";
+  let preloadedCandidates: Candidate[] | null = null;
   if (targetResolver && !picked && !params.socialConnectionId) {
     if (mentionedProviders.length === 1) {
       provider = mentionedProviders[0]!;
-    } else {
-      const projectActive = await prisma.projectSocialConnection.findMany({
+    } else if (mentionedProviders.length >= 2) {
+      const wantedLabel = formatProviderList(mentionedProviders);
+      const multiActive = await prisma.projectSocialConnection.findMany({
         where: {
-          projectId: params.projectId,
+          provider: { in: mentionedProviders },
           status: "active",
+          ...(namedProjects.length === 1
+            ? { projectId: namedProjects[0]!.id }
+            : {}),
           project: {
             workspaceId: authorized.turn.workspaceId,
             closedAt: null,
@@ -343,19 +494,94 @@ export async function requireChosenSocialDestination(
           },
         },
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-        select: { provider: true },
+        select: {
+          id: true,
+          provider: true,
+          externalHandle: true,
+          project: { select: { id: true, name: true } },
+        },
       });
+      const fullRows = multiActive.filter(hasFullCandidateShape);
+      throw new SokoBotRefusedUnsentError(
+        `The request names multiple networks (${wantedLabel}). Pass socialConnectionId explicitly for each post${fullRows.length > 0 ? ` from: ${labels(fullRows.slice(0, SHOWN))}` : ""}.`,
+      );
+    } else {
+      const allActive = await prisma.projectSocialConnection.findMany({
+        where: {
+          status: "active",
+          ...(namedProjects.length === 1
+            ? { projectId: namedProjects[0]!.id }
+            : {}),
+          project: {
+            workspaceId: authorized.turn.workspaceId,
+            closedAt: null,
+            closingAt: null,
+          },
+        },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: {
+          id: true,
+          provider: true,
+          externalHandle: true,
+          project: { select: { id: true, name: true } },
+        },
+      });
+      if (allActive.length === 0) return {};
       const distinctProviders = [
-        ...new Set(projectActive.map((row) => row.provider)),
+        ...new Set(allActive.map((row) => row.provider).filter(Boolean)),
       ];
+      if (distinctProviders.length > 1) {
+        const hasFullRows = allActive.every(hasFullCandidateShape);
+        if (request && hasFullRows) {
+          const namedAcross = namedSocialDestinationsByTargetResolver(
+            request.userMessage,
+            allActive,
+          );
+          if (namedAcross.length === 1) {
+            const only = namedAcross[0]!;
+            if (only.project.id === params.projectId) {
+              return {
+                resolvedSocialConnectionId: only.id,
+                resolvedTarget: {
+                  kind: "account",
+                  id: only.id,
+                  label: socialDestinationLabel(only),
+                  projectId: only.project.id,
+                  autoResolved: true,
+                  reason: `Resolved to ${socialDestinationLabel(only)} named in the owner's request.`,
+                },
+              };
+            }
+            throw new SokoBotRefusedUnsentError(
+              `The owner named ${labels(namedAcross)}. Create the post there, with that socialConnectionId and projectId.`,
+            );
+          }
+        }
+        const providerLabels = distinctProviders
+          .map((p) => socialPostProviderLabel(p as SocialPostProvider))
+          .join(", ");
+        const detail = hasFullRows
+          ? `: ${labels(allActive.slice(0, SHOWN))}`
+          : ` (${providerLabels})`;
+        throw new SokoBotRefusedUnsentError(
+          `${ASK_WHICH_ACCOUNT} across multiple networks${detail}, and the owner has not named a network or account. ${!request || background ? "Draft nothing in this run. Say in your report that the owner needs to pick the account; once they answer in chat, the post can be made there." : "Ask the owner once which network and account to use and make no social changes until they answer."}`,
+        );
+      }
       if (distinctProviders.length === 1 && distinctProviders[0]) {
         provider = distinctProviders[0];
+        if (
+          namedProjects.length === 0 &&
+          allActive.every(hasFullCandidateShape)
+        ) {
+          preloadedCandidates = allActive;
+        }
       }
     }
   }
 
-  const candidates: Candidate[] = await prisma.projectSocialConnection.findMany(
-    {
+  const candidates: Candidate[] =
+    preloadedCandidates ??
+    (await prisma.projectSocialConnection.findMany({
       where: {
         provider,
         status: "active",
@@ -371,8 +597,7 @@ export async function requireChosenSocialDestination(
         externalHandle: true,
         project: { select: { id: true, name: true } },
       },
-    },
-  );
+    }));
 
   if (targetResolver && namedProjects.length === 1) {
     const wanted = namedProjects[0]!;

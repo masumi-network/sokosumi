@@ -502,6 +502,21 @@ export async function executeSocialTool(
       const parsedPosts = result.posts.map((post) =>
         socialPostSchema.parse(post),
       );
+      const pagination = result.pagination as
+        | {
+            cursor?: string | null;
+            nextCursor?: string | null;
+            total?: number;
+            hasMore?: boolean;
+          }
+        | undefined;
+      const hasMore = Boolean(
+        pagination?.nextCursor ||
+          pagination?.hasMore ||
+          (typeof pagination?.total === "number" &&
+            pagination.total > parsedPosts.length),
+      );
+      const hasCursor = Boolean(params.cursor || pagination?.cursor);
       return {
         ...result,
         posts: parsedPosts,
@@ -510,6 +525,7 @@ export async function executeSocialTool(
               targetResolution: buildSocialPostsTargetResolution(
                 params.projectId,
                 parsedPosts,
+                { hasMore, hasCursor },
               ),
             }
           : {}),
