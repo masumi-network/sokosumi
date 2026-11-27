@@ -370,7 +370,10 @@ export const REFERENCE_SCRIPTS: Record<string, ReferenceScript> = {
             const project = await cusoProject(turnId);
             const accounts = cusoAccounts(results);
             return [
-              ["Something new for sales teams lands Tuesday.", -1],
+              [
+                "Tomorrow: Routing Forms AI, for sales teams that sort leads by hand.",
+                -1,
+              ],
               [
                 "Routing Forms AI is live: every lead goes to the right person on your team automatically.",
                 0,
@@ -508,6 +511,7 @@ export const REFERENCE_SCRIPTS: Record<string, ReferenceScript> = {
           async (_results, { turnId }) => [
             call("list_social_posts", {
               projectId: await cusoProject(turnId),
+              statuses: OPEN,
               limit: 100,
             }),
           ],

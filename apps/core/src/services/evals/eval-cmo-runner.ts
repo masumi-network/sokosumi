@@ -167,22 +167,44 @@ export async function connectPlanChannels(
 }
 
 /**
- * Stand-in accounts for X, LinkedIn and every network of the Cuso project's
- * current plan, as a customer who connected their main accounts has.
+ * Stand-in accounts for every network the approved month plans or the
+ * Project already posts on, as an owner whose month is running has them,
+ * and the Project's posts on those accounts.
  */
 export async function connectCusoPlanChannels(lane: EvalLaneRecord) {
-  const strategy = await prisma.marketingStrategy.findFirst({
-    where: { projectId: lane.cusoProjectId },
-    orderBy: { createdAt: "desc" },
-    select: { plan: true },
-  });
-  const plan = strategy
-    ? (parseMarketingPlan(strategy.plan) as MarketingStrategyPlan | null)
-    : null;
-  const main = ["x", "linkedin"].map((channel) => ({ channel }));
+  const [approved, posted] = await Promise.all([
+    prisma.marketingStrategy.findFirst({
+      where: { projectId: lane.cusoProjectId, approvedAt: { not: null } },
+      orderBy: { createdAt: "desc" },
+      select: { plan: true },
+    }),
+    prisma.socialPost.findMany({
+      where: { projectId: lane.cusoProjectId },
+      distinct: ["provider"],
+      select: { provider: true },
+    }),
+  ]);
+  const plan = parseMarketingPlan(approved?.plan);
+  const networks = [
+    ...(plan?.calendar ?? []).map((entry) => entry.channel),
+    ...posted.map((post) => post.provider),
+  ].map((channel) => ({ channel }));
   await connectPlanChannels(lane, {
-    calendar: [...(plan?.calendar ?? []), ...main],
+    calendar: networks,
   } as MarketingStrategyPlan);
+  const connections = await prisma.projectSocialConnection.findMany({
+    where: { projectId: lane.cusoProjectId, status: "active" },
+    select: { id: true, provider: true },
+  });
+  for (const connection of connections)
+    await prisma.socialPost.updateMany({
+      where: {
+        projectId: lane.cusoProjectId,
+        provider: connection.provider,
+        socialConnectionId: null,
+      },
+      data: { socialConnectionId: connection.id },
+    });
 }
 
 /**

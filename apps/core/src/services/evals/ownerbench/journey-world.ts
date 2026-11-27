@@ -484,12 +484,21 @@ async function seedUpcomingPost(
   });
   if (!template) throw new Error("The Cuso setup has no upcoming post to copy");
   const provider = post.provider ?? template.provider;
+  const connection =
+    provider === template.provider
+      ? null
+      : await prisma.projectSocialConnection.findFirst({
+          where: { projectId: template.projectId, provider, status: "active" },
+          select: { id: true },
+        });
   const created = await prisma.socialPost.create({
     data: {
       projectId: template.projectId,
       workspaceId: template.workspaceId,
       socialConnectionId:
-        provider === template.provider ? template.socialConnectionId : null,
+        provider === template.provider
+          ? template.socialConnectionId
+          : (connection?.id ?? null),
       provider,
       text: post.text,
       status: template.status,
