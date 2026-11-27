@@ -27,6 +27,7 @@ import {
   addProjectSeoPage,
   getProjectSeoWorkspace,
 } from "./project-seo.service";
+import { importProjectSeoAudit } from "./project-seo-import.service";
 import { SEO_WORKSPACE_EVIDENCE_LIMIT } from "./project-seo-store";
 import { requestSeoCrawlNext } from "./seo-crawl-next.service";
 
@@ -394,6 +395,60 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
       message: expect.stringContaining("older than the history"),
     });
     expect(await prisma.task.count({ where: { workspaceId } })).toBe(0);
+  });
+
+  it("keeps one crawl per paid continuation when its Task holds two Report files", async () => {
+    await storeCrawl(
+      "audit_full",
+      { snapshotId: AUDIT_CRAWL, stop: "page cap" },
+      new Date("2026-11-01"),
+    );
+    await setBalance(100n);
+    const analysis = await requestSeoCrawlNext(actor, request());
+    const taskId = analysis.taskId!;
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { status: "COMPLETED" },
+    });
+    // The SEO bot's crawl_next Report, with no problem page to audit.
+    const report = (snapshotId: string) =>
+      JSON.stringify({
+        kind: "crawl_next",
+        request: { url: SITE, continues: AUDIT_CRAWL },
+        crawl: {
+          snapshotId,
+          request: { url: SITE },
+          crawl: { fetched: 500, read: 480, stop: "page cap" },
+        },
+        head: { skipped: [] },
+        pages: [],
+      });
+    // The two names the SEO bot may give a JSON Report.
+    const upload = async (name: string, body: string) => {
+      const file = await prisma.taskFile.create({
+        data: {
+          taskId,
+          name: `seo-report-${taskId}${name}`,
+          fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${taskId}/${randomUUID()}.json`,
+          mimeType: "application/json",
+          size: BigInt(Buffer.byteLength(body)),
+          uploadedByCoworkerId: coworkerId,
+        },
+      });
+      return importProjectSeoAudit(
+        actor,
+        { taskId, fileId: file.id },
+        { fetchImpl: async () => new Response(body) },
+      );
+    };
+    const first = await upload(".json", report(NEXT_CRAWL));
+    const second = await upload(".data.json", report("c".repeat(64)));
+    expect(second.id).toBe(first.id);
+    expect(
+      await prisma.projectSeoObservation.count({
+        where: { auditId, kind: "crawl_next", sourceTaskId: taskId },
+      }),
+    ).toBe(1);
   });
 
   it("refuses a continuation through the audit of a CMO Project", async () => {

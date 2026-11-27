@@ -46,6 +46,7 @@ import {
   type SeoMutationHooks,
   seoOwnerData,
   seoOwnerUnique,
+  seoOwnerWhere,
   sha256,
 } from "./project-seo-store";
 
@@ -324,6 +325,17 @@ export async function importProjectSeoAudit(
       return commitSeoMutation(tx, prior, options);
     }
     if (recover) throw conflict("The imported observation changed");
+    // One paid continuation is one crawl: a second Report file of its Task keeps the first accepted one.
+    if (payload.kind === "crawl_next") {
+      const first = await tx.projectSeoObservation.findFirst({
+        where: {
+          ...seoOwnerWhere(actor),
+          kind: "crawl_next",
+          sourceTaskId: task.id,
+        },
+      });
+      if (first) return commitSeoMutation(tx, first, options);
+    }
     const pageIds: string[] = [];
     for (const value of payload.pageUrls) {
       const url = normalizeSeoUrl(value);
