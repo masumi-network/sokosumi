@@ -13266,6 +13266,10 @@ export type ProjectSeoSiteCrawl = {
         state: 'found';
         urls: Array<string>;
         total: number;
+        nofollowOnly?: {
+            urls: Array<string>;
+            total: number;
+        };
         candidates: boolean;
     } | {
         state: 'not determined';

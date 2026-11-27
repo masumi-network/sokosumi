@@ -412,6 +412,34 @@ describe("imported site crawl", () => {
       ]);
   });
 
+  it("keeps the sitemap URLs that only nofollow links reach", () => {
+    const orphans = {
+      state: "found",
+      sitemapUrls: 120,
+      urls: [],
+      total: 0,
+      nofollowOnly: [`${SITE}/hidden`],
+      // A total below its examples counts the examples.
+      nofollowOnlyTotal: 0,
+    };
+    const crawl = stored(siteReport({ crawl: { ...botCrawl(), orphans } }));
+    expect(crawl?.state === "crawled" && crawl.orphans).toMatchObject({
+      total: 0,
+      nofollowOnly: { urls: [`${SITE}/hidden`], total: 1 },
+    });
+    const none = stored(
+      siteReport({
+        crawl: {
+          ...botCrawl(),
+          orphans: { ...orphans, nofollowOnly: [], nofollowOnlyTotal: 0 },
+        },
+      }),
+    );
+    expect(none?.state === "crawled" && none.orphans).not.toHaveProperty(
+      "nofollowOnly",
+    );
+  });
+
   it("counts at least the examples a check lists, so a total too low clears no check", () => {
     const raw = botCrawl();
     raw.links.brokenTotal = 0;

@@ -104,6 +104,10 @@ const crawled = z.object({
         state: z.literal("found"),
         urls: z.array(crawlUrl).max(100),
         total: count,
+        /** Sitemap URLs that only nofollow links reach. Absent when none, and in a row from before it. */
+        nofollowOnly: z
+          .object({ urls: z.array(crawlUrl).max(100), total: count })
+          .optional(),
         /** A script may add a link to a listed page: not confirmed orphans. */
         candidates: z.boolean(),
       }),

@@ -96,13 +96,23 @@ const botCrawl = z.object({
         state: z.literal("found"),
         urls: z.array(z.string()),
         total: count,
+        /** Sitemap URLs that only nofollow links reach. */
+        nofollowOnly: z.array(z.string()).optional(),
+        nofollowOnlyTotal: count.optional(),
         candidates: z.literal(true).optional(),
       }),
       z.object({ state: z.literal("not determined"), reason: z.string() }),
     ])
     .transform((orphans) =>
       orphans.state === "found"
-        ? { ...orphans, total: atLeast(orphans.total, orphans.urls) }
+        ? {
+            ...orphans,
+            total: atLeast(orphans.total, orphans.urls),
+            nofollowOnlyTotal: atLeast(
+              orphans.nofollowOnlyTotal ?? 0,
+              orphans.nofollowOnly ?? [],
+            ),
+          }
         : orphans,
     )
     .optional(),
@@ -292,6 +302,13 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
             state: "found",
             urls: orphans.urls.filter(storableUrl),
             total: orphans.total,
+            // Google follows no nofollow link, so these pages are as hard to find as an orphan.
+            ...(orphans.nofollowOnlyTotal && {
+              nofollowOnly: {
+                urls: (orphans.nofollowOnly ?? []).filter(storableUrl),
+                total: orphans.nofollowOnlyTotal,
+              },
+            }),
             candidates: orphans.candidates === true,
           }
         : orphans

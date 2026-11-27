@@ -51786,6 +51786,28 @@ export const ProjectSeoSiteCrawlSchema = {
                                     type: 'integer',
                                     minimum: 0
                                 },
+                                nofollowOnly: {
+                                    type: 'object',
+                                    properties: {
+                                        urls: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 4096
+                                            },
+                                            maxItems: 100
+                                        },
+                                        total: {
+                                            type: 'integer',
+                                            minimum: 0
+                                        }
+                                    },
+                                    required: [
+                                        'urls',
+                                        'total'
+                                    ]
+                                },
                                 candidates: {
                                     type: 'boolean'
                                 }
