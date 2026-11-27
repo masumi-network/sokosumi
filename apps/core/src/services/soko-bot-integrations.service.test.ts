@@ -1540,6 +1540,24 @@ describe("ad toolkits stay off the Soko Bot", () => {
     expect(matched.map((entry) => entry.provider)).toEqual(["github"]);
   });
 
+  it("lists the fixed curated toolkits in an eval lane, never the live catalog or its cache", async () => {
+    const { runInEvalWorld } = await import("@/lib/evals/eval-world-context");
+    mocks.toolkitGet.mockClear();
+    const entries = await runInEvalWorld("ws-eval", () =>
+      searchSokoBotIntegrationCatalog("github"),
+    );
+    expect(mocks.toolkitGet).not.toHaveBeenCalled();
+    // The curated list, not the cached live entries above ("webhooks").
+    expect(entries.map((entry) => entry.provider)).toEqual(["github"]);
+    expect(
+      (
+        await runInEvalWorld("ws-eval", () =>
+          searchSokoBotIntegrationCatalog(""),
+        )
+      ).some((entry) => entry.provider === "webhooks"),
+    ).toBe(false);
+  });
+
   it("refuses to list an ad toolkit's tools", async () => {
     await expect(
       listIntegrationTools(googleAdsIntegration, { limit: 10 }),

@@ -17,6 +17,7 @@ import {
   snapshotChatRoomUnfurlImage,
 } from "@/lib/chat-unfurl-snapshot";
 import prisma from "@/lib/db/prisma";
+import { isEvalOrganizationNow } from "@/lib/evals/eval-guard";
 import { emitCoreWarning } from "@/lib/evlog";
 import type { ChatRoomMessageUnfurlCard } from "@/lib/open-graph-html";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
@@ -66,12 +67,18 @@ export async function scheduleChatRoomMessageUnfurls(
         deletedAt: true,
         editedAt: true,
         metadata: true,
+        room: { select: { organizationId: true } },
       },
     });
 
     if (!message || message.deletedAt != null) {
       return empty;
     }
+    // An eval lane's links are never fetched: its previews come from the
+    // eval world's fixed pages, the same every run.
+    const organizationId = message.room?.organizationId;
+    const evalLane =
+      !!organizationId && (await isEvalOrganizationNow(organizationId));
     roomId = message.roomId;
 
     const contentSnapshot = message.content;
@@ -102,7 +109,11 @@ export async function scheduleChatRoomMessageUnfurls(
       (url) => !removedBeforeScrape.includes(url),
     );
     const cards = await snapshotCardImages(
-      await scrapeUnfurlCards(urlsToScrape),
+      evalLane
+        ? (await import("@/services/evals/eval-web-world")).evalUnfurlCards(
+            urlsToScrape,
+          )
+        : await scrapeUnfurlCards(urlsToScrape),
       roomId,
       messageId,
     );

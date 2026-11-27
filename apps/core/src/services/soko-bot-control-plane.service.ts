@@ -93,7 +93,6 @@ import {
   recordCoreWarning,
   runAsBackgroundWork,
 } from "@/lib/evlog";
-import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   accountQuestionHint,
@@ -153,6 +152,12 @@ import {
   shouldPersistSokoBotRuntimeEvent,
 } from "@/lib/soko-bot/runtime-stream";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
+import {
+  finishStaleSchedule,
+  isTemporaryScheduleRefusal,
+  requireScheduledTurnProvenance,
+  scheduleTurnProvenance,
+} from "@/lib/soko-bot/schedule-resume";
 import {
   matchesReservedTurnMessage,
   PERSON_SCHEDULE_CAPABILITIES,
@@ -2378,6 +2383,7 @@ export class SokoBotControlPlane {
       },
     });
     if (duplicate) {
+      requireScheduledTurnProvenance(input, duplicate);
       if (
         !matchesReservedTurnMessage(duplicate, message, input.presetRoute) ||
         duplicate.workspaceId !== input.workspaceId ||
@@ -3003,9 +3009,11 @@ export class SokoBotControlPlane {
           previous: previousTurn,
           now: reservedAt,
         });
+        const stamp = await networkStamp(input.network, tx);
+        requireScheduledTurnProvenance(input, stamp);
         const created = await tx.sokoBotTurn.create({
           data: {
-            ...(await networkStamp(input.network, tx)),
+            ...stamp,
             sokoBotId: bot.id,
             requestedByUserId: input.userId,
             workspaceId: input.workspaceId,
@@ -3298,6 +3306,7 @@ export class SokoBotControlPlane {
           failed: classification.failed,
         });
     } catch (error) {
+      if (error instanceof DetachedNetworkRefusal) throw error;
       // Another request with this idempotency key may have committed between
       // the optimistic read and serializable acquisition. Return its durable
       // result instead of surfacing a false busy/conflict response.
@@ -3310,6 +3319,7 @@ export class SokoBotControlPlane {
         },
       });
       if (racedDuplicate) {
+        requireScheduledTurnProvenance(input, racedDuplicate);
         if (
           !matchesReservedTurnMessage(
             racedDuplicate,
@@ -5392,13 +5402,17 @@ export class SokoBotControlPlane {
       }
       let retry: SokoBotTurnStartResult;
       try {
+        const provenance = await scheduleTurnProvenance(scheduleRun.schedule);
+        if (scheduleRun.turn) {
+          requireScheduledTurnProvenance(provenance, scheduleRun.turn);
+        }
         const retryInput = await scheduleRetryInput(
           bot,
           scheduleRun,
           boundReplayTurnId,
         );
         retry = await this.startTurn({
-          network: DETACHED_SOKO_BOT_NETWORK,
+          ...provenance,
           userId: sokoBotScheduleActingUserId({
             requestedByUserId: scheduleRun.schedule.requestedByUserId,
             systemKey: scheduleRun.schedule.systemKey,
@@ -5443,6 +5457,13 @@ export class SokoBotControlPlane {
           },
         });
       } catch (error) {
+        if (isTemporaryScheduleRefusal(scheduleRun.schedule, error))
+          throw error;
+        if (error instanceof DetachedNetworkRefusal) {
+          await finishStaleSchedule(scheduleRun.schedule, scheduleRun);
+          await recordFailure(error);
+          throw error;
+        }
         let reservationKnown = false;
         try {
           reservationKnown = Boolean(
