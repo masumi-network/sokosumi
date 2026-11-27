@@ -146,22 +146,41 @@ export const REFERENCE_SCRIPTS: Record<string, ReferenceScript> = {
               fileId: latest<{ id: string }[]>(results, "files")[0]!.id,
             }),
           ],
+          // Two X accounts fit and "for Sokosumi" names neither exactly:
+          // the draft Core refuses opens its account question.
+          async (_results, { turnId }) => [
+            call("create_social_post", {
+              projectId: await projectId(turnId, "Sokosumi Marketing"),
+              text: X_POSTS_FROM_PDF[0]!,
+            }),
+          ],
+          () =>
+            "I've read the one-pager. Which X account should the three drafts go on?",
+        ],
+      },
+      {
+        match: "The Sokosumi one.",
+        route: { route: "MANAGE_WORK", writeScope: "SOCIAL" },
+        steps: [
+          async (_results, { turnId }) => [
+            call("list_project_social_accounts", {
+              projectId: await projectId(turnId, "Sokosumi Marketing"),
+            }),
+          ],
           async (results, { turnId }) => {
-            const account = latest<{ id: string; provider: string }[]>(
-              results,
-              "accounts",
-            ).find((each) => each.provider === "x")!;
             const project = await projectId(turnId, "Sokosumi Marketing");
+            const question = await openQuestion(turnId);
             return X_POSTS_FROM_PDF.map((text) =>
               call("create_social_post", {
                 projectId: project,
-                socialConnectionId: account.id,
+                socialConnectionId: xAccount(results),
+                accountQuestionId: question,
                 text,
               }),
             );
           },
           () =>
-            "Three X drafts for Sokosumi are ready for your approval: Monday, Wednesday and Friday next week.",
+            "Three X drafts for @sokosumi are ready for your approval: Monday, Wednesday and Friday next week.",
         ],
       },
     ],
