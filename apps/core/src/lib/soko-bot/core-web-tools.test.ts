@@ -29,7 +29,9 @@ const { turnFindUnique, isEvalWorkspace } = vi.hoisted(() => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: { sokoBotTurn: { findUnique: turnFindUnique } },
 }));
-vi.mock("@/lib/evals/eval-guard", () => ({ isEvalWorkspace }));
+vi.mock("@/lib/evals/eval-guard", () => ({
+  isEvalWorkspaceNow: isEvalWorkspace,
+}));
 vi.mock("./turn-loop", () => ({
   RuntimeEventLog: class {
     append = vi.fn();

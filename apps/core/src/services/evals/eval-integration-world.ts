@@ -125,32 +125,67 @@ function matchingMail(query: unknown) {
   });
 }
 
-/** Three events in the window asked for, at fixed times from its start. */
+/**
+ * The owner's week, fixed by weekday (UTC, Monday = 1): a meeting is on the
+ * same date and hour whatever window asks for it, so a meeting found in a
+ * week is also found when its exact hour is asked for.
+ */
+const WEEKLY_EVENTS = [
+  { id: "standup", summary: "Team stand-up", weekday: 1, hour: 8, hours: 1 },
+  {
+    id: "intro",
+    summary: "Intro call: Fjordline Capital",
+    weekday: 2,
+    hour: 13,
+    hours: 1,
+  },
+  {
+    id: "workshop",
+    summary: "Customer workshop: Brightdesk",
+    weekday: 3,
+    hour: 9,
+    hours: 3,
+  },
+] as const;
+
+/** Longest window answered, so a year's query stays a short page. */
+const CALENDAR_MAX_DAYS = 62;
+
+/** Every weekly event that overlaps [timeMin, timeMax), in start order. */
 function calendarEvents(args: Args) {
-  const from = new Date(
+  const timeMin = Date.parse(
     typeof args.timeMin === "string" ? args.timeMin : "2026-11-30T00:00:00Z",
   );
-  const day = (days: number, hour: number) => {
-    const at = new Date(from);
-    at.setUTCDate(at.getUTCDate() + days);
-    at.setUTCHours(hour, 0, 0, 0);
-    return at.toISOString();
-  };
-  return [
-    ["eval-event-1", "Team stand-up", 0, 8, 1],
-    ["eval-event-2", "Intro call: Fjordline Capital", 1, 13, 1],
-    ["eval-event-3", "Customer workshop: Brightdesk", 2, 9, 3],
-  ].map(([id, summary, days, hour, hours]) => ({
-    id,
-    summary,
-    start: { dateTime: day(days as number, hour as number) },
-    end: {
-      dateTime: day(days as number, (hour as number) + (hours as number)),
-    },
-    attendees: [
-      { email: "owner@padierfind.example", responseStatus: "accepted" },
-    ],
-  }));
+  const timeMax =
+    typeof args.timeMax === "string"
+      ? Date.parse(args.timeMax)
+      : timeMin + 7 * 86_400_000;
+  const day = new Date(timeMin);
+  // From the start of the day before, so an event already running counts.
+  day.setUTCHours(0, 0, 0, 0);
+  day.setUTCDate(day.getUTCDate() - 1);
+  const events = [];
+  for (let n = 0; n < CALENDAR_MAX_DAYS && day.getTime() < timeMax; n++) {
+    for (const event of WEEKLY_EVENTS) {
+      if (day.getUTCDay() !== event.weekday) continue;
+      const start = new Date(day);
+      start.setUTCHours(event.hour);
+      const end = new Date(start);
+      end.setUTCHours(event.hour + event.hours);
+      if (end.getTime() <= timeMin || start.getTime() >= timeMax) continue;
+      events.push({
+        id: `eval-event-${event.id}-${start.toISOString().slice(0, 10)}`,
+        summary: event.summary,
+        start: { dateTime: start.toISOString() },
+        end: { dateTime: end.toISOString() },
+        attendees: [
+          { email: "owner@padierfind.example", responseStatus: "accepted" },
+        ],
+      });
+    }
+    day.setUTCDate(day.getUTCDate() + 1);
+  }
+  return events;
 }
 
 const TOOLS: Record<string, readonly EvalTool[]> = {
@@ -199,24 +234,7 @@ const TOOLS: Record<string, readonly EvalTool[]> = {
       description: "Events on the primary calendar in a time window.",
       readOnly: true,
       // Only events that overlap the window asked for, as Google returns.
-      run: (args) => {
-        const timeMin =
-          typeof args.timeMin === "string"
-            ? Date.parse(args.timeMin)
-            : -Infinity;
-        const timeMax =
-          typeof args.timeMax === "string"
-            ? Date.parse(args.timeMax)
-            : Infinity;
-        return {
-          items: calendarEvents(args).filter(
-            (event) =>
-              Date.parse(event.end.dateTime) > timeMin &&
-              Date.parse(event.start.dateTime) < timeMax,
-          ),
-          nextPageToken: null,
-        };
-      },
+      run: (args) => ({ items: calendarEvents(args), nextPageToken: null }),
     },
     {
       slug: "GOOGLECALENDAR_CREATE_EVENT",

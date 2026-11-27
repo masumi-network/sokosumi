@@ -31,7 +31,7 @@ const { isEvalOrganizationMock } = vi.hoisted(() => ({
   isEvalOrganizationMock: vi.fn(async () => false),
 }));
 vi.mock("@/lib/evals/eval-guard", () => ({
-  isEvalOrganization: isEvalOrganizationMock,
+  isEvalOrganizationNow: isEvalOrganizationMock,
 }));
 
 vi.mock("@/lib/chat-unfurl-snapshot", () => ({
