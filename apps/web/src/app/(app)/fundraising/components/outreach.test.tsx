@@ -46,11 +46,11 @@ const paths = {
       linkedIn: false,
       through: {
         id: "connector-1",
-        name: "Lukas Link",
+        name: "Casey Connector",
         role: null,
         organization: "Fund",
         avatarUrl: null,
-        email: "lukas@example.com",
+        email: "casey@example.com",
       },
       company: { name: "Fund", round: null, date: null },
       strength: 60,
@@ -78,7 +78,7 @@ describe("Outreach", () => {
 
     expect(
       await screen.findByRole("option", {
-        name: "Ask Lukas Link for an intro",
+        name: "Ask Casey Connector for an intro",
       }),
     ).toBeTruthy();
   });
