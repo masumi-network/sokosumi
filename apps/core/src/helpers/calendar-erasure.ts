@@ -175,6 +175,28 @@ export interface CalendarErasureCleanup {
   taskFiles: Array<{ fileUrl: string | null; taskId: string }>;
 }
 
+export async function findForeignWorkspaceX402Charge(
+  tx: Prisma.TransactionClient,
+  workspaceId: string,
+  actorUserId: string,
+) {
+  for (const network of networksThatAreOn()) {
+    const [payment] = await tx.$queryRaw<
+      { id: string; taskId: string; chargedUserId: string }[]
+    >`
+      SELECT payment."id", payment."taskId", charge."userId" AS "chargedUserId"
+      FROM ${netTable(network, "task_x402_payment")} AS payment
+      JOIN ${sharedTable("task")} AS task ON task."id" = payment."taskId"
+      JOIN ${netTable(network, "Transaction")} AS charge ON charge."id" = payment."transactionId"
+      WHERE task."workspaceId" = ${workspaceId}::uuid
+        AND payment."status" = ANY(${SWEEPABLE_X402_STATUSES}::${netType(network, "TaskX402PaymentStatus")}[])
+        AND charge."userId" <> ${actorUserId}
+      LIMIT 1
+    `;
+    if (payment) return payment;
+  }
+}
+
 /** Run only after the erasure transaction commits. */
 export async function cleanupCalendarErasureResources(
   cleanup: CalendarErasureCleanup,

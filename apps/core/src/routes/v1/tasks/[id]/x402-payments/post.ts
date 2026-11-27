@@ -10,6 +10,7 @@ import {
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok, unprocessableWithData } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { paymentScope } from "@/middleware/network-scope";
 import {
   createTaskX402PaymentRequestSchema,
   taskX402PaymentSignedSchema,
@@ -124,7 +125,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       agentId: body.agentId,
       paymentRequired: body.paymentRequired,
       maxCredits: body.maxCredits,
-      networkScope: c.var.networkScope,
+      paymentScope: (payloadNetwork, billed, db) =>
+        paymentScope(c, { payloadNetwork, billed, db }),
     });
 
     if (result.outcome === "out_of_credits") {

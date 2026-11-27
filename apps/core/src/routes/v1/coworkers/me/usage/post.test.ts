@@ -34,6 +34,19 @@ const {
   waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
 
+/** Whether this test's deployment has Preprod on. */
+const preprod = vi.hoisted(() => ({ on: false }));
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({
+      ...actual.getEnv(),
+      NETWORK_PREPROD_ENABLED: preprod.on,
+    }),
+  };
+});
+
 const notifyLowBalanceAfterChargeMock = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("@/helpers/billing-notifications", () => ({
@@ -149,6 +162,97 @@ describe("POST /me/usage", () => {
     waitUntilCapturedPromises.length = 0;
     requireCoworkerCapabilityMock.mockResolvedValue(undefined);
     assertCoworkerUserContextBindingMock.mockResolvedValue(undefined);
+    preprod.on = false;
+  });
+
+  describe("usage that names Preprod", () => {
+    const flag = (preprodEnabled: boolean) =>
+      vi.fn().mockResolvedValue({ preprodEnabled });
+
+    function usageTransaction(access: {
+      user?: ReturnType<typeof vi.fn>;
+      organization?: ReturnType<typeof vi.fn>;
+    }) {
+      const tx = {
+        member: {
+          findUnique: vi.fn().mockResolvedValue({ userId: TARGET_USER_ID }),
+        },
+        coworkerUsage: {
+          findUnique: vi.fn().mockResolvedValue(null),
+          create: vi.fn().mockResolvedValue(createUsage()),
+        },
+        transaction: { create: vi.fn().mockResolvedValue({ id: "txn_123" }) },
+        user: { findUnique: access.user ?? vi.fn() },
+        organization: { findUnique: access.organization ?? vi.fn() },
+      };
+      mockTransaction(tx);
+      prepareConsumptionMock.mockResolvedValue([
+        { bucketId: "bucket_123", amount: 25000000000n },
+      ]);
+      return tx;
+    }
+
+    const post = (organizationId: string | null) =>
+      createApp().request("http://localhost/me/usage", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Sokosumi-Network": "preprod",
+        },
+        body: JSON.stringify({
+          idempotencyKey: "usage_456",
+          credits: 2.5,
+          userId: TARGET_USER_ID,
+          organizationId,
+        }),
+      });
+
+    it("is refused while Preprod is off, before any credit is read", async () => {
+      const tx = usageTransaction({});
+
+      const response = await post(null);
+
+      // This app has no error handler: the refusal's message is the body.
+      expect(response.status).toBe(403);
+      expect(await response.text()).toBe("Preprod is switched off");
+      expect(prepareConsumptionMock).not.toHaveBeenCalled();
+      expect(tx.transaction.create).not.toHaveBeenCalled();
+    });
+
+    it("is refused to a billed user without Preprod access, before any credit is read", async () => {
+      preprod.on = true;
+      const tx = usageTransaction({ user: flag(false) });
+
+      const response = await post(null);
+
+      expect(response.status).toBe(403);
+      expect(await response.text()).toBe(
+        "The billed workspace has no Preprod access",
+      );
+      expect(tx.user.findUnique).toHaveBeenCalledWith({
+        where: { id: TARGET_USER_ID },
+        select: { preprodEnabled: true },
+      });
+      expect(prepareConsumptionMock).not.toHaveBeenCalled();
+      expect(tx.transaction.create).not.toHaveBeenCalled();
+    });
+
+    it("spends Preprod's credits when the billed Organization has access, whatever its member's flag", async () => {
+      preprod.on = true;
+      const tx = usageTransaction({ organization: flag(true) });
+
+      const response = await post(ORGANIZATION_ID);
+
+      expect(response.status).toBe(201);
+      expect(tx.organization.findUnique).toHaveBeenCalledWith({
+        where: { id: ORGANIZATION_ID },
+        select: { preprodEnabled: true },
+      });
+      expect(tx.user.findUnique).not.toHaveBeenCalled();
+      expect(prepareConsumptionMock.mock.calls.map((call) => call[0])).toEqual([
+        "preprod",
+      ]);
+    });
   });
 
   afterEach(() => {

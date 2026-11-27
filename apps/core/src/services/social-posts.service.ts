@@ -668,37 +668,173 @@ async function cmoLinkTags(
   return (text) => tagOwnLinks(text, { siteUrl, source: provider, campaign });
 }
 
+/** Talking-video posts shared across networks intentionally carry the same copy and video. */
+function monthVideoGroup(planning: unknown): unknown {
+  const plan = planning as { id?: unknown; videoOf?: unknown } | null;
+  return plan?.videoOf ?? plan?.id ?? null;
+}
+
+function monthMediaReuseMessage(
+  item: Pick<SocialPostMediaRef, "name">,
+  holder: { id: string; text: string },
+): string {
+  return `Use another picture: "${item.name}" is already on post ${holder.id} ("${firstLine(holder.text)}"), and each post gets its own. Generate a new image with generate_image, attach an unused file from list_files, or omit media.`;
+}
+
+async function monthMediaReuseProblems(
+  client: Pick<Prisma.TransactionClient, "socialPost">,
+  post: { id: string; marketingStrategyId: string; planning?: unknown },
+  media: readonly SocialPostMediaRef[],
+): Promise<string[]> {
+  if (media.length === 0) return [];
+  const video = monthVideoGroup(post.planning);
+  const siblings = await client.socialPost.findMany({
+    where: {
+      marketingStrategyId: post.marketingStrategyId,
+      id: { not: post.id },
+      status: { not: "CANCELED" },
+    },
+    select: { id: true, text: true, media: true, planning: true },
+  });
+  const problems: string[] = [];
+  for (const item of media) {
+    // Only the shared talking video itself may be reused across videoOf siblings;
+    // still images must still be unique across every post of the month.
+    const candidates =
+      item.kind === "video" && video !== null
+        ? siblings.filter(
+            (sibling) => monthVideoGroup(sibling.planning) !== video,
+          )
+        : siblings;
+    const holder = candidates.find((sibling) =>
+      parseSocialPostMedia(sibling.media, sibling.id).some(
+        (other) => other.pathname === item.pathname,
+      ),
+    );
+    if (holder) problems.push(monthMediaReuseMessage(item, holder));
+  }
+  return [...new Set(problems)];
+}
+
 /**
  * A Soko Bot's post in a marketing month carries its own pictures (one
  * picture once went on three posts) and states its facts plainly.
  */
 async function requireOwnInMonth(
   tx: Prisma.TransactionClient,
-  post: { id: string; marketingStrategyId: string },
+  post: { id: string; marketingStrategyId: string; planning?: unknown },
   change: { text: string | null; media: readonly SocialPostMediaRef[] },
 ): Promise<void> {
-  const siblings = await tx.socialPost.findMany({
-    where: {
-      marketingStrategyId: post.marketingStrategyId,
-      id: { not: post.id },
-      status: { not: "CANCELED" },
-    },
-    select: { id: true, text: true, media: true },
-  });
-  for (const item of change.media) {
-    const holder = siblings.find((sibling) =>
-      parseSocialPostMedia(sibling.media, sibling.id).some(
-        (other) => other.pathname === item.pathname,
-      ),
-    );
-    if (holder)
-      throw badRequest(
-        `Use another picture: "${item.name}" is already on the post "${firstLine(holder.text)}", and each post gets its own.`,
-      );
-  }
+  const reuseProblems = await monthMediaReuseProblems(tx, post, change.media);
+  if (reuseProblems.length > 0) throw badRequest(reuseProblems.join("\n"));
   if (change.text === null) return;
   const caveats = stackedCaveatsProblem(change.text);
   if (caveats) throw badRequest(`Rewrite the post: it ${caveats}.`);
+}
+
+/**
+ * Read-only pre-transaction bot quality checks for `update_social_post`,
+ * combined with `ownMessageProblem` and `linkedInOpeningProblem` so a post
+ * with multiple issues (formatting, stacked caveats, reused picture, duplicate
+ * message, weak LinkedIn opening) is refused once with every problem named.
+ * Skips missing, uneditable, or stale-revision posts so 404/409 errors stay
+ * authoritative inside the transaction.
+ */
+export async function botSocialPostUpdateProblems(input: {
+  projectId: string;
+  postId: string;
+  workspaceId: string;
+  revision: number;
+  text?: string;
+  firstComment?: string | null;
+  linkInPost?: boolean;
+  socialConnectionId?: string | null;
+  quotedPostId?: string | null;
+  media?: readonly SocialPostMediaRef[];
+  threadParts?: readonly { text: string }[];
+}): Promise<string[]> {
+  const post = await prisma.socialPost.findFirst({
+    where: {
+      id: input.postId,
+      projectId: input.projectId,
+      workspaceId: input.workspaceId,
+    },
+    include: socialPostInclude,
+  });
+  if (!post) return [];
+  if (hasStartedThread(post)) return [];
+  const repairingDisabledPost = canRepairDisabledPost(post);
+  const repairingQuote =
+    post.status === "FAILED" &&
+    post.needsAttentionReason !== null &&
+    input.quotedPostId !== undefined;
+  if (
+    !EDITABLE_STATUSES.includes(post.status) &&
+    !repairingDisabledPost &&
+    !repairingQuote
+  )
+    return [];
+  if (post.revision !== input.revision) return [];
+  if (input.socialConnectionId === null && post.status === "SCHEDULED")
+    return [];
+
+  let providerRaw = post.provider;
+  if (input.socialConnectionId === null) {
+    providerRaw = "x";
+  } else if (input.socialConnectionId !== undefined) {
+    const connection = await prisma.projectSocialConnection.findFirst({
+      where: { id: input.socialConnectionId, projectId: input.projectId },
+      select: { provider: true },
+    });
+    if (!connection) return [];
+    providerRaw = connection.provider;
+  }
+  if (!isSocialPostProvider(providerRaw)) return [];
+
+  const problems: string[] = [];
+  const providerChanged = providerRaw !== post.provider;
+  if (
+    input.text !== undefined ||
+    input.firstComment !== undefined ||
+    input.threadParts !== undefined ||
+    providerChanged
+  ) {
+    const text = (input.text !== undefined ? input.text : post.text).trim();
+    const firstComment =
+      input.firstComment !== undefined
+        ? input.firstComment?.trim() || null
+        : post.firstComment;
+    const threadTexts = (input.threadParts ?? post.threadParts).map(
+      (part) => part.text,
+    );
+    const formatting = socialPostFormattingError(providerRaw, {
+      texts: [text, firstComment, ...threadTexts],
+      body: text,
+      firstComment,
+      linkInPost: input.linkInPost,
+    });
+    if (formatting) problems.push(formatting);
+  }
+  if (post.marketingStrategyId) {
+    if (input.text !== undefined) {
+      const caveats = stackedCaveatsProblem(input.text);
+      if (caveats) problems.push(`Rewrite the post: it ${caveats}.`);
+    }
+    if (input.media && input.media.length > 0) {
+      problems.push(
+        ...(await monthMediaReuseProblems(
+          prisma,
+          {
+            id: post.id,
+            marketingStrategyId: post.marketingStrategyId,
+            planning: post.planning,
+          },
+          input.media,
+        )),
+      );
+    }
+  }
+  return problems;
 }
 
 const batchStorage = new AsyncLocalStorage<ReadonlySet<string>>();
@@ -791,11 +927,7 @@ export async function ownMessageProblem(
   });
   if (!post?.marketingStrategyId) return { problem: null, costUsd: 0 };
   // A talking video's posts on several networks say the same thing on purpose.
-  const videoOf = (planning: unknown) => {
-    const plan = planning as { id?: unknown; videoOf?: unknown } | null;
-    return plan?.videoOf ?? plan?.id ?? null;
-  };
-  const video = videoOf(post.planning);
+  const video = monthVideoGroup(post.planning);
   const siblings = await prisma.socialPost.findMany({
     where: {
       marketingStrategyId: post.marketingStrategyId,
@@ -810,7 +942,7 @@ export async function ownMessageProblem(
     return (
       sibling.text !== planning?.brief &&
       sibling.text !== planning?.title &&
-      (video === null || videoOf(sibling.planning) !== video)
+      (video === null || monthVideoGroup(sibling.planning) !== video)
     );
   });
   const { repeats, costUsd } = await findRepeats(
@@ -1817,7 +1949,11 @@ export async function updateSocialPost(
   )
     await requireOwnInMonth(
       tx,
-      { id: post.id, marketingStrategyId: post.marketingStrategyId },
+      {
+        id: post.id,
+        marketingStrategyId: post.marketingStrategyId,
+        planning: post.planning,
+      },
       {
         text: input.text !== undefined ? text : null,
         media: input.media !== undefined ? media : [],

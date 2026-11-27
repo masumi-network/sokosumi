@@ -9,6 +9,7 @@ import {
 } from "@sokosumi/database";
 import { ACTIVE_SUBSCRIPTION_STATUSES } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
+import { netTable, netType } from "@sokosumi/database/sql-tables";
 import {
   finalizedAgentJobStatuses,
   finalizedOnChainJobStatuses,
@@ -21,7 +22,8 @@ import {
   findUnresolvedX402Payment,
 } from "@/helpers/user-deletion-network";
 import { isLastWorkspace } from "@/helpers/workspace-access";
-import type { NetworkScope } from "@/lib/db/network-scope";
+import { createNetworkScope, type NetworkScope } from "@/lib/db/network-scope";
+import { networksThatAreOn } from "@/lib/network";
 
 export const USER_DELETION_BLOCKER_CODES = [
   "RUNNING_SUBSCRIPTION",
@@ -194,9 +196,9 @@ async function hasRunningPaidSubscription(
 }
 
 /** The first row that `read` finds on one of the Networks, in their order. */
-async function onAnyNetwork<Row>(
-  scopes: readonly NetworkScope[],
-  read: (scope: NetworkScope) => Promise<Row | null | undefined>,
+async function onAnyNetwork<Scope, Row>(
+  scopes: readonly Scope[],
+  read: (scope: Scope) => Promise<Row | null | undefined>,
 ): Promise<Row | null> {
   for (const scope of scopes) {
     const row = await read(scope);
@@ -367,10 +369,84 @@ export async function evaluateUserDeletion(
  * Current Organization-deletion blockers for the acting owner. Empty means
  * the existing wipe may proceed. Order is throw-priority.
  */
-export async function evaluateOrganizationDeletion(
+export function evaluateOrganizationDeletion(
   organizationId: string,
   actorUserId: string,
   prisma: Prisma.TransactionClient,
+  scopes: readonly NetworkScope[] = networksThatAreOn().map(createNetworkScope),
+): Promise<OrganizationDeletionEvaluation> {
+  return evaluateOrganizationDeletionWithJobs(
+    organizationId,
+    actorUserId,
+    prisma,
+    {
+      inFlight: () =>
+        onAnyNetwork(scopes, ({ networkDb }) =>
+          networkDb.job.findFirst({
+            where: inFlightJobWhere({ organizationId }),
+            select: { id: true },
+          }),
+        ),
+      unsettled: () =>
+        onAnyNetwork(scopes, ({ networkDb }) =>
+          networkDb.job.findFirst({
+            where: unsettledOnChainJobWhere({ organizationId }),
+            select: { id: true },
+          }),
+        ),
+    },
+  );
+}
+
+/** The locked recheck uses the erasure transaction's connection on both sides. */
+export function evaluateLockedOrganizationDeletion(
+  organizationId: string,
+  actorUserId: string,
+  tx: Prisma.TransactionClient,
+): Promise<OrganizationDeletionEvaluation> {
+  const networks = networksThatAreOn();
+  return evaluateOrganizationDeletionWithJobs(organizationId, actorUserId, tx, {
+    inFlight: () =>
+      onAnyNetwork(networks, async (network) => {
+        const [job] = await tx.$queryRaw<{ id: string }[]>`
+      SELECT job."id" FROM ${netTable(network, "Job")} AS job
+      WHERE job."organizationId" = ${organizationId}
+        AND NOT EXISTS (
+          SELECT 1 FROM ${netTable(network, "jobEvent")} AS event
+          WHERE event."jobId" = job."id"
+            AND event."status" = ANY(${finalizedAgentJobStatuses}::${netType(network, "AgentJobStatus")}[])
+        )
+      LIMIT 1
+    `;
+        return job;
+      }),
+    unsettled: () =>
+      onAnyNetwork(networks, async (network) => {
+        const [job] = await tx.$queryRaw<{ id: string }[]>`
+      SELECT job."id" FROM ${netTable(network, "Job")} AS job
+      JOIN ${netTable(network, "jobPurchase")} AS purchase ON purchase."jobId" = job."id"
+      WHERE job."organizationId" = ${organizationId}
+        AND (
+          purchase."onChainStatus" IS NULL
+          OR purchase."onChainStatus" <> ALL(${finalizedOnChainJobStatuses}::${netType(network, "OnChainJobStatus")}[])
+        )
+      LIMIT 1
+    `;
+        return job;
+      }),
+  });
+}
+
+interface OrganizationJobReads {
+  inFlight(): Promise<{ id: string } | null>;
+  unsettled(): Promise<{ id: string } | null>;
+}
+
+async function evaluateOrganizationDeletionWithJobs(
+  organizationId: string,
+  actorUserId: string,
+  prisma: Prisma.TransactionClient,
+  jobs: OrganizationJobReads,
 ): Promise<OrganizationDeletionEvaluation> {
   const blockers: OrganizationDeletionBlocker[] = [];
   const idSelect = { id: true } as const;
@@ -395,14 +471,8 @@ export async function evaluateOrganizationDeletion(
     { type: "organization", organizationId },
     prisma,
   );
-  const inFlightJob = await prisma.job.findFirst({
-    where: inFlightJobWhere({ organizationId }),
-    select: idSelect,
-  });
-  const unsettledOnChainJob = await prisma.job.findFirst({
-    where: unsettledOnChainJobWhere({ organizationId }),
-    select: idSelect,
-  });
+  const inFlightJob = await jobs.inFlight();
+  const unsettledOnChainJob = await jobs.unsettled();
   const inFlightTask = await prisma.task.findFirst({
     where: inFlightTaskWhere({ organizationId }),
     select: idSelect,

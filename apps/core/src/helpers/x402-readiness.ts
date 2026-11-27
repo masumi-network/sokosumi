@@ -115,6 +115,14 @@ const X402_MAINNET_ALLOWED_CAIP2_NETWORKS: readonly string[] = [
   "eip155:8453",
 ];
 
+/** The Network an x402 chain belongs to: Base is Mainnet, Base Sepolia is Preprod. */
+export function x402ChainNetwork(caip2Network: string): Network | undefined {
+  const chain = caip2Network.trim().toLowerCase();
+  if (X402_MAINNET_ALLOWED_CAIP2_NETWORKS.includes(chain)) return "mainnet";
+  if (X402_TESTNET_ALLOWED_CAIP2_NETWORKS.includes(chain)) return "preprod";
+  return undefined;
+}
+
 /** Production curates x402 catalog entries; Preprod exposes all online ones. */
 export function requiresX402AgentCuration(
   network: "Preprod" | "Mainnet",
