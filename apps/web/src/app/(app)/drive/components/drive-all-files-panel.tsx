@@ -28,6 +28,10 @@ import {
   childFolders,
   DriveFolderNav,
 } from "@/app/drive/components/drive-folder-nav";
+import {
+  DriveFolderReadme,
+  findFolderReadme,
+} from "@/app/drive/components/drive-folder-readme";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import type { DriveShareItem } from "@/app/drive/components/drive-share-dialog";
 import { PageSearchField } from "@/components/page-search-field";
@@ -630,6 +634,8 @@ export function DriveAllFilesPanel({
   ];
 
   const browsing = request.browsing;
+  // The README of the folder being browsed: rows are its direct files then.
+  const folderReadme = browsing ? findFolderReadme(items) : null;
   const selectionCount = activeSelectedIds.length;
 
   return (
@@ -780,6 +786,23 @@ export function DriveAllFilesPanel({
           roomHint={t(
             store.scope === "org" ? "dataRoomAccessOrg" : "dataRoomAccess",
           )}
+        />
+      ) : null}
+
+      {browsing && folderReadme ? (
+        <DriveFolderReadme
+          key={folderReadme.id}
+          file={folderReadme}
+          store={store}
+          onOpen={() =>
+            setOpenFile({
+              id: folderReadme.id,
+              displayName: folderReadme.displayName,
+              mimeType: folderReadme.mimeType,
+              sizeBytes: folderReadme.sizeBytes,
+              pathname: folderReadme.pathname,
+            })
+          }
         />
       ) : null}
 

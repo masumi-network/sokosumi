@@ -88,7 +88,7 @@ export function rendersAsImage(type: string): boolean {
 }
 
 /** Text is read into the page, so it needs a ceiling of its own. */
-const MAX_TEXT_PREVIEW_BYTES = 512 * 1024;
+export const MAX_TEXT_PREVIEW_BYTES = 512 * 1024;
 
 export function contentUrl(input: {
   resourceId: string;

@@ -17,7 +17,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FileSearchPage, FileStore } from "@/lib/utils/file-search.client";
 
 const api = vi.hoisted(() => ({
@@ -829,5 +829,63 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
     expect(client.getQueryData(driveQueryKeys.folders(orgB))).toEqual([
       "OrgBFolder",
     ]);
+  });
+});
+
+describe("DriveAllFilesPanel folder README", () => {
+  beforeEach(() => {
+    for (const fn of Object.values(api)) {
+      fn.mockReset();
+    }
+    useSessionMock.mockReturnValue({
+      data: {
+        user: { id: "user_1" },
+        session: { activeOrganizationId: "org_a" },
+      },
+    });
+    api.fetchWorkspaceFolders.mockResolvedValue([]);
+    api.fetchWorkspaceLabels.mockResolvedValue([] as WorkspaceLabel[]);
+    api.fetchFileCollections.mockResolvedValue([] as FileCollection[]);
+    api.fetchFileSearchPage.mockResolvedValue({
+      items: [
+        makeFile("res_readme", "README.md", { mimeType: "text/markdown" }),
+        makeFile("res_plan", "plan.pdf"),
+      ],
+      search: makeMeta(),
+    } satisfies FileSearchPage);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("Signed contracts go in /signed.")),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("shows the browsed folder's README above its files", async () => {
+    renderPanel();
+
+    expect(
+      await screen.findByRole("region", { name: "readmeLabel" }),
+    ).toHaveTextContent("Signed contracts go in /signed.");
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/drive/files/res_readme/content?scope=org&organizationId=org_a",
+      expect.anything(),
+    );
+    // The file itself stays in the list.
+    expect(screen.getAllByText("README.md").length).toBeGreaterThan(1);
+  });
+
+  it("hides the README while searching the whole workspace", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByRole("region", { name: "readmeLabel" });
+
+    await user.type(screen.getByRole("searchbox"), "plan");
+
+    await waitFor(() =>
+      expect(screen.queryByRole("region", { name: "readmeLabel" })).toBeNull(),
+    );
   });
 });
