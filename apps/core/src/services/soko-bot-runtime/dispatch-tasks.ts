@@ -4,6 +4,7 @@ import { createAgentClient } from "@sokosumi/masumi";
 import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import {
   sokoBotAgentIdInputSchema as agentIdInputSchema,
+  getSokoBotVersion,
   sokoBotJobIdInputSchema as jobIdInputSchema,
   sokoBotProvideJobInputSchema as provideJobInputSchema,
   sokoBotReplyToTaskInputSchema as replyToTaskInputSchema,
@@ -14,7 +15,10 @@ import {
 import { getEnv } from "@/config/env";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import { digestJob } from "@/helpers/job-digest";
-import { buildSokoBotReaderJobWhere } from "@/helpers/task-visibility";
+import {
+  buildSokoBotReaderJobWhere,
+  buildSokoBotReaderTaskWhere,
+} from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { parseHireAgentInput } from "@/lib/soko-bot/decision-proposal";
 import { unattendedChaseRefusal } from "@/lib/soko-bot/unattended-comment";
@@ -97,6 +101,18 @@ export async function dispatchTasksTools(
         turn: authorized.turn,
         comment: reply.comment,
         shared: !!authorized.reader.sharedScope,
+        declined: getSokoBotVersion(authorized.turn.versionId).declineOptions
+          ? async () =>
+              (
+                await prisma.task.findFirst({
+                  where: {
+                    id: reply.taskId,
+                    ...buildSokoBotReaderTaskWhere(authorized.reader),
+                  },
+                  select: { status: true },
+                })
+              )?.status === "FAILED"
+          : undefined,
       });
       if (chaseRefusal) throw new SokoBotRuntimeValidationError(chaseRefusal);
       const replied = await runtime.replyToTask(
