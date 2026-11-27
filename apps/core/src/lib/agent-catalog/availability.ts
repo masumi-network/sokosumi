@@ -30,7 +30,7 @@ function deploymentRail() {
   return getEnv().NETWORK;
 }
 
-const readRates = (rates: NetworkDb["creditCost"]) => rates.findMany();
+export const readRates = (rates: NetworkDb["creditCost"]) => rates.findMany();
 
 /**
  * Retrieves credit costs used for agent availability and pricing checks.

@@ -1,6 +1,7 @@
+import { searchForBot } from "@/lib/agent-catalog/bot";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import {
   agentWordScore,
-  listHireableAgents,
   MAX_RATED_AGENTS,
   MIN_AGENT_FIT,
   queryWords,
@@ -11,8 +12,11 @@ import {
 export const CLOSEST_AGENTS = 3;
 
 /** Hireable Agents best suited to `query`, with prices and a fit rating. */
-export async function findHireableAgents(query: string | undefined) {
-  const { agents: rows } = await listHireableAgents(500);
+export async function findHireableAgents(
+  scope: NetworkScope,
+  query: string | undefined,
+) {
+  const { agents: rows } = await searchForBot(scope, 500);
   const words = query ? queryWords(query) : [];
   const matched = rows
     .map((row) => ({ row, score: agentWordScore(words, row) }))
