@@ -94,6 +94,14 @@ export interface TurnLoopPlan {
   openSteps: () => Promise<string | null>;
   /** Tools whose completed call Core records as a change (a receipt). */
   changeTools: ReadonlySet<string>;
+  /**
+   * Additional tools whose completed call activates `doneCheck` even when the
+   * turn never called `update_plan` (e.g. `write_strategy` / `save_strategy`
+   * when `cmoApplyChanges` is enabled).
+   */
+  triggerTools?: ReadonlySet<string>;
+  /** Keep the latest plan whole during history compaction (defaults to true). */
+  keepLatestPlan?: boolean;
 }
 
 const PLAN_ANSWER_TIMEOUT_MS = 10_000;
@@ -222,7 +230,10 @@ export async function runTurnLoop(
         }),
       )
     : input.tools;
-  const historyOptions = { keepLatestPlan: input.plan !== undefined };
+  const historyOptions = {
+    keepLatestPlan:
+      input.plan !== undefined && input.plan.keepLatestPlan !== false,
+  };
   const compact = (history: readonly ModelMessage[]) =>
     compactHistory(history, undefined, historyOptions);
   let doneChecked = false;
@@ -302,9 +313,14 @@ export async function runTurnLoop(
     if (
       input.plan &&
       !activePlan &&
-      // Only a plan Core accepted: a refused write is a tool error.
+      // Only a plan Core accepted (or a configured done-check trigger tool):
+      // a refused write is a tool error.
       result.steps.some((step) =>
-        step.toolResults.some((call) => call.toolName === "update_plan"),
+        step.toolResults.some((call) =>
+          input.plan?.triggerTools
+            ? input.plan.triggerTools.has(call.toolName)
+            : call.toolName === "update_plan",
+        ),
       )
     )
       activePlan = input.plan;

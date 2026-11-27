@@ -3,7 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { STUDIO_JOB_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
 import { parseActionNarrativeText } from "@/lib/soko-bot/action-response";
-import { isOwnerRequest } from "@/lib/soko-bot/owner-request";
+import { isOwnerRequest, ownerAskedIn } from "@/lib/soko-bot/owner-request";
 import {
   type ChainPlan,
   type PlanStep,
@@ -20,6 +20,30 @@ import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
 
 /** Recorded before the one bounce, so a restarted runner never bounces again. */
 export const DONE_CHECK_BOUNCED_EVENT = "done_check.bounced";
+
+/** Recorded before the one CMO unapplied-strategy-change bounce on a turn. */
+export const CMO_UPCOMING_POSTS_BOUNCED_EVENT =
+  "done_check.cmo_upcoming_posts_bounced";
+
+/** Tools that activate the done check on CMO turns with `cmoApplyChanges`. */
+export const CMO_APPLY_CHANGE_TRIGGER_TOOLS: ReadonlySet<string> = new Set([
+  "write_strategy",
+  "save_strategy",
+]);
+
+const CMO_SOCIAL_POST_MUTATION_CAPABILITIES = [
+  "create_social_post",
+  "update_social_post",
+  "update_social_posts",
+  "schedule_social_post",
+  "cancel_social_post",
+] as const;
+
+const CMO_UPCOMING_UNPUBLISHED_STATUSES = [
+  "DRAFT",
+  "NEEDS_APPROVAL",
+  "SCHEDULED",
+] as const;
 
 const ACTIVE_RUN_STATUSES = ["QUEUED", "STARTING", "RUNNING"] as const;
 
@@ -65,6 +89,11 @@ const OWNER_TURN = {
   askedByUserId: true,
   requestedByUserId: true,
   parentTurnId: true,
+  sokoBot: {
+    select: {
+      projectId: true,
+    },
+  },
   parentTurn: {
     select: {
       source: true,
@@ -427,46 +456,170 @@ async function ownerBlocker(turnId: string): Promise<boolean> {
 }
 
 /**
- * The done check (planLoop): a foreground owner turn about to answer while
- * its plan still lists steps to do is sent back once to do them or to mark
- * them blocked or skipped. A turn that waits on the owner is asked to mark
- * what needs their answer blocked and to do the rest, so a question about
- * one step does not leave the others undone. Null lets the answer through:
- * no plan, nothing open, the request waits on others, or it already bounced.
+ * CMO `cmoApplyChanges` check: on a foreground chat turn where Cuso saved a
+ * new unapproved strategy version for a project that already has an approved
+ * running month and upcoming unpublished posts, bounce once if no upcoming
+ * posts have been updated yet (and nothing is in flight or blocked).
+ */
+async function checkCmoUnappliedStrategyChange(input: {
+  turn: {
+    sokoBotId: string;
+    source: string | null;
+    chainDepth: number;
+    askedByUserId: string | null;
+    requestedByUserId: string | null;
+    parentTurnId: string | null;
+    sokoBot?: { projectId: string | null } | null;
+  };
+  turnId: string;
+  sessionId: string;
+}): Promise<string | null> {
+  const projectId = input.turn.sokoBot?.projectId ?? null;
+  if (
+    !projectId ||
+    input.turn.source !== "CHAT" ||
+    input.turn.parentTurnId !== null ||
+    !ownerAskedIn(input.turn)
+  ) {
+    return null;
+  }
+  const requestId = await resolveRequestId(input.turnId);
+  const turnIds = await requestTurnIds(
+    input.turn.sokoBotId,
+    requestId,
+    input.turnId,
+  );
+  const [pending, approved] = await Promise.all([
+    prisma.marketingStrategy.findFirst({
+      where: {
+        projectId,
+        authorTurnId: { in: turnIds },
+        approvedAt: null,
+      },
+      select: { id: true },
+    }),
+    prisma.marketingStrategy.findFirst({
+      where: {
+        projectId,
+        approvedAt: { not: null },
+      },
+      select: { id: true },
+    }),
+  ]);
+  if (!pending || !approved) return null;
+
+  const [waiting, blocked, postWrite, upcomingCount] = await Promise.all([
+    waitingOnOthers(input.turnId, turnIds),
+    ownerBlocker(input.turnId),
+    prisma.sokoBotToolCall.findFirst({
+      where: {
+        turnId: { in: turnIds },
+        status: "COMPLETED",
+        capability: { in: [...CMO_SOCIAL_POST_MUTATION_CAPABILITIES] },
+        OR: [{ disposition: null }, { disposition: { not: "REJECTED" } }],
+      },
+      select: { id: true },
+    }),
+    prisma.socialPost.count({
+      where: {
+        projectId,
+        canceledAt: null,
+        publishedAt: null,
+        status: { in: [...CMO_UPCOMING_UNPUBLISHED_STATUSES] },
+      },
+    }),
+  ]);
+  if (waiting || blocked || postWrite || upcomingCount === 0) return null;
+
+  const claimed = await new RuntimeEventLog(
+    input.turnId,
+    input.sessionId,
+  ).appendUnless(
+    runtimeEvent(CMO_UPCOMING_POSTS_BOUNCED_EVENT, {
+      projectId,
+      strategyVersionId: pending.id,
+      upcomingCount,
+    }),
+    [CMO_UPCOMING_POSTS_BOUNCED_EVENT],
+  );
+  if (!claimed) return null;
+
+  const postWord = upcomingCount === 1 ? "post" : "posts";
+  return `This turn saved a new unapproved strategy version, so none of the running month's posts changed yet, and this project currently has ${upcomingCount} upcoming unpublished social ${postWord}. Before finishing, inspect the upcoming posts with list_social_posts and apply the requested change to every affected post (update_social_post, update_social_posts, create_social_post, schedule_social_post, or cancel_social_post), then report what actually changed from receipts. If none of the upcoming posts are affected, confirm that from the live list and state plainly that the new strategy version still waits for approval.`;
+}
+
+/**
+ * The done check (planLoop + optional CMO `cmoApplyChanges`): a foreground
+ * owner turn about to answer while its plan still lists steps to do is sent
+ * back once to do them or to mark them blocked or skipped. A turn that waits
+ * on the owner is asked to mark what needs their answer blocked and to do the
+ * rest, so a question about one step does not leave the others undone. When
+ * `cmoApplyChanges` is enabled on a CMO version and no plan step bounced, Core
+ * also checks whether an unapproved strategy save left upcoming posts on an
+ * approved running month untouched.
  */
 export async function evaluateTurnDoneCheck(input: {
   turnId: string;
   sessionId: string;
   draft: string;
 }): Promise<string | null> {
-  const found = await turnPlan(input.turnId);
-  if (!found || !(await ownerRequest(input.turnId, found))) return null;
-  if (!openSteps(found.plan).length) return null;
-  const turnIds = await requestTurnIds(
-    found.turn.sokoBotId,
-    found.requestId,
-    input.turnId,
-  );
-  const open = openSteps(found.plan);
-  const working = open.some((step) => step.status === "in_progress");
-  if (!working && (await waitingOnOthers(input.turnId, turnIds))) return null;
-  const onOwner = asksOwner(input.draft) || (await ownerBlocker(input.turnId));
-  // Waiting on the owner with one step left: the answer is what that step
-  // needs, so the question goes to them now. With more, the rest may not.
-  if (onOwner && open.length === 1) return null;
-  const saves = await savesSince(found, turnIds);
-  const claimed = await new RuntimeEventLog(
-    input.turnId,
-    input.sessionId,
-  ).appendUnless(
-    runtimeEvent(DONE_CHECK_BOUNCED_EVENT, {
-      openSteps: open.map((step) => step.id),
-    }),
-    [DONE_CHECK_BOUNCED_EVENT],
-  );
-  if (!claimed) return null;
-  const known = savedNote(saves, found.plan.revision);
-  if (onOwner)
-    return `You are waiting on the owner, and your plan still lists open steps:\n${stepList(open, saves)}\n${known}Call update_plan (revision ${found.plan.revision}) and mark each step that needs their answer blocked, with blockedOn owner and the question as its reason. Do the steps that do not need it now. Then reply, asking your question again.`;
-  return `Your plan still lists open steps:\n${stepList(open, saves)}\n${known}Do what you can of the rest now. A step that waits on someone: call update_plan (revision ${found.plan.revision}) and mark it blocked, with blockedOn and a reason; one no longer needed: skipped, with a reason. Then reply.`;
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: input.turnId },
+    select: OWNER_TURN,
+  });
+  if (!turn) return null;
+  const version = await resolveSokoBotVersion(turn.versionId);
+
+  if (version.planLoop) {
+    const requestId = await resolveRequestId(input.turnId);
+    const plan = await readRequestPlan(turn.sokoBotId, requestId);
+    const found = plan ? { turn, requestId, plan } : null;
+    if (
+      found &&
+      (await ownerRequest(input.turnId, found)) &&
+      openSteps(found.plan).length
+    ) {
+      const turnIds = await requestTurnIds(
+        found.turn.sokoBotId,
+        found.requestId,
+        input.turnId,
+      );
+      const open = openSteps(found.plan);
+      const working = open.some((step) => step.status === "in_progress");
+      if (working || !(await waitingOnOthers(input.turnId, turnIds))) {
+        const onOwner =
+          asksOwner(input.draft) || (await ownerBlocker(input.turnId));
+        // Waiting on the owner with one step left: the answer is what that step
+        // needs, so the question goes to them now. With more, the rest may not.
+        if (!(onOwner && open.length === 1)) {
+          const saves = await savesSince(found, turnIds);
+          const claimed = await new RuntimeEventLog(
+            input.turnId,
+            input.sessionId,
+          ).appendUnless(
+            runtimeEvent(DONE_CHECK_BOUNCED_EVENT, {
+              openSteps: open.map((step) => step.id),
+            }),
+            [DONE_CHECK_BOUNCED_EVENT],
+          );
+          if (claimed) {
+            const known = savedNote(saves, found.plan.revision);
+            if (onOwner)
+              return `You are waiting on the owner, and your plan still lists open steps:\n${stepList(open, saves)}\n${known}Call update_plan (revision ${found.plan.revision}) and mark each step that needs their answer blocked, with blockedOn owner and the question as its reason. Do the steps that do not need it now. Then reply, asking your question again.`;
+            return `Your plan still lists open steps:\n${stepList(open, saves)}\n${known}Do what you can of the rest now. A step that waits on someone: call update_plan (revision ${found.plan.revision}) and mark it blocked, with blockedOn and a reason; one no longer needed: skipped, with a reason. Then reply.`;
+          }
+        }
+      }
+    }
+  }
+
+  if (version.cmoApplyChanges && version.profile === "cmo") {
+    return checkCmoUnappliedStrategyChange({
+      turn,
+      turnId: input.turnId,
+      sessionId: input.sessionId,
+    });
+  }
+
+  return null;
 }
