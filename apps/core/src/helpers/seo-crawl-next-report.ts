@@ -16,6 +16,8 @@ const MAX_REASON = 2000;
 /** The rulebook of a continuation that audited no page: its crawl checks have no rulebook version. */
 const CRAWL_ONLY_RULEBOOK = "crawl";
 const UNREADABLE_PAGE = "Sokosumi could not read the page's audit report";
+const UNCHECKED_PAGE =
+  "The page's audit found no issue, but its checks could not all read the page";
 
 const crawlNextReport = z.object({
   kind: z.literal("crawl_next"),
@@ -65,19 +67,30 @@ export function parseCrawlNextArtifact(
       "The crawl continuation does not match its supported format",
     );
   const report = parsed.data;
-  const audited = report.pages.map((page) => {
-    try {
-      const payload = parsePage(page.report);
-      // One page's audit, of the page it is listed for: else its findings would show under another URL.
-      return payload.kind === "audit_full" &&
-        payload.pageUrls.length === 1 &&
-        auditedSeoPageKey(payload.pageUrls[0]!) === auditedSeoPageKey(page.url)
-        ? { page, payload }
-        : { page };
-    } catch {
-      return { page };
-    }
-  });
+  const audited = report.pages.map(
+    (
+      page,
+    ): { page: typeof page; payload?: PublicSeoPayload; reason?: string } => {
+      try {
+        const payload = parsePage(page.report);
+        // One page's audit, of the page it is listed for: else its findings would show under another URL.
+        if (
+          payload.kind !== "audit_full" ||
+          payload.pageUrls.length !== 1 ||
+          auditedSeoPageKey(payload.pageUrls[0]!) !==
+            auditedSeoPageKey(page.url)
+        )
+          return { page };
+        // No finding from checks that did not all read the page is no "No issues".
+        const { checked, failed } = payload.coverage;
+        if (!payload.findings.length && (failed > 0 || checked === 0))
+          return { page, reason: UNCHECKED_PAGE };
+        return { page, payload };
+      } catch {
+        return { page };
+      }
+    },
+  );
   const deepAudit: SeoCrawlDeepAudit = {
     pages: audited.flatMap(({ page, payload }) => {
       if (!payload || !storable(page)) return [];
@@ -101,8 +114,8 @@ export function parseCrawlNextArtifact(
         url: page.url,
         reason: cut(page.reason),
       })),
-      ...audited.flatMap(({ page, payload }) =>
-        payload ? [] : [{ url: page.url, reason: UNREADABLE_PAGE }],
+      ...audited.flatMap(({ page, payload, reason }) =>
+        payload ? [] : [{ url: page.url, reason: reason ?? UNREADABLE_PAGE }],
       ),
     ]
       .filter(storable)

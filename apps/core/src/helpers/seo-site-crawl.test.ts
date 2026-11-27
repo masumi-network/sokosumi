@@ -703,6 +703,44 @@ describe("imported crawl continuation", () => {
     );
   });
 
+  it("says a page with no finding is not audited when its checks could not all read it", () => {
+    const report = crawlNextReport();
+    const audit = report.pages[0]!;
+    const page = audit.report as ReturnType<typeof legacyReport>;
+    const withChecklist = (...results: string[]) => {
+      report.pages = [
+        {
+          ...audit,
+          report: {
+            ...page,
+            findings: [],
+            checklist: results.map((result, i) => ({
+              row: `row-${i}`,
+              device: "desktop",
+              result,
+            })),
+          },
+        },
+      ];
+      const crawl = parsePublicSeoArtifact(report).siteCrawl;
+      if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+      return crawl.deepAudit!;
+    };
+    // A blocked check, or no check that read the page at all.
+    for (const results of [["pass", "blocked"], ["not checked"]]) {
+      const deepAudit = withChecklist(...results);
+      expect(deepAudit.pages).toEqual([]);
+      expect(deepAudit.skipped).toContainEqual({
+        url: audit.url,
+        reason: expect.stringContaining("could not all read the page"),
+      });
+    }
+    // Every check read the page: no finding is "No issues".
+    expect(withChecklist("pass").pages).toEqual([
+      expect.objectContaining({ url: audit.url, findingsTotal: 0 }),
+    ]);
+  });
+
   it("keeps the crawl when a deep-audit entry has a URL Sokosumi cannot store", () => {
     const report = crawlNextReport();
     report.head.skipped.push(
