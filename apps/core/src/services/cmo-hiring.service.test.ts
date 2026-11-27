@@ -5,8 +5,9 @@ import {
 } from "@sokosumi/soko-bot";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { unpaidCuso, testCopy } = vi.hoisted(() => ({
+const { unpaidCuso, testCopy, failedHireCleanup } = vi.hoisted(() => ({
   unpaidCuso: vi.fn(),
+  failedHireCleanup: vi.fn(),
   testCopy: {
     requireSource: vi.fn(),
     link: vi.fn(),
@@ -41,7 +42,6 @@ import {
   organizationFindFirst,
   organizationUpdate,
   projectCreate,
-  projectDelete,
   resetCmoServiceMocks,
   sokoBotFindUnique,
   sokoBotUpdateMany,
@@ -53,6 +53,15 @@ import {
 
 // PostgreSQL's clock: the test clock, or the time a test sets.
 const pgClock = vi.hoisted(() => ({ now: null as Date | null }));
+vi.mock(
+  "@/helpers/soko-bot-deletion-crossing-rules",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/helpers/soko-bot-deletion-crossing-rules")
+    >()),
+    deleteFailedHireProject: failedHireCleanup,
+  }),
+);
 vi.mock("@/lib/db/database-now", () => ({
   databaseNow: async () => pgClock.now ?? new Date(),
 }));
@@ -596,7 +605,7 @@ describe("startCmoOnboarding", () => {
       organizationId: "org-team",
     });
     projectCreate.mockResolvedValue({ id: "project-1" });
-    projectDelete.mockResolvedValue({ id: "project-1" });
+    failedHireCleanup.mockResolvedValue({});
     createBot.mockResolvedValue({ id: "bot-1" });
     startTurn.mockResolvedValue({ turnId: "turn-1" });
     // The hirer is seated and has no unpaid Cuso unless a test says otherwise.
@@ -891,7 +900,10 @@ describe("startCmoOnboarding", () => {
     await expect(startCmoOnboarding(input)).rejects.toThrow(
       "Could not create Cuso",
     );
-    expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
+    expect(failedHireCleanup).toHaveBeenCalledWith(
+      expect.anything(),
+      "project-1",
+    );
   });
 
   it("hires another Cuso for a person who already works with one", async () => {
@@ -995,7 +1007,10 @@ describe("startCmoOnboarding", () => {
     createBot.mockRejectedValue(new Error("bot failed"));
 
     await expect(startCmoOnboarding(input)).rejects.toThrow("bot failed");
-    expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
+    expect(failedHireCleanup).toHaveBeenCalledWith(
+      expect.anything(),
+      "project-1",
+    );
     expect(startTurn).not.toHaveBeenCalled();
   });
 
@@ -1009,8 +1024,11 @@ describe("startCmoOnboarding", () => {
     await expect(startCmoOnboarding(input)).rejects.toMatchObject({
       status: 409,
     });
-    expect(projectDelete).toHaveBeenCalledTimes(1);
-    expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
+    expect(failedHireCleanup).toHaveBeenCalledTimes(1);
+    expect(failedHireCleanup).toHaveBeenCalledWith(
+      expect.anything(),
+      "project-1",
+    );
   });
 
   it("removes his shared room with the Project when reading him back fails", async () => {
@@ -1021,7 +1039,10 @@ describe("startCmoOnboarding", () => {
 
     await expect(startCmoOnboarding(input)).rejects.toThrow("read failed");
     expect(chatRoomDelete).toHaveBeenCalledWith({ where: { id: "room-1" } });
-    expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
+    expect(failedHireCleanup).toHaveBeenCalledWith(
+      expect.anything(),
+      "project-1",
+    );
     expect(startTurn).not.toHaveBeenCalled();
   });
 });
