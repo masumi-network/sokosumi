@@ -362,6 +362,31 @@ describe("imported site crawl", () => {
     });
   });
 
+  it("names no page by a URL the bot cut, and keeps it in the total", () => {
+    const cutUrl = { url: `${SITE}/docs`, urlCut: true };
+    const raw = botCrawl();
+    raw.pageChecks.missingH1.pages.push(cutUrl);
+    raw.pageChecks.duplicateTitles.groups[0]!.pages.push(cutUrl);
+    raw.pageChecks.canonicals.otherHost.pages.push({
+      ...cutUrl,
+      canonical: "https://other.test/docs",
+    });
+    const crawl = stored(siteReport({ crawl: raw }));
+    if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+    expect(crawl.pageChecks?.missingH1).toEqual({
+      urls: [`${SITE}/docs/faq`],
+      total: 4,
+    });
+    expect(crawl.pageChecks?.duplicateTitles.groups[0]?.urls).toEqual([
+      `${SITE}/pricing`,
+      `${SITE}/pricing/a`,
+    ]);
+    expect(crawl.pageChecks?.badCanonicals.pages.map((row) => row.url)).toEqual(
+      [`${SITE}/a`, `${SITE}/b`],
+    );
+    expect(crawl.pageChecks?.badCanonicals.total).toBe(3);
+  });
+
   it("counts at least the examples a check lists, so a total too low clears no check", () => {
     const raw = botCrawl();
     raw.links.brokenTotal = 0;

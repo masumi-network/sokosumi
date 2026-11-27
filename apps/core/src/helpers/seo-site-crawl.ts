@@ -33,7 +33,10 @@ const count = z.number().int().nonnegative();
 /** A total of the bot, at least its own examples: a lower total would show a found check as clear. */
 const atLeast = (total: number, examples: readonly unknown[]) =>
   Math.max(total, examples.length);
-const page = z.object({ url: z.string() });
+/** urlCut: the bot cut a longer URL, so `url` may name another page. */
+const page = z.object({ url: z.string(), urlCut: z.literal(true).optional() });
+/** A page a list can name. An example it cannot name stays in the list's total. */
+const named = (p: z.infer<typeof page>) => !p.urlCut && storableUrl(p.url);
 const pageList = <T extends z.ZodRawShape>(more: T) =>
   z
     .object({ pages: z.array(page.extend(more)), total: count })
@@ -176,8 +179,8 @@ function readGaps(list: unknown, prefix: string) {
     },
   ];
 }
-const urls = (list: { pages: { url: string }[]; total: number }) => ({
-  urls: list.pages.map((p) => p.url).filter(storableUrl),
+const urls = (list: { pages: z.infer<typeof page>[]; total: number }) => ({
+  urls: list.pages.filter(named).map((p) => p.url),
   total: list.total,
 });
 
@@ -203,8 +206,7 @@ function badCanonicals(c: BotCanonicals["canonicals"], noHead: number) {
     pages: Object.entries(lists).flatMap(([kind, list]) =>
       list.pages.flatMap((p) => {
         const canonical = "canonical" in p ? p.canonical : null;
-        return storableUrl(p.url) &&
-          (canonical === null || storableUrl(canonical))
+        return named(p) && (canonical === null || storableUrl(canonical))
           ? [
               {
                 kind,
@@ -304,7 +306,7 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
             groups: pageChecks.duplicateTitles.groups.map((group) => ({
               text: cut(group.text),
               size: group.size,
-              urls: group.pages.map((p) => p.url).filter(storableUrl),
+              urls: group.pages.filter(named).map((p) => p.url),
             })),
             total: pageChecks.duplicateTitles.groupsTotal,
             notDetermined: pageChecks.duplicatesNotDetermined ?? 0,
