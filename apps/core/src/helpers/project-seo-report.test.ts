@@ -138,6 +138,14 @@ describe("public SEO report trust boundary", () => {
       { ...raw.actions[0], n: 4 },
       // A checked draft that also carries a held-back reason reads as held back.
       { ...raw.actions[0], n: 5, bodyDraft: { ...drafted, heldBack: "No." } },
+      // These are dropped: an empty reason never makes the draft checked, nor do a repeated device or blank text.
+      { ...raw.actions[0], n: 6, bodyDraft: { ...drafted, heldBack: "" } },
+      {
+        ...raw.actions[0],
+        n: 7,
+        bodyDraft: { ...drafted, devices: ["mobile", "mobile"] },
+      },
+      { ...raw.actions[0], n: 8, bodyDraft: { ...drafted, after: " \n" } },
     ] as typeof raw.actions;
     const drafts = (payload: { actions: { bodyDraft?: unknown }[] }) =>
       payload.actions.map((row) => row.bodyDraft);
@@ -147,6 +155,9 @@ describe("public SEO report trust boundary", () => {
       undefined,
       undefined,
       { target: "opening", devices: drafted.devices, heldBack: "No." },
+      undefined,
+      undefined,
+      undefined,
     ];
     const page = parsePublicSeoArtifact(raw);
     expect(drafts(page)).toEqual(expected);

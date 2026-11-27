@@ -52414,7 +52414,8 @@ export const ProjectSeoBodyDraftSchema = {
                 heldBack: {
                     type: 'string',
                     minLength: 1,
-                    maxLength: 20000
+                    maxLength: 20000,
+                    pattern: '\\S'
                 }
             },
             required: [
@@ -52446,12 +52447,14 @@ export const ProjectSeoBodyDraftSchema = {
                 before: {
                     type: 'string',
                     minLength: 1,
-                    maxLength: 20000
+                    maxLength: 20000,
+                    pattern: '\\S'
                 },
                 after: {
                     type: 'string',
                     minLength: 1,
-                    maxLength: 20000
+                    maxLength: 20000,
+                    pattern: '\\S'
                 }
             },
             required: [
@@ -52459,7 +52462,8 @@ export const ProjectSeoBodyDraftSchema = {
                 'devices',
                 'before',
                 'after'
-            ]
+            ],
+            additionalProperties: false
         }
     ]
 } as const;

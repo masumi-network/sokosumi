@@ -206,26 +206,34 @@ export const seoFollowUpReview = z.discriminatedUnion("kind", [
     afterPeriod: measuredPeriod,
   }),
 ]);
-const draftText = z.string().min(1).max(20_000);
-const draftDevices = z.array(seoDeviceSchema).min(1);
+// Text with only white space is no draft and no reason.
+const draftText = z.string().min(1).max(20_000).regex(/\S/);
+// A device listed twice would hide that a draft covers one device only.
+const draftDevices = z
+  .array(seoDeviceSchema)
+  .min(1)
+  .refine((devices) => new Set(devices).size === devices.length);
 /**
  * The SEO bot's draft of a page's opening text for an action: the page's opening and a rewrite that passed the
  * bot's claim check, or only why the bot held its draft back. Older reports have none.
  */
 export const seoBodyDraftSchema = z
-  // The held-back form comes first: a draft that also carries a held-back reason reads as held back, never as checked.
+  // A draft with a held-back reason is never checked: the held-back form comes first, and the checked form is strict, so
+  // one whose reason is unreadable is dropped.
   .union([
     z.object({
       target: z.literal("opening"),
       devices: draftDevices,
       heldBack: draftText,
     }),
-    z.object({
-      target: z.literal("opening"),
-      devices: draftDevices,
-      before: draftText,
-      after: draftText,
-    }),
+    z
+      .object({
+        target: z.literal("opening"),
+        devices: draftDevices,
+        before: draftText,
+        after: draftText,
+      })
+      .strict(),
   ])
   .openapi("ProjectSeoBodyDraft");
 export const seoActionSchema = z
