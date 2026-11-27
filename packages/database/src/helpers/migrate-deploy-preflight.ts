@@ -62,15 +62,19 @@ export function parseNeonDatabaseUrl(value: string | undefined) {
       (url.protocol !== "postgresql:" && url.protocol !== "postgres:") ||
       !/^ep-[a-z0-9-]+(?:\.[a-z0-9-]+)*\.neon\.tech$/.test(hostname) ||
       !database ||
-      !role ||
+      !role
+    ) {
+      return null;
+    }
+    if (
       ["host", "hostaddr", "port", "dbname", "database", "user"].some((key) =>
         url.searchParams.has(key),
       ) ||
       url.searchParams
         .getAll("options")
-        .some((value) => /endpoint\s*=/.test(value))
+        .some((value) => /endpoint\s*=/i.test(value))
     ) {
-      return null;
+      return { error: "must omit host, endpoint, database and role overrides" };
     }
     const endpointHost = hostname.replace(/^([^.]+)-pooler\./, "$1.");
     return { hostname, endpointHost, database, role };
@@ -86,9 +90,14 @@ function previewConnectionError(
   const pooled = parseNeonDatabaseUrl(pooledUrl);
   const direct = parseNeonDatabaseUrl(directUrl);
   if (!pooled) return "DATABASE_URL must be a valid Neon PostgreSQL URL";
+  if (pooled.error) return `DATABASE_URL ${pooled.error}`;
   if (!direct)
     return "DATABASE_URL_UNPOOLED must be a valid Neon PostgreSQL URL";
-  if (pooled.endpointHost !== direct.hostname) {
+  if (direct.error) return `DATABASE_URL_UNPOOLED ${direct.error}`;
+  if (
+    direct.hostname !== direct.endpointHost ||
+    pooled.endpointHost !== direct.hostname
+  ) {
     return "DATABASE_URL and DATABASE_URL_UNPOOLED must use the same Neon endpoint, with a direct host in DATABASE_URL_UNPOOLED";
   }
   if (pooled.database !== direct.database) {

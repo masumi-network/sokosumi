@@ -96,6 +96,39 @@ describe("checkMigrateDeployEnv", () => {
     expect(result.messages[0]?.text).toMatch(/Regenerate both URLs/);
   });
 
+  it("refuses a pooled direct URL even when the pooled URL has two pooler suffixes", () => {
+    const result = checkMigrateDeployEnv({
+      ...preview,
+      DATABASE_URL: pooledUrl.replace("-pooler", "-pooler-pooler"),
+      DATABASE_URL_UNPOOLED: pooledUrl,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.messages[0]?.text).toMatch(
+      /direct host in DATABASE_URL_UNPOOLED/,
+    );
+  });
+
+  it.each([
+    ["DATABASE_URL", "host=ep-other.neon.tech"],
+    ["DATABASE_URL_UNPOOLED", "options=endpoint%3Dep-other"],
+    ["DATABASE_URL_UNPOOLED", "options=EnDpOiNt%3Dep-other"],
+  ] as const)("explains the %s override refusal for %s", (key, query) => {
+    expect(
+      checkMigrateDeployEnv({
+        ...preview,
+        [key]: `${preview[key]}&${query}`,
+      }),
+    ).toEqual({
+      ok: false,
+      messages: [
+        {
+          level: "error",
+          text: `Preview ${key} must omit host, endpoint, database and role overrides. Regenerate both URLs for this preview branch and redeploy.`,
+        },
+      ],
+    });
+  });
+
   it("keeps the rest of the host when normalizing the endpoint label", () => {
     const result = checkMigrateDeployEnv({
       ...preview,

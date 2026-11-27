@@ -23,7 +23,7 @@ export function assertAgentBranchSafety(
   }
   if (branch.parent_id !== expectedParentId) {
     throw new Error(
-      `Neon agent branch "${expectedName}" has an unexpected parent (expected ${expectedParentId}). Check NEON_PARENT_BRANCH and retry provisioning with a branch forked from that parent.`,
+      `Neon agent branch "${expectedName}" has an unexpected parent (expected ${expectedParentId}). Check NEON_PARENT_BRANCH, then run pnpm db:down followed by pnpm db:up.`,
     );
   }
 }
@@ -94,10 +94,13 @@ export function assertAgentFixtureSafety(input) {
       "provision state has no verified endpoint. Run pnpm db:up or rerun agent DB provisioning before seeding.",
     );
   }
-  if (
-    parseNeonDatabaseUrl(databaseUrl)?.endpointHost !==
-    input.databaseUrlUnpooledHost
-  ) {
+  const parsed = parseNeonDatabaseUrl(databaseUrl);
+  if (parsed?.error) {
+    block(
+      `the selected database URL ${parsed.error}. Run node scripts/agent-db/with-db.mjs -- pnpm agent-db:seed-auth.`,
+    );
+  }
+  if (parsed?.endpointHost !== input.databaseUrlUnpooledHost) {
     block(
       "the selected database URL does not match the verified agent branch endpoint. Run node scripts/agent-db/with-db.mjs -- pnpm agent-db:seed-auth.",
     );

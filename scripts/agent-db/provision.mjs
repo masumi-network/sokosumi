@@ -120,9 +120,9 @@ export async function provisionAgentBranch(config, branchName) {
     urls = await getBranchConnectionUrls(config, branch.id);
   } catch (error) {
     if (!reused) {
-      assertAgentBranchSafety(branch, branchName, parent.id);
-      warn(`Connection URI failed; deleting orphan branch ${branchName}`);
       try {
+        assertAgentBranchSafety(branch, branchName, parent.id);
+        warn(`Connection URI failed; deleting orphan branch ${branchName}`);
         await deleteBranch(config, branch.id);
       } catch (cleanupError) {
         warn(`Failed to delete orphan branch: ${cleanupError.message}`);
@@ -147,14 +147,14 @@ export async function provisionAgentBranch(config, branchName) {
 }
 
 /** @param {{ databaseUrl: string, databaseUrlUnpooled: string }} urls */
-function runMigrations(urls) {
+export function runMigrations(urls, spawn = spawnSync) {
   if (process.env.CLOUD_AGENT_DB_SKIP_MIGRATE === "1") {
     log("Skipping migrations (CLOUD_AGENT_DB_SKIP_MIGRATE=1)");
     return;
   }
 
   log("Applying pending Prisma migrations");
-  const result = spawnSync("pnpm", ["prisma:migrate:deploy"], {
+  const result = spawn("pnpm", ["prisma:migrate:deploy"], {
     cwd: REPO_ROOT,
     env: {
       ...process.env,

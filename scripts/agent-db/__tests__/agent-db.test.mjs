@@ -30,7 +30,7 @@ import {
   resolveParentBranch,
   waitForOperations,
 } from "../neon-api.mjs";
-import { provisionAgentBranch } from "../provision.mjs";
+import { provisionAgentBranch, runMigrations } from "../provision.mjs";
 import {
   clearUnwantedOrganizationMemberships,
   resetUnwantedPersonalWorkspace,
@@ -119,6 +119,24 @@ const AGENT_HOST = "ep-agent.us-east-1.aws.neon.tech";
 const AGENT_URL = `postgresql://u:p@${AGENT_HOST}/neondb`;
 const AGENT_POOLED_URL = AGENT_URL.replace("ep-agent", "ep-agent-pooler");
 
+it("gives the migration child both verified URLs even when the ambient URLs target another branch", (t) => {
+  t.mock.property(process, "env", {
+    DATABASE_URL: AGENT_POOLED_URL.replace("ep-agent", "ep-other"),
+    DATABASE_URL_UNPOOLED: AGENT_URL.replace("ep-agent", "ep-other"),
+  });
+  const spawn = t.mock.fn(() => ({ status: 0 }));
+  runMigrations(
+    { databaseUrl: AGENT_POOLED_URL, databaseUrlUnpooled: AGENT_URL },
+    spawn,
+  );
+  assert.equal(spawn.mock.callCount(), 1);
+  const [command, args, { env }] = spawn.mock.calls[0].arguments;
+  assert.equal(command, "pnpm");
+  assert.deepEqual(args, ["prisma:migrate:deploy"]);
+  assert.equal(env.DATABASE_URL, AGENT_POOLED_URL);
+  assert.equal(env.DATABASE_URL_UNPOOLED, AGENT_URL);
+});
+
 describe("assertAgentFixtureSafety", () => {
   it("allows the verified branch's direct and pooled URLs", () => {
     for (const databaseUrl of [AGENT_URL, AGENT_POOLED_URL]) {
@@ -161,7 +179,7 @@ describe("assertAgentFixtureSafety", () => {
           databaseUrl: `${AGENT_URL}?host=ep-other.us-east-1.aws.neon.tech`,
           databaseUrlUnpooledHost: AGENT_HOST,
         }),
-      /selected database URL does not match the verified agent branch endpoint/,
+      /selected database URL must omit host, endpoint, database and role overrides/,
     );
   });
 
@@ -597,7 +615,7 @@ describe("provisionAgentBranch", () => {
     [
       "wrong parent",
       { ...AGENT_BRANCH, parent_id: "br-other" },
-      /unexpected parent/,
+      /unexpected parent.*pnpm db:down followed by pnpm db:up/,
     ],
   ]) {
     it(`refuses to reuse a branch with ${label} metadata before returning URLs for migrations`, async () => {
@@ -608,6 +626,30 @@ describe("provisionAgentBranch", () => {
       );
       assert.equal(calls.length, 4);
       assert.ok(calls.every(({ method }) => method === "GET"));
+    });
+  }
+
+  for (const protectedBranch of [false, true]) {
+    it(`preserves the URI error and ${protectedBranch ? "keeps a protected branch" : "deletes the new orphan"}`, async () => {
+      const uriError = new Error("connection URI unavailable");
+      const branch = { ...AGENT_BRANCH, protected: protectedBranch };
+      const { config, calls } = queuedNeon([
+        ...agentProvisionReplies(branch, false).slice(0, 3),
+        uriError,
+        [200, { uri: AGENT_URL }],
+        [200, {}],
+      ]);
+
+      await assert.rejects(
+        () => provisionAgentBranch(config, AGENT_BRANCH_NAME),
+        (error) => error === uriError,
+      );
+      assert.deepEqual(
+        calls
+          .filter(({ method }) => method === "DELETE")
+          .map(({ url }) => new URL(url).pathname),
+        protectedBranch ? [] : ["/api/v2/projects/proj/branches/br-agent"],
+      );
     });
   }
 
