@@ -225,14 +225,21 @@ export function FundraisingBoard({
                           kind={contact.kind}
                           className="size-8"
                         />
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">{contact.name}</p>
-                          <p className="text-muted-foreground truncate text-xs">
+                        {/* The row's click is mouse-only; this button is the keyboard's way into the sheet. */}
+                        <button
+                          type="button"
+                          className="focus-visible:ring-ring min-w-0 rounded-sm text-start outline-none focus-visible:ring-2"
+                          onClick={() => setOpenId(contact.id)}
+                        >
+                          <span className="block truncate font-medium">
+                            {contact.name}
+                          </span>
+                          <span className="text-muted-foreground block truncate text-xs">
                             {[contact.organization, contact.role]
                               .filter(Boolean)
                               .join(" · ")}
-                          </p>
-                        </div>
+                          </span>
+                        </button>
                       </div>
                     </TableCell>
                     <TableCell

@@ -144,11 +144,12 @@ export function FindInvestors({ pipeline }: { pipeline: FundraisingPipeline }) {
           {shown.map((row) => (
             <li
               key={row.id}
-              className="flex items-start gap-3 py-2"
+              className="flex flex-wrap items-start gap-x-3 gap-y-2 py-2"
               data-testid="investor-suggestion"
             >
               <ContactAvatar name={row.name} className="mt-0.5 size-8" />
-              <div className="min-w-0 flex-1">
+              {/* basis-48: on a phone the buttons wrap below instead of squeezing the reason to one word per line. */}
+              <div className="min-w-0 flex-1 basis-48">
                 <p className="truncate text-sm font-medium">
                   {row.name}
                   <span className="text-muted-foreground font-normal">
@@ -171,7 +172,7 @@ export function FindInvestors({ pipeline }: { pipeline: FundraisingPipeline }) {
                   <ExternalLink aria-hidden className="size-3" />
                 </a>
               </div>
-              <div className="flex shrink-0 items-center gap-1">
+              <div className="ms-auto flex shrink-0 items-center gap-1">
                 <Button
                   size="sm"
                   variant="ghost"
