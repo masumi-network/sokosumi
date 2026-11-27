@@ -10,6 +10,10 @@ import {
 import { head } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
 import { moveDriveFile } from "@/helpers/drive-file-move";
+import {
+  buildSokoBotReaderJobWhere,
+  buildSokoBotReaderTaskWhere,
+} from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import {
   driveDel,
@@ -290,6 +294,11 @@ export async function saveChatAttachment(
 }
 
 /** The id a status read in this turn was given, per read tool. */
+/**
+ * The Tasks or Jobs this turn actually read: a status call whose result is
+ * the record it asked for. A COMPLETED call with a null result means the
+ * record was not visible, so it proves nothing.
+ */
 async function workReadThisTurn(
   turnId: string,
   capability: "get_task_status" | "get_job_status",
@@ -297,23 +306,26 @@ async function workReadThisTurn(
 ): Promise<string[]> {
   const reads = await prisma.sokoBotToolCall.findMany({
     where: { turnId, capability, status: "COMPLETED" },
-    select: { input: true },
+    select: { input: true, result: true },
   });
   return reads.flatMap((read) => {
     const id = (read.input as Record<string, unknown> | null)?.[key];
-    return typeof id === "string" ? [id] : [];
+    const shown = (read.result as Record<string, unknown> | null)?.id;
+    return typeof id === "string" && shown === id ? [id] : [];
   });
 }
 
 /**
  * Whether `url` is exactly a ready file of a Task or Job this turn read
- * with get_task_status or get_job_status: the read proved access, and the
- * file is one of the files that read lists, not a link in its prose.
+ * with get_task_status or get_job_status, and the turn can still read that
+ * Task or Job now: the same workspace and reader rules as those reads, not
+ * a past receipt alone.
  */
 async function isReadyFileOfReadWork(
   authorized: AuthorizedSokoBotRuntime,
   url: string,
 ): Promise<boolean> {
+  const { workspaceId } = authorized.turn;
   const [taskIds, jobIds] = await Promise.all([
     workReadThisTurn(authorized.turn.id, "get_task_status", "taskId"),
     workReadThisTurn(authorized.turn.id, "get_job_status", "jobId"),
@@ -322,10 +334,24 @@ async function isReadyFileOfReadWork(
     taskIds.length
       ? prisma.taskFile.findFirst({
           where: {
-            taskId: { in: taskIds },
-            task: { workspaceId: authorized.turn.workspaceId },
             status: "READY",
             fileUrl: url,
+            task: {
+              AND: [
+                { id: { in: taskIds }, workspaceId },
+                // readTask's archive rule: only the owner reads an archived Task.
+                authorized.askedByKind === "OWNER" &&
+                authorized.turn.actingUserId !== null
+                  ? {
+                      OR: [
+                        { archivedAt: null },
+                        { ownerId: authorized.turn.actingUserId },
+                      ],
+                    }
+                  : { archivedAt: null },
+                buildSokoBotReaderTaskWhere(authorized.reader),
+              ],
+            },
           },
           select: { id: true },
         })
@@ -333,9 +359,16 @@ async function isReadyFileOfReadWork(
     jobIds.length
       ? prisma.blob.findFirst({
           where: {
-            event: { jobId: { in: jobIds } },
             status: "READY",
             fileUrl: url,
+            event: {
+              job: {
+                AND: [
+                  { id: { in: jobIds }, workspaceId },
+                  buildSokoBotReaderJobWhere(authorized.reader),
+                ],
+              },
+            },
           },
           select: { id: true },
         })

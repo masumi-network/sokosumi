@@ -14403,10 +14403,16 @@ describe("Drive file tools", () => {
 
       const taskId = "01a0f500-0000-7000-8000-00000000a001";
       const jobId = "01a0f500-0000-7000-8000-00000000b001";
-      const readsByTool = (reads: Record<string, unknown[]>) =>
+      /** Status reads this turn, each with the record its result showed. */
+      const readsByTool = (
+        reads: Record<string, { input: unknown; shown: string | null }[]>,
+      ) =>
         toolCallFindManyMock.mockImplementation(
           async ({ where }: { where: { capability: string } }) =>
-            (reads[where.capability] ?? []).map((input) => ({ input })),
+            (reads[where.capability] ?? []).map(({ input, shown }) => ({
+              input,
+              result: shown === null ? null : { id: shown },
+            })),
         );
       afterEach(() => {
         toolCallFindManyMock.mockReset();
@@ -14415,7 +14421,9 @@ describe("Drive file tools", () => {
       });
 
       it("is copied when it is a ready file of a Task read this turn", async () => {
-        readsByTool({ get_task_status: [{ taskId }] });
+        readsByTool({
+          get_task_status: [{ input: { taskId }, shown: taskId }],
+        });
         files.taskFileFindFirst.mockResolvedValue({ id: "tf-1" });
         await expect(
           service["uploadFile"](turned as never, {
@@ -14425,10 +14433,16 @@ describe("Drive file tools", () => {
         ).resolves.toMatchObject({ id: "file-7", filename: "report.png" });
         expect(files.taskFileFindFirst).toHaveBeenCalledWith({
           where: {
-            taskId: { in: [taskId] },
-            task: { workspaceId: SCOPE.workspaceId },
             status: "READY",
             fileUrl: taskUrl,
+            task: {
+              AND: [
+                { id: { in: [taskId] }, workspaceId: SCOPE.workspaceId },
+                { archivedAt: null },
+                // The turn's reader rules, exactly as get_task_status applies them.
+                expect.any(Object),
+              ],
+            },
           },
           select: { id: true },
         });
@@ -14437,7 +14451,7 @@ describe("Drive file tools", () => {
       });
 
       it("is copied when it is a ready output of a Job read this turn", async () => {
-        readsByTool({ get_job_status: [{ jobId }] });
+        readsByTool({ get_job_status: [{ input: { jobId }, shown: jobId }] });
         files.blobFindFirst.mockResolvedValue({ id: "blob-1" });
         await expect(
           service["uploadFile"](turned as never, {
@@ -14447,16 +14461,41 @@ describe("Drive file tools", () => {
         ).resolves.toMatchObject({ id: "file-7" });
         expect(files.blobFindFirst).toHaveBeenCalledWith({
           where: {
-            event: { jobId: { in: [jobId] } },
             status: "READY",
             fileUrl: taskUrl,
+            event: {
+              job: {
+                AND: [
+                  { id: { in: [jobId] }, workspaceId: SCOPE.workspaceId },
+                  expect.objectContaining({ ownerId: SCOPE.userId }),
+                ],
+              },
+            },
           },
           select: { id: true },
         });
       });
 
+      it("is refused when the status read showed nothing, so access was not proved", async () => {
+        readsByTool({
+          get_task_status: [{ input: { taskId }, shown: null }],
+          get_job_status: [{ input: { jobId }, shown: "another-job" }],
+        });
+        await expect(
+          service["uploadFile"](turned as never, {
+            filename: "report.png",
+            attachmentUrl: taskUrl,
+          }),
+        ).rejects.toThrow(/get_task_status in this turn/);
+        expect(files.taskFileFindFirst).not.toHaveBeenCalled();
+        expect(files.blobFindFirst).not.toHaveBeenCalled();
+        expect(files.put).not.toHaveBeenCalled();
+      });
+
       it("is refused when the read Task has no such ready file, even if its text names the link", async () => {
-        readsByTool({ get_task_status: [{ taskId }] });
+        readsByTool({
+          get_task_status: [{ input: { taskId }, shown: taskId }],
+        });
         files.taskFileFindFirst.mockResolvedValue(null);
         await expect(
           service["uploadFile"](turned as never, {
