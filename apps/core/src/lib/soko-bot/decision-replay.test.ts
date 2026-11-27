@@ -2,7 +2,11 @@ import { readFileSync } from "node:fs";
 import { getSokoBotVersion } from "@sokosumi/soko-bot";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
-import { recordRealJevCall, resetPlanJevForTests } from "@/lib/plan-jev";
+import {
+  PLAN_JEV_PAUSE_MS,
+  planJevMode,
+  recordRealJevCall,
+} from "@/lib/plan-jev";
 import { expectCoreLog } from "@/test/core-log";
 import { jevRoute } from "@/test/jev-routes";
 import { JevTurnClassifier } from "./classifier";
@@ -284,7 +288,9 @@ describe("requireRealJevPlanEvaluator", () => {
   const prevRealJev = process.env.SOKO_BOT_PLAN_REAL_JEV;
 
   afterEach(() => {
-    resetPlanJevForTests();
+    process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN = "1";
+    process.env.SOKO_BOT_PLAN_REAL_JEV = "1";
+    planJevMode(Date.now() + PLAN_JEV_PAUSE_MS + 1);
     if (prevPlan === undefined) delete process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN;
     else process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN = prevPlan;
     if (prevRealJev === undefined) delete process.env.SOKO_BOT_PLAN_REAL_JEV;
@@ -319,8 +325,17 @@ describe("requireRealJevPlanEvaluator", () => {
     ).rejects.toBeInstanceOf(RealJevUnavailableError);
     expect(transport).not.toHaveBeenCalled();
 
-    // Plan mode + real Jev enabled, then tripped by budget stop: refused (including inside route-baseline's JevTurnClassifier).
+    // Active real-Jev plan mode: allowed.
     process.env.SOKO_BOT_PLAN_REAL_JEV = "1";
+    transport.mockResolvedValueOnce({ answers: new Map(), costUsd: 0.00001 });
+    await guarded({
+      state: { message: "hi" },
+      questions: {},
+      timeoutMs: 1_000,
+    });
+    expect(transport).toHaveBeenCalledTimes(1);
+
+    // Plan mode + real Jev enabled, then tripped by budget stop: refused (including inside route-baseline's JevTurnClassifier).
     recordRealJevCall({ ok: false, error: new AiGatewayBudgetError() });
     await expect(
       guarded({ state: { message: "hi" }, questions: {}, timeoutMs: 1_000 }),
@@ -335,16 +350,6 @@ describe("requireRealJevPlanEvaluator", () => {
         jev: guarded,
       }),
     ).rejects.toBeInstanceOf(RealJevUnavailableError);
-    expect(transport).not.toHaveBeenCalled();
-
-    // Active real-Jev plan mode: allowed.
-    resetPlanJevForTests();
-    transport.mockResolvedValueOnce({ answers: new Map(), costUsd: 0.00001 });
-    await guarded({
-      state: { message: "hi" },
-      questions: {},
-      timeoutMs: 1_000,
-    });
     expect(transport).toHaveBeenCalledTimes(1);
   });
 });

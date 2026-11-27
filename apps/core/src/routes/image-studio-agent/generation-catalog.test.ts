@@ -10,13 +10,15 @@ const { authorize, createJob, listAssets, listJobs, getJob, getAsset } =
     getAsset: vi.fn(),
   }));
 vi.mock("./authorize", () => ({ authorizeAgentGrant: authorize }));
-const { readCatalog, copyPhoto, findJob } = vi.hoisted(() => ({
+const { readCatalog, copyPhoto, findJob, findProject } = vi.hoisted(() => ({
   readCatalog: vi.fn(),
   copyPhoto: vi.fn(),
+  findProject: vi.fn(),
   findJob: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    project: { findUniqueOrThrow: findProject },
     projectImageJob: { findUnique: findJob },
     // Only "cmo-project" has a live Cuso.
     sokoBot: {
@@ -97,6 +99,41 @@ describe("agent catalog and generation HTTP contract", () => {
       }),
     });
   }
+
+  it("sends only selected references from the granted project's brand kit", async () => {
+    const request = (ids: string[]) =>
+      app.request("/generations", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          prompt: "Use our mascot",
+          idempotencyKey: "mascot-test",
+          brandAssetIds: ids,
+        }),
+      });
+    const project = { studioBrandAssets: [{ id: fileId, name: "mascot.png" }] };
+    findProject.mockResolvedValue(project);
+    createJob.mockResolvedValueOnce({ id: "job", status: "QUEUED" });
+    expect((await request([fileId])).status).toBe(200);
+    expect(findProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "project", workspaceId: "workspace" },
+      }),
+    );
+    expect(createJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        brandReferenceCount: 1,
+        referenceFileIds: [fileId],
+        referenceFileActor: {
+          kind: "interactive",
+          userId: "user",
+          organizationId: "org",
+        },
+      }),
+    );
+    expect((await request([sourceId])).status).toBe(404);
+    expect(createJob).toHaveBeenCalledTimes(1);
+  });
 
   it("refuses a generation in a CMO Project in the agent's own shape", async () => {
     authorize.mockResolvedValueOnce({

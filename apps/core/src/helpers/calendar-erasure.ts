@@ -1,5 +1,5 @@
 import { type Prisma, TaskX402PaymentStatus } from "@sokosumi/database";
-import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
+import { netTable, netType, sharedTable } from "@sokosumi/database/sql-tables";
 
 import {
   cancelNotificationEmails,
@@ -8,6 +8,7 @@ import {
 } from "@/helpers/notification-email-dispatch";
 import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
 import { deleteTaskFileIfOwned } from "@/lib/blob";
+import { networksThatAreOn } from "@/lib/network";
 
 export type CalendarErasureBlocker =
   | "task_payment_pending"
@@ -112,45 +113,58 @@ export async function lockWorkspaceCalendarForErasure(
     ORDER BY link.id ASC
     FOR UPDATE OF link
   `;
-  await tx.$queryRaw`
-    SELECT payment.id
-    FROM ${netTable("mainnet", "task_x402_payment")} AS payment
-    JOIN ${sharedTable("task")} AS payment_task ON payment_task.id = payment."taskId"
-    WHERE payment_task."workspaceId" = ${workspaceId}::UUID
-    ORDER BY payment.id ASC
-    FOR UPDATE OF payment
-  `;
-
-  const unresolvedPayment = await tx.taskX402Payment.findFirst({
-    where: {
-      task: { workspaceId },
-      status: { notIn: SWEEPABLE_X402_STATUSES },
-    },
-    select: { id: true, status: true },
-  });
-  if (unresolvedPayment) {
-    throw new CalendarErasureBlockedError(
-      unresolvedPayment.status === TaskX402PaymentStatus.PENDING
-        ? "task_payment_pending"
-        : "task_payment_unresolved",
-      unresolvedPayment.id,
-      unresolvedPayment.status,
-    );
+  // The payments are a Network's rows: every statement on them runs once per
+  // Network that is on, in raw SQL, because `tx` is on the shared client.
+  const networks = networksThatAreOn();
+  for (const network of networks) {
+    await tx.$queryRaw`
+      SELECT payment.id
+      FROM ${netTable(network, "task_x402_payment")} AS payment
+      JOIN ${sharedTable("task")} AS payment_task ON payment_task.id = payment."taskId"
+      WHERE payment_task."workspaceId" = ${workspaceId}::UUID
+      ORDER BY payment.id ASC
+      FOR UPDATE OF payment
+    `;
   }
 
-  const liveAuthorization = await tx.taskX402Payment.findFirst({
-    where: {
-      task: { workspaceId },
-      xPaymentHeader: { not: null },
-      OR: [{ validBefore: null }, { validBefore: { gt: new Date() } }],
-    },
-    select: { id: true },
-  });
-  if (liveAuthorization) {
-    throw new CalendarErasureBlockedError(
-      "task_payment_authorization_live",
-      liveAuthorization.id,
-    );
+  for (const network of networks) {
+    const [unresolvedPayment] = await tx.$queryRaw<
+      { id: string; status: string }[]
+    >`
+      SELECT payment.id, payment.status::text AS status
+      FROM ${netTable(network, "task_x402_payment")} AS payment
+      JOIN ${sharedTable("task")} AS payment_task ON payment_task.id = payment."taskId"
+      WHERE payment_task."workspaceId" = ${workspaceId}::UUID
+        AND payment.status <> ALL(${SWEEPABLE_X402_STATUSES}::${netType(network, "TaskX402PaymentStatus")}[])
+      LIMIT 1
+    `;
+    if (unresolvedPayment) {
+      throw new CalendarErasureBlockedError(
+        unresolvedPayment.status === TaskX402PaymentStatus.PENDING
+          ? "task_payment_pending"
+          : "task_payment_unresolved",
+        unresolvedPayment.id,
+        unresolvedPayment.status,
+      );
+    }
+  }
+
+  for (const network of networks) {
+    const [liveAuthorization] = await tx.$queryRaw<{ id: string }[]>`
+      SELECT payment.id
+      FROM ${netTable(network, "task_x402_payment")} AS payment
+      JOIN ${sharedTable("task")} AS payment_task ON payment_task.id = payment."taskId"
+      WHERE payment_task."workspaceId" = ${workspaceId}::UUID
+        AND payment."xPaymentHeader" IS NOT NULL
+        AND (payment."validBefore" IS NULL OR payment."validBefore" > ${new Date()}::timestamp)
+      LIMIT 1
+    `;
+    if (liveAuthorization) {
+      throw new CalendarErasureBlockedError(
+        "task_payment_authorization_live",
+        liveAuthorization.id,
+      );
+    }
   }
 
   return true;
@@ -159,6 +173,28 @@ export async function lockWorkspaceCalendarForErasure(
 export interface CalendarErasureCleanup {
   scheduledEmails: EmailedNotificationRow[];
   taskFiles: Array<{ fileUrl: string | null; taskId: string }>;
+}
+
+export async function findForeignWorkspaceX402Charge(
+  tx: Prisma.TransactionClient,
+  workspaceId: string,
+  actorUserId: string,
+) {
+  for (const network of networksThatAreOn()) {
+    const [payment] = await tx.$queryRaw<
+      { id: string; taskId: string; chargedUserId: string }[]
+    >`
+      SELECT payment."id", payment."taskId", charge."userId" AS "chargedUserId"
+      FROM ${netTable(network, "task_x402_payment")} AS payment
+      JOIN ${sharedTable("task")} AS task ON task."id" = payment."taskId"
+      JOIN ${netTable(network, "Transaction")} AS charge ON charge."id" = payment."transactionId"
+      WHERE task."workspaceId" = ${workspaceId}::uuid
+        AND payment."status" = ANY(${SWEEPABLE_X402_STATUSES}::${netType(network, "TaskX402PaymentStatus")}[])
+        AND charge."userId" <> ${actorUserId}
+      LIMIT 1
+    `;
+    if (payment) return payment;
+  }
 }
 
 /** Run only after the erasure transaction commits. */
@@ -219,12 +255,15 @@ export async function eraseWorkspaceCalendarData(
       OR: [{ fromTask: { workspaceId } }, { toTask: { workspaceId } }],
     },
   });
-  await tx.taskX402Payment.deleteMany({
-    where: {
-      task: { workspaceId },
-      status: { in: SWEEPABLE_X402_STATUSES },
-    },
-  });
+  for (const network of networksThatAreOn()) {
+    await tx.$executeRaw`
+      DELETE FROM ${netTable(network, "task_x402_payment")} AS payment
+      USING ${sharedTable("task")} AS payment_task
+      WHERE payment_task.id = payment."taskId"
+        AND payment_task."workspaceId" = ${workspaceId}::UUID
+        AND payment.status = ANY(${SWEEPABLE_X402_STATUSES}::${netType(network, "TaskX402PaymentStatus")}[])
+    `;
+  }
   await tx.taskScheduleCreateOperation.deleteMany({ where: { workspaceId } });
   await tx.taskEvent.deleteMany({ where: { task: { workspaceId } } });
   await tx.task.deleteMany({ where: { workspaceId } });

@@ -57,32 +57,55 @@ function stepList(
     .join("\n");
 }
 
-async function turnPlan(turnId: string) {
-  const turn = await prisma.sokoBotTurn.findUnique({
-    where: { id: turnId },
+const OWNER_TURN = {
+  sokoBotId: true,
+  versionId: true,
+  source: true,
+  chainDepth: true,
+  askedByUserId: true,
+  requestedByUserId: true,
+  parentTurnId: true,
+  parentTurn: {
     select: {
-      sokoBotId: true,
-      versionId: true,
       source: true,
       chainDepth: true,
       askedByUserId: true,
       requestedByUserId: true,
-      parentTurnId: true,
-      parentTurn: {
-        select: {
-          source: true,
-          chainDepth: true,
-          askedByUserId: true,
-          requestedByUserId: true,
-        },
-      },
     },
+  },
+} as const;
+
+async function turnPlan(turnId: string) {
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: turnId },
+    select: OWNER_TURN,
   });
   if (!turn || !(await resolveSokoBotVersion(turn.versionId)).planLoop)
     return null;
   const requestId = await resolveRequestId(turnId);
   const plan = await readRequestPlan(turn.sokoBotId, requestId);
   return plan ? { turn, requestId, plan } : null;
+}
+
+/**
+ * The turn is the owner's own request, or a Core wake (a hand-over's
+ * follow-up, a watch) that belongs to one: its request's first turn was
+ * the owner's. A wake of Core's own, or one on a teammate's request, is not.
+ */
+async function ownerRequest(
+  turnId: string,
+  found: NonNullable<Awaited<ReturnType<typeof turnPlan>>>,
+): Promise<boolean> {
+  if (isOwnerRequest(found.turn, { schedules: true })) return true;
+  if (found.turn.source !== "EVENT" || found.requestId === turnId) return false;
+  const first = await prisma.sokoBotTurn.findUnique({
+    where: { id: found.requestId },
+    select: OWNER_TURN,
+  });
+  return (
+    first?.sokoBotId === found.turn.sokoBotId &&
+    isOwnerRequest(first, { schedules: true })
+  );
 }
 
 /**
@@ -417,7 +440,7 @@ export async function evaluateTurnDoneCheck(input: {
   draft: string;
 }): Promise<string | null> {
   const found = await turnPlan(input.turnId);
-  if (!found || !isOwnerRequest(found.turn, { schedules: true })) return null;
+  if (!found || !(await ownerRequest(input.turnId, found))) return null;
   if (!openSteps(found.plan).length) return null;
   const turnIds = await requestTurnIds(
     found.turn.sokoBotId,

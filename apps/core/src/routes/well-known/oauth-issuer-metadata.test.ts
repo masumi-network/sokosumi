@@ -39,6 +39,14 @@ describe("well-known oauth issuer metadata integration", () => {
     );
     expect(metadata.code_challenge_methods_supported).toEqual(["S256"]);
     expect(metadata.token_endpoint_auth_methods_supported).toContain("none");
+
+    // CMO signs in through OIDC discovery and asks for `sokosumi:api`.
+    const openId = (await (
+      await app.request(
+        "http://localhost:8787/auth/.well-known/openid-configuration",
+      )
+    ).json()) as { scopes_supported: string[] };
+    expect(openId.scopes_supported).toContain("sokosumi:api");
     // Bumped from vitest's 5s default: this boots the whole Better Auth
     // handler, and that cold start exceeds 5s under full-suite parallel load
     // even though the test takes ~1.5s in isolation. Observed failing at
@@ -55,7 +63,13 @@ describe("well-known oauth issuer metadata integration", () => {
         "http://localhost:8787/.well-known/oauth-authorization-server/auth",
       )
     ).json()) as { issuer: string; scopes_supported: string[] };
-    expect(authServer.scopes_supported).toContain("sokosumi:mcp");
+    // MCP clients such as Codex register with this whole list, and open
+    // registration refuses `sokosumi:api` (ADR 0076), so it is not listed.
+    expect(authServer.scopes_supported).toEqual([
+      "openid",
+      "offline_access",
+      "sokosumi:mcp",
+    ]);
 
     // The path MCP's 401 points at, and the root MCP clients fall back to.
     for (const path of [

@@ -51,6 +51,7 @@ export interface QueuedGeneration {
   settings: StudioSettings;
   parentAssetId: string | null;
   referenceAssetIds: string[];
+  brandReferenceCount?: number;
   referenceFileIds?: string[];
   product?: StudioProductIdentity;
   batchId?: string;
@@ -206,7 +207,12 @@ export function useGenerationQueue({
           ...(next.useProductCutout ? { useProductCutout: true } : {}),
           referenceAssetIds: next.referenceAssetIds,
           ...(next.referenceFileIds?.length
-            ? { referenceFileIds: next.referenceFileIds }
+            ? {
+                referenceFileIds: next.referenceFileIds,
+                ...(next.brandReferenceCount
+                  ? { brandReferenceCount: next.brandReferenceCount }
+                  : {}),
+              }
             : {}),
           sessionId: null,
           idempotencyKey: next.idempotencyKey,

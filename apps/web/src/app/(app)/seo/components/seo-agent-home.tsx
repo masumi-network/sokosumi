@@ -20,6 +20,7 @@ import { SeoAgentGraphics } from "./seo-agent-graphics";
 import {
   type SeoAgentBrief,
   type SeoAgentStep,
+  seoActionHeadline,
   seoAgentBrief,
 } from "./seo-agent-model";
 import { SeoAgentStatistics } from "./seo-agent-statistics";
@@ -40,6 +41,8 @@ import { seoPlanMessage } from "./seo-plan-message-model";
 import { SeoPlanPdfLink } from "./seo-plan-pdf-link";
 import { SeoPropertyPerformance } from "./seo-property-performance";
 import { SeoReportPlan } from "./seo-report-plan";
+import { SeoRunDiffCard } from "./seo-run-diff-card";
+import { seoRunDiffOf } from "./seo-run-diff-model";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
 import { seoCheckRunning, seoRunAction } from "./seo-setup-model";
@@ -90,6 +93,11 @@ function SeoAgentPanel({
   const reportFormat = useSeoResultFormatter();
   // "No issues" holds only for the newest check, and only if it measured something.
   const lastCheckMeasured = (brief.lastCheck?.checked ?? 0) > 0;
+  // The written plan and the verdict card both show one: the plan takes the place of the card.
+  const runDiffFold = (id: string | undefined) => {
+    const diff = seoRunDiffOf(model.data, id);
+    return diff ? <SeoRunDiffCard diff={diff} /> : null;
+  };
   const check = lastRuleCheck(model.data);
   const runsShown = seoRunsDateCheck(
     model.data,
@@ -193,6 +201,18 @@ function SeoAgentPanel({
   const leadFocused = useSeoAgentLeadFocusRecovery(verdict, leadKey);
   const periodId = useId();
   const numbers = seoSummary(model.data);
+  // The headline counts the rows of the list under it: an issue count beside more rows would not add up.
+  const headline = seoActionHeadline(steps, actionSeverity);
+  const headlineSplit = headline.parts.length
+    ? `: ${reportFormat.list(
+        headline.parts.map((part) =>
+          report("summary.severityCount", {
+            count: part.count,
+            severity: part.severity,
+          }),
+        ),
+      )}`
+    : "";
   // The headline carries the severities, so the Agent tab needs no issues tile.
   const severitySplit = numbers.issues?.parts.length
     ? `: ${reportFormat.list(
@@ -204,6 +224,20 @@ function SeoAgentPanel({
         ),
       )}`
     : "";
+  // With no fix row, the issues the check found lead: no row under the headline fixes them.
+  const headlineLead = headline.fixes
+    ? `${report("agent.verdict.actions", { count: headline.fixes })}${headlineSplit}`
+    : brief.issues
+      ? `${report("agent.verdict.issuesFound", { count: brief.issues })}${severitySplit}`
+      : null;
+  const headlineText = headline.suggestions
+    ? headlineLead
+      ? report("agent.verdict.andSuggestions", {
+          lead: headlineLead,
+          count: headline.suggestions,
+        })
+      : report("agent.verdict.waiting", { count: headline.suggestions })
+    : headlineLead;
   const evidence = seoWorklistEvidence(
     model.data,
     currentDiscoveryResult(
@@ -342,6 +376,8 @@ function SeoAgentPanel({
           }
           figures={
             <>
+              {/* The plan stays on its audit after a newer focused check: it compares its own check. */}
+              {runDiffFold(selectedPlan.report?.id)}
               {auditReport && <SeoPropertyPerformance evidence={auditReport} />}
               <SeoAgentFigures
                 model={model}
@@ -372,8 +408,8 @@ function SeoAgentPanel({
             // The search numbers alone name no period; the line under them does.
             aria-describedby={trafficLead ? periodId : undefined}
           >
-            {brief.issues
-              ? `${report("agent.verdict.issues", { count: brief.issues })}${severitySplit}`
+            {headlineText
+              ? headlineText
               : brief.fixes
                 ? report("agent.verdict.fixes", { count: brief.fixes })
                 : brief.opportunities
@@ -408,6 +444,7 @@ function SeoAgentPanel({
               <SeoDate report day value={brief.lastCheck.at} />
             </p>
           ) : null}
+          {runDiffFold(brief.lastCheck?.id)}
           <SeoStrategyLine strategy={model.data.strategy} />
           {auditReport && <SeoPropertyPerformance evidence={auditReport} />}
           <SeoAgentFigures
@@ -477,7 +514,7 @@ function SeoAgentPanel({
       {lead || ((setup || banner) && !steps.length) ? null : steps.length ? (
         <div className="space-y-2">
           {/* The verdict names the issues its steps fix. A written plan has no verdict, so the list has its title. */}
-          {brief.issues && !message ? null : (
+          {headlineText && !message ? null : (
             <h3 lang="en" className="px-2 text-sm font-semibold">
               {report("agent.nextTitle")}
             </h3>

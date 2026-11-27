@@ -9,10 +9,8 @@ import { databaseNow } from "@/lib/db/database-now";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { evalEnvironment } from "@/lib/evals/eval-environment";
-import {
-  EVAL_CONNECTED_ACCOUNT_PREFIX,
-  forgetEvalWorkspaces,
-} from "@/lib/evals/eval-guard";
+import { forgetEvalWorkspaces } from "@/lib/evals/eval-guard";
+import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-social-account";
 import { EVAL_COWORKER } from "@/lib/evals/fake-coworker";
 import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { writeOwnerDriveFile } from "@/services/image-studio-drive.service";
@@ -56,6 +54,11 @@ export interface JourneyWorld {
   upcomingByNetwork?: Record<string, number>;
   /** Cuso's home room for this journey: its conversation starts empty. */
   cusoRoomId?: string;
+  /**
+   * When the lane was cleared for this journey, before its prepare: a file
+   * made before then is an earlier case's, one made after is this journey's.
+   */
+  isolatedAt?: string;
   /** The room the owner, the teammates and the owner's bot share. */
   teammateRoomId?: string;
   /** Cuso's published posts when the journey started. */

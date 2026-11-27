@@ -164,6 +164,16 @@ export interface X402ReplayInput extends X402ReplayVerification {
    * service for the full trade).
    */
   readySources?: readonly X402ReadySource[];
+  /**
+   * Refuses a replay the request may not make on the stored payment's Network
+   * (`paymentScope`): a header that names the other one, or a billed party
+   * without Preprod access. Called once the supplied 402 is proven to be the
+   * stored demand, before a lease, a sign attempt or a stored authorization.
+   */
+  requireNetwork: (
+    caip2Network: string,
+    tx: Prisma.TransactionClient,
+  ) => Promise<unknown>;
 }
 
 export type StoredTaskX402Payment = Pick<
@@ -387,6 +397,7 @@ export async function resolveExistingPayment(
     // and reload before returning the bearer instrument.
     const verified = await lockVerifiedTaskX402PaymentForReplay(tx, existing);
     assertVerifiedReplayReferencesStoredDemand(verified, input);
+    await input.requireNetwork(verified.caip2Network, tx);
     if (
       verified.xPaymentHeader === null ||
       verified.validBefore === null ||
@@ -455,6 +466,8 @@ export async function resolveExistingPayment(
       "verification narrowed to a sibling of the stored demand",
     );
   }
+
+  await input.requireNetwork(existing.caip2Network, tx);
 
   // PENDING re-sign cap (L3): each replay re-runs the node sign and burns node
   // budget. Past the cap, stop calling the node and direct to support — the

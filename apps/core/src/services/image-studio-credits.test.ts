@@ -132,6 +132,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 
 import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
 import { unprocessableEntity } from "@/helpers/error";
+import type { MainnetScope } from "@/lib/db/network-scope";
 import { imageModel } from "@/lib/image-studio/catalog";
 import { creditsPerImage } from "@/lib/image-studio/image-model";
 import {
@@ -141,6 +142,9 @@ import {
 } from "@/services/image-studio-jobs.service";
 import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import { pngBytes } from "@/test/image-bytes";
+
+/** The charge's Network, handed down as the entry point would. */
+const scope = { network: "mainnet" } as MainnetScope;
 
 const BASE_INPUT = {
   modelId: "gemini-flash",
@@ -360,7 +364,7 @@ describe("delivering an image is when the money moves", () => {
   it("debits exactly the quote, once", async () => {
     jobFindUniqueMock.mockResolvedValue(settleableJob());
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     expect(createTaskEventTransactionMock).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
@@ -368,6 +372,8 @@ describe("delivering an image is when the money moves", () => {
         organizationId: null,
         projectId: "project-1",
         cents: FLASH_1K_CENTS,
+        // The caller's scope itself, not one the service made.
+        scope,
       }),
     );
     // Recorded on the row beside the asset, in the same transaction.
@@ -382,10 +388,10 @@ describe("delivering an image is when the money moves", () => {
     // A webhook and a poll arriving together. The second settler finds the asset
     // this job already has and returns before any money moves.
     jobFindUniqueMock.mockResolvedValue(settleableJob());
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     assetFindUniqueMock.mockResolvedValue({ id: "asset-1" });
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     expect(createTaskEventTransactionMock).toHaveBeenCalledOnce();
     expect(assetCreateMock).toHaveBeenCalledOnce();
@@ -396,7 +402,7 @@ describe("delivering an image is when the money moves", () => {
       settleableJob({ asset: { id: "asset-1" } }),
     );
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
   });
@@ -418,7 +424,7 @@ describe("delivering an image is when the money moves", () => {
       }),
     );
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     // The image is stored and the job succeeds.
     expect(assetCreateMock).toHaveBeenCalledOnce();
@@ -443,7 +449,7 @@ describe("delivering an image is when the money moves", () => {
     );
 
     await expect(
-      settleWithMedia("job-1", "https://v3b.fal.media/files/a.png"),
+      settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png"),
     ).rejects.toThrow("connection terminated");
     expect(assetCreateMock).not.toHaveBeenCalled();
   });
@@ -451,7 +457,7 @@ describe("delivering an image is when the money moves", () => {
   it("stores a free image without inventing a transaction", async () => {
     jobFindUniqueMock.mockResolvedValue(settleableJob({ chargedCents: 0n }));
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     expect(assetCreateMock).toHaveBeenCalledOnce();
@@ -484,6 +490,7 @@ describe("a failed generation moves no money", () => {
       ["fal reported the generation as failed"],
     );
     await failImageJob(
+      scope,
       "job-1",
       "provider_error",
       "Unexpected status code: 422 for SECRET-PROMPT-SENTINEL",
@@ -527,7 +534,7 @@ describe("a failed generation moves no money", () => {
       Object.assign(new Error("Project not found"), { status: 404 }),
     );
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     const orphaned = jobUpdateManyMock.mock.calls.at(-1)![0].data;
     expect(orphaned.status).toBe("ORPHANED");

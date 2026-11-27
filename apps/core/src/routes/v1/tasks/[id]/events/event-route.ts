@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { getEnv } from "@/config/env";
 import { errorResponseWithExtensionsSchema } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { isPreprodOn } from "@/lib/network";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { taskWorkerContextSchema } from "@/schemas/task-worker-context.schema";
@@ -22,6 +23,7 @@ export type TaskEventRouteMode =
 export function createTaskEventRoute(mode: TaskEventRouteMode) {
   const baseSchema = createTaskEventRequestSchema({
     serverNetwork: getEnv().NETWORK,
+    payloadNamesNetwork: isPreprodOn(),
   });
   const endpoint = {
     standard: {

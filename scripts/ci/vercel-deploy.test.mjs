@@ -192,6 +192,35 @@ describe("parseNetworkCommand /deploy", () => {
   });
 });
 
+describe("parseNetworkCommand --force", () => {
+  it("reads --force only for a command that allows it", () => {
+    assert.deepEqual(
+      parseNetworkCommand("/deploy mainnet --force", "/deploy", {
+        allowForce: true,
+      }),
+      { kind: "run", networks: ["mainnet"], sha: null, force: true },
+    );
+    assert.deepEqual(
+      parseNetworkCommand("/deploy --FORCE all", "/deploy", {
+        allowForce: true,
+      }),
+      { kind: "run", networks: ["mainnet", "preprod"], sha: null, force: true },
+    );
+    // /reset-db does not take the flag.
+    assert.deepEqual(
+      parseNetworkCommand("/reset-db mainnet --force", "/reset-db"),
+      { kind: "usage" },
+    );
+  });
+
+  it("still needs a network", () => {
+    assert.deepEqual(
+      parseNetworkCommand("/deploy --force", "/deploy", { allowForce: true }),
+      { kind: "usage" },
+    );
+  });
+});
+
 describe("isWritePermission", () => {
   it("allows admin, maintain, and write", () => {
     assert.equal(isWritePermission("admin"), true);
@@ -220,6 +249,7 @@ describe("usageMessage", () => {
     assert.match(message, /\/deploy mainnet preprod/);
     assert.match(message, /\/deploy all/);
     assert.match(message, /CMO on mainnet/);
+    assert.match(message, /`\/deploy mainnet --force`/);
     assert.doesNotMatch(message, /@vercel/);
   });
 });
@@ -1637,6 +1667,117 @@ describe("preview skip on /deploy", () => {
     assert.equal(posted.length, 1);
     assert.equal(posted[0], noPreviewChangesMessage());
     assert.deepEqual(reactions, ["eyes"]);
+  });
+
+  it("tells the commenter about --force when it skips", () => {
+    assert.match(noPreviewChangesMessage(), /`\/deploy <network> --force`/);
+  });
+
+  it("deploys what the network normally deploys with --force and says so", async () => {
+    const posted = [];
+    const created = [];
+    const result = await runPreviewDeployComment(
+      baseComment({
+        commentBody: "/deploy mainnet --force",
+        listFiles: async () => [],
+        prepareResources: async () => {},
+        createDeployment: async (input) => {
+          created.push(input);
+          return { id: `dpl_${input.target.app}`, readyState: "READY" };
+        },
+        pollDeployment: async (deployment) => deployment,
+        postComment: async (body) => {
+          posted.push(body);
+        },
+      }),
+    );
+    assert.equal(result.kind, "deploy");
+    assert.deepEqual(
+      created.map((input) => input.target.app),
+      ["web", "core", "cmo"],
+    );
+    assert.equal(posted.length, 1);
+    assert.match(posted[0], /--force/);
+    assert.match(posted[0], /web, core, cmo on mainnet/);
+  });
+
+  it("still deploys with --force when the notice comment fails", async () => {
+    const created = [];
+    const result = await runPreviewDeployComment(
+      baseComment({
+        commentBody: "/deploy preprod --force",
+        listFiles: async () => [],
+        prepareResources: async () => {},
+        createDeployment: async (input) => {
+          created.push(input);
+          return { id: `dpl_${input.target.app}`, readyState: "READY" };
+        },
+        pollDeployment: async (deployment) => deployment,
+        postComment: async () => {
+          throw new Error("rate limited");
+        },
+      }),
+    );
+    assert.equal(result.kind, "deploy");
+    assert.equal(created.length, 2);
+  });
+
+  it("posts nothing extra when --force was not needed", async () => {
+    const posted = [];
+    const result = await runPreviewDeployComment(
+      baseComment({
+        commentBody: "/deploy preprod --force",
+        listFiles: async () => [{ filename: "apps/core/src/index.ts" }],
+        prepareResources: async () => {},
+        createDeployment: async (input) => ({
+          id: `dpl_${input.target.app}`,
+          readyState: "READY",
+        }),
+        pollDeployment: async (deployment) => deployment,
+        postComment: async (body) => {
+          posted.push(body);
+        },
+      }),
+    );
+    assert.equal(result.kind, "deploy");
+    assert.deepEqual(posted, []);
+  });
+
+  it("refuses --force on a fork pull request before touching anything", async () => {
+    const posted = [];
+    const reactions = [];
+    const created = [];
+    const result = await runPreviewDeployComment(
+      baseComment({
+        commentBody: `/deploy preprod --force ${FORK_SHA}`,
+        readPullRequest: async () => ({
+          state: "open",
+          number: 12,
+          head: { sha: FORK_SHA, ref: "feat", repo: { id: 2, fork: true } },
+          base: { repo: { id: 99 } },
+        }),
+        listFiles: async () => [],
+        prepareResources: async () => {
+          throw new Error("must not prepare");
+        },
+        createDeployment: async (input) => {
+          created.push(input);
+          return { id: "dpl", readyState: "READY" };
+        },
+        postComment: async (body) => {
+          posted.push(body);
+        },
+        addReaction: async (content) => {
+          reactions.push(content);
+        },
+      }),
+    );
+    assert.equal(result.kind, "fork-force");
+    assert.equal(posted.length, 1);
+    assert.match(posted[0], /--force/);
+    assert.match(posted[0], /fork/);
+    assert.deepEqual(reactions, []);
+    assert.deepEqual(created, []);
   });
 
   it("deploys when at least one package file changed", async () => {

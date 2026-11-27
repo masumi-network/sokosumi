@@ -288,11 +288,19 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotPendingDecision: {
       count: vi.fn().mockResolvedValue(4),
     },
+    // No account question is open on these turns.
+    sokoBotAccountQuestion: { findFirst: vi.fn().mockResolvedValue(null) },
     sokoBotTurn: {
       count: turnCountMock,
-      findFirst: turnFindFirstMock,
+      findFirst: async (...args: unknown[]) => {
+        const row = await turnFindFirstMock(...args);
+        return row && { network: "mainnet", preprodGeneration: null, ...row };
+      },
       findMany: turnFindManyMock,
-      findUnique: turnFindUniqueMock,
+      findUnique: async (...args: unknown[]) => {
+        const row = await turnFindUniqueMock(...args);
+        return row && { network: "mainnet", preprodGeneration: null, ...row };
+      },
       updateMany: turnUpdateManyMock,
     },
     sokoBotContextSnapshot: { findUnique: contextSnapshotFindUniqueMock },
@@ -6053,6 +6061,9 @@ describe("SokoBotControlPlane lifecycle", () => {
   });
 
   it("claims a fresh lease to settle a no-session cancellation", async () => {
+    transactionQueryRawMock.mockResolvedValueOnce([
+      { network: "mainnet", preprodGeneration: null },
+    ]);
     turnFindUniqueMock.mockImplementation(async () => ({
       sokoBotId: BOT_ID,
       requestedByUserId: "user_1",

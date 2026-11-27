@@ -681,4 +681,52 @@ describe("createTaskEventRequestSchema", () => {
 
     expect(result.success).toBe(false);
   });
+
+  describe("while Preprod is on, where PaymentSource.network names the payment's Network", () => {
+    const v2Payment = (network: "Mainnet" | "Preprod", address: string) => ({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: {
+        ...validMasumiPayment,
+        agentIdentifier: `${V2_POLICY_ID}${"ab".repeat(29)}000002`,
+        PaymentSource: {
+          network,
+          smartContractAddress: address,
+          policyId: V2_POLICY_ID,
+        },
+      },
+    });
+
+    it.each([
+      ["Mainnet", "Preprod", "addr_test1_contract"],
+      ["Preprod", "Mainnet", "addr1_contract"],
+    ] as const)(
+      "accepts on NETWORK=%s a payment that names %s",
+      (serverNetwork, named, address) => {
+        const schema = createTaskEventRequestSchema({
+          serverNetwork,
+          payloadNamesNetwork: true,
+        });
+
+        expect(schema.safeParse(v2Payment(named, address)).success).toBe(true);
+        // The same payload while Preprod is off: today's check.
+        expect(
+          createTaskEventRequestSchema({ serverNetwork }).safeParse(
+            v2Payment(named, address),
+          ).success,
+        ).toBe(false);
+      },
+    );
+
+    it("checks the contract address against the Network the payload names", () => {
+      const schema = createTaskEventRequestSchema({
+        serverNetwork: "Mainnet",
+        payloadNamesNetwork: true,
+      });
+      const result = schema.safeParse(v2Payment("Preprod", "addr1_contract"));
+
+      expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+        "PaymentSource.smartContractAddress must be a Preprod bech32 address",
+      ]);
+    });
+  });
 });

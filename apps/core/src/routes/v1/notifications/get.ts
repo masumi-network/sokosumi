@@ -27,6 +27,7 @@ import {
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
+import { hasPreprodAccess } from "@/middleware/network-scope";
 import {
   notificationKindSchema,
   notificationListSchema,
@@ -176,9 +177,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? findNeedsActionNotificationIds(
             userContext.userId,
             queryParams.projectId,
-            queryParams.exceptWorkspaceTasks
-              ? { exceptTasksIn: activeWorkspaceOf(userContext) }
-              : {},
+            {
+              canReadPreprodJobs: () => hasPreprodAccess(c.var.authContext),
+              ...(queryParams.exceptWorkspaceTasks && {
+                exceptTasksIn: activeWorkspaceOf(userContext),
+              }),
+            },
           )
         : undefined,
     ]);

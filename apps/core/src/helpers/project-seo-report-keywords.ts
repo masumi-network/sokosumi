@@ -9,8 +9,9 @@ import {
   seoFitSchema,
   seoIntentClassSchema,
 } from "@/schemas/project-seo-keyword-estimate.schema";
+import type { LegacySeoReport } from "./project-seo-legacy-report";
 import { omitUndefinedProperties } from "./project-seo-public-report";
-import type { LegacySeoReport, PublicSeoPayload } from "./project-seo-report";
+import type { PublicSeoPayload } from "./project-seo-report";
 
 export const FEATURE_CHARS = 200;
 // DataForSEO keyword_difficulty: 0 to 100. A value Core cannot read is dropped: it must not fail the import.

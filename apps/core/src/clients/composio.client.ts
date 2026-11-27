@@ -13,6 +13,11 @@ import {
   type SocialAccountPick,
 } from "@/helpers/social-account-choice";
 import {
+  isEvalSocialAccount,
+  refuseEvalSocialAccount,
+  refuseEvalSocialAccountInPath,
+} from "@/lib/evals/eval-social-account";
+import {
   createCoreLogger,
   recordCoreWarning,
   tryUseLiveLogger,
@@ -139,10 +144,23 @@ function getProjectComposioConfig(): { apiKey: string; baseUrl: string } {
   };
 }
 
+/** The connected accounts a request body names: a proxy call's or a session's. */
+function composioAccountIds(body: unknown): string[] {
+  const payload = record(body);
+  if (!payload) return [];
+  const pinned = record(payload.connected_accounts);
+  return [
+    payload.connected_account_id,
+    ...Object.values(pinned ?? {}).flat(),
+  ].filter((id): id is string => typeof id === "string");
+}
+
 export async function projectComposioFetch(
   path: string,
   init: { jsonBody?: unknown; timeoutMs?: number } & RequestInit = {},
 ): Promise<Response> {
+  refuseEvalSocialAccountInPath("Composio", path);
+  refuseEvalSocialAccount("Composio", ...composioAccountIds(init.jsonBody));
   const { apiKey, baseUrl } = getProjectComposioConfig();
   const {
     jsonBody,
@@ -1107,6 +1125,7 @@ export async function getConnectedSocialIdentity(input: {
 export async function revokeComposioConnectedAccount(input: {
   connectedAccountId: string;
 }): Promise<void> {
+  if (isEvalSocialAccount(input.connectedAccountId)) return;
   const response = await projectComposioFetch(
     `/api/v3.1/connected_accounts/${encodeURIComponent(input.connectedAccountId)}/revoke`,
     { method: "POST" },
@@ -1123,6 +1142,7 @@ export async function revokeComposioConnectedAccount(input: {
 export async function deleteProjectSocialConnectionIntent(input: {
   connectedAccountId: string;
 }): Promise<void> {
+  if (isEvalSocialAccount(input.connectedAccountId)) return;
   const response = await projectComposioFetch(
     `/api/v3.1/connected_accounts/${encodeURIComponent(input.connectedAccountId)}?revoke_on_delete=true`,
     { method: "DELETE" },

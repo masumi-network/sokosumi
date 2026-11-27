@@ -15,6 +15,14 @@ const jobDetailsViewMock = vi.fn();
 let useChannelHandler:
   | ((message: { name: string; data: unknown }) => void)
   | null = null;
+let attachedChannelName: string | null = null;
+
+vi.mock("@/lib/ably/realtime-channel-environment", () => ({
+  getRealtimeChannelEnvironment: () => ({
+    network: "Mainnet",
+    vercelEnv: "production",
+  }),
+}));
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -36,10 +44,11 @@ vi.mock("ably/react", () => ({
     <div data-testid="channel-provider">{children}</div>
   ),
   useChannel: (
-    _channelName: string,
+    channelName: string,
     _eventName: string,
     handler: (message: { name: string; data: unknown }) => void,
   ) => {
+    attachedChannelName = channelName;
     useChannelHandler = handler;
   },
 }));
@@ -133,6 +142,8 @@ function createJob(overrides?: Partial<Job>): Job {
 describe("JobDetails", () => {
   beforeEach(() => {
     lazyAblyProviderMock.mockReset();
+    invalidateQueriesMock.mockReset();
+    attachedChannelName = null;
     lazyAblyProviderMock.mockImplementation(
       ({ children }: { children: React.ReactNode }): React.ReactNode => (
         <>{children}</>
@@ -222,5 +233,32 @@ describe("JobDetails", () => {
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
       queryKey: ["jobs", "job-1"],
     });
+  });
+
+  it("attaches the Job's Workspace channel on Mainnet and ignores another Job's event", () => {
+    const initialJob = createJob();
+
+    useSessionMock.mockReturnValue({ data: { user: { id: "user-1" } } });
+    getJobQueryOptionsMock.mockReturnValue({});
+    useQueryMock.mockReturnValue({ data: initialJob });
+
+    render(<JobDetails job={initialJob} />);
+
+    expect(attachedChannelName).toBe(
+      "agent_jobs:mainnet:workspace_workspace-1:user_user-1",
+    );
+
+    act(() => {
+      useChannelHandler?.({
+        name: "job_status_data",
+        data: {
+          jobId: "job-of-another-agent",
+          jobStatus: "completed",
+          jobStatusSettled: true,
+        },
+      });
+    });
+
+    expect(invalidateQueriesMock).not.toHaveBeenCalled();
   });
 });

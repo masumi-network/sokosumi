@@ -141,7 +141,7 @@ export async function dispatchSchedulesTools(
           } = authorized.turn;
           const scope = { userId, workspaceId, sokoBotId };
           let schedule:
-            | Omit<SokoBotSchedule, "network">
+            | Omit<SokoBotSchedule, "network" | "preprodGeneration">
             | Awaited<ReturnType<typeof deleteSokoBotSchedule>>;
           if (input.capability === "create_schedule") {
             const {
@@ -173,25 +173,20 @@ export async function dispatchSchedulesTools(
               },
               tx,
             );
-            const { network: _network, ...created } = row;
+            const {
+              network: _network,
+              preprodGeneration: _generation,
+              ...created
+            } = row;
             schedule = created;
           } else if (input.capability === "update_schedule") {
             const {
               stopRule,
               allowScheduledPosts,
               capabilities,
-              keepCapabilities,
+              keepCapabilities: _keepCapabilities,
               ...scheduleInput
             } = updateScheduleInputSchema.parse(input.input);
-            if (
-              scheduleInput.prompt !== undefined &&
-              capabilities === undefined &&
-              keepCapabilities !== true
-            ) {
-              throw new SokoBotRuntimeValidationError(
-                "Replacing a schedule's prompt requires declaring the tools the updated job needs in capabilities (bounded by your current tools), or passing keepCapabilities: true if it only uses the schedule's existing tools.",
-              );
-            }
             const capabilityNames =
               capabilities !== undefined
                 ? resolveRequestedScheduleCapabilities(
@@ -206,6 +201,7 @@ export async function dispatchSchedulesTools(
                 ...(capabilityNames !== undefined
                   ? { capabilityNames, explicitCapabilities: true }
                   : {}),
+                editorCapabilities: authorized.grant.capabilities,
                 // Cuso's rhythms are the work he was hired for: what
                 // the owner asks for becomes a schedule of its own.
                 keepBuiltInRhythms:
@@ -223,7 +219,11 @@ export async function dispatchSchedulesTools(
               },
               tx,
             );
-            const { network: _network, ...updated } = row;
+            const {
+              network: _network,
+              preprodGeneration: _generation,
+              ...updated
+            } = row;
             schedule = updated;
           } else {
             schedule = await deleteSokoBotSchedule(

@@ -834,7 +834,7 @@ describe("SEO workspace integration", () => {
     const verdict = screen.getByTestId("seo-agent-verdict");
     expect(verdict).toHaveAttribute("lang", "en");
     expect(verdict).toHaveTextContent(
-      "2 issues to fix: 1 high impact and 1 low impact",
+      "2 issues found in the last check: 1 high impact and 1 low impact",
     );
   });
 
@@ -906,6 +906,129 @@ describe("SEO workspace integration", () => {
     expect(within(dialog).getByText("The two prices differ.")).toBeVisible();
     expect(within(dialog).getByText("One price.")).toBeVisible();
   });
+
+  it("leads the Agent tab with the count of the actions it lists, split by impact", async () => {
+    const workspace = seoTestCheckedAudit();
+    const observationId = workspace.observations[0].id;
+    const pageUrl = workspace.pages[0].url;
+    // A done fix leaves the list, so the headline must not count it.
+    for (const [id, severity, status] of [
+      ["one", "major", "recommended"],
+      ["two", "major", "recommended"],
+      ["three", "minor", "recommended"],
+      ["four", "major", "implemented"],
+    ] as const) {
+      workspace.findings.push({
+        id,
+        observationId,
+        pageUrl,
+        device: "mobile",
+        rowId: `R-${id}`,
+        title: `Check ${id}`,
+        severity,
+        evidence: ["found"],
+        sourceRef: "html:head",
+        observedAt: new Date("2026-01-03T12:00:00Z"),
+      });
+      workspace.actions.push({
+        id: `fix-${id}`,
+        observationId,
+        pageUrl,
+        findingIds: [id],
+        title: `Fix ${id}`,
+        why: "Why",
+        effort: "low",
+        expectedEffect: "Effect",
+        edit: null,
+        taskId: null,
+        status,
+        kind: "fix",
+        evidence: [],
+      });
+    }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    // The headline and the list under it count the same rows.
+    expect(await screen.findByTestId("seo-agent-verdict")).toHaveTextContent(
+      "3 things to fix: 2 high impact and 1 low impact",
+    );
+    for (const title of ["Fix one", "Fix two", "Fix three"])
+      expect(
+        screen.getByRole("button", { name: new RegExp(`^${title}`) }),
+      ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /^Fix four/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["recommended", "1 thing to fix: 1 high impact. 2 suggestions to review"],
+    // The fix has a Task, so no row fixes the issue: the headline says what the check found.
+    [
+      "task_created",
+      "1 issue found in the last check: 1 high impact. 2 suggestions to review",
+    ],
+  ] as const)(
+    "names the suggestions of the Agent tab list apart from its fixes: fix %s",
+    async (status, text) => {
+      const workspace = seoTestCheckedAudit();
+      workspace.observations[0].issues = 1;
+      const observationId = workspace.observations[0].id;
+      const pageUrl = workspace.pages[0].url;
+      workspace.findings.push({
+        id: "one",
+        observationId,
+        pageUrl,
+        device: "mobile",
+        rowId: "R-one",
+        title: "Check one",
+        severity: "major",
+        evidence: ["found"],
+        sourceRef: "html:head",
+        observedAt: new Date("2026-01-03T12:00:00Z"),
+      });
+      const action = {
+        observationId,
+        pageUrl,
+        why: "Why",
+        effort: "low",
+        expectedEffect: "Effect",
+        edit: null,
+        taskId: null,
+        evidence: [] as string[],
+      } as const;
+      workspace.actions.push(
+        {
+          ...action,
+          id: "fix-one",
+          findingIds: ["one"],
+          title: "Fix one",
+          status,
+          taskId: status === "task_created" ? "task-one" : null,
+          kind: "fix",
+        },
+        ...["Idea one", "Idea two"].map((title) => ({
+          ...action,
+          id: title,
+          findingIds: [],
+          title,
+          status: "recommended" as const,
+          kind: "opportunity" as const,
+        })),
+      );
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json(workspace)),
+      );
+      renderWorkspace(workspace);
+      expect(await screen.findByTestId("seo-agent-verdict")).toHaveTextContent(
+        text,
+      );
+    },
+  );
 
   it("filters the Actions worklist by impact, with suggestions apart", async () => {
     const user = userEvent.setup();
@@ -8716,12 +8839,12 @@ describe("SEO workspace integration", () => {
     // The Agent tab says the issue count once, in its headline, and shows the keyword numbers.
     expect(
       await screen.findByRole("heading", {
-        name: "1 issue to fix: 1 high impact",
+        name: "1 issue found in the last check: 1 high impact",
       }),
     ).toBeVisible();
-    expect(screen.getAllByText("1 issue to fix: 1 high impact")).toHaveLength(
-      1,
-    );
+    expect(
+      screen.getAllByText("1 issue found in the last check: 1 high impact"),
+    ).toHaveLength(1);
     expect(
       screen.queryByRole("heading", { name: "The agent proposes" }),
     ).toBeNull();

@@ -188,6 +188,7 @@ describe("SokoBotTurnsSyncService", () => {
         {
           id: "turn_2",
           eveSessionId: "session_2",
+          network: "mainnet",
           leaseToken: "old_lease",
           reconcilerHeartbeatAt: staleHeartbeat,
         },
@@ -240,7 +241,11 @@ describe("SokoBotTurnsSyncService", () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
-        { id: "turn_cas", reconcilerHeartbeatAt: staleHeartbeat },
+        {
+          id: "turn_cas",
+          reconcilerHeartbeatAt: staleHeartbeat,
+          network: "mainnet",
+        },
       ]);
     turnUpdateManyMock.mockResolvedValue({ count: 0 });
 
@@ -259,8 +264,16 @@ describe("SokoBotTurnsSyncService", () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
-        { id: "turn_a", reconcilerHeartbeatAt: staleHeartbeat },
-        { id: "turn_b", reconcilerHeartbeatAt: staleHeartbeat },
+        {
+          id: "turn_a",
+          reconcilerHeartbeatAt: staleHeartbeat,
+          network: "mainnet",
+        },
+        {
+          id: "turn_b",
+          reconcilerHeartbeatAt: staleHeartbeat,
+          network: "mainnet",
+        },
       ]);
 
     let inFlight = 0;
@@ -303,7 +316,11 @@ describe("SokoBotTurnsSyncService", () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
-        { id: "turn_3", reconcilerHeartbeatAt: staleHeartbeat },
+        {
+          id: "turn_3",
+          reconcilerHeartbeatAt: staleHeartbeat,
+          network: "mainnet",
+        },
       ]);
     reconcileTurnMock.mockRejectedValue(
       Object.assign(
@@ -345,8 +362,16 @@ describe("SokoBotTurnsSyncService", () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
-        { id: "turn_keep", reconcilerHeartbeatAt: staleHeartbeat },
-        { id: "turn_skip", reconcilerHeartbeatAt: staleHeartbeat },
+        {
+          id: "turn_keep",
+          reconcilerHeartbeatAt: staleHeartbeat,
+          network: "mainnet",
+        },
+        {
+          id: "turn_skip",
+          reconcilerHeartbeatAt: staleHeartbeat,
+          network: "mainnet",
+        },
       ]);
 
     const result = await sokoBotTurnsSyncService.syncActiveTurns({

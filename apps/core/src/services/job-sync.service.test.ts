@@ -1,3 +1,4 @@
+import { setImmediate } from "node:timers/promises";
 import {
   AgentJobStatus,
   AgentStatus,
@@ -7,13 +8,16 @@ import {
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import {
   coreLogEvents,
   expectCoreLog,
   expectCoreLogWhys,
 } from "@/test/core-log";
+import { drainWaitUntil } from "@/test/wait-until";
 import { PURCHASE_DIFF_SYNC_METADATA_KEY } from "./job-purchase-diff.service";
 import { jobSyncService } from "./job-sync.service";
+import { dispatchJobFailureNotification } from "./job-sync-state.service";
 
 const {
   captureExceptionMock,
@@ -83,6 +87,8 @@ vi.mock("@vercel/related-projects", () => ({
   withRelatedProject: (opts: { defaultHost: string }) => opts.defaultHost,
 }));
 
+vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
+
 vi.mock("@sentry/node", () => ({
   captureException: captureExceptionMock,
   captureMessage: captureMessageMock,
@@ -145,7 +151,12 @@ vi.mock("@/config/env", () => ({
       "stakeholder2@example.com",
     ],
     JOB_FAILURE_WEBHOOK_URL: "https://hooks.example.com/job-failure",
-    NETWORK: "Preprod",
+    PREPROD_JOB_FAILURE_NOTIFICATION_EMAILS:
+      process.env.PREPROD_JOB_FAILURE_NOTIFICATION_EMAILS?.split(",") ?? [],
+    PREPROD_JOB_FAILURE_WEBHOOK_URL:
+      process.env.PREPROD_JOB_FAILURE_WEBHOOK_URL,
+    NETWORK: process.env.NETWORK,
+    NETWORK_PREPROD_ENABLED: process.env.NETWORK_PREPROD_ENABLED === "true",
     RESEND_FROM_EMAIL: "no-reply@example.com",
   }),
   getWebAppBaseUrl: () => "https://app.sokosumi.test",
@@ -475,6 +486,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
+    vi.unstubAllEnvs();
   });
 
   it("backfills missing purchases and continues syncing in the same run", async () => {
@@ -1782,9 +1794,11 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       "[result](https://example.com/report.pdf)",
     );
     expect(publishJobStatusDataMock).toHaveBeenCalledWith({
-      agentId: "agent_1",
+      network: "mainnet",
+      workspaceId: "11111111-1111-7111-8111-111111111111",
       userId: "user_1",
       jobId: "job_1",
+      agentId: "agent_1",
       jobStatus: SokosumiJobStatus.COMPLETED,
       jobStatusSettled: true,
     });
@@ -1911,10 +1925,14 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
-  it("reports job-failure webhook HTTP errors to Sentry with response context", async () => {
-    requestFetchMock.mockResolvedValue(
-      new Response("kaboom", { status: 500, statusText: "Server Error" }),
+  it("drains the Mainnet job-failure webhook and reports HTTP errors", async () => {
+    vi.stubEnv("NETWORK", "Mainnet");
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not deliver a job failure webhook",
     );
+    const response = Promise.withResolvers<Response>();
+    requestFetchMock.mockReturnValue(response.promise);
 
     const updatedFailedJob = createJob({
       status: SokosumiJobStatus.PAYMENT_FAILED,
@@ -1948,21 +1966,151 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
     jobFindUniqueMock.mockResolvedValueOnce(updatedFailedJob);
 
-    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+    let drain: Promise<string[]>;
+    try {
+      await expect(
+        runAsBackgroundWork(
+          () => jobSyncService.syncUnfinishedJobs(createExecutionOptions()),
+          { syncRunId: "jobs-test-run" },
+        ),
+      ).resolves.toEqual(expect.objectContaining({ processed: 1 }));
+      expect(sendEmailMock).toHaveBeenCalledTimes(1);
+      drain = drainWaitUntil();
+      expect(await Promise.race([drain, setImmediate("pending")])).toBe(
+        "pending",
+      );
+    } finally {
+      response.resolve(
+        new Response("kaboom", { status: 500, statusText: "Server Error" }),
+      );
+    }
+    expect(await drain).toEqual([]);
+    expect(requestFetchMock).toHaveBeenCalledTimes(1);
+    expect(requestFetchMock).toHaveBeenCalledWith(
+      "https://hooks.example.com/job-failure",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(JSON.parse(requestFetchMock.mock.lastCall?.[1].body)).toEqual({
+      network: "Mainnet",
+      agentId: "agent_1",
+      agentBlockchainIdentifier: "agent-chain-1",
+      agentName: "Display Name",
+      jobId: "job_1",
+      jobBlockchainIdentifier: "blockchain-job-1",
+      onChainStatus: "N/A",
+      agentStatus: SokosumiJobStatus.PAYMENT_FAILED,
+      result: "boom",
+      resultHash: "N/A",
+    });
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "job_failure_webhook",
+      jobId: "job_1",
+      userId: "user_1",
+      notificationType: "job-failure-webhook",
+      webhookUrl: "https://hooks.example.com",
+      syncRunId: "jobs-test-run",
+      responseStatus: 500,
+      failure: { errorName: "Error" },
+    });
+    expect(warnings[0]?.event).not.toHaveProperty("responseBody");
+    expect(captureMessageMock).not.toHaveBeenCalled();
+  });
 
-    await vi.waitFor(() => {
-      expect(captureMessageMock).toHaveBeenCalledWith(
-        "Failed to call job-failure webhook",
-        expect.objectContaining({
-          level: "warning",
-          extra: expect.objectContaining({
-            jobId: "job_1",
-            userId: "user_1",
-            notificationType: "job-failure-webhook",
-            responseStatus: 500,
-            responseBody: "kaboom",
-          }),
-        }),
+  describe("job failure alert routing by Network", () => {
+    let failedJob: Parameters<typeof dispatchJobFailureNotification>[0];
+
+    beforeEach(async () => {
+      failedJob = createJob({
+        status: SokosumiJobStatus.FAILED,
+      }) as typeof failedJob;
+      failedJob.agent.authorContactEmail = "author@example.com";
+      vi.stubEnv("NETWORK", "Mainnet");
+      vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
+      vi.stubEnv("PREPROD_JOB_FAILURE_NOTIFICATION_EMAILS", undefined);
+      vi.stubEnv("PREPROD_JOB_FAILURE_WEBHOOK_URL", undefined);
+
+      const { renderJobFailureNotificationEmail } =
+        await vi.importActual<typeof import("@sokosumi/email")>(
+          "@sokosumi/email",
+        );
+      renderJobFailureNotificationEmailMock.mockImplementation(
+        renderJobFailureNotificationEmail,
+      );
+    }, 30_000);
+
+    it.each([
+      ["true", "Mainnet"],
+      ["false", "Preprod"],
+    ])(
+      "uses the existing destinations with NETWORK_PREPROD_ENABLED=%s and labels the alert %s",
+      async (preprodEnabled, label) => {
+        vi.stubEnv("NETWORK", "Preprod");
+        vi.stubEnv("NETWORK_PREPROD_ENABLED", preprodEnabled);
+        vi.stubEnv(
+          "PREPROD_JOB_FAILURE_NOTIFICATION_EMAILS",
+          "preprod-ops@example.com",
+        );
+        vi.stubEnv(
+          "PREPROD_JOB_FAILURE_WEBHOOK_URL",
+          "https://hooks.example.com/preprod",
+        );
+
+        await dispatchJobFailureNotification(
+          failedJob,
+          "mainnet",
+          sendEmailMock,
+        );
+
+        expect(sendEmailMock).toHaveBeenCalledExactlyOnceWith({
+          to: ["author@example.com"],
+          bcc: ["stakeholder1@example.com", "stakeholder2@example.com"],
+          tag: "job-failure-notification",
+          subject: "Sokosumi - Job job_1 failed",
+          html: expect.stringContaining(`>${label}<`),
+        });
+        expect(requestFetchMock).toHaveBeenCalledExactlyOnceWith(
+          "https://hooks.example.com/job-failure",
+          expect.objectContaining({ method: "POST" }),
+        );
+        expect(
+          JSON.parse(requestFetchMock.mock.lastCall?.[1].body).network,
+        ).toBe(label);
+      },
+    );
+
+    it("sends nothing for a Preprod Job without Preprod destinations", async () => {
+      await dispatchJobFailureNotification(failedJob, "preprod", sendEmailMock);
+
+      expect(requestFetchMock).not.toHaveBeenCalled();
+      expect(sendEmailMock).not.toHaveBeenCalled();
+      expect(captureExceptionMock).not.toHaveBeenCalled();
+    });
+
+    it("uses only the configured Preprod ops destinations for a Preprod Job", async () => {
+      vi.stubEnv(
+        "PREPROD_JOB_FAILURE_NOTIFICATION_EMAILS",
+        "preprod-ops@example.com",
+      );
+      vi.stubEnv(
+        "PREPROD_JOB_FAILURE_WEBHOOK_URL",
+        "https://hooks.example.com/preprod",
+      );
+
+      await dispatchJobFailureNotification(failedJob, "preprod", sendEmailMock);
+
+      expect(sendEmailMock).toHaveBeenCalledExactlyOnceWith({
+        to: ["author@example.com"],
+        bcc: ["preprod-ops@example.com"],
+        tag: "job-failure-notification",
+        subject: "[Preprod] Sokosumi - Job job_1 failed",
+        html: expect.stringContaining(">Preprod<"),
+      });
+      expect(requestFetchMock).toHaveBeenCalledExactlyOnceWith(
+        "https://hooks.example.com/preprod",
+        expect.objectContaining({ method: "POST" }),
+      );
+      expect(JSON.parse(requestFetchMock.mock.lastCall?.[1].body).network).toBe(
+        "Preprod",
       );
     });
   });
@@ -2030,9 +2178,11 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       locale: "en",
     });
     expect(publishJobStatusDataMock).toHaveBeenCalledWith({
-      agentId: "agent_1",
+      network: "mainnet",
+      workspaceId: "11111111-1111-7111-8111-111111111111",
       userId: "user_1",
       jobId: "job_1",
+      agentId: "agent_1",
       jobStatus: SokosumiJobStatus.PAYMENT_FAILED,
       jobStatusSettled: false,
     });
@@ -2207,9 +2357,11 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       locale: "en",
     });
     expect(publishJobStatusDataMock).toHaveBeenCalledWith({
-      agentId: "agent_1",
+      network: "mainnet",
+      workspaceId: "11111111-1111-7111-8111-111111111111",
       userId: "user_1",
       jobId: "job_1",
+      agentId: "agent_1",
       jobStatus: SokosumiJobStatus.PAYMENT_FAILED,
       jobStatusSettled: false,
     });
@@ -2290,9 +2442,11 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       locale: "en",
     });
     expect(publishJobStatusDataMock).toHaveBeenCalledWith({
-      agentId: "agent_1",
+      network: "mainnet",
+      workspaceId: "11111111-1111-7111-8111-111111111111",
       userId: "user_1",
       jobId: "job_1",
+      agentId: "agent_1",
       jobStatus: SokosumiJobStatus.PAYMENT_FAILED,
       jobStatusSettled: false,
     });
@@ -2463,9 +2617,11 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
     expect(refundJobMock).not.toHaveBeenCalled();
     expect(publishJobStatusDataMock).toHaveBeenCalledWith({
-      agentId: "agent_1",
+      network: "mainnet",
+      workspaceId: "11111111-1111-7111-8111-111111111111",
       userId: "user_1",
       jobId: "job_1",
+      agentId: "agent_1",
       jobStatus: SokosumiJobStatus.REFUND_RESOLVED,
       jobStatusSettled: false,
     });
@@ -2529,9 +2685,11 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
     expect(refundJobMock).not.toHaveBeenCalled();
     expect(publishJobStatusDataMock).toHaveBeenCalledWith({
-      agentId: "agent_1",
+      network: "mainnet",
+      workspaceId: "11111111-1111-7111-8111-111111111111",
       userId: "user_1",
       jobId: "job_1",
+      agentId: "agent_1",
       jobStatus: SokosumiJobStatus.DISPUTE_RESOLVED,
       jobStatusSettled: false,
     });
@@ -2590,6 +2748,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("does not fail the sync when webhook, email, or ably publishing fails", async () => {
+    expectCoreLog("warn", "Could not deliver a job failure webhook");
     const errors = expectCoreLogWhys(
       "error",
       "Could not publish a job's new status to its owner's live view",

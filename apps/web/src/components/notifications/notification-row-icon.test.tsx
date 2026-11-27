@@ -16,6 +16,7 @@ function notification(isRead: boolean): NotificationItem {
     isRead,
     readAt: isRead ? new Date("2026-06-18T09:30:00.000Z") : null,
     createdAt: new Date("2026-06-18T09:00:00.000Z"),
+    network: null,
   };
 }
 

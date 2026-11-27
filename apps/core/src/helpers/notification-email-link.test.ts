@@ -111,6 +111,40 @@ describe("notificationEmailLink", () => {
       }),
     ).toBe(`${BASE}/billing?tab=credits`);
   });
+
+  it.each(["mainnet", "preprod"])("names %s for a tagged Job", (network) => {
+    expect(
+      notificationEmailLink({
+        kind: NotificationKind.JOB,
+        referenceId: "job-1",
+        messageKey: "Notifications.Job.inputRequired",
+        network,
+      }),
+    ).toBe(`${BASE}/?network=${network}`);
+  });
+
+  it("keeps the original home link for an untagged Job", () => {
+    expect(
+      notificationEmailLink({
+        kind: NotificationKind.JOB,
+        referenceId: "job-1",
+        messageKey: "Notifications.Job.inputRequired",
+        network: null,
+      }),
+    ).toBe(`${BASE}/`);
+  });
+
+  it("keeps a Task link clean even when given a Network", () => {
+    expect(
+      notificationEmailLink({
+        kind: NotificationKind.TASK,
+        referenceId: "task-1",
+        messageKey: "Notifications.Task.completed",
+        metadata: { seoResult: false },
+        network: "mainnet",
+      }),
+    ).toBe(`${BASE}/tasks/task-1`);
+  });
 });
 
 describe("readString", () => {

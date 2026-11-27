@@ -5,12 +5,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EnvVariables } from "@/lib/hono";
 
 const mocks = vi.hoisted(() => ({
+  referenceFiles: vi.fn(),
+  project: { findUniqueOrThrow: vi.fn(), update: vi.fn() },
   requireProjectAccess: vi.fn(),
   prepareStudioWebsiteDraft: vi.fn(),
   readStudioBrandKit: vi.fn(),
   saveStudioBrandCopy: vi.fn(),
 }));
 
+vi.mock("@/lib/image-studio/reference-files", () => ({
+  requireStudioReferenceFiles: mocks.referenceFiles,
+}));
+vi.mock("@/lib/db/transaction", () => ({
+  serializableTransaction: (
+    run: (tx: { project: typeof mocks.project }) => unknown,
+  ) => run({ project: mocks.project }),
+}));
 vi.mock("@/lib/image-studio/access", () => ({
   requireProjectAccess: mocks.requireProjectAccess,
 }));
@@ -57,6 +67,58 @@ describe("Studio website research", () => {
       brandCopy: null,
       products: [],
     });
+  });
+
+  it("adds and removes one brand image while preserving the rest of the kit", async () => {
+    const mascot = {
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      name: "mascot.png",
+    };
+    const other = {
+      id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      name: "packaging.jpg",
+    };
+    const change = (body: unknown) =>
+      app().request(`/${projectId}/image-studio/brand-kit/assets`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    mocks.project.findUniqueOrThrow.mockResolvedValueOnce({
+      studioBrandAssets: [other],
+    });
+    expect((await (await change({ add: mascot })).json()).data).toEqual([
+      other,
+      mascot,
+    ]);
+    expect(mocks.referenceFiles).toHaveBeenCalledWith(
+      {
+        workspaceId: scope.workspaceId,
+        actor: {
+          kind: "interactive",
+          userId: scope.userId,
+          organizationId: null,
+        },
+        resourceIds: [mascot.id],
+      },
+      expect.anything(),
+    );
+    expect(mocks.project.update).toHaveBeenCalledWith({
+      where: { id: projectId },
+      data: { studioBrandAssets: [other, mascot] },
+    });
+    mocks.project.findUniqueOrThrow.mockResolvedValueOnce({
+      studioBrandAssets: [other, mascot],
+    });
+    expect((await (await change({ remove: mascot.id })).json()).data).toEqual([
+      other,
+    ]);
+    mocks.referenceFiles.mockRejectedValueOnce(new HTTPException(404));
+    mocks.project.findUniqueOrThrow.mockResolvedValueOnce({
+      studioBrandAssets: null,
+    });
+    expect((await change({ add: mascot })).status).toBe(404);
+    expect(mocks.project.update).toHaveBeenCalledTimes(2);
   });
 
   it("uses the caller's authorized workspace for POST research and keeps GET read-only", async () => {
