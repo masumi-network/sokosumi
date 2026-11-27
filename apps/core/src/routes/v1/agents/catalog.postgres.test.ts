@@ -80,8 +80,10 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
         ? "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
         : "0x036cbd53842c5426634e7929541ec2318f3dcf7e";
     const payTo = "0x1111111111111111111111111111111111111111";
-    const owner = await createPasswordUser("Catalog comparison");
     const previous = await shared.syncMetadata.findUnique({ where: { key } });
+    const owner = await createPasswordUser("Catalog comparison");
+    let createdAgents = false;
+    let createdRate = false;
     const sql: string[] = [];
     const results: string[] = [];
     const calls: Record<string, number> = {};
@@ -161,6 +163,7 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
           });
         }
       }, "Fixture conflict");
+      createdAgents = true;
       const readiness = {
         cursorId: JSON.stringify([
           {
@@ -229,18 +232,14 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
       await compare("empty rates list", "/v1/agents?kind=cardano");
       expectCoreLog("error", "A request failed with a server error", 2);
       await compare("empty rates detail", "/v1/agents/catalog-a", 500);
-      await scope.netTransaction(async (tx) => {
-        // The split fixture's unit trigger still expects its function in public.
-        if (onSplitLayout)
-          await tx.$executeRaw`SET LOCAL session_replication_role = replica`;
-        await tx.creditCost.create({
-          data: {
-            id: "catalog-rate",
-            unit: `${chain}/erc20:${asset}`,
-            centsPerUnit: 10_000_000_000n,
-          },
-        });
-      }, "Fixture conflict");
+      await scope.networkDb.creditCost.create({
+        data: {
+          id: "catalog-rate",
+          unit: `${chain}/erc20:${asset}`,
+          centsPerUnit: 10_000_000_000n,
+        },
+      });
+      createdRate = true;
       const cursor = await compare("page one", "/v1/agents?limit=2");
       expect(cursor).toBe("catalog-c");
       await compare("page two", `/v1/agents?limit=2&cursor=${cursor}`);
@@ -267,14 +266,15 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
     } finally {
       vi.useRealTimers();
       await scope.netTransaction(async (tx) => {
-        await tx.agent.deleteMany({ where: { id: { in: ids } } });
-        await tx.agentPricing.deleteMany({
-          where: { id: { in: ids.map((id) => `${id}-pricing`) } },
-        });
-        await tx.category.deleteMany({ where: { id: "catalog-category" } });
-        if (onSplitLayout)
-          await tx.$executeRaw`SET LOCAL session_replication_role = replica`;
-        await tx.creditCost.deleteMany({ where: { id: "catalog-rate" } });
+        if (createdAgents) {
+          await tx.agent.deleteMany({ where: { id: { in: ids } } });
+          await tx.agentPricing.deleteMany({
+            where: { id: { in: ids.map((id) => `${id}-pricing`) } },
+          });
+          await tx.category.deleteMany({ where: { id: "catalog-category" } });
+        }
+        if (createdRate)
+          await tx.creditCost.deleteMany({ where: { id: "catalog-rate" } });
       }, "Fixture conflict");
       if (previous)
         await shared.syncMetadata.update({ where: { key }, data: previous });
@@ -288,3 +288,14 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
   },
   60_000,
 );
+
+// Checked by tsc without issuing a query.
+export function _availabilityRequiresScope(
+  detail: typeof import("@/lib/agent-catalog/detail").getAvailableAgent,
+  list: typeof import("@/lib/agent-catalog/list").listAvailableAgents,
+) {
+  // @ts-expect-error A detail reader must supply its scope.
+  detail(undefined, "catalog-a");
+  // @ts-expect-error A list reader must supply its scope.
+  list(undefined, { kinds: ["cardano"], take: 1 });
+}
