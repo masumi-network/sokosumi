@@ -174,12 +174,13 @@ function unsettled(saves: readonly SaveReceipt[]): SaveReceipt[] {
 /**
  * The reply says the bot itself made a change ("I scheduled", "we've
  * published"), in the claim check's words; a report of what someone else
- * did ("Jamie scheduled it") is not one.
+ * did ("Jamie scheduled it") is not one, nor are quoted words.
  */
 const OWN_CHANGE_CLAIM = new RegExp(
   String.raw`\b(?:I|we)(?:'ve| have| just| also| now)*\s+${CHANGE_CLAIM.source}`,
   "i",
 );
+const QUOTED = /“[^”]*”|"[^"]*"|«[^»]*»|„[^“”]*[“”]/g;
 
 async function receiptsDisagree(
   found: NonNullable<Awaited<ReturnType<typeof turnPlan>>>,
@@ -192,9 +193,12 @@ async function receiptsDisagree(
   // bot made a change, with no change even tried anywhere in the request,
   // is done only in words. A change on record, however it ended, is judged
   // by its receipt below (read back an unconfirmed one, never redo it).
-  const words = parseActionNarrativeText(draft)?.message ?? draft;
+  const words = (parseActionNarrativeText(draft)?.message ?? draft).replace(
+    QUOTED,
+    "",
+  );
   if (!saves.length && OWN_CHANGE_CLAIM.test(words))
-    return `Your plan marks every step done and your reply says you made or changed something, but Core has no record of any change in this request. Do the work now with the tools. If a step cannot be done, call update_plan (revision ${found.plan.revision}) and mark it blocked with the reason, or skipped if it is not needed. Then reply, saying plainly what was done and what was not.`;
+    return `Your plan marks every step done and your reply says you made or changed something, but Core has no record of any change in this request. If the owner asked for that change in this request, make it now with the tools, or call update_plan (revision ${found.plan.revision}) and mark its step blocked with the reason. If they did not ask for it, or those are someone else's words, change nothing: reword the reply so it does not say you made a change, and say whose words they are.`;
   const left = unsettled(saves);
   if (!left.length) return null;
   const lines = receiptLines(left);

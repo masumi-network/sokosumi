@@ -884,6 +884,37 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
         ).toBeNull();
       });
 
+      it("keeps quoted old activity in a read-only report", async () => {
+        const chat = await turn("CHAT");
+        await prisma.sokoBotTurn.update({
+          where: { id: chat },
+          data: {
+            userMessage:
+              "Read my note and quote the sentence about the workshop. Leave the schedule alone.",
+          },
+        });
+        await updatePlan(chat, [
+          { step: "Read the note", status: "done" },
+          { step: "Quote the requested sentence", status: "done" },
+        ]);
+        const prompt = await check(
+          chat,
+          "The owner’s note reads “I scheduled the workshop yesterday.”",
+        );
+        expect(prompt ?? "").not.toContain("Do the work now with the tools");
+        expect(prompt).toBeNull();
+      });
+
+      it("lets an unsupported claim be reworded instead of acted on", async () => {
+        const prompt = await check(
+          await finished([]),
+          "I scheduled both posts for Monday.",
+        );
+        expect(prompt).toContain("If the owner asked for that change");
+        expect(prompt).toContain("If they did not ask for it");
+        expect(prompt).toContain("change nothing");
+      });
+
       it("lets a report of someone else's work through with no write on record", async () => {
         expect(
           await check(
