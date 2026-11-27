@@ -522,7 +522,20 @@ export function ProjectBrandCard({
         </div>
 
         {!readOnly && !designMd && !generation.isRunning ? (
-          <>
+          // A copy swaps this whole area for the saved brand, so focus on
+          // any control here (Copy, or the field a Tab reaches next) hands
+          // off to the brand menu; leaving the area cancels that.
+          <div
+            className="space-y-2"
+            onBlur={(event) => {
+              if (
+                event.relatedTarget &&
+                !event.currentTarget.contains(event.relatedTarget)
+              ) {
+                brandMenuFocus = null;
+              }
+            }}
+          >
             {/* The organization's brand is the one-step path, so it leads as
                 its own tile with the one filled button; the website and file
                 routes follow under "or" as the alternatives. */}
@@ -535,7 +548,6 @@ export function ProjectBrandCard({
                   >
                     <Building2 className="size-4" />
                   </span>
-                  {/* A long name wraps inside the tile, never past it. */}
                   <div className="min-w-0 flex-1 basis-40">
                     <p className="text-sm font-medium wrap-anywhere">
                       {t("brandCard.organizationTitle", {
@@ -562,24 +574,23 @@ export function ProjectBrandCard({
                         event.currentTarget,
                       )
                     }
-                    onBlur={(event) => {
-                      // Moving on while the copy runs cancels the focus
-                      // request; the button leaving the page has no next
-                      // control.
-                      if (event.relatedTarget) brandMenuFocus = null;
-                    }}
-                    // A full-width 40px target on a phone, inline from sm up.
                     className="h-10 w-full sm:h-8 sm:w-auto"
                   >
                     {t("brandCard.copy")}
                   </Button>
                 </div>
-                <div className="flex items-center gap-2" aria-hidden>
-                  <hr className="border-border h-0 flex-1 border-0 border-t" />
+                <div className="flex items-center gap-2">
+                  <hr
+                    className="border-border h-0 flex-1 border-0 border-t"
+                    aria-hidden
+                  />
                   <span className="text-muted-foreground text-xs">
                     {t("brandCard.or")}
                   </span>
-                  <hr className="border-border h-0 flex-1 border-0 border-t" />
+                  <hr
+                    className="border-border h-0 flex-1 border-0 border-t"
+                    aria-hidden
+                  />
                 </div>
               </>
             ) : null}
@@ -673,7 +684,7 @@ export function ProjectBrandCard({
                 </div>
               ) : null}
             </form>
-          </>
+          </div>
         ) : !hasWebsite && !readOnly ? (
           <p className="text-muted-foreground text-xs">
             {t("brandCard.missingWebsite")}

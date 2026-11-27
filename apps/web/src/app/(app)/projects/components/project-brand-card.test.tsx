@@ -1054,11 +1054,10 @@ describe("ProjectBrandCard", () => {
 
     screen.getByRole("button", { name: "Copy Acme brand" }).focus();
     await user.keyboard("{Enter}");
-    // Copy now leads the card, so Tab lands on the website field: still a
-    // move away, like the click on another control below.
+    // Through the website field (Generate and Upload are busy) and out.
     await user.tab();
     expect(screen.getByRole("textbox")).toHaveFocus();
-    await user.click(screen.getByRole("button", { name: "Elsewhere" }));
+    await user.tab();
     expect(screen.getByRole("button", { name: "Elsewhere" })).toHaveFocus();
     await act(async () => {
       pending.resolve({
@@ -1073,6 +1072,53 @@ describe("ProjectBrandCard", () => {
 
     expect(await screen.findByText("Ready")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Elsewhere" })).toHaveFocus();
+  });
+
+  it("hands focus from the website field to the brand menu when the copy lands", async () => {
+    const pending =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>
+      >();
+    vi.mocked(copyOrganizationDesignMdToProject).mockReturnValue(
+      pending.promise,
+    );
+    const user = userEvent.setup();
+    render(
+      <>
+        {remountableCard(null)}
+        <button type="button">Elsewhere</button>
+      </>,
+    );
+
+    screen.getByRole("button", { name: "Copy Acme brand" }).focus();
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(screen.getByRole("textbox")).toHaveFocus();
+    await act(async () => {
+      pending.resolve({
+        ok: true,
+        value: {
+          extractionId: null,
+          previewUrl: null,
+          url: SAVED_ELSEWHERE.url,
+        },
+      } as Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>);
+    });
+
+    expect(await screen.findByText("Ready")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Brand actions" })).toHaveFocus();
+  });
+
+  it("reads the or between the organization's brand and the other ways", () => {
+    renderBrandDashboard({
+      designMd: null,
+      websiteUrl: null,
+      organizationName: "Acme",
+    });
+
+    const or = screen.getByText("or");
+    expect(or.closest("[aria-hidden]")).toBeNull();
   });
 
   it("lets a long organization name wrap inside the card", () => {
