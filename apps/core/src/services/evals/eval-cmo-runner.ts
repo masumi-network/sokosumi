@@ -135,13 +135,58 @@ export function monthPlanFromTomorrow(
 }
 
 /** Stand-in accounts for the plan's networks, so Core makes its posts. */
-async function connectPlanChannels(
+function connectPlanChannels(
   lane: EvalLaneRecord,
   plan: MarketingStrategyPlan,
 ) {
-  const channels = [
-    ...new Set(plan.calendar.map((entry) => entry.channel)),
-  ].filter(isProjectSocialProvider);
+  return connectChannels(
+    lane,
+    plan.calendar.map((entry) => entry.channel),
+  );
+}
+
+/**
+ * Stand-in accounts for every network the approved month plans or the
+ * Project already posts on, as an owner whose month is running has them.
+ */
+export async function connectRunningMonthChannels(
+  lane: EvalLaneRecord,
+): Promise<void> {
+  const [approved, posted] = await Promise.all([
+    prisma.marketingStrategy.findFirst({
+      where: { projectId: lane.cusoProjectId, approvedAt: { not: null } },
+      orderBy: { createdAt: "desc" },
+      select: { plan: true },
+    }),
+    prisma.socialPost.findMany({
+      where: { projectId: lane.cusoProjectId },
+      distinct: ["provider"],
+      select: { provider: true },
+    }),
+  ]);
+  const plan = parseMarketingPlan(approved?.plan);
+  await connectChannels(lane, [
+    ...(plan?.calendar ?? []).map((entry) => entry.channel),
+    ...posted.map((post) => post.provider),
+  ]);
+  // The month's posts went out on, or wait for, these accounts.
+  const connections = await prisma.projectSocialConnection.findMany({
+    where: { projectId: lane.cusoProjectId, status: "active" },
+    select: { id: true, provider: true },
+  });
+  for (const connection of connections)
+    await prisma.socialPost.updateMany({
+      where: {
+        projectId: lane.cusoProjectId,
+        provider: connection.provider,
+        socialConnectionId: null,
+      },
+      data: { socialConnectionId: connection.id },
+    });
+}
+
+async function connectChannels(lane: EvalLaneRecord, networks: string[]) {
+  const channels = [...new Set(networks)].filter(isProjectSocialProvider);
   for (const provider of channels) {
     const key = `eval-${lane.lane}-cuso-${provider}`;
     const existing = await prisma.projectSocialConnection.findFirst({

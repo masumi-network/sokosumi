@@ -89,6 +89,16 @@ function latest<T>(results: Results, key: string): T {
   return (found as Record<string, T>)[key]!;
 }
 
+/** The listed account on a network: a post without one goes to X. */
+function accountOn(results: Results, provider: string): string {
+  const account = latest<{ id: string; provider: string }[]>(
+    results,
+    "accounts",
+  ).find((each) => each.provider === provider);
+  if (!account) throw new Error(`World check: no ${provider} account`);
+  return account.id;
+}
+
 const call = (
   tool: string,
   input: Record<string, unknown>,
@@ -361,23 +371,36 @@ export const REFERENCE_SCRIPTS: Record<string, ReferenceScript> = {
         match: "Routing Forms AI",
         route: { route: "MANAGE_WORK", writeScope: "SOCIAL" },
         steps: [
-          async (_results, { turnId }) => {
+          async (_results, { turnId }) => [
+            call("list_project_social_accounts", {
+              projectId: await cusoProject(turnId),
+            }),
+          ],
+          async (results, { turnId }) => {
             const project = await cusoProject(turnId);
-            return [
-              ["Something new for sales teams lands Tuesday.", -1],
+            const pieces: [string, number, string][] = [
+              [
+                "Tomorrow: Routing Forms AI, for sales teams that sort leads by hand.",
+                -1,
+                "x",
+              ],
               [
                 "Routing Forms AI is live: every lead goes to the right person on your team automatically.",
                 0,
+                "linkedin",
               ],
               [
                 "One day in with Routing Forms AI: leads reach the right rep without anyone sorting them.",
                 1,
+                "linkedin",
               ],
-            ].map(([text, offset]) =>
+            ];
+            return pieces.map(([text, offset, network]) =>
               call("create_social_post", {
                 projectId: project,
                 text,
-                scheduledAt: nextWeekday(2, offset as number),
+                scheduledAt: nextWeekday(2, offset),
+                socialConnectionId: accountOn(results, network),
               }),
             );
           },
@@ -431,14 +454,25 @@ export const REFERENCE_SCRIPTS: Record<string, ReferenceScript> = {
         match: "I made a YouTube video",
         route: { route: "MANAGE_WORK", writeScope: "SOCIAL" },
         steps: [
-          async (_results, { turnId }) => {
+          async (_results, { turnId }) => [
+            call("list_project_social_accounts", {
+              projectId: await cusoProject(turnId),
+            }),
+          ],
+          async (results, { turnId }) => {
             const project = await cusoProject(turnId);
             return [
-              "New video: how routing sends every lead to the right person. Watch it on YouTube.",
-              "Two minutes on routing forms, from our new YouTube video.",
-            ].map((text) =>
-              call("create_social_post", { projectId: project, text }),
-            );
+              call("create_social_post", {
+                projectId: project,
+                text: "New video: how routing sends every lead to the right person. Watch it on YouTube.",
+                socialConnectionId: accountOn(results, "linkedin"),
+              }),
+              call("create_social_post", {
+                projectId: project,
+                text: "Two minutes on routing forms, from our new YouTube video.",
+                socialConnectionId: accountOn(results, "x"),
+              }),
+            ];
           },
           () =>
             "I can't read what the video says, so I built two pieces that point to it. Send me its transcript and I'll quote it.",
@@ -488,12 +522,17 @@ export const REFERENCE_SCRIPTS: Record<string, ReferenceScript> = {
         match: "no posts on Fridays",
         route: { route: "MANAGE_WORK", writeScope: "SOCIAL" },
         steps: [
-          async (_results, { turnId }) => [
-            call("list_social_posts", {
-              projectId: await cusoProject(turnId),
-              limit: 100,
-            }),
-          ],
+          async (_results, { turnId }) => {
+            const project = await cusoProject(turnId);
+            return [
+              call("list_social_posts", {
+                projectId: project,
+                statuses: OPEN,
+                limit: 100,
+              }),
+              call("list_project_social_accounts", { projectId: project }),
+            ];
+          },
           async (results, { turnId }) => {
             const project = await cusoProject(turnId);
             const open = openPosts(results);
@@ -529,6 +568,7 @@ export const REFERENCE_SCRIPTS: Record<string, ReferenceScript> = {
               call("create_social_post", {
                 projectId: project,
                 text: "Booking a team meeting should take one link, not ten emails.",
+                socialConnectionId: accountOn(results, "x"),
               }),
             ];
           },

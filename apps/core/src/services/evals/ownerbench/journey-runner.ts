@@ -30,7 +30,10 @@ import type {
   CasePoll,
   CaseStart,
 } from "../eval-case-runner";
-import { prepareCmoChatCase } from "../eval-cmo-runner";
+import {
+  connectRunningMonthChannels,
+  prepareCmoChatCase,
+} from "../eval-cmo-runner";
 import {
   clearEarlierCaseArtifacts,
   type EvalLaneRecord,
@@ -836,7 +839,10 @@ export async function startJourney(
   const isolatedAt = (await databaseNow()).toISOString();
   const cusoRoomId =
     journey.bot === "cuso" ? await freshCusoRoom(lane, journey.id) : undefined;
-  if (journey.cusoSetup) await prepareCmoChatCase(lane, journey.cusoSetup);
+  if (journey.cusoSetup) {
+    await prepareCmoChatCase(lane, journey.cusoSetup);
+    await connectRunningMonthChannels(lane);
+  }
   await forgetEarlierJourneys(lane, botId);
   // A journey's schedule runs and Coworker wakes are turns nobody started:
   // the owner's daily cap (20) would defer them once earlier journeys used
