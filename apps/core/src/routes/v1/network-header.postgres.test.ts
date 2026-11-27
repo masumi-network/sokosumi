@@ -1902,9 +1902,11 @@ describe.runIf(enabled && onSplitLayout)(
         expect((await send("DELETE", path, "preprod")).status).toBe(200);
         expect(await preprod.creditCost.count(where)).toBe(0);
       } finally {
-        await loaded
-          .createNetworkScope("preprod")
-          .networkDb.creditCost.deleteMany({ where: { id: rateId } });
+        for (const network of ["mainnet", "preprod"] as const) {
+          await loaded
+            .createNetworkScope(network)
+            .networkDb.creditCost.deleteMany({ where: { id: rateId } });
+        }
       }
     });
 
