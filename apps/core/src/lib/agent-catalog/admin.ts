@@ -15,6 +15,7 @@ import { conflict, notFound } from "@/helpers/error";
 import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import type { NetworkDb, NetworkScope, SharedDb } from "@/lib/db/network-scope";
 import type { patchAdminAgentMetadataOverrideBodySchema } from "@/schemas/admin-agent.schema";
+import { readRates } from "./availability";
 
 // Admin reads and edits take every Agent of the scope's Network: no
 // availability rule (ADR 0086).
@@ -376,6 +377,11 @@ export async function deleteOverride(scope: NetworkScope, id: string) {
   });
 
   return requireAgentDetail(scope, id);
+}
+
+/** Every rate, or none: an empty table is an answer here, not an error. */
+export function listRates(scope: NetworkScope) {
+  return readRates(scope.networkDb.creditCost);
 }
 
 /** One rate, or null. */
