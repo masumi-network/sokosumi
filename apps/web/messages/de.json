@@ -180,7 +180,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Arbeitsbereich wechseln",
-      "switchOrganization": "Organisation wechseln",
+      "switchWorkspaceCurrent": "Arbeitsbereich wechseln (aktuell: {name})",
       "personalAccount": "Persönlicher Account",
       "organizationsHeading": "Organisationen",
       "createOrJoinOrganization": "Organisation erstellen oder beitreten",
@@ -13114,7 +13114,9 @@
         "hint": "Beschreibe, bei wem du Geld einsammelst; Exa liest Fondsseiten und Deal-News und schlägt Personen mit Begründung und Quelle vor.",
         "hintSuggested": "Füge hinzu, wer ein Gespräch wert ist; Abgelehnte werden nie wieder vorgeschlagen.",
         "hintNoExa": "Exa ist auf diesem Server nicht eingerichtet, die Suche ist aus.",
+        "hintNoExaShort": "Suche ist aus",
         "find": "Investoren finden",
+        "review": "Ansehen",
         "add": "Hinzufügen",
         "addAll": "Alle hinzufügen",
         "dismiss": "Ablehnen",

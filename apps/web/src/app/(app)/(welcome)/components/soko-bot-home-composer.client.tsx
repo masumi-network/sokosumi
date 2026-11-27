@@ -129,7 +129,10 @@ export function SokoBotHomeComposer({
   }
 
   return (
-    <div className="relative isolate flex min-h-full w-full min-w-0 flex-1 flex-col items-center px-4">
+    // On a phone main's p-4 is the only gutter: with this wrapper's and the
+    // room composer's own on top, the composer's tools ran out of room and
+    // "Add a skill" scrolled out of sight.
+    <div className="relative isolate flex min-h-full w-full min-w-0 flex-1 flex-col items-center md:px-4">
       {/* Bleeds through main's p-4 to its edges, behind the greeting. */}
       <GradientBackground className="absolute -inset-x-4 -top-4 -z-10 h-[42rem]" />
       {/* The composer sits a little above the middle of the screen, as on a
@@ -142,6 +145,7 @@ export function SokoBotHomeComposer({
         <div className="flex flex-col gap-4">
           <RoomComposer
             ref={composerRef}
+            className="px-0 md:px-5"
             roomId={roomId ?? undefined}
             value={value}
             onValueChange={setValue}

@@ -180,7 +180,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Cambiar espacio de trabajo",
-      "switchOrganization": "Cambiar de organización",
+      "switchWorkspaceCurrent": "Cambiar espacio de trabajo (actual: {name})",
       "personalAccount": "Cuenta personal",
       "organizationsHeading": "Organizaciones",
       "createOrJoinOrganization": "Crear o unirse a una organización",
@@ -13114,7 +13114,9 @@
         "hint": "Describe a quién le estás pidiendo dinero; Exa lee páginas de fondos y noticias de rondas y sugiere personas con un motivo y una fuente.",
         "hintSuggested": "Añade a quienes merezcan una conversación; los descartados no vuelven a sugerirse.",
         "hintNoExa": "Exa no está configurado en este servidor, así que la búsqueda está desactivada.",
+        "hintNoExaShort": "Búsqueda desactivada",
         "find": "Buscar inversores",
+        "review": "Revisar",
         "add": "Añadir",
         "addAll": "Añadir todos",
         "dismiss": "Descartar",

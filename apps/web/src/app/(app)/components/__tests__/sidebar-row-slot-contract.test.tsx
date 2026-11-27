@@ -68,7 +68,8 @@ vi.mock("@/components/chat/live-member-presence-dot", () => ({
   LiveMemberPresenceDot: () => null,
   LiveMemberPresenceText: () => null,
 }));
-vi.mock("@/components/chat/personal-assistant-chrome-store", () => ({
+vi.mock("@/components/chat/personal-assistant-chrome-store", async () => ({
+  SokoBotDirectRowContext: (await import("react")).createContext(null),
   publishPersonalAssistantChromeVisible: vi.fn(),
   publishLiveSokoBot: vi.fn(),
   useLiveSokoBotStatus: () => null,
