@@ -23324,6 +23324,21 @@ export type GetAdminPreprodPauseErrors = {
             method: string;
         };
     };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type GetAdminPreprodPauseError = GetAdminPreprodPauseErrors[keyof GetAdminPreprodPauseErrors];
