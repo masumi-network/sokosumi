@@ -59,8 +59,8 @@ vi.mock("@/helpers/agent-cost", () => ({
   getAgentCost: getAgentCostMock,
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const network = {
     agent: {
       findMany: agentFindManyMock,
       count: agentCountMock,
@@ -69,8 +69,11 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: vi.fn().mockResolvedValue([]),
     },
     $transaction: prismaTransactionMock,
-  },
-}));
+  };
+  // The shared side holds no Network model: the list reads those through
+  // its scope's Network client.
+  return { default: {}, networkPrisma: () => network };
+});
 
 function createApp() {
   const app = new OpenAPIHono({

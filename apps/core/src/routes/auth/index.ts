@@ -15,6 +15,10 @@ import {
 } from "@/lib/auth-oauth-provider.js";
 import { OAUTH_REFRESH_TOKEN_PREFIX } from "@/lib/auth-oauth-token-prefixes.js";
 import prisma from "@/lib/db/prisma";
+import {
+  NETWORK_HEADER,
+  requestNetworkMiddleware,
+} from "@/middleware/network-scope";
 import { handleSetPassword } from "@/routes/auth/set-password.route.js";
 
 const app = new Hono();
@@ -24,13 +28,20 @@ app.use(
   "*",
   cors({
     origin: (origin) => resolveCorsAllowOrigin(origin),
-    allowHeaders: ["Content-Type", "Authorization", AUTH_CAPTCHA_HEADER],
+    allowHeaders: [
+      "Content-Type",
+      "Authorization",
+      AUTH_CAPTCHA_HEADER,
+      NETWORK_HEADER,
+    ],
     allowMethods: ["POST", "GET", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: TIME.CORS_MAX_AGE,
     credentials: true,
   }),
 );
+// After CORS, so a browser can read the 400.
+app.use("*", requestNetworkMiddleware);
 
 // Better Auth's setPassword is server-only (no HTTP route). Web's server auth
 // client calls POST /auth/set-password when linking a credential account.

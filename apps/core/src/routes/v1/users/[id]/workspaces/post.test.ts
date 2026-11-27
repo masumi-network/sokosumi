@@ -119,6 +119,7 @@ describe("POST /users/{id}/workspaces", () => {
         "facebook",
       ],
       preferred: true,
+      canUsePreprod: false,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);
 
@@ -162,6 +163,7 @@ describe("POST /users/{id}/workspaces", () => {
         "facebook",
       ],
       preferred: true,
+      canUsePreprod: false,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);
 
@@ -212,6 +214,7 @@ describe("POST /users/{id}/workspaces", () => {
         "facebook",
       ],
       preferred: false,
+      canUsePreprod: false,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);
 
