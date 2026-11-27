@@ -122,9 +122,53 @@ beforeEach(() => {
 });
 
 describe("unknownPersonRefusal", () => {
+  const withTools = (capabilities: string[]) =>
+    authorized({}, { grant: { capabilities } });
+
+  it("gives a next step the version has: v33 has ask_coworker, not send_message", async () => {
+    const {
+      applyVersionCapabilities,
+      getSokoBotVersion,
+      SOKO_BOT_CAPABILITIES,
+    } = await import("@sokosumi/soko-bot");
+    const capabilities = applyVersionCapabilities(
+      getSokoBotVersion("v33"),
+      SOKO_BOT_CAPABILITIES,
+    );
+    expect(capabilities).not.toContain("send_message");
+    const refusal = await unknownPersonRefusal(
+      runtime as never,
+      withTools([...capabilities]),
+      "Mira",
+    );
+    expect(refusal).not.toContain("send_message");
+    expect(refusal).toContain("Ask it with ask_coworker instead.");
+  });
+
+  it("points a room to post_chat, and to the owner when no tool reaches it", async () => {
+    expect(
+      await unknownPersonRefusal(
+        runtime as never,
+        withTools(["open_direct_chat", "post_chat"]),
+        "#Launch team",
+      ),
+    ).toMatch(/#Launch team \(room\).*Post there with post_chat instead\./);
+    expect(
+      await unknownPersonRefusal(
+        runtime as never,
+        withTools(["open_direct_chat"]),
+        "Juno",
+      ),
+    ).toMatch(/Tell the owner you would reach it there\.$/);
+  });
+
   it("sends a Coworker, an assistant or a room to send_message", async () => {
     const refuse = (person: string) =>
-      unknownPersonRefusal(runtime as never, authorized(), person);
+      unknownPersonRefusal(
+        runtime as never,
+        withTools(["open_direct_chat", "send_message"]),
+        person,
+      );
     expect(await refuse("Mira")).toBe(
       '"Mira" is Mira (Coworker), not a member of this organization. Write to it with send_message instead.',
     );
@@ -136,7 +180,7 @@ describe("unknownPersonRefusal", () => {
 
   it("lists the members when nobody by that name is here", async () => {
     expect(
-      await unknownPersonRefusal(runtime as never, authorized(), "Nina"),
+      await unknownPersonRefusal(runtime as never, withTools([]), "Nina"),
     ).toBe(
       'No member of this organization matches "Nina". Members: Hannah Weber. If it is none of them, ask the owner who they mean.',
     );

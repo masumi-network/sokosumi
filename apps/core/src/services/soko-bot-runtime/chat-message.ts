@@ -269,7 +269,10 @@ export async function unknownPersonRefusal(
     person,
   ).filter((recipient) => recipient.kind !== "person");
   if (notPeople.length > 0)
-    return `"${person}" is ${notPeople.map(describe).join(", or ")}, not a member of this organization. Write to it with send_message instead.`;
+    return `"${person}" is ${notPeople.map(describe).join(", or ")}, not a member of this organization. ${reachInstead(
+      notPeople[0]!.kind,
+      authorized.grant.capabilities,
+    )}`;
   const people = (await directory(runtime, authorized)).filter(
     (recipient) => recipient.kind === "person",
   );
@@ -281,6 +284,20 @@ export async function unknownPersonRefusal(
           .join("; ")}.`
       : "There are no other members."
   } If it is none of them, ask the owner who they mean.`;
+}
+
+/** How to reach a recipient that is not a person, with a tool this turn has. */
+function reachInstead(
+  kind: SokoBotRecipient["kind"],
+  tools: readonly string[],
+): string {
+  if (tools.includes("send_message"))
+    return "Write to it with send_message instead.";
+  if (kind === "coworker" && tools.includes("ask_coworker"))
+    return "Ask it with ask_coworker instead.";
+  if (kind === "room" && tools.includes("post_chat"))
+    return "Post there with post_chat instead.";
+  return "Tell the owner you would reach it there.";
 }
 
 const ANSWER_DAYS = 30;
