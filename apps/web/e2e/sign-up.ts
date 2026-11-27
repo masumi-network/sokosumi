@@ -84,5 +84,11 @@ export async function signUpWithOrganization(page: Page, baseUrl: string) {
   await page.getByRole("button", { name: "Finish setup" }).click();
   await page.getByRole("button", { name: "Go to workspace" }).click();
   await page.getByRole("link", { name: "Later" }).click();
-  await page.waitForURL(`${baseUrl}/`);
+  // Home forwards to /chat; either, on this preview, is the end of setup.
+  const origin = new URL(baseUrl).origin;
+  await page.waitForURL(
+    (url) =>
+      url.origin === origin &&
+      (url.pathname === "/" || url.pathname === "/chat"),
+  );
 }

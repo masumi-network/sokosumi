@@ -251,8 +251,10 @@ export default function WorkspaceSwitcherMenu({
             disabled={isPending}
             aria-busy={!activeWorkspace}
             aria-label={
-              isRail
-                ? tOrganizationSwitcher("switchOrganization")
+              isRail && activeWorkspace
+                ? tOrganizationSwitcher("switchWorkspaceCurrent", {
+                    name: activeWorkspace.name,
+                  })
                 : activeWorkspace
                   ? undefined
                   : tOrganizationSwitcher("switchWorkspace")

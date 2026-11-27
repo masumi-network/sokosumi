@@ -4,7 +4,7 @@ import type { PresetRoute } from "@/lib/soko-bot/classifier";
 
 export interface StartSokoBotTurnInput {
   network: Network;
-  /** A detached schedule can reserve a turn only in the generation it read. */
+  /** Detached work can reserve a Preprod turn only in the generation it read. */
   expectedPreprodGeneration?: number | null;
   /**
    * The person the turn acts for: the member who asked, or a personal bot's

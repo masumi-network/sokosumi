@@ -1,6 +1,5 @@
 import {
   CHANNEL_SLUG_MAX_LENGTH,
-  channelNameFromSlug,
   liveSanitizeChannelSlug,
   sanitizeChannelSlug,
 } from "@sokosumi/utils";
@@ -20,9 +19,9 @@ export type ChannelSlugCheckState =
 
 interface CreateChannelFormFields {
   slug: string;
+  /** The person typed or opened the link, so it no longer follows the name. */
   slugDirty: boolean;
   name: string;
-  nameDirty: boolean;
   topic: string;
   discoverability: Discoverability;
 }
@@ -43,7 +42,6 @@ export function createInitialWizard(): CreateChannelWizard {
     slug: "",
     slugDirty: false,
     name: "",
-    nameDirty: false,
     topic: "",
     discoverability: "public",
   };
@@ -52,6 +50,16 @@ export function createInitialWizard(): CreateChannelWizard {
 export function sanitizeChannelNameInput(raw: string): string {
   const withoutHash = raw.replace(/^#+/, "");
   return withoutHash.slice(0, CHANNEL_NAME_MAX);
+}
+
+/**
+ * The permanent link a name gives: `Launch plans` → `launch-plans`. Empty when
+ * the name has no letters or numbers the link can use.
+ */
+export function channelSlugFromName(name: string): string {
+  return sanitizeChannelSlug(name)
+    .slice(0, CHANNEL_SLUG_MAX)
+    .replace(/-+$/, "");
 }
 
 export function setSlug(
@@ -66,8 +74,15 @@ export function setSlug(
     ...wizard,
     slug,
     slugDirty: true,
-    name: wizard.nameDirty ? wizard.name : channelNameFromSlug(slug),
   };
+}
+
+/** Opens the link for editing: it keeps its value and stops following the name. */
+export function editLink(wizard: CreateChannelWizard): CreateChannelWizard {
+  if (wizard.step !== "create") {
+    return wizard;
+  }
+  return { ...wizard, slugDirty: true };
 }
 
 export function setName(
@@ -77,10 +92,11 @@ export function setName(
   if (wizard.step !== "create") {
     return wizard;
   }
+  const name = sanitizeChannelNameInput(raw);
   return {
     ...wizard,
-    name: sanitizeChannelNameInput(raw),
-    nameDirty: true,
+    name,
+    slug: wizard.slugDirty ? wizard.slug : channelSlugFromName(name),
   };
 }
 
@@ -185,7 +201,6 @@ export function backToCreate(wizard: CreateChannelWizard): CreateChannelWizard {
     slug: wizard.slug,
     slugDirty: wizard.slugDirty,
     name: wizard.name,
-    nameDirty: wizard.nameDirty,
     topic: wizard.topic,
     discoverability: wizard.discoverability,
   };

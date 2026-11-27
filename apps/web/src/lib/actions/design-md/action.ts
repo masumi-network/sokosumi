@@ -1,16 +1,17 @@
 "use server";
 
 import type { DesignMdJobPayload } from "@sokosumi/masumi/tools";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
 import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
-
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import { coreClient } from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import {
   type DesignMdOwnerSchemaType,
   type FinalizeDesignMdGenerationSchemaType,
@@ -247,5 +248,60 @@ export const removeDesignMd = withSession<
   } catch (error) {
     console.error("Failed to remove DESIGN.md", error);
     return toActionResult(err(toActionError(error)));
+  }
+});
+
+/**
+ * Copies the active organization's DESIGN.md into a Project as the Project's
+ * own file. Core reads the organization file from the caller's workspace and
+ * writes only into an empty Project brand, so a brand saved meanwhile is never
+ * replaced (409 `project_design_md_exists`, passed on as the error's kind).
+ */
+export const copyOrganizationDesignMdToProject = withSession<
+  AuthenticatedRequest & { projectId: string },
+  ActionResultDto<PersistedDesignMd, ActionError>
+>(async ({ projectId }) => {
+  const normalizedProjectId = projectId.trim();
+  if (!normalizedProjectId) {
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
+  }
+  const owner = { type: "project" as const, projectId: normalizedProjectId };
+
+  try {
+    const persisted =
+      await designMdService.copyOrganizationDesignMdToProject(
+        normalizedProjectId,
+      );
+    await revalidateOwner(owner);
+    return toActionResult(ok(persisted));
+  } catch (error) {
+    // An expired session arrives as the sign-in redirect.
+    unstable_rethrow(error);
+    if (
+      error instanceof CoreApiRequestError &&
+      error.kind === CORE_API_ERROR_KINDS.PROJECT_DESIGN_MD_EXISTS
+    ) {
+      // The re-rendered Project shows the brand that won.
+      await revalidateOwner(owner);
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          kind: error.kind,
+          status: error.status,
+        }),
+      );
+    }
+    console.error("Failed to copy the organization DESIGN.md", error);
+    return toActionResult(
+      err(
+        error instanceof CoreApiRequestError
+          ? {
+              code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+              kind: error.kind,
+              status: error.status,
+            }
+          : toActionError(error),
+      ),
+    );
   }
 });

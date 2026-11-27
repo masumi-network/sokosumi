@@ -264,7 +264,8 @@ Commands that call one Core operation, such as jobs events, tasks files and task
   Positionals fill the path. --query KEY=VALUE (repeatable) adds a query parameter.
   sokosumi GROUP COMMAND --help prints its query parameters and body fields, from Core's OpenAPI document.
   A write needs --input-json JSON or --input-file FILE as its body, unless it takes none (pause-, resume-, end-schedule, join,
-  follow, restore, notifications read, unread and read-all, drive reindex and refresh-google-sheet).
+  follow, restore, notifications read, unread and read-all, drive reindex and refresh-google-sheet,
+  projects copy-organization-design).
   --organization-slug WORKSPACE_SLUG selects the Workspace.
   Other options are an error. They print Core's JSON body as is. Every jobs command takes --organization-slug.
   transactions and history read the selected Workspace; notifications are the signed-in person's own.

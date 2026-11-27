@@ -88,7 +88,7 @@ async function PrivateCachedSidebarRooms({
       deferred={deferred}
       currentUserId={userId}
       organizationId={activeOrganizationId}
-      directFooter={<PersonalAssistantNav />}
+      directFooter={<PersonalAssistantNav nested />}
     />
   );
 }
