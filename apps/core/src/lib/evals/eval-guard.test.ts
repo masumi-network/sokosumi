@@ -1,12 +1,71 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { coworkerCount } = vi.hoisted(() => ({ coworkerCount: vi.fn() }));
+const { coworkerCount, laneFindMany, laneFindUnique, laneFindFirst } =
+  vi.hoisted(() => ({
+    coworkerCount: vi.fn(),
+    laneFindMany: vi.fn(),
+    laneFindUnique: vi.fn(),
+    laneFindFirst: vi.fn(),
+  }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: { coworker: { count: coworkerCount } },
+  default: {
+    coworker: { count: coworkerCount },
+    evalLane: {
+      findMany: laneFindMany,
+      findUnique: laneFindUnique,
+      findFirst: laneFindFirst,
+    },
+  },
 }));
 
-import { evalCoworkerRefusal, simulatedEvalTool } from "./eval-guard";
+import {
+  evalCoworkerRefusal,
+  forgetEvalWorkspaces,
+  isEvalOrganizationNow,
+  isEvalWorkspace,
+  isEvalWorkspaceNow,
+  simulatedEvalTool,
+} from "./eval-guard";
+
+describe("isEvalWorkspaceNow", () => {
+  it("fails closed: a lane another worker registered after this cache filled still counts", async () => {
+    forgetEvalWorkspaces();
+    // This process cached the lanes before lane 2 existed.
+    laneFindMany.mockResolvedValue([
+      {
+        workspaceId: "ws-lane-1",
+        organizationId: "org-lane-1",
+        cusoProjectId: null,
+      },
+    ]);
+    await expect(isEvalWorkspace("ws-lane-2")).resolves.toBe(false);
+    laneFindUnique.mockResolvedValueOnce({ lane: 2 });
+    await expect(isEvalWorkspaceNow("ws-lane-2")).resolves.toBe(true);
+    expect(laneFindUnique).toHaveBeenCalledWith({
+      where: { workspaceId: "ws-lane-2" },
+      select: { lane: true },
+    });
+    laneFindFirst.mockResolvedValueOnce({ lane: 2 });
+    await expect(isEvalOrganizationNow("org-lane-2")).resolves.toBe(true);
+  });
+
+  it("answers a cached lane without a lookup, and a real workspace with one", async () => {
+    forgetEvalWorkspaces();
+    laneFindMany.mockResolvedValue([
+      {
+        workspaceId: "ws-lane-1",
+        organizationId: "org-lane-1",
+        cusoProjectId: null,
+      },
+    ]);
+    laneFindUnique.mockClear();
+    await expect(isEvalWorkspaceNow("ws-lane-1")).resolves.toBe(true);
+    expect(laneFindUnique).not.toHaveBeenCalled();
+    laneFindUnique.mockResolvedValueOnce(null);
+    await expect(isEvalWorkspaceNow("ws-customer")).resolves.toBe(false);
+  });
+});
 
 describe("evalCoworkerRefusal", () => {
   it("refuses a Task Schedule for a Coworker the lane was never granted", async () => {

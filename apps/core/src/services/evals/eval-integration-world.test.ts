@@ -107,6 +107,37 @@ describe("eval integration world", () => {
     ).toEqual(["Team stand-up"]);
   });
 
+  it("finds a week's meeting again when asked for its exact hour (Codex)", () => {
+    const list = (timeMin: string, timeMax: string) =>
+      runEvalIntegrationTool("googlecalendar", "GOOGLECALENDAR_EVENTS_LIST", {
+        timeMin,
+        timeMax,
+      }).items as {
+        id: string;
+        start: { dateTime: string };
+        end: { dateTime: string };
+      }[];
+    const week = list("2026-12-07T00:00:00.000Z", "2026-12-14T00:00:00.000Z");
+    const intro = week.find((event) => event.id.includes("intro"))!;
+    expect(list(intro.start.dateTime, intro.end.dateTime)).toEqual([intro]);
+    // A window that starts mid-meeting still finds it, and a later week
+    // has the same meetings on its own dates.
+    expect(
+      list("2026-12-09T10:00:00.000Z", "2026-12-09T10:30:00.000Z").map(
+        (e) => e.id,
+      ),
+    ).toEqual(["eval-event-workshop-2026-12-09"]);
+    expect(
+      list("2026-12-14T00:00:00.000Z", "2026-12-21T00:00:00.000Z").map(
+        (e) => e.start.dateTime,
+      ),
+    ).toEqual([
+      "2026-12-14T08:00:00.000Z",
+      "2026-12-15T13:00:00.000Z",
+      "2026-12-16T09:00:00.000Z",
+    ]);
+  });
+
   it("refuses a tool the world does not have instead of passing it on", () => {
     expect(() =>
       runEvalIntegrationTool("github", "GITHUB_DELETE_A_REPOSITORY", {}),

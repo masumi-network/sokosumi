@@ -1,5 +1,5 @@
 import prisma from "@/lib/db/prisma";
-import { isEvalWorkspace } from "@/lib/evals/eval-guard";
+import { isEvalWorkspaceNow } from "@/lib/evals/eval-guard";
 import { runInEvalWorld } from "@/lib/evals/eval-world-context";
 import {
   recordSandboxAction,
@@ -60,7 +60,7 @@ async function evalTurnWorkspace(turnId: string): Promise<string | null> {
     where: { id: turnId },
     select: { workspaceId: true },
   });
-  return turn && (await isEvalWorkspace(turn.workspaceId))
+  return turn && (await isEvalWorkspaceNow(turn.workspaceId))
     ? turn.workspaceId
     : null;
 }

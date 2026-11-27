@@ -1,7 +1,7 @@
 import { isSokoBotSeoCapability } from "@sokosumi/soko-bot";
 import {
   evalCoworkerRefusal,
-  isEvalWorkspace,
+  isEvalWorkspaceNow,
   simulatedEvalTool,
 } from "@/lib/evals/eval-guard";
 import { runInEvalWorld } from "@/lib/evals/eval-world-context";
@@ -49,7 +49,7 @@ async function executeTool(
     input: await runtime.resolveTaskIds(authorized, raw.input),
   };
 
-  if (await isEvalWorkspace(authorized.turn.workspaceId)) {
+  if (await isEvalWorkspaceNow(authorized.turn.workspaceId)) {
     const refusal = await evalCoworkerRefusal(
       authorized.turn.workspaceId,
       input.input,

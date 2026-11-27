@@ -17,7 +17,7 @@ import {
   snapshotChatRoomUnfurlImage,
 } from "@/lib/chat-unfurl-snapshot";
 import prisma from "@/lib/db/prisma";
-import { isEvalOrganization } from "@/lib/evals/eval-guard";
+import { isEvalOrganizationNow } from "@/lib/evals/eval-guard";
 import { emitCoreWarning } from "@/lib/evlog";
 import type { ChatRoomMessageUnfurlCard } from "@/lib/open-graph-html";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
@@ -78,7 +78,7 @@ export async function scheduleChatRoomMessageUnfurls(
     // eval world's fixed pages, the same every run.
     const organizationId = message.room?.organizationId;
     const evalLane =
-      !!organizationId && (await isEvalOrganization(organizationId));
+      !!organizationId && (await isEvalOrganizationNow(organizationId));
     roomId = message.roomId;
 
     const contentSnapshot = message.content;
