@@ -84,10 +84,11 @@ export async function signUpWithOrganization(page: Page, baseUrl: string) {
   await page.getByRole("button", { name: "Finish setup" }).click();
   await page.getByRole("button", { name: "Go to workspace" }).click();
   await page.getByRole("link", { name: "Later" }).click();
-  // Home can hand over to Chats before the load event.
+  // Home forwards to /chat; either, on this preview, is the end of setup.
+  const origin = new URL(baseUrl).origin;
   await page.waitForURL(
     (url) =>
-      url.origin === new URL(baseUrl).origin &&
+      url.origin === origin &&
       (url.pathname === "/" || url.pathname === "/chat"),
   );
 }

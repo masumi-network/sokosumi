@@ -354,6 +354,11 @@ describe("POST /me/usage", () => {
     expect(prepareConsumptionMock.mock.calls[0]?.[1]).toBe(TARGET_USER_ID);
     expect(prepareConsumptionMock.mock.calls[0]?.[2]).toBe(ORGANIZATION_ID);
     expect(typeof prepareConsumptionMock.mock.calls[0]?.[3]).toBe("bigint");
+    // The pool only: a usage never draws a Project's credits, so the history
+    // never has to name a Project from its consumptions.
+    expect(prepareConsumptionMock.mock.calls[0]?.[5]).toEqual({
+      projectId: null,
+    });
     expect(recordSpendMock).toHaveBeenCalledWith(
       "mainnet",
       {
@@ -361,6 +366,7 @@ describe("POST /me/usage", () => {
         organizationId: ORGANIZATION_ID,
         cents: 25000000000n,
         consumptions: [{ bucketId: "bucket_123", amount: 25000000000n }],
+        createdAt: expect.any(Date),
       },
       tx,
     );

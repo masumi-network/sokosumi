@@ -57,7 +57,8 @@ export function IntroCell({
   prospect: FundraisingProspect;
   pipeline: FundraisingPipeline;
   now: Date;
-  onOpenSheet?: () => void;
+  /** Opens the investor's sheet; gets the button so focus can return to it. */
+  onOpenSheet?: (opener: HTMLElement) => void;
 }) {
   const t = useTranslations("App.Fundraising.intro");
   const format = useFormatter();
@@ -143,7 +144,7 @@ export function IntroCell({
             size="sm"
             variant="outline"
             className="h-7"
-            onClick={onOpenSheet}
+            onClick={(event) => onOpenSheet(event.currentTarget)}
           >
             {t("writeDraft")}
           </Button>
