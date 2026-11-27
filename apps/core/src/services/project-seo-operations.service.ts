@@ -713,6 +713,12 @@ export async function createProjectSeoActionTask(
     const proposedEdit = action.edit
       ? `\n\nProposed edit:\n${JSON.stringify(action.edit, null, 2)}`
       : "";
+    // Only a checked draft goes into the Task; a held-back one has no text to use.
+    const draft = "bodyDraft" in action ? action.bodyDraft : undefined;
+    const proposedOpening =
+      draft && "after" in draft
+        ? `\n\nProposed opening text draft:\n${JSON.stringify(draft, null, 2)}\n\nThe SEO bot compared the numbers and names in the draft with the page. This check can miss a false claim. Read the draft before you publish it.`
+        : "";
     const task = await createTaskForActor(
       {
         actor: actor.sokoBotId
@@ -723,7 +729,7 @@ export async function createProjectSeoActionTask(
         workspaceId: actor.workspaceId,
         projectId: await requireSeoTaskProject(actor, tx),
         name: action.title,
-        description: `Page: ${action.pageUrl}\n\n${action.why}\n\n${decision ? `Alternative: ${decision.alternative}\n\nNext check: ${decision.nextCheck}` : `Expected effect (hypothesis): ${action.expectedEffect}`}${proposedEdit}${evidence.length ? `\n\nMeasured evidence:\n${evidence.map((line) => `- ${line}`).join("\n")}` : ""}\n\nSource SEO observation: ${observation.id}\nSource audit Task: ${observation.sourceTaskId ?? "none"}\n\n${!decision && !seasonalIdea && evidence.length ? "Compare a later Search Console period before calling this an improvement." : "Implementation needs a fresh check before it is verified."}`,
+        description: `Page: ${action.pageUrl}\n\n${action.why}\n\n${decision ? `Alternative: ${decision.alternative}\n\nNext check: ${decision.nextCheck}` : `Expected effect (hypothesis): ${action.expectedEffect}`}${proposedEdit}${proposedOpening}${evidence.length ? `\n\nMeasured evidence:\n${evidence.map((line) => `- ${line}`).join("\n")}` : ""}\n\nSource SEO observation: ${observation.id}\nSource audit Task: ${observation.sourceTaskId ?? "none"}\n\n${!decision && !seasonalIdea && evidence.length ? "Compare a later Search Console period before calling this an improvement." : "Implementation needs a fresh check before it is verified."}`,
         status: "DRAFT",
         visibility: "PUBLIC",
       },

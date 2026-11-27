@@ -213,17 +213,18 @@ const draftDevices = z.array(seoDeviceSchema).min(1);
  * bot's claim check, or only why the bot held its draft back. Older reports have none.
  */
 export const seoBodyDraftSchema = z
+  // The held-back form comes first: a draft that also carries a held-back reason reads as held back, never as checked.
   .union([
+    z.object({
+      target: z.literal("opening"),
+      devices: draftDevices,
+      heldBack: draftText,
+    }),
     z.object({
       target: z.literal("opening"),
       devices: draftDevices,
       before: draftText,
       after: draftText,
-    }),
-    z.object({
-      target: z.literal("opening"),
-      devices: draftDevices,
-      heldBack: draftText,
     }),
   ])
   .openapi("ProjectSeoBodyDraft");

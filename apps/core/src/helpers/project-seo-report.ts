@@ -121,7 +121,8 @@ const action = z.object({
   edit: z
     .object({ target: text, before: text.nullable(), after: text })
     .nullable(),
-  bodyDraft: seoBodyDraftSchema.optional(),
+  // Focused results and stored payloads read actions here: a draft Core cannot read is dropped, not the result.
+  bodyDraft: seoBodyDraftSchema.optional().catch(undefined),
 });
 const publicSeoPayload = z.object({
   version: z.literal(1),

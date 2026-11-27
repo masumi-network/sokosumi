@@ -136,10 +136,18 @@ describe("public SEO report trust boundary", () => {
       // No device: Core cannot read this draft, so it drops the draft and keeps the action.
       { ...raw.actions[0], n: 3, bodyDraft: { ...drafted, devices: [] } },
       { ...raw.actions[0], n: 4 },
+      // A checked draft that also carries a held-back reason reads as held back.
+      { ...raw.actions[0], n: 5, bodyDraft: { ...drafted, heldBack: "No." } },
     ] as typeof raw.actions;
     const drafts = (payload: { actions: { bodyDraft?: unknown }[] }) =>
       payload.actions.map((row) => row.bodyDraft);
-    const expected = [drafted, heldBack, undefined, undefined];
+    const expected = [
+      drafted,
+      heldBack,
+      undefined,
+      undefined,
+      { target: "opening", devices: drafted.devices, heldBack: "No." },
+    ];
     const page = parsePublicSeoArtifact(raw);
     expect(drafts(page)).toEqual(expected);
     expect(page.actions[3]).not.toHaveProperty("bodyDraft");
@@ -147,6 +155,10 @@ describe("public SEO report trust boundary", () => {
     expect(
       drafts(publicSeoPayloadSchema.parse(JSON.parse(JSON.stringify(page)))),
     ).toEqual(expected);
+    // Focused results read actions with the stored schema too: a bad draft there drops only the draft.
+    const stored = JSON.parse(JSON.stringify(page));
+    stored.actions[0].bodyDraft.devices = [];
+    expect(drafts(publicSeoPayloadSchema.parse(stored))[0]).toBeUndefined();
     const site = parsePublicSeoArtifact({
       ...siteStrategyReport(),
       pages: [raw],

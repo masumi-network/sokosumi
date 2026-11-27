@@ -13373,12 +13373,12 @@ export type ProjectSeoAction = {
 export type ProjectSeoBodyDraft = {
     target: 'opening';
     devices: Array<'mobile' | 'desktop'>;
-    before: string;
-    after: string;
+    heldBack: string;
 } | {
     target: 'opening';
     devices: Array<'mobile' | 'desktop'>;
-    heldBack: string;
+    before: string;
+    after: string;
 };
 
 export type ProjectSeoMetric = {
