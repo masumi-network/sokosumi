@@ -100,10 +100,13 @@ describe("GET /users/{id}/deletion", () => {
         "TASK_PAYMENT_CLAIM_PENDING",
       ],
     });
-    expect(evaluateUserDeletionMock).toHaveBeenCalledWith(
-      "user_123",
-      expect.anything(),
-    );
+    const [userId, , scopes] = evaluateUserDeletionMock.mock.calls[0];
+    expect(userId).toBe("user_123");
+    // One scope per Network that is on; read by name, because a scope's
+    // client is built on first read and the client module is mocked here.
+    expect(scopes.map((scope: { network: string }) => scope.network)).toEqual([
+      "mainnet",
+    ]);
   });
 
   it("returns an empty blocker list when evaluate allows deletion", async () => {
