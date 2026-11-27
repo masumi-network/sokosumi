@@ -401,6 +401,45 @@ function sameMessageRetry(
   return false;
 }
 
+export interface RecoverableCall {
+  capability: string;
+  createdAt: Date;
+  targetId: string | null;
+  input: unknown;
+}
+
+/**
+ * Whether `later` asked for `earlier`'s effect again: the same tool,
+ * afterwards, with input that covers the earlier call's, or a retry of the
+ * same message. The same target alone is not enough: an edit of a post's
+ * thread is not its failed caption edit.
+ */
+export function sameEffect(
+  earlier: RecoverableCall,
+  later: RecoverableCall,
+): boolean {
+  return (
+    later.capability === earlier.capability &&
+    later.createdAt > earlier.createdAt &&
+    (inputCovers(later.input, earlier.input, earlier.capability) ||
+      sameMessageRetry(later.input, earlier.input, earlier.capability))
+  );
+}
+
+/** For the answer's receipts: the same effect, or the same tool on the same target. */
+function recoveredBy(
+  earlier: RecoverableCall,
+  later: RecoverableCall,
+): boolean {
+  return (
+    sameEffect(earlier, later) ||
+    (later.capability === earlier.capability &&
+      later.createdAt > earlier.createdAt &&
+      earlier.targetId !== null &&
+      later.targetId === earlier.targetId)
+  );
+}
+
 function inputCovers(
   later: unknown,
   earlier: unknown,
@@ -550,13 +589,7 @@ export async function buildActionResponse(
   const madeGood = (call: (typeof calls)[number]) =>
     call.disposition !== "UNKNOWN" &&
     unique.some(
-      (applied) =>
-        applied.turnId === turnId &&
-        applied.capability === call.capability &&
-        applied.createdAt > call.createdAt &&
-        ((call.targetId !== null && applied.targetId === call.targetId) ||
-          inputCovers(applied.input, call.input, call.capability) ||
-          sameMessageRetry(applied.input, call.input, call.capability)),
+      (applied) => applied.turnId === turnId && recoveredBy(call, applied),
     );
   const unfulfilledActions = calls
     .filter(

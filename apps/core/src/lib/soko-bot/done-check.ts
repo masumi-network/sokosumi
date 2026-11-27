@@ -2,7 +2,11 @@ import { SOKO_BOT_TOOL_REFUSED } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { STUDIO_JOB_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
-import { parseActionNarrativeText } from "@/lib/soko-bot/action-response";
+import {
+  parseActionNarrativeText,
+  type RecoverableCall,
+  sameEffect,
+} from "@/lib/soko-bot/action-response";
 import { isOwnerRequest } from "@/lib/soko-bot/owner-request";
 import {
   type ChainPlan,
@@ -11,6 +15,7 @@ import {
   resolveRequestId,
 } from "@/lib/soko-bot/request-chain";
 import {
+  CHANGE_CLAIM,
   changeTools,
   RECORDED_SAVES,
   RuntimeEventLog,
@@ -130,13 +135,74 @@ export async function openStepsNote(turnId: string): Promise<string | null> {
 function savesSince(
   found: NonNullable<Awaited<ReturnType<typeof turnPlan>>>,
   turnIds: readonly string[],
+  revision = found.plan.revision,
 ) {
   return savesSincePlan(
     found.turn.sokoBotId,
     found.requestId,
-    found.plan,
+    revision,
     turnIds,
   );
+}
+
+/**
+ * Saves of the request that did not end done and that no later done call
+ * made good (the same effect: input covering the failed call's, or a retry
+ * of the same message; the same target alone is not): refused, failed,
+ * unconfirmed, or a
+ * Studio job still running with nothing waiting on it. All of them count,
+ * however many the request made.
+ */
+function unsettled(saves: readonly SaveReceipt[]): SaveReceipt[] {
+  return saves.filter(
+    (save) =>
+      save.outcome !== "done" &&
+      !saves.some(
+        (later) =>
+          later.outcome === "done" && sameEffect(save.call, later.call),
+      ) &&
+      (save.outcome !== "started" ||
+        STUDIO_JOB_CAPABILITIES.has(save.capability)),
+  );
+}
+
+/**
+ * Every step is marked done, yet Core's receipts for the request disagree:
+ * the turn goes back once to recover, or to mark the step blocked and say
+ * so, rather than answering that it all worked.
+ */
+/**
+ * The reply says the bot itself made a change ("I scheduled", "we've
+ * published"), in the claim check's words; a report of what someone else
+ * did ("Jamie scheduled it") is not one, nor are quoted words.
+ */
+const OWN_CHANGE_CLAIM = new RegExp(
+  String.raw`\b(?:I|we)(?:'ve| have| just| also| now)*\s+${CHANGE_CLAIM.source}`,
+  "i",
+);
+const QUOTED = /“[^”]*”|"[^"]*"|«[^»]*»|„[^“”]*[“”]/g;
+
+async function receiptsDisagree(
+  found: NonNullable<Awaited<ReturnType<typeof turnPlan>>>,
+  turnIds: readonly string[],
+  draft: string,
+): Promise<string | null> {
+  if (!found.plan.steps.every((step) => step.status === "done")) return null;
+  const saves = await savesSince(found, turnIds, 1);
+  // A plan can be all reading and answering; but one whose reply says the
+  // bot made a change, with no change even tried anywhere in the request,
+  // is done only in words. A change on record, however it ended, is judged
+  // by its receipt below (read back an unconfirmed one, never redo it).
+  const words = (parseActionNarrativeText(draft)?.message ?? draft).replace(
+    QUOTED,
+    "",
+  );
+  if (!saves.length && OWN_CHANGE_CLAIM.test(words))
+    return `Your plan marks every step done and your reply says you made or changed something, but Core has no record of any change in this request. If the owner asked for that change in this request, make it now with the tools, or call update_plan (revision ${found.plan.revision}) and mark its step blocked with the reason. If they did not ask for it, or those are someone else's words, change nothing: reword the reply so it does not say you made a change, and say whose words they are.`;
+  const left = unsettled(saves);
+  if (!left.length) return null;
+  const lines = receiptLines(left);
+  return `Your plan marks every step done, but Core's receipts for this request show:\n${lines}\nBefore you answer, put each right. A save that did not happen: do it again if you can. One Core could not confirm: read back whether it happened, and never repeat it blind. A Studio job still running: wait_for it so its result follows. One you cannot put right: call update_plan (revision ${found.plan.revision}) and mark its step blocked with the reason. Then reply, saying plainly what did not happen.`;
 }
 
 const MAX_REQUEST_DEPTH = 6;
@@ -234,6 +300,23 @@ interface SaveReceipt {
   /** The artifact's name as a step might say it, lower case. */
   names: string[];
   outcome: ReceiptOutcome;
+  /** The call itself, to match a recovery to the effect it was for. */
+  call: RecoverableCall;
+}
+
+const SHOWN_RECEIPTS = 20;
+
+/** One line per receipt, the newest last, cut to a readable number. */
+function receiptLines(saves: readonly SaveReceipt[]): string {
+  const shown = saves.slice(-SHOWN_RECEIPTS);
+  const hidden = saves.length - shown.length;
+  return [
+    ...(hidden ? [`- (${hidden} earlier not shown)`] : []),
+    ...shown.map(
+      (save) =>
+        `- ${save.capability}${save.label ? ` (${save.label})` : ""}: ${OUTCOME_WORDS[save.outcome]}`,
+    ),
+  ].join("\n");
 }
 
 const nameSchema = z.object({
@@ -293,12 +376,14 @@ const STUDIO_NOT_MADE = new Set(["FAILED", "CANCELED", "ORPHANED"]);
  */
 async function receiptOutcome(call: {
   capability: string;
+  status: string;
   disposition: string | null;
   targetId: string | null;
   result: unknown;
 }): Promise<ReceiptOutcome> {
   if (call.disposition === "REJECTED") return "not done";
   if (call.disposition === "UNKNOWN") return "unconfirmed";
+  if (call.status === "FAILED") return "not done";
   // A save Core is still writing (write_strategy's { writing: true }).
   if (z.object({ writing: z.literal(true) }).safeParse(call.result).success)
     return "started";
@@ -327,7 +412,7 @@ async function receiptOutcome(call: {
 async function savesSincePlan(
   sokoBotId: string,
   requestId: string,
-  plan: ChainPlan,
+  revision: number,
   turnIds: readonly string[],
 ): Promise<SaveReceipt[]> {
   const written = await prisma.sokoBotToolCall.findFirst({
@@ -337,7 +422,7 @@ async function savesSincePlan(
       status: { not: "FAILED" },
       AND: [
         { result: { path: ["requestId"], equals: requestId } },
-        { result: { path: ["revision"], equals: plan.revision } },
+        { result: { path: ["revision"], equals: revision } },
       ],
     },
     select: { createdAt: true },
@@ -346,7 +431,7 @@ async function savesSincePlan(
   const calls = await prisma.sokoBotToolCall.findMany({
     where: {
       turnId: { in: [...turnIds] },
-      status: "COMPLETED",
+      status: { in: ["COMPLETED", "FAILED"] },
       capability: {
         in: [...changeTools()],
       },
@@ -355,11 +440,13 @@ async function savesSincePlan(
     orderBy: { createdAt: "asc" },
     select: {
       capability: true,
+      status: true,
       disposition: true,
       targetId: true,
       result: true,
+      input: true,
+      createdAt: true,
     },
-    take: 20,
   });
   return Promise.all(
     calls.map(async (call) => ({
@@ -367,6 +454,7 @@ async function savesSincePlan(
       label: receiptLabel(call.targetId, call.result),
       names: receiptNames(call.result),
       outcome: await receiptOutcome(call),
+      call,
     })),
   );
 }
@@ -381,12 +469,7 @@ const OUTCOME_WORDS: Record<ReceiptOutcome, string> = {
 /** The saves the plan does not show yet, and what to do about them. */
 function savedNote(saves: readonly SaveReceipt[], revision: number): string {
   if (!saves.length) return "";
-  const lines = saves
-    .map(
-      (save) =>
-        `- ${save.capability}${save.label ? ` (${save.label})` : ""}: ${OUTCOME_WORDS[save.outcome]}`,
-    )
-    .join("\n");
+  const lines = receiptLines(saves);
   return `Since your plan's revision ${revision}, Core's receipts show:\n${lines}\nA step these saves finished is done: mark it done with update_plan (revision ${revision}), do not do it again, and never call it still to do. A saved file proves only that it was saved: a step that also needs it attached, sent or used is done only once that is done too. A step whose save did not happen is still open: do it again if you can, or mark it blocked with the reason. One whose work only started is under way: do not start it again; wait for it (follow what its tool said) and keep its step in progress until it finishes. One Core could not confirm may have happened: read back whether it did before anything else, never repeat it blind, and if you cannot tell, mark it blocked with the reason and say so.\n`;
 }
 
@@ -441,13 +524,24 @@ export async function evaluateTurnDoneCheck(input: {
 }): Promise<string | null> {
   const found = await turnPlan(input.turnId);
   if (!found || !(await ownerRequest(input.turnId, found))) return null;
-  if (!openSteps(found.plan).length) return null;
   const turnIds = await requestTurnIds(
     found.turn.sokoBotId,
     found.requestId,
     input.turnId,
   );
+  const claim = () =>
+    new RuntimeEventLog(input.turnId, input.sessionId).appendUnless(
+      runtimeEvent(DONE_CHECK_BOUNCED_EVENT, {
+        openSteps: openSteps(found.plan).map((step) => step.id),
+      }),
+      [DONE_CHECK_BOUNCED_EVENT],
+    );
   const open = openSteps(found.plan);
+  if (!open.length) {
+    if (await waitingOnOthers(input.turnId, turnIds)) return null;
+    const disagree = await receiptsDisagree(found, turnIds, input.draft);
+    return disagree && (await claim()) ? disagree : null;
+  }
   const working = open.some((step) => step.status === "in_progress");
   if (!working && (await waitingOnOthers(input.turnId, turnIds))) return null;
   const onOwner = asksOwner(input.draft) || (await ownerBlocker(input.turnId));
@@ -455,16 +549,7 @@ export async function evaluateTurnDoneCheck(input: {
   // needs, so the question goes to them now. With more, the rest may not.
   if (onOwner && open.length === 1) return null;
   const saves = await savesSince(found, turnIds);
-  const claimed = await new RuntimeEventLog(
-    input.turnId,
-    input.sessionId,
-  ).appendUnless(
-    runtimeEvent(DONE_CHECK_BOUNCED_EVENT, {
-      openSteps: open.map((step) => step.id),
-    }),
-    [DONE_CHECK_BOUNCED_EVENT],
-  );
-  if (!claimed) return null;
+  if (!(await claim())) return null;
   const known = savedNote(saves, found.plan.revision);
   if (onOwner)
     return `You are waiting on the owner, and your plan still lists open steps:\n${stepList(open, saves)}\n${known}Call update_plan (revision ${found.plan.revision}) and mark each step that needs their answer blocked, with blockedOn owner and the question as its reason. Do the steps that do not need it now. Then reply, asking your question again.`;
