@@ -29,6 +29,7 @@ export async function renderJobFailureNotificationEmail({
   agentId,
   agentName,
   agentStatus,
+  isPreprodJob,
   jobBlockchainIdentifier,
   jobId,
   locale,
@@ -88,7 +89,12 @@ export async function renderJobFailureNotificationEmail({
   return {
     html,
     subject: toSingleLineSubject(
-      t("jobs.failureNotification.subject", { jobId }),
+      t(
+        isPreprodJob
+          ? "jobs.failureNotification.preprodSubject"
+          : "jobs.failureNotification.subject",
+        { jobId },
+      ),
     ),
   };
 }
