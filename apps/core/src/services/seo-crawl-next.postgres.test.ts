@@ -489,7 +489,7 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
     ).toBe(1);
   });
 
-  it("refuses a continuation through the audit of a CMO Project", async () => {
+  it("offers and sells no continuation through the audit of a CMO Project", async () => {
     await storeCrawl(
       "audit_full",
       { snapshotId: AUDIT_CRAWL, stop: "page cap" },
@@ -516,6 +516,7 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
       data: { projectId: project.id },
     });
     try {
+      expect(await continueFrom()).toBeNull();
       await expect(requestSeoCrawlNext(actor, request())).rejects.toMatchObject(
         { status: 409, message: expect.stringContaining("managed by CMO") },
       );

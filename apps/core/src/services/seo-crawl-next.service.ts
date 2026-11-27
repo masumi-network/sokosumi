@@ -16,7 +16,7 @@ import { fullAuditBillingContext } from "@/lib/seo/audit-settlement";
 import type { SeoActor, SeoWorkspaceQuery } from "@/schemas/project-seo.schema";
 import type { RequestSeoCrawlNext } from "@/schemas/seo-audit-price.schema";
 import { seoSiteCrawlSchema } from "@/schemas/seo-site-crawl.schema";
-import { requireNotCmoProject } from "./cmo-cuso.service";
+import { isCmoProject, requireNotCmoProject } from "./cmo-cuso.service";
 import { requireNoActiveSeoAnalysis } from "./project-seo-analysis-concurrency";
 import {
   commitSeoMutation,
@@ -111,6 +111,12 @@ async function rootInLedger(
   return rows.some((row) => row.id === rootId);
 }
 
+/** The sale refuses the audit of a CMO Project (requireNotCmoProject), so the offer does too. */
+async function ownedByCmo(actor: SeoActor) {
+  const { projectId } = await requireSeoOwner(actor);
+  return projectId ? await isCmoProject(projectId) : false;
+}
+
 /** The workspace projection's dispatch inputs: what the SEO check service runs here, and the crawl a continuation goes on from. */
 export async function seoDispatchInputs(
   actor: SeoActor,
@@ -141,7 +147,8 @@ export async function seoDispatchInputs(
       actor,
       view.pages.map((page) => page.id),
       tip.rootId,
-    ));
+    )) &&
+    !(await ownedByCmo(actor));
   return {
     analysisDispatchEnabled: executor !== null,
     canUsePaidSearchData: executor?.canUsePaidSearchData === true,
