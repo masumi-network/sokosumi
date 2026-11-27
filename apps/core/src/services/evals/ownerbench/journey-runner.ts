@@ -15,7 +15,6 @@ import { planJevMode, planJevStandInDuring } from "@/lib/plan-jev";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { effectiveSokoBotRuntimeAdapter } from "@/lib/soko-bot/factory";
 import { resolveRequestId } from "@/lib/soko-bot/request-chain";
-import { reconcileWorkspaceJobs } from "@/services/image-studio-jobs.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import {
   SOKO_EVENTS_SYNC_KEY,
@@ -1052,9 +1051,6 @@ export async function pollJourney(
   const now = await databaseNow();
   if (!current.finishedAt) {
     const since = new Date(current.startedAt);
-    // Nothing collects a lane's image jobs locally (no webhook or cron):
-    // settle them each tick, as a watched project's page does.
-    await reconcileWorkspaceJobs(lane.workspaceId).catch(() => undefined);
     const timedOut =
       now.getTime() - since.getTime() > (journey.stepMinutes ?? 20) * 60_000;
     const kind = journey.steps[current.index]?.kind;

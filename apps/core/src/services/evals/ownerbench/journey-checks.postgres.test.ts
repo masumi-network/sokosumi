@@ -248,6 +248,40 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       });
     const stuck = [await job("QUEUED"), await job("RUNNING")];
     const done = await job("SUCCEEDED");
+    // Another workspace's job in flight: the lane's clean start never
+    // touches it.
+    const otherUser = randomUUID();
+    await prisma.user.create({
+      data: {
+        id: otherUser,
+        name: "Other workspace",
+        email: `${otherUser}@example.test`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    const otherWorkspace = (
+      await prisma.workspace.create({ data: { userId: otherUser } })
+    ).id;
+    const otherProject = await prisma.project.create({
+      data: { workspaceId: otherWorkspace, name: "Someone else's" },
+      select: { id: true },
+    });
+    const foreign = await prisma.projectImageJob.create({
+      data: {
+        projectId: otherProject.id,
+        workspaceId: otherWorkspace,
+        requestedByUserId: otherUser,
+        kind: "GENERATE",
+        model: "fixture",
+        prompt: "another workspace's banner",
+        settings: {},
+        status: "QUEUED",
+        idempotencyKey: randomUUID(),
+      },
+      select: { id: true },
+    });
     expect(await closeLaneImageJobs(workspaceId)).toBeGreaterThanOrEqual(2);
     const after = await prisma.projectImageJob.findMany({
       where: { id: { in: [...stuck, done].map((row) => row.id) } },
@@ -257,9 +291,20 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       after.filter((row) => row.status === "CANCELED").map((row) => row.id),
     ).toEqual(expect.arrayContaining(stuck.map((row) => row.id)));
     expect(after.find((row) => row.id === done.id)?.status).toBe("SUCCEEDED");
+    expect(
+      (
+        await prisma.projectImageJob.findUniqueOrThrow({
+          where: { id: foreign.id },
+          select: { status: true },
+        })
+      ).status,
+    ).toBe("QUEUED");
     await prisma.projectImageJob.deleteMany({
-      where: { id: { in: [...stuck, done].map((row) => row.id) } },
+      where: { id: { in: [...stuck, done, foreign].map((row) => row.id) } },
     });
+    await prisma.project.deleteMany({ where: { id: otherProject.id } });
+    await prisma.workspace.deleteMany({ where: { id: otherWorkspace } });
+    await prisma.user.deleteMany({ where: { id: otherUser } });
   });
 
   it("counts made images from Files and studio jobs, failed ones aside", async () => {
