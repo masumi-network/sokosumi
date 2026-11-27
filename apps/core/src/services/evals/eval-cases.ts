@@ -22,6 +22,7 @@ import {
 import { CMO_ADS_CASE_ID, CMO_FUNNEL_CASE_ID } from "./eval-cmo-funnel";
 import { isCmoSeoReportCase } from "./eval-cmo-seo-report";
 import { CMO_CORRECTION_CASE_ID } from "./eval-cmo-variety";
+import { CONTEXT_ON_DEMAND_SCENARIOS } from "./eval-context-on-demand";
 import { MEETING_PREP_SCENARIO } from "./eval-meeting-prep";
 import {
   MOVE_TO_TASK_SCHEDULE_SCENARIO,
@@ -128,6 +129,7 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "recall-standing-rule": "Memory",
   "contacts-add-and-find": "Contacts",
   "contacts-search": "Contacts",
+  "soko-bot-landing-page-playbook": "Writing",
   "fundraising-pipeline-off": "Fundraising",
   "fundraising-find-investors-off": "Fundraising",
   "table-from-chat": "Drive",
@@ -191,6 +193,9 @@ export const EVAL_CASES: readonly EvalCase[] = [
   scenarioCase(CHAT_IDENTITY_SCENARIO, "soko-bot", "Chat"),
   scenarioCase(SCHEDULES_SCENARIO, "soko-bot", "Schedules"),
   scenarioCase(MOVE_TO_TASK_SCHEDULE_SCENARIO, "soko-bot", "Schedules"),
+  ...CONTEXT_ON_DEMAND_SCENARIOS.map((scenario) =>
+    scenarioCase(scenario, "soko-bot", "Context"),
+  ),
   ...SEO_SCENARIOS.map((scenario) => scenarioCase(scenario, "soko-bot", "SEO")),
   {
     id: "standup-quiet",

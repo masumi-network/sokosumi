@@ -40,6 +40,24 @@ export function onlyOwnerAndBot(
   );
 }
 
+/** No room is the owner's own chat; otherwise the room must be theirs alone. */
+export async function ownerPrivateRoom(
+  roomId: string | null,
+  who: { ownerId: string; sokoBotId: string },
+): Promise<boolean> {
+  if (!roomId) return true;
+  const room = await prisma.chatRoom.findUnique({
+    where: { id: roomId },
+    select: {
+      kind: true,
+      userMembers: { select: { userId: true } },
+      coworkerMembers: { select: { coworkerId: true } },
+      sokoBotMembers: { select: { sokoBotId: true } },
+    },
+  });
+  return room !== null && onlyOwnerAndBot(room, who);
+}
+
 /**
  * What an X tool does with direct messages, by its Composio slug. Any tool
  * about DMs or messages that does not say it only reads counts as a write,

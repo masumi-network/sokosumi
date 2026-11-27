@@ -11,6 +11,7 @@ import {
 } from "../soko-bot-runtime.service";
 import { executeCmoRead } from "./cmo-reads";
 import { executeCmoSeoTool } from "./cmo-seo";
+import { readContext } from "./context-reads";
 import { dispatchAnnouncementTools } from "./dispatch-announcements";
 import { dispatchChatTools } from "./dispatch-chat";
 import { dispatchFilesTools } from "./dispatch-files";
@@ -165,6 +166,8 @@ async function executeTool(
       return readSkill(authorized, input.input);
     case "update_plan":
       return updatePlan(authorized, input);
+    case "read_context":
+      return readContext(authorized, input.input);
     case "read_calendar":
     case "read_strategy":
     case "read_brand_brain":

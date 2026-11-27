@@ -69,6 +69,11 @@ export interface SokoBotContextPacket {
   counts: Record<string, number>;
   omissions: Record<string, number>;
   sourceCoverage?: Record<string, SokoBotSourceCoverage>;
+  /**
+   * A small packet's (v38) list of every source: how many exist, how many
+   * the packet shows, and how to read the rest. Replaces sourceCoverage.
+   */
+  map?: Record<string, unknown>;
 }
 
 export interface SokoBotTurnGrantClaims extends SokoBotActorContext {
