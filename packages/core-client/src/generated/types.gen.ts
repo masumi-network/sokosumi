@@ -187,8 +187,8 @@ export type AdminSeoImpactVerdicts = {
         windowStart: string | null;
         windowEnd: string | null;
         windowReadyOn: string | null;
-        state: 'waiting_crawl' | 'waiting_window' | 'not_measurable';
-        reason: 'no_cuso' | 'not_connected' | 'no_property' | 'inspection_failed' | 'not_crawled_yet' | null;
+        state: 'waiting_crawl' | 'waiting_window' | 'ready' | 'waiting_retry' | 'measured' | 'not_measurable';
+        reason: 'no_cuso' | 'not_connected' | 'no_property' | 'inspection_failed' | 'not_crawled_yet' | 'worker_failed' | null;
     }>;
 };
 
@@ -14222,6 +14222,82 @@ export type FinalizeSeoConnectionRequest = {
 
 export type DisconnectSeoConnectionResponse = {
     disconnected: true;
+};
+
+export type SeoImpactClaim = {
+    claimId: string;
+    claimedUntil: Date;
+    input: SeoImpactInput;
+};
+
+export type SeoImpactInput = {
+    schema: 'sokosumi.seo-impact-input/1';
+    impactId: string;
+    pageUrl: string;
+    property: string;
+    changedAt: Date;
+    changeSource: 'cuso_done' | 'audit_recheck';
+    changeBounds: {
+        earliest: Date;
+        latest: Date;
+    } | null;
+    changeCheck: 'verified' | 'not_checked';
+    windowCrawl: Date;
+    pageByDate: Array<{
+        date: string;
+        clicks: number;
+        impressions: number;
+        ctr: number;
+        position: number;
+    }>;
+    siteByDate: Array<{
+        date: string;
+        clicks: number;
+        impressions: number;
+        ctr: number;
+        position: number;
+    }>;
+    candidates: Array<{
+        pageUrl: string;
+        byDate: Array<{
+            date: string;
+            clicks: number;
+            impressions: number;
+            ctr: number;
+            position: number;
+        }>;
+    }>;
+    pin: {
+        comparisonPage: string;
+    } | null;
+    readAt: Date;
+};
+
+export type SeoImpactVerdictReceipt = {
+    impactId: string;
+    state: 'change not confirmed' | 'not crawled after change' | 'tested' | 'waiting';
+};
+
+export type SeoImpactResult = {
+    schema: 'sokosumi.seo-impact/1';
+    impactId: string;
+    pageUrl: string;
+    property: string;
+    changedAt: string;
+    changeSource: 'cuso_done' | 'audit_recheck';
+    observedAt: string;
+    windowCrawl: string;
+    state: 'change not confirmed' | 'not crawled after change' | 'tested' | 'waiting';
+    verdict: {
+        verdict: 'effect detected' | 'no effect detected' | 'not measurable';
+        [key: string]: unknown;
+    } | null;
+    comparison: {
+        pageUrl: string | null;
+        [key: string]: unknown;
+    } | null;
+    retryAfter: string | null;
+    [key: string]: unknown;
 };
 
 export type PublicNewsletter = {
@@ -88585,6 +88661,169 @@ export type FinalizeSeoConnectionResponses = {
 };
 
 export type FinalizeSeoConnectionResponse = FinalizeSeoConnectionResponses[keyof FinalizeSeoConnectionResponses];
+
+export type PostSeoImpactClaimsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/seo-impact/claims';
+};
+
+export type PostSeoImpactClaimsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostSeoImpactClaimsError = PostSeoImpactClaimsErrors[keyof PostSeoImpactClaimsErrors];
+
+export type PostSeoImpactClaimsResponses = {
+    /**
+     * A claim, or null
+     */
+    200: {
+        data: SeoImpactClaim | null;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostSeoImpactClaimsResponse = PostSeoImpactClaimsResponses[keyof PostSeoImpactClaimsResponses];
+
+export type PostSeoImpactClaimsByClaimIdVerdictData = {
+    body: SeoImpactResult;
+    path: {
+        claimId: string;
+    };
+    query?: never;
+    url: '/seo-impact/claims/{claimId}/verdict';
+};
+
+export type PostSeoImpactClaimsByClaimIdVerdictErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostSeoImpactClaimsByClaimIdVerdictError = PostSeoImpactClaimsByClaimIdVerdictErrors[keyof PostSeoImpactClaimsByClaimIdVerdictErrors];
+
+export type PostSeoImpactClaimsByClaimIdVerdictResponses = {
+    /**
+     * Result saved
+     */
+    200: {
+        data: SeoImpactVerdictReceipt;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostSeoImpactClaimsByClaimIdVerdictResponse = PostSeoImpactClaimsByClaimIdVerdictResponses[keyof PostSeoImpactClaimsByClaimIdVerdictResponses];
 
 export type GetPublicNewsletterUnsubscribeData = {
     body?: never;
