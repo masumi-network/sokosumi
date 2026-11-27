@@ -37,7 +37,9 @@ One rule: work done for an eval lane's turn never leaves the eval world.
     - A real account used inside a lane's turn is refused ("An eval lane cannot use a real connected account").
     - Nothing ever reaches Composio.
 - **Seeding.** `seedEvalIntegrations({ lane, sokoBotId, userId, providers? })` (`services/evals/eval-integration-seed.ts`) connects a lane bot to those accounts with `eval:` ids. It is idempotent. **ownerbench wires it into the lane reset** and chooses which journeys get which accounts: a connected Gmail also makes ingest run on the fixed inbox.
-- **Link previews and social profiles.** Link previews are skipped for messages in a lane's organization. `read_social_profile` answers "could not be read" in a lane.
+- **Link previews and social profiles.**
+  - **Link previews:** a link posted in a lane's organization gets its preview from the same fixed pages: the title, the first paragraph, no image. An address the world lacks gets no preview, and nothing is fetched.
+  - **`read_social_profile`:** in a lane it answers from fixed profiles of the owner's accounts: x.com, linkedin.com/company, youtube.com/@ and instagram.com, all `padierfind`, with followers, post count and recent posts. Any other profile is "could not be read". No HTML fetch, no headless browser.
 
 ## Not covered here
 

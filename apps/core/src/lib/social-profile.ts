@@ -187,15 +187,13 @@ export async function readSocialProfile(url: string): Promise<SocialProfile> {
       note: "Not a social network this tool reads; use web_fetch for websites and blogs.",
     };
   }
-  // An eval lane has no live web, and a profile read must not differ by run.
-  if (evalWorldWorkspace())
-    return {
-      network,
-      url,
-      recent: [],
-      readable: false,
-      note: "This profile could not be read right now; ask the owner what it shows.",
-    };
+  // An eval lane has no live web: its fixed profiles, the same every run.
+  if (evalWorldWorkspace()) {
+    const { evalSocialProfile } = await import(
+      "@/services/evals/eval-web-world"
+    );
+    return evalSocialProfile(network, url);
+  }
   try {
     if (network === "instagram") return await readInstagram(url);
     if (network === "youtube") return await readYouTube(url);
