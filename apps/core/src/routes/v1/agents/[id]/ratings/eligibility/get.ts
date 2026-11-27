@@ -1,11 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireAvailableAgentOrThrow } from "@/helpers/agent";
 import { doesUserHaveFinishedJobWithAgent } from "@/helpers/agent-rating";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { requireAvailableAgent } from "@/lib/agent-catalog/availability";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -46,12 +45,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = await requireAuthorizedUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    await requireAvailableAgentOrThrow(id, prisma);
+    const scope = c.var.networkScope;
+    await requireAvailableAgent(scope, id);
 
     const eligible = await doesUserHaveFinishedJobWithAgent(
       userContext.userId,
       id,
-      prisma,
+      scope.networkDb,
     );
 
     return ok(c, agentRatingEligibilitySchema.parse({ eligible }));
