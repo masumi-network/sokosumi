@@ -18,6 +18,8 @@ function report(
               tokenTurns: 2,
               inputTokens: (tokens ?? 0) * 2,
               inputTokensPerTurn: tokens,
+              // B6: one micro-dollar per token, so the priced bar tracks tokens here.
+              pricedUsd: tokens === null ? null : tokens * 2 * 0.000001,
             },
           },
         },
@@ -39,6 +41,7 @@ describe("versionDelta", () => {
       passRate: 0.5,
       stepsPassed: 3,
       inputTokensPerTurn: 100,
+      pricedUsdPerTurn: expect.closeTo(0.0001, 12),
     });
     expect(delta.candidate).toEqual({
       passed: 2,
@@ -47,6 +50,7 @@ describe("versionDelta", () => {
       passRate: 1,
       stepsPassed: 4,
       inputTokensPerTurn: 95,
+      pricedUsdPerTurn: expect.closeTo(0.000095, 12),
     });
     expect(delta.meetsBar).toBe(true);
   });
@@ -56,7 +60,12 @@ describe("versionDelta", () => {
       status,
       output: {
         score: { stepsPassed: 2 },
-        totals: { tokenTurns: 1, inputTokens: 1, inputTokensPerTurn: 1 },
+        totals: {
+          tokenTurns: 1,
+          inputTokens: 1,
+          inputTokensPerTurn: 1,
+          pricedUsd: 0.000001,
+        },
       },
     });
     const side = (statuses: string[]): ParityReport => ({
@@ -90,6 +99,7 @@ describe("versionDelta", () => {
                 tokenTurns: 1,
                 inputTokens: 100,
                 inputTokensPerTurn: 100,
+                pricedUsd: 0.0001,
               },
             },
           })),
@@ -130,6 +140,7 @@ describe("versionDelta", () => {
                   tokenTurns: 1,
                   inputTokens: 1,
                   inputTokensPerTurn: 1,
+                  pricedUsd: 0.000001,
                 },
               },
             },
@@ -141,7 +152,12 @@ describe("versionDelta", () => {
             status,
             output: {
               score: { stepsPassed: 1 },
-              totals: { tokenTurns: 1, inputTokens: 1, inputTokensPerTurn: 1 },
+              totals: {
+                tokenTurns: 1,
+                inputTokens: 1,
+                inputTokensPerTurn: 1,
+                pricedUsd: 0.000001,
+              },
             },
           })),
         },
@@ -177,6 +193,7 @@ describe("versionDelta", () => {
                   tokenTurns: 1,
                   inputTokens: 1,
                   inputTokensPerTurn: 1,
+                  pricedUsd: 0.000001,
                 },
               },
             },
@@ -189,7 +206,12 @@ describe("versionDelta", () => {
             output: {
               jev: label,
               score: { stepsPassed: 1 },
-              totals: { tokenTurns: 1, inputTokens: 1, inputTokensPerTurn: 1 },
+              totals: {
+                tokenTurns: 1,
+                inputTokens: 1,
+                inputTokensPerTurn: 1,
+                pricedUsd: 0.000001,
+              },
             },
           })),
         },
@@ -231,6 +253,7 @@ describe("versionDelta", () => {
                   tokenTurns: 1,
                   inputTokens: 1,
                   inputTokensPerTurn: 1,
+                  pricedUsd: 0.000001,
                 },
               },
             },
@@ -243,7 +266,12 @@ describe("versionDelta", () => {
             output: {
               ...(jev ? { jev } : {}),
               score: { stepsPassed: 1 },
-              totals: { tokenTurns: 1, inputTokens: 1, inputTokensPerTurn: 1 },
+              totals: {
+                tokenTurns: 1,
+                inputTokens: 1,
+                inputTokensPerTurn: 1,
+                pricedUsd: 0.000001,
+              },
             },
           })),
         },
@@ -290,6 +318,7 @@ describe("versionDelta", () => {
                   tokenTurns: 1,
                   inputTokens: 1,
                   inputTokensPerTurn: 1,
+                  pricedUsd: 0.000001,
                 },
               },
             },
@@ -302,7 +331,12 @@ describe("versionDelta", () => {
             output: {
               jev: "real",
               score: { stepsPassed: 1 },
-              totals: { tokenTurns: 1, inputTokens: 1, inputTokensPerTurn: 1 },
+              totals: {
+                tokenTurns: 1,
+                inputTokens: 1,
+                inputTokensPerTurn: 1,
+                pricedUsd: 0.000001,
+              },
             },
           })),
         },
@@ -505,6 +539,7 @@ describe("versionDelta", () => {
                   tokenTurns: 1,
                   inputTokens: 100,
                   inputTokensPerTurn: 100,
+                  pricedUsd: 0.0001,
                 },
               },
             },
@@ -521,6 +556,7 @@ describe("versionDelta", () => {
                 tokenTurns: 1,
                 inputTokens: 100,
                 inputTokensPerTurn: 100,
+                pricedUsd: 0.0001,
               },
             },
           })),
