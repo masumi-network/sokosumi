@@ -9918,6 +9918,7 @@
     },
     "Channels": {
       "MobileNav": {
+        "backToRooms": "Back to rooms",
         "allChats": "All chats",
         "tasks": "Tasks",
         "agents": "Agents",

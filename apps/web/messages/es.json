@@ -9918,6 +9918,7 @@
     },
     "Channels": {
       "MobileNav": {
+        "backToRooms": "Volver a las salas",
         "allChats": "Todos los chats",
         "tasks": "Tareas",
         "agents": "Agents",

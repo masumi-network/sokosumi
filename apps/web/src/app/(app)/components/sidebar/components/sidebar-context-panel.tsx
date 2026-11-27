@@ -144,7 +144,7 @@ function BackToRooms({ onClick }: { onClick: () => void }) {
               <ArrowLeft aria-hidden />
             </SidebarRowSlot>
             <span className={SIDEBAR_ROW_LABEL_CLASS}>
-              {nav("backToChats")}
+              {nav("backToRooms")}
             </span>
           </SidebarMenuButton>
         </SidebarMenuItem>
