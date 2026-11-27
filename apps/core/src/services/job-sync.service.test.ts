@@ -1996,23 +1996,16 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
     expect(warnings[0]?.event).toMatchObject({
       operation: "job_failure_webhook",
-      job: { id: "job_1" },
+      jobId: "job_1",
+      userId: "user_1",
+      notificationType: "job-failure-webhook",
+      webhookUrl: "https://hooks.example.com",
       syncRunId: "jobs-test-run",
-      status: 500,
+      responseStatus: 500,
+      failure: { errorName: "Error" },
     });
-    expect(captureMessageMock).toHaveBeenCalledWith(
-      "Failed to call job-failure webhook",
-      expect.objectContaining({
-        level: "warning",
-        extra: expect.objectContaining({
-          jobId: "job_1",
-          userId: "user_1",
-          notificationType: "job-failure-webhook",
-          responseStatus: 500,
-          responseBody: "kaboom",
-        }),
-      }),
-    );
+    expect(warnings[0]?.event).not.toHaveProperty("responseBody");
+    expect(captureMessageMock).not.toHaveBeenCalled();
   });
 
   it("publishes on-chain-only payment failures even when the agent status hash is unchanged", async () => {

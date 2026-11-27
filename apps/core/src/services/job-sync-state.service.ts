@@ -12,7 +12,7 @@ import {
 import type { JobFailureNotificationEmailProps } from "@sokosumi/email";
 import type { PostPurchaseResponses } from "@sokosumi/masumi/clients";
 import type { JobStatusResponseSchemaType } from "@sokosumi/masumi/schemas";
-import { buildWebhookFailureContext, postWebhook } from "@sokosumi/net";
+import { postWebhook } from "@sokosumi/net";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import type { SendEmailInput } from "@/clients/email.client";
@@ -111,25 +111,20 @@ async function dispatchJobFailureNotification(
           .then((result) => {
             if (result.status === "failed") {
               emitCoreWarning(
-                { operation: "job_failure_webhook", job: { id: job.id } },
+                { operation: "job_failure_webhook" },
                 {
                   message: "Could not deliver a job failure webhook",
                   why: "The webhook request failed",
                 },
                 {
-                  status: result.httpStatus,
-                  failure: messageSafeErrorFields(result.error),
-                },
-              );
-              Sentry.captureMessage("Failed to call job-failure webhook", {
-                level: "warning",
-                extra: buildWebhookFailureContext(result, {
                   jobId: job.id,
                   userId: job.ownerId,
                   notificationType: "job-failure-webhook",
-                  webhookUrl,
-                }),
-              });
+                  webhookUrl: new URL(webhookUrl).origin,
+                  responseStatus: result.httpStatus,
+                  failure: messageSafeErrorFields(result.error),
+                },
+              );
             }
           })
           .catch(() => {
