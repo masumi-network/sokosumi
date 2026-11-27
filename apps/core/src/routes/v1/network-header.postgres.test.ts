@@ -404,6 +404,23 @@ const OLD_PREPROD_CATALOG = {
   },
 };
 
+/**
+ * `/v1/users/me` for each of the admin's keys and for the token, as the first
+ * suite counts it (two warm-up calls first): 6 statements, with no header and
+ * with `mainnet`, on both layouts and both deployments, recorded on
+ * origin/main at d8da3ca70, before ticket 21.
+ */
+const BEARER_READS = 6;
+
+/**
+ * The fixed list's statuses for an admin's key where they are not 200,
+ * recorded with `BEARER_READS`: Better Auth's Organization list wants a
+ * session.
+ */
+const BEARER_STATUS: Record<string, number> = {
+  "/auth/organization/list": 401,
+};
+
 afterAll(async () => {
   vi.unstubAllEnvs();
   await Promise.all(pools.map((pool) => pool.end()));
@@ -420,6 +437,9 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
     let admin: { id: string; cookie: string };
     let optedIn: { id: string; cookie: string };
     let plain: { id: string; cookie: string };
+    const oauthClientIds: string[] = [];
+    /** The admin's keys and token, each as the headers that send it. */
+    let bearers: [string, Record<string, string>][];
 
     async function person(name: string, role?: string) {
       const user = await loaded.fixture.createPasswordUser(name, role);
@@ -465,6 +485,24 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
         catalog = await seedCatalogAgent(loaded.createNetworkScope("mainnet"), {
           name: agentName,
         });
+        // Rows as each kind of key has its prefix: older than ticket 11, minted
+        // by it, and one made with `soko_preprod_` before ticket 11 refused a
+        // caller's prefix. While Preprod is off the prefix is not read.
+        bearers = [];
+        for (const [name, prefix] of [
+          ["an old key", null],
+          ["a soko_mainnet_ key", "soko_mainnet_"],
+          ["a key stored as soko_preprod_", "soko_preprod_"],
+        ] as const) {
+          const key = await loaded.fixture.createApiKey(admin.id, prefix);
+          bearers.push([name, { authorization: `Bearer ${key}` }]);
+        }
+        const oauth = await loaded.fixture.createOAuthToken(admin.id);
+        oauthClientIds.push(oauth.clientId);
+        bearers.push([
+          "an OAuth token",
+          { authorization: `Bearer ${oauth.token}` },
+        ]);
       })();
       return setup;
     }, SETUP_TIMEOUT);
@@ -475,6 +513,13 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
       await setup?.catch(() => undefined);
       if (!loaded) return;
       await catalog?.remove();
+      // Rows no foreign key ties to the fixture's people.
+      await loaded.prisma.apikey.deleteMany({
+        where: { referenceId: { in: userIds } },
+      });
+      await loaded.prisma.oauthClient.deleteMany({
+        where: { clientId: { in: oauthClientIds } },
+      });
       await loaded.prisma.organization.deleteMany({
         where: { id: { in: organizationIds } },
       });
@@ -489,9 +534,10 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
      * The first reads of a path can write once (an Organization's missing
      * workspace row; the Task list's second read), so counts start after two.
      */
-    async function warm(path: string, cookie: string) {
-      await call(loaded, path, { cookie });
-      await call(loaded, path, { cookie });
+    async function warm(path: string, cookie: string | Record<string, string>) {
+      const headers = typeof cookie === "string" ? { cookie } : cookie;
+      await call(loaded, path, headers);
+      await call(loaded, path, headers);
     }
 
     /** Routes that serve shared data, each read by a session. */
@@ -764,6 +810,21 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
           expect(answer.statements).toBe(4);
         }
       }
+      // The admin's keys and token, counted the same way on origin/main at
+      // d8da3ca70, before ticket 21: the key's Network costs no read.
+      for (const [name, credential] of bearers) {
+        await warm("/v1/users/me", credential);
+        for (const headers of [{}, { [HEADER]: "mainnet" }] as Record<
+          string,
+          string
+        >[]) {
+          const answer = await call(loaded, "/v1/users/me", {
+            ...credential,
+            ...headers,
+          });
+          expect([name, answer.statements]).toEqual([name, BEARER_READS]);
+        }
+      }
     });
 
     it("answers without the header as with mainnet, with the same reads", async () => {
@@ -776,6 +837,29 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
         });
         expect([path, none.status]).toEqual([path, 200]);
         expect([path, mainnet]).toEqual([path, none]);
+      }
+    });
+
+    it("answers a key or token without the header as with mainnet, and every key as an old one", async () => {
+      for (const path of fixedPaths(admin.id)) {
+        let oldKey: Answer | undefined;
+        for (const [name, credential] of bearers) {
+          await warm(path, credential);
+          const none = await call(loaded, path, credential);
+          const mainnet = await call(loaded, path, {
+            ...credential,
+            [HEADER]: "mainnet",
+          });
+          expect([name, path, mainnet]).toEqual([name, path, none]);
+          // The token is another credential: its answers and reads differ.
+          if (name === "an OAuth token") continue;
+          oldKey ??= none;
+          expect([name, path, none]).toEqual([name, path, oldKey]);
+        }
+        expect([path, oldKey?.status]).toEqual([
+          path,
+          BEARER_STATUS[path] ?? 200,
+        ]);
       }
     });
 
@@ -798,6 +882,17 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
           });
           expect([path, none.status]).toEqual([path, 200]);
           expect([path, preprod]).toEqual([path, none]);
+        }
+      }
+      for (const [name, credential] of bearers) {
+        for (const path of sharedPaths(admin.id)) {
+          await warm(path, credential);
+          const none = await call(loaded, path, credential);
+          const preprod = await call(loaded, path, {
+            ...credential,
+            [HEADER]: "preprod",
+          });
+          expect([name, path, preprod]).toEqual([name, path, none]);
         }
       }
     });
@@ -824,6 +919,20 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
             [HEADER]: "preprod",
           });
           expect([path, answer.status, answer.body]).toEqual([
+            path,
+            403,
+            expect.objectContaining({ kind: "preprod_off" }),
+          ]);
+        }
+      }
+      for (const [name, credential] of bearers) {
+        for (const path of ["/v1/agents", "/v1/credit-costs"]) {
+          const answer = await call(loaded, path, {
+            ...credential,
+            [HEADER]: "preprod",
+          });
+          expect([name, path, answer.status, answer.body]).toEqual([
+            name,
             path,
             403,
             expect.objectContaining({ kind: "preprod_off" }),
