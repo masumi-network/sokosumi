@@ -169,7 +169,7 @@ const authHeaders: Record<string, string> = localToken
   ? { [SOKO_BOT_TURN_TOKEN_HEADER]: localToken }
   : {};
 
-/** Retry only a refusal that Core returned before the callback acted. */
+/** Use for callbacks that authorize before writing, so a refusal can be retried. */
 async function fetchCore(input: RequestInfo | URL, init: RequestInit) {
   let waitingForPreprod = false;
   try {
@@ -222,7 +222,9 @@ const modelFetch: typeof fetch = (input, init) =>
 
 /** POSTs to this turn's Core endpoint; Core says when the turn is over. */
 async function callCore<T>(route: string, body: unknown): Promise<T> {
-  const send = route === "/fail" ? fetch : fetchCore;
+  // Core's tool dispatch can log the request before it authorizes the turn.
+  const send =
+    route === "/fail" || route.startsWith("/tools/") ? fetch : fetchCore;
   const response = await send(`${base}${route}`, {
     method: "POST",
     headers: { "content-type": "application/json", ...authHeaders },

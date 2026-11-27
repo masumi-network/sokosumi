@@ -235,6 +235,8 @@ export class SokoBotTurnsSyncService {
     const claimed: TurnLeaseClaim[] = [];
     for (const turn of stale) {
       if (!input.shouldContinue()) break;
+      // A turn with no stored Network cannot be resumed or charged.
+      if (turn.network === null) continue;
       const leaseToken = randomUUID();
       const { network, preprodGeneration, ...claim } = turn;
       const updated = await prisma
