@@ -17,7 +17,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: db.connectionFindFirst,
       findMany: db.connectionFindMany,
     },
-    sokoBotTurn: { findUniqueOrThrow: db.turnFindUnique },
+    sokoBotTurn: { findUnique: db.turnFindUnique },
     sokoBotAccountQuestion: {
       create: db.questionCreate,
       findFirst: db.questionFindFirst,
@@ -76,10 +76,38 @@ function turn(overrides: Record<string, unknown> = {}) {
 
 function ownerSays(message: string, destinationRoomId: string | null = null) {
   db.turnFindUnique.mockResolvedValue({
+    id: "turn-now",
     userMessage: message,
     createdAt: NOW,
     destinationRoomId,
+    parentTurnId: null,
+    source: "CHAT",
   });
+}
+
+const OWNER_TURN_AT = new Date("2026-11-26T09:59:00Z");
+
+/** A background run "turn-now" with its brief, started by the owner's turn. */
+function runFrom(ownerMessage: string, brief: string) {
+  db.turnFindUnique.mockImplementation(async ({ where }) =>
+    where.id === "turn-now"
+      ? {
+          id: "turn-now",
+          userMessage: brief,
+          createdAt: NOW,
+          destinationRoomId: ROOM,
+          parentTurnId: "turn-owner",
+          source: "CHAT",
+        }
+      : {
+          id: "turn-owner",
+          userMessage: ownerMessage,
+          createdAt: OWNER_TURN_AT,
+          destinationRoomId: ROOM,
+          parentTurnId: null,
+          source: "CHAT",
+        },
+  );
 }
 
 const check = (params: Parameters<typeof requireChosenSocialDestination>[1]) =>
@@ -193,6 +221,7 @@ describe("requireChosenSocialDestination", () => {
     });
     await expect(answer(PERSONAL, "p2")).resolves.toEqual({
       answersQuestionId: QUESTION,
+      answeringTurnId: "turn-now",
     });
     const [{ where }] = db.questionFindFirst.mock.calls[0];
     expect(where).toMatchObject({
@@ -216,6 +245,37 @@ describe("requireChosenSocialDestination", () => {
     ownerSays("Personal");
     db.questionFindFirst.mockResolvedValue(null);
     await expect(answer(PERSONAL, "p2")).rejects.toThrow(/not open/);
+  });
+
+  it("a background run never reads its own brief as the owner's choice, and asks nothing itself", async () => {
+    runFrom("Write an X post about our launch.", "Draft the post on @pat.");
+    await expect(check(onPersonal)).rejects.toThrow(
+      /owner has not chosen one.*Draft nothing in this run/,
+    );
+    expect(db.questionCreate).not.toHaveBeenCalled();
+  });
+
+  it("a background run drafts on the account the owner named in the request that started it", async () => {
+    runFrom("Write an X post on @pat about our launch.", "Draft the post.");
+    await expect(check(onPersonal)).resolves.toEqual({});
+    await expect(check(onCompany)).rejects.toThrow(/owner named @pat /);
+  });
+
+  it("a background run uses the owner's answer, checked and taken for the owner's turn", async () => {
+    runFrom("The second one.", "Draft the launch post.");
+    db.questionFindFirst.mockResolvedValue({
+      id: QUESTION,
+      optionIds: [COMPANY, PERSONAL],
+    });
+    await expect(answer(PERSONAL, "p2")).resolves.toEqual({
+      answersQuestionId: QUESTION,
+      answeringTurnId: "turn-owner",
+    });
+    expect(db.questionFindFirst.mock.calls[0]?.[0].where).toMatchObject({
+      turnId: { not: "turn-owner" },
+      createdAt: { lt: OWNER_TURN_AT },
+      destinationRoomId: ROOM,
+    });
   });
 
   it("asks nothing with one fitting account, on a turn the owner did not type, or for Cuso", async () => {

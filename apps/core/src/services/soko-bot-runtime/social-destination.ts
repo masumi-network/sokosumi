@@ -95,6 +95,48 @@ function ownersOwnChat(authorized: AuthorizedSokoBotRuntime): boolean {
   );
 }
 
+interface OwnerRequest {
+  id: string;
+  createdAt: Date;
+  userMessage: string;
+  destinationRoomId: string | null;
+}
+
+/** Background runs nest; deeper than this is no owner request to trust. */
+const MAX_RUN_DEPTH = 8;
+
+/**
+ * The owner's own chat turn the work comes from: this turn, or for a
+ * background run the turn that started it (its userMessage is the bot's
+ * brief, never the owner's words). Null when no owner turn starts the chain.
+ */
+async function ownerRequest(
+  authorized: AuthorizedSokoBotRuntime,
+): Promise<OwnerRequest | null> {
+  const select = {
+    id: true,
+    createdAt: true,
+    userMessage: true,
+    destinationRoomId: true,
+    parentTurnId: true,
+    source: true,
+  } as const;
+  let turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: authorized.turn.id },
+    select,
+  });
+  for (let depth = 0; turn?.parentTurnId; depth += 1) {
+    if (depth === MAX_RUN_DEPTH) return null;
+    turn = await prisma.sokoBotTurn.findUnique({
+      where: { id: turn.parentTurnId },
+      select,
+    });
+  }
+  return turn && (turn.source === "CHAT" || turn.source === "ADMIN_RETRY")
+    ? turn
+    : null;
+}
+
 /**
  * Accepts the pick only for a question still open in this chat (delivered
  * on an earlier turn, same room, owner and bot, not used by another turn)
@@ -103,20 +145,17 @@ function ownersOwnChat(authorized: AuthorizedSokoBotRuntime): boolean {
  */
 async function acceptAnswer(
   authorized: AuthorizedSokoBotRuntime,
+  request: OwnerRequest,
   questionId: string,
   pick: string | null | undefined,
 ): Promise<string> {
-  const current = await prisma.sokoBotTurn.findUniqueOrThrow({
-    where: { id: authorized.turn.id },
-    select: { createdAt: true, destinationRoomId: true },
-  });
   const question = await openAccountQuestion(
     {
       sokoBotId: authorized.turn.sokoBotId,
       requestedByUserId: authorized.turn.requestedByUserId,
-      destinationRoomId: current.destinationRoomId,
-      turnId: authorized.turn.id,
-      turnCreatedAt: current.createdAt,
+      destinationRoomId: request.destinationRoomId,
+      turnId: request.id,
+      turnCreatedAt: request.createdAt,
     },
     questionId,
   );
@@ -161,18 +200,30 @@ export async function requireChosenSocialDestination(
     socialConnectionId?: string | null;
     accountQuestionId?: string;
   },
-): Promise<{ answersQuestionId?: string }> {
+): Promise<{ answersQuestionId?: string; answeringTurnId?: string }> {
   if (!ownersOwnChat(authorized)) return {};
   // Cuso posts for his one Project, on the accounts its plan names.
   if (getSokoBotVersion(authorized.turn.versionId).profile === "cmo") return {};
-  if (params.accountQuestionId)
+  // A background run drafts on what the owner chose in the request that
+  // started it, never on an account its own brief names.
+  const request = await ownerRequest(authorized);
+  const background = request?.id !== authorized.turn.id;
+  if (params.accountQuestionId) {
+    if (!request)
+      throw new SokoBotRefusedUnsentError(
+        "No owner chat turn starts this run, so no account question can be answered here.",
+      );
     return {
       answersQuestionId: await acceptAnswer(
         authorized,
+        request,
         params.accountQuestionId,
         params.socialConnectionId,
       ),
+      // The owner's turn takes it, so its runs may draft on the same answer.
+      answeringTurnId: request.id,
     };
+  }
   const picked = params.socialConnectionId
     ? await prisma.projectSocialConnection.findFirst({
         where: { id: params.socialConnectionId, projectId: params.projectId },
@@ -201,11 +252,7 @@ export async function requireChosenSocialDestination(
     },
   );
   if (candidates.length < 2) return {};
-  const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
-    where: { id: authorized.turn.id },
-    select: { userMessage: true, destinationRoomId: true },
-  });
-  const named = namedIn(turn.userMessage, candidates);
+  const named = request ? namedIn(request.userMessage, candidates) : [];
   if (named.length > 0) {
     if (named.some((candidate) => candidate.id === params.socialConnectionId))
       return {};
@@ -213,9 +260,14 @@ export async function requireChosenSocialDestination(
       `The owner named ${labels(named)}. Create the post there, with that socialConnectionId and projectId.`,
     );
   }
+  // Only the owner's own turn can ask: a run reports the choice back.
+  if (!request || background)
+    throw new SokoBotRefusedUnsentError(
+      `${ASK_WHICH_ACCOUNT}, and the owner has not chosen one: ${labels(candidates.slice(0, SHOWN))}. Draft nothing in this run. Say in your report that the owner needs to pick the account; once they answer in chat, the post can be made there.`,
+    );
   const question = await askOnce(authorized, {
     provider,
-    destinationRoomId: turn.destinationRoomId,
+    destinationRoomId: request.destinationRoomId,
     optionIds: candidates.slice(0, SHOWN).map((candidate) => candidate.id),
   });
   const byId = new Map(

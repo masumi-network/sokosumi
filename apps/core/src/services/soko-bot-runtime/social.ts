@@ -585,7 +585,7 @@ export async function executeSocialTool(
           postId: params.postId,
         });
       }
-      const { answersQuestionId } =
+      const { answersQuestionId, answeringTurnId } =
         input.capability === "create_social_post"
           ? await requireChosenSocialDestination(
               authorized,
@@ -702,7 +702,7 @@ export async function executeSocialTool(
                   await claimAccountQuestion(
                     tx,
                     answersQuestionId,
-                    authorized.turn.id,
+                    answeringTurnId ?? authorized.turn.id,
                   );
                 return created;
               }
