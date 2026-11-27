@@ -1,4 +1,5 @@
 import {
+  applyAutoResultCardsSkill,
   renderWritingSkill,
   SOKO_BOT_SKILLS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
@@ -57,8 +58,14 @@ export async function readSkill(
   const version = await resolveSokoBotVersion(authorized.turn.versionId);
   if (version.skills.includes(id)) {
     const skill = SOKO_BOT_SKILLS.find((candidate) => candidate.id === id);
-    if (skill)
-      return { skill: skill.id, name: skill.name, content: skill.content };
+    if (skill) {
+      const resolved = applyAutoResultCardsSkill(skill, version);
+      return {
+        skill: resolved.id,
+        name: resolved.name,
+        content: resolved.content,
+      };
+    }
   }
   const writing = version.profile === "cmo" ? readWritingSkill(id) : null;
   if (writing) return writing;

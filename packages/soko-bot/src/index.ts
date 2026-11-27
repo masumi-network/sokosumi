@@ -376,6 +376,7 @@ export {
   cmoPostsVideoShapes,
 } from "./versions/cmo-video-shapes-skill.js";
 export {
+  applyAutoResultCardsSkill,
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,
@@ -383,6 +384,7 @@ export {
   composeSystemPrompt,
   composeTurnPreamble,
   DEFAULT_SOKO_BOT_VERSION_ID,
+  getSokoBotSkillForVersion,
   getSokoBotVersion,
   SOKO_BOT_PRODUCT_VERSIONS,
   SOKO_BOT_SKILLS,

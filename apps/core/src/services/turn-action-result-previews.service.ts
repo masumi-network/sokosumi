@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import * as Sentry from "@sentry/node";
 import type { Prisma, SokoBotTurn } from "@sokosumi/database";
 import {
+  ACTION_RESULT_CARD_KINDS,
+  ACTION_RESULT_REMOVAL_KINDS,
   CHAT_RESULT_PREVIEW_LIMIT,
   type ChatResultReference,
   chatResultReferenceSchema,
@@ -16,7 +18,7 @@ import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 import { resolveChatResultReference } from "@/services/chat-result-preview.service";
 import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
 
-const ACTION_RESULTS: Record<string, ChatResultReference["kind"]> = {
+const LEGACY_ACTION_RESULTS: Record<string, ChatResultReference["kind"]> = {
   create_task: "task",
   assign_task: "task",
   update_task: "task",
@@ -42,6 +44,11 @@ const ACTION_RESULTS: Record<string, ChatResultReference["kind"]> = {
   create_seo_action_task: "task",
 };
 
+const LEGACY_REMOVALS: Readonly<Record<string, ChatResultReference["kind"]>> = {
+  archive_task: "task",
+  delete_schedule: "bot_schedule",
+};
+
 /** Fallback for omitted preview calls; only committed receipts identify resources. */
 export async function prepareTurnActionResultPreviews(
   turnId: string,
@@ -63,8 +70,9 @@ export async function prepareTurnActionResultPreviews(
     (turn.askedByUserId && turn.askedByUserId !== actingUserId)
   )
     return;
-  if (!versionShowsResultCards(await resolveSokoBotVersion(turn.versionId)))
-    return;
+  const version = await resolveSokoBotVersion(turn.versionId);
+  if (!versionShowsResultCards(version)) return;
+  const autoCards = version.autoResultCards === true;
   const calls = await tx.sokoBotToolCall.findMany({
     where: { turnId, status: "COMPLETED" },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
@@ -96,11 +104,14 @@ export async function prepareTurnActionResultPreviews(
       !["APPLIED", "ALREADY_SATISFIED"].includes(call.disposition ?? "")
     )
       continue;
-    if (call.targetId && call.capability === "archive_task")
-      removed.add(`task\0${call.targetId}`);
-    if (call.targetId && call.capability === "delete_schedule")
-      removed.add(`bot_schedule\0${call.targetId}`);
-    const kind = ACTION_RESULTS[call.capability];
+    const removalKind = autoCards
+      ? ACTION_RESULT_REMOVAL_KINDS[call.capability]
+      : LEGACY_REMOVALS[call.capability];
+    if (call.targetId && removalKind)
+      removed.add(`${removalKind}\0${call.targetId}`);
+    const kind = autoCards
+      ? ACTION_RESULT_CARD_KINDS[call.capability]
+      : LEGACY_ACTION_RESULTS[call.capability];
     if (!kind || !call.targetId) continue;
     const jobInput =
       call.capability === "provide_job_input"
@@ -128,6 +139,17 @@ export async function prepareTurnActionResultPreviews(
     });
     if (parsed.success)
       references.set(actionInputHash(parsed.data), parsed.data);
+  }
+  // When a turn already showed an item and later removed it, update that
+  // existing preview to unavailable; a removal with no prior preview or write
+  // still emits no card.
+  if (autoCards) {
+    for (const [key, { snapshot }] of prepared) {
+      const ref = snapshot.reference;
+      if ("id" in ref && removed.has(`${ref.kind}\0${ref.id}`)) {
+        references.set(key, ref);
+      }
+    }
   }
   let count = prepared.size;
   for (const [key, reference] of references) {

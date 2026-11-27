@@ -483,6 +483,29 @@ export function promptCacheKey(
   return `${versionId}:${hash}`;
 }
 
+/** Per-turn tool description overrides for versions with custom texts or flags. */
+export function turnToolDescriptions(
+  version: Pick<
+    SokoBotVersion,
+    "texts" | "autoResultCards" | "messaging" | "planLoop"
+  >,
+  capabilities: readonly SokoBotCapability[],
+): Partial<Record<SokoBotCapability, string>> {
+  return {
+    ...(version.texts || version.autoResultCards
+      ? Object.fromEntries(
+          capabilities.map((capability) => [
+            capability,
+            sokoBotToolDescription(capability, version),
+          ]),
+        )
+      : {}),
+    ...(version.planLoop && capabilities.includes("update_plan")
+      ? { update_plan: SOKO_BOT_PLAN_LOOP_UPDATE_PLAN_DESCRIPTION }
+      : {}),
+  };
+}
+
 export async function prepareTurn(
   sessionId: string,
   turnId: string,
@@ -592,19 +615,7 @@ export async function prepareTurn(
         await resolveRequestId(turnId),
       )
     : null;
-  const toolDescriptions: Partial<Record<SokoBotCapability, string>> = {
-    ...(version.texts
-      ? Object.fromEntries(
-          capabilities.map((capability) => [
-            capability,
-            sokoBotToolDescription(capability, version),
-          ]),
-        )
-      : {}),
-    ...(version.planLoop && capabilities.includes("update_plan")
-      ? { update_plan: SOKO_BOT_PLAN_LOOP_UPDATE_PLAN_DESCRIPTION }
-      : {}),
-  };
+  const toolDescriptions = turnToolDescriptions(version, capabilities);
   return {
     turnId,
     sessionId,

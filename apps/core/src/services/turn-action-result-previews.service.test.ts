@@ -1,15 +1,22 @@
+import { getSokoBotVersion } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { resolve, calls, upsert, jobInput, captureException } = vi.hoisted(
-  () => ({
-    resolve: vi.fn(),
-    calls: vi.fn(),
-    upsert: vi.fn(),
-    jobInput: vi.fn(),
-    captureException: vi.fn(),
-  }),
-);
+const {
+  resolve,
+  calls,
+  upsert,
+  jobInput,
+  captureException,
+  resolveSokoBotVersion,
+} = vi.hoisted(() => ({
+  resolve: vi.fn(),
+  calls: vi.fn(),
+  upsert: vi.fn(),
+  jobInput: vi.fn(),
+  captureException: vi.fn(),
+  resolveSokoBotVersion: vi.fn(),
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotToolCall: { findMany: calls, upsert },
@@ -19,9 +26,13 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/services/chat-result-preview.service", () => ({
   resolveChatResultReference: resolve,
 }));
+vi.mock("@/services/soko-bot-version.service", () => ({
+  resolveSokoBotVersion: (id: string | null) => resolveSokoBotVersion(id),
+}));
 vi.mock("@sentry/node", () => ({ captureException }));
 
 import prisma from "@/lib/db/prisma";
+import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 import { prepareTurnActionResultPreviews } from "./turn-action-result-previews.service";
 
 const turn = {
@@ -46,6 +57,9 @@ const receipt = {
 describe("automatic result previews", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveSokoBotVersion.mockImplementation((id: string | null) =>
+      Promise.resolve(getSokoBotVersion(id)),
+    );
     calls.mockResolvedValue([]);
     upsert.mockResolvedValue({});
     resolve.mockResolvedValue({
@@ -327,5 +341,280 @@ describe("automatic result previews", () => {
     await expect(
       prepareTurnActionResultPreviews("turn", turn, tx),
     ).resolves.toBeUndefined();
+  });
+
+  describe("autoResultCards flag", () => {
+    const autoTurn = { ...turn, versionId: "v36-auto" };
+
+    beforeEach(() => {
+      resolveSokoBotVersion.mockImplementation((id: string | null) =>
+        Promise.resolve(
+          id === "v36-auto"
+            ? { ...getSokoBotVersion("v36"), autoResultCards: true as const }
+            : getSokoBotVersion(id),
+        ),
+      );
+      resolve.mockImplementation(
+        async (input: { reference: { kind: string; id?: string } }) => ({
+          workspaceId: "workspace",
+          reference: input.reference,
+          data: { id: "550e8400-e29b-41d4-a716-446655440099" },
+        }),
+      );
+    });
+
+    it("attaches cards for save_task_schedule, set_task_parent, and generate_voiceover when flagged, leaving flag-off unchanged", async () => {
+      calls.mockResolvedValue([
+        { ...receipt, capability: "save_task_schedule", targetId: "ts-1" },
+        { ...receipt, capability: "set_task_parent", targetId: "task-child" },
+        {
+          ...receipt,
+          capability: "generate_voiceover",
+          targetId: "file-vo",
+          verification: "PROVIDER_ACK",
+        },
+      ]);
+
+      await prepareTurnActionResultPreviews(
+        "turn",
+        { ...turn, versionId: "v36" },
+        tx,
+      );
+      expect(resolve).not.toHaveBeenCalled();
+
+      await prepareTurnActionResultPreviews("turn", autoTurn, tx);
+      expect(resolve).toHaveBeenCalledTimes(3);
+      expect(resolve).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reference: { kind: "task_schedule", id: "ts-1" },
+        }),
+        tx,
+      );
+      expect(resolve).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reference: { kind: "task", id: "task-child" },
+        }),
+        tx,
+      );
+      expect(resolve).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reference: { kind: "file", id: "file-vo" },
+        }),
+        tx,
+      );
+    });
+
+    it("treats delete_file and delete_task_schedule as removals without 404 lookups or Sentry noise", async () => {
+      // Delete-only turn emits no card and never looks up tombstoned resources.
+      calls.mockResolvedValue([
+        { ...receipt, capability: "delete_file", targetId: "gone-file" },
+        {
+          ...receipt,
+          capability: "delete_task_schedule",
+          targetId: "gone-ts",
+        },
+      ]);
+      await prepareTurnActionResultPreviews("turn", autoTurn, tx);
+      expect(resolve).not.toHaveBeenCalled();
+      expect(upsert).not.toHaveBeenCalled();
+      expect(captureException).not.toHaveBeenCalled();
+
+      // Same-turn create + delete records an unavailable card without lookup.
+      calls.mockResolvedValue([
+        { ...receipt, capability: "upload_file", targetId: "temp-file" },
+        { ...receipt, capability: "delete_file", targetId: "temp-file" },
+        { ...receipt, capability: "save_task_schedule", targetId: "temp-ts" },
+        {
+          ...receipt,
+          capability: "delete_task_schedule",
+          targetId: "temp-ts",
+        },
+      ]);
+      await prepareTurnActionResultPreviews("turn", autoTurn, tx);
+      expect(resolve).not.toHaveBeenCalled();
+      for (const reference of [
+        { kind: "file", id: "temp-file" },
+        { kind: "task_schedule", id: "temp-ts" },
+      ]) {
+        expect(upsert).toHaveBeenCalledWith(
+          expect.objectContaining({
+            create: expect.objectContaining({
+              capability: "preview_result",
+              result: expect.objectContaining({
+                reference,
+                data: expect.objectContaining({ state: "unavailable" }),
+              }),
+            }),
+          }),
+        );
+      }
+      expect(captureException).not.toHaveBeenCalled();
+    });
+
+    it("marks an existing file preview unavailable when the owner deletes it in the same turn", async () => {
+      const reference = { kind: "file", id: "file-before" };
+      const snapshot = {
+        workspaceId: "workspace",
+        reference,
+        data: {
+          id: "550e8400-e29b-41d4-a716-446655440010",
+          state: "available",
+          capturedAt: "2026-10-06T09:22:00.000Z",
+          kind: "file",
+          title: "Owner's draft",
+          status: "READY",
+          sourceHref: "/drive/files/file-before",
+        },
+      };
+      expect(chatResultSnapshotSchema.safeParse(snapshot).success).toBe(true);
+      calls.mockResolvedValue([
+        {
+          capability: "preview_result",
+          status: "COMPLETED",
+          toolCallId: "existing-preview",
+          result: snapshot,
+        },
+        { ...receipt, capability: "delete_file", targetId: reference.id },
+      ]);
+      await prepareTurnActionResultPreviews("turn", autoTurn, tx);
+      expect(resolve).not.toHaveBeenCalled();
+      expect(upsert).toHaveBeenCalledTimes(1);
+      expect(upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            turnId_toolCallId: {
+              turnId: "turn",
+              toolCallId: "existing-preview",
+            },
+          },
+          update: {
+            result: expect.objectContaining({
+              reference,
+              data: expect.objectContaining({
+                state: "unavailable",
+                id: snapshot.data.id,
+              }),
+            }),
+          },
+        }),
+      );
+      expect(captureException).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      [
+        "archive_task",
+        { kind: "task", id: "task-before" },
+        {
+          id: "550e8400-e29b-41d4-a716-446655440011",
+          state: "available",
+          capturedAt: "2026-10-06T09:22:00.000Z",
+          kind: "task",
+          title: "Task",
+          status: "READY",
+          sourceHref: "/tasks/task-before",
+        },
+      ],
+      [
+        "delete_schedule",
+        { kind: "bot_schedule", id: "sched-before" },
+        {
+          id: "550e8400-e29b-41d4-a716-446655440012",
+          state: "available",
+          capturedAt: "2026-10-06T09:22:00.000Z",
+          kind: "bot_schedule",
+          title: "Daily check",
+          status: "ACTIVE",
+          sourceHref: "/schedules/sched-before",
+        },
+      ],
+      [
+        "delete_task_schedule",
+        { kind: "task_schedule", id: "ts-before" },
+        {
+          id: "550e8400-e29b-41d4-a716-446655440013",
+          state: "available",
+          capturedAt: "2026-10-06T09:22:00.000Z",
+          kind: "task_schedule",
+          title: "Weekly report",
+          status: "ACTIVE",
+          sourceHref: "/schedules/ts-before",
+        },
+      ],
+    ] as const)(
+      "marks an existing preview unavailable when %s removes it, and ignores uncommitted removals",
+      async (capability, reference, data) => {
+        const snapshot = { workspaceId: "workspace", reference, data };
+        expect(chatResultSnapshotSchema.safeParse(snapshot).success).toBe(true);
+
+        // Failed / uncommitted removal leaves the existing preview intact.
+        calls.mockResolvedValue([
+          {
+            capability: "preview_result",
+            status: "COMPLETED",
+            toolCallId: "existing-preview",
+            result: snapshot,
+          },
+          {
+            ...receipt,
+            capability,
+            targetId: reference.id,
+            disposition: "UNKNOWN",
+          },
+        ]);
+        await prepareTurnActionResultPreviews("turn", autoTurn, tx);
+        expect(upsert).not.toHaveBeenCalled();
+
+        // Committed removal marks the existing preview unavailable with its original ID.
+        calls.mockResolvedValue([
+          {
+            capability: "preview_result",
+            status: "COMPLETED",
+            toolCallId: "existing-preview",
+            result: snapshot,
+          },
+          { ...receipt, capability, targetId: reference.id },
+        ]);
+        await prepareTurnActionResultPreviews("turn", autoTurn, tx);
+        expect(resolve).not.toHaveBeenCalled();
+        expect(upsert).toHaveBeenCalledTimes(1);
+        expect(upsert).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: {
+              turnId_toolCallId: {
+                turnId: "turn",
+                toolCallId: "existing-preview",
+              },
+            },
+            update: {
+              result: expect.objectContaining({
+                reference,
+                data: expect.objectContaining({
+                  state: "unavailable",
+                  id: data.id,
+                }),
+              }),
+            },
+          }),
+        );
+      },
+    );
+
+    it("skips link-only writes that have no native card kind", async () => {
+      calls.mockResolvedValue([
+        {
+          ...receipt,
+          capability: "newsletter_draft_issue",
+          targetId: "issue-1",
+        },
+        { ...receipt, capability: "create_table", targetId: "table-1" },
+        { ...receipt, capability: "manage_reminder", targetId: "nudge-1" },
+        { ...receipt, capability: "link_tasks", targetId: "link-1" },
+        { ...receipt, capability: "upsert_contact", targetId: "contact-1" },
+      ]);
+      await prepareTurnActionResultPreviews("turn", autoTurn, tx);
+      expect(resolve).not.toHaveBeenCalled();
+      expect(upsert).not.toHaveBeenCalled();
+    });
   });
 });
