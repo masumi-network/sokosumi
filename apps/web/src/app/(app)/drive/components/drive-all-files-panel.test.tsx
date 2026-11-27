@@ -17,7 +17,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FileSearchPage, FileStore } from "@/lib/utils/file-search.client";
 
 const api = vi.hoisted(() => ({
@@ -30,6 +30,7 @@ const api = vi.hoisted(() => ({
   deleteFileCollection: vi.fn(),
   deleteDriveUploads: vi.fn(),
   decideSuggestion: vi.fn(),
+  fetchFolderReadme: vi.fn(),
 }));
 
 const listDriveItemsMock = vi.hoisted(() => vi.fn());
@@ -247,6 +248,7 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
       items: [],
       search: makeMeta(),
     } satisfies FileSearchPage);
+    api.fetchFolderReadme.mockResolvedValue(null);
   });
 
   it("removes deleted files from catalog and mounted DriveFilePicker on mixed-success bulk delete while GETs are held", async () => {
@@ -829,5 +831,72 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
     expect(client.getQueryData(driveQueryKeys.folders(orgB))).toEqual([
       "OrgBFolder",
     ]);
+  });
+});
+
+describe("DriveAllFilesPanel folder README", () => {
+  const readme = makeFile("res_readme", "README.md", {
+    mimeType: "text/markdown",
+  });
+
+  beforeEach(() => {
+    for (const fn of Object.values(api)) {
+      fn.mockReset();
+    }
+    useSessionMock.mockReturnValue({
+      data: {
+        user: { id: "user_1" },
+        session: { activeOrganizationId: "org_a" },
+      },
+    });
+    api.fetchWorkspaceFolders.mockResolvedValue([]);
+    api.fetchWorkspaceLabels.mockResolvedValue([] as WorkspaceLabel[]);
+    api.fetchFileCollections.mockResolvedValue([] as FileCollection[]);
+    // Page one of a long folder, sorted by name: README.md is not on it.
+    api.fetchFileSearchPage.mockResolvedValue({
+      items: [
+        makeFile("res_a", "a-brief.pdf"),
+        makeFile("res_b", "b-brief.pdf"),
+      ],
+      search: makeMeta({ hasMore: true, nextCursor: "page-2" }),
+    } satisfies FileSearchPage);
+    api.fetchFolderReadme.mockResolvedValue(readme);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("Signed contracts go in /signed.")),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("shows the folder's README even when it is not on the first page of files", async () => {
+    renderPanel({ initialFolder: "Client work" });
+
+    expect(
+      await screen.findByRole("region", { name: "readmeLabel" }),
+    ).toHaveTextContent("Signed contracts go in /signed.");
+    expect(api.fetchFolderReadme).toHaveBeenCalledWith(
+      expect.objectContaining({ store: orgA, folder: "Client work" }),
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/drive/files/res_readme/content?scope=org&organizationId=org_a",
+      expect.anything(),
+    );
+    // Only page one is loaded: the card does not depend on the list.
+    expect(screen.queryByRole("link", { name: "README.md" })).toBeNull();
+  });
+
+  it("hides the README while searching the whole workspace", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByRole("region", { name: "readmeLabel" });
+
+    await user.type(screen.getByRole("searchbox"), "plan");
+
+    await waitFor(() =>
+      expect(screen.queryByRole("region", { name: "readmeLabel" })).toBeNull(),
+    );
   });
 });
