@@ -4922,6 +4922,9 @@ const projectSeoActionSchemaResponseTransformer = (data: any) => {
     if (data.verifiedAt) {
         data.verifiedAt = new Date(data.verifiedAt);
     }
+    if (data.lastCheckAt) {
+        data.lastCheckAt = new Date(data.lastCheckAt);
+    }
     return data;
 };
 
@@ -5021,8 +5024,17 @@ const projectSeoTimelineItemSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const projectSeoRunDiffSchemaResponseTransformer = (data: any) => {
+    data.from = new Date(data.from);
+    data.to = new Date(data.to);
+    return data;
+};
+
 const projectSeoRunSchemaResponseTransformer = (data: any) => {
     data.observedAt = new Date(data.observedAt);
+    if (data.runDiff) {
+        data.runDiff = projectSeoRunDiffSchemaResponseTransformer(data.runDiff);
+    }
     return data;
 };
 

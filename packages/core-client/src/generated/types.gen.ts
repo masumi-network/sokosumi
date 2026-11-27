@@ -13363,6 +13363,8 @@ export type ProjectSeoAction = {
     completedAt?: Date;
     verifiedAt?: Date;
     impact?: ProjectSeoActionImpact;
+    lastCheckResult?: 'failing' | 'fixed';
+    lastCheckAt?: Date;
     kind: 'fix' | 'opportunity';
     evidence: Array<string>;
 };
@@ -13844,6 +13846,58 @@ export type ProjectSeoRun = {
     issues: number | null;
     seconds: number | null;
     monitorId?: string | null;
+    runDiff?: ProjectSeoRunDiff;
+};
+
+export type ProjectSeoRunDiff = {
+    from: Date;
+    to: Date;
+    comparable: boolean;
+    reason?: 'market' | 'rulebook' | 'pages';
+    rulebookChange?: {
+        compared: number;
+        other: number;
+    };
+    new: Array<{
+        rowId: string;
+        title: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        severity: 'critical' | 'major' | 'minor';
+    }>;
+    newCount: number;
+    fixed: Array<{
+        rowId: string;
+        title: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        severity: 'critical' | 'major' | 'minor';
+    }>;
+    fixedCount: number;
+    stillOpen: Array<{
+        rowId: string;
+        title: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        severity: 'critical' | 'major' | 'minor';
+    }>;
+    stillOpenCount: number;
+    notCheckedAgain: number;
+    notCheckedBefore: number;
+    numbers: {
+        issues: {
+            from: number | null;
+            to: number | null;
+        };
+        moves: Array<{
+            keyword: string;
+            pageUrl: string;
+            device: 'mobile' | 'desktop' | null;
+            from: number;
+            to: number;
+        }>;
+        moveCount: number;
+    };
 };
 
 export type ProjectSeoAnalysis = {

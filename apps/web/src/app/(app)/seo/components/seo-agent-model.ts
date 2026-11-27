@@ -1,5 +1,10 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { seoOpenFixes, seoOverviewModel } from "./seo-overview-model";
+import {
+  SEO_ISSUE_SEVERITY_NAMES,
+  type SeoIssueSeverity,
+  seoOpenFixes,
+  seoOverviewModel,
+} from "./seo-overview-model";
 import { seoStrategyRows } from "./seo-places-model";
 import { isSeoRuleCheck } from "./seo-runs-model";
 import { latestSeoMeasurements } from "./seo-statistics-model";
@@ -81,6 +86,7 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
   return {
     lastCheck: lastCheck
       ? {
+          id: lastCheck.id,
           at: lastCheck.observedAt,
           checked: lastCheck.coverage.checked,
           pages: lastCheck.pageIds.length,
@@ -110,3 +116,50 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
 }
 
 export type SeoAgentBrief = ReturnType<typeof seoAgentBrief>;
+
+/**
+ * The counts the Agent tab leads with: the fix rows of its list, split by the impact of the worst issue each fixes,
+ * and the suggestion rows apart, since a suggestion fixes no error. A split that leaves a fix out would not add up
+ * to the count, so the count then stands alone.
+ */
+export function seoActionHeadline(
+  steps: SeoAgentStep[],
+  severity: (action: Action) => SeoIssueSeverity | null,
+) {
+  const actions = steps.flatMap((step) =>
+    step.kind === "action" ? [step.action] : [],
+  );
+  const fixes = actions.filter((action) => action.kind !== "opportunity");
+  const parts = SEO_ISSUE_SEVERITY_NAMES.map((name) => ({
+    severity: name,
+    count: fixes.filter((action) => severity(action) === name).length,
+  })).filter((part) => part.count > 0);
+  const named = parts.reduce((sum, part) => sum + part.count, 0);
+  return {
+    fixes: fixes.length,
+    parts: named === fixes.length ? parts : [],
+    suggestions: actions.length - fixes.length,
+  };
+}
+
+/**
+ * Where a fix from an earlier check stands in the page checks after it: still failing in the check that found it last,
+ * or not tested again since the check that proposed it. Null for a fix of the newest check, and for one a later check
+ * fixed: a proposal it fixed is no longer listed.
+ */
+export function seoFixCheckState(
+  action: Action,
+  workspace: Pick<ProjectSeoWorkspace, "observations">,
+): { state: "failing" | "notTested"; day: Date } | null {
+  const newest = workspace.observations.find((row) => isSeoRuleCheck(row.kind));
+  const own = workspace.observations.find(
+    (row) => row.id === action.observationId,
+  );
+  if (action.kind !== "fix" || !newest || !own || own.id === newest.id)
+    return null;
+  if (action.lastCheckResult === "failing" && action.lastCheckAt)
+    return { state: "failing", day: action.lastCheckAt };
+  return action.lastCheckResult
+    ? null
+    : { state: "notTested", day: own.observedAt };
+}
