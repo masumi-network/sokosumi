@@ -4,6 +4,7 @@ import type { AdminPreprodAccess } from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useRef, useState, useTransition } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
 import { ReasonField } from "@/components/admin/reason-field";
@@ -48,10 +49,13 @@ export function PreprodAccessSection({
   const id = useId();
   const switchRef = useRef<HTMLButtonElement>(null);
   const reasonRef = useRef<HTMLInputElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   // What the admin asked for, kept while the dialog is open.
   const [requested, setRequested] = useState<boolean | null>(null);
   const [reason, setReason] = useState("");
   const [reasonError, setReasonError] = useState<string | undefined>();
+  // The error, spoken when focus is already in the field and cannot move.
+  const [announced, setAnnounced] = useState("");
   const [failure, setFailure] = useState<ActionError | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -71,6 +75,7 @@ export function PreprodAccessSection({
     setRequested(null);
     setReason("");
     setReasonError(undefined);
+    setAnnounced("");
     setFailure(null);
   }
 
@@ -78,13 +83,21 @@ export function PreprodAccessSection({
     setReason(value);
     if (value.trim()) {
       setReasonError(undefined);
+      setAnnounced("");
     }
   }
 
   function handleConfirm(enabled: boolean) {
     const trimmedReason = reason.trim();
     if (!trimmedReason) {
-      setReasonError(t("dialog.reasonRequired"));
+      const message = t("dialog.reasonRequired");
+      if (document.activeElement === reasonRef.current) {
+        setReasonError(message);
+        setAnnounced(message);
+        return;
+      }
+      // The field's description must hold the error when focus lands there.
+      flushSync(() => setReasonError(message));
       reasonRef.current?.focus();
       return;
     }
@@ -130,6 +143,7 @@ export function PreprodAccessSection({
 
   return (
     <section
+      ref={sectionRef}
       aria-labelledby={titleId}
       className="bg-card-background space-y-4 rounded-lg border p-4"
     >
@@ -203,7 +217,10 @@ export function PreprodAccessSection({
           showCloseButton={false}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            switchRef.current?.focus();
+            // Without a read there is no switch; the section's Retry remains.
+            (
+              switchRef.current ?? sectionRef.current?.querySelector("button")
+            )?.focus();
           }}
         >
           {requested !== null ? (
@@ -236,6 +253,9 @@ export function PreprodAccessSection({
                 onChange={handleReasonChange}
                 error={reasonError}
               />
+              <p role="status" className="sr-only">
+                {announced}
+              </p>
               {failure ? (
                 <p role="alert" className="text-destructive text-sm">
                   {failureMessage(failure)}

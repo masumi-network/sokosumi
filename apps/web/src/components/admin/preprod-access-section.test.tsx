@@ -224,6 +224,41 @@ describe("PreprodAccessSection", () => {
     ).toBeEnabled();
   });
 
+  it("links the error to the field before focus lands there", async () => {
+    const user = userEvent.setup();
+    render(section(OFF_NO_HISTORY));
+    const dialog = await openDialog(user);
+    const field = within(dialog).getByLabelText("Reason");
+    let descriptionAtFocus = "";
+    field.addEventListener("focus", () => {
+      descriptionAtFocus = (field.getAttribute("aria-describedby") ?? "")
+        .split(" ")
+        .map((id) => document.getElementById(id)?.textContent ?? "")
+        .join(" ");
+    });
+
+    await user.click(within(dialog).getByRole("button", { name: "Switch on" }));
+
+    expect(field).toHaveFocus();
+    expect(descriptionAtFocus).toContain("Enter a reason.");
+  });
+
+  it("announces the error when the reason is submitted from inside the field", async () => {
+    const user = userEvent.setup();
+    render(section(OFF_NO_HISTORY));
+    const dialog = await openDialog(user);
+    const field = within(dialog).getByLabelText("Reason");
+    expect(within(dialog).getByRole("status")).toHaveTextContent("");
+
+    await user.type(field, "  {Enter}");
+
+    expect(setAdminPreprodAccessActionMock).not.toHaveBeenCalled();
+    expect(field).toHaveFocus();
+    expect(within(dialog).getByRole("status")).toHaveTextContent(
+      "Enter a reason.",
+    );
+  });
+
   it("clears the reason error once a reason is typed", async () => {
     const user = userEvent.setup();
     render(section(OFF_NO_HISTORY));
@@ -310,6 +345,27 @@ describe("PreprodAccessSection", () => {
       refreshedPage.resolve();
       await refreshedPage.promise;
     });
+  });
+
+  it("moves focus to Retry when the read after a successful change failed", async () => {
+    const answer = Promise.withResolvers<unknown>();
+    setAdminPreprodAccessActionMock.mockReturnValue(answer.promise);
+    const user = userEvent.setup();
+    const { rerender } = render(section(OFF_NO_HISTORY));
+    const dialog = await openDialog(user);
+    await submitReason(user, dialog, "SOK-3");
+
+    // The action's refreshed page arrives with a read Core did not answer.
+    rerender(section(null));
+    await act(async () => {
+      answer.resolve({ ok: true, value: ON_AFTER_SWITCH });
+      await answer.promise;
+    });
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: "Try again" })).toHaveFocus();
   });
 
   it.each([
