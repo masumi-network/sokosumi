@@ -912,6 +912,9 @@ export const AdminSeoImpactVerdictsSchema = {
                         enum: [
                             'waiting_crawl',
                             'waiting_window',
+                            'ready',
+                            'waiting_retry',
+                            'measured',
                             'not_measurable'
                         ]
                     },
@@ -926,6 +929,7 @@ export const AdminSeoImpactVerdictsSchema = {
                             'no_property',
                             'inspection_failed',
                             'not_crawled_yet',
+                            'worker_failed',
                             null
                         ]
                     }
@@ -6771,6 +6775,96 @@ export const AdminRemoveMatchedChannelParticipantSchema = {
         'userId',
         'roomId',
         'outcome'
+    ]
+} as const;
+
+export const AdminPreprodPauseSchema = {
+    type: 'object',
+    properties: {
+        paused: {
+            type: 'boolean',
+            description: 'Whether Preprod is paused. Paused until an admin opens it.'
+        },
+        generation: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Preprod\'s generation number, raised by each wipe; 0 before the first.'
+        },
+        changes: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    createdAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    paused: {
+                        type: 'boolean'
+                    },
+                    reason: {
+                        type: 'string'
+                    },
+                    operator: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string'
+                            },
+                            name: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                description: 'Null when the admin\'s account no longer exists'
+                            }
+                        },
+                        required: [
+                            'id',
+                            'name'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'createdAt',
+                    'paused',
+                    'reason',
+                    'operator'
+                ]
+            },
+            description: 'The 20 most recent pause changes, newest first'
+        }
+    },
+    required: [
+        'paused',
+        'generation',
+        'changes'
+    ]
+} as const;
+
+export const SetAdminPreprodPauseBodySchema = {
+    type: 'object',
+    properties: {
+        paused: {
+            type: 'boolean',
+            description: 'Whether Preprod is paused'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500,
+            description: 'Why Preprod is paused or opened: a ticket id, no personal details.',
+            example: 'SOK-123'
+        }
+    },
+    required: [
+        'paused',
+        'reason'
     ]
 } as const;
 
@@ -57237,6 +57331,403 @@ export const DisconnectSeoConnectionResponseSchema = {
     required: [
         'disconnected'
     ]
+} as const;
+
+export const SeoImpactClaimSchema = {
+    type: 'object',
+    properties: {
+        claimId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        claimedUntil: {
+            type: 'string',
+            format: 'date-time'
+        },
+        input: {
+            $ref: '#/components/schemas/SeoImpactInput'
+        }
+    },
+    required: [
+        'claimId',
+        'claimedUntil',
+        'input'
+    ]
+} as const;
+
+export const SeoImpactInputSchema = {
+    type: 'object',
+    properties: {
+        schema: {
+            type: 'string',
+            enum: [
+                'sokosumi.seo-impact-input/1'
+            ]
+        },
+        impactId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        property: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2048
+        },
+        changedAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        changeSource: {
+            type: 'string',
+            enum: [
+                'cuso_done',
+                'audit_recheck'
+            ]
+        },
+        changeBounds: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                earliest: {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                latest: {
+                    type: 'string',
+                    format: 'date-time'
+                }
+            },
+            required: [
+                'earliest',
+                'latest'
+            ],
+            additionalProperties: false
+        },
+        changeCheck: {
+            type: 'string',
+            enum: [
+                'verified',
+                'not_checked'
+            ]
+        },
+        windowCrawl: {
+            type: 'string',
+            format: 'date-time'
+        },
+        pageByDate: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    date: {
+                        type: 'string',
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                        example: '2026-11-27'
+                    },
+                    clicks: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    impressions: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    ctr: {
+                        type: 'number',
+                        minimum: 0,
+                        maximum: 1
+                    },
+                    position: {
+                        type: 'number',
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'date',
+                    'clicks',
+                    'impressions',
+                    'ctr',
+                    'position'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 490
+        },
+        siteByDate: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    date: {
+                        type: 'string',
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                        example: '2026-11-27'
+                    },
+                    clicks: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    impressions: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    ctr: {
+                        type: 'number',
+                        minimum: 0,
+                        maximum: 1
+                    },
+                    position: {
+                        type: 'number',
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'date',
+                    'clicks',
+                    'impressions',
+                    'ctr',
+                    'position'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 490
+        },
+        candidates: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageUrl: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    byDate: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                date: {
+                                    type: 'string',
+                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                                    example: '2026-11-27'
+                                },
+                                clicks: {
+                                    type: 'integer',
+                                    minimum: 0
+                                },
+                                impressions: {
+                                    type: 'integer',
+                                    minimum: 0
+                                },
+                                ctr: {
+                                    type: 'number',
+                                    minimum: 0,
+                                    maximum: 1
+                                },
+                                position: {
+                                    type: 'number',
+                                    minimum: 0
+                                }
+                            },
+                            required: [
+                                'date',
+                                'clicks',
+                                'impressions',
+                                'ctr',
+                                'position'
+                            ],
+                            additionalProperties: false
+                        },
+                        maxItems: 490
+                    }
+                },
+                required: [
+                    'pageUrl',
+                    'byDate'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 5
+        },
+        pin: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                comparisonPage: {
+                    type: 'string',
+                    maxLength: 4096,
+                    format: 'uri'
+                }
+            },
+            required: [
+                'comparisonPage'
+            ],
+            additionalProperties: false
+        },
+        readAt: {
+            type: 'string',
+            format: 'date-time'
+        }
+    },
+    required: [
+        'schema',
+        'impactId',
+        'pageUrl',
+        'property',
+        'changedAt',
+        'changeSource',
+        'changeBounds',
+        'changeCheck',
+        'windowCrawl',
+        'pageByDate',
+        'siteByDate',
+        'candidates',
+        'pin',
+        'readAt'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoImpactVerdictReceiptSchema = {
+    type: 'object',
+    properties: {
+        impactId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'change not confirmed',
+                'not crawled after change',
+                'tested',
+                'waiting'
+            ]
+        }
+    },
+    required: [
+        'impactId',
+        'state'
+    ]
+} as const;
+
+export const SeoImpactResultSchema = {
+    type: 'object',
+    properties: {
+        schema: {
+            type: 'string',
+            enum: [
+                'sokosumi.seo-impact/1'
+            ]
+        },
+        impactId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        pageUrl: {
+            type: 'string'
+        },
+        property: {
+            type: 'string'
+        },
+        changedAt: {
+            type: 'string'
+        },
+        changeSource: {
+            type: 'string',
+            enum: [
+                'cuso_done',
+                'audit_recheck'
+            ]
+        },
+        observedAt: {
+            type: 'string'
+        },
+        windowCrawl: {
+            type: 'string'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'change not confirmed',
+                'not crawled after change',
+                'tested',
+                'waiting'
+            ]
+        },
+        verdict: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                verdict: {
+                    type: 'string',
+                    enum: [
+                        'effect detected',
+                        'no effect detected',
+                        'not measurable'
+                    ]
+                }
+            },
+            required: [
+                'verdict'
+            ],
+            additionalProperties: {}
+        },
+        comparison: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                pageUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 4096
+                }
+            },
+            required: [
+                'pageUrl'
+            ],
+            additionalProperties: {}
+        },
+        retryAfter: {
+            type: [
+                'string',
+                'null'
+            ],
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-27'
+        }
+    },
+    required: [
+        'schema',
+        'impactId',
+        'pageUrl',
+        'property',
+        'changedAt',
+        'changeSource',
+        'observedAt',
+        'windowCrawl',
+        'state',
+        'verdict',
+        'comparison',
+        'retryAfter'
+    ],
+    additionalProperties: {}
 } as const;
 
 export const PublicNewsletterSchema = {

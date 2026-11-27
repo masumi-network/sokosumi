@@ -187,8 +187,8 @@ export type AdminSeoImpactVerdicts = {
         windowStart: string | null;
         windowEnd: string | null;
         windowReadyOn: string | null;
-        state: 'waiting_crawl' | 'waiting_window' | 'not_measurable';
-        reason: 'no_cuso' | 'not_connected' | 'no_property' | 'inspection_failed' | 'not_crawled_yet' | null;
+        state: 'waiting_crawl' | 'waiting_window' | 'ready' | 'waiting_retry' | 'measured' | 'not_measurable';
+        reason: 'no_cuso' | 'not_connected' | 'no_property' | 'inspection_failed' | 'not_crawled_yet' | 'worker_failed' | null;
     }>;
 };
 
@@ -1626,6 +1626,44 @@ export type AdminRemoveMatchedChannelParticipant = {
     userId: string;
     roomId: string;
     outcome: 'removed';
+};
+
+export type AdminPreprodPause = {
+    /**
+     * Whether Preprod is paused. Paused until an admin opens it.
+     */
+    paused: boolean;
+    /**
+     * Preprod's generation number, raised by each wipe; 0 before the first.
+     */
+    generation: number;
+    /**
+     * The 20 most recent pause changes, newest first
+     */
+    changes: Array<{
+        id: string;
+        createdAt: Date;
+        paused: boolean;
+        reason: string;
+        operator: {
+            id: string;
+            /**
+             * Null when the admin's account no longer exists
+             */
+            name: string | null;
+        };
+    }>;
+};
+
+export type SetAdminPreprodPauseBody = {
+    /**
+     * Whether Preprod is paused
+     */
+    paused: boolean;
+    /**
+     * Why Preprod is paused or opened: a ticket id, no personal details.
+     */
+    reason: string;
 };
 
 export type AdminOrganizationOverviewItem = {
@@ -14259,6 +14297,82 @@ export type DisconnectSeoConnectionResponse = {
     disconnected: true;
 };
 
+export type SeoImpactClaim = {
+    claimId: string;
+    claimedUntil: Date;
+    input: SeoImpactInput;
+};
+
+export type SeoImpactInput = {
+    schema: 'sokosumi.seo-impact-input/1';
+    impactId: string;
+    pageUrl: string;
+    property: string;
+    changedAt: Date;
+    changeSource: 'cuso_done' | 'audit_recheck';
+    changeBounds: {
+        earliest: Date;
+        latest: Date;
+    } | null;
+    changeCheck: 'verified' | 'not_checked';
+    windowCrawl: Date;
+    pageByDate: Array<{
+        date: string;
+        clicks: number;
+        impressions: number;
+        ctr: number;
+        position: number;
+    }>;
+    siteByDate: Array<{
+        date: string;
+        clicks: number;
+        impressions: number;
+        ctr: number;
+        position: number;
+    }>;
+    candidates: Array<{
+        pageUrl: string;
+        byDate: Array<{
+            date: string;
+            clicks: number;
+            impressions: number;
+            ctr: number;
+            position: number;
+        }>;
+    }>;
+    pin: {
+        comparisonPage: string;
+    } | null;
+    readAt: Date;
+};
+
+export type SeoImpactVerdictReceipt = {
+    impactId: string;
+    state: 'change not confirmed' | 'not crawled after change' | 'tested' | 'waiting';
+};
+
+export type SeoImpactResult = {
+    schema: 'sokosumi.seo-impact/1';
+    impactId: string;
+    pageUrl: string;
+    property: string;
+    changedAt: string;
+    changeSource: 'cuso_done' | 'audit_recheck';
+    observedAt: string;
+    windowCrawl: string;
+    state: 'change not confirmed' | 'not crawled after change' | 'tested' | 'waiting';
+    verdict: {
+        verdict: 'effect detected' | 'no effect detected' | 'not measurable';
+        [key: string]: unknown;
+    } | null;
+    comparison: {
+        pageUrl: string | null;
+        [key: string]: unknown;
+    } | null;
+    retryAfter: string | null;
+    [key: string]: unknown;
+};
+
 export type PublicNewsletter = {
     name: string;
     senderName: string;
@@ -23261,6 +23375,152 @@ export type RemoveAdminMatchedChannelParticipantResponses = {
 };
 
 export type RemoveAdminMatchedChannelParticipantResponse = RemoveAdminMatchedChannelParticipantResponses[keyof RemoveAdminMatchedChannelParticipantResponses];
+
+export type GetAdminPreprodPauseData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/networks/preprod/pause';
+};
+
+export type GetAdminPreprodPauseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminPreprodPauseError = GetAdminPreprodPauseErrors[keyof GetAdminPreprodPauseErrors];
+
+export type GetAdminPreprodPauseResponses = {
+    /**
+     * The Preprod pause, its generation and its recent changes
+     */
+    200: {
+        data: AdminPreprodPause;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminPreprodPauseResponse = GetAdminPreprodPauseResponses[keyof GetAdminPreprodPauseResponses];
+
+export type SetAdminPreprodPauseData = {
+    body: SetAdminPreprodPauseBody;
+    path?: never;
+    query?: never;
+    url: '/admin/networks/preprod/pause';
+};
+
+export type SetAdminPreprodPauseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminPreprodPauseError = SetAdminPreprodPauseErrors[keyof SetAdminPreprodPauseErrors];
+
+export type SetAdminPreprodPauseResponses = {
+    /**
+     * The Preprod pause, its generation and its recent changes
+     */
+    200: {
+        data: AdminPreprodPause;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminPreprodPauseResponse = SetAdminPreprodPauseResponses[keyof SetAdminPreprodPauseResponses];
 
 export type ListAdminOrganizationsData = {
     body?: never;
@@ -88975,6 +89235,169 @@ export type FinalizeSeoConnectionResponses = {
 };
 
 export type FinalizeSeoConnectionResponse = FinalizeSeoConnectionResponses[keyof FinalizeSeoConnectionResponses];
+
+export type PostSeoImpactClaimsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/seo-impact/claims';
+};
+
+export type PostSeoImpactClaimsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostSeoImpactClaimsError = PostSeoImpactClaimsErrors[keyof PostSeoImpactClaimsErrors];
+
+export type PostSeoImpactClaimsResponses = {
+    /**
+     * A claim, or null
+     */
+    200: {
+        data: SeoImpactClaim | null;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostSeoImpactClaimsResponse = PostSeoImpactClaimsResponses[keyof PostSeoImpactClaimsResponses];
+
+export type PostSeoImpactClaimsByClaimIdVerdictData = {
+    body: SeoImpactResult;
+    path: {
+        claimId: string;
+    };
+    query?: never;
+    url: '/seo-impact/claims/{claimId}/verdict';
+};
+
+export type PostSeoImpactClaimsByClaimIdVerdictErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostSeoImpactClaimsByClaimIdVerdictError = PostSeoImpactClaimsByClaimIdVerdictErrors[keyof PostSeoImpactClaimsByClaimIdVerdictErrors];
+
+export type PostSeoImpactClaimsByClaimIdVerdictResponses = {
+    /**
+     * Result saved
+     */
+    200: {
+        data: SeoImpactVerdictReceipt;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostSeoImpactClaimsByClaimIdVerdictResponse = PostSeoImpactClaimsByClaimIdVerdictResponses[keyof PostSeoImpactClaimsByClaimIdVerdictResponses];
 
 export type GetPublicNewsletterUnsubscribeData = {
     body?: never;

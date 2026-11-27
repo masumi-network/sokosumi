@@ -1,7 +1,9 @@
 import { type Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { sokoBotProvideJobInputSchema as provideJobInputSchema } from "@sokosumi/soko-bot";
 import { findResolvableSokoBotDecision } from "@/helpers/soko-bot-management";
 import prisma from "@/lib/db/prisma";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   actionInputHash,
@@ -193,19 +195,24 @@ export async function prepareDecision(
       }
       if (externalDecision) await acknowledgeExternalReceipt(recoveredEntityId);
       const [, recoveredDecision] = await prisma.$transaction([
-        prisma.sokoBotDelegation.updateMany({
-          where: {
-            turnId: decision.turnId,
-            toolCallId: decisionToolCallId,
-          },
-          data: {
-            outcome: "accepted",
-            error: null,
-            ...(decision.toolName === "hire_agent"
-              ? { jobId: recoveredEntityId }
-              : {}),
-          },
-        }),
+        decision.toolName === "hire_agent"
+          ? prisma.$executeRaw`
+              UPDATE ${sharedTable("soko_bot_delegation")}
+              SET "outcome" = 'accepted',
+                  "jobId" = ${recoveredEntityId},
+                  "network" = COALESCE("network", ${DETACHED_SOKO_BOT_NETWORK}),
+                  "error" = NULL,
+                  "updatedAt" = ${new Date()}
+              WHERE "turnId" = ${decision.turnId}::uuid
+                AND "toolCallId" = ${decisionToolCallId}
+            `
+          : prisma.sokoBotDelegation.updateMany({
+              where: {
+                turnId: decision.turnId,
+                toolCallId: decisionToolCallId,
+              },
+              data: { outcome: "accepted", error: null },
+            }),
         prisma.sokoBotPendingDecision.update({
           where: { id: decision.id },
           data: {
