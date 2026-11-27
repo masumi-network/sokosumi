@@ -1,5 +1,7 @@
 # Soko Bot avatars are original-style again; crafted-style avatars are deleted
 
+- Status: Superseded by [ADR-0072](./0072-soko-bot-avatars-are-traced-svg-codes.md).
+
 Crafted-style Soko Bot avatars (#6710, SOKD-122: styles, the avatar studio, per-state stills and ffmpeg-encoded loops) are removed, and every Soko Bot avatar is an original-style picture again: one still picture, picked from a shared pool as before #6710. Each bot that holds a crafted-style avatar gets a random unused original-style avatar, because nothing records the one it had before. Once a release no longer reads them, the crafted rows, columns and Blob files are deleted rather than left dormant, so they stop misleading readers and the Prisma types.
 
 **Why not keep the stills:** they need most of the machinery (styles, studio, render rows) that is being removed.
