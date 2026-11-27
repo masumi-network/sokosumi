@@ -130,8 +130,9 @@ async function scheduleCheck(
     ];
   const problems: string[] = [];
   if (!latest.enabled) problems.push("disabled");
-  // Neither a run nor "move it to 7:30" changes the owner's time zone.
-  if (compared && latest.timezone !== rememberedZone)
+  // Neither a run nor "move it to 7:30" changes the owner's time zone; a
+  // step that asks for a new zone says which (outcome.timezone, below).
+  if (compared && !outcome.timezone && latest.timezone !== rememberedZone)
     problems.push(`time zone ${rememberedZone} → ${latest.timezone}`);
   if (outcome.count !== undefined && schedules.length !== outcome.count)
     problems.push(`${schedules.length} schedules`);
@@ -144,7 +145,8 @@ async function scheduleCheck(
   if (
     outcome.identity === "edited" &&
     latest.cronExpression === rememberedCron &&
-    latest.prompt === rememberedPrompt
+    latest.prompt === rememberedPrompt &&
+    latest.timezone === rememberedZone
   )
     problems.push("not changed");
   const avoided = (outcome.promptAvoids ?? []).filter((pattern) =>
