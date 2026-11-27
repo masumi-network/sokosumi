@@ -139,6 +139,7 @@ describe.skipIf(!enabled)("the modes of a spend (PostgreSQL)", () => {
       expect(empty).toEqual({
         outcome: "not_charged",
         transactionId: null,
+        createdAt: null,
         quotedCents: 120n,
         chargedCents: 0n,
         shortfall: true,

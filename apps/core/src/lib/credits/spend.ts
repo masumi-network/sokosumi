@@ -52,6 +52,12 @@ export interface SpendInput<Mode extends SpendMode = SpendMode> {
 export interface SpendCharged {
   outcome: "charged";
   transactionId: string;
+  /**
+   * The debit's creation time, which its consumptions share: a receipt
+   * written after it in the same transaction takes it as its own, so the
+   * two read as one instant, as one nested create wrote them.
+   */
+  createdAt: Date;
   quotedCents: bigint;
   chargedCents: bigint;
   shortfall: false;
@@ -60,6 +66,8 @@ export interface SpendCharged {
 export interface SpendPartlyCharged {
   outcome: "partly_charged";
   transactionId: string;
+  /** See `SpendCharged.createdAt`. */
+  createdAt: Date;
   quotedCents: bigint;
   /** Above zero and below the price. */
   chargedCents: bigint;
@@ -69,6 +77,8 @@ export interface SpendPartlyCharged {
 export interface SpendRecordedZero {
   outcome: "recorded_zero";
   transactionId: string;
+  /** See `SpendCharged.createdAt`. */
+  createdAt: Date;
   quotedCents: 0n;
   chargedCents: 0n;
   shortfall: false;
@@ -77,6 +87,7 @@ export interface SpendRecordedZero {
 export interface SpendNotCharged {
   outcome: "not_charged";
   transactionId: null;
+  createdAt: null;
   quotedCents: bigint;
   chargedCents: 0n;
   shortfall: true;
@@ -162,19 +173,22 @@ export async function spend(input: SpendInput): Promise<SpendResult> {
   const { userId, organizationId, projectId } = payer;
   // A scope that refuses its Network throws here: a failed preparation.
   const network = await inStage("preparation", () => scope.network);
-  const record = (cents: bigint, consumptions: Consumptions) =>
-    inStage("write", () =>
+  const record = async (cents: bigint, consumptions: Consumptions) => {
+    const createdAt = new Date();
+    const transactionId = await inStage("write", () =>
       creditBucketRepository.recordSpend(
         network,
-        { userId, organizationId, cents, consumptions },
+        { userId, organizationId, cents, consumptions, createdAt },
         tx,
       ),
     );
+    return { transactionId, createdAt };
+  };
 
   if (mode === "in_full_or_zero" && quotedCents === 0n) {
     return {
       outcome: "recorded_zero",
-      transactionId: await record(0n, []),
+      ...(await record(0n, [])),
       quotedCents: 0n,
       chargedCents: 0n,
       shortfall: false,
@@ -197,6 +211,7 @@ export async function spend(input: SpendInput): Promise<SpendResult> {
       return {
         outcome: "not_charged",
         transactionId: null,
+        createdAt: null,
         quotedCents,
         chargedCents: 0n,
         shortfall: true,
@@ -231,17 +246,19 @@ export async function spend(input: SpendInput): Promise<SpendResult> {
     return {
       outcome: "not_charged",
       transactionId: null,
+      createdAt: null,
       quotedCents,
       chargedCents: 0n,
       shortfall: true,
       availableCents: error.available,
     };
   }
-  const transactionId = await record(chargedCents, consumptions);
+  const { transactionId, createdAt } = await record(chargedCents, consumptions);
   return chargedCents < quotedCents
     ? {
         outcome: "partly_charged",
         transactionId,
+        createdAt,
         quotedCents,
         chargedCents,
         shortfall: true,
@@ -249,6 +266,7 @@ export async function spend(input: SpendInput): Promise<SpendResult> {
     : {
         outcome: "charged",
         transactionId,
+        createdAt,
         quotedCents,
         chargedCents,
         shortfall: false,
