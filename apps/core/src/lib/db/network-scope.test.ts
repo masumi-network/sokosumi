@@ -94,6 +94,24 @@ describe("createNetworkScope", () => {
     expect(callback).toHaveBeenCalledExactlyOnceWith(tx);
   });
 
+  it("reads a batch in one transaction on the Network's client", async () => {
+    const { createNetworkScope } = await import("./network-scope");
+    const $transaction = vi.fn().mockResolvedValue(["rows", 2]);
+    const client = { $transaction, tag: { findMany: vi.fn(() => "find") } };
+    networkPrisma.mockReturnValue(client);
+
+    const result = await createNetworkScope("mainnet").netBatch(
+      (db) => [db.tag.findMany()],
+      Prisma.TransactionIsolationLevel.RepeatableRead,
+    );
+
+    expect(result).toEqual(["rows", 2]);
+    expect(networkPrisma).toHaveBeenCalledExactlyOnceWith("mainnet");
+    expect($transaction).toHaveBeenCalledExactlyOnceWith(["find"], {
+      isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+    });
+  });
+
   it("refuses Preprod while Preprod is off, and an unknown Network", async () => {
     const { createNetworkScope } = await import("./network-scope");
 
@@ -118,6 +136,7 @@ describe("createRefusedNetworkScope", () => {
     await expect(
       scope.netTransaction(async () => "ran", "conflict"),
     ).rejects.toBe(refusal);
+    await expect(scope.netBatch(() => [])).rejects.toBe(refusal);
     expect(scope.sharedDb).toBe(clients.shared);
     expect(networkPrisma).not.toHaveBeenCalled();
   });
