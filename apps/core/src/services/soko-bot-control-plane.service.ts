@@ -1155,7 +1155,7 @@ export class SokoBotControlPlane {
         decision.id,
         true,
         true,
-        turn.id,
+        turn,
       );
     }
     await serializableTransaction(async (tx) => {
@@ -1177,6 +1177,14 @@ export class SokoBotControlPlane {
             turnId: decision.turnId,
             toolCallId: `decision:${decision.id}`,
           },
+          ...(active.network === "preprod"
+            ? {
+                turn: {
+                  network: active.network,
+                  preprodGeneration: active.preprodGeneration,
+                },
+              }
+            : {}),
         },
       });
       await tx.sokoBotToolCall.upsert({
@@ -3011,8 +3019,7 @@ export class SokoBotControlPlane {
           previous: previousTurn,
           now: reservedAt,
         });
-        const stamp = await networkStamp(input.network, tx);
-        requireDetachedTurnProvenance(input, stamp);
+        const stamp = await networkStamp(input, tx);
         const created = await tx.sokoBotTurn.create({
           data: {
             ...stamp,
@@ -5523,7 +5530,9 @@ export class SokoBotControlPlane {
           ),
         );
       } catch (error) {
-        await recordFailure(error);
+        if (!(error instanceof DetachedNetworkRefusal) || error.final) {
+          await recordFailure(error);
+        }
         throw error;
       }
       const afterBot = await prisma.sokoBot.findUniqueOrThrow({

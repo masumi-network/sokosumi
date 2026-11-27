@@ -77,6 +77,7 @@ describe.skipIf(!databaseUrl)(
         data: { id: botId, userId, workspaceId, status: "RUNNING" },
       });
       vi.spyOn(service, "authorize").mockImplementation(async () => ({
+        provenance: { network: "mainnet" },
         scope: testNetworkScope(),
         toolCallLimit: 64,
         turn: {

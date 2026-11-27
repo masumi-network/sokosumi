@@ -22435,6 +22435,21 @@ export type PerformAdminSokoBotActionErrors = {
             method: string;
         };
     };
+    /**
+     * Preprod retry cannot resume now
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PerformAdminSokoBotActionError = PerformAdminSokoBotActionErrors[keyof PerformAdminSokoBotActionErrors];
@@ -101282,6 +101297,21 @@ export type ResolveMySokoBotDecisionErrors = {
             method: string;
         };
     };
+    /**
+     * Preprod approval cannot resume now
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type ResolveMySokoBotDecisionError = ResolveMySokoBotDecisionErrors[keyof ResolveMySokoBotDecisionErrors];
@@ -104227,6 +104257,21 @@ export type ResolveSokoBotDecisionErrors = {
      * Unprocessable Entity
      */
     422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Preprod approval cannot resume now
+     */
+    503: {
         error: string;
         message: string;
         kind?: string;

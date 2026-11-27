@@ -614,7 +614,15 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: delegationUpdateManyMock,
     },
     sokoBotPendingDecision: {
-      findFirst: decisionFindFirstMock,
+      findFirst: async (...args: unknown[]) => {
+        const row = await decisionFindFirstMock(...args);
+        return (
+          row && {
+            ...row,
+            turn: { network: "mainnet", preprodGeneration: null, ...row.turn },
+          }
+        );
+      },
       update: decisionUpdateMock,
       updateMany: decisionUpdateManyMock,
       findUniqueOrThrow: vi.fn(async () => ({ status: "REJECTED" })),
@@ -6738,6 +6746,7 @@ describe("SokoBotRuntimeService authorization", () => {
 
     const result = await new SokoBotRuntimeService()["replyToTask"](
       {
+        provenance: { network: "mainnet" },
         turn: {
           id: SCOPE.turnId,
           sokoBotId: SCOPE.sokoBotId,
@@ -6793,6 +6802,7 @@ describe("SokoBotRuntimeService authorization", () => {
     await expect(
       new SokoBotRuntimeService()["replyToTask"](
         {
+          provenance: { network: "mainnet" },
           turn: {
             id: SCOPE.turnId,
             sokoBotId: SCOPE.sokoBotId,
@@ -6830,6 +6840,7 @@ describe("SokoBotRuntimeService authorization", () => {
     await expect(
       new SokoBotRuntimeService()["replyToTask"](
         {
+          provenance: { network: "mainnet" },
           turn: {
             id: SCOPE.turnId,
             sokoBotId: SCOPE.sokoBotId,
@@ -6854,6 +6865,7 @@ describe("SokoBotRuntimeService authorization", () => {
     function cancel() {
       return new SokoBotRuntimeService()["replyToTask"](
         {
+          provenance: { network: "mainnet" },
           turn: {
             id: SCOPE.turnId,
             sokoBotId: SCOPE.sokoBotId,
@@ -6922,6 +6934,7 @@ describe("SokoBotRuntimeService authorization", () => {
     function resume() {
       return new SokoBotRuntimeService()["replyToTask"](
         {
+          provenance: { network: "mainnet" },
           turn: {
             id: SCOPE.turnId,
             sokoBotId: SCOPE.sokoBotId,
@@ -7019,6 +7032,7 @@ describe("SokoBotRuntimeService authorization", () => {
 
     const result = await new SokoBotRuntimeService()["replyToTask"](
       {
+        provenance: { network: "mainnet" },
         turn: {
           id: SCOPE.turnId,
           sokoBotId: SCOPE.sokoBotId,
@@ -7567,6 +7581,20 @@ describe("SokoBotRuntimeService hire decisions", () => {
     );
   });
 
+  it("refuses a Preprod confirmation of a Mainnet hire before seller preflight", async () => {
+    await expect(
+      new SokoBotRuntimeService().resolveDecision(
+        SCOPE.userId,
+        DECISION_ID,
+        true,
+        true,
+        { id: "confirmation", network: "preprod", preprodGeneration: 3 },
+      ),
+    ).rejects.toMatchObject({ kind: "soko_bot_network_stale" });
+    expect(createAgentJobForUserMock).not.toHaveBeenCalled();
+    expect(decisionUpdateManyMock).not.toHaveBeenCalled();
+  });
+
   it("cancelled confirmation turn blocks external reservation", async () => {
     transactionTurnFindFirstMock.mockImplementation(
       async (args: { where: { id: string } }) =>
@@ -7578,7 +7606,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
         DECISION_ID,
         true,
         true,
-        "confirmation",
+        { id: "confirmation", network: "mainnet", preprodGeneration: null },
       ),
     ).rejects.toThrow("Confirmation turn is no longer writable");
     expect(transactionToolCallCreateMock).not.toHaveBeenCalled();
@@ -9145,7 +9173,10 @@ describe("post_chat chain depth", () => {
           },
         }),
     );
-    return { turn: { ...SCOPE_TURN, chainDepth } } as never;
+    return {
+      provenance: { network: "mainnet" },
+      turn: { ...SCOPE_TURN, chainDepth },
+    } as never;
   }
 
   it("refuses an unattended post into a colleague's direct", async () => {
@@ -9384,6 +9415,7 @@ describe("post_chat chain depth", () => {
     // the channel with post_chat.
     armPostChat(0);
     const authorized = {
+      provenance: { network: "mainnet" },
       turn: { ...SCOPE_TURN, chainDepth: 0, source: "CHAT" },
     } as never;
 
@@ -9964,6 +9996,7 @@ describe("ask_coworker", () => {
         }),
     );
     return {
+      provenance: { network: "mainnet" },
       turn: SCOPE_TURN,
       askedByKind: "OWNER",
       reader: { sharedScope: null },

@@ -97,6 +97,7 @@ const TOTALS = {
   activeSubscribers: 8,
 };
 const AUTHORIZED: AuthorizedSokoBotRuntime = {
+  provenance: { network: "mainnet" },
   turn: {
     id: "turn",
     sokoBotId: BOT_ID,

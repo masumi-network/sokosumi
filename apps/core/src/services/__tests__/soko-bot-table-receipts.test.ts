@@ -48,6 +48,7 @@ const sokoBotId = randomUUID();
 const turnId = randomUUID();
 const sessionId = "tables-test";
 const authorized: AuthorizedSokoBotRuntime = {
+  provenance: { network: "mainnet" },
   scope: testNetworkScope(),
   toolCallLimit: 64,
   turn: {

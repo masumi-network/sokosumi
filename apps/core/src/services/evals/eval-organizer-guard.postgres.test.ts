@@ -277,6 +277,7 @@ describe.skipIf(!enabled)("plan cases whose context pick was lost", () => {
       prisma.sokoBotTurn.create({
         data: {
           sokoBotId,
+          network: "mainnet",
           workspaceId: id,
           requestedByUserId: id,
           source,

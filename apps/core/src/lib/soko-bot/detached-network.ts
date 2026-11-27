@@ -5,28 +5,23 @@ import { createNetworkScope } from "@/lib/db/network-scope";
 import type { DbClient } from "@/lib/db/prisma";
 import { isPreprodOn, type Network, requireNetwork } from "@/lib/network";
 
-const refusals = {
-  preprod_off: [403, "Preprod is switched off"],
-  preprod_paused: [503, "Preprod is paused; try again later"],
-  preprod_control_unavailable: [
-    503,
-    "Preprod's state could not be read; try again later",
-  ],
-  soko_bot_network_stale: [
-    409,
-    "This work belongs to a different Network or Preprod generation",
-  ],
-} as const;
+import { DetachedNetworkRefusal } from "./detached-network-refusal";
 
-export class DetachedNetworkRefusal extends HTTPException {
-  constructor(readonly kind: keyof typeof refusals) {
-    const [status, message] = refusals[kind];
-    super(status, { message, cause: { kind, reportToSentry: false } });
-  }
+export { DetachedNetworkRefusal } from "./detached-network-refusal";
 
-  get final() {
-    return this.kind === CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE;
-  }
+export interface DetachedTurnProvenance {
+  network: Network;
+  expectedPreprodGeneration?: number | null;
+}
+
+export function turnProvenance(row: {
+  network: string | null;
+  preprodGeneration: number | null;
+}): DetachedTurnProvenance {
+  const network = requireNetwork(row.network);
+  return network === "preprod"
+    ? { network, expectedPreprodGeneration: row.preprodGeneration }
+    : { network };
 }
 
 /** A writer can refuse a Preprod turn after pickup. */
@@ -48,7 +43,7 @@ export function isTemporaryDetachedRefusal(
 }
 
 export function requireDetachedTurnProvenance(
-  expected: { network: Network; expectedPreprodGeneration?: number | null },
+  expected: DetachedTurnProvenance,
   stored: { network: string | null; preprodGeneration?: number | null },
 ): void {
   if (

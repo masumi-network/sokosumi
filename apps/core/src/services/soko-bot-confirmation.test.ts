@@ -75,6 +75,8 @@ import { SokoBotControlPlane } from "./soko-bot-control-plane.service";
 function confirmation() {
   return {
     id: "confirmation-1",
+    network: "mainnet",
+    preprodGeneration: null,
     intentRevision: 1,
     source: "CHAT",
     chainDepth: 0,
@@ -140,8 +142,20 @@ describe("trusted scoped owner confirmation", () => {
       "decision",
       true,
       true,
-      "confirmation-1",
+      expect.objectContaining({
+        id: "confirmation-1",
+        network: "mainnet",
+        preprodGeneration: null,
+      }),
     );
+    expect(toolFindUnique).toHaveBeenCalledWith({
+      where: {
+        turnId_toolCallId: {
+          turnId: "original-turn",
+          toolCallId: "decision:decision",
+        },
+      },
+    });
     expect(toolUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({

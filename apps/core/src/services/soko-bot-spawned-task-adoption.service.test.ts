@@ -1,17 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { taskFindManyMock, delegationFindManyMock, createManyMock } = vi.hoisted(
-  () => ({
-    taskFindManyMock: vi.fn(),
-    delegationFindManyMock: vi.fn(),
-    createManyMock: vi.fn(),
-  }),
-);
+const {
+  taskFindManyMock,
+  delegationFindManyMock,
+  createManyMock,
+  txCreate,
+  queryRaw,
+} = vi.hoisted(() => ({
+  taskFindManyMock: vi.fn(),
+  delegationFindManyMock: vi.fn(),
+  createManyMock: vi.fn(),
+  txCreate: vi.fn(),
+  queryRaw: vi.fn(),
+}));
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({ SOKO_BOT_ENABLED: true }),
+  getEnv: () => ({ SOKO_BOT_ENABLED: true, NETWORK_PREPROD_ENABLED: true }),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: (run: (tx: unknown) => unknown) =>
+      run({
+        $queryRaw: queryRaw,
+        sokoBotDelegation: { createMany: txCreate },
+      }),
     task: { findMany: taskFindManyMock },
     sokoBotDelegation: {
       findMany: delegationFindManyMock,
@@ -20,6 +31,10 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+import {
+  PREPROD_GENERATION_KEY,
+  PREPROD_PAUSE_KEY,
+} from "@/helpers/preprod-control";
 import { adoptCoworkerSpawnedTasks } from "./soko-bot-spawned-task-adoption.service";
 
 const subtask = {
@@ -32,7 +47,7 @@ const subtask = {
 
 const parent = (assigneeId: string, status: string, sokoBotId = "bot_1") => ({
   turnId: `turn_${sokoBotId}_${assigneeId}`,
-  turn: { sokoBotId },
+  turn: { sokoBotId, network: "mainnet", preprodGeneration: null },
   task: { assigneeId, events: [{ status }] },
 });
 
@@ -71,6 +86,44 @@ describe("adoptCoworkerSpawnedTasks", () => {
       skipDuplicates: true,
     });
   });
+
+  it.each([
+    ["open", 3, 1],
+    ["open", 4, 0],
+    ["paused", 3, 0],
+  ] as const)(
+    "checks %s generation %s before adopting for a Preprod turn",
+    async (pause, generation, count) => {
+      const source = parent("coworker_elena", "RUNNING");
+      delegationFindManyMock.mockResolvedValue([
+        {
+          ...source,
+          turn: { ...source.turn, network: "preprod", preprodGeneration: 3 },
+        },
+      ]);
+      queryRaw.mockResolvedValueOnce([
+        { key: PREPROD_PAUSE_KEY, cursorId: pause },
+      ]);
+      queryRaw.mockResolvedValueOnce([
+        { key: PREPROD_GENERATION_KEY, cursorId: String(generation) },
+      ]);
+      txCreate.mockResolvedValue({ count: 1 });
+      expect(await adoptCoworkerSpawnedTasks()).toBe(count);
+      expect(createManyMock).not.toHaveBeenCalled();
+      if (count) {
+        expect(txCreate).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              network: "preprod",
+              preprodGeneration: 3,
+            }),
+          }),
+        );
+      } else {
+        expect(txCreate).not.toHaveBeenCalled();
+      }
+    },
+  );
 
   it("leaves Tasks alone that appeared while no delegated work was running", async () => {
     delegationFindManyMock.mockResolvedValue([

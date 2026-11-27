@@ -1,7 +1,10 @@
 import { getEnv } from "@/config/env";
 import { networkStamp } from "@/helpers/preprod-control";
 import prisma from "@/lib/db/prisma";
-import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
+import {
+  DetachedNetworkRefusal,
+  turnProvenance,
+} from "@/lib/soko-bot/detached-network";
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
 
 const LOOKBACK_MS = 60 * 60 * 1_000;
@@ -58,7 +61,9 @@ export async function adoptCoworkerSpawnedTasks(
       orderBy: { createdAt: "desc" },
       select: {
         turnId: true,
-        turn: { select: { sokoBotId: true } },
+        turn: {
+          select: { sokoBotId: true, network: true, preprodGeneration: true },
+        },
         task: {
           select: {
             assigneeId: true,
@@ -82,26 +87,47 @@ export async function adoptCoworkerSpawnedTasks(
         parent.task?.events[0]?.status === "RUNNING" &&
         parent.task.assigneeId !== spawned.assigneeId,
     );
-    const byBot = new Map(running.map((p) => [p.turn.sokoBotId, p.turnId]));
-    if (!byBot.size) continue;
-    // Mainnet by name today: the stamp reads and locks nothing.
-    // shortcut: no transaction here, so a Preprod lock would end with its
-    // own statement; when slice 5 passes the turn's Network, open one
-    // transaction for the stamp and this createMany.
-    const stamp = await networkStamp(DETACHED_SOKO_BOT_NETWORK, prisma);
-    const created = await prisma.sokoBotDelegation.createMany({
-      data: Array.from(byBot.values(), (turnId) => ({
-        ...stamp,
+    const byBot = new Map(
+      running.map((parent) => [parent.turn.sokoBotId, parent]),
+    );
+    const rows = Array.from(byBot.values(), ({ turnId, turn }) => ({
+      turn,
+      data: {
         turnId,
         // Stored keys from before sub-tasks existed: rows already use them.
         toolCallId: `subtask:${spawned.id}`,
         kind: "TASK" as const,
         action: "follow_subtask",
         taskId: spawned.id,
-      })),
-      skipDuplicates: true,
-    });
-    adopted += created.count;
+      },
+    }));
+    // The Mainnet batch reads and locks nothing. A Preprod stamp must share
+    // its transaction with the insert so its pause lock protects the write.
+    const mainnet = rows.filter(({ turn }) => turn.network === "mainnet");
+    if (mainnet.length) {
+      const created = await prisma.sokoBotDelegation.createMany({
+        data: mainnet.map(({ data }) => ({ ...data, network: "mainnet" })),
+        skipDuplicates: true,
+      });
+      adopted += created.count;
+    }
+    for (const { turn, data } of rows) {
+      if (turn.network !== "preprod") continue;
+      try {
+        const created = await prisma.$transaction(async (tx) =>
+          tx.sokoBotDelegation.createMany({
+            data: {
+              ...data,
+              ...(await networkStamp(turnProvenance(turn), tx)),
+            },
+            skipDuplicates: true,
+          }),
+        );
+        adopted += created.count;
+      } catch (error) {
+        if (!(error instanceof DetachedNetworkRefusal)) throw error;
+      }
+    }
   }
   return adopted;
 }
