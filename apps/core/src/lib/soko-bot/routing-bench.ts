@@ -235,13 +235,13 @@ const GOT_KINDS = [
 ] as const;
 
 export function routingReport(title: string, summary: RoutingSummary): string {
-  const answered = summary.calls - summary.failed;
+  // A failed call counts as wrong, so failures can never raise accuracy.
   const lines = [
     `## ${title}`,
     "",
-    `| Calls | Right | Right to act or not | Under-acts | Over-acts | Hire over-grants | Lost to a threshold | Complexity right | Flipped cases | Failed | Cost |`,
+    `| Calls | Right | Right to act or not | Under-acts | Over-acts | Hire over-grants | Lost to a threshold | Complexity right | Flipped cases | Failed (no answer, counted wrong) | Cost |`,
     "|---|---|---|---|---|---|---|---|---|---|---|",
-    `| ${summary.calls} | ${pct(summary.right, answered)} | ${pct(summary.rightToAct, answered)} | ${summary.underActs} | ${summary.overActs} | ${summary.hireOverGrants} | ${summary.lostToThreshold} | ${pct(summary.complexityRight, summary.complexityAnswered)} | ${summary.flipped} | ${summary.failed} | $${summary.costUsd.toFixed(4)} |`,
+    `| ${summary.calls} | ${pct(summary.right, summary.calls)} | ${pct(summary.rightToAct, summary.calls)} | ${summary.underActs} | ${summary.overActs} | ${summary.hireOverGrants} | ${summary.lostToThreshold} | ${pct(summary.complexityRight, summary.complexityAnswered)} | ${summary.flipped} | ${summary.failed} | $${summary.costUsd.toFixed(4)} |`,
     "",
   ];
   for (const [group, rows] of Object.entries(summary.groups)) {
@@ -275,6 +275,97 @@ export function routingReport(title: string, summary: RoutingSummary): string {
     );
   }
   return lines.join("\n");
+}
+
+/** One Jev attempt as the classifier made it: the exact input, then answers or the error. */
+export interface CachedAttempt {
+  state: unknown;
+  evaluation?: {
+    answers: unknown;
+    usage: { inputTokens?: number; outputTokens?: number };
+    providerMetadata?: unknown;
+  };
+  error?: string;
+}
+/** Every case × run of a live run, failures included, with the outcome it got. */
+export interface CachedCall {
+  caseId: string;
+  run: number;
+  attempts: CachedAttempt[];
+  got: GotOutcome | null;
+}
+export interface AnswerCache {
+  questionsHash: string;
+  runs: number;
+  createdAt: string;
+  calls: CachedCall[];
+}
+
+/**
+ * A replay must cover the set exactly: every case for every run, once, and no
+ * case the set no longer has. A partial cache would score only what it holds.
+ */
+export function checkReplayCoverage(
+  cases: readonly RoutingCase[],
+  cache: AnswerCache,
+  questionsHash: string,
+): void {
+  if (cache.questionsHash !== questionsHash)
+    throw new Error(
+      `The cache was made with other Jev questions (${cache.questionsHash}, now ${questionsHash}): run live.`,
+    );
+  if (!Number.isInteger(cache.runs) || cache.runs < 1)
+    throw new Error(`The cache has no valid run count (${cache.runs}).`);
+  const ids = new Set(cases.map((item) => item.id));
+  const seen = new Set<string>();
+  for (const call of cache.calls) {
+    const key = `${call.caseId}#${call.run}`;
+    if (!ids.has(call.caseId))
+      throw new Error(
+        `The cache has case ${call.caseId}, which the set lacks.`,
+      );
+    if (!Number.isInteger(call.run) || call.run < 1 || call.run > cache.runs)
+      throw new Error(
+        `The cache has run ${call.run} outside 1..${cache.runs}.`,
+      );
+    if (seen.has(key)) throw new Error(`The cache has ${key} twice.`);
+    seen.add(key);
+  }
+  const missing = cases.length * cache.runs - seen.size;
+  if (missing > 0)
+    throw new Error(
+      `The cache misses ${missing} of ${cases.length * cache.runs} case runs: run live.`,
+    );
+}
+
+/**
+ * Holds a spend cap across concurrent calls and retries: each attempt
+ * reserves a per-attempt bound before it is sent, and settles at its real
+ * cost (or the bound, when the call failed and its cost is unknown).
+ */
+export class SpendGate {
+  private spent = 0;
+  private reserved = 0;
+  constructor(
+    private readonly capUsd: number,
+    private readonly perAttemptUsd: number,
+  ) {}
+
+  admit(): boolean {
+    if (this.spent + this.reserved + this.perAttemptUsd > this.capUsd)
+      return false;
+    this.reserved += this.perAttemptUsd;
+    return true;
+  }
+
+  settle(costUsd: number | null): void {
+    this.reserved -= this.perAttemptUsd;
+    this.spent += costUsd ?? this.perAttemptUsd;
+  }
+
+  get spentUsd(): number {
+    return this.spent;
+  }
 }
 
 /** One line per wrong call, for the dev set only. */
