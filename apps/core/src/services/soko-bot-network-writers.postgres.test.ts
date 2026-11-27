@@ -488,7 +488,7 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
       // The same Prisma projection the tools returned before the column.
       const legacyRow = await prisma.sokoBotSchedule.findUniqueOrThrow({
         where: { id: watched.id },
-        omit: { network: true },
+        omit: { network: true, preprodGeneration: true },
       });
       expect(result).toStrictEqual(legacyRow);
       const receipt = await prisma.sokoBotToolCall.findUniqueOrThrow({
