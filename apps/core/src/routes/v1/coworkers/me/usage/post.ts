@@ -1,11 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
-import {
-  type Consumption,
-  creditBucketRepository,
-} from "@sokosumi/database/repositories";
+import { InsufficientBalanceError } from "@sokosumi/database/repositories";
 import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
+import { HTTPException } from "hono/http-exception";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
@@ -14,10 +12,15 @@ import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { created, ok } from "@/helpers/response";
+import {
+  type SpendResult,
+  spend,
+  spendFailedInPreparation,
+} from "@/lib/credits/spend";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { runAsBackgroundWork } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { Network } from "@/lib/network";
 import { requireCoworkerAuthContext } from "@/middleware/auth";
 import { paymentScope } from "@/middleware/network-scope";
 import { coworkerUsageSchema } from "@/schemas/coworker-usage.schema";
@@ -69,31 +72,48 @@ function serializeUsage(usage: {
   };
 }
 
-async function prepareConsumptions(
-  network: Network,
-  userId: string,
-  organizationId: string | null,
-  cents: bigint,
-  tx: Prisma.TransactionClient,
-): Promise<Consumption[]> {
-  if (cents <= 0n) {
-    return [];
-  }
-
+/**
+ * Spends the payer's pool for the usage, a price of zero as a debit of zero.
+ * Every failure to choose the credits is the route's 400 with its text, as
+ * before the module: missing credits, a plan or Seat read, a conflict (whose
+ * text the retry around the transaction still knows). A scope that refuses
+ * its Network is not one: its 403 passes, and so does a failed write.
+ */
+async function spendUsage(input: {
+  scope: NetworkScope;
+  tx: Prisma.TransactionClient;
+  userId: string;
+  organizationId: string | null;
+  cents: bigint;
+}): Promise<string> {
+  const { scope, tx, userId, organizationId, cents } = input;
+  let charge: SpendResult<"in_full_or_zero">;
   try {
-    return await creditBucketRepository.prepareConsumption(
-      network,
-      userId,
-      organizationId,
-      cents,
+    charge = await spend({
+      scope,
       tx,
-    );
+      payer: { userId, organizationId, projectId: null },
+      quotedCents: cents,
+      mode: "in_full_or_zero",
+    });
   } catch (error) {
-    if (error instanceof Error) {
+    // `@sokosumi/database` throws no HTTPException: only the scope's refusal is one.
+    if (
+      spendFailedInPreparation(error) &&
+      error instanceof Error &&
+      !(error instanceof HTTPException)
+    ) {
       throw badRequest(error.message);
     }
     throw error;
   }
+  if (charge.outcome === "not_charged") {
+    throw badRequest(
+      new InsufficientBalanceError(charge.quotedCents, charge.availableCents)
+        .message,
+    );
+  }
+  return charge.transactionId;
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
@@ -177,35 +197,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         db: tx,
       });
       const cents = convertCreditsToCents(credits);
-      const consumptions = await prepareConsumptions(
-        scope.network,
+      const transactionId = await spendUsage({
+        scope,
+        tx,
         userId,
         organizationId,
         cents,
-        tx,
-      );
-
-      const transaction = await tx.transaction.create({
-        data: {
-          amount: cents * BigInt(-1),
-          user: { connect: { id: userId } },
-          ...(organizationId
-            ? {
-                organization: { connect: { id: organizationId } },
-              }
-            : {}),
-          creditConsumptions: {
-            createMany: {
-              data: consumptions.map((consumption) => ({
-                bucketId: consumption.bucketId,
-                amount: consumption.amount,
-              })),
-            },
-          },
-        },
-        select: {
-          id: true,
-        },
       });
 
       const usage = await tx.coworkerUsage.create({
@@ -220,7 +217,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 organization: { connect: { id: organizationId } },
               }
             : {}),
-          transaction: { connect: { id: transaction.id } },
+          transaction: { connect: { id: transactionId } },
         },
       });
 
