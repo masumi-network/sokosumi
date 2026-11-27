@@ -679,5 +679,129 @@
         }
       ]
     }
+  },
+  "an Organization, credits gone after the balance read": {
+    "result": {
+      "threw": {
+        "name": "InsufficientBalanceError",
+        "message": "Insufficient balance: tried to consume 60000000000 but only 45000000000 available"
+      }
+    },
+    "pagesRead": 0,
+    "newsSearches": 0,
+    "statements": {
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"public\".\"competitor_check\".\"id\", \"public\".\"competitor_check\".\"transactionId\", \"public\".\"competitor_check\".\"chargedCents\" FROM \"public\".\"competitor_check\" WHERE (\"public\".\"competitor_check\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"project\".\"id\", \"public\".\"project\".\"workspaceId\" FROM \"public\".\"project\" WHERE (\"public\".\"project\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<drained Organization's Project>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"workspace\".\"id\", \"public\".\"workspace\".\"userId\", \"public\".\"workspace\".\"organizationId\" FROM \"public\".\"workspace\" WHERE \"public\".\"workspace\".\"id\" = $1 OFFSET $2",
+            "values": ["<drained Organization's workspace>", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4",
+            "values": ["<drained Organization>", "active", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8",
+            "values": [
+              "<drained Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "<time>",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND (\"public\".\"subscription\".\"periodStart\" IS NULL OR \"public\".\"subscription\".\"periodStart\" <= $6)) ORDER BY \"public\".\"subscription\".\"periodEnd\"DESC NULLS LAST, \"public\".\"subscription\".\"updatedAt\" DESC LIMIT $7 OFFSET $8",
+            "values": [
+              "<drained Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT cb.id, cb.amount, (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"organizationId\" = $1 AND (cb.\"projectId\" IS NULL OR cb.\"projectId\" = $2) AND ( cb.\"referenceType\" IS NULL OR ( cb.\"referenceType\" = $3 AND cb.\"userId\" IS NULL ) OR ( cb.\"referenceType\" IS DISTINCT FROM $4 AND cb.\"referenceType\" IS DISTINCT FROM $5 AND cb.\"referenceType\" IS DISTINCT FROM $6 ) ) AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $7) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $8) GROUP BY cb.id, cb.amount, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ), ordered AS ( SELECT id, amount, available, \"expiresAt\", \"createdAt\", \"projectId\", SUM(available) OVER ( ORDER BY (\"projectId\" IS NULL) ASC, \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC ) AS running_total FROM bucket_avail ) SELECT id, available FROM ordered WHERE running_total - available < $9 ORDER BY (\"projectId\" IS NULL) ASC, \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC",
+            "values": [
+              "<drained Organization>",
+              "<drained Organization's Project>",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "ENTERPRISE_PERIOD",
+              "ENTERPRISE_TOP_UP",
+              "<time>",
+              "<time>",
+              "60000000000"
+            ]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
+      "outsideTransactions": {
+        "INSERT INTO \"public\".\"competitor_check\" (\"id\",\"createdAt\",\"projectId\",\"day\",\"competitorCount\",\"signalCount\",\"costUsd\",\"chargedCents\") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING \"public\".\"competitor_check\".\"id\"": 1,
+        "SELECT \"public\".\"competitor_check\".\"id\", \"public\".\"competitor_check\".\"createdAt\" FROM \"public\".\"competitor_check\" WHERE (\"public\".\"competitor_check\".\"projectId\" = $1 AND \"public\".\"competitor_check\".\"finishedAt\" IS NOT NULL) ORDER BY \"public\".\"competitor_check\".\"createdAt\" DESC LIMIT $2 OFFSET $3": 1,
+        "SELECT \"public\".\"competitor_check\".\"id\", \"public\".\"competitor_check\".\"createdAt\", \"public\".\"competitor_check\".\"finishedAt\" FROM \"public\".\"competitor_check\" WHERE \"public\".\"competitor_check\".\"projectId\" = $1 ORDER BY \"public\".\"competitor_check\".\"createdAt\" DESC LIMIT $2 OFFSET $3": 1,
+        "SELECT \"public\".\"project\".\"id\", \"public\".\"project\".\"competitorChecksSince\", \"public\".\"project\".\"workspaceId\" FROM \"public\".\"project\" WHERE (\"public\".\"project\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3": 1,
+        "SELECT \"public\".\"tracked_competitor\".\"id\", \"public\".\"tracked_competitor\".\"memberEditedAt\", \"public\".\"tracked_competitor\".\"createdAt\", \"public\".\"tracked_competitor\".\"projectId\", \"public\".\"tracked_competitor\".\"name\", \"public\".\"tracked_competitor\".\"websiteUrl\", \"public\".\"tracked_competitor\".\"pricingUrl\", \"public\".\"tracked_competitor\".\"instagramHandle\", \"public\".\"tracked_competitor\".\"facebookHandle\", \"public\".\"tracked_competitor\".\"source\"::text FROM \"public\".\"tracked_competitor\" WHERE (\"public\".\"tracked_competitor\".\"projectId\" = $1 AND \"public\".\"tracked_competitor\".\"removedAt\" IS NULL) ORDER BY \"public\".\"tracked_competitor\".\"createdAt\" ASC, \"public\".\"tracked_competitor\".\"id\" ASC OFFSET $2": 1
+      }
+    },
+    "rows": {
+      "buckets": [
+        {
+          "id": "<bucket pool soon of drained Organization>",
+          "amount": "30000000000",
+          "projectId": null,
+          "consumptions": []
+        },
+        {
+          "id": "<bucket Project credits of drained Organization>",
+          "amount": "15000000000",
+          "projectId": "<drained Organization's Project>",
+          "consumptions": []
+        }
+      ],
+      "transactions": [],
+      "consumptions": [],
+      "checks": [
+        {
+          "id": "<id 1>",
+          "createdAt": "<time>",
+          "projectId": "<drained Organization's Project>",
+          "day": "2026-11-16",
+          "finishedAt": null,
+          "competitorCount": 0,
+          "signalCount": 0,
+          "sources": null,
+          "costUsd": 0,
+          "chargedCents": "0",
+          "transactionId": null
+        }
+      ]
+    }
   }
 }

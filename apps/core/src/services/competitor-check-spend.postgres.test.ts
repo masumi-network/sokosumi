@@ -79,7 +79,10 @@ vi.mock("@/lib/competitors/page-read", async (original) => ({
 vi.mock("@/lib/soko-bot/exa", () => ({ searchExa: readers.searchExa }));
 vi.mock("@/lib/competitors/model", () => ({ askCompetitorModel: vi.fn() }));
 
-import { workspaceRepository } from "@sokosumi/database/repositories";
+import {
+  creditBucketRepository,
+  workspaceRepository,
+} from "@sokosumi/database/repositories";
 import { convertCreditsToCents } from "@sokosumi/utils";
 
 import { createPersonalWorkspace } from "@/helpers/personal-workspace";
@@ -388,6 +391,9 @@ async function observe(payer: Payer, now: Date) {
   let result: unknown;
   try {
     result = await runProjectCompetitorCheck(payer.projectId, now);
+  } catch (error) {
+    if (!(error instanceof Error)) throw error;
+    result = { threw: { name: error.name, message: error.message } };
   } finally {
     sent.observing = false;
   }
@@ -473,6 +479,27 @@ describe.skipIf(!enabled)(
 
         expectAsOnBase(
           "an Organization, shortfall",
+          await observe(payer, MONDAY),
+        );
+      },
+      CASE_TIMEOUT,
+    );
+
+    it(
+      "fails, with nothing charged, when the credits go between the balance read and the bucket read",
+      async () => {
+        const payer = await organization("drained Organization", {
+          soonCents: PRICE / 2n,
+          laterCents: 0n,
+        });
+        // The two reads cannot disagree in one snapshot: only a bucket that
+        // expires between their two clock readings does this.
+        vi.spyOn(creditBucketRepository, "getBalance").mockResolvedValueOnce(
+          PRICE,
+        );
+
+        expectAsOnBase(
+          "an Organization, credits gone after the balance read",
           await observe(payer, MONDAY),
         );
       },
