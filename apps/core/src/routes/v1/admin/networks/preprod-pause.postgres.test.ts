@@ -31,7 +31,7 @@ import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { coreEvlogMiddleware, runAsBackgroundWork } from "@/lib/evlog";
 import syncRouter from "@/routes/sync/index";
-import { expectCoreLog } from "@/test/core-log";
+import { coreLogEvents, expectCoreLog } from "@/test/core-log";
 import { drainWaitUntil } from "@/test/wait-until";
 import {
   type Credential,
@@ -81,7 +81,7 @@ const KEYS = [PREPROD_PAUSE_KEY, PREPROD_GENERATION_KEY];
 interface PauseBody {
   data: {
     paused: boolean;
-    generation: number | null;
+    generation: number;
     changes: {
       id: string;
       createdAt: string;
@@ -826,12 +826,15 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
   describe("Mainnet", () => {
     /**
      * Runs `work` while another connection holds an ACCESS EXCLUSIVE lock on
-     * `sync_metadata`: any read of it, through the client or raw SQL, waits.
-     * Answers whether the work finished or waited on the table.
+     * `sync_metadata`: any read of it, through the client or raw SQL, waits
+     * for that connection, and PostgreSQL names it in the reader's
+     * `pg_blocking_pids`. Asked until `work` settles; a read that waits
+     * cannot settle before the lock goes, so none can be missed. The lock is
+     * released at the first waiter, and in every case at the end.
      */
     async function underTableLock(work: () => Promise<unknown>) {
-      let locked!: () => void;
-      const locking = new Promise<void>((resolve) => {
+      let locked!: (pid: number) => void;
+      const locking = new Promise<number>((resolve) => {
         locked = resolve;
       });
       let release!: () => void;
@@ -842,20 +845,34 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
         async (tx) => {
           await tx.$executeRaw`
             LOCK TABLE ${sharedTable("sync_metadata")} IN ACCESS EXCLUSIVE MODE`;
-          locked();
+          const [{ pid }] = await tx.$queryRaw<{ pid: number }[]>`
+            SELECT pg_backend_pid() AS pid`;
+          locked(pid);
           await released;
         },
         { timeout: 30_000 },
       );
-      await locking;
-      const running = work();
+      let running: Promise<unknown> | undefined;
       try {
-        return await Promise.race([
-          running.then(() => "finished"),
-          new Promise<string>((resolve) =>
-            setTimeout(() => resolve("waited on sync_metadata"), 3_000),
-          ),
+        const holderPid = await Promise.race([
+          locking,
+          holder.then(() => {
+            throw new Error("The lock holder ended before it held the lock");
+          }),
         ]);
+        let settled = false;
+        running = work().finally(() => {
+          settled = true;
+        });
+        void running.catch(() => {});
+        while (!settled) {
+          const [{ waiting }] = await prisma.$queryRaw<{ waiting: number }[]>`
+            SELECT count(*)::int AS waiting FROM pg_stat_activity
+            WHERE ${holderPid}::int = ANY (pg_blocking_pids(pid))`;
+          if (waiting > 0) return "waited on sync_metadata";
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        return "finished";
       } finally {
         release();
         await holder;
@@ -888,6 +905,19 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
         expect(tick.status).toBe(200);
         // The tick's run, its lock release included, is `waitUntil` work.
         expect(await drainWaitUntil()).toEqual([]);
+        // The run itself happened: its one event says it completed.
+        expect(
+          coreLogEvents().filter(
+            (event) =>
+              event.operation === "cron_sync" &&
+              (event.sync as { lockKey?: string; outcome?: string })
+                ?.lockKey === "task-x402-payment-headers-purge-sync",
+          ),
+        ).toEqual([
+          expect.objectContaining({
+            sync: expect.objectContaining({ outcome: "completed" }),
+          }),
+        ]);
       });
       // The control: the module's own read waits on the lock.
       const control = await underTableLock(() => readPreprodControl());
