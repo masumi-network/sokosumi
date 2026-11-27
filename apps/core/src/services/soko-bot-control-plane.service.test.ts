@@ -288,6 +288,8 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotPendingDecision: {
       count: vi.fn().mockResolvedValue(4),
     },
+    // No account question is open on these turns.
+    sokoBotAccountQuestion: { findFirst: vi.fn().mockResolvedValue(null) },
     sokoBotTurn: {
       count: turnCountMock,
       findFirst: turnFindFirstMock,
@@ -3132,7 +3134,9 @@ describe("SokoBotControlPlane lifecycle", () => {
           !isSokoBotAnnouncementCapability(capability) &&
           // v35's messaging tools; this bot runs an earlier version.
           capability !== "send_message" &&
-          capability !== "list_recipients",
+          capability !== "list_recipients" &&
+          // Only a version that reads context on demand (v38) gets it.
+          capability !== "read_context",
       ),
     );
   });

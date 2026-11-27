@@ -1298,6 +1298,23 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "soko-bot-landing-page-playbook",
+    title: "Reads the landing-page playbook before writing a page",
+    intent:
+      "Writes landing-page copy from the landing-page playbook (v39), with the owner's facts only, and asks for what is missing instead of inventing it.",
+    prompt:
+      "Write the copy for a one-page landing page for our new offer: we plan team offsites in Lisbon for 10 to 40 people, venue, food and one workshop day included, from 900 EUR per person. Headline, sections and the button text.",
+    rubric:
+      "The bot read the landing-page playbook (read_skill landing-page) before writing and followed it: a clear headline that says what the offer is and for whom, sections in a sensible order, one call to action. Every fact comes from the prompt (Lisbon, 10 to 40 people, venue, food, one workshop day, from 900 EUR per person); proof it does not have (reviews, client logos, numbers) is asked for or left out, never invented, and no [bracket] placeholders are left in the copy. It writes the copy in the answer and creates nothing.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED", "CLARIFY"],
+      readsSkills: ["landing-page"],
+      forbiddenTools: ["create_task", "hire_agent", "create_social_post"],
+      answerAvoids: "\\[[^\\]]{2,40}\\]",
+      noDelegations: true,
+    },
+  },
+  {
     id: "fundraising-pipeline-off",
     title: "Reads the raise from Fundraising, and says when there is none",
     intent:

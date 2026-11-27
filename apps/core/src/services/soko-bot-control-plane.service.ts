@@ -21,6 +21,7 @@ import {
   isSokoBotNewsletterCapability,
   limitSokoBotWrites,
   type OwnerAuthorityStopRuleInput,
+  readsContextOnDemand,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
@@ -31,6 +32,7 @@ import {
   type SokoBotRuntime,
   sanitizeSokoBotMemoryMarkdown,
   sokoBotContextPacketSchema,
+  sokoBotReadsXDms,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
@@ -94,6 +96,10 @@ import {
 import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
+  accountQuestionHint,
+  openAccountQuestion,
+} from "@/lib/soko-bot/account-question";
+import {
   sokoBotActingUserId,
   sokoBotScheduleActingUserId,
   sokoBotScheduleActingUserWhere,
@@ -153,6 +159,7 @@ import type {
   SokoBotTurnStartResult,
   StartSokoBotTurnInput,
 } from "@/lib/soko-bot/turn-start";
+import { ownerPrivateRoom } from "@/lib/soko-bot/x-inbox";
 import {
   LIVE_CUSO_WHERE,
   ONBOARDING_TURN_PREFIX,
@@ -204,6 +211,8 @@ import { enqueueSokoBotDelivery } from "./soko-bot-delivery.service";
 
 /** Context for the control plane's standalone events. */
 const TURN_LOG = { operation: "soko_bot_turn" };
+/** Stands for the turn about to be created, which no question can belong to. */
+const NO_TURN_YET = "00000000-0000-0000-0000-000000000000";
 
 const TURN_DEADLINE_MS = 15 * 60 * 1_000;
 /**
@@ -2737,6 +2746,21 @@ export class SokoBotControlPlane {
             message: input.chat?.classifyMessage ?? message,
           })
         : null;
+    // The owner may be answering "which account?": the model needs the
+    // question's id and options to pass them, which no message carries.
+    const accountQuestion =
+      (input.source ?? "CHAT") === "CHAT" &&
+      personAsked &&
+      !askedByTeammate &&
+      !input.chat?.askedByBot
+        ? await openAccountQuestion({
+            sokoBotId: bot.id,
+            requestedByUserId: input.userId,
+            destinationRoomId: destinationRoom?.id ?? null,
+            turnId: NO_TURN_YET,
+            turnCreatedAt: new Date(),
+          })
+        : null;
     const context = await this.contextBuilder.build({
       userId: input.userId,
       sokoBotId: bot.id,
@@ -2746,6 +2770,7 @@ export class SokoBotControlPlane {
       clientTurnId,
       classification: classification.classification,
       personAsked,
+      extraHints: accountQuestion ? [accountQuestionHint(accountQuestion)] : [],
       capturedPreference,
       turnMessage: input.chat?.said ?? input.chat?.classifyMessage ?? message,
       previousReply:
@@ -2764,6 +2789,19 @@ export class SokoBotControlPlane {
         (askedByTeammate
           ? (input.background?.destinationRoomId ?? null)
           : null),
+      onDemand:
+        version.profile !== "cmo" && readsContextOnDemand(version.skills),
+      offered: capabilities,
+      xDms:
+        isPersonalSokoBot(bot) &&
+        !askedByTeammate &&
+        !input.chat?.askedByBot &&
+        input.userId === bot.userId &&
+        sokoBotReadsXDms(version.skills) &&
+        (await ownerPrivateRoom(destinationRoom?.id ?? null, {
+          ownerId: bot.userId,
+          sokoBotId: bot.id,
+        })),
       referencedTaskIds: [
         ...new Set([
           ...classifierContext.namedTaskIds,

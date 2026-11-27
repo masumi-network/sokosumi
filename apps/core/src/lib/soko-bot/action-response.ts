@@ -8,13 +8,15 @@ import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { z } from "zod";
 import { getWebAppBaseUrl } from "@/config/env";
 import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
-
+import {
+  ACCOUNT_QUESTION_HEADING,
+  showAccountQuestion,
+} from "./account-question";
 import {
   ACTION_CAPABILITIES,
   ACTION_RECEIPT_CAPABILITIES,
   verifyTaskArchiveReceipt,
 } from "./action-receipts";
-
 import {
   actionLabel,
   actionTarget,
@@ -28,7 +30,6 @@ import {
   taskLabels,
   UNDONE_TASK_VERBS,
 } from "./action-response-targets";
-
 import { linkCalendarContacts } from "./calendar-contact-links";
 
 /** Turns an owner asked for; the rest the bot started itself. */
@@ -77,6 +78,15 @@ export const REPLY_CHECK_NOTES = {
 } as const;
 
 export type ActionNarrative = z.infer<typeof actionNarrativeSchema>;
+
+const ACCOUNT_QUESTION_BLOCK = new RegExp(
+  `\\n\\n${ACCOUNT_QUESTION_HEADING.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\n\\d+\\. [^\\n]+)+$`,
+);
+
+/** The answer without the account question Core added at its end, if any. */
+function withoutAccountQuestionBlock(text: string): string {
+  return text.replace(ACCOUNT_QUESTION_BLOCK, "");
+}
 
 export function parseActionNarrative(value: unknown) {
   const parsed = actionNarrativeSchema.safeParse(value);
@@ -829,10 +839,26 @@ export async function buildActionResponse(
             : answerText;
   // Beside the bot's words, never inside them: an 8,000-character reply has
   // no room left, and the note is Core's, not the bot's.
-  const checked =
+  const noted =
     narrative?.replyCheck && text !== "Nothing to add."
       ? `${text}\n\n${REPLY_CHECK_NOTES[narrative.replyCheck]}`
       : text;
+  // A draft Core refused for want of an account: Core asks, with the stored
+  // options in order, so what the owner reads is what the next turn checks.
+  // Settlement rebuilds the answer; the question goes in once.
+  const refusedPost = turnCalls.some(
+    (call) =>
+      call.capability === "create_social_post" && call.status === "FAILED",
+  );
+  // A rebuild from the stored answer drops Core's earlier question first: the
+  // options may have changed since, and the reply shows the current ones.
+  // Only Core's own block goes: the heading and its numbered options, last
+  // in the text, on a turn whose draft was refused. The bot's words stay.
+  const base = refusedPost ? withoutAccountQuestionBlock(noted) : noted;
+  const asked = refusedPost
+    ? await showAccountQuestion(tx, turnId, base !== "Nothing to add.")
+    : null;
+  const checked = asked ? `${base}\n\n${asked}` : base;
   return {
     appliedReceiptIds,
     narrative,

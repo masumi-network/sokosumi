@@ -15,7 +15,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
 import {
-  onlyOwnerAndBot,
+  ownerPrivateRoom,
   X_INBOX_PROVIDER,
   xDmToolKind,
 } from "@/lib/soko-bot/x-inbox";
@@ -96,20 +96,10 @@ async function ownerPrivateTurn(
   const ownerId = turn?.sokoBot.userId;
   if (!turn || !ownerId || ownerId !== authorized.turn.actingUserId)
     return false;
-  if (!turn.destinationRoomId) return true;
-  const room = await prisma.chatRoom.findUnique({
-    where: { id: turn.destinationRoomId },
-    select: {
-      kind: true,
-      userMembers: { select: { userId: true } },
-      coworkerMembers: { select: { coworkerId: true } },
-      sokoBotMembers: { select: { sokoBotId: true } },
-    },
+  return ownerPrivateRoom(turn.destinationRoomId, {
+    ownerId,
+    sokoBotId: authorized.turn.sokoBotId,
   });
-  return (
-    room !== null &&
-    onlyOwnerAndBot(room, { ownerId, sokoBotId: authorized.turn.sokoBotId })
-  );
 }
 
 /**

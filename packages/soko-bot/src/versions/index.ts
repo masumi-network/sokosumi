@@ -39,6 +39,7 @@ import { cmoReadsOnDemand } from "./cmo-v23-skills.js";
 import { cmoV24 } from "./cmo-v24.js";
 import { cmoV25 } from "./cmo-v25.js";
 import { cmoWritesStrategyStep } from "./cmo-v25-skills.js";
+import { readsContextOnDemand } from "./context-on-demand-skills.js";
 import {
   skillIndexSection,
   splitSkillsForTurn,
@@ -87,6 +88,9 @@ import { v34 } from "./v34.js";
 import { v35 } from "./v35.js";
 import { v36 } from "./v36.js";
 import { v37 } from "./v37.js";
+import { v38 } from "./v38.js";
+import { v39 } from "./v39.js";
+import { v40 } from "./v40.js";
 
 /** Newest last. To iterate, add `vN.ts` and append it here. */
 export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
@@ -127,6 +131,9 @@ export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
   v35,
   v36,
   v37,
+  v38,
+  v39,
+  v40,
 ];
 export const DEFAULT_SOKO_BOT_VERSION_ID = "v34";
 
@@ -326,7 +333,11 @@ export function composeTurnPreamble(
     .join("\n\n");
 }
 
-const RESULT_CARD_SKILLS = new Set(["chat-result-previews", "result-cards"]);
+const RESULT_CARD_SKILLS = new Set([
+  "chat-result-previews",
+  "result-cards",
+  "result-cards-send-message",
+]);
 
 /** Whether the version teaches the bot to attach result cards. */
 export function versionShowsResultCards(
@@ -355,7 +366,10 @@ export function applyVersionCapabilities(
       capability !== "read_skill" &&
       !isSokoBotCmoCapability(capability) &&
       !(cmo && isSokoBotCompetitorCapability(capability)) &&
-      !messagingTools.includes(capability),
+      !messagingTools.includes(capability) &&
+      // Only a small packet (v38) has a map for read_context to read from.
+      (capability !== "read_context" ||
+        (!cmo && readsContextOnDemand(version.skills))),
   );
   const allowed = version.capabilities
     ? routed.filter((capability) =>
