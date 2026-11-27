@@ -703,6 +703,21 @@ describe("imported crawl continuation", () => {
     );
   });
 
+  it("keeps the crawl when a deep-audit entry has a URL Sokosumi cannot store", () => {
+    const report = crawlNextReport();
+    report.head.skipped.push({ url: "", reason: "audit failed" });
+    report.pages.push({ ...report.pages[1]!, url: "" });
+    const payload = publicSeoPayloadSchema.parse(
+      JSON.parse(JSON.stringify(parsePublicSeoArtifact(report))),
+    );
+    const crawl = payload.siteCrawl;
+    if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+    expect(crawl.deepAudit?.skipped.map((row) => row.url)).toEqual([
+      `${SITE}/slow`,
+      `${SITE}/broken`,
+    ]);
+  });
+
   it("keeps the site audit crawl's Snapshot and start URL, so a continuation can go on from it", () => {
     const crawl = stored(
       siteReport({ request: { url: SITE }, crawl: botCrawl() }),

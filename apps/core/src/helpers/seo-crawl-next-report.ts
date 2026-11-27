@@ -4,6 +4,7 @@ import {
   SEO_CRAWL_NEXT_MAX_AUDITS,
   type SeoCrawlDeepAudit,
   type SeoSiteCrawl,
+  seoCrawlUrlSchema,
   seoSnapshotIdSchema,
 } from "@/schemas/seo-site-crawl.schema";
 import type { PublicSeoPayload } from "./project-seo-report";
@@ -42,6 +43,10 @@ const frozenCrawlNext = z.object({
   continues: seoSnapshotIdSchema,
 });
 
+/** A deep-audit entry Sokosumi cannot store: the crawl keeps its other entries. */
+const storable = (entry: { url: string }) =>
+  seoCrawlUrlSchema.safeParse(entry.url).success;
+
 const cut = (text: string) =>
   text.length > MAX_REASON
     ? `${text.slice(0, MAX_REASON - 1).toWellFormed()}…`
@@ -77,7 +82,7 @@ export function parseCrawlNextArtifact(
   });
   const deepAudit: SeoCrawlDeepAudit = {
     pages: audited.flatMap(({ page, payload }) => {
-      if (!payload) return [];
+      if (!payload || !storable(page)) return [];
       // A finding repeats per device: the crawl view lists each rule once.
       const findings = [
         ...new Map(payload.findings.map((row) => [row.rowId, row])).values(),
@@ -101,7 +106,9 @@ export function parseCrawlNextArtifact(
       ...audited.flatMap(({ page, payload }) =>
         payload ? [] : [{ url: page.url, reason: UNREADABLE_PAGE }],
       ),
-    ].slice(0, SEO_CRAWL_NEXT_MAX_AUDITS),
+    ]
+      .filter(storable)
+      .slice(0, SEO_CRAWL_NEXT_MAX_AUDITS),
   };
   const siteCrawl = readCrawlNext(raw, deepAudit);
   // A continuation with no own Snapshot, or one that repeats its parent, would never join the chain.

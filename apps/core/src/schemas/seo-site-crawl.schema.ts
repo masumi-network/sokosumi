@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import { seoSeveritySchema } from "./seo-analysis-enums.schema";
 
 const count = z.number().int().nonnegative();
+/** A URL as the crawl view stores it. */
 export const seoCrawlUrlSchema = z.string().min(1).max(4096);
 const crawlUrl = seoCrawlUrlSchema;
 const crawlText = z.string().max(2000);
