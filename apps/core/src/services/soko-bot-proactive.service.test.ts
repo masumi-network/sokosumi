@@ -36,8 +36,8 @@ const {
 vi.mock("@/lib/db/database-now", () => ({
   databaseNow: async () => new Date(),
 }));
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     sokoBot: {
       findUniqueOrThrow: botFindUniqueOrThrowMock,
       findUnique: botFindUniqueMock,
@@ -56,8 +56,11 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     // No organization: the stand-up has no raise block.
     workspace: { findUnique: vi.fn().mockResolvedValue(null) },
-  },
-}));
+    $transaction: (callback: (tx: unknown) => Promise<unknown>) =>
+      callback(client),
+  };
+  return { default: client };
+});
 vi.mock("@/services/chat-signal-views.service", () => ({
   listChatOpenLoops: vi.fn().mockResolvedValue([]),
 }));
