@@ -64,12 +64,19 @@ export const VERCEL_PROJECTS = {
 // colliding commit between the approval and the deploy.
 const FULL_SHA = /^[0-9a-f]{40}$/;
 
+export const FORCE_FLAG = "--force";
+
 /**
  * Parse `<command> <mainnet|preprod> [mainnet|preprod] [sha]` or
  * `<command> all [sha]` from the first line of a PR comment. `sha` is the
- * full head commit the commenter approves, or null.
+ * full head commit the commenter approves, or null. With `allowForce`, a
+ * `--force` token sets `force: true`; otherwise it is a usage error.
  */
-export function parseNetworkCommand(body, command) {
+export function parseNetworkCommand(
+  body,
+  command,
+  { allowForce = false } = {},
+) {
   const firstLine = String(body ?? "")
     .replace(/^\uFEFF/, "")
     .split(/\r?\n/, 1)[0]
@@ -79,7 +86,9 @@ export function parseNetworkCommand(body, command) {
     return { kind: "ignore" };
   }
 
-  const rest = tokens.slice(1).map((token) => token.toLowerCase());
+  const all = tokens.slice(1).map((token) => token.toLowerCase());
+  const force = allowForce && all.includes(FORCE_FLAG);
+  const rest = force ? all.filter((token) => token !== FORCE_FLAG) : all;
   const shas = [...new Set(rest.filter((token) => FULL_SHA.test(token)))];
   const unique = [...new Set(rest.filter((token) => !FULL_SHA.test(token)))];
   if (unique.length === 0 || shas.length > 1) {
@@ -87,8 +96,10 @@ export function parseNetworkCommand(body, command) {
   }
   const sha = shas[0] ?? null;
 
+  const flags = force ? { force: true } : {};
+
   if (unique.length === 1 && unique[0] === "all") {
-    return { kind: "run", networks: [...NETWORKS], sha };
+    return { kind: "run", networks: [...NETWORKS], sha, ...flags };
   }
 
   if (unique.some((token) => !NETWORKS.includes(token))) {
@@ -99,6 +110,7 @@ export function parseNetworkCommand(body, command) {
     kind: "run",
     networks: NETWORKS.filter((network) => unique.includes(network)),
     sha,
+    ...flags,
   };
 }
 
@@ -120,6 +132,8 @@ export function usageMessage() {
     "On a pull request from a fork, add the full 40-character head commit SHA you reviewed (for example `/deploy preprod <sha>`). The preview builds that commit with preview secrets, so review the whole diff at that commit first. Commits pushed later never deploy on their own.",
     "",
     "Add `--reset-db` on the first line (for example `/deploy preprod --reset-db`) to first reset this PR's Neon preview database to its parent. The Core build then applies every migration the parent lacks, this PR's included.",
+    "",
+    "Add `--force` (for example `/deploy mainnet --force`) to deploy a PR that changes nothing under `apps/web/`, `apps/core/`, `apps/cmo/`, `apps/cmo-website/`, or `packages/`, such as an empty commit. It builds the same apps as a plain `/deploy`. Not available on fork PRs or with `--reset-db`, which needs an earlier `/deploy`.",
   ].join("\n");
 }
 
@@ -224,8 +238,23 @@ export function noPreviewChangesMessage() {
   return [
     "No preview deployment: this pull request has no changes under `apps/web/`, `apps/core/`, `apps/cmo/`, `apps/cmo-website/`, or `packages/`.",
     "",
-    "Previews only build web, core, CMO, the CMO.XYZ website, and their package dependencies. If you still need a preview, push a change under one of those paths and comment `/deploy <network>` again.",
+    "Previews only build web, core, CMO, the CMO.XYZ website, and their package dependencies. If you still need a preview, comment `/deploy <network> --force` (not available on fork PRs).",
   ].join("\n");
+}
+
+/** The reply to a `--force` deploy that the changed-files check would have skipped. */
+export function forcedPreviewMessage(targets) {
+  const list = NETWORKS.map((network) => [
+    network,
+    targets.filter((target) => target.network === network),
+  ])
+    .filter(([, inNetwork]) => inNetwork.length > 0)
+    .map(
+      ([network, inNetwork]) =>
+        `${inNetwork.map((target) => target.app).join(", ")} on ${network}`,
+    )
+    .join("; ");
+  return `\`--force\`: this pull request changes nothing a preview builds from, so the changed-files check was skipped. Deploying ${list} at this PR's current HEAD.`;
 }
 
 export async function createGitDeployment({
@@ -710,7 +739,9 @@ export async function runPullRequestCommand(options, command) {
     return { kind: "ignore" };
   }
 
-  const parsed = parseNetworkCommand(commentBody, command.name);
+  const parsed = parseNetworkCommand(commentBody, command.name, {
+    allowForce: command.allowForce,
+  });
   if (parsed.kind === "ignore") {
     return parsed;
   }
@@ -785,6 +816,14 @@ export async function runPullRequestCommand(options, command) {
     return { kind: "fork" };
   }
 
+  // Fork PRs keep every guard, the changed-files check included.
+  if (fork && parsed.force) {
+    await comment(
+      `\`${FORCE_FLAG}\` is only available for branches in this repository, not forks.`,
+    );
+    return { kind: "fork-force" };
+  }
+
   if (pullRequest.state !== "open") {
     await comment("Preview commands require an open pull request.");
     return { kind: "closed" };
@@ -811,6 +850,7 @@ export async function runPullRequestCommand(options, command) {
     await react("eyes");
     return await command.run({
       networks: parsed.networks,
+      force: parsed.force === true,
       pullRequest,
       comment,
       react,
@@ -843,7 +883,8 @@ export async function runPreviewDeployComment(options) {
     action: "trigger preview deployments",
     usage: usageMessage(),
     allowFork: true,
-    run: async ({ networks, pullRequest, comment, react }) => {
+    allowForce: true,
+    run: async ({ networks, force, pullRequest, comment, react }) => {
       const files = await (listFiles
         ? listFiles()
         : listPullRequestFiles({
@@ -856,7 +897,9 @@ export async function runPreviewDeployComment(options) {
       // A truncated list (GitHub caps PR files at GITHUB_PR_FILES_LIMIT) may hide
       // relevant changes further down, so only skip on a provably complete list.
       // Truncated lists fall through to a conservative deploy.
-      if (!isTruncatedFileList(files) && !hasPreviewRelevantChanges(files)) {
+      const noChanges =
+        !isTruncatedFileList(files) && !hasPreviewRelevantChanges(files);
+      if (noChanges && !force) {
         await comment(noPreviewChangesMessage());
         return { kind: "skip" };
       }
@@ -867,6 +910,9 @@ export async function runPreviewDeployComment(options) {
           "Branches under `preview-fork/` are reserved for fork previews. Push this change to another branch and open a new pull request to preview it.",
         );
         return { kind: "reserved-branch" };
+      }
+      if (noChanges) {
+        await comment(forcedPreviewMessage(deployTargets(networks, apps)));
       }
       // Vercel reads `git.deploymentEnabled` from the pushed commit, so a fork's
       // config could start builds on our branch in projects nobody approved.
