@@ -79,6 +79,15 @@ export const REPLY_CHECK_NOTES = {
 
 export type ActionNarrative = z.infer<typeof actionNarrativeSchema>;
 
+const ACCOUNT_QUESTION_BLOCK = new RegExp(
+  `\\n\\n${ACCOUNT_QUESTION_HEADING.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\n\\d+\\. [^\\n]+)+$`,
+);
+
+/** The answer without the account question Core added at its end, if any. */
+function withoutAccountQuestionBlock(text: string): string {
+  return text.replace(ACCOUNT_QUESTION_BLOCK, "");
+}
+
 export function parseActionNarrative(value: unknown) {
   const parsed = actionNarrativeSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
@@ -843,7 +852,9 @@ export async function buildActionResponse(
   );
   // A rebuild from the stored answer drops Core's earlier question first: the
   // options may have changed since, and the reply shows the current ones.
-  const base = noted.split(`\n\n${ACCOUNT_QUESTION_HEADING}`)[0] ?? noted;
+  // Only Core's own block goes: the heading and its numbered options, last
+  // in the text, on a turn whose draft was refused. The bot's words stay.
+  const base = refusedPost ? withoutAccountQuestionBlock(noted) : noted;
   const asked = refusedPost
     ? await showAccountQuestion(tx, turnId, base !== "Nothing to add.")
     : null;

@@ -104,6 +104,29 @@ describe("an account question Core asks", () => {
     expect(response.answerText).not.toContain("Which account");
   });
 
+  it("keeps an ordinary reply whole, even one with the same question in it", async () => {
+    const message =
+      "Two items for the intake form:\n\nWhich account should this go on?\n\nWho should approve the budget?";
+    const response = await buildActionResponse(prisma, "turn-current", message);
+    expect(response.answerText).toBe(message);
+    expect(showAccountQuestion).not.toHaveBeenCalled();
+  });
+
+  it("on a refused draft, replaces only Core's own block at the end and keeps the bot's words", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([refused]);
+    const words =
+      "Nothing drafted yet.\n\nWhich account should this go on?\n\nI can also add a picture.";
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "",
+      true,
+      { ...narrative, message: words },
+    );
+    expect(response.answerText).toContain(words);
+    expect(response.answerText.split(QUESTION)).toHaveLength(2);
+  });
+
   it("is not looked up on a turn without a refused draft", async () => {
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([
       receipt({ capability: "create_social_post" }),
