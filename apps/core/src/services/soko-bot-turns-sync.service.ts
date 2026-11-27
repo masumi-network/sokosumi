@@ -1,11 +1,17 @@
 import { randomUUID } from "node:crypto";
-import { SokoBotTurnStatus } from "@sokosumi/database";
+import { type Prisma, SokoBotTurnStatus } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import { getEnv } from "@/config/env";
+import { readPreprodControl } from "@/helpers/preprod-control";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
+import { isPreprodOn } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import {
+  DetachedNetworkRefusal,
+  detachedNetworkScope,
+} from "@/lib/soko-bot/detached-network";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
   ACTIVE_TURN_STATUSES,
@@ -16,6 +22,22 @@ import {
 } from "@/services/soko-bot-control-plane.service";
 
 const BATCH_SIZE = 20;
+
+/** Temporary refusals must never fill the bounded queues ahead of Mainnet. */
+async function eligibleTurnNetworks(): Promise<Prisma.SokoBotTurnWhereInput> {
+  if (!isPreprodOn()) return { network: "mainnet" };
+  const control = await readPreprodControl();
+  if (control.state === "unavailable") return { network: "mainnet" };
+  if (control.state === "open") return {};
+  // A known stale generation is final even while paused.
+  return {
+    OR: [
+      { network: "mainnet" },
+      { network: "preprod", preprodGeneration: { not: control.generation } },
+      { network: "preprod", preprodGeneration: null },
+    ],
+  };
+}
 
 interface TurnLeaseClaim {
   id: string;
@@ -78,11 +100,13 @@ export class SokoBotTurnsSyncService {
     const scope = input.sokoBotIds
       ? { sokoBotId: { in: [...input.sokoBotIds] } }
       : {};
+    const networks = await eligibleTurnNetworks();
     const now = await databaseNow();
     result.expired += await this.expireTurns(
       await prisma.sokoBotTurn.findMany({
         where: {
           ...scope,
+          AND: [networks],
           status: { in: [...ACTIVE_TURN_STATUSES] },
           deadlineAt: { lte: now },
         },
@@ -98,6 +122,7 @@ export class SokoBotTurnsSyncService {
       await prisma.sokoBotTurn.findMany({
         where: {
           ...scope,
+          AND: [networks],
           status: SokoBotTurnStatus.CANCEL_REQUESTED,
           eveSessionId: null,
           ...staleTurnLeaseWhere(now),
@@ -120,7 +145,11 @@ export class SokoBotTurnsSyncService {
         status: SokoBotTurnStatus.STARTING,
         eveSessionId: null,
         deadlineAt: { gt: recoveryNow },
-        AND: [staleTurnLeaseWhere(recoveryNow), startRecoveryEligibility()],
+        AND: [
+          networks,
+          staleTurnLeaseWhere(recoveryNow),
+          startRecoveryEligibility(),
+        ],
       },
       select: { id: true },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
@@ -167,7 +196,7 @@ export class SokoBotTurnsSyncService {
     );
     try {
       if (input.shouldContinue()) {
-        const staleClaims = await this.claimStaleTurns(scope, input);
+        const staleClaims = await this.claimStaleTurns(scope, networks, input);
         await this.drainClaims(staleClaims, input.abortSignal, result);
       }
     } finally {
@@ -177,13 +206,15 @@ export class SokoBotTurnsSyncService {
   }
 
   private async claimStaleTurns(
-    scope: { sokoBotId?: { in: string[] } },
+    scope: Prisma.SokoBotTurnWhereInput,
+    networks: Prisma.SokoBotTurnWhereInput,
     input: SokoBotTurnsSyncInput,
   ): Promise<TurnLeaseClaim[]> {
     const drainScanAt = await databaseNow();
     const stale = await prisma.sokoBotTurn.findMany({
       where: {
         ...scope,
+        AND: [networks],
         status: { in: [...ACTIVE_TURN_STATUSES] },
         deadlineAt: { gt: drainScanAt },
         eveSessionId: { not: null },
@@ -194,6 +225,8 @@ export class SokoBotTurnsSyncService {
         eveSessionId: true,
         leaseToken: true,
         reconcilerHeartbeatAt: true,
+        network: true,
+        preprodGeneration: true,
       },
       orderBy: [{ reconcilerHeartbeatAt: "asc" }, { id: "asc" }],
       take: BATCH_SIZE,
@@ -203,26 +236,34 @@ export class SokoBotTurnsSyncService {
     for (const turn of stale) {
       if (!input.shouldContinue()) break;
       const leaseToken = randomUUID();
-      const updated = await prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`
+      const { network, preprodGeneration, ...claim } = turn;
+      const updated = await prisma
+        .$transaction(async (tx) => {
+          await tx.$queryRaw`
           SELECT "id" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${turn.id}::uuid
           FOR NO KEY UPDATE
         `;
-        const claimedAt = await databaseNow(tx);
-        return tx.sokoBotTurn.updateMany({
-          where: {
-            ...turn,
-            status: { in: [...ACTIVE_TURN_STATUSES] },
-            deadlineAt: { gt: claimedAt },
-            ...staleTurnLeaseWhere(claimedAt),
-          },
-          data: {
-            leaseToken,
-            leaseExpiresAt: new Date(claimedAt.getTime() + TURN_LEASE_MS),
-            reconcilerHeartbeatAt: claimedAt,
-          },
+          await detachedNetworkScope({ network, preprodGeneration }, tx);
+          const claimedAt = await databaseNow(tx);
+          return tx.sokoBotTurn.updateMany({
+            where: {
+              ...claim,
+              status: { in: [...ACTIVE_TURN_STATUSES] },
+              deadlineAt: { gt: claimedAt },
+              ...staleTurnLeaseWhere(claimedAt),
+            },
+            data: {
+              leaseToken,
+              leaseExpiresAt: new Date(claimedAt.getTime() + TURN_LEASE_MS),
+              reconcilerHeartbeatAt: claimedAt,
+            },
+          });
+        })
+        .catch(async (error: unknown) => {
+          if (!(error instanceof DetachedNetworkRefusal)) throw error;
+          if (error.final) await sokoBotControlPlane.finishStaleTurn(turn.id);
+          return { count: 0 };
         });
-      });
       if (updated.count === 0) continue;
       claimed.push({ id: turn.id, leaseToken });
     }

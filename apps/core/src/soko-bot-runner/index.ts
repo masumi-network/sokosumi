@@ -9,6 +9,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { setTimeout as sleep } from "node:timers/promises";
 import {
   type CmoShortFormTool,
   SOKO_BOT_TOOL_DESCRIPTIONS,
@@ -131,17 +132,30 @@ const base = `${coreUrl}/v1/soko-bot-runtime/turns/${turnId}`;
 
 /** Aborted as soon as Core says the turn is no longer active. */
 const stopped = new AbortController();
+const PREPROD_WAIT_EXPIRED = Symbol("Preprod retry wait expired");
+
+function stopsForPreprod(kind: string | undefined): boolean {
+  return (
+    kind === CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE ||
+    kind === CORE_API_ERROR_KINDS.PREPROD_OFF
+  );
+}
 
 /**
  * Only a 409 Core marks as the turn's end stops the loop; any other 409, such
  * as a tool's write that lost a race, is that call's failure. Model calls
  * reach Core through the gateway client, which keeps only the status, and
- * Core answers them 409 only for an inactive turn.
+ * Core answers them 409 only for an inactive turn. Switching Preprod off
+ * also ends the runner's access to its turn.
  */
 function isInactive(error: unknown): boolean {
   if (stopped.signal.aborted) return true;
-  if (error instanceof CoreRejected)
-    return error.kind === CORE_API_ERROR_KINDS.SOKO_BOT_TURN_INACTIVE;
+  if (error instanceof CoreRejected) {
+    return (
+      error.kind === CORE_API_ERROR_KINDS.SOKO_BOT_TURN_INACTIVE ||
+      stopsForPreprod(error.kind)
+    );
+  }
   return (error as { statusCode?: unknown } | null)?.statusCode === 409;
 }
 
@@ -155,13 +169,50 @@ const authHeaders: Record<string, string> = localToken
   ? { [SOKO_BOT_TURN_TOKEN_HEADER]: localToken }
   : {};
 
+/** Retry only a refusal that Core returned before the callback acted. */
+async function fetchCore(input: RequestInfo | URL, init: RequestInit) {
+  let waitingForPreprod = false;
+  try {
+    for (;;) {
+      const response = await fetch(
+        input instanceof Request ? input.clone() : input,
+        init,
+      );
+      const { status } = response;
+      if (status !== 403 && status !== 409 && status !== 503) return response;
+      const error: { kind?: string } | null = await response
+        .clone()
+        .json()
+        .catch(() => ({}));
+      if ((status === 403 || status === 409) && stopsForPreprod(error?.kind)) {
+        stopped.abort();
+      }
+      if (
+        status !== 503 ||
+        (error?.kind !== CORE_API_ERROR_KINDS.PREPROD_PAUSED &&
+          error?.kind !== CORE_API_ERROR_KINDS.PREPROD_CONTROL_UNAVAILABLE)
+      ) {
+        return response;
+      }
+      waitingForPreprod = true;
+      await response.body?.cancel();
+      await sleep(2_000, undefined, { signal: init.signal ?? undefined });
+    }
+  } catch (error) {
+    // A refusal that outlasted the callback leaves the turn for reconciliation.
+    if (waitingForPreprod && init.signal?.aborted)
+      stopped.abort(PREPROD_WAIT_EXPIRED);
+    throw error;
+  }
+}
+
 /**
  * Core answers a model call within MODEL_CALL_MAX_MS. An answer that has not
  * arrived a minute after that never will, so the call fails instead of
  * holding the turn until its deadline.
  */
 const modelFetch: typeof fetch = (input, init) =>
-  fetch(input, {
+  fetchCore(input, {
     ...init,
     signal: AbortSignal.any([
       ...(init?.signal ? [init.signal] : []),
@@ -171,7 +222,8 @@ const modelFetch: typeof fetch = (input, init) =>
 
 /** POSTs to this turn's Core endpoint; Core says when the turn is over. */
 async function callCore<T>(route: string, body: unknown): Promise<T> {
-  const response = await fetch(`${base}${route}`, {
+  const send = route === "/fail" ? fetch : fetchCore;
+  const response = await send(`${base}${route}`, {
     method: "POST",
     headers: { "content-type": "application/json", ...authHeaders },
     body: JSON.stringify(body ?? {}),
@@ -473,6 +525,13 @@ async function main(): Promise<void> {
   try {
     start = await callCore<TurnStart>("/start", {});
   } catch (error) {
+    // Core also reports ordinary preparation failures as an inactive turn.
+    if (
+      stopped.signal.reason === PREPROD_WAIT_EXPIRED ||
+      (error instanceof CoreRejected && stopsForPreprod(error.kind))
+    ) {
+      process.exit(0);
+    }
     // On the sandbox's stdout, which nothing reads (no NODE_ENV there, so
     // evlog prints it pretty); the supervisor's failure report carries the
     // diagnostic to Core instead.

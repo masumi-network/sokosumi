@@ -135,6 +135,7 @@ describe.skipIf(!enabled)(
       turnId = (
         await prisma.sokoBotTurn.create({
           data: {
+            network: "mainnet",
             sokoBotId: botId,
             requestedByUserId: userId,
             workspaceId,

@@ -21,11 +21,18 @@ export interface Consumption {
 }
 
 export class InsufficientBalanceError extends Error {
+  /** What was to be consumed, in cents. */
+  readonly requested: bigint;
+  /** What the buckets could cover, in cents. */
+  readonly available: bigint;
+
   constructor(cents: bigint, available: bigint) {
     super(
       `Insufficient balance: tried to consume ${cents} but only ${available} available`,
     );
     this.name = "InsufficientBalanceError";
+    this.requested = cents;
+    this.available = available;
   }
 }
 
@@ -102,6 +109,32 @@ export const creditBucketRepository = {
       buildCreditBucketScopeSql(scopeContext, options),
       now,
       tx,
+    );
+  },
+
+  /**
+   * `getBalance` for the buckets of `network`, on a transaction of the shared
+   * side: the read a spend makes when what it charges depends on the balance.
+   */
+  async getNetworkBalance(
+    network: TableNetwork,
+    userId: string | null,
+    organizationId: string | null,
+    tx: SharedDb,
+    options: CreditBucketProjectOption = {},
+  ): Promise<bigint> {
+    const now = new Date();
+    const scopeContext = await resolveCreditBucketScopeContext(
+      userId,
+      organizationId,
+      tx,
+      now,
+    );
+    return await sumAvailableCents(
+      buildCreditBucketScopeSql(scopeContext, options),
+      now,
+      tx,
+      network,
     );
   },
 
@@ -394,14 +427,15 @@ export const creditBucketRepository = {
 async function sumAvailableCents(
   where: Prisma.Sql,
   now: Date,
-  tx: Prisma.TransactionClient,
+  tx: SharedDb,
+  network: TableNetwork = "mainnet",
 ): Promise<bigint> {
   const result = await tx.$queryRaw<Array<{ balance: bigint }>>`
     WITH bucket_avail AS (
       SELECT
         (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available
-      FROM ${netTable("mainnet", "credit_bucket")} cb
-      LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
+      FROM ${netTable(network, "credit_bucket")} cb
+      LEFT JOIN ${netTable(network, "credit_consumption")} cc ON cc."bucketId" = cb.id
       WHERE ${where}
         AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
         AND ${creditBucketActivatesAtOrBeforeSql(now)}

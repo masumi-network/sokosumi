@@ -75,6 +75,7 @@ describe.skipIf(!enabled)("a shared Soko Bot's background runs", () => {
   ) {
     return prisma.sokoBotTurn.create({
       data: {
+        network: "mainnet",
         sokoBotId: botId,
         requestedByUserId: by,
         askedByUserId: by,
