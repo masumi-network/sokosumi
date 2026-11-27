@@ -33,6 +33,7 @@ import mountSuggestProjectCompetitors from "./[id]/competitors/suggestions/post.
 import mountGetProjectContextMd from "./[id]/context-md/get.js";
 import mountDeleteProject from "./[id]/delete.js";
 import mountDeleteProjectDesignMd from "./[id]/design-md/delete.js";
+import mountPostProjectDesignMdFromOrganization from "./[id]/design-md/from-organization/post.js";
 import mountPutProjectDesignMd from "./[id]/design-md/put.js";
 import mountGetProject from "./[id]/get.js";
 import mountDeleteProjectHide from "./[id]/hide/delete.js";
@@ -178,6 +179,7 @@ mountGetProjectMarketingStrategy(app);
 mountApproveProjectMarketingStrategy(app);
 mountAnswerProjectMarketingStrategyQuestion(app);
 mountPutProjectDesignMd(app);
+mountPostProjectDesignMdFromOrganization(app);
 mountDeleteProjectDesignMd(app);
 mountGetProjectCalendar(app);
 mountProjectCloseRoutes(app);

@@ -1,8 +1,9 @@
 "use client";
 
 import type { ProjectDesignMd } from "@sokosumi/core-client";
-import { normalizeWebsiteUrl } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, normalizeWebsiteUrl } from "@sokosumi/utils";
 import {
+  Building2,
   ExternalLink,
   FileText,
   Loader2,
@@ -59,6 +60,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useProjectBrandAutoSetup } from "@/hooks/effects/use-project-brand-auto-setup";
+import { copyOrganizationDesignMdToProject } from "@/lib/actions/design-md/action";
 import {
   removeProjectDesignMd,
   updateProject,
@@ -92,7 +94,20 @@ interface ProjectBrandCardProps {
   readOnly?: boolean;
   /** A page's own action on the whole brand, shown beside the menu once a DESIGN.md exists. */
   headerAction?: ReactNode;
+  /** The active organization's name when it has a DESIGN.md to copy. */
+  organizationName?: string | null;
 }
+
+/**
+ * The project whose brand menu should take focus when it shows: set by a
+ * keyboard copy, whose button leaves with the empty form. Module scope, not
+ * component state, because the action's revalidation remounts the card (the
+ * page keys it by the file) and the menu must take focus again then. Cleared
+ * once focus moves on to another control, and good for a few seconds only, so
+ * a later visit never has its focus taken.
+ */
+let brandMenuFocus: { projectId: string; until: number } | null = null;
+const BRAND_MENU_FOCUS_MS = 10_000;
 
 const ProjectBrandDashboardContext =
   createContext<ProjectBrandDashboardValue | null>(null);
@@ -224,6 +239,7 @@ export function ProjectBrandCard({
   websiteUrl,
   readOnly = false,
   headerAction,
+  organizationName,
 }: ProjectBrandCardProps) {
   const t = useTranslations("App.Projects.Detail");
   const { designMd, failure, generation, setDesignMd } =
@@ -246,8 +262,25 @@ export function ProjectBrandCard({
   const website = websiteDraft ?? websiteUrl ?? "";
   const [websiteError, setWebsiteError] = useState<string | null>(null);
   const [isSavingWebsite, startSaveWebsite] = useTransition();
+  const [isCopying, startCopy] = useTransition();
+  const focusBrandMenu = useCallback(
+    (menuButton: HTMLButtonElement | null) => {
+      if (
+        menuButton &&
+        brandMenuFocus?.projectId === projectId &&
+        Date.now() < brandMenuFocus.until
+      ) {
+        menuButton.focus();
+      }
+    },
+    [projectId],
+  );
   const menuBusy =
-    generation.isRunning || isRemoving || isUploading || isSavingWebsite;
+    generation.isRunning ||
+    isRemoving ||
+    isUploading ||
+    isSavingWebsite ||
+    isCopying;
   // The card's form explains a failure, so read-only cards keep the plain
   // message. A failure on another website than the saved one no longer
   // applies.
@@ -309,6 +342,35 @@ export function ProjectBrandCard({
     });
   }
 
+  function handleCopyOrganization(organization: string, button: HTMLElement) {
+    brandMenuFocus =
+      document.activeElement === button
+        ? { projectId, until: Date.now() + BRAND_MENU_FOCUS_MS }
+        : null;
+    startCopy(async () => {
+      const result = await copyOrganizationDesignMdToProject({ projectId });
+      if (!result.ok) {
+        const alreadySet =
+          result.error.kind === CORE_API_ERROR_KINDS.PROJECT_DESIGN_MD_EXISTS;
+        // Already set: the action refreshed the page, which swaps this form
+        // for the saved brand, so a focus request stands for its menu.
+        // Otherwise the button stays, and so does focus.
+        if (!alreadySet) brandMenuFocus = null;
+        toast.error(
+          alreadySet
+            ? t("brandCard.organizationAlreadySet")
+            : t("errors.brand"),
+        );
+        return;
+      }
+      setDesignMd({
+        extractionId: result.value.extractionId,
+        url: result.value.url,
+      });
+      toast.success(t("brandCard.organizationCopied", { organization }));
+    });
+  }
+
   function handleRemove() {
     startRemoveTransition(async () => {
       try {
@@ -343,6 +405,12 @@ export function ProjectBrandCard({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
+                    ref={focusBrandMenu}
+                    onBlur={(event) => {
+                      // Removal from the page has no next control; a move
+                      // elsewhere does.
+                      if (event.relatedTarget) brandMenuFocus = null;
+                    }}
                     type="button"
                     variant="ghost"
                     size="icon"
@@ -454,96 +522,169 @@ export function ProjectBrandCard({
         </div>
 
         {!readOnly && !designMd && !generation.isRunning ? (
-          <form noValidate onSubmit={handleSaveWebsite} className="space-y-2">
-            <label
-              htmlFor="project-brand-website"
-              className="text-muted-foreground block text-xs"
-            >
-              {hasWebsite
-                ? t("brandCard.websiteLabel")
-                : t("brandCard.missingWebsite")}
-            </label>
-            {/* Field, Generate and Upload read as one tool: one row where
+          // A copy swaps this whole area for the saved brand, so focus on
+          // any control here (Copy, or the field a Tab reaches next) hands
+          // off to the brand menu; leaving the area cancels that.
+          <div
+            className="space-y-2"
+            onBlur={(event) => {
+              if (
+                event.relatedTarget &&
+                !event.currentTarget.contains(event.relatedTarget)
+              ) {
+                brandMenuFocus = null;
+              }
+            }}
+          >
+            {/* The organization's brand is the one-step path, so it leads as
+                its own tile with the one filled button; the website and file
+                routes follow under "or" as the alternatives. */}
+            {organizationName ? (
+              <>
+                <div className="bg-background border-border flex flex-wrap items-center gap-3 rounded-lg border p-3">
+                  <span
+                    className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md"
+                    aria-hidden
+                  >
+                    <Building2 className="size-4" />
+                  </span>
+                  <div className="min-w-0 flex-1 basis-40">
+                    <p className="text-sm font-medium wrap-anywhere">
+                      {t("brandCard.organizationTitle", {
+                        organization: organizationName,
+                      })}
+                    </p>
+                    <p className="text-muted-foreground text-xs text-pretty">
+                      {t("brandCard.organizationHint")}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    loading={isCopying}
+                    disabled={menuBusy}
+                    // The visible "Copy" starts the name, which says whose.
+                    aria-label={t("brandCard.useOrganization", {
+                      organization: organizationName,
+                    })}
+                    onClick={(event) =>
+                      handleCopyOrganization(
+                        organizationName,
+                        event.currentTarget,
+                      )
+                    }
+                    className="h-10 w-full sm:h-8 sm:w-auto"
+                  >
+                    {t("brandCard.copy")}
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <hr
+                    className="border-border h-0 flex-1 border-0 border-t"
+                    aria-hidden
+                  />
+                  <span className="text-muted-foreground text-xs">
+                    {t("brandCard.or")}
+                  </span>
+                  <hr
+                    className="border-border h-0 flex-1 border-0 border-t"
+                    aria-hidden
+                  />
+                </div>
+              </>
+            ) : null}
+            <form noValidate onSubmit={handleSaveWebsite} className="space-y-2">
+              <label
+                htmlFor="project-brand-website"
+                className="text-muted-foreground block text-xs"
+              >
+                {hasWebsite
+                  ? t("brandCard.websiteLabel")
+                  : t("brandCard.missingWebsite")}
+              </label>
+              {/* Field, Generate and Upload read as one tool: one row where
                 they fit; on a phone the field takes its own row and the
                 actions share the next. Long labels wrap a button down
                 instead of overflowing. */}
-            <div className="flex flex-wrap gap-2">
-              <Input
-                id="project-brand-website"
-                inputMode="url"
-                autoComplete="url"
-                placeholder={tWebsite("websitePlaceholder")}
-                value={website}
-                onChange={(event) => {
-                  setWebsiteDraft(event.target.value);
-                  setWebsiteError(null);
-                }}
-                disabled={isSavingWebsite}
-                // Marked while the field holds the website that failed.
-                aria-invalid={
-                  Boolean(websiteError) ||
-                  shownFailure?.website === projectBrandWebsite(website)
-                }
-                aria-describedby={websiteDescription}
-                className="min-w-0 basis-full sm:h-8 sm:min-w-48 sm:flex-1 sm:basis-0"
-              />
-              <div className="flex grow flex-wrap gap-2 sm:grow-0">
-                <Button
-                  type="submit"
-                  variant="outline"
-                  size="sm"
-                  loading={isSavingWebsite}
-                  disabled={menuBusy}
-                  className="h-10 grow sm:h-8"
-                >
-                  <RefreshCw aria-hidden />
-                  {t("brandCard.generate")}
-                </Button>
-                {!showUpload ? (
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  id="project-brand-website"
+                  inputMode="url"
+                  autoComplete="url"
+                  placeholder={tWebsite("websitePlaceholder")}
+                  value={website}
+                  onChange={(event) => {
+                    setWebsiteDraft(event.target.value);
+                    setWebsiteError(null);
+                  }}
+                  disabled={isSavingWebsite}
+                  // Marked while the field holds the website that failed.
+                  aria-invalid={
+                    Boolean(websiteError) ||
+                    shownFailure?.website === projectBrandWebsite(website)
+                  }
+                  aria-describedby={websiteDescription}
+                  className="min-w-0 basis-full sm:h-8 sm:min-w-48 sm:flex-1 sm:basis-0"
+                />
+                <div className="flex grow flex-wrap gap-2 sm:grow-0">
                   <Button
-                    type="button"
+                    type="submit"
                     variant="outline"
                     size="sm"
+                    loading={isSavingWebsite}
                     disabled={menuBusy}
-                    onClick={() => setShowUpload(true)}
-                    // Matches Generate beside it: 40px on a phone, 32px up.
                     className="h-10 grow sm:h-8"
                   >
-                    <Upload aria-hidden />
-                    {t("brandCard.upload")}
+                    <RefreshCw aria-hidden />
+                    {t("brandCard.generate")}
                   </Button>
-                ) : null}
+                  {!showUpload ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={menuBusy}
+                      onClick={() => setShowUpload(true)}
+                      // Matches Generate beside it: 40px on a phone, 32px up.
+                      className="h-10 grow sm:h-8"
+                    >
+                      <Upload aria-hidden />
+                      {t("brandCard.upload")}
+                    </Button>
+                  ) : null}
+                </div>
               </div>
-            </div>
-            {websiteError ? (
-              <p
-                id="project-brand-website-error"
-                className="text-destructive text-xs"
-                role="alert"
-              >
-                {websiteError}
-              </p>
-            ) : null}
-            {shownFailure ? (
-              <div id="project-brand-failure" className="space-y-1 text-xs">
+              {websiteError ? (
                 <p
-                  className="text-destructive"
-                  // Announced when it happens, not again on every visit.
-                  role={shownFailure.live ? "alert" : undefined}
+                  id="project-brand-website-error"
+                  className="text-destructive text-xs"
+                  role="alert"
                 >
-                  {t("brandCard.failedReason", { host: shownFailure.host })}
+                  {websiteError}
                 </p>
-                <p className="text-muted-foreground">
-                  {t("brandCard.lastTried", {
-                    when: format.dateTime(
-                      new Date(shownFailure.failedAt),
-                      "dateTimeMedium",
-                    ),
-                  })}
-                </p>
-              </div>
-            ) : null}
-          </form>
+              ) : null}
+              {shownFailure ? (
+                <div id="project-brand-failure" className="space-y-1 text-xs">
+                  <p
+                    className="text-destructive"
+                    // Announced when it happens, not again on every visit.
+                    role={shownFailure.live ? "alert" : undefined}
+                  >
+                    {t("brandCard.failedReason", { host: shownFailure.host })}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {t("brandCard.lastTried", {
+                      when: format.dateTime(
+                        new Date(shownFailure.failedAt),
+                        "dateTimeMedium",
+                      ),
+                    })}
+                  </p>
+                </div>
+              ) : null}
+            </form>
+          </div>
         ) : !hasWebsite && !readOnly ? (
           <p className="text-muted-foreground text-xs">
             {t("brandCard.missingWebsite")}

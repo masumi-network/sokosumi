@@ -3668,6 +3668,13 @@
             "cancel": "Abbrechen"
           },
           "upload": "Hochladen",
+          "useOrganization": "Marke von {organization} kopieren",
+          "copy": "Kopieren",
+          "organizationTitle": "Marke von {organization}",
+          "organizationHint": "Starte mit der DESIGN.md deiner Organisation. Die Kopie gehört diesem Projekt und lässt sich hier bearbeiten.",
+          "or": "oder",
+          "organizationAlreadySet": "Dieses Projekt hat schon eine Marke.",
+          "organizationCopied": "Marke von {organization} übernommen",
           "moreActions": "Brand-Aktionen"
         },
         "backToProject": "Zurück zum Projekt",
