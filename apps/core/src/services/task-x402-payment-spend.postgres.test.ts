@@ -238,7 +238,7 @@ function createWorld(loaded: Loaded, deploymentNetwork: DeploymentNetwork) {
   };
   /** Removals of rows no fixture person or Task ties, newest first. */
   const removals: (() => Promise<unknown>)[] = [];
-  let coworker: { id: string; token: string } | undefined;
+  let coworker: { id: string; token: string; keyHash: string } | undefined;
 
   const billedTo = () => ({
     OR: [
@@ -333,8 +333,9 @@ function createWorld(loaded: Loaded, deploymentNetwork: DeploymentNetwork) {
       labels.set(vendorId, "<vendor>");
       // The key's hash is bound in the authentication read.
       const { hashApiKey } = await import("@/lib/coworker-api-key");
-      labels.set(await hashApiKey(token), "<coworker key hash>");
-      coworker = { id: row.id, token };
+      const keyHash = await hashApiKey(token);
+      labels.set(keyHash, "<coworker key hash>");
+      coworker = { id: row.id, token, keyHash };
       return coworker;
     },
 
@@ -766,6 +767,27 @@ function createWorld(loaded: Loaded, deploymentNetwork: DeploymentNetwork) {
 
 type World = ReturnType<typeof createWorld>;
 
+/** Keep the shared key stale until both requests have authenticated. */
+async function lockCoworkerKeyUse(world: World) {
+  const { keyHash } = await world.coworker();
+  const { DATABASE_SCHEMA_SHARED: shared } = testSchemaNames();
+  // A separate connection locks the row without adding fixture SQL to the recording.
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  try {
+    await client.connect();
+    await client.query("BEGIN");
+    const key = await client.query(
+      `SELECT id FROM "${shared}"."coworker_api_key" WHERE "keyHash" = $1 FOR NO KEY UPDATE`,
+      [keyHash],
+    );
+    expect(key.rowCount).toBe(1);
+    return client;
+  } catch (error) {
+    await client.end();
+    throw error;
+  }
+}
+
 /**
  * What was committed when the node was asked to sign, read on a connection of
  * its own, outside Core's pool: the payment row, its debit and its event.
@@ -835,11 +857,13 @@ async function observe(
     return node?.(...args);
   });
   const { outcome: answer, log } = await loaded.observing(async () => {
-    const result = await act();
-    while (background.length > 0) {
-      await Promise.allSettled(background.splice(0));
+    try {
+      return await act();
+    } finally {
+      while (background.length > 0) {
+        await Promise.allSettled(background.splice(0));
+      }
     }
-    return result;
   });
   if (node) outside.payX402.mockImplementation(node);
   // Every request reads its payment row first, with its Task and key bound:
@@ -1023,9 +1047,15 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
     /** Runs a case with its own Coworker, people and rows, removed after it. */
     async function withWorld(run: (world: World) => Promise<void>) {
       const world = createWorld(loaded, deploymentNetwork);
+      const now = new Date();
+      // Hold the auth throttle, payment leases and signing deadlines steady
+      // across requests. PostgreSQL and the concurrency gates still run live.
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(now);
       try {
         await run(world);
       } finally {
+        vi.useRealTimers();
         await world.remove();
       }
     }
@@ -1123,7 +1153,12 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
           const taskId = await world.task(payer, "refused person's Task");
           const agent = await world.x402Agent("Agent", deploymentNetwork);
           const body = agent.pay("refused");
-          outside.payX402.mockResolvedValue(refused);
+          outside.payX402.mockImplementation(() => {
+            // The debit's native UUIDv7 uses real time. Give Prisma's refund
+            // UUIDv7 a later timestamp so ID order follows the two writes.
+            vi.setSystemTime(vi.getRealSystemTime() + 1);
+            return refused;
+          });
 
           const refusal = await observe(loaded, world, () =>
             pay(loaded, world, taskId, body),
@@ -1312,6 +1347,7 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
               loaded,
               world,
               async () => {
+                const keyLock = await lockCoworkerKeyUse(world);
                 const answers = {
                   first: pay(loaded, world, tasks.first, bodies.first),
                   second: pay(loaded, world, tasks.second, bodies.second),
@@ -1333,6 +1369,7 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
                   gates.first.release();
                   gates.second.release();
                   outside.held.clear();
+                  await keyLock.end();
                   await Promise.allSettled([answers.first, answers.second]);
                 }
               },
