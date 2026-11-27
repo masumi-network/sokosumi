@@ -8025,7 +8025,9 @@
           "365": "365 days",
           "all": "All"
         },
+        "all": "All",
         "empty": "No page change was tracked in this period.",
+        "emptyFiltered": "No tracked page change matches these filters.",
         "customer": "Customer",
         "page": "Page",
         "suggestion": "Suggestion",

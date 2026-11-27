@@ -7989,7 +7989,9 @@
           "365": "365 Tage",
           "all": "Alle"
         },
+        "all": "Alle",
         "empty": "In diesem Zeitraum wurde keine Seitenänderung verfolgt.",
+        "emptyFiltered": "Keine verfolgte Seitenänderung passt zu diesen Filtern.",
         "customer": "Kunde",
         "page": "Seite",
         "suggestion": "Vorschlag",
