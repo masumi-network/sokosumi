@@ -227,6 +227,25 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
       ];
     }
 
+    it("reads for a Mainnet request what it read before this ticket", async () => {
+      // `/v1/users/me` for a session in its personal workspace: 4 statements,
+      // counted on both layouts with ticket 58's literal Mainnet scope in the
+      // middleware. An access-flag read on a Mainnet request adds one.
+      for (const who of [plain, optedIn, admin]) {
+        await warm("/v1/users/me", who.cookie);
+        for (const headers of [{}, { [HEADER]: "mainnet" }] as Record<
+          string,
+          string
+        >[]) {
+          const answer = await call(loaded, "/v1/users/me", {
+            cookie: who.cookie,
+            ...headers,
+          });
+          expect(answer.statements).toBe(4);
+        }
+      }
+    });
+
     it("answers without the header as with mainnet, with the same reads", async () => {
       for (const path of fixedPaths(admin.id)) {
         await warm(path, admin.cookie);
@@ -596,6 +615,36 @@ describe.runIf(enabled && onSplitLayout)(
         [HEADER]: "preprod",
       });
       expect(answer.status).toBe(403);
+    });
+
+    it("gives an authenticated router the scope of the workspace the request is in", async () => {
+      // A route that only names its scope's Network, behind the real
+      // middleware: the Organization is known before the scope is made.
+      const { OpenAPIHonoWithAuth } = await import("@/lib/hono");
+      const { errorHandler } = await import("@/helpers/error-handler");
+      const probe = new OpenAPIHonoWithAuth();
+      probe.onError(errorHandler);
+      probe.get("/", (c) => c.text(c.var.networkScope.network));
+      const network = async (headers: Record<string, string>) => {
+        const response = await probe.request(`${ORIGIN}/`, {
+          headers: { origin: ORIGIN, [HEADER]: "preprod", ...headers },
+        });
+        return [response.status, await response.text()];
+      };
+      expect(
+        await network({
+          cookie: memberOfOptedIn.cookie,
+          "X-Organization-Slug": optedInOrganization.slug,
+        }),
+      ).toEqual([200, "preprod"]);
+      expect(await network({ cookie: optedIn.cookie })).toEqual([
+        200,
+        "preprod",
+      ]);
+      expect(await network({ cookie: memberOfOptedIn.cookie })).toEqual([
+        403,
+        expect.stringContaining("preprod_access_required"),
+      ]);
     });
 
     it("gives an authenticated router the Preprod scope of a caller with access", async () => {
