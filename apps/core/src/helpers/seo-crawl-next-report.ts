@@ -145,8 +145,9 @@ export function parseCrawlNextArtifact(
     observedAt: new Date(
       observed.length ? Math.max(...observed) : Date.now(),
     ).toISOString(),
-    countryCode: first?.countryCode ?? "",
-    languageCode: first?.languageCode ?? "",
+    // Nobody chose a Market for a continuation: a page audit's own would become the next check's default Market.
+    countryCode: "",
+    languageCode: "",
     rulebookVersion: first?.rulebookVersion ?? CRAWL_ONLY_RULEBOOK,
     siteCrawl,
     checks: [],

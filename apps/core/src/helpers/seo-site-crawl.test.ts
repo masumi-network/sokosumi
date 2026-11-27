@@ -616,7 +616,9 @@ describe("imported crawl continuation", () => {
       kind: "crawl_next",
       pageUrls: [SITE],
       observedAt: "2026-11-01T12:00:00.000Z",
-      countryCode: "US",
+      // The page audits' Market is no Market the owner chose for the next check.
+      countryCode: "",
+      languageCode: "",
       findings: [],
       actions: [],
     });
