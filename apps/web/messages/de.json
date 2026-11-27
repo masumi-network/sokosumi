@@ -434,6 +434,7 @@
           "download": "Herunterladen",
           "copy": "Kopieren",
           "copySuccess": "Ergebnis in Zwischenablage kopiert",
+          "copyFormattedSuccess": "Ergebnis mit Formatierung kopiert",
           "copyError": "Ergebnis konnte nicht kopiert werden",
           "maximize": "Maximieren",
           "expand": "Ausklappen",
