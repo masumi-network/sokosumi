@@ -95,12 +95,14 @@ for (const { name: size, isMobile, ...viewport } of SIZES) {
       await page.getByText(`Copied the ${ORGANIZATION} brand`).waitFor();
       await page.getByText("Ready", { exact: true }).first().waitFor();
       assert.equal(await use.count(), 0, "the offer goes once a brand is set");
+      // The action's refresh remounts the card; focus must hold through it.
+      await page.waitForTimeout(3_000);
       assert.equal(
         await page.evaluate(() =>
           document.activeElement?.getAttribute("aria-label"),
         ),
         "Brand actions",
-        "focus moves to the brand menu",
+        "focus moves to the brand menu and stays there",
       );
 
       await page

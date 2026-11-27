@@ -98,6 +98,17 @@ interface ProjectBrandCardProps {
   organizationName?: string | null;
 }
 
+/**
+ * The project whose brand menu should take focus when it shows: set by a
+ * keyboard copy, whose button leaves with the empty form. Module scope, not
+ * component state, because the action's revalidation remounts the card (the
+ * page keys it by the file) and the menu must take focus again then. Cleared
+ * once focus moves on to another control, and good for a few seconds only, so
+ * a later visit never has its focus taken.
+ */
+let brandMenuFocus: { projectId: string; until: number } | null = null;
+const BRAND_MENU_FOCUS_MS = 10_000;
+
 const ProjectBrandDashboardContext =
   createContext<ProjectBrandDashboardValue | null>(null);
 
@@ -252,9 +263,18 @@ export function ProjectBrandCard({
   const [websiteError, setWebsiteError] = useState<string | null>(null);
   const [isSavingWebsite, startSaveWebsite] = useTransition();
   const [isCopying, startCopy] = useTransition();
-  // The copy button leaves with the empty form; whoever pressed it from the
-  // keyboard lands on the brand menu that takes its place.
-  const focusMenuOnShow = useRef(false);
+  const focusBrandMenu = useCallback(
+    (menuButton: HTMLButtonElement | null) => {
+      if (
+        menuButton &&
+        brandMenuFocus?.projectId === projectId &&
+        Date.now() < brandMenuFocus.until
+      ) {
+        menuButton.focus();
+      }
+    },
+    [projectId],
+  );
   const menuBusy =
     generation.isRunning ||
     isRemoving ||
@@ -323,11 +343,14 @@ export function ProjectBrandCard({
   }
 
   function handleCopyOrganization(organization: string, button: HTMLElement) {
-    focusMenuOnShow.current = document.activeElement === button;
+    brandMenuFocus =
+      document.activeElement === button
+        ? { projectId, until: Date.now() + BRAND_MENU_FOCUS_MS }
+        : null;
     startCopy(async () => {
       const result = await copyOrganizationDesignMdToProject({ projectId });
       if (!result.ok) {
-        focusMenuOnShow.current = false;
+        brandMenuFocus = null;
         // BAD_INPUT: the project got a brand meanwhile; the action refreshed
         // the page to show it.
         toast.error(
@@ -379,11 +402,11 @@ export function ProjectBrandCard({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
-                    ref={(menuButton) => {
-                      if (menuButton && focusMenuOnShow.current) {
-                        focusMenuOnShow.current = false;
-                        menuButton.focus();
-                      }
+                    ref={focusBrandMenu}
+                    onBlur={(event) => {
+                      // Removal from the page has no next control; a move
+                      // elsewhere does.
+                      if (event.relatedTarget) brandMenuFocus = null;
                     }}
                     type="button"
                     variant="ghost"

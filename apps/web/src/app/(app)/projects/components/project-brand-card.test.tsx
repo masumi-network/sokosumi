@@ -916,6 +916,47 @@ describe("ProjectBrandCard", () => {
     ).toHaveFocus();
   });
 
+  it("keeps focus on the brand menu when the refreshed page remounts the card", async () => {
+    vi.mocked(copyOrganizationDesignMdToProject).mockResolvedValue({
+      ok: true,
+      value: {
+        extractionId: null,
+        previewUrl: null,
+        url: "https://blob.example/project/DESIGN.md",
+      },
+    } as Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>);
+    const user = userEvent.setup();
+    const card = (designMd: { extractionId: null; url: string } | null) => (
+      // The page keys the provider by the file, as the project pages do.
+      <ProjectBrandProvider
+        key={designMd?.url ?? "empty"}
+        projectId="project-1"
+        initialDesignMd={designMd}
+        websiteUrl={null}
+      >
+        <ProjectBrandCard
+          projectId="project-1"
+          websiteUrl={null}
+          organizationName="Acme"
+        />
+      </ProjectBrandProvider>
+    );
+    const view = render(card(null));
+
+    screen.getByRole("button", { name: "Copy Acme brand" }).focus();
+    await user.keyboard("{Enter}");
+    await screen.findByText("Ready");
+    // The action's revalidation sends the page with the new file.
+    view.rerender(
+      card({
+        extractionId: null,
+        url: "https://blob.example/project/DESIGN.md",
+      }),
+    );
+
+    expect(screen.getByRole("button", { name: "Brand actions" })).toHaveFocus();
+  });
+
   it("says so when the project got a brand while the card showed it empty", async () => {
     vi.mocked(copyOrganizationDesignMdToProject).mockResolvedValue({
       ok: false,
