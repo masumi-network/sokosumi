@@ -278,17 +278,20 @@ async function timeOutStuckRun(run: {
 }
 
 /**
- * The queued run first in line starts once nothing else is running. Only runs
- * of this Core's environment: a database forked from production holds its
- * queued and running runs, and a preview or local Core must not run them.
+ * The queued run first in line starts once nothing else is running: the
+ * database has one set of lanes. A Core starts and advances only runs of its
+ * own environment, so a database forked from production never runs its copied
+ * runs; while another environment's run is running, this Core waits, and a
+ * copied run times out like any stuck run.
  */
 async function startNextRun() {
   const environment = evalEnvironment();
   const running = await prisma.evalRun.findFirst({
-    where: { status: "RUNNING", environment },
+    where: { status: "RUNNING" },
     orderBy: { createdAt: "asc" },
   });
-  if (running && !(await timeOutStuckRun(running))) return running;
+  if (running && !(await timeOutStuckRun(running)))
+    return running.environment === environment ? running : null;
   const queued = await prisma.evalRun.findFirst({
     where: { status: "QUEUED", environment },
     orderBy: { createdAt: "asc" },
