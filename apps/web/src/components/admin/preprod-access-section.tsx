@@ -147,7 +147,6 @@ export function PreprodAccessSection({
               aria-labelledby={titleId}
               checked={access.enabled}
               onCheckedChange={setRequested}
-              disabled={isPending}
             />
             <span className="text-sm">
               {t("state", { enabled: String(access.enabled) })}
