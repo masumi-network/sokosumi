@@ -23,7 +23,7 @@ describe("calculateAgentRating", () => {
       userAgentRating: {
         aggregate,
       },
-    } as unknown as Prisma.TransactionClient;
+    } as unknown as NetworkDb;
 
     const result = await calculateAgentRating("agent-1", tx);
 

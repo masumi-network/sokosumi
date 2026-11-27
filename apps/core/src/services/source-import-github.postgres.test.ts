@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { copyPostgresTestDatabase } from "@/test/postgres-database-copy";
 
 /**
  * The GitHub-linked import, end to end against the real service.
@@ -77,79 +78,20 @@ const enabled =
   Boolean(templateDatabaseUrl?.startsWith("postgres"));
 
 /** Name of the throwaway copy this run created, while it exists. */
-let provisionedDatabase: string | null = null;
-
-function maintenanceUrl(source: string): string {
-  const url = new URL(source);
-  url.pathname = "/postgres";
-  return url.toString();
-}
-
-/**
- * Copy the template into a database nobody else knows about.
- *
- * `CREATE DATABASE ... TEMPLATE ...` is a single statement and yields a
- * fully migrated, exclusively owned copy — which is what makes calling the
- * unscoped worker safe. The maintenance connection is closed immediately;
- * only Prisma talks to the copy afterwards.
- */
-async function provisionIsolatedDatabase(source: string): Promise<string> {
-  const { Client } = await import("pg");
-
-  const template = decodeURIComponent(
-    new URL(source).pathname.replace(/^\//, ""),
-  );
-  const name = `files_import_test_${randomUUID().replace(/-/g, "")}`;
-
-  const admin = new Client({ connectionString: maintenanceUrl(source) });
-  await admin.connect();
-  try {
-    // Identifiers cannot be bound as parameters. Both are quoted; the name
-    // is generated here and the template comes from the operator's own URL.
-    await admin.query(
-      `CREATE DATABASE "${name}" TEMPLATE "${template.replace(/"/g, '""')}"`,
-    );
-  } finally {
-    await admin.end();
-  }
-
-  const target = new URL(source);
-  target.pathname = `/${name}`;
-  process.env.DATABASE_URL = target.toString();
-  return name;
-}
+let provisionedDatabase: Awaited<
+  ReturnType<typeof copyPostgresTestDatabase>
+> | null = null;
 
 /**
  * Give back the one database this run created, and nothing else.
  *
- * `name` is the exact string `provisionIsolatedDatabase` generated, never a
+ * `name` is the exact string `copyPostgresTestDatabase` generated, never a
  * pattern, so no other run's copy is reachable from here. The drop is plain:
  * `FORCE` would terminate whatever is attached, and this has no way to know
  * that what is attached is not another process. A drop that does not succeed
  * therefore leaves the copy alone and reports its name; it holds no data
  * anyone needs and a human can remove it with the printed statement.
- */
-async function dropIsolatedDatabase(
-  source: string,
-  name: string,
-): Promise<void> {
-  const { Client } = await import("pg");
-  const admin = new Client({ connectionString: maintenanceUrl(source) });
-  try {
-    await admin.connect();
-    await admin.query(`DROP DATABASE IF EXISTS "${name}"`);
-  } catch (error) {
-    console.warn(
-      `[source-import-github.postgres] could not drop the throwaway database ` +
-        `"${name}"; it is left in place. Remove it with: DROP DATABASE "${name}"`,
-      error,
-    );
-  } finally {
-    await admin.end().catch(() => {});
-  }
-}
-
-/**
+ *
  * Disconnect and hand back this run's copy, exactly once.
  *
  * Prisma has to let go first: the drop is deliberately not forced, so an open
@@ -161,7 +103,14 @@ async function releaseProvisionedDatabase(): Promise<void> {
   if (!allocated) return;
 
   await prismaHolder.client?.$disconnect().catch(() => {});
-  await dropIsolatedDatabase(templateDatabaseUrl as string, allocated);
+  try {
+    await allocated.drop();
+  } catch (error) {
+    console.warn(
+      `[source-import-github.postgres] could not drop the throwaway database "${allocated.name}"; it is left in place. Remove it with: DROP DATABASE "${allocated.name}"`,
+      error,
+    );
+  }
 }
 
 /** The exact URL from the report: a page *about* a Markdown file. */
@@ -265,9 +214,11 @@ describe.skipIf(!enabled)("GitHub-linked import against PostgreSQL", () => {
     // Before Prisma is imported: its client is a singleton built from the
     // environment on first import, so the copy must already exist and
     // DATABASE_URL must already point at it.
-    provisionedDatabase = await provisionIsolatedDatabase(
+    provisionedDatabase = await copyPostgresTestDatabase(
       templateDatabaseUrl as string,
+      "files_import_test",
     );
+    process.env.DATABASE_URL = provisionedDatabase.url;
 
     try {
       const { default: prisma } = await import("@/lib/db/prisma");

@@ -28,8 +28,9 @@ describe("ChatHomePageSkeleton", () => {
     render(<ChatHomePageSkeleton />);
 
     const bone = screen.getByTestId("home-loading-composer");
-    // RoomComposer's form: px-3 md:px-5 and the safe-area pb-3 md:pb-6.
-    expect(bone.parentElement?.className).toBe("px-3 pb-3 md:px-5 md:pb-6");
+    // Home's composer form: no phone gutter of its own (main pads it), md:px-5,
+    // and the safe-area pb-3 md:pb-6.
+    expect(bone.parentElement?.className).toBe("pb-3 md:px-5 md:pb-6");
     // Card: editor 48px + toolbar (40px buttons, 32px from md) + borders.
     expect(bone.className).toContain("h-27.5");
     expect(bone.className).toContain("md:h-25.5");

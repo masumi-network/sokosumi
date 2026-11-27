@@ -36,6 +36,11 @@
       "cli": "drive delete-folder",
       "mcp": "drive_delete_folder"
     },
+    "POST /drive/files/combine-pdf": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Returns PDF bytes as a download, not JSON, like `GET /drive/files/content`; it changes nothing in Drive."
+    },
     "PATCH /drive/files/move": {
       "cli": "drive move",
       "mcp": "drive_move"

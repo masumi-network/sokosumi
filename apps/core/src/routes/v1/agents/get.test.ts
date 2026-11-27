@@ -35,9 +35,6 @@ const {
 }));
 
 vi.mock("@/helpers/agent", () => ({
-  AGENT_PRICING_READ_TRANSACTION_OPTIONS: { isolationLevel: "RepeatableRead" },
-  getCardanoV2ReadySources: () => Promise.resolve([]),
-  buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
   getAgentAuthorImage: getAgentAuthorImageMock,
   getAgentDescription: getAgentDescriptionMock,
   getAgentIcon: getAgentIconMock,
@@ -45,7 +42,17 @@ vi.mock("@/helpers/agent", () => ({
   getAgentName: getAgentNameMock,
 }));
 
-vi.mock("@/helpers/x402-readiness", () => ({
+vi.mock("@/lib/agent-catalog/availability", async (load) => ({
+  ...(await load<typeof import("@/lib/agent-catalog/availability")>()),
+  buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
+  readListingInputs: async () => ({
+    creditCosts: [],
+    cardanoV2ReadySources: [],
+    readySources: [],
+    network: "Preprod",
+  }),
+}));
+vi.mock("@/lib/agent-catalog/x402", () => ({
   getX402ReadySources: () => Promise.resolve([]),
   getX402AgentCatalogWhere: getX402AgentCatalogWhereMock,
   hasValidX402DiscoveryUrl: () => true,

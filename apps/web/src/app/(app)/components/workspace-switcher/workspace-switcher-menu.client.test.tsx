@@ -19,7 +19,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    values ? `${key}(${Object.values(values).join(",")})` : key,
 }));
 
 vi.mock("@/hooks/use-modal", () => ({
@@ -150,7 +151,10 @@ describe("WorkspaceSwitcherMenu", () => {
       placement: "rail",
     });
 
-    const trigger = screen.getByRole("button", { name: "switchOrganization" });
+    // Icon only, so the name says what it does and which workspace is on.
+    const trigger = screen.getByRole("button", {
+      name: "switchWorkspaceCurrent(Org A)",
+    });
     expect(within(trigger).queryByText("Org A")).toBeNull();
     expect(trigger.querySelector(".lucide-chevrons-up-down")).toBeNull();
 
@@ -158,6 +162,20 @@ describe("WorkspaceSwitcherMenu", () => {
     const menu = screen.getByRole("menu");
     expect(within(menu).getAllByText("Org A").length).toBeGreaterThan(0);
     expect(within(menu).getByText("justYou")).toBeInTheDocument();
+  });
+
+  it("names the rail trigger after a Personal workspace, not an organisation", () => {
+    renderSwitcher({
+      workspaces: [personalWorkspace, orgWorkspace],
+      activeOrganizationId: null,
+      placement: "rail",
+    });
+
+    expect(
+      screen.getByRole("button", {
+        name: "switchWorkspaceCurrent(personalTitle)",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("skeletons the chip when the active org is missing from the workspaces", () => {
@@ -265,7 +283,9 @@ describe("WorkspaceSwitcherMenu", () => {
 
     await user.click(screen.getByRole("button", { name: /Org A/i }));
 
-    expect(screen.getByText("roleAndMemberCount")).toBeInTheDocument();
+    expect(
+      screen.getByText("roleAndMemberCount(owner,14)"),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: "organizationSettings" }),
     ).toHaveAttribute("href", "/organization");

@@ -1451,6 +1451,9 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       '{"content":"# Design\\n"}',
     ],
   },
+  "POST /projects/{id}/design-md/from-organization": {
+    argv: [...API, "projects", "copy-organization-design", "p-1"],
+  },
   "DELETE /projects/{id}/design-md": {
     argv: [...API, "projects", "clear-design", "p-1"],
   },

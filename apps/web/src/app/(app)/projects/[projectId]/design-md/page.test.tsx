@@ -46,6 +46,10 @@ vi.mock("@/components/design-md/design-md-edit-page-shared", () => ({
   fetchDesignMdMarkdown: (url: string) => fetchDesignMdMarkdownMock(url),
 }));
 
+vi.mock("@/app/projects/organization-brand-name", () => ({
+  organizationBrandName: async () => null,
+}));
+
 vi.mock("@/app/projects/components/project-brand-card", () => ({
   ProjectBrandProvider: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>

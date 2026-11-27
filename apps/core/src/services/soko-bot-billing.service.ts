@@ -5,6 +5,8 @@ import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
+import { spend } from "@/lib/credits/spend";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 
@@ -498,15 +500,21 @@ async function chargeSokoBotUsage(
     };
   }
   const organizationId = payer?.organizationId ?? null;
-  const projectScope = payerProjectScope(payer);
-  const balance = await creditBucketRepository.getBalance(
-    input.userId,
-    organizationId,
+  // An empty wallet pays nothing; credits gone after the balance covered the
+  // charge throw, and the caller's transaction rolls back.
+  const spent = await spend({
+    // A turn's model usage always bills Mainnet, a Preprod turn's too.
+    scope: createNetworkScope("mainnet"),
     tx,
-    projectScope,
-  );
-  const chargedCents = balance < expectedCents ? balance : expectedCents;
-  if (chargedCents <= 0n) {
+    payer: {
+      userId: input.userId,
+      organizationId,
+      projectId: payerProjectScope(payer).projectId,
+    },
+    quotedCents: expectedCents,
+    mode: "up_to_balance",
+  });
+  if (spent.outcome === "not_charged") {
     return {
       chargedCents: 0n,
       expectedCents,
@@ -515,23 +523,7 @@ async function chargeSokoBotUsage(
       cusoProjectId,
     };
   }
-  const consumptions = await creditBucketRepository.prepareConsumption(
-    "mainnet",
-    input.userId,
-    organizationId,
-    chargedCents,
-    tx,
-    projectScope,
-  );
-  const transaction = await tx.transaction.create({
-    data: {
-      amount: -chargedCents,
-      userId: input.userId,
-      organizationId,
-      creditConsumptions: { createMany: { data: consumptions } },
-    },
-    select: { id: true },
-  });
+  const { chargedCents } = spent;
   await tx.sokoBotUsage.create({
     data: {
       sokoBotId: input.sokoBotId,
@@ -540,13 +532,13 @@ async function chargeSokoBotUsage(
       idempotencyKey,
       referenceId: input.referenceId,
       cents: chargedCents,
-      transactionId: transaction.id,
+      transactionId: spent.transactionId,
     },
   });
   return {
     chargedCents,
     expectedCents,
-    shortfall: chargedCents < expectedCents,
+    shortfall: spent.shortfall,
     organizationId,
     cusoProjectId,
   };

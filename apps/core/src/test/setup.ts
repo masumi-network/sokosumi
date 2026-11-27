@@ -78,6 +78,8 @@ for (const [key, value] of Object.entries(envDefaults)) {
 // database (`postgres-worker-databases.ts`); point this worker at its copy.
 const poolId = process.env.VITEST_POOL_ID;
 if (process.env.POSTGRES_TEST_DATABASE_PER_WORKER === "true" && poolId) {
+  // Keep the idle migrated template available to suites that need a private copy.
+  process.env.POSTGRES_TEST_TEMPLATE_URL = process.env.DATABASE_URL;
   for (const key of ["DATABASE_URL", "DATABASE_URL_UNPOOLED"]) {
     const url = process.env[key];
     if (url?.startsWith("postgres")) {
