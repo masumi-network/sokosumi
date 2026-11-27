@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { testSchemaNames } from "@/test/split-layout";
 import { requestProjectClose } from "./project-close-lifecycle.service";
+import { ensureSystemSchedules } from "./soko-bot-proactive.service";
 import {
   createSharedSokoBot,
   reactivateSharedSokoBot,
@@ -470,6 +471,42 @@ describe.skipIf(!enabled)("shared Soko Bot creation against PostgreSQL", () => {
       select: { archivedAt: true },
     });
     expect(after.archivedAt).not.toBeNull();
+  }, 30000);
+
+  // The close locks the workspace, then the bot; the schedule insert's
+  // foreign keys lock the bot, then the workspace. Postgres aborts the
+  // insert, which is no failure: the bot is archived or the next tick retries.
+  it("creates no warning when a schedule insert deadlocks with a close", async () => {
+    const bot = await createSharedSokoBot({
+      callerUserId: fixture.member,
+      workspaceId: fixture.workspace,
+      projectId: null,
+      name: "Deadlock bot",
+    });
+    await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: bot.id } });
+    if (!url) throw new Error("Missing integration database");
+    const client = createPrismaClient(url, {
+      schema: testSchemaNames().DATABASE_SCHEMA_SHARED,
+    });
+    let ensured: Promise<void> | undefined;
+    try {
+      await client.$transaction(
+        async (tx) => {
+          await tx.$executeRawUnsafe(
+            `SELECT id FROM ${sharedTable("workspace").sql} WHERE id = '${fixture.workspace}' FOR UPDATE`,
+          );
+          ensured = ensureSystemSchedules(bot);
+          await waitForLockWait("%insert into%soko_bot_schedule%");
+          await tx.$executeRawUnsafe(
+            `SELECT 1 FROM ${sharedTable("soko_bot").sql} WHERE id = '${bot.id}' FOR UPDATE`,
+          );
+        },
+        { timeout: 20000 },
+      );
+    } finally {
+      await ensured;
+      await client.$disconnect();
+    }
   }, 30000);
 
   // Close locks the workspace, then the Project. A create that wrote the

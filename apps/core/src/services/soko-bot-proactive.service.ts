@@ -13,7 +13,10 @@ import {
 import { buildChatMessagePreview } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
-import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import {
+  isPrismaTransactionConflict,
+  isPrismaUniqueViolation,
+} from "@/helpers/prisma";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
@@ -227,8 +230,15 @@ export async function ensureSystemSchedules(bot: {
         },
       })
       .catch((error: unknown) => {
-        // Raced by another tick: the unique key holds.
-        if (isPrismaUniqueViolation(error)) return;
+        // Raced by another tick: the unique key holds. Or deadlocked with a
+        // Project close, which locks the workspace then the bot while this
+        // insert's foreign keys lock the bot then the workspace; the close
+        // archives the bot, and the next tick retries for a live one.
+        if (
+          isPrismaUniqueViolation(error) ||
+          isPrismaTransactionConflict(error)
+        )
+          return;
         recordCoreWarning(
           {
             operation: "soko_bot_system_schedules",
