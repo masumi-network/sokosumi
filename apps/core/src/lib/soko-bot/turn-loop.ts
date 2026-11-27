@@ -957,67 +957,78 @@ async function ownerNarrative(
     return { ...narrative, message: kept, replyCheck: "unchecked" };
   }
   warnReplyCheck(turnId, "claims_unconfirmed_change");
+  const originalMessage = narrative.message;
+  const runBudgeted = Object.keys(answerClaims).includes("withClaimCheckBudget")
+    ? answerClaims.withClaimCheckBudget
+    : async <T>(
+        fn: (budget: answerClaims.ClaimCheckBudget) => Promise<T>,
+      ): Promise<T> =>
+        fn({ deadlineAt: Date.now() + 12_000, remainingCalls: 3 });
   const checkBySentence = Object.keys(answerClaims).includes(
     "claimsActionBySentence",
   )
     ? answerClaims.claimsActionBySentence
     : undefined;
-  if (typeof checkBySentence === "function") {
-    const filtered = await filterUnsupportedClaimSentences(
-      narrative.message,
-      confirmed,
-      checkBySentence,
-    );
-    if (filtered !== null) {
-      if (filtered.unchecked) {
-        return {
-          ...narrative,
-          message: filtered.message,
-          replyCheck: "unchecked",
-        };
-      }
-      const candidate =
-        filtered.message !== null && filtered.message !== narrative.message
-          ? filtered.message
-          : withoutChangeClaims(narrative.message);
-      if (candidate === null || candidate === narrative.message) {
+  return runBudgeted(async (pruneBudget) => {
+    if (typeof checkBySentence === "function") {
+      const filtered = await filterUnsupportedClaimSentences(
+        originalMessage,
+        confirmed,
+        checkBySentence,
+        pruneBudget,
+      );
+      if (filtered !== null && filtered.outcome === "pruned") {
+        // Negative sentence verdicts are permanent: if zero sentences/clauses were
+        // positively cleared (or nothing actually changed), withhold the rejected text.
+        if (filtered.message === null || filtered.message === originalMessage) {
+          return { ...narrative, message: null, replyCheck: "cut" };
+        }
+        const recheck = await answerClaims.claimsAction(
+          filtered.message,
+          confirmed,
+        );
+        if (recheck === false) {
+          return { ...narrative, message: filtered.message, replyCheck: "cut" };
+        }
+        if (recheck === null) {
+          // Every surviving sentence/clause was already positively cleared by
+          // claimsActionBySentence, so on budget exhaustion or recheck outage
+          // keep only that positively cleared text.
+          return { ...narrative, message: filtered.message, replyCheck: "cut" };
+        }
+        // Recheck flagged the combined surviving text: scrub only the surviving
+        // text (never returning to already-rejected original sentences) and
+        // require positive clearance before keeping it.
+        const scrubbed = withoutChangeClaims(filtered.message);
+        if (scrubbed !== null && scrubbed !== filtered.message) {
+          const finalCheck = await answerClaims.claimsAction(
+            scrubbed,
+            confirmed,
+          );
+          if (finalCheck === false) {
+            return { ...narrative, message: scrubbed, replyCheck: "cut" };
+          }
+        }
         return { ...narrative, message: null, replyCheck: "cut" };
       }
-      const recheck = await answerClaims.claimsAction(candidate, confirmed);
-      if (recheck === false) {
-        return { ...narrative, message: candidate, replyCheck: "cut" };
-      }
-      if (recheck === null) {
-        return { ...narrative, message: candidate, replyCheck: "unchecked" };
-      }
-      // Before dropping the whole message on a noisy recheck, scrub any remaining
-      // regex-matched claim sentences from the surviving text.
-      const scrubbed = withoutChangeClaims(candidate);
-      if (scrubbed !== null && scrubbed !== candidate) {
-        const finalCheck = await answerClaims.claimsAction(scrubbed, confirmed);
-        if (finalCheck === false) {
-          return { ...narrative, message: scrubbed, replyCheck: "cut" };
-        }
-        if (finalCheck === null) {
-          return { ...narrative, message: scrubbed, replyCheck: "unchecked" };
-        }
-      }
+    }
+    // Sentence pruning could not isolate verdicts (unavailable / partial test mock):
+    // never return the unchanged already-rejected reply; only a strictly cut
+    // deterministic scrub may proceed to recheck.
+    if (kept === null || kept === originalMessage) {
       return { ...narrative, message: null, replyCheck: "cut" };
     }
-  }
-  const recheck =
-    kept !== null && kept !== narrative.message
-      ? await answerClaims.claimsAction(kept, confirmed)
-      : true;
-  // A second check that cannot run leaves the cut as it is: it already
-  // holds no sentence that says something was done.
-  if (recheck === null)
-    return { ...narrative, message: kept, replyCheck: "unchecked" };
-  return {
-    ...narrative,
-    message: recheck === false ? kept : null,
-    replyCheck: "cut",
-  };
+    const recheck = await answerClaims.claimsAction(kept, confirmed);
+    // A second check that cannot run leaves the strictly cut scrub as unchecked:
+    // it already removed every sentence matching CHANGE_CLAIM.
+    if (recheck === null)
+      return { ...narrative, message: kept, replyCheck: "unchecked" };
+    return {
+      ...narrative,
+      message: recheck === false ? kept : null,
+      replyCheck: "cut",
+    };
+  });
 }
 
 interface MessageUnit {
@@ -1120,17 +1131,22 @@ function tidyKeptClauses(clauses: readonly string[]): string {
 }
 
 /**
- * Drops only the sentence(s) — or unsupported clause(s) within a mixed
- * sentence — that claim an unconfirmed change, keeping confirmed work,
- * findings, blockers, and next steps intact.
+ * Drops every rejected or unchecked sentence — keeping only sentences (or
+ * independent clauses of a mixed sentence) positively cleared (`false`) by
+ * `claimsActionBySentence` within the shared pruning budget.
  */
 async function filterUnsupportedClaimSentences(
   message: string,
   confirmed: readonly string[],
   checkBySentence: typeof answerClaims.claimsActionBySentence,
-): Promise<{ message: string | null; unchecked: boolean } | null> {
+  budget: answerClaims.ClaimCheckBudget,
+): Promise<
+  | { outcome: "pruned"; message: string | null }
+  | { outcome: "unavailable" }
+  | null
+> {
   const { lineCount, blankLines, units } = splitMessageUnits(message);
-  if (units.length === 0) return { message: null, unchecked: false };
+  if (units.length === 0) return { outcome: "pruned", message: null };
 
   const verdicts = await checkBySentence(
     units.map((unit) => unit.text),
@@ -1138,11 +1154,12 @@ async function filterUnsupportedClaimSentences(
   );
   if (!Array.isArray(verdicts)) return null;
   if (verdicts.every((verdict) => verdict === null)) {
-    return { message: withoutChangeClaims(message), unchecked: true };
+    return { outcome: "unavailable" };
   }
 
   // For sentences flagged as unsupported, attempt clause-level pruning in one
-  // batched call so a single mixed sentence keeps its confirmed/factual clause.
+  // batched call (sharing the same budget) so a single mixed sentence keeps
+  // only positively cleared clauses.
   const clausePlans: { unitIndex: number; clauses: string[] }[] = [];
   const flatClauses: string[] = [];
   for (let i = 0; i < units.length; i++) {
@@ -1154,7 +1171,9 @@ async function filterUnsupportedClaimSentences(
     }
   }
   const clauseVerdicts =
-    flatClauses.length > 0 ? await checkBySentence(flatClauses, confirmed) : [];
+    flatClauses.length > 0 && budget.remainingCalls > 0
+      ? await checkBySentence(flatClauses, confirmed)
+      : [];
   const rescuedByUnit = new Map<number, string>();
   if (Array.isArray(clauseVerdicts)) {
     let cursor = 0;
@@ -1174,18 +1193,18 @@ async function filterUnsupportedClaimSentences(
     const unit = units[i];
     if (!unit) continue;
     const verdict = verdicts[i];
+    // Only positively cleared (`false`) sentences/clauses survive inside an
+    // already-rejected reply; rejected (`true`) and unchecked (`null`) drop.
     if (verdict === false) {
       keptUnits.push(unit);
-    } else if (verdict === null) {
-      if (!claimsOwnChange(unit.text)) keptUnits.push(unit);
-    } else {
+    } else if (verdict === true) {
       const rescued = rescuedByUnit.get(i);
       if (rescued) keptUnits.push({ lineIndex: unit.lineIndex, text: rescued });
     }
   }
   return {
+    outcome: "pruned",
     message: joinMessageUnits(lineCount, blankLines, keptUnits),
-    unchecked: false,
   };
 }
 

@@ -7,7 +7,13 @@ vi.mock("ai", () => ({
 }));
 
 import { expectCoreLogWhys } from "@/test/core-log";
-import { claimsAction, claimsActionBySentence } from "./answer-claims";
+import {
+  CLAIM_PRUNE_MAX_CALLS,
+  claimsAction,
+  claimsActionBySentence,
+  createClaimCheckBudget,
+  withClaimCheckBudget,
+} from "./answer-claims";
 
 describe("claimsAction", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -122,5 +128,50 @@ describe("claimsActionBySentence", () => {
       claimsActionBySentence(["Safe line.", "I scheduled it."], []),
     ).resolves.toEqual([false, true]);
     expect(evaluateMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops immediately on an empty batch and caps total Jev calls across 100 lines and expired deadlines", async () => {
+    const hundredLines = Array.from(
+      { length: 100 },
+      (_, i) => `Line ${i + 1} summary.`,
+    );
+
+    // 1. Empty evaluator reply on batch 0 -> single call, never 10 serial retries.
+    evaluateMock.mockResolvedValue({ answers: {} });
+    const outageResults = await claimsActionBySentence(hundredLines, []);
+    expect(evaluateMock).toHaveBeenCalledTimes(1);
+    expect(outageResults).toHaveLength(100);
+    expect(outageResults.every((verdict) => verdict === null)).toBe(true);
+
+    // 2. Healthy evaluator on 100 lines -> capped at CLAIM_PRUNE_MAX_CALLS (3),
+    // leaving lines beyond the budget unchecked (null) and sharing budget with rechecks.
+    evaluateMock.mockClear();
+    evaluateMock.mockResolvedValue({
+      answers: Object.fromEntries(
+        Array.from({ length: 20 }, (_, i) => [`s${i}`, { probability: 0.1 }]),
+      ),
+    });
+    const bounded = await withClaimCheckBudget(async (budget) => {
+      const result = await claimsActionBySentence(hundredLines, []);
+      expect(evaluateMock).toHaveBeenCalledTimes(CLAIM_PRUNE_MAX_CALLS);
+      expect(budget.remainingCalls).toBe(0);
+      // Subsequent two-arg recheck inside the same shared scope consumes zero extra calls.
+      await expect(claimsAction("Line 1 summary.", [])).resolves.toBeNull();
+      expect(evaluateMock).toHaveBeenCalledTimes(CLAIM_PRUNE_MAX_CALLS);
+      return result;
+    });
+    expect(bounded.slice(0, 60).every((verdict) => verdict === false)).toBe(
+      true,
+    );
+    expect(bounded.slice(60).every((verdict) => verdict === null)).toBe(true);
+
+    // 3. Expired shared deadline skips all further evaluator calls immediately.
+    evaluateMock.mockClear();
+    const expired = createClaimCheckBudget(3, 0, Date.now() - 1);
+    await expect(
+      claimsActionBySentence(["Safe line."], [], expired),
+    ).resolves.toEqual([null]);
+    await expect(claimsAction("Safe line.", [], expired)).resolves.toBeNull();
+    expect(evaluateMock).not.toHaveBeenCalled();
   });
 });

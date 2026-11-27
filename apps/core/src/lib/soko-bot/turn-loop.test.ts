@@ -503,13 +503,63 @@ describe("finishTurn", () => {
     });
   });
 
-  it("falls back to unchecked deterministic scrub when per-sentence check fails", async () => {
+  it("does not restore an unchanged reply already rejected as a whole", async () => {
     expectCoreLogWhys(
       "warn",
       "Cut a Soko Bot reply's claim of an unconfirmed change",
       ["The reply claims a change that no action receipt confirms"],
     );
     claimsActionMock.mockResolvedValueOnce(true);
+    claimsActionBySentenceMock.mockResolvedValueOnce([null]);
+    await finish("I forwarded the invoice to Finance.", true);
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: null,
+      replyCheck: "cut",
+    });
+  });
+
+  it("does not restore an individually rejected sentence after a recheck outage", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(null);
+    claimsActionBySentenceMock.mockResolvedValueOnce([true, true]);
+    await finish("I created a task. I forwarded the invoice to Finance.", true);
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: null,
+      replyCheck: "cut",
+    });
+  });
+
+  it("keeps only positively cleared sentences when later sentences are unchecked due to budget exhaustion", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(null);
+    claimsActionBySentenceMock.mockResolvedValueOnce([false, true, null]);
+
+    await finish(
+      "The file is ready for review. I scheduled the posts. I forwarded the invoice to Finance.",
+      true,
+    );
+
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: "The file is ready for review.",
+      replyCheck: "cut",
+    });
+  });
+
+  it("falls back to strictly cut deterministic scrub when per-sentence check is unavailable and recheck passes", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(null);
     claimsActionBySentenceMock.mockResolvedValueOnce([null, null]);
 
     await finish(
