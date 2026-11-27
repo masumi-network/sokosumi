@@ -38,6 +38,7 @@ import {
   organizerFailures,
   packetTaskIds,
   routingFailures,
+  stepSettled,
   withDescendants,
 } from "./journey-runner";
 import {
@@ -1003,6 +1004,33 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       await journeyWorkToStop(botId, stepStartedAt, journeyStartedAt),
     ).toEqual({ turnIds: [ownDelegationWake.id], watchIds: [ownWaiting.id] });
     expect(foreignWatch.id).not.toBe(ownWaiting.id);
+    // With this journey's work done, a foreign watch still waiting doesn't
+    // hold the step open; this journey's own waiting watch does.
+    await prisma.sokoBotTurn.update({
+      where: { id: ownDelegationWake.id },
+      data: { status: "COMPLETED" },
+    });
+    expect(
+      await stepSettled(
+        botId,
+        stepStartedAt,
+        journeyStartedAt,
+        new Date(),
+        null,
+        {},
+      ),
+    ).toBe(false);
+    await prisma.sokoBotWatch.delete({ where: { id: ownWaiting.id } });
+    expect(
+      await stepSettled(
+        botId,
+        stepStartedAt,
+        journeyStartedAt,
+        new Date(),
+        null,
+        {},
+      ),
+    ).toBe(true);
     await prisma.sokoBotWatch.deleteMany({ where: { sokoBotId: botId } });
     await prisma.sokoBotDelegation.deleteMany({
       where: { turnId: { in: [previousRun.id, owner.id] } },

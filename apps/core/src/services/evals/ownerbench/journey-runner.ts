@@ -470,7 +470,7 @@ async function stepTurnIds(
  * that waits on a wake runs the events scan each poll and settles only after
  * the bot was woken (or the step times out).
  */
-async function stepSettled(
+export async function stepSettled(
   botId: string,
   since: Date,
   journeyStartedAt: Date,
@@ -513,8 +513,15 @@ async function stepSettled(
     sokoBotId: botId,
   });
   if (sync.fired > 0 || sync.deferred > 0) return false;
+  // Only a watch this journey's own turns wait on holds the step open.
+  const journey = await journeyTurns(botId, journeyStartedAt, journeyStartedAt);
   const waiting = await prisma.sokoBotWatch.count({
-    where: { sokoBotId: botId, status: "WAITING", createdAt: { gte: since } },
+    where: {
+      sokoBotId: botId,
+      status: "WAITING",
+      createdAt: { gte: since },
+      turnId: { in: journey.map((turn) => turn.id) },
+    },
   });
   return waiting === 0;
 }
