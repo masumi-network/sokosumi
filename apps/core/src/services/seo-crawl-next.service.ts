@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import { seoTaskDescription } from "@sokosumi/utils";
+import { z } from "zod";
 import { getEnv } from "@/config/env";
 import { conflict, notFound } from "@/helpers/error";
 import { reportObject } from "@/helpers/project-seo-public-report";
@@ -15,6 +16,7 @@ import { fullAuditBillingContext } from "@/lib/seo/audit-settlement";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import type { RequestSeoCrawlNext } from "@/schemas/seo-audit-price.schema";
 import { seoSiteCrawlSchema } from "@/schemas/seo-site-crawl.schema";
+import { requireNotCmoProject } from "./cmo-cuso.service";
 import { requireNoActiveSeoAnalysis } from "./project-seo-analysis-concurrency";
 import {
   commitSeoMutation,
@@ -33,6 +35,7 @@ import { createTaskForActor } from "./task-domain.service";
 const CRAWLED_KINDS = ["audit_full", "crawl_next"];
 /** The observations the tip reads: a chain longer than this is past what any owner pays for. */
 const MAX_CRAWLS = 200;
+const PAGE_URLS = z.array(z.string());
 const RETRY = "The crawl request changed. Retry with the same key.";
 /**
  * How long a completed continuation's Report may take to arrive. Until it does, the chain still ends at its parent,
@@ -59,28 +62,35 @@ export async function readSeoCrawls(
     take: MAX_CRAWLS,
     select: { kind: true, payload: true },
   });
-  return rows.map((row) => ({
-    kind: row.kind,
-    siteCrawl: seoSiteCrawlSchema.safeParse(
-      reportObject(row.payload)?.siteCrawl,
-    ).data,
-  }));
+  return rows.map((row) => {
+    const payload = reportObject(row.payload);
+    return {
+      kind: row.kind,
+      siteCrawl: seoSiteCrawlSchema.safeParse(payload?.siteCrawl).data,
+      pageUrls: PAGE_URLS.safeParse(payload?.pageUrls).data ?? [],
+    };
+  });
 }
 
 /** The workspace projection's dispatch inputs: what the SEO check service runs here, and the crawl a continuation goes on from. */
 export async function seoDispatchInputs(
   actor: SeoActor,
   executor: Awaited<ReturnType<typeof findSeoAnalysisExecutor>>,
+  visiblePages: readonly { url: string }[],
 ) {
+  const tip =
+    executor?.canUsePaidSearchData && isSeoCrawlNextEnabled()
+      ? crawlContinuationTip(await readSeoCrawls(prisma, actor))
+      : null;
+  // The continuation's Task and result link only to its start page: a view without that page could not show them.
+  const shown =
+    tip &&
+    visiblePages.some((page) => page.url === normalizeSeoUrl(tip.startUrl));
   return {
     analysisDispatchEnabled: executor !== null,
     canUsePaidSearchData: executor?.canUsePaidSearchData === true,
     canSchedule: executor?.canSchedule === true,
-    continueCrawlFrom:
-      executor?.canUsePaidSearchData && isSeoCrawlNextEnabled()
-        ? (crawlContinuationTip(await readSeoCrawls(prisma, actor))
-            ?.snapshotId ?? null)
-        : null,
+    continueCrawlFrom: shown ? tip.snapshotId : null,
   };
 }
 
@@ -134,11 +144,14 @@ export async function requestSeoCrawlNext(
         "Paid search data is unavailable for this SEO check service",
       );
     const owner = await requireSeoOwner(actor, tx);
-    if (owner.projectId)
+    if (owner.projectId) {
       await requireLockedOpenProject(tx, {
         projectId: owner.projectId,
         workspaceId: actor.workspaceId,
       });
+      // The Project route's lock does not see a request through the audit.
+      await requireNotCmoProject(owner.projectId, actor.workspaceId, tx);
+    }
     await requireSeoAnalysisBalance(
       tx,
       {
@@ -151,6 +164,10 @@ export async function requestSeoCrawlNext(
     const scope = await resolveSeoScope(actor, {}, tx);
     const startUrl = normalizeSeoUrl(tip.startUrl);
     const page = scope.pages.find((row) => row.url === startUrl);
+    if (!page)
+      throw conflict(
+        "The crawl's start page is no longer in this audit. Add it again to go on with the crawl.",
+      );
     // The SEO bot's seo_crawl_next line: exactly these keys.
     const packet: Prisma.InputJsonObject = {
       version: 1,
@@ -164,7 +181,7 @@ export async function requestSeoCrawlNext(
         idempotencyKey: input.idempotencyKey,
         requestHash,
         kind: "crawl_next",
-        pageIds: page ? [page.id] : [],
+        pageIds: [page.id],
         scopeVersion: scope.version,
         request: packet,
         requestedBy: actor.userId,

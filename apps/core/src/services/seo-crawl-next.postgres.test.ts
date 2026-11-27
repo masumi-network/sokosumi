@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createPrismaClient } from "@sokosumi/database/client";
+import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { seoCrawlNextPrice } from "@sokosumi/utils";
 import {
   afterAll,
@@ -304,6 +305,68 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
     await expect(requestSeoCrawlNext(actor, request())).rejects.toMatchObject({
       status: 422,
     });
+  });
+
+  it("offers the continuation only in a view that shows the crawl's start page", async () => {
+    await storeCrawl(
+      "audit_full",
+      { snapshotId: AUDIT_CRAWL, stop: "page cap" },
+      new Date("2026-11-01"),
+    );
+    const related = await addProjectSeoPage(actor, {
+      url: `${SITE}pricing`,
+      relationship: "related",
+    });
+    try {
+      expect(await continueFrom()).toBe(AUDIT_CRAWL);
+      const filtered = await getProjectSeoWorkspace(actor, {
+        pageId: related.id,
+      });
+      expect(filtered.availableActions.continueCrawlFrom).toBeNull();
+    } finally {
+      await prisma.projectSeoPage.delete({ where: { id: related.id } });
+    }
+  });
+
+  it("refuses a continuation through the audit of a CMO Project", async () => {
+    await storeCrawl(
+      "audit_full",
+      { snapshotId: AUDIT_CRAWL, stop: "page cap" },
+      new Date("2026-11-01"),
+    );
+    await setBalance(100n);
+    const project = await prisma.project.create({
+      data: { workspaceId, name: "example.test" },
+      select: { id: true },
+    });
+    const cuso = await prisma.sokoBot.create({
+      data: {
+        workspaceId,
+        projectId: project.id,
+        userId: null,
+        createdByUserId: userId,
+        versionId: CMO_SOKO_BOT_VERSION_IDS[0] ?? null,
+        name: "Cuso",
+      },
+      select: { id: true },
+    });
+    await prisma.seoAudit.update({
+      where: { id: auditId },
+      data: { projectId: project.id },
+    });
+    try {
+      await expect(requestSeoCrawlNext(actor, request())).rejects.toMatchObject(
+        { status: 409, message: expect.stringContaining("managed by CMO") },
+      );
+      expect(await prisma.task.count({ where: { workspaceId } })).toBe(0);
+    } finally {
+      await prisma.seoAudit.update({
+        where: { id: auditId },
+        data: { projectId: null },
+      });
+      await prisma.sokoBot.delete({ where: { id: cuso.id } });
+      await prisma.project.delete({ where: { id: project.id } });
+    }
   });
 
   it("refuses a crawl that stopped for good", async () => {

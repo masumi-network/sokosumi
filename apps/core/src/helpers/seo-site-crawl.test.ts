@@ -683,6 +683,7 @@ describe("imported crawl continuation", () => {
     report.pages = [
       { ...audit, url: `${SITE}/other` },
       { ...audit, url: `${SITE}/text`, report: "the page Run failed" as never },
+      { ...audit, url: `${SITE}/list`, report: [] as never },
     ];
     const crawl = parsePublicSeoArtifact(report).siteCrawl;
     if (crawl?.state !== "crawled") throw new Error("expected a crawl");
@@ -691,6 +692,7 @@ describe("imported crawl continuation", () => {
       `${SITE}/slow`,
       `${SITE}/other`,
       `${SITE}/text`,
+      `${SITE}/list`,
     ]);
     // Private evidence in a page's report still refuses the whole Report.
     report.pages = [
@@ -752,13 +754,15 @@ describe("crawl continuation tip", () => {
     );
     return { ...row, ...more } as NonNullable<typeof row>;
   };
-  const audit = (siteCrawl = crawl(PARENT)) => ({
+  const audit = (siteCrawl = crawl(PARENT), pageUrls = [`${SITE}/`]) => ({
     kind: "audit_full",
     siteCrawl,
+    pageUrls,
   });
   const next = (snapshotId: string, continues: string, stop = "page cap") => ({
     kind: "crawl_next",
     siteCrawl: crawl(snapshotId, { continues, stop }),
+    pageUrls: [SITE],
   });
 
   it("goes on from the newest full audit's crawl, or from the end of its chain", () => {
@@ -770,6 +774,14 @@ describe("crawl continuation tip", () => {
       snapshotId: CHILD,
       startUrl: SITE,
     });
+    // A late Report of a second continuation of the same crawl: the oldest stays the chain's, as in Web.
+    expect(
+      crawlContinuationTip([
+        next("7".repeat(64), PARENT),
+        next(CHILD, PARENT),
+        audit(),
+      ]),
+    ).toEqual({ snapshotId: CHILD, startUrl: SITE });
   });
 
   it("has no tip when the chain's last crawl stopped for good", () => {
@@ -784,7 +796,7 @@ describe("crawl continuation tip", () => {
   it("has no tip when the newest full audit has no crawl, even if an older one has", () => {
     expect(
       crawlContinuationTip([
-        { kind: "audit_full", siteCrawl: undefined },
+        { kind: "audit_full", siteCrawl: undefined, pageUrls: [SITE] },
         audit(),
       ]),
     ).toBeNull();
@@ -796,5 +808,17 @@ describe("crawl continuation tip", () => {
       snapshotId: PARENT,
       startUrl: SITE,
     });
+  });
+
+  it("has no tip when the audit's crawl starts at a page the audit was not approved for", () => {
+    expect(
+      crawlContinuationTip([audit(crawl(PARENT), ["https://other.test/"])]),
+    ).toBeNull();
+  });
+
+  it("has no tip when a continuation reports an earlier crawl's Snapshot as its own", () => {
+    expect(
+      crawlContinuationTip([next(PARENT, CHILD), next(CHILD, PARENT), audit()]),
+    ).toBeNull();
   });
 });

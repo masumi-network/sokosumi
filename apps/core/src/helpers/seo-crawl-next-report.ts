@@ -168,10 +168,20 @@ const CONTINUABLE_STOPS: ReadonlySet<string> = new Set(["page cap", "time"]);
  * `rows` come newest first.
  */
 export function crawlContinuationTip(
-  rows: readonly { kind: string; siteCrawl?: SeoSiteCrawl }[],
+  rows: readonly {
+    kind: string;
+    siteCrawl?: SeoSiteCrawl;
+    pageUrls: readonly string[];
+  }[],
 ): { snapshotId: string; startUrl: string } | null {
-  const audit = rows.find((row) => row.kind === "audit_full")?.siteCrawl;
-  if (audit?.state !== "crawled" || !audit.snapshotId) return null;
+  const root = rows.find((row) => row.kind === "audit_full");
+  const audit = root?.siteCrawl;
+  if (audit?.state !== "crawled" || !audit.snapshotId || !audit.startUrl)
+    return null;
+  // Every continuation crawls from this URL: it must be a page the audit was approved for.
+  const start = auditedSeoPageKey(audit.startUrl);
+  if (!root?.pageUrls.some((url) => auditedSeoPageKey(url) === start))
+    return null;
   const children = new Map<string, SeoSiteCrawl & { state: "crawled" }>();
   for (const row of rows) {
     const crawl = row.siteCrawl;
@@ -182,10 +192,12 @@ export function crawlContinuationTip(
   }
   let tip = audit;
   const seen = new Set<string>();
-  while (tip.snapshotId && !seen.has(tip.snapshotId)) {
+  while (tip.snapshotId) {
     seen.add(tip.snapshotId);
     const child = children.get(tip.snapshotId);
     if (!child) break;
+    // A crawl that reports an earlier crawl's Snapshot as its own loops the chain: its end is unknown.
+    if (seen.has(child.snapshotId!)) return null;
     tip = child;
   }
   if (!tip.snapshotId || !tip.startUrl || !CONTINUABLE_STOPS.has(tip.stop))
