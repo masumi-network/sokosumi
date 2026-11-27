@@ -48,7 +48,7 @@ import {
   buildActionResponse,
   parseActionNarrativeText,
 } from "./action-response";
-import { claimsAction } from "./answer-claims";
+import * as answerClaims from "./answer-claims";
 import { citationsIn, dropUnverifiedLinks } from "./citations";
 import { evaluationBinding } from "./evaluation-dispatch";
 import { SOKO_BOT_ARCHIVE_GUIDANCE } from "./evaluation-preparation";
@@ -863,10 +863,28 @@ async function confirmedChanges(turnId: string): Promise<string[]> {
               : save.label,
           ];
         }
+        if (call.capability === "create_social_post") {
+          return [socialPostConfirmedLabel(call.result)];
+        }
         return [ACTION_LABELS[call.capability] ?? call.capability];
       }),
     ),
   ];
+}
+
+function socialPostConfirmedLabel(result: unknown): string {
+  const base = ACTION_LABELS.create_social_post ?? "Created social post";
+  if (typeof result !== "object" || result === null) return base;
+  const { status, scheduledAt } = result as {
+    status?: unknown;
+    scheduledAt?: unknown;
+  };
+  if (status === "NEEDS_APPROVAL") {
+    return typeof scheduledAt === "string" && scheduledAt.trim().length > 0
+      ? `${base} (draft awaiting approval; planned time set)`
+      : `${base} (draft awaiting approval; not scheduled)`;
+  }
+  return base;
 }
 
 /**
@@ -926,7 +944,7 @@ async function ownerNarrative(
       : null);
   if (!narrative?.message) return narrative ?? undefined;
   const confirmed = await confirmedChanges(turnId);
-  const claim = await claimsAction(narrative.message, confirmed);
+  const claim = await answerClaims.claimsAction(narrative.message, confirmed);
   if (claim === false) return narrative;
   // The owner always gets the reply, never an unconfirmed claim: the
   // sentences that say something was done go, and the rest stays (what was
@@ -939,9 +957,57 @@ async function ownerNarrative(
     return { ...narrative, message: kept, replyCheck: "unchecked" };
   }
   warnReplyCheck(turnId, "claims_unconfirmed_change");
+  const checkBySentence = Object.keys(answerClaims).includes(
+    "claimsActionBySentence",
+  )
+    ? answerClaims.claimsActionBySentence
+    : undefined;
+  if (typeof checkBySentence === "function") {
+    const filtered = await filterUnsupportedClaimSentences(
+      narrative.message,
+      confirmed,
+      checkBySentence,
+    );
+    if (filtered !== null) {
+      if (filtered.unchecked) {
+        return {
+          ...narrative,
+          message: filtered.message,
+          replyCheck: "unchecked",
+        };
+      }
+      const candidate =
+        filtered.message !== null && filtered.message !== narrative.message
+          ? filtered.message
+          : withoutChangeClaims(narrative.message);
+      if (candidate === null || candidate === narrative.message) {
+        return { ...narrative, message: null, replyCheck: "cut" };
+      }
+      const recheck = await answerClaims.claimsAction(candidate, confirmed);
+      if (recheck === false) {
+        return { ...narrative, message: candidate, replyCheck: "cut" };
+      }
+      if (recheck === null) {
+        return { ...narrative, message: candidate, replyCheck: "unchecked" };
+      }
+      // Before dropping the whole message on a noisy recheck, scrub any remaining
+      // regex-matched claim sentences from the surviving text.
+      const scrubbed = withoutChangeClaims(candidate);
+      if (scrubbed !== null && scrubbed !== candidate) {
+        const finalCheck = await answerClaims.claimsAction(scrubbed, confirmed);
+        if (finalCheck === false) {
+          return { ...narrative, message: scrubbed, replyCheck: "cut" };
+        }
+        if (finalCheck === null) {
+          return { ...narrative, message: scrubbed, replyCheck: "unchecked" };
+        }
+      }
+      return { ...narrative, message: null, replyCheck: "cut" };
+    }
+  }
   const recheck =
     kept !== null && kept !== narrative.message
-      ? await claimsAction(kept, confirmed)
+      ? await answerClaims.claimsAction(kept, confirmed)
       : true;
   // A second check that cannot run leaves the cut as it is: it already
   // holds no sentence that says something was done.
@@ -954,9 +1020,174 @@ async function ownerNarrative(
   };
 }
 
+interface MessageUnit {
+  lineIndex: number;
+  text: string;
+}
+
+function splitMessageUnits(message: string): {
+  lineCount: number;
+  blankLines: Set<number>;
+  units: MessageUnit[];
+} {
+  const lines = message.split(/\n/);
+  const blankLines = new Set<number>();
+  const units: MessageUnit[] = [];
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex] ?? "";
+    if (!line.trim()) {
+      blankLines.add(lineIndex);
+      continue;
+    }
+    for (const sentence of line.split(/(?<=[.!?])\s+/)) {
+      const trimmed = sentence.trim();
+      if (trimmed) units.push({ lineIndex, text: trimmed });
+    }
+  }
+  return { lineCount: lines.length, blankLines, units };
+}
+
+function joinMessageUnits(
+  lineCount: number,
+  blankLines: ReadonlySet<number>,
+  keptUnits: readonly MessageUnit[],
+): string | null {
+  if (keptUnits.length === 0) return null;
+  const byLine = new Map<number, string[]>();
+  for (const unit of keptUnits) {
+    const list = byLine.get(unit.lineIndex) ?? [];
+    list.push(unit.text);
+    byLine.set(unit.lineIndex, list);
+  }
+  const lines: string[] = [];
+  for (let i = 0; i < lineCount; i++) {
+    const parts = byLine.get(i);
+    if (parts?.length) lines.push(parts.join(" "));
+    else if (blankLines.has(i) && lines.length > 0 && lines.at(-1) !== "") {
+      lines.push("");
+    }
+  }
+  const joined = lines
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return joined || null;
+}
+
 /** A sentence saying something was done: created, sent, scheduled and the like. */
 const CHANGE_CLAIM =
-  /\b(created|assigned|sent|posted|scheduled|set up|hired|generated|made|drafted|prepared|uploaded|archived|updated|changed|saved|added|booked|published|replied|emailed|messaged|moved|deleted|removed|started|launched)\b/i;
+  /\b(created|assigned|sent|posted|scheduled|spread|queued|slated|set up|hired|generated|made|drafted|prepared|uploaded|archived|updated|changed|saved|added|booked|published|replied|emailed|messaged|moved|deleted|removed|started|launched)\b/i;
+
+const CLAUSE_START = new RegExp(
+  `^(?:(?:I|we|they|it|the|this|that|there|all|each|no|not|nothing|never|kept|left)\\b|${CHANGE_CLAIM.source})`,
+  "i",
+);
+
+/** Splits a single sentence into independent clauses without breaking Oxford lists. */
+function splitIndependentClauses(sentence: string): string[] {
+  const parts = sentence
+    .split(/\s*(?:;|—|–)\s*/)
+    .flatMap((segment) => {
+      const chunks: string[] = [];
+      const matcher = /,\s+(?:and|but|so|then)\s+/gi;
+      let start = 0;
+      for (const match of segment.matchAll(matcher)) {
+        const idx = match.index ?? 0;
+        const after = segment.slice(idx + match[0].length).trim();
+        if (CLAUSE_START.test(after)) {
+          chunks.push(segment.slice(start, idx).trim());
+          start = idx + match[0].length;
+        }
+      }
+      chunks.push(segment.slice(start).trim());
+      return chunks;
+    })
+    .filter((part) => part.length > 0);
+  return parts.length >= 2 ? parts : [sentence];
+}
+
+function tidyKeptClauses(clauses: readonly string[]): string {
+  const joined = clauses
+    .map((clause, index) =>
+      index === 0
+        ? clause.replace(/^(?:and|but|so|then)\s+/i, "").trim()
+        : clause,
+    )
+    .filter(Boolean)
+    .join("; ");
+  if (!joined) return "";
+  return /[.!?]$/.test(joined) ? joined : `${joined}.`;
+}
+
+/**
+ * Drops only the sentence(s) — or unsupported clause(s) within a mixed
+ * sentence — that claim an unconfirmed change, keeping confirmed work,
+ * findings, blockers, and next steps intact.
+ */
+async function filterUnsupportedClaimSentences(
+  message: string,
+  confirmed: readonly string[],
+  checkBySentence: typeof answerClaims.claimsActionBySentence,
+): Promise<{ message: string | null; unchecked: boolean } | null> {
+  const { lineCount, blankLines, units } = splitMessageUnits(message);
+  if (units.length === 0) return { message: null, unchecked: false };
+
+  const verdicts = await checkBySentence(
+    units.map((unit) => unit.text),
+    confirmed,
+  );
+  if (!Array.isArray(verdicts)) return null;
+  if (verdicts.every((verdict) => verdict === null)) {
+    return { message: withoutChangeClaims(message), unchecked: true };
+  }
+
+  // For sentences flagged as unsupported, attempt clause-level pruning in one
+  // batched call so a single mixed sentence keeps its confirmed/factual clause.
+  const clausePlans: { unitIndex: number; clauses: string[] }[] = [];
+  const flatClauses: string[] = [];
+  for (let i = 0; i < units.length; i++) {
+    if (verdicts[i] !== true) continue;
+    const clauses = splitIndependentClauses(units[i]?.text ?? "");
+    if (clauses.length >= 2) {
+      clausePlans.push({ unitIndex: i, clauses });
+      flatClauses.push(...clauses);
+    }
+  }
+  const clauseVerdicts =
+    flatClauses.length > 0 ? await checkBySentence(flatClauses, confirmed) : [];
+  const rescuedByUnit = new Map<number, string>();
+  if (Array.isArray(clauseVerdicts)) {
+    let cursor = 0;
+    for (const plan of clausePlans) {
+      const keptClauses: string[] = [];
+      for (const clause of plan.clauses) {
+        const verdict = clauseVerdicts[cursor++];
+        if (verdict === false) keptClauses.push(clause);
+      }
+      const rescued = tidyKeptClauses(keptClauses);
+      if (rescued) rescuedByUnit.set(plan.unitIndex, rescued);
+    }
+  }
+
+  const keptUnits: MessageUnit[] = [];
+  for (let i = 0; i < units.length; i++) {
+    const unit = units[i];
+    if (!unit) continue;
+    const verdict = verdicts[i];
+    if (verdict === false) {
+      keptUnits.push(unit);
+    } else if (verdict === null) {
+      if (!claimsOwnChange(unit.text)) keptUnits.push(unit);
+    } else {
+      const rescued = rescuedByUnit.get(i);
+      if (rescued) keptUnits.push({ lineIndex: unit.lineIndex, text: rescued });
+    }
+  }
+  return {
+    message: joinMessageUnits(lineCount, blankLines, keptUnits),
+    unchecked: false,
+  };
+}
 
 /**
  * A sentence saying something was not done: true even when nothing was

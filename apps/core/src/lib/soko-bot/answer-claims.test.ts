@@ -7,7 +7,7 @@ vi.mock("ai", () => ({
 }));
 
 import { expectCoreLogWhys } from "@/test/core-log";
-import { claimsAction } from "./answer-claims";
+import { claimsAction, claimsActionBySentence } from "./answer-claims";
 
 describe("claimsAction", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -68,6 +68,59 @@ describe("claimsAction", () => {
         answers: { claimsAction: { probability: 0.1 } },
       });
     await expect(claimsAction("Here is the draft.")).resolves.toBe(false);
+    expect(evaluateMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("claimsActionBySentence", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("scores each sentence in one batched Jev call against confirmedChanges", async () => {
+    evaluateMock.mockResolvedValue({
+      answers: {
+        s0: { probability: 0.1 },
+        s1: { probability: 0.85 },
+        s2: { probability: 0.05 },
+      },
+    });
+    const sentences = [
+      "I drafted three X posts from the one-pager.",
+      "I spread them across Monday, Wednesday, and Friday.",
+      "They are waiting for your approval.",
+    ];
+    await expect(
+      claimsActionBySentence(sentences, [
+        "Created social post (draft awaiting approval; not scheduled)",
+      ]),
+    ).resolves.toEqual([false, true, false]);
+    expect(evaluateMock).toHaveBeenCalledTimes(1);
+    expect(evaluateMock.mock.calls[0][0].state).toEqual({
+      sentences: {
+        s0: sentences[0],
+        s1: sentences[1],
+        s2: sentences[2],
+      },
+      confirmedChanges: [
+        "Created social post (draft awaiting approval; not scheduled)",
+      ],
+    });
+  });
+
+  it("retries only missing sentence keys once and returns null for still-missing keys", async () => {
+    evaluateMock
+      .mockResolvedValueOnce({
+        answers: {
+          s0: { probability: 0.1 },
+        },
+      })
+      .mockResolvedValueOnce({
+        answers: {
+          s0: { probability: 0.9 },
+        },
+      });
+    await expect(
+      claimsActionBySentence(["Safe line.", "I scheduled it."], []),
+    ).resolves.toEqual([false, true]);
     expect(evaluateMock).toHaveBeenCalledTimes(2);
   });
 });

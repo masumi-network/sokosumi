@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   buildActionResponseMock,
   claimsActionMock,
+  claimsActionBySentenceMock,
   turnUpdate,
   turnFind,
   toolCallFind,
@@ -13,6 +14,7 @@ const {
   strategyFind: vi.fn(),
   buildActionResponseMock: vi.fn(),
   claimsActionMock: vi.fn(),
+  claimsActionBySentenceMock: vi.fn(),
   turnUpdate: vi.fn(),
   turnFind: vi.fn(),
   toolCallFind: vi.fn(),
@@ -29,7 +31,11 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: eventTransaction,
   },
 }));
-vi.mock("./answer-claims", () => ({ claimsAction: claimsActionMock }));
+vi.mock("./answer-claims", () => ({
+  claimsAction: claimsActionMock,
+  claimsActionBySentence: (...args: unknown[]) =>
+    claimsActionBySentenceMock(...args),
+}));
 vi.mock("./action-response", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./action-response")>()),
   buildActionResponse: buildActionResponseMock,
@@ -232,6 +238,8 @@ function completedMessage(): unknown {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  claimsActionMock.mockReset();
+  claimsActionBySentenceMock.mockReset();
   claimsActionMock.mockResolvedValue(false);
   toolCallFind.mockResolvedValue([]);
   strategyFind.mockResolvedValue([]);
@@ -412,6 +420,147 @@ describe("finishTurn", () => {
     claimsActionMock.mockResolvedValue(true);
     await finish("Hannah is on it now. I created the schedule.", true);
     expect(buildActionResponseMock.mock.calls[0][4].message).toBeNull();
+  });
+
+  it("drops only the unsupported scheduling sentence and preserves confirmed draft summary + bullets", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    toolCallFind.mockResolvedValue([
+      {
+        capability: "create_social_post",
+        result: {
+          id: "post-1",
+          status: "NEEDS_APPROVAL",
+          scheduledAt: null,
+        },
+      },
+    ]);
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    claimsActionBySentenceMock.mockResolvedValueOnce([
+      false,
+      false,
+      false,
+      true,
+      false,
+    ]);
+
+    const reply = [
+      "I prepared three X drafts from the one-pager:",
+      "- Draft 1: Typed memory replaces stale notes automatically.",
+      "- Draft 2: Nightly dream runs keep memory clean.",
+      "They are spread across Monday, Wednesday, and Friday next week.",
+      "Approve them in the cards below when ready.",
+    ].join("\n");
+
+    await finish(reply, true);
+
+    expect(claimsActionMock).toHaveBeenNthCalledWith(1, reply, [
+      "Created social post (draft awaiting approval; not scheduled)",
+    ]);
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: [
+        "I prepared three X drafts from the one-pager:",
+        "- Draft 1: Typed memory replaces stale notes automatically.",
+        "- Draft 2: Nightly dream runs keep memory clean.",
+        "Approve them in the cards below when ready.",
+      ].join("\n"),
+      replyCheck: "cut",
+    });
+  });
+
+  it("prunes only the unsupported clause from a single mixed sentence", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    toolCallFind.mockResolvedValue([
+      {
+        capability: "create_social_post",
+        result: {
+          id: "post-1",
+          status: "NEEDS_APPROVAL",
+          scheduledAt: null,
+        },
+      },
+    ]);
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    claimsActionBySentenceMock
+      .mockResolvedValueOnce([true])
+      .mockResolvedValueOnce([false, true]);
+
+    await finish(
+      "I drafted three X posts from the one-pager, and scheduled them for Monday, Wednesday, and Friday.",
+      true,
+    );
+
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: "I drafted three X posts from the one-pager.",
+      replyCheck: "cut",
+    });
+  });
+
+  it("falls back to unchecked deterministic scrub when per-sentence check fails", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true);
+    claimsActionBySentenceMock.mockResolvedValueOnce([null, null]);
+
+    await finish(
+      "The file is ready for review. I scheduled the posts for next week.",
+      true,
+    );
+
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: "The file is ready for review.",
+      replyCheck: "unchecked",
+    });
+  });
+
+  it("still drops a reply when every sentence and clause is an unconfirmed claim", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true);
+    claimsActionBySentenceMock
+      .mockResolvedValueOnce([true])
+      .mockResolvedValueOnce([true, true]);
+
+    await finish("I created the task, and I assigned it to Hannah.", true);
+
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: null,
+      replyCheck: "cut",
+    });
+  });
+
+  it("passes planned-time draft state to confirmedChanges when scheduledAt is set", async () => {
+    toolCallFind.mockResolvedValue([
+      {
+        capability: "create_social_post",
+        result: {
+          id: "post-1",
+          status: "NEEDS_APPROVAL",
+          scheduledAt: "2026-12-01T09:00:00.000Z",
+        },
+      },
+    ]);
+    claimsActionMock.mockResolvedValueOnce(false);
+
+    await finish("Created a draft awaiting approval with planned time.", true);
+
+    expect(claimsActionMock).toHaveBeenCalledWith(
+      "Created a draft awaiting approval with planned time.",
+      ["Created social post (draft awaiting approval; planned time set)"],
+    );
   });
 
   it("lets the message report the changes its receipts confirm", async () => {
