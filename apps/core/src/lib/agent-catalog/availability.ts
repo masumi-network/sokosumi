@@ -19,6 +19,8 @@ import type { NetworkDb, NetworkScope, SharedDb } from "@/lib/db/network-scope";
 import { type Network, networkKey } from "@/lib/network";
 import {
   getTrustedX402ExactEvmDomain,
+  getX402AgentCatalogWhere,
+  hasValidX402DiscoveryUrl,
   isX402NetworkAllowed,
   trimEvmWalletId,
   X402_BUY_SIDE_READINESS_KEY,
@@ -302,12 +304,12 @@ export const buildAvailableAgentWhereClause = (
  * a mainnet pair to a Preprod deployment. Re-filtering on read costs an array
  * pass and removes the cache as a trusted input.
  */
-export const getX402ReadySources = async (
-  tx: SharedDb,
-  network: Network,
+export const x402ReadySources = async (
+  scope: NetworkScope,
+  tx: SharedDb = scope.sharedDb,
 ): Promise<X402ReadySource[]> => {
   const readiness = await tx.syncMetadata.findUnique({
-    where: { key: networkKey(network, X402_BUY_SIDE_READINESS_KEY) },
+    where: { key: networkKey(scope.network, X402_BUY_SIDE_READINESS_KEY) },
   });
   if (!readiness?.cursorId) {
     return [];
@@ -410,6 +412,69 @@ export const getX402ReadySources = async (
   }
 };
 
+// The default charge transaction still has Network delegates on today's public layout.
+// After the split SharedDb cannot read these models. Ticket 29 moves the payment
+// rows and decides how to read this catalog on the charge's connection.
+type CatalogChargeTransaction = Prisma.TransactionClient;
+
+export function requireRates(
+  scope: NetworkScope,
+  tx?: CatalogChargeTransaction,
+) {
+  return getCreditCostsOrThrow((tx ?? scope.networkDb).creditCost);
+}
+
+export function cardanoV2ReadySources(
+  scope: NetworkScope,
+  tx: SharedDb = scope.sharedDb,
+) {
+  return getCardanoV2ReadySources(tx, scope.network);
+}
+
+/**
+ * The listed x402 agent for a payable id, or null. Same environment-aware SQL
+ * gates as the listing: type and status everywhere, plus curation on Mainnet.
+ * Preprod intentionally permits hidden online entries; offline entries never
+ * remain payable through a remembered id. The charge transaction supplies
+ * the Agent table until ticket 29 can select it by scope.
+ */
+export async function findListedX402Agent(
+  _scope: NetworkScope,
+  agentId: string,
+  tx: CatalogChargeTransaction,
+) {
+  const network = deploymentRail();
+  const agent = await tx.agent.findFirst({
+    where: {
+      id: agentId,
+      ...getX402AgentCatalogWhere(network),
+    },
+    include: {
+      paymentSources: {
+        // The normalized demand is always `exact`, but registry source data is
+        // independent. Keep unsupported signing contracts out so an agent
+        // hidden by the listing cannot still be paid through a remembered id.
+        where: {
+          scheme: { not: null },
+        },
+        include: {
+          // Both relations are explicitly ordered, mirroring the listing
+          // query. Unordered, Prisma returns Postgres heap order, so the
+          // matcher's `find` — "the first amount row for this asset" — could
+          // resolve to a different row here than the one the listing
+          // advertised a price for. Ingestion deliberately permits duplicate
+          // units within one source, so identical ordering on both sides is
+          // what makes listing and pay agree on row identity; a unique on
+          // (paymentSourceId, unit) would instead break the sync.
+          amounts: { orderBy: [{ unit: "asc" }, { id: "asc" }] },
+        },
+        orderBy: { sourceIndex: "asc" },
+      },
+    },
+  });
+  return agent && hasValidX402DiscoveryUrl(agent) ? { agent, network } : null;
+}
+
 export async function readListingInputs(
   scope: NetworkScope,
   includeCardano: boolean,
@@ -420,9 +485,7 @@ export async function readListingInputs(
     includeCardano
       ? getCardanoV2ReadySources(scope.sharedDb, scope.network)
       : Promise.resolve([]),
-    includeX402
-      ? getX402ReadySources(scope.sharedDb, scope.network)
-      : Promise.resolve([]),
+    includeX402 ? x402ReadySources(scope) : Promise.resolve([]),
   ]);
   // Masumi configuration per Network is ticket 22.
   const network = deploymentRail();

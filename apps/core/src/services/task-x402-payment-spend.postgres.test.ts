@@ -231,6 +231,7 @@ interface Payer {
  */
 function createWorld(loaded: Loaded, deploymentNetwork: DeploymentNetwork) {
   const { prisma } = loaded;
+  const runId = randomUUID();
   const mainnet = () => loaded.createNetworkScope("mainnet").networkDb;
   /** Random values in a statement or a row, each under a name. */
   const labels = new Map<string, string>();
@@ -288,7 +289,7 @@ function createWorld(loaded: Loaded, deploymentNetwork: DeploymentNetwork) {
 
   async function createProject(workspaceId: string, name: string) {
     const project = await prisma.project.create({
-      data: { workspaceId, name: `${name}'s Project` },
+      data: { workspaceId, name: `${name}'s Project ${runId}` },
       select: { id: true },
     });
     made.projectIds.push(project.id);
@@ -351,7 +352,7 @@ function createWorld(loaded: Loaded, deploymentNetwork: DeploymentNetwork) {
      * two credits spends from both.
      */
     async person(name: string, laterCredits = 3n): Promise<Payer> {
-      const user = await loaded.fixture.createPasswordUser(name);
+      const user = await loaded.fixture.createPasswordUser(`${name} ${runId}`);
       made.userIds.push(user.id);
       labels.set(user.id, `<${name}>`);
       labels.set(user.email, `<${name}'s email>`);
@@ -390,7 +391,7 @@ function createWorld(loaded: Loaded, deploymentNetwork: DeploymentNetwork) {
      */
     async organization(name: string): Promise<Payer> {
       const member = await loaded.fixture.createPasswordUser(
-        `${name}'s member`,
+        `${name}'s member ${runId}`,
       );
       made.userIds.push(member.id);
       labels.set(member.id, `<${name}'s member>`);
@@ -399,7 +400,7 @@ function createWorld(loaded: Loaded, deploymentNetwork: DeploymentNetwork) {
       await prisma.organization.create({
         data: {
           id: organizationId,
-          name: "Task x402 spend fixture",
+          name: `Task x402 spend fixture ${runId}`,
           slug: organizationId,
           members: {
             create: {
@@ -456,7 +457,7 @@ function createWorld(loaded: Loaded, deploymentNetwork: DeploymentNetwork) {
           workspaceId: payer.workspaceId,
           projectId: payer.projectId,
           assigneeId: (await this.coworker()).id,
-          name: "Task x402 spend fixture",
+          name: `Task x402 spend fixture ${runId}`,
           status,
         },
       });
@@ -474,11 +475,6 @@ function createWorld(loaded: Loaded, deploymentNetwork: DeploymentNetwork) {
       const ready = X402_CHAINS[deploymentNetwork];
       const key = "x402-buy-side-readiness";
       const kept = await prisma.syncMetadata.findUnique({ where: { key } });
-      removals.push(() =>
-        kept
-          ? prisma.syncMetadata.update({ where: { key }, data: kept })
-          : prisma.syncMetadata.deleteMany({ where: { key } }),
-      );
       const cursorId = JSON.stringify([
         {
           caip2Network: ready.caip2Network,
@@ -488,11 +484,16 @@ function createWorld(loaded: Loaded, deploymentNetwork: DeploymentNetwork) {
           evmWalletAddress: PAYER.address.toLowerCase(),
         },
       ]);
-      await prisma.syncMetadata.upsert({
+      const readiness = await prisma.syncMetadata.upsert({
         where: { key },
         create: { key, cursorId, lastSyncedAt: new Date() },
         update: { cursorId, lastSyncedAt: new Date() },
       });
+      removals.push(() =>
+        kept
+          ? prisma.syncMetadata.update({ where: { id: kept.id }, data: kept })
+          : prisma.syncMetadata.deleteMany({ where: { id: readiness.id } }),
+      );
       const unit = `${caip2Network}/erc20:${asset}`;
       if (!(await mainnet().creditCost.findFirst({ where: { unit } }))) {
         await creditCost(unit);
@@ -512,7 +513,7 @@ function createWorld(loaded: Loaded, deploymentNetwork: DeploymentNetwork) {
           id: ids.agent,
           blockchainIdentifier,
           type: "X402",
-          name: "Task x402 spend fixture",
+          name: `Task x402 spend fixture ${runId}`,
           description: "Fixture",
           isShown: true,
           lastUptimeCheck: new Date(),
@@ -872,6 +873,7 @@ async function observe(
   // and a debit is one instant, its update time and each consumption's
   // creation time equal its creation time.
   for (const debit of left.transactions.filter((row) => row.amount < 0n)) {
+    expect(debit.amount).toBe(-2n * CREDIT);
     const consumptions = left.consumptions.filter(
       (consumption) => consumption.transactionId === debit.id,
     );
@@ -957,7 +959,7 @@ async function pay(
   world: World,
   taskId: string,
   body: unknown,
-  network?: "mainnet",
+  network?: "mainnet" | "preprod",
 ) {
   const response = await loaded.app.request(
     `${ORIGIN}/v1/tasks/${taskId}/x402-payments`,
@@ -1031,11 +1033,17 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
 
     /** Runs a case with its own Coworker, people and rows, removed after it. */
     async function withWorld(run: (world: World) => Promise<void>) {
+      const originalReadiness = () =>
+        loaded.prisma.syncMetadata.findUnique({
+          where: { key: "x402-buy-side-readiness" },
+        });
+      const before = await originalReadiness();
       const world = createWorld(loaded, deploymentNetwork);
       try {
         await run(world);
       } finally {
         await world.remove();
+        expect(await originalReadiness()).toEqual(before);
       }
     }
 
@@ -1053,8 +1061,9 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
           });
           const badDemand = ready.pay("bad demand", { payTo: OTHER_PAY_TO });
           const before = await world.rows();
-          stopsOnTheSplitLayout(6);
-          for (const header of [undefined, "mainnet"] as const) {
+          stopsOnTheSplitLayout(9);
+          outside.payX402.mockClear();
+          for (const header of [undefined, "mainnet", "preprod"] as const) {
             for (const [reason, body, status] of [
               ["not listed", badSource, "OFFLINE"],
               ["not payable", badSource, "ONLINE"],
@@ -1068,9 +1077,11 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
                 pay(loaded, world, taskId, body, header),
               );
               expect(log.length).toBeGreaterThan(0);
+              expect(outside.payX402).not.toHaveBeenCalled();
               expect(await world.rows()).toEqual(before);
               catalogBase.expectAsOnBase(
-                key(`${reason}, ${header ?? "no header"}`),
+                // A refused Network header must still reach these same pre-authorization gates.
+                key(`${reason}, ${header ? "mainnet" : "no header"}`),
                 plain({ outcome, statements: statements(log) }, world.labels),
               );
             }
@@ -1092,6 +1103,7 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
             where: metadata,
           });
           const payer = await world.person("V2 event payer");
+          const taskId = await world.task(payer, "V2 event Task");
           const before = await world.rows();
           const unit = randomBytes(30).toString("hex");
           world.labels.set(unit, "<event unit>");
@@ -1099,7 +1111,24 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
           const policyId = randomBytes(28).toString("hex");
           const source = {
             policyId,
-            smartContractAddress: "addr_test1_catalog",
+            smartContractAddress:
+              deploymentNetwork === "Mainnet"
+                ? "addr1_catalog"
+                : "addr_test1_catalog",
+          };
+          const masumiPayment = {
+            paymentSourceType: "Web3CardanoV2" as const,
+            PaymentSource: { ...source, network: deploymentNetwork },
+            Amounts: [{ amount: "3", unit }],
+            agentIdentifier: `${policyId}01`,
+            blockchainIdentifier: "event",
+            identifierFromPurchaser: "aabbccddeeff0011",
+            sellerVkey: "ab".repeat(28),
+            inputHash: "ab".repeat(32),
+            submitResultTime: "1",
+            payByTime: "2",
+            unlockTime: "3",
+            externalDisputeUnlockTime: "4",
           };
           const rollback = new Error(
             "Roll back the quoted event and its readiness",
@@ -1118,20 +1147,7 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
                     scope,
                     tx,
                     task: { ...payer, status: "RUNNING" },
-                    masumiPayment: {
-                      paymentSourceType: "Web3CardanoV2",
-                      PaymentSource: { ...source, network: deploymentNetwork },
-                      Amounts: [{ amount: "3", unit }],
-                      agentIdentifier: `${policyId}01`,
-                      blockchainIdentifier: "event",
-                      identifierFromPurchaser: "aabbccddeeff0011",
-                      sellerVkey: "ab".repeat(28),
-                      inputHash: "ab".repeat(32),
-                      submitResultTime: "1",
-                      payByTime: "2",
-                      unlockTime: "3",
-                      externalDisputeUnlockTime: "4",
-                    },
+                    masumiPayment,
                   });
                   expect(result.cents).toBe(3n * CREDIT);
                   return result;
@@ -1171,6 +1187,32 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
           expect(
             await loaded.prisma.syncMetadata.findUnique({ where: metadata }),
           ).toEqual(saved);
+          if (!onSplitLayout) {
+            const { outcome, log } = await loaded.observing(async () => {
+              const response = await loaded.app.request(
+                `${ORIGIN}/v1/tasks/${taskId}/events`,
+                {
+                  method: "POST",
+                  headers: {
+                    origin: ORIGIN,
+                    "content-type": "application/json",
+                    authorization: `Bearer ${(await world.coworker()).token}`,
+                    "X-Sokosumi-Network": "preprod",
+                  },
+                  body: JSON.stringify({ masumiPayment }),
+                },
+              );
+              return { status: response.status, body: await response.json() };
+            });
+            expect(outcome).toMatchObject({
+              status: 403,
+              body: { kind: "preprod_off" },
+            });
+            expect(log.length).toBeGreaterThan(0);
+            expect(log.some((s) => s.values.includes(metadata.key))).toBe(
+              false,
+            );
+          }
           expect(await world.rows()).toEqual(before);
         }),
       CASE_TIMEOUT,
@@ -1406,7 +1448,7 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
               await loaded.prisma.project.create({
                 data: {
                   workspaceId: payer.workspaceId,
-                  name: "second racing Project",
+                  name: `second racing Project ${randomUUID()}`,
                 },
                 select: { id: true },
               })
