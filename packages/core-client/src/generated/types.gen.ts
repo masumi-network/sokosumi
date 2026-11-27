@@ -1628,6 +1628,44 @@ export type AdminRemoveMatchedChannelParticipant = {
     outcome: 'removed';
 };
 
+export type AdminPreprodPause = {
+    /**
+     * Whether Preprod is paused. Paused until an admin opens it, and when the read fails.
+     */
+    paused: boolean;
+    /**
+     * Preprod's generation number, raised by each wipe; 0 before the first. Null when the read failed.
+     */
+    generation: number | null;
+    /**
+     * The 20 most recent pause changes, newest first
+     */
+    changes: Array<{
+        id: string;
+        createdAt: Date;
+        paused: boolean;
+        reason: string;
+        operator: {
+            id: string;
+            /**
+             * Null when the admin's account no longer exists
+             */
+            name: string | null;
+        };
+    }>;
+};
+
+export type SetAdminPreprodPauseBody = {
+    /**
+     * Whether Preprod is paused
+     */
+    paused: boolean;
+    /**
+     * Why Preprod is paused or opened: a ticket id, no personal details.
+     */
+    reason: string;
+};
+
 export type AdminOrganizationOverviewItem = {
     id: string;
     name: string;
@@ -23247,6 +23285,137 @@ export type RemoveAdminMatchedChannelParticipantResponses = {
 };
 
 export type RemoveAdminMatchedChannelParticipantResponse = RemoveAdminMatchedChannelParticipantResponses[keyof RemoveAdminMatchedChannelParticipantResponses];
+
+export type GetAdminPreprodPauseData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/networks/preprod/pause';
+};
+
+export type GetAdminPreprodPauseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminPreprodPauseError = GetAdminPreprodPauseErrors[keyof GetAdminPreprodPauseErrors];
+
+export type GetAdminPreprodPauseResponses = {
+    /**
+     * The Preprod pause, its generation and its recent changes
+     */
+    200: {
+        data: AdminPreprodPause;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminPreprodPauseResponse = GetAdminPreprodPauseResponses[keyof GetAdminPreprodPauseResponses];
+
+export type SetAdminPreprodPauseData = {
+    body: SetAdminPreprodPauseBody;
+    path?: never;
+    query?: never;
+    url: '/admin/networks/preprod/pause';
+};
+
+export type SetAdminPreprodPauseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminPreprodPauseError = SetAdminPreprodPauseErrors[keyof SetAdminPreprodPauseErrors];
+
+export type SetAdminPreprodPauseResponses = {
+    /**
+     * The Preprod pause, its generation and its recent changes
+     */
+    200: {
+        data: AdminPreprodPause;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminPreprodPauseResponse = SetAdminPreprodPauseResponses[keyof SetAdminPreprodPauseResponses];
 
 export type ListAdminOrganizationsData = {
     body?: never;
