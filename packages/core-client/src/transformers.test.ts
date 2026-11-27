@@ -11,6 +11,7 @@ import {
   getStudioComparePairResponseTransformer,
   getWorkspacesCalendarResponseTransformer,
   postProjectsByIdAdsConnectionsFinalizeResponseTransformer,
+  postSeoImpactClaimsResponseTransformer,
 } from "./generated/transformers.gen.js";
 
 const meta = { timestamp: "2026-10-01T00:00:00.000Z" };
@@ -302,4 +303,14 @@ it("keeps a scoreboard cell without data null and revives the rest of the Compet
     new Date(meta.timestamp),
   );
   expect(result.data.check.lastCheckedAt).toBeNull();
+});
+
+it("SEO impact claim: an empty queue keeps its claim null", async () => {
+  const result = await postSeoImpactClaimsResponseTransformer({
+    data: null,
+    meta: { ...meta },
+  });
+
+  expect(result.data).toBeNull();
+  expect(result.meta.timestamp).toBeInstanceOf(Date);
 });
