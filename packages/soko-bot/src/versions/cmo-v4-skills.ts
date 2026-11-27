@@ -61,8 +61,74 @@ function codeTools(code: SokoBotSkill): SokoBotSkill {
         "Any tool you hold can be called",
       ],
       [
+        "(a hundred people, every contact, a year of mail)",
+        "(a hundred people, every contact, every post of a campaign)",
+      ],
+      [
+        "paging through months or years of mail, reading every row of a large table",
+        "paging through every post or contact, reading every row of a large table",
+      ],
+      [
+        `// sent.mjs: every mail the owner sent in the period, one line each
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+async function call(tool, input) {
+  const response = await fetch(\`\${process.env.SOKO_TOOLS_URL}/\${tool}\`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ input }),
+  });
+  const body = await response.json();
+  if (!response.ok) throw new Error(\`\${tool} \${response.status}: \${body.message}\`);
+  return body.result;
+}
+let pageToken = existsSync("sent.token") ? readFileSync("sent.token", "utf8") || undefined : undefined;
+do {
+  const page = await call("search_inbox", {
+    provider: "gmail", query: "in:sent after:2023/10/21 before:2026/10/21", limit: 50, pageToken,
+  });
+  for (const mail of page.messages) appendFileSync("sent.jsonl", JSON.stringify(mail) + "\\n");
+  pageToken = page.nextPageToken ?? undefined;
+  writeFileSync("sent.token", pageToken ?? "");
+} while (pageToken);
+console.log("done");`,
+        `// posts.mjs: every post of the Project, one line each
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+async function call(tool, input) {
+  const response = await fetch(\`\${process.env.SOKO_TOOLS_URL}/\${tool}\`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ input }),
+  });
+  const body = await response.json();
+  if (!response.ok) throw new Error(\`\${tool} \${response.status}: \${body.message}\`);
+  return body.result;
+}
+let cursor = existsSync("posts.cursor") ? readFileSync("posts.cursor", "utf8") || undefined : undefined;
+do {
+  const page = await call("list_social_posts", {
+    projectId: process.env.PROJECT_ID, limit: 50, cursor,
+  });
+  for (const post of page.posts) appendFileSync("posts.jsonl", JSON.stringify(post) + "\\n");
+  cursor = page.pagination?.nextCursor ?? undefined;
+  writeFileSync("posts.cursor", cursor ?? "");
+} while (cursor);
+console.log("done");`,
+      ],
+      [
         "save the collected data (and later your progress) to Files with `upload_file`",
         "save the collected data (and later your progress) to the business's files with `upload_file`",
+      ],
+      [
+        "(`nohup node sent.mjs > sent.log 2>&1 &`) and check `tail sent.log`",
+        "(`nohup node posts.mjs > posts.log 2>&1 &`) and check `tail posts.log`",
+      ],
+      [
+        "a mailbox does not like hundreds of requests at once.",
+        "an external service does not like hundreds of requests at once.",
+      ],
+      [
+        "group by address, count, earliest and latest date), read the short result, and look closer only where it matters with `read_email`.",
+        "group by channel or topic, count, earliest and latest date), read the short result, and look closer only where it matters with `get_social_post`.",
       ],
     ]),
   };

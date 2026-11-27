@@ -64,61 +64,6 @@ export const KNOWN_LIVE_CONTRACT_DRIFT: Readonly<Record<string, string>> = {
     "shared skill uses read_writing_skill; skillIndexSection aliases it to read_skill on cmo-v24",
   "check1b:cmo-v24:skill:cmo-newsletter:read_writing_skill":
     "shared skill uses read_writing_skill; skillIndexSection aliases it to read_skill on cmo-v24",
-
-  // Check 1b: Cuso `cmo-code-tools` and four tool descriptions name tools Cuso
-  // does not hold.
-  "check1b:cmo-v23:skill:cmo-code-tools:read_email":
-    "cmo-code-tools carries Soko Bot's mailbox script example (fix PR 3)",
-  "check1b:cmo-v24:skill:cmo-code-tools:read_email":
-    "cmo-code-tools carries Soko Bot's mailbox script example (fix PR 3)",
-  "check1b:cmo-v25:skill:cmo-code-tools:read_email":
-    "cmo-code-tools carries Soko Bot's mailbox script example (fix PR 3)",
-  "check1b:cmo-v23:skill:cmo-code-tools:search_inbox":
-    "cmo-code-tools carries Soko Bot's mailbox script example (fix PR 3)",
-  "check1b:cmo-v24:skill:cmo-code-tools:search_inbox":
-    "cmo-code-tools carries Soko Bot's mailbox script example (fix PR 3)",
-  "check1b:cmo-v25:skill:cmo-code-tools:search_inbox":
-    "cmo-code-tools carries Soko Bot's mailbox script example (fix PR 3)",
-  "check1b:cmo-v23:desc:get_ad_campaign:edit_ad_campaign":
-    "cusoToolDescription(get_ad_campaign) names edit_ad_campaign (fix PR 3)",
-  "check1b:cmo-v24:desc:get_ad_campaign:edit_ad_campaign":
-    "cusoToolDescription(get_ad_campaign) names edit_ad_campaign (fix PR 3)",
-  "check1b:cmo-v25:desc:get_ad_campaign:edit_ad_campaign":
-    "cusoToolDescription(get_ad_campaign) names edit_ad_campaign (fix PR 3)",
-  "check1b:cmo-v23:desc:get_market_keywords:find_ad_targeting":
-    "cusoToolDescription(get_market_keywords) names find_ad_targeting (fix PR 3)",
-  "check1b:cmo-v24:desc:get_market_keywords:find_ad_targeting":
-    "cusoToolDescription(get_market_keywords) names find_ad_targeting (fix PR 3)",
-  "check1b:cmo-v25:desc:get_market_keywords:find_ad_targeting":
-    "cusoToolDescription(get_market_keywords) names find_ad_targeting (fix PR 3)",
-  "check1b:cmo-v23:desc:list_integration_tools:create_ad_campaign":
-    "cusoToolDescription(list_integration_tools) names create_ad_campaign (fix PR 3)",
-  "check1b:cmo-v24:desc:list_integration_tools:create_ad_campaign":
-    "cusoToolDescription(list_integration_tools) names create_ad_campaign (fix PR 3)",
-  "check1b:cmo-v25:desc:list_integration_tools:create_ad_campaign":
-    "cusoToolDescription(list_integration_tools) names create_ad_campaign (fix PR 3)",
-  "check1b:cmo-v23:desc:list_integration_tools:read_email":
-    "cusoToolDescription(list_integration_tools) names read_email (fix PR 3)",
-  "check1b:cmo-v24:desc:list_integration_tools:read_email":
-    "cusoToolDescription(list_integration_tools) names read_email (fix PR 3)",
-  "check1b:cmo-v25:desc:list_integration_tools:read_email":
-    "cusoToolDescription(list_integration_tools) names read_email (fix PR 3)",
-  "check1b:cmo-v23:desc:list_integration_tools:search_inbox":
-    "cusoToolDescription(list_integration_tools) names search_inbox (fix PR 3)",
-  "check1b:cmo-v24:desc:list_integration_tools:search_inbox":
-    "cusoToolDescription(list_integration_tools) names search_inbox (fix PR 3)",
-  "check1b:cmo-v25:desc:list_integration_tools:search_inbox":
-    "cusoToolDescription(list_integration_tools) names search_inbox (fix PR 3)",
-  "check1b:cmo-v23:desc:wait_for:find_integrations":
-    "cusoToolDescription(wait_for) names find_integrations (fix PR 3)",
-  "check1b:cmo-v24:desc:wait_for:find_integrations":
-    "cusoToolDescription(wait_for) names find_integrations (fix PR 3)",
-  "check1b:cmo-v25:desc:wait_for:find_integrations":
-    "cusoToolDescription(wait_for) names find_integrations (fix PR 3)",
-
-  // Check 4: Universal rules vs partial schema coverage
-  "check4:cuso-no-preview-card:skill:cmo-launch-video":
-    "cmo-launch-video asks Cuso to show a preview card although Cuso lacks preview_result (fix PR 3)",
 };
 
 /** Tool-like snake_case verb prefixes used to spot misspelled/removed tool names in backticks. */

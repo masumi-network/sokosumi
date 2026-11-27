@@ -120,6 +120,17 @@ const REWRITES: readonly (readonly [RegExp, string])[] = [
     /Post a comment on a Task as the project manager\./g,
     "Post a comment on a Task.",
   ],
+  [/ Use it before edit_ad_campaign\./g, ""],
+  [
+    / market\.locationId is a Google location id you can pass as locationIds; market\.languageCode is an ISO code, so take the language id from find_ad_targeting\./g,
+    "",
+  ],
+  [/ Mailboxes are read through search_inbox\/read_email instead\./g, ""],
+  [
+    /\(list_ad_accounts, create_ad_campaign, …\)/g,
+    "(list_ad_accounts, list_ad_campaigns, get_ad_campaign, get_market_keywords)",
+  ],
+  [/its provider from find_integrations; /g, "its provider; "],
   [/any of your Sokosumi tools/g, "any of your tools"],
   [/#Sokosumi/g, "#launch"],
 ];

@@ -106,6 +106,16 @@ describe("cmo-v4", () => {
     // No route into Sokosumi, and no tool he no longer has.
     expect(read.match(/\]\(\//g)).toBeNull();
     for (const capability of REMOVED) expect(read).not.toContain(capability);
+    for (const unoffered of [
+      "search_inbox",
+      "read_email",
+      "edit_ad_campaign",
+      "find_ad_targeting",
+      "create_ad_campaign",
+      "find_integrations",
+      "preview card",
+    ])
+      expect(read).not.toContain(unoffered);
   });
 
   it("tells Cuso to show what he made, never to link it", () => {

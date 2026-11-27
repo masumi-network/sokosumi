@@ -672,7 +672,7 @@ ffmpeg -i out/final.mp4 -af ebur128 -f null - 2>&1 | grep -E "^\\s+I:" | tail -1
 The second line must say between -16 and -12 LUFS. Then \`ffprobe\` the length and pull three frames with ffmpeg: each must show a real picture, not blank and not a text slide. Keep it under 50 MB.
 
 ## 6. Deliver
-upload_file with workspacePath "video/out/final.mp4" and a clear filename, then create_social_post with that fileId as the video, the post text and scheduledAt when the owner gave a time, all in one call. Show its preview card: the owner approves it. Say what you made, how long it is and where it goes.
+upload_file with workspacePath "video/out/final.mp4" and a clear filename, then create_social_post with that fileId as the video, the post text and scheduledAt when the owner gave a time, all in one call. Tell the owner it is waiting for their approval: their chat and Calendar show it. Say what you made, how long it is and where it goes.
 
 Make one, get the owner's yes on the style, and only then make more in the same style.`,
   },
