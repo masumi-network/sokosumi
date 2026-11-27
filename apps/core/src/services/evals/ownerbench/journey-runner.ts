@@ -31,7 +31,10 @@ import type {
   CasePoll,
   CaseStart,
 } from "../eval-case-runner";
-import { prepareCmoChatCase } from "../eval-cmo-runner";
+import {
+  connectCusoPlanChannels,
+  prepareCmoChatCase,
+} from "../eval-cmo-runner";
 import {
   clearEarlierCaseArtifacts,
   closeLaneImageJobs,
@@ -963,6 +966,9 @@ export async function startJourney(
   const cusoRoomId =
     journey.bot === "cuso" ? await freshCusoRoom(lane, journey.id) : undefined;
   if (journey.cusoSetup) await prepareCmoChatCase(lane, journey.cusoSetup);
+  // A customer's Cuso posts to accounts they connected; without one, nothing
+  // can be scheduled and every post is X.
+  if (journey.bot === "cuso") await connectCusoPlanChannels(lane);
   await forgetEarlierJourneys(lane, botId);
   // A watch an earlier run left waiting would fire into this journey.
   await prisma.sokoBotWatch.deleteMany({

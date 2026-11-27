@@ -135,7 +135,7 @@ export function monthPlanFromTomorrow(
 }
 
 /** Stand-in accounts for the plan's networks, so Core makes its posts. */
-async function connectPlanChannels(
+export async function connectPlanChannels(
   lane: EvalLaneRecord,
   plan: MarketingStrategyPlan,
 ) {
@@ -164,6 +164,25 @@ async function connectPlanChannels(
       },
     });
   }
+}
+
+/**
+ * Stand-in accounts for X, LinkedIn and every network of the Cuso project's
+ * current plan, as a customer who connected their main accounts has.
+ */
+export async function connectCusoPlanChannels(lane: EvalLaneRecord) {
+  const strategy = await prisma.marketingStrategy.findFirst({
+    where: { projectId: lane.cusoProjectId },
+    orderBy: { createdAt: "desc" },
+    select: { plan: true },
+  });
+  const plan = strategy
+    ? (parseMarketingPlan(strategy.plan) as MarketingStrategyPlan | null)
+    : null;
+  const main = ["x", "linkedin"].map((channel) => ({ channel }));
+  await connectPlanChannels(lane, {
+    calendar: [...(plan?.calendar ?? []), ...main],
+  } as MarketingStrategyPlan);
 }
 
 /**
