@@ -1,7 +1,8 @@
 import { z } from "@hono/zod-openapi";
 
 const count = z.number().int().nonnegative();
-const crawlUrl = z.string().min(1).max(4096);
+export const seoCrawlUrlSchema = z.string().min(1).max(4096);
+const crawlUrl = seoCrawlUrlSchema;
 const crawlText = z.string().max(2000);
 /** The first pages of a check, as the SEO bot lists them, and the count of all. */
 const pageList = z.object({ urls: z.array(crawlUrl).max(25), total: count });

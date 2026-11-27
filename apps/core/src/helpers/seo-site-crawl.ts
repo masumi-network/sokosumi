@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import {
   type SeoSiteCrawl,
   seoBadCanonicalKindSchema,
+  seoCrawlUrlSchema,
   seoSiteCrawlSchema,
 } from "@/schemas/seo-site-crawl.schema";
 import { reportObject as object } from "./project-seo-public-report";
@@ -155,7 +156,7 @@ function readGaps(list: unknown, prefix: string) {
   ];
 }
 const urls = (list: { pages: { url: string }[]; total: number }) => ({
-  urls: list.pages.map((p) => p.url),
+  urls: list.pages.map((p) => p.url).filter(storableUrl),
   total: list.total,
 });
 
@@ -179,12 +180,20 @@ function badCanonicals(c: BotCanonicals["canonicals"], noHead: number) {
   } satisfies Record<z.infer<typeof seoBadCanonicalKindSchema>, unknown>;
   return {
     pages: Object.entries(lists).flatMap(([kind, list]) =>
-      list.pages.map((p) => ({
-        kind,
-        url: p.url,
-        canonical: "canonical" in p ? p.canonical : null,
-        status: "status" in p ? p.status : null,
-      })),
+      list.pages.flatMap((p) => {
+        const canonical = "canonical" in p ? p.canonical : null;
+        return storableUrl(p.url) &&
+          (canonical === null || storableUrl(canonical))
+          ? [
+              {
+                kind,
+                url: p.url,
+                canonical,
+                status: "status" in p ? p.status : null,
+              },
+            ]
+          : [];
+      }),
     ),
     total: Object.values(lists).reduce((sum, list) => sum + list.total, 0),
     notDetermined:
@@ -218,23 +227,44 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
     stop: crawl.stop,
     links: links
       ? {
-          broken: links.broken,
+          broken: links.broken.flatMap((link) =>
+            storableUrl(link.target)
+              ? [{ ...link, sources: link.sources.filter(storableUrl) }]
+              : [],
+          ),
           brokenTotal: links.brokenTotal,
-          chains: links.chains,
+          chains: links.chains.filter((chain) =>
+            [
+              chain.start,
+              ...chain.hops.map((hop) => hop.url),
+              ...(chain.final === null ? [] : [chain.final]),
+            ].every(storableUrl),
+          ),
           chainsTotal: links.chainsTotal,
           notJudged: links.notJudged ?? 0,
         }
       : null,
-    javascript: javascript ?? null,
+    javascript: javascript
+      ? {
+          unseen: javascript.unseen,
+          groups: javascript.groups.map((group) => ({
+            ...group,
+            group: cut(group.group),
+            ...(group.reason !== undefined && { reason: cut(group.reason) }),
+          })),
+        }
+      : null,
     orphans:
       orphans?.state === "found"
         ? {
             state: "found",
-            urls: orphans.urls,
+            urls: orphans.urls.filter(storableUrl),
             total: orphans.total,
             candidates: orphans.candidates === true,
           }
-        : (orphans ?? null),
+        : orphans
+          ? { state: orphans.state, reason: cut(orphans.reason) }
+          : null,
     pageChecks: pageChecks
       ? {
           pages: pageChecks.pages,
@@ -243,9 +273,9 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
           missingH1: urls(pageChecks.missingH1),
           duplicateTitles: {
             groups: pageChecks.duplicateTitles.groups.map((group) => ({
-              text: group.text,
+              text: cut(group.text),
               size: group.size,
-              urls: group.pages.map((p) => p.url),
+              urls: group.pages.map((p) => p.url).filter(storableUrl),
             })),
             total: pageChecks.duplicateTitles.groupsTotal,
             notDetermined: pageChecks.duplicatesNotDetermined ?? 0,
@@ -291,6 +321,11 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
 /** A text as PostgreSQL jsonb stores it: jsonb refuses NUL and a lone surrogate. */
 export const storableText = (text: string) =>
   text.replaceAll("\u0000", "").toWellFormed();
+
+/** A URL Sokosumi can store, also after storage cleanup. A list leaves out an example it cannot store, and keeps
+ * its total: one long URL must not drop the whole crawl. */
+export const storableUrl = (url: string) =>
+  seoCrawlUrlSchema.safeParse(storableText(url)).success;
 
 function parse(value: unknown) {
   // One character jsonb refuses would reject the whole import.

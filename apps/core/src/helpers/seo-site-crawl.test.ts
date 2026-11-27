@@ -290,6 +290,78 @@ describe("imported site crawl", () => {
     ]);
   });
 
+  it("keeps the crawl and its totals when an example has a URL or a text Sokosumi cannot store", () => {
+    const long = `${SITE}/${"x".repeat(4096)}`;
+    const raw = botCrawl();
+    raw.links.broken[0]!.sources.push(long);
+    raw.links.broken.push({ ...raw.links.broken[0]!, target: long });
+    raw.links.chains.push({
+      ...raw.links.chains[0]!,
+      hops: [{ url: long, status: 301 }],
+    });
+    raw.javascript.groups.push({
+      ...raw.javascript.groups[0]!,
+      group: "g".repeat(3000),
+      reason: "r".repeat(3000),
+    } as (typeof raw.javascript.groups)[number]);
+    raw.pageChecks.missingTitle.pages.push({ url: long });
+    raw.pageChecks.duplicateTitles.groups[0]!.text = "t".repeat(3000);
+    raw.pageChecks.duplicateTitles.groups[0]!.pages.push({ url: "\u0000" });
+    raw.pageChecks.canonicals.otherHost.pages.push(
+      { url: `${SITE}/c`, canonical: long },
+      { url: long, canonical: `${SITE}/d` },
+    );
+    const crawl = stored(
+      siteReport({
+        crawl: {
+          ...raw,
+          orphans: { state: "found", urls: [long, `${SITE}/lost`], total: 2 },
+        },
+      }),
+    );
+    if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+    expect(crawl.links?.broken).toEqual([
+      expect.objectContaining({
+        target: `${SITE}/pricing/old-plan`,
+        sources: [`${SITE}/`, `${SITE}/pricing`],
+      }),
+    ]);
+    expect(crawl.links?.brokenTotal).toBe(9);
+    expect(crawl.links?.chains.map((chain) => chain.start)).toEqual([
+      `${SITE}/old`,
+    ]);
+    expect(crawl.pageChecks?.missingTitle).toEqual({
+      urls: [`${SITE}/docs/setup`],
+      total: 2,
+    });
+    expect(crawl.pageChecks?.duplicateTitles.groups).toEqual([
+      expect.objectContaining({
+        text: `${"t".repeat(1999)}…`,
+        urls: [`${SITE}/pricing`, `${SITE}/pricing/a`],
+      }),
+    ]);
+    expect(crawl.pageChecks?.badCanonicals.pages.map((row) => row.url)).toEqual(
+      [`${SITE}/a`, `${SITE}/b`],
+    );
+    expect(crawl.orphans).toMatchObject({ urls: [`${SITE}/lost`], total: 2 });
+    expect(crawl.javascript?.groups[1]).toMatchObject({
+      group: `${"g".repeat(1999)}…`,
+      reason: `${"r".repeat(1999)}…`,
+    });
+    const unknown = stored(
+      siteReport({
+        crawl: {
+          ...botCrawl(),
+          orphans: { state: "not determined", reason: "o".repeat(3000) },
+        },
+      }),
+    );
+    expect(unknown?.state === "crawled" && unknown.orphans).toEqual({
+      state: "not determined",
+      reason: `${"o".repeat(1999)}…`,
+    });
+  });
+
   it("keeps only text PostgreSQL can store", () => {
     // A cut inside a surrogate pair, and a NUL: jsonb refuses both, and the whole import with them.
     const crawl = stored(
