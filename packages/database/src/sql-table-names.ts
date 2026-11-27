@@ -193,6 +193,7 @@ export type SharedTableName =
   | "soko_bot_model_call"
   | "soko_bot_model_evaluation"
   | "soko_bot_nudge"
+  | "soko_bot_account_question"
   | "soko_bot_pending_decision"
   | "soko_bot_runtime_event"
   | "soko_bot_schedule"

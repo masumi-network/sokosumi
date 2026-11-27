@@ -2756,6 +2756,7 @@ model SokoBot {
   memoryRevisions      SokoBotMemoryRevision[]
   legacyMessages       SokoBotLegacyMessage[]
   pendingDecisions     SokoBotPendingDecision[]
+  accountQuestions     SokoBotAccountQuestion[]
   schedules            SokoBotSchedule[]
   authoritySpends      SokoBotAuthoritySpend[]
   cmoUpgradesSeen      CmoUpgradeSeen[]
@@ -2923,6 +2924,7 @@ model SokoBotTurn {
   watches             SokoBotWatch[]
   authoritySpends     SokoBotAuthoritySpend[]
   pendingDecisions    SokoBotPendingDecision[]
+  accountQuestions    SokoBotAccountQuestion[]
   memoryRevisions     SokoBotMemoryRevision[]
   scheduleRun         SokoBotScheduleRun?
   /// Marketing strategy versions this turn wrote.
@@ -3364,6 +3366,32 @@ model SokoBotIntentOutcome {
   @@unique([intentId, intentRevision, evidenceRevision])
   @@index([intentId, assessedAt(sort: Desc)])
   @@map("soko_bot_intent_outcome")
+}
+
+/// "Which account?" asked before a social post (social-destination.ts): the
+/// options shown, in order. A later owner chat turn answers it by passing its
+/// id and one option to create_social_post.
+model SokoBotAccountQuestion {
+  id                String      @id @default(uuid(7)) @db.Uuid
+  createdAt         DateTime    @default(now())
+  sokoBotId         String      @db.Uuid
+  sokoBot           SokoBot     @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  turnId            String      @db.Uuid
+  turn              SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+  requestedByUserId String?
+  destinationRoomId String?     @db.Uuid
+  provider          String
+  /// Connection ids, in the order the question showed them.
+  optionIds         String[]    @db.Uuid
+  /// When Core put the question with its options into the owner's reply;
+  /// a question never shown is never open.
+  shownAt           DateTime?
+  /// The owner turn that answered it; its drafts may use it, no later turn.
+  answeredTurnId    String?     @db.Uuid
+
+  @@unique([turnId, provider])
+  @@index([sokoBotId, createdAt(sort: Desc)])
+  @@map("soko_bot_account_question")
 }
 
 model SokoBotPendingDecision {
