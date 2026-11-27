@@ -199,4 +199,21 @@ describe("FundraisingBoard", () => {
 
     expect(screen.getByText("Search is off")).toBeTruthy();
   });
+
+  it("focuses the suggestions section with a visible ring when search is off", async () => {
+    service.suggestions.mockResolvedValueOnce([testSuggestion()]);
+    const user = renderBoard(testProspect(), {
+      research: { ...testPipeline().research, exaConfigured: false },
+    });
+    await user.click(await screen.findByRole("button", { name: "Review" }));
+
+    screen.getByRole("button", { name: "Dismiss" }).focus();
+    await user.keyboard("{Enter}");
+
+    const section = screen.getByRole("region", { name: "Find investors" });
+    await waitFor(() => expect(document.activeElement).toBe(section));
+    // outline-hidden keeps a transparent outline that forced colors paint; the ring is the normal indicator.
+    expect(section.className).toContain("outline-hidden");
+    expect(section.className).toContain("focus-visible:ring-2");
+  });
 });

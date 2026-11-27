@@ -111,7 +111,7 @@ export function FindInvestors({ pipeline }: { pipeline: FundraisingPipeline }) {
       ref={section}
       tabIndex={-1}
       aria-label={t("title")}
-      className="border-border-tertiary rounded-xl border outline-hidden"
+      className="border-border-tertiary focus-visible:ring-ring rounded-xl border outline-hidden focus-visible:ring-2"
       data-testid="find-investors"
     >
       {/* One line at every width, so suggestions that load late never push the pipeline down. */}
