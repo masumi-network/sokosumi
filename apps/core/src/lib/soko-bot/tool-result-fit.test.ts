@@ -28,6 +28,58 @@ describe("fitToolResult", () => {
     expect(result.posts).toHaveLength(40);
   });
 
+  describe("a cut page", () => {
+    type Fitted = {
+      result: {
+        posts: { id: string }[];
+        pagination: { nextCursor: string | null; total: number };
+      };
+      omitted: Record<string, number>;
+      note: string;
+    };
+    const page = (nextCursor: string | null) => ({
+      posts: Array.from({ length: 20 }, (_, i) => post(i)),
+      pagination: { cursor: null, limit: 20, total: 24, nextCursor },
+    });
+
+    it("continues after the last item shown, so paging skips nothing", () => {
+      const result = page("post-19");
+      const fitted = fitToolResult("list_social_posts", result) as Fitted;
+      const shown = fitted.result.posts.length;
+      expect(shown).toBeLessThan(20);
+      expect(fitted.result.pagination.nextCursor).toBe(`post-${shown - 1}`);
+      expect(fitted.note).toContain(
+        `shows ${shown} of its 20 posts. 24 in all.`,
+      );
+      expect(fitted.note).toContain("continues right after the last one shown");
+      expect(JSON.stringify(fitted).length).toBeLessThanOrEqual(
+        TOOL_RESULT_MAX_CHARS,
+      );
+      expect(result.pagination.nextCursor).toBe("post-19");
+    });
+
+    it("warns that an encoded cursor would skip the items left out", () => {
+      const fitted = fitToolResult(
+        "list_social_posts",
+        page("opaque-cursor"),
+      ) as Fitted;
+      const shown = fitted.result.posts.length;
+      expect(fitted.result.pagination.nextCursor).toBe("opaque-cursor");
+      expect(fitted.note).toContain(
+        `would skip the ones left out: ask again with limit ${shown}`,
+      );
+    });
+
+    it("says how to see the rest of a last page", () => {
+      const fitted = fitToolResult("list_social_posts", page(null)) as Fitted;
+      const shown = fitted.result.posts.length;
+      expect(fitted.result.pagination.nextCursor).toBeNull();
+      expect(fitted.note).toContain(
+        `Ask again with limit ${shown} to see the rest of this page.`,
+      );
+    });
+  });
+
   it("cuts one long text to a preview with the same note", () => {
     const fitted = fitToolResult("read_file", {
       text: "y".repeat(60_000),

@@ -65,6 +65,56 @@ function longestArray(
   return null;
 }
 
+function isRecord(value: Json): value is Record<string, Json> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function lastId(items: Json): unknown {
+  const last = Array.isArray(items) ? items.at(-1) : undefined;
+  return isRecord(last) ? last.id : undefined;
+}
+
+/**
+ * What a cut page says about the rest. A page cursor names the page's last
+ * item, so paging on from it would skip the items left out: when the cursor
+ * is that item's id, it moves to the last item shown.
+ */
+function pagingNote(
+  original: Json,
+  copy: Json,
+  omitted: Record<string, number>,
+): string {
+  if (!isRecord(original) || !isRecord(copy)) return "";
+  const pagination = copy.pagination;
+  const before = original.pagination;
+  if (!isRecord(pagination) || !isRecord(before)) return "";
+  const cut = Object.keys(omitted).filter((key) => Array.isArray(copy[key]));
+  const path =
+    cut.find(
+      (key) =>
+        before.nextCursor != null &&
+        lastId(original[key]) === before.nextCursor,
+    ) ?? (cut.length === 1 ? cut[0] : undefined);
+  const page = path === undefined ? undefined : copy[path];
+  if (path === undefined || !Array.isArray(page)) return "";
+  const shown = page.length;
+  const total =
+    typeof before.total === "number" ? ` ${before.total} in all.` : "";
+  const counted = `This page shows ${shown} of its ${shown + omitted[path]} ${path}.${total}`;
+  const keptLast = lastId(page);
+  if (
+    typeof before.nextCursor === "string" &&
+    before.nextCursor === lastId(original[path]) &&
+    typeof keptLast === "string"
+  ) {
+    pagination.nextCursor = keptLast;
+    return `${counted} pagination.nextCursor continues right after the last one shown.`;
+  }
+  if (before.nextCursor === null || before.nextCursor === undefined)
+    return `${counted} Ask again with limit ${shown} to see the rest of this page.`;
+  return `${counted} Paging on with pagination.nextCursor would skip the ones left out: ask again with limit ${shown} instead.`;
+}
+
 /**
  * A tool result the model can still use when it is too long: items are left
  * off the end of its longest lists, and it says how many and how to ask for
@@ -84,11 +134,10 @@ export function fitToolResult(capability: string, result: Json): Json {
     found.items.splice(found.items.length - drop, drop);
     omitted[found.path || "result"] =
       (omitted[found.path || "result"] ?? 0) + drop;
-    if (
-      size({ result: copy, omitted, note: SHORTENED_NOTE }) <=
-      TOOL_RESULT_MAX_CHARS
-    )
-      return { result: copy, omitted, note: SHORTENED_NOTE };
+    const paging = pagingNote(result, copy, omitted);
+    const note = paging ? `${SHORTENED_NOTE} ${paging}` : SHORTENED_NOTE;
+    if (size({ result: copy, omitted, note }) <= TOOL_RESULT_MAX_CHARS)
+      return { result: copy, omitted, note };
   }
   const text = JSON.stringify(copy) ?? "";
   // The list of what was left out can itself grow past the cap (thousands of
