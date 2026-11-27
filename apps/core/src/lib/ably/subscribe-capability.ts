@@ -2,6 +2,8 @@ import {
   makeAgentJobsCapabilityResourceName,
   makeChatRoomChannelName,
   makeChatTypingChannelName,
+  makeJobStatusChannelName,
+  makeMainnetJobsCapabilityResourceName,
   makeOrgPresenceChannelName,
   makeUserCalendarControlChannelName,
   makeUserChatControlChannelName,
@@ -34,11 +36,16 @@ export interface BuildAblyClientCapabilityInput {
   roomIds: readonly string[];
   organizationIds: readonly string[];
   workspaceIds: readonly string[];
+  /** The Workspaces the user may use Preprod in; empty while Preprod is off. */
+  preprodJobWorkspaceIds: readonly string[];
   channelEnvironment: RealtimeChannelEnvironment;
 }
 
 /**
  * Ably capabilities for a user session.
+ * - Job status: Mainnet by one wildcard over the user's Workspaces (it covers
+ *   what the wildcard before it did); Preprod by one exact entry per Workspace
+ *   with access, because a wildcard there would reach Workspaces without it
  * - Chat rooms: per-membership room id subscribe (SOK-741)
  * - Chat control: always subscribe (SOK-742 membership revoke)
  * - Calendar workspaces: exact per-workspace, per-user subscribe
@@ -55,11 +62,17 @@ export function buildAblyClientCapability({
   roomIds,
   organizationIds,
   workspaceIds,
+  preprodJobWorkspaceIds,
   channelEnvironment,
 }: BuildAblyClientCapabilityInput): AblySubscribeCapabilityMap {
   const capability: AblySubscribeCapabilityMap = {
-    // Jobs channels use agent_id in the middle segment; wildcard keeps job pages working.
+    // Nothing is published on these names any more. The grant only keeps a
+    // tab opened before the rename attached, so it goes stale instead of
+    // failing; it goes in the window cleanup.
     [makeAgentJobsCapabilityResourceName(userId, channelEnvironment)]: [
+      "subscribe",
+    ],
+    [makeMainnetJobsCapabilityResourceName(userId, channelEnvironment)]: [
       "subscribe",
     ],
     [makeUserTasksChannelName(userId, channelEnvironment)]: ["subscribe"],
@@ -94,6 +107,17 @@ export function buildAblyClientCapability({
   for (const workspaceId of workspaceIds) {
     capability[
       makeWorkspaceCalendarChannelName(workspaceId, userId, channelEnvironment)
+    ] = ["subscribe"];
+  }
+
+  for (const workspaceId of preprodJobWorkspaceIds) {
+    capability[
+      makeJobStatusChannelName(
+        "preprod",
+        workspaceId,
+        userId,
+        channelEnvironment,
+      )
     ] = ["subscribe"];
   }
 

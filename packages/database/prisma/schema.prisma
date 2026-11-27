@@ -2812,6 +2812,9 @@ model SokoBotTurn {
   /// SQL-only CHECK `soko_bot_turn_network_check`.
   network String?
 
+  /// Preprod generation the row started under; null on every Mainnet row.
+  preprodGeneration Int?
+
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
@@ -3253,6 +3256,9 @@ model SokoBotDelegation {
   /// SQL-only CHECK `soko_bot_delegation_network_check`.
   network String?
 
+  /// Preprod generation the row started under; null on every Mainnet row.
+  preprodGeneration Int?
+
   turnId String      @db.Uuid
   turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
 
@@ -3439,6 +3445,9 @@ model SokoBotSchedule {
   /// Network that created the schedule. Null on legacy rows with no Job or written during rollout.
   /// SQL-only CHECK `soko_bot_schedule_network_check`.
   network String?
+
+  /// Preprod generation the row started under; null on every Mainnet row.
+  preprodGeneration Int?
 
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
@@ -4922,6 +4931,12 @@ model ChatRoomMention {
   /// depth plus one. Past the ceiling no mention row is written at all, so an
   /// unattended cascade terminates whatever the models decide to say.
   chainDepth Int @default(0)
+
+  /// Network of the request that posted the mention. Null on legacy writes.
+  /// SQL-only CHECK `chat_room_mention_network_check`.
+  network           String?
+  /// Preprod generation the mention was posted under; null on every Mainnet row.
+  preprodGeneration Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

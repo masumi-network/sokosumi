@@ -2,7 +2,6 @@ import { membershipAgeOrderBy } from "@sokosumi/database";
 import { workspaceRepository } from "@sokosumi/database/repositories";
 import {
   getOrganizationMetadata,
-  hasAdminRole,
   socialProvidersForWorkspace,
 } from "@sokosumi/utils";
 
@@ -10,7 +9,7 @@ import { socialProviderWorkspace } from "@/config/social-providers";
 import { notFound } from "@/helpers/error";
 import { pendingOrganizationInvitationsWhere } from "@/helpers/invitation";
 import prisma from "@/lib/db/prisma";
-import { isPreprodOn } from "@/lib/network";
+import { canUsePreprodInWorkspace, isPreprodOn } from "@/lib/network";
 import { memberRoleSchema } from "@/schemas/domain-enums.schema";
 import type {
   UserWorkspace,
@@ -18,16 +17,9 @@ import type {
 } from "@/schemas/user-workspace.schema";
 import { pickActiveOrganizationId } from "@/services/preferred-workspace.service";
 
-function preprodAccessForRole(preprodOn: boolean, role: string | undefined) {
-  const admin = preprodOn && hasAdminRole(role);
-  return (preprodEnabled: boolean | undefined) =>
-    preprodOn && (admin || preprodEnabled === true);
-}
-
 /** A user API key can be used in any of its owner's workspaces. */
 export async function canUserUsePreprod(userId: string): Promise<boolean> {
-  const preprodOn = isPreprodOn();
-  if (!preprodOn) return false;
+  if (!isPreprodOn()) return false;
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -43,10 +35,10 @@ export async function canUserUsePreprod(userId: string): Promise<boolean> {
   });
   if (!user) return false;
 
-  const canUsePreprod = preprodAccessForRole(preprodOn, user.role);
-  return (
-    canUsePreprod(user.preprodEnabled) || canUsePreprod(user.members.length > 0)
-  );
+  // Any of their workspaces: an opted-in Organization's, else the personal one.
+  return canUsePreprodInWorkspace(user, user.role, {
+    organization: user.members.length > 0 ? { preprodEnabled: true } : null,
+  });
 }
 
 /**
@@ -111,7 +103,8 @@ export async function listUserWorkspaces(
 
   // The listed person's role, not the caller's: a Coworker listing its
   // context user gets that user's answer.
-  const canUsePreprod = preprodAccessForRole(preprodOn, user.role);
+  const canUsePreprod = (organization: { preprodEnabled?: boolean } | null) =>
+    canUsePreprodInWorkspace(user, user.role, { organization });
 
   const workspaces: UserWorkspace[] = [];
 
@@ -132,7 +125,7 @@ export async function listUserWorkspaces(
       logo: null,
       websiteUrl: null,
       preferred: preferredOrganizationId === null,
-      canUsePreprod: canUsePreprod(user.preprodEnabled),
+      canUsePreprod: canUsePreprod(null),
     });
   }
 
@@ -160,7 +153,7 @@ export async function listUserWorkspaces(
       logo: organization.logo,
       websiteUrl: getOrganizationMetadata(organization.metadata).url,
       preferred: organization.id === preferredOrganizationId,
-      canUsePreprod: canUsePreprod(organization.preprodEnabled),
+      canUsePreprod: canUsePreprod(organization),
     });
   }
 

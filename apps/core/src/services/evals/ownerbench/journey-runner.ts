@@ -11,6 +11,7 @@ import prisma from "@/lib/db/prisma";
 import { setEvalCoworkerScript } from "@/lib/evals/fake-coworker";
 import { recordCoreWarning } from "@/lib/evlog";
 import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { planJevMode, planJevStandInDuring } from "@/lib/plan-jev";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { effectiveSokoBotRuntimeAdapter } from "@/lib/soko-bot/factory";
@@ -183,7 +184,13 @@ async function askInRoom(
       roomId,
       senderUserId,
       content,
-      mentionsAsSource: { create: { sokoBotId: botId, coworkerId: null } },
+      mentionsAsSource: {
+        create: {
+          sokoBotId: botId,
+          coworkerId: null,
+          network: DETACHED_SOKO_BOT_NETWORK,
+        },
+      },
     },
     select: { mentionsAsSource: { select: { id: true } } },
   });
