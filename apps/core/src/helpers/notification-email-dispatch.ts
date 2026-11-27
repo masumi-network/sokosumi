@@ -376,6 +376,7 @@ async function dispatchNotificationEmailRevision(
       messageKey: notification.messageKey,
       messageParams: spoken.messageParams,
       metadata: spoken.metadata,
+      network: row.network,
       recipientEmail: reader.email,
       recipientName: reader.name,
     });
