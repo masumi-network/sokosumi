@@ -119,7 +119,8 @@ function isErrorResultOutput(output: unknown): boolean {
 
 export class TurnStallDetector {
   private window: WindowEntry[] = [];
-  private seenWrites = new Set<string>();
+  private seenSignatures = new Set<string>();
+  private redundantCounts = new Map<string, number>();
   private pollTargets = new Map<
     string,
     { outputDigest: string; streak: number }
@@ -139,14 +140,16 @@ export class TurnStallDetector {
   /** Clears recent call state after a Strike 1 nudge while keeping strike count. */
   resetWindow(): void {
     this.window = [];
-    this.seenWrites.clear();
+    this.seenSignatures.clear();
+    this.redundantCounts.clear();
     this.pollTargets.clear();
     this.sleepStreak = 0;
   }
 
   /**
    * Observes newly completed steps from the current `callModel` round and
-   * returns the first stall pattern triggered, if any.
+   * returns the first stall pattern triggered, if any. Each completed step is
+   * evaluated as a whole so parallel tool results are order-independent.
    */
   observeSteps(
     steps: readonly { toolResults?: readonly ObservedToolResult[] }[],
@@ -155,108 +158,177 @@ export class TurnStallDetector {
     for (let i = fromIndex; i < steps.length; i++) {
       const results = steps[i]?.toolResults;
       if (!results?.length) continue;
-      for (const call of results) {
-        const hit = this.observeCall(call);
-        if (hit) return hit;
-      }
+      const hit = this.observeStep(results);
+      if (hit) return hit;
     }
     return null;
   }
 
   observeCall(call: ObservedToolResult): StallDetection | null {
-    if (isErrorResultOutput(call.output)) return null;
+    return this.observeStep([call]);
+  }
 
-    const isPoll = POLL_STATUS_TOOLS.has(call.toolName);
-    const isSleep = isSleepOnlyToolCall({
-      toolName: call.toolName,
-      input: call.input,
-    });
-    const isRead = isReadOnlyToolName(call.toolName);
-    // Domain writes (excluding generic `bash`, which may be read-only commands
-    // like `ls`/`echo`) represent confirmed state progress when new.
-    const isDomainWrite =
-      !isRead &&
-      !isSleep &&
-      call.toolName !== "bash" &&
-      !NON_PROGRESS_TOOLS.has(call.toolName);
+  observeStep(results: readonly ObservedToolResult[]): StallDetection | null {
+    interface ClassifiedCall {
+      toolName: string;
+      isPoll: boolean;
+      isSleep: boolean;
+      isDomainWrite: boolean;
+      isProgressEligible: boolean;
+      inputDigest: string;
+      outputDigest: string;
+      signature: string;
+    }
 
-    const inputDigest = canonicalDigest(call.input, false);
-    const outputDigest = canonicalDigest(call.output, isPoll);
-    const signature = `${call.toolName}|${inputDigest}|${outputDigest}`;
-
-    if (isDomainWrite && !this.seenWrites.has(signature)) {
-      // A brand-new domain write clears prior read/poll entries so productive
-      // multi-item batch loops never false-positive, while retaining prior
-      // writes so alternating writeA<->writeB or identical write replays still fire.
-      this.seenWrites.add(signature);
-      this.pollTargets.clear();
-      this.sleepStreak = 0;
-      this.window = this.window.filter((entry) => entry.isDomainWrite);
-      this.window.push({
+    const classified: ClassifiedCall[] = [];
+    for (const call of results) {
+      if (isErrorResultOutput(call.output)) continue;
+      const isPoll = POLL_STATUS_TOOLS.has(call.toolName);
+      const isSleep = isSleepOnlyToolCall({
         toolName: call.toolName,
-        signature,
-        isDomainWrite: true,
+        input: call.input,
       });
+      const isRead = isReadOnlyToolName(call.toolName);
+      // Domain writes (excluding generic `bash`, which may be read-only
+      // commands like `ls`/`echo`) represent confirmed state mutations.
+      const isDomainWrite =
+        !isRead &&
+        !isSleep &&
+        call.toolName !== "bash" &&
+        !NON_PROGRESS_TOOLS.has(call.toolName);
+      // Any brand-new non-poll, non-sleep, non-bookkeeping call (a new domain
+      // write or a new read returning previously unseen data) counts as
+      // surrounding progress.
+      const isProgressEligible =
+        !isPoll && !isSleep && !NON_PROGRESS_TOOLS.has(call.toolName);
+      const inputDigest = canonicalDigest(call.input, false);
+      const outputDigest = canonicalDigest(call.output, isPoll);
+      const signature = `${call.toolName}|${inputDigest}|${outputDigest}`;
+      classified.push({
+        toolName: call.toolName,
+        isPoll,
+        isSleep,
+        isDomainWrite,
+        isProgressEligible,
+        inputDigest,
+        outputDigest,
+        signature,
+      });
+    }
+    if (classified.length === 0) return null;
+
+    // Partition the completed step so parallel result ordering never changes
+    // whether a brand-new write or unread file clears earlier redundant reads.
+    const freshProgress: ClassifiedCall[] = [];
+    const remainder: ClassifiedCall[] = [];
+    const seenFreshInStep = new Set<string>();
+    for (const call of classified) {
+      if (
+        call.isProgressEligible &&
+        !this.seenSignatures.has(call.signature) &&
+        !seenFreshInStep.has(call.signature)
+      ) {
+        seenFreshInStep.add(call.signature);
+        freshProgress.push(call);
+      } else {
+        remainder.push(call);
+      }
+    }
+
+    const pushWindow = (entry: WindowEntry) => {
+      this.window.push(entry);
       if (this.window.length > STALL_WINDOW_SIZE) {
         this.window.shift();
       }
-      return null;
-    }
+    };
 
-    this.window.push({
-      toolName: call.toolName,
-      signature,
-      isDomainWrite,
-    });
-    if (this.window.length > STALL_WINDOW_SIZE) {
-      this.window.shift();
-    }
-
-    // Pattern 3 (checked first so status polling gets targeted durable-wait guidance).
-    if (isSleep) {
-      this.sleepStreak += 1;
-      if (this.sleepStreak >= STALL_POLL_NO_PROGRESS_THRESHOLD) {
-        return {
-          pattern: "poll_no_progress",
-          tools: ["bash"],
-          count: this.sleepStreak,
-        };
+    for (const call of freshProgress) {
+      this.seenSignatures.add(call.signature);
+      this.redundantCounts.clear();
+      this.pollTargets.clear();
+      this.sleepStreak = 0;
+      if (call.isDomainWrite) {
+        // Brand-new domain writes drop prior read/poll entries from the window
+        // while keeping prior writes so alternating writeA<->writeB still fires.
+        this.window = this.window.filter((entry) => entry.isDomainWrite);
       }
-    } else if (isPoll) {
-      const targetKey = `${call.toolName}|${inputDigest}`;
-      const previous = this.pollTargets.get(targetKey);
-      if (previous && previous.outputDigest === outputDigest) {
-        const streak = previous.streak + 1;
-        this.pollTargets.set(targetKey, { outputDigest, streak });
-        if (streak >= STALL_POLL_NO_PROGRESS_THRESHOLD) {
-          return {
-            pattern: "poll_no_progress",
+      pushWindow({
+        toolName: call.toolName,
+        signature: call.signature,
+        isDomainWrite: call.isDomainWrite,
+      });
+    }
+
+    let pollHit: StallDetection | null = null;
+    let repeatHit: StallDetection | null = null;
+
+    for (const call of remainder) {
+      if (this.seenSignatures.has(call.signature)) {
+        const redundant = (this.redundantCounts.get(call.signature) ?? 0) + 1;
+        this.redundantCounts.set(call.signature, redundant);
+        if (!repeatHit && redundant >= STALL_REPEAT_THRESHOLD - 1) {
+          repeatHit = {
+            pattern: "repeat_same",
             tools: [call.toolName],
-            count: streak,
+            count: redundant + 1,
           };
         }
       } else {
-        // Status or payload changed (e.g., new Coworker comment or completion): progress!
-        this.pollTargets.set(targetKey, { outputDigest, streak: 1 });
-        this.sleepStreak = 0;
+        this.seenSignatures.add(call.signature);
+      }
+
+      pushWindow({
+        toolName: call.toolName,
+        signature: call.signature,
+        isDomainWrite: call.isDomainWrite,
+      });
+
+      // Pattern 3: unchanged status polls or repeated bash sleep waits.
+      if (call.isSleep) {
+        this.sleepStreak += 1;
+        if (!pollHit && this.sleepStreak >= STALL_POLL_NO_PROGRESS_THRESHOLD) {
+          pollHit = {
+            pattern: "poll_no_progress",
+            tools: ["bash"],
+            count: this.sleepStreak,
+          };
+        }
+      } else if (call.isPoll) {
+        const targetKey = `${call.toolName}|${call.inputDigest}`;
+        const previous = this.pollTargets.get(targetKey);
+        if (previous && previous.outputDigest === call.outputDigest) {
+          const streak = previous.streak + 1;
+          this.pollTargets.set(targetKey, {
+            outputDigest: call.outputDigest,
+            streak,
+          });
+          if (!pollHit && streak >= STALL_POLL_NO_PROGRESS_THRESHOLD) {
+            pollHit = {
+              pattern: "poll_no_progress",
+              tools: [call.toolName],
+              count: streak,
+            };
+          }
+        } else {
+          // Status or payload changed (e.g., new Coworker comment or completion): progress!
+          this.pollTargets.set(targetKey, {
+            outputDigest: call.outputDigest,
+            streak: 1,
+          });
+          this.sleepStreak = 0;
+        }
       }
     }
 
-    // Pattern 1: same successful (tool, input, output) repeated 4 times in last 20 calls.
-    let repeatCount = 0;
-    for (const entry of this.window) {
-      if (entry.signature === signature) repeatCount += 1;
-    }
-    if (repeatCount >= STALL_REPEAT_THRESHOLD) {
-      return {
-        pattern: "repeat_same",
-        tools: [call.toolName],
-        count: repeatCount,
-      };
-    }
+    if (pollHit) return pollHit;
+    if (repeatHit) return repeatHit;
 
-    // Pattern 2: last 6 consecutive calls strictly alternate A-B-A-B-A-B (A != B).
-    if (this.window.length >= STALL_ALTERNATING_LENGTH) {
+    // Pattern 2: last 6 consecutive calls strictly alternate A-B-A-B-A-B (A != B),
+    // only when this completed step produced no brand-new progress.
+    if (
+      freshProgress.length === 0 &&
+      this.window.length >= STALL_ALTERNATING_LENGTH
+    ) {
       const tail = this.window.slice(-STALL_ALTERNATING_LENGTH);
       const a = tail[0];
       const b = tail[1];

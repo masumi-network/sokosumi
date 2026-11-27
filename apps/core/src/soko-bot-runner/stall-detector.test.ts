@@ -10,6 +10,56 @@ import {
 } from "./stall-detector";
 
 describe("TurnStallDetector (E8)", () => {
+  const readFile = (path: string) => ({
+    toolName: "read_file",
+    input: { path },
+    output: { text: path },
+  });
+
+  it("allows repeated reference to an index while previously unread files are opened", () => {
+    const detector = new TurnStallDetector();
+    for (let i = 0; i < 8; i++) {
+      expect(detector.observeCall(readFile(`chapter-${i}`))).toBeNull();
+      expect(detector.observeCall(readFile("index"))).toBeNull();
+    }
+  });
+
+  it("processes the whole completed parallel step before deciding a stall regardless of result order", () => {
+    const save = {
+      toolName: "create_task",
+      input: { title: "draft" },
+      output: { id: "new-task" },
+    };
+    for (const resultOrder of [
+      [readFile("index"), save],
+      [save, readFile("index")],
+    ]) {
+      const detector = new TurnStallDetector();
+      for (let i = 0; i < 3; i++) detector.observeCall(readFile("index"));
+      expect(
+        detector.observeSteps([{ toolResults: resultOrder }], 0),
+      ).toBeNull();
+    }
+
+    // Same order-independence for a 3rd unchanged poll paired with a new write.
+    const poll = {
+      toolName: "get_task_status",
+      input: { taskId: "t1" },
+      output: { status: "RUNNING" },
+    };
+    for (const resultOrder of [
+      [poll, save],
+      [save, poll],
+    ]) {
+      const detector = new TurnStallDetector();
+      expect(detector.observeCall(poll)).toBeNull();
+      expect(detector.observeCall(poll)).toBeNull();
+      expect(
+        detector.observeSteps([{ toolResults: resultOrder }], 0),
+      ).toBeNull();
+    }
+  });
+
   it("flags repeat_same on the 4th identical successful call (key-order independent) and ignores errors", () => {
     const detector = new TurnStallDetector();
 
