@@ -276,15 +276,20 @@ async function timeOutStuckRun(run: {
   return (await completeIfDone(run)).completed;
 }
 
-/** The queued run first in line starts once nothing else is running. */
+/**
+ * The queued run first in line starts once nothing else is running. Only runs
+ * of this Core's environment: a database forked from production holds its
+ * queued and running runs, and a preview or local Core must not run them.
+ */
 async function startNextRun() {
+  const environment = evalEnvironment();
   const running = await prisma.evalRun.findFirst({
-    where: { status: "RUNNING" },
+    where: { status: "RUNNING", environment },
     orderBy: { createdAt: "asc" },
   });
   if (running && !(await timeOutStuckRun(running))) return running;
   const queued = await prisma.evalRun.findFirst({
-    where: { status: "QUEUED" },
+    where: { status: "QUEUED", environment },
     orderBy: { createdAt: "asc" },
   });
   if (!queued) return null;
