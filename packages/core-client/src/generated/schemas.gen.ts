@@ -39166,6 +39166,11 @@ export const ProjectDesignMdWriteSchema = {
                 'null'
             ],
             example: '12345'
+        },
+        onlyIfEmpty: {
+            type: 'boolean',
+            description: 'Write only while the Project has no DESIGN.md; 409 when it has one. Leave out to replace.',
+            example: true
         }
     },
     required: [

@@ -98,6 +98,11 @@ export const projectDesignMdWriteSchema = z
       )
       .openapi({ example: "# DESIGN.md\n\nBrand guidelines…" }),
     extractionId: z.string().nullish().optional().openapi({ example: "12345" }),
+    onlyIfEmpty: z.boolean().optional().openapi({
+      description:
+        "Write only while the Project has no DESIGN.md; 409 when it has one. Leave out to replace.",
+      example: true,
+    }),
   })
   .openapi("ProjectDesignMdWrite");
 

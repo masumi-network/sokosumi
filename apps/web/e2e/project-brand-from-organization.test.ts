@@ -10,8 +10,9 @@ import { signUpWithOrganization } from "./sign-up.ts";
 /**
  * A new owner whose Organization has a DESIGN.md (generated from example.com
  * at setup) creates a Project with no website and starts its brand from the
- * Organization's: one click on Use <Organization> brand, and the Project's
- * brand reads Ready and its Design tab shows the copied document.
+ * Organization's: Copy <Organization> brand from the keyboard, and the Project's
+ * brand reads Ready, focus lands on the brand menu, and its Design tab
+ * shows the copied document.
  * Free only: setup's brand generation, a Project and a copy.
  */
 const BASE_URL = resolveBaseUrl(process.env);
@@ -81,17 +82,26 @@ for (const { name: size, isMobile, ...viewport } of SIZES) {
       await page.getByRole("heading", { level: 1, name: PROJECT }).waitFor();
 
       const use = page.getByRole("button", {
-        name: `Use ${ORGANIZATION} brand`,
+        name: `Copy ${ORGANIZATION} brand`,
       });
       await use.waitFor();
       await assertNoOverflow(page);
       await page.screenshot({
         path: `${RESULTS_DIR}project-brand-from-organization-${size}-offer.png`,
       });
-      await use.click();
+      // From the keyboard: focus lands on the brand menu that replaces it.
+      await use.focus();
+      await page.keyboard.press("Enter");
       await page.getByText(`Copied the ${ORGANIZATION} brand`).waitFor();
       await page.getByText("Ready", { exact: true }).first().waitFor();
       assert.equal(await use.count(), 0, "the offer goes once a brand is set");
+      assert.equal(
+        await page.evaluate(() =>
+          document.activeElement?.getAttribute("aria-label"),
+        ),
+        "Brand actions",
+        "focus moves to the brand menu",
+      );
 
       await page
         .getByRole("navigation", { name: "Project sections" })

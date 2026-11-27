@@ -1,15 +1,31 @@
 import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { fetchMarkdownMock, persistMock, resolveEffectiveMock } = vi.hoisted(
-  () => ({
-    fetchMarkdownMock: vi.fn(),
-    persistMock: vi.fn(),
-    resolveEffectiveMock: vi.fn(),
-  }),
-);
+const {
+  fetchMarkdownMock,
+  persistMock,
+  resolveEffectiveMock,
+  revalidatePathMock,
+  CoreApiRequestError,
+} = vi.hoisted(() => ({
+  fetchMarkdownMock: vi.fn(),
+  persistMock: vi.fn(),
+  resolveEffectiveMock: vi.fn(),
+  revalidatePathMock: vi.fn(),
+  CoreApiRequestError: class extends Error {
+    constructor(
+      message: string,
+      readonly options: { status: number },
+    ) {
+      super(message);
+    }
+    get status() {
+      return this.options.status;
+    }
+  },
+}));
 
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
 vi.mock("@/middleware/auth-middleware", () => ({
   withSession:
@@ -18,7 +34,10 @@ vi.mock("@/middleware/auth-middleware", () => ({
       handler(params),
 }));
 
-vi.mock("@/lib/clients/core.client", () => ({ coreClient: {} }));
+vi.mock("@/lib/clients/core.client", () => ({
+  coreClient: {},
+  CoreApiRequestError,
+}));
 
 vi.mock("@/components/design-md/design-md-edit-page-shared", () => ({
   fetchDesignMdMarkdown: fetchMarkdownMock,
@@ -65,9 +84,11 @@ describe("copyOrganizationDesignMdToProject", () => {
     const result = await copy();
 
     expect(fetchMarkdownMock).toHaveBeenCalledWith(ORGANIZATION_DESIGN_MD.url);
+    // Only into an empty brand: a brand saved meanwhile is never replaced.
     expect(persistMock).toHaveBeenCalledWith(
       { type: "project", projectId: "project-1" },
       "# Acme brand",
+      { onlyIfEmpty: true },
     );
     expect(result).toEqual({
       ok: true,
@@ -102,5 +123,23 @@ describe("copyOrganizationDesignMdToProject", () => {
 
     expect(result.ok).toBe(false);
     expect(persistMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps a brand saved meanwhile and refreshes the project to show it", async () => {
+    resolveEffectiveMock.mockResolvedValue(ORGANIZATION_DESIGN_MD);
+    fetchMarkdownMock.mockResolvedValue({ markdown: "# Acme brand" });
+    persistMock.mockRejectedValue(
+      new CoreApiRequestError("Project already has a DESIGN.md", {
+        status: 409,
+      }),
+    );
+
+    const result = await copy();
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: "BAD_INPUT", message: "Project already has a DESIGN.md" },
+    });
+    expect(revalidatePathMock).toHaveBeenCalledWith("/projects/project-1");
   });
 });

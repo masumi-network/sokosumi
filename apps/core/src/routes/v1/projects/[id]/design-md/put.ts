@@ -1,7 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { notFound, serviceUnavailable } from "@/helpers/error";
+import { conflict, notFound, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { uploadDesignMdContent } from "@/lib/design-md-blob";
@@ -46,7 +47,9 @@ const route = withOrganizationSlugHeaderParameter(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
-      409: jsonErrorResponse("CMO project is read-only"),
+      409: jsonErrorResponse(
+        "CMO project is read-only, or onlyIfEmpty and the Project has a DESIGN.md",
+      ),
       503: jsonErrorResponse("Service Unavailable"),
     },
   }),
@@ -61,10 +64,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const project = await prisma.project.findFirst({
       where: { id, workspaceId: workspaceContext.workspaceId },
-      select: { id: true },
+      select: { id: true, designMdUrl: true },
     });
     if (!project) {
       throw notFound("Project not found");
+    }
+    if (body.onlyIfEmpty && project.designMdUrl) {
+      throw conflict("Project already has a DESIGN.md");
     }
 
     const designMdUrl = await uploadDesignMdContent({
@@ -76,13 +82,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw serviceUnavailable("Failed to store the DESIGN.md");
     }
 
-    const updated = await prisma.project.update({
-      where: { id },
-      data: {
-        designMdUrl,
-        designMdExtractionId: body.extractionId ?? null,
-      },
-    });
+    // With onlyIfEmpty the empty check is part of the write, so a brand saved
+    // after the check above wins and this write is refused. The uploaded blob
+    // is content-addressed and simply goes unreferenced.
+    const updated = await prisma.project
+      .update({
+        where: body.onlyIfEmpty ? { id, designMdUrl: null } : { id },
+        data: {
+          designMdUrl,
+          designMdExtractionId: body.extractionId ?? null,
+        },
+      })
+      .catch((error: unknown) => {
+        if (body.onlyIfEmpty && isPrismaRecordNotFoundError(error)) {
+          throw conflict("Project already has a DESIGN.md");
+        }
+        throw error;
+      });
 
     return ok(
       c,

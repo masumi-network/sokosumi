@@ -10252,6 +10252,10 @@ export type MarketingStrategyRequest = {
 export type ProjectDesignMdWrite = {
     content: string;
     extractionId?: string | null;
+    /**
+     * Write only while the Project has no DESIGN.md; 409 when it has one. Leave out to replace.
+     */
+    onlyIfEmpty?: boolean;
 };
 
 export type WorkspaceCalendarEntry = {
@@ -66854,7 +66858,7 @@ export type PutProjectsByIdDesignMdErrors = {
         };
     };
     /**
-     * CMO project is read-only
+     * CMO project is read-only, or onlyIfEmpty and the Project has a DESIGN.md
      */
     409: {
         error: string;

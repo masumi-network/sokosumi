@@ -252,6 +252,9 @@ export function ProjectBrandCard({
   const [websiteError, setWebsiteError] = useState<string | null>(null);
   const [isSavingWebsite, startSaveWebsite] = useTransition();
   const [isCopying, startCopy] = useTransition();
+  // The copy button leaves with the empty form; whoever pressed it from the
+  // keyboard lands on the brand menu that takes its place.
+  const focusMenuOnShow = useRef(false);
   const menuBusy =
     generation.isRunning ||
     isRemoving ||
@@ -319,11 +322,19 @@ export function ProjectBrandCard({
     });
   }
 
-  function handleCopyOrganization(organization: string) {
+  function handleCopyOrganization(organization: string, button: HTMLElement) {
+    focusMenuOnShow.current = document.activeElement === button;
     startCopy(async () => {
       const result = await copyOrganizationDesignMdToProject({ projectId });
       if (!result.ok) {
-        toast.error(t("errors.brand"));
+        focusMenuOnShow.current = false;
+        // BAD_INPUT: the project got a brand meanwhile; the action refreshed
+        // the page to show it.
+        toast.error(
+          result.error.code === "BAD_INPUT"
+            ? t("brandCard.organizationAlreadySet")
+            : t("errors.brand"),
+        );
         return;
       }
       setDesignMd({
@@ -368,6 +379,12 @@ export function ProjectBrandCard({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
+                    ref={(menuButton) => {
+                      if (menuButton && focusMenuOnShow.current) {
+                        focusMenuOnShow.current = false;
+                        menuButton.focus();
+                      }
+                    }}
                     type="button"
                     variant="ghost"
                     size="icon"
@@ -538,24 +555,29 @@ export function ProjectBrandCard({
                     {t("brandCard.upload")}
                   </Button>
                 ) : null}
-                {organizationName ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    loading={isCopying}
-                    disabled={menuBusy}
-                    onClick={() => handleCopyOrganization(organizationName)}
-                    className="h-10 grow sm:h-8"
-                  >
-                    <Building2 aria-hidden />
-                    {t("brandCard.useOrganization", {
-                      organization: organizationName,
-                    })}
-                  </Button>
-                ) : null}
               </div>
             </div>
+            {/* Its own row, so the website row keeps one layout in every
+                workspace, and a long organization name wraps inside the
+                card instead of pushing past it. */}
+            {organizationName ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                loading={isCopying}
+                disabled={menuBusy}
+                onClick={(event) =>
+                  handleCopyOrganization(organizationName, event.currentTarget)
+                }
+                className="h-auto min-h-10 w-full max-w-full whitespace-normal wrap-anywhere py-2 text-start sm:min-h-8 sm:w-auto sm:py-1.5"
+              >
+                <Building2 aria-hidden />
+                {t("brandCard.useOrganization", {
+                  organization: organizationName,
+                })}
+              </Button>
+            ) : null}
             {websiteError ? (
               <p
                 id="project-brand-website-error"

@@ -1,12 +1,13 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   ProjectBrandCard,
   ProjectBrandProvider,
 } from "@/app/projects/components/project-brand-card";
+
 import { projectBrandJobCallbacks } from "@/app/projects/project-brand-job";
 import { copyOrganizationDesignMdToProject } from "@/lib/actions/design-md/action";
 import {
@@ -41,7 +42,8 @@ const MESSAGES: Record<string, string> = {
   "brandCard.edit": "Edit",
   "brandCard.remove": "Remove",
   "brandCard.upload": "Upload",
-  "brandCard.useOrganization": "Use {organization} brand",
+  "brandCard.useOrganization": "Copy {organization} brand",
+  "brandCard.organizationAlreadySet": "This project already has a brand.",
   "brandCard.organizationCopied": "Copied the {organization} brand",
   "brandCard.moreActions": "Brand actions",
   "brandCard.removed": "Brand context removed",
@@ -868,21 +870,86 @@ describe("ProjectBrandCard", () => {
       organizationName: "Acme",
     });
 
-    await user.click(screen.getByRole("button", { name: "Use Acme brand" }));
+    await user.click(screen.getByRole("button", { name: "Copy Acme brand" }));
 
     expect(copyOrganizationDesignMdToProject).toHaveBeenCalledWith({
       projectId: "project-1",
     });
     expect(await screen.findByText("Ready")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Use Acme brand" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Copy Acme brand" }),
+    ).toBeNull();
   });
 
   it("keeps the organization button away from a project that has a brand or no organization", () => {
     const view = renderBrandDashboard({ organizationName: "Acme" });
-    expect(screen.queryByRole("button", { name: "Use Acme brand" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Copy Acme brand" }),
+    ).toBeNull();
     view.unmount();
 
     renderBrandDashboard({ designMd: null, websiteUrl: null });
     expect(screen.queryByRole("button", { name: /brand$/ })).toBeNull();
+  });
+
+  it("moves keyboard focus to the brand menu once the copy lands", async () => {
+    vi.mocked(copyOrganizationDesignMdToProject).mockResolvedValue({
+      ok: true,
+      value: {
+        extractionId: null,
+        previewUrl: null,
+        url: "https://blob.example/project/DESIGN.md",
+      },
+    } as Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>);
+    const user = userEvent.setup();
+    renderBrandDashboard({
+      designMd: null,
+      websiteUrl: null,
+      organizationName: "Acme",
+    });
+
+    screen.getByRole("button", { name: "Copy Acme brand" }).focus();
+    await user.keyboard("{Enter}");
+
+    expect(
+      await screen.findByRole("button", { name: "Brand actions" }),
+    ).toHaveFocus();
+  });
+
+  it("says so when the project got a brand while the card showed it empty", async () => {
+    vi.mocked(copyOrganizationDesignMdToProject).mockResolvedValue({
+      ok: false,
+      error: { code: "BAD_INPUT", message: "Project already has a DESIGN.md" },
+    } as Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>);
+    const user = userEvent.setup();
+    renderBrandDashboard({
+      designMd: null,
+      websiteUrl: null,
+      organizationName: "Acme",
+    });
+
+    await user.click(screen.getByRole("button", { name: "Copy Acme brand" }));
+
+    expect(toast.error).toHaveBeenCalledWith(
+      "This project already has a brand.",
+    );
+  });
+
+  it("lets a long organization name wrap inside the card", () => {
+    const longName = "Ada's Neighbourhood Bakery and Coffee Roastery GmbH";
+    renderBrandDashboard({
+      designMd: null,
+      websiteUrl: null,
+      organizationName: longName,
+    });
+
+    const button = screen.getByRole("button", {
+      name: `Copy ${longName} brand`,
+    });
+    // Button text stays on one line by default; this one may wrap, and an
+    // unbroken name may break anywhere, so it never grows past the card.
+    expect(button.className).toMatch(/\bwhitespace-normal\b/);
+    expect(button.className).toMatch(/wrap-anywhere/);
+    expect(button.className).toMatch(/\bmax-w-full\b/);
   });
 });

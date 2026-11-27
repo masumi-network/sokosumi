@@ -3666,7 +3666,8 @@
             "cancel": "Abbrechen"
           },
           "upload": "Hochladen",
-          "useOrganization": "Marke von {organization} verwenden",
+          "useOrganization": "Marke von {organization} kopieren",
+          "organizationAlreadySet": "Dieses Projekt hat schon eine Marke.",
           "organizationCopied": "Marke von {organization} übernommen",
           "moreActions": "Brand-Aktionen"
         },

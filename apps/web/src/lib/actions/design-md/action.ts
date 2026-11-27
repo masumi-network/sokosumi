@@ -10,7 +10,7 @@ import {
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import { coreClient } from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import {
   type DesignMdOwnerSchemaType,
   type FinalizeDesignMdGenerationSchemaType,
@@ -277,13 +277,25 @@ export const copyOrganizationDesignMdToProject = withSession<
     }
 
     const owner = { type: "project" as const, projectId: normalizedProjectId };
-    const persisted = await designMdService.persistUploadedDesignMd(
-      owner,
-      loaded.markdown,
-    );
-
-    await revalidateOwner(owner);
-    return toActionResult(ok(persisted));
+    try {
+      const persisted = await designMdService.persistUploadedDesignMd(
+        owner,
+        loaded.markdown,
+        // Never replace a brand saved since the card showed it empty.
+        { onlyIfEmpty: true },
+      );
+      await revalidateOwner(owner);
+      return toActionResult(ok(persisted));
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 409) {
+        // The re-rendered project shows the brand that won.
+        await revalidateOwner(owner);
+        return toActionResult(
+          err({ code: CommonErrorCode.BAD_INPUT, message: error.message }),
+        );
+      }
+      throw error;
+    }
   } catch (error) {
     console.error("Failed to copy the organization DESIGN.md", error);
     return toActionResult(err(toActionError(error)));

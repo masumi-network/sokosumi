@@ -223,7 +223,12 @@ function toPersistedDesignMd(designMd: {
 
 async function persistDesignMdToProfile(
   owner: ManageableDesignMdOwnerSchemaType,
-  designMd: { extractionId?: null | string; content?: null | string },
+  designMd: {
+    extractionId?: null | string;
+    content?: null | string;
+    /** Project only: refuse (Core 409) when the Project already has one. */
+    onlyIfEmpty?: boolean;
+  },
 ): Promise<PersistedDesignMd | null> {
   await assertCanManageOwner(owner);
 
@@ -236,6 +241,7 @@ async function persistDesignMdToProfile(
     const { data } = await coreClient.putProjectsByIdDesignMd(owner.projectId, {
       content,
       extractionId: designMd.extractionId ?? null,
+      onlyIfEmpty: designMd.onlyIfEmpty,
     });
 
     if (!data.designMd) return null;
@@ -392,10 +398,12 @@ export const designMdService = (() => {
   async function persistUploadedDesignMd(
     owner: ManageableDesignMdOwnerSchemaType,
     content: string,
+    options?: { onlyIfEmpty?: boolean },
   ): Promise<PersistedDesignMd> {
     const persisted = await persistDesignMdToProfile(owner, {
       extractionId: null,
       content,
+      onlyIfEmpty: options?.onlyIfEmpty,
     });
 
     if (!persisted) {

@@ -3666,7 +3666,8 @@
             "cancel": "Cancel"
           },
           "upload": "Upload",
-          "useOrganization": "Use {organization} brand",
+          "useOrganization": "Copy {organization} brand",
+          "organizationAlreadySet": "This project already has a brand.",
           "organizationCopied": "Copied the {organization} brand",
           "moreActions": "Brand actions"
         },
