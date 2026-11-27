@@ -176,6 +176,7 @@ export async function seedDeletionWorld(
       workspaceId: personal,
       projectId: id("project.personal"),
     },
+    "sokoBot.workspace": { workspaceId: personal },
     "sokoBot.ada": { workspaceId: shared, userId: ada },
     "sokoBot.bob": { workspaceId: shared, userId: bob },
   })) {
@@ -270,11 +271,22 @@ export async function seedDeletionWorld(
     transactionId: id("transaction.adaSpend"),
     refundTransactionId: id("transaction.adaGrant"),
   });
-  await insertRow(tx, sharedTable("jobShare"), {
-    id: id("share"),
-    updatedAt: AT,
-    token: id("share"),
-    jobId: id("job.personal"),
+  for (const [name, jobId] of [
+    ["share", id("job.personal")],
+    ["share.twin", id("job.twin")],
+  ]) {
+    await insertRow(tx, sharedTable("jobShare"), {
+      id: id(name),
+      updatedAt: AT,
+      token: id(name),
+      jobId,
+    });
+  }
+  await insertRow(tx, sharedTable("competitor_check"), {
+    id: id("competitorCheck.twin"),
+    projectId: id("project.organization"),
+    day: "2026-01-02",
+    transactionId: id("transaction.twin"),
   });
   await insertRow(tx, sharedTable("seo_audit"), {
     id: id("seoAudit"),
@@ -307,20 +319,32 @@ export async function seedDeletionWorld(
     deadlineAt: AT,
   });
   // A shared row with a Network holds that Network's name; none is Mainnet.
-  for (const network of networks) {
-    const tag = network === "mainnet" ? null : network;
+  // One of each per Network, at rows of Ada's, and one of Mainnet's at the
+  // twins.
+  for (const [name, tag, jobId, transactionId] of [
+    ...networks.map(
+      (network) =>
+        [
+          network,
+          network === "mainnet" ? null : network,
+          id("job.personal"),
+          id("transaction.adaSpend"),
+        ] as const,
+    ),
+    ["twin", null, id("job.twin"), id("transaction.twin")] as const,
+  ]) {
     await insertRow(tx, sharedTable("soko_bot_delegation"), {
-      id: id(`delegation.${network}`),
+      id: id(`delegation.${name}`),
       updatedAt: AT,
       turnId: id("turn"),
-      toolCallId: id(`delegation.${network}`),
+      toolCallId: id(`delegation.${name}`),
       kind: "JOB",
       action: "test",
-      jobId: id("job.personal"),
+      jobId,
       network: tag,
     });
     await insertRow(tx, sharedTable("soko_bot_schedule"), {
-      id: id(`schedule.${network}`),
+      id: id(`schedule.${name}`),
       updatedAt: AT,
       sokoBotId: id("sokoBot.bob"),
       workspaceId: shared,
@@ -329,14 +353,14 @@ export async function seedDeletionWorld(
       cronExpression: "* * * * *",
       prompt: "test",
       nextRunAt: AT,
-      jobId: id("job.private"),
+      jobId,
       network: tag,
     });
     await insertRow(tx, sharedTable("taskEvent"), {
-      id: id(`event.charged.${network}`),
+      id: id(`event.charged.${name}`),
       updatedAt: AT,
       taskId: id("task.bob"),
-      transactionId: id("transaction.adaSpend"),
+      transactionId,
       network: tag,
     });
   }
@@ -371,7 +395,10 @@ async function seedNetworkRows(
     await transaction(`transaction.${name}`, ada);
   }
   await transaction("transaction.adaPersonalPayment", ada);
-  for (const name of "abcdefghijklmn") {
+  // One id, two fates: Bob's on Mainnet, where it stays, and Ada's on another
+  // Network, where it goes. The Mainnet rows that point at it must not notice.
+  await transaction("transaction.twin", network === "mainnet" ? bob : ada);
+  for (const name of "abcdefghijklmno") {
     await transaction(`transaction.bob.${name}`, bob);
   }
 
@@ -456,7 +483,12 @@ async function seedNetworkRows(
       sokoBotId: id("sokoBot.bob"),
       transactionId: id("transaction.bob.g"),
     },
-    // Charged to Bob, on Ada's two bots: they go with the bots.
+    // Charged to Bob, on Ada's three bots: they go with the bots.
+    "sokoBotUsage.workspaceBot": {
+      userId: bob,
+      sokoBotId: id("sokoBot.workspace"),
+      transactionId: id("transaction.bob.o"),
+    },
     "sokoBotUsage.projectBot": {
       userId: bob,
       sokoBotId: id("sokoBot.project"),
@@ -522,6 +554,10 @@ async function seedNetworkRows(
       projectId: id("project.personal"),
     },
     "job.bob": { ...organizationJob, ownerId: bob, creatorUserId: bob },
+    "job.twin":
+      network === "mainnet"
+        ? { ...organizationJob, ownerId: bob }
+        : { workspaceId: personal, ownerId: ada },
   })) {
     const stray = name === "job.onPersonalProject";
     if (stray) {

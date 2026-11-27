@@ -260,7 +260,12 @@ describe.runIf(ON_POSTGRES)(
             ada,
           );
           expect(jobs.sort()).toEqual(
-            [id("job.personal"), id("job.private")].sort(),
+            [
+              id("job.personal"),
+              id("job.private"),
+              // On Mainnet the twin is Bob's.
+              ...(network === "mainnet" ? [] : [id("job.twin")]),
+            ].sort(),
           );
           await statements.deleteJobs(tx, network, jobs);
           expect(
