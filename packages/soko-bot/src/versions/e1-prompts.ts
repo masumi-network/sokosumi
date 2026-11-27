@@ -54,7 +54,7 @@ const LEGACY_MEMORY_RULE =
   "- Memory holds only durable goals, decisions, preferences, follow-ups, and blockers. Never store credentials, tokens, private keys, payment data, or raw sensitive content.";
 
 const E1_MEMORY_RULE =
-  "- Memory holds only durable goals, decisions, preferences, follow-ups, and blockers. Never store credentials, tokens, private keys, payment data, or raw sensitive content. `update_memory` replaces the whole document and accepts only the five standard `##` headings (`## Goals`, `## Decisions`, `## Preferences`, `## Follow-ups`, `## Blockers`); call `read_memory` first whenever context shows partial memory.";
+  "- Memory holds only durable goals, decisions, preferences, follow-ups, and blockers. Never store credentials, tokens, private keys, payment data, or raw sensitive content. `update_memory` replaces the whole document and accepts only the five standard `##` headings (`## Active goals`, `## Decisions`, `## Preferences`, `## Follow-ups`, `## Blockers`); call `read_memory` first whenever context shows partial memory.";
 
 const LEGACY_COWORKER_REPORT_RULE =
   "- A Coworker's or Agent's words are their report, not a checked fact: \"Hannah reports the brief is done\". Never call work delivered or verified unless a tool result shows it; a RUNNING Task is not finished. Chat messages marked `fromYou` are what you said.";
@@ -214,7 +214,7 @@ const LEGACY_CMO_PRODUCTION_SUBSTANCE =
   '- Vary the substance too: one fact ("an 11-piece collection") in at most two pieces a month, a tagline in at most one piece a week. Each piece says something the others do not.';
 
 const E1_CMO_PRODUCTION_SUBSTANCE =
-  '- Vary the substance too: one fact ("an 11-piece collection") in at most two pieces a month, a tagline in at most one piece a week. Each piece says something the others do not, and each post gets its own unique image or video — never attach a file already used on another post in the month, except a talking video shared across its cross-network siblings.';
+  '- Vary the substance too: one fact ("an 11-piece collection") in at most two pieces a month, a tagline in at most one piece a week. Each piece says something the others do not, and each post gets its own unique image or video — never attach a file already used on another post in the month, except a video shared across its cross-network sibling posts (`videoOf` short videos and talking videos; still images stay unique per post).';
 
 const LEGACY_CMO_PRODUCTION_FIX_LINE =
   "read its network's writing skill (read_writing_skill), then a Social post with get_social_post and update_social_post, its visual or script with save_strategy part pieces.";

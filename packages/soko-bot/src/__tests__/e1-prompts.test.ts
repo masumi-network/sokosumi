@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { parseSokoBotMemory } from "../memory.js";
 import { SOKO_BOT_CAPABILITIES } from "../policy.js";
 import {
   applyE1Skill,
@@ -73,7 +74,7 @@ describe("e1Prompts version flag", () => {
       "set status READY only when the Task is in a resumable state and has an assignee",
     );
     expect(prompt).toContain(
-      "accepts only the five standard `##` headings (`## Goals`, `## Decisions`, `## Preferences`, `## Follow-ups`, `## Blockers`)",
+      "accepts only the five standard `##` headings (`## Active goals`, `## Decisions`, `## Preferences`, `## Follow-ups`, `## Blockers`)",
     );
     expect(prompt).toContain(
       "still create the requested draft attributed to that report and state plainly what was not independently verified",
@@ -339,6 +340,10 @@ Change the strategy only as far as the owner has said what to change.
     expect(e1Prod.content).toContain(
       "each post gets its own unique image or video",
     );
+    expect(e1Prod.content).toContain(
+      "(`videoOf` short videos and talking videos; still images stay unique per post)",
+    );
+    expect(e1Prod.content).not.toContain("except a talking video");
     expect(e1Prod.content).toContain("update_social_posts");
 
     // cmo-measurement: check connected integrations first + rewrite dangling cmo-seo to readable SEO skill.
@@ -401,4 +406,37 @@ Change the strategy only as far as the owner has said what to change.
       ),
     ).toEqual([]);
   });
+
+  it.each(["v40-e1", "cmo-v27-e1"])(
+    "round-trips the five update_memory headings rendered on %s through strict parseSokoBotMemory",
+    (id) => {
+      const prompt = composeSystemPrompt(getSokoBotVersion(id));
+      const rule = prompt
+        .split("\n")
+        .find((line) => line.includes("five standard"));
+      expect(rule).toBeDefined();
+      const headings = [...(rule ?? "").matchAll(/`(## [^`]+)`/g)].map(
+        (match) => match[1],
+      );
+      expect(headings).toEqual([
+        "## Active goals",
+        "## Decisions",
+        "## Preferences",
+        "## Follow-ups",
+        "## Blockers",
+      ]);
+      const markdown = headings
+        .map((heading) => `${heading}\n- Prepare the spring catalog`)
+        .join("\n\n");
+      const parsed = parseSokoBotMemory(markdown, {
+        secretHandling: "reject",
+        unknownSections: "reject",
+      });
+      expect(parsed.activeGoals).toContain("Prepare the spring catalog");
+      expect(parsed.decisions).toContain("Prepare the spring catalog");
+      expect(parsed.preferences).toContain("Prepare the spring catalog");
+      expect(parsed.followUps).toContain("Prepare the spring catalog");
+      expect(parsed.blockers).toContain("Prepare the spring catalog");
+    },
+  );
 });
