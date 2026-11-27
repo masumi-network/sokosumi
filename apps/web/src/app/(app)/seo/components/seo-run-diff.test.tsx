@@ -212,6 +212,21 @@ it.each([
   },
 );
 
+it("opens the card with the issues now when the earlier check counted no page issues", () => {
+  const value = diff({
+    notCheckedBefore: 1,
+    numbers: { issues: { from: null, to: 1 }, moves: [], moveCount: 0 },
+  });
+  show(value, <SeoRunDiffCard diff={value} outside={1} />);
+  const card = screen.getByTestId("seo-agent-run-diff-card");
+  expect(within(card).getAllByText("Open page issues now: 1")).toHaveLength(2);
+  expect(
+    within(card).getByText(
+      "1 more open issue comes from Search Console indexing. It is outside this comparison.",
+    ),
+  ).toBeInTheDocument();
+});
+
 it.each([
   ["not comparable", diff({ comparable: false, reason: "market" })],
   // Two ranking checks with no move: no issue total, so no three zeros.

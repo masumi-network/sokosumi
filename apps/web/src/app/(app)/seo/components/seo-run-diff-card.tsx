@@ -53,7 +53,12 @@ export function SeoRunDiffCard({
         <h4 className="font-medium">{title}</h4>
         {/* Before and now, so the counts add up to the issue total of the check. */}
         <p className="text-muted-foreground text-xs">
-          {t("runDiff.issues", view.issues)}
+          {view.issues.from === null
+            ? t("runDiff.issuesNow", { to: view.issues.to })
+            : t("runDiff.issues", {
+                from: view.issues.from,
+                to: view.issues.to,
+              })}
         </p>
       </div>
       <dl className="grid grid-cols-3 gap-2">

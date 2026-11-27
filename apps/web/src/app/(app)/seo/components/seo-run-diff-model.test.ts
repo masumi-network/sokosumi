@@ -74,7 +74,7 @@ describe("seoRunDiffView", () => {
     expect(view).toMatchObject({ moveCount: 6, moreMoves: 5 });
   });
 
-  it("shows no list for two checks that are not comparable, and no issue numbers without a count", () => {
+  it("shows no list for two checks that are not comparable, and no issue numbers without a count now", () => {
     expect(
       seoRunDiffView(
         diff({ comparable: false, reason: "rulebook", newCount: 4 }),
@@ -83,10 +83,18 @@ describe("seoRunDiffView", () => {
     expect(
       seoRunDiffView(
         diff({
-          numbers: { issues: { from: null, to: 2 }, moves: [], moveCount: 0 },
+          numbers: { issues: { from: 2, to: null }, moves: [], moveCount: 0 },
         }),
       ),
     ).toMatchObject({ kind: "compared", issues: null });
+    // An earlier check with no count keeps the count now: the Agent tab names it beside the issue total.
+    expect(
+      seoRunDiffView(
+        diff({
+          numbers: { issues: { from: null, to: 2 }, moves: [], moveCount: 0 },
+        }),
+      ),
+    ).toMatchObject({ kind: "compared", issues: { from: null, to: 2 } });
   });
 
   it("lists no issues between two checks that read only rankings, but keeps their moves", () => {

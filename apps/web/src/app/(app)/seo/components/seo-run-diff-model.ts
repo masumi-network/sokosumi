@@ -29,8 +29,8 @@ export type SeoRunDiffView =
       lists: SeoRunDiffList[];
       notCheckedAgain: number;
       notCheckedBefore: number;
-      /** Null where one of the two checks has no issue count. */
-      issues: { from: number; to: number } | null;
+      /** Null where the newer check has no issue count. `from` is null where only the earlier check has none. */
+      issues: { from: number | null; to: number } | null;
       moves: ProjectSeoRunDiff["numbers"]["moves"];
       moveCount: number;
       moreMoves: number;
@@ -99,10 +99,7 @@ export function seoRunDiffView(diff: ProjectSeoRunDiff): SeoRunDiffView {
         ],
     notCheckedAgain: diff.notCheckedAgain,
     notCheckedBefore: diff.notCheckedBefore,
-    issues:
-      issues.from === null || issues.to === null
-        ? null
-        : { from: issues.from, to: issues.to },
+    issues: issues.to === null ? null : { from: issues.from, to: issues.to },
     moves,
     moveCount,
     moreMoves: Math.max(0, moveCount - moves.length),

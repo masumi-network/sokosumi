@@ -14805,6 +14805,7 @@
         "title": "Desde la comprobación del {day}",
         "open": "Qué cambió desde la comprobación anterior",
         "issues": "Problemas de página abiertos: {from, number} antes, {to, number} ahora",
+        "issuesNow": "Problemas de página abiertos ahora: {to, number}",
         "new": "Nuevos ({count, number})",
         "fixed": "Corregidos ({count, number})",
         "stillOpen": "Siguen abiertos ({count, number})",
@@ -14829,7 +14830,7 @@
         "rulebookChange": "Las pruebas cambiaron entre las dos comprobaciones. Se {compared, plural, one {compara # prueba que ejecutaron ambas} other {comparan # pruebas que ejecutaron ambas}}; {other, plural, one {# queda fuera} other {# quedan fuera}}.",
         "firstNew": "Primeros problemas nuevos",
         "outside": "{count, plural, one {# problema abierto más viene de la indexación de Search Console. Queda fuera de esta comparación.} other {# problemas abiertos más vienen de la indexación de Search Console. Quedan fuera de esta comparación.}}",
-        "outsideAny": "{count, plural, one {# problema abierto más queda fuera de esta comparación: un problema de indexación de Search Console o de una prueba que solo ejecutó una comprobación.} other {# problemas abiertos más quedan fuera de esta comparación: problemas de indexación de Search Console o de pruebas que solo ejecutó una comprobación.}}"
+        "outsideAny": "{count, plural, one {# problema abierto más queda fuera de esta comparación: un problema de indexación de Search Console o de una prueba que se ejecutó en una sola comprobación.} other {# problemas abiertos más quedan fuera de esta comparación: problemas de indexación de Search Console o de pruebas que se ejecutaron en una sola comprobación.}}"
       },
       "filterDates": "Filtrar por fecha",
       "syncNow": "Sincronizar ahora",

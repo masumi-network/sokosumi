@@ -49,7 +49,12 @@ export function SeoRunDiff({
           ) : null}
           {view.issues ? (
             <p className="text-muted-foreground">
-              {t("runDiff.issues", view.issues)}
+              {view.issues.from === null
+                ? t("runDiff.issuesNow", { to: view.issues.to })
+                : t("runDiff.issues", {
+                    from: view.issues.from,
+                    to: view.issues.to,
+                  })}
             </p>
           ) : null}
           {view.lists.map((list) => (

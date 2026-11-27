@@ -14805,6 +14805,7 @@
         "title": "Since the check on {day}",
         "open": "What changed since the check before",
         "issues": "Open page issues: {from, number} before, {to, number} now",
+        "issuesNow": "Open page issues now: {to, number}",
         "new": "New ({count, number})",
         "fixed": "Fixed ({count, number})",
         "stillOpen": "Still open ({count, number})",
