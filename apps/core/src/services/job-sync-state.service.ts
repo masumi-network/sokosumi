@@ -23,6 +23,7 @@ import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { emitCoreError, emitCoreWarning } from "@/lib/evlog";
+import { isPreprodOn, type Network } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sourceImportService } from "@/services/source-import.service";
 
@@ -53,6 +54,9 @@ export const JOB_SYNC_TRANSACTION_OPTIONS = {
   timeout: 20_000,
 } as const;
 
+// shortcut: Job sync uses Mainnet until ticket 23 gives the cron its Network.
+const JOB_SYNC_NETWORK = "mainnet" satisfies Network;
+
 function jobStatusToAgentJobStatus(jobStatus: JobStatusValue): AgentJobStatus {
   switch (jobStatus) {
     case "awaiting_payment":
@@ -74,11 +78,12 @@ function jobStatusToAgentJobStatus(jobStatus: JobStatusValue): AgentJobStatus {
 
 function buildFailureNotificationData(
   job: JobWithSokosumiStatus,
+  networkLabel: string,
 ): JobFailureNotificationEmailProps {
   const latestEvent = job.events.at(0);
 
   return {
-    network: getEnv().NETWORK,
+    network: networkLabel,
     agentId: job.agentId,
     agentBlockchainIdentifier:
       job.agentBlockchainIdentifier ?? job.agent.blockchainIdentifier,
@@ -92,13 +97,22 @@ function buildFailureNotificationData(
   };
 }
 
-async function dispatchJobFailureNotification(
+export async function dispatchJobFailureNotification(
   job: JobWithSokosumiStatus,
+  network: Network,
   enqueueEmail: (input: SendEmailInput) => void,
 ): Promise<void> {
   try {
-    const notificationData = buildFailureNotificationData(job);
-    const webhookUrl = getEnv().JOB_FAILURE_WEBHOOK_URL;
+    const env = getEnv();
+    const isPreprodJob = network === "preprod";
+    const jobNetworkLabel = isPreprodJob ? "Preprod" : "Mainnet";
+    const notificationData = buildFailureNotificationData(
+      job,
+      isPreprodOn() ? jobNetworkLabel : env.NETWORK,
+    );
+    const webhookUrl = isPreprodJob
+      ? env.PREPROD_JOB_FAILURE_WEBHOOK_URL
+      : env.JOB_FAILURE_WEBHOOK_URL;
 
     if (webhookUrl) {
       // Fire-and-forget: dispatch the webhook without blocking the email path.
@@ -133,9 +147,14 @@ async function dispatchJobFailureNotification(
       );
     }
 
-    const stakeholderEmails = getEnv().JOB_FAILURE_NOTIFICATION_EMAILS.filter(
-      (email) => email.trim() !== "",
-    );
+    const stakeholderEmails = (
+      isPreprodJob
+        ? env.PREPROD_JOB_FAILURE_NOTIFICATION_EMAILS
+        : env.JOB_FAILURE_NOTIFICATION_EMAILS
+    ).filter((email) => email.trim() !== "");
+    if (isPreprodJob && stakeholderEmails.length === 0) {
+      return;
+    }
     const authorContactEmail = job.agent.authorContactEmail?.trim();
 
     let toRecipients: string[];
@@ -159,6 +178,7 @@ async function dispatchJobFailureNotification(
     );
     const email = await renderJobFailureNotificationEmail({
       ...notificationData,
+      ...(isPreprodJob ? { isPreprodJob } : {}),
       locale: "en",
     });
 
@@ -235,7 +255,11 @@ export async function finalizeJobSyncResult(
   switch (newJobStatus) {
     case SokosumiJobStatus.FAILED:
     case SokosumiJobStatus.PAYMENT_FAILED:
-      await dispatchJobFailureNotification(updatedJob, enqueueEmail);
+      await dispatchJobFailureNotification(
+        updatedJob,
+        JOB_SYNC_NETWORK,
+        enqueueEmail,
+      );
       break;
     default:
       break;

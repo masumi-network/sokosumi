@@ -17,6 +17,7 @@ import {
 import { drainWaitUntil } from "@/test/wait-until";
 import { PURCHASE_DIFF_SYNC_METADATA_KEY } from "./job-purchase-diff.service";
 import { jobSyncService } from "./job-sync.service";
+import { dispatchJobFailureNotification } from "./job-sync-state.service";
 
 const {
   captureExceptionMock,
@@ -150,7 +151,12 @@ vi.mock("@/config/env", () => ({
       "stakeholder2@example.com",
     ],
     JOB_FAILURE_WEBHOOK_URL: "https://hooks.example.com/job-failure",
+    PREPROD_JOB_FAILURE_NOTIFICATION_EMAILS:
+      process.env.PREPROD_JOB_FAILURE_NOTIFICATION_EMAILS?.split(",") ?? [],
+    PREPROD_JOB_FAILURE_WEBHOOK_URL:
+      process.env.PREPROD_JOB_FAILURE_WEBHOOK_URL,
     NETWORK: process.env.NETWORK,
+    NETWORK_PREPROD_ENABLED: process.env.NETWORK_PREPROD_ENABLED === "true",
     RESEND_FROM_EMAIL: "no-reply@example.com",
   }),
   getWebAppBaseUrl: () => "https://app.sokosumi.test",
@@ -2006,6 +2012,105 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
     expect(warnings[0]?.event).not.toHaveProperty("responseBody");
     expect(captureMessageMock).not.toHaveBeenCalled();
+  });
+
+  describe("job failure alert routing by Network", () => {
+    let failedJob: Parameters<typeof dispatchJobFailureNotification>[0];
+
+    beforeEach(async () => {
+      failedJob = createJob({
+        status: SokosumiJobStatus.FAILED,
+      }) as typeof failedJob;
+      failedJob.agent.authorContactEmail = "author@example.com";
+      vi.stubEnv("NETWORK", "Mainnet");
+      vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
+      vi.stubEnv("PREPROD_JOB_FAILURE_NOTIFICATION_EMAILS", undefined);
+      vi.stubEnv("PREPROD_JOB_FAILURE_WEBHOOK_URL", undefined);
+
+      const { renderJobFailureNotificationEmail } =
+        await vi.importActual<typeof import("@sokosumi/email")>(
+          "@sokosumi/email",
+        );
+      renderJobFailureNotificationEmailMock.mockImplementation(
+        renderJobFailureNotificationEmail,
+      );
+    }, 30_000);
+
+    it.each([
+      ["true", "Mainnet"],
+      ["false", "Preprod"],
+    ])(
+      "uses the existing destinations with NETWORK_PREPROD_ENABLED=%s and labels the alert %s",
+      async (preprodEnabled, label) => {
+        vi.stubEnv("NETWORK", "Preprod");
+        vi.stubEnv("NETWORK_PREPROD_ENABLED", preprodEnabled);
+        vi.stubEnv(
+          "PREPROD_JOB_FAILURE_NOTIFICATION_EMAILS",
+          "preprod-ops@example.com",
+        );
+        vi.stubEnv(
+          "PREPROD_JOB_FAILURE_WEBHOOK_URL",
+          "https://hooks.example.com/preprod",
+        );
+
+        await dispatchJobFailureNotification(
+          failedJob,
+          "mainnet",
+          sendEmailMock,
+        );
+
+        expect(sendEmailMock).toHaveBeenCalledExactlyOnceWith({
+          to: ["author@example.com"],
+          bcc: ["stakeholder1@example.com", "stakeholder2@example.com"],
+          tag: "job-failure-notification",
+          subject: "Sokosumi - Job job_1 failed",
+          html: expect.stringContaining(`>${label}<`),
+        });
+        expect(requestFetchMock).toHaveBeenCalledExactlyOnceWith(
+          "https://hooks.example.com/job-failure",
+          expect.objectContaining({ method: "POST" }),
+        );
+        expect(
+          JSON.parse(requestFetchMock.mock.lastCall?.[1].body).network,
+        ).toBe(label);
+      },
+    );
+
+    it("sends nothing for a Preprod Job without Preprod destinations", async () => {
+      await dispatchJobFailureNotification(failedJob, "preprod", sendEmailMock);
+
+      expect(requestFetchMock).not.toHaveBeenCalled();
+      expect(sendEmailMock).not.toHaveBeenCalled();
+      expect(captureExceptionMock).not.toHaveBeenCalled();
+    });
+
+    it("uses only the configured Preprod ops destinations for a Preprod Job", async () => {
+      vi.stubEnv(
+        "PREPROD_JOB_FAILURE_NOTIFICATION_EMAILS",
+        "preprod-ops@example.com",
+      );
+      vi.stubEnv(
+        "PREPROD_JOB_FAILURE_WEBHOOK_URL",
+        "https://hooks.example.com/preprod",
+      );
+
+      await dispatchJobFailureNotification(failedJob, "preprod", sendEmailMock);
+
+      expect(sendEmailMock).toHaveBeenCalledExactlyOnceWith({
+        to: ["author@example.com"],
+        bcc: ["preprod-ops@example.com"],
+        tag: "job-failure-notification",
+        subject: "[Preprod] Sokosumi - Job job_1 failed",
+        html: expect.stringContaining(">Preprod<"),
+      });
+      expect(requestFetchMock).toHaveBeenCalledExactlyOnceWith(
+        "https://hooks.example.com/preprod",
+        expect.objectContaining({ method: "POST" }),
+      );
+      expect(JSON.parse(requestFetchMock.mock.lastCall?.[1].body).network).toBe(
+        "Preprod",
+      );
+    });
   });
 
   it("publishes on-chain-only payment failures even when the agent status hash is unchanged", async () => {
