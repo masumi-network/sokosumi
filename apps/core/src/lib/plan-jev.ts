@@ -116,13 +116,3 @@ export function planJevStats(): {
     })),
   };
 }
-
-/** Tests only: forget every call and window. */
-export function resetPlanJevForTests(): void {
-  state.recent = [];
-  state.pausedUntil = null;
-  state.standInWindows = [];
-  state.calls = 0;
-  state.failures = 0;
-  state.costUsd = 0;
-}

@@ -3258,7 +3258,6 @@ describe("SokoBotRuntimeService authorization", () => {
       {
         scheduleId: "01960001-0001-7001-8001-0000000000cc",
         prompt: "New",
-        keepCapabilities: true,
       },
     ],
   ] as const)(
@@ -3302,6 +3301,11 @@ describe("SokoBotRuntimeService authorization", () => {
           }),
           expect.anything(),
         );
+        if (capability === "update_schedule") {
+          const [updateInput] = spy.mock.calls[0] ?? [];
+          expect(updateInput).not.toHaveProperty("capabilityNames");
+          expect(updateInput).not.toHaveProperty("explicitCapabilities");
+        }
       } finally {
         spy.mockRestore();
       }
@@ -14734,7 +14738,7 @@ describe("Content Studio image tools", () => {
     await expect(
       service["getStudioJob"](projectBotChat("project-2") as never, {
         projectId: "project-1",
-        jobId: "job-1",
+        jobId: "01960001-0001-7001-8001-00000000a001",
       }),
     ).rejects.toThrow("works only in its own Project");
     expect(images.access).not.toHaveBeenCalled();
@@ -15119,7 +15123,7 @@ describe("Content Studio image tools", () => {
       });
       const result = await service["getStudioJob"](cusoChat as never, {
         projectId: "project-1",
-        jobId: "job-s1",
+        jobId: "01960001-0001-7001-8001-00000000a0f1",
       });
       expect(images.finishChatPicture).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -15155,7 +15159,7 @@ describe("Content Studio image tools", () => {
       images.create.mockResolvedValue({ id: "job-s2", status: "QUEUED" });
       const second = await service["getStudioJob"](cusoChat as never, {
         projectId: "project-1",
-        jobId: "job-s1",
+        jobId: "01960001-0001-7001-8001-00000000a0f1",
       });
       expect(images.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -15181,7 +15185,7 @@ describe("Content Studio image tools", () => {
       });
       const last = await service["getStudioJob"](cusoChat as never, {
         projectId: "project-1",
-        jobId: "job-s3",
+        jobId: "01960001-0001-7001-8001-00000000a0f3",
       });
       expect(images.create).not.toHaveBeenCalled();
       expect(last).toMatchObject({
@@ -15201,7 +15205,7 @@ describe("Content Studio image tools", () => {
     await expect(
       service["getStudioJob"](ownerChat as never, {
         projectId: "project-1",
-        jobId: "job-1",
+        jobId: "01960001-0001-7001-8001-00000000a001",
       }),
     ).resolves.toMatchObject({
       jobId: "job-1",
@@ -15365,12 +15369,31 @@ describe("Content Studio image tools", () => {
     });
   });
 
+  it.each([
+    ["a YouTube id", "dQw4w9WgXcQ"],
+    ["a YouTube link", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"],
+  ])(
+    "refuses %s before any lookup and says to web_fetch it",
+    async (_label, jobId) => {
+      const error = await service["getStudioJob"](ownerChat as never, {
+        projectId: "project-1",
+        jobId,
+      }).catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(SokoBotRuntimeValidationError);
+      expect((error as Error).message).toContain("not a Content Studio job id");
+      expect((error as Error).message).toContain("web_fetch");
+      expect(images.access).not.toHaveBeenCalled();
+      expect(images.reconcile).not.toHaveBeenCalled();
+      expect(images.getJob).not.toHaveBeenCalled();
+    },
+  );
+
   it("returns nothing for a job that is not in the Project", async () => {
     images.getJob.mockResolvedValue(null);
     await expect(
       service["getStudioJob"](ownerChat as never, {
         projectId: "project-1",
-        jobId: "missing",
+        jobId: "01960001-0001-7001-8001-00000000a0ee",
       }),
     ).resolves.toBeNull();
   });
@@ -15713,7 +15736,7 @@ describe("Content Studio video tools", () => {
     await expect(
       service["getStudioJob"](ownerChat as never, {
         projectId: "project-1",
-        jobId: "job-v",
+        jobId: "01960001-0001-7001-8001-00000000a00f",
       }),
     ).resolves.toEqual({
       jobId: "job-v",

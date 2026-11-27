@@ -202,14 +202,11 @@ export const sokoBotUpdateScheduleInputSchema = z
     prompt: z.string().trim().min(1).max(4_000).optional(),
     /**
      * Updates the capabilities the scheduled job needs, bounded by the editing
-     * turn's grant. Pass this (or `keepCapabilities: true`) whenever replacing
-     * `prompt`.
+     * turn's grant. Omitted, the schedule keeps its existing tools, also when
+     * `prompt` changes.
      */
     capabilities: scheduleCapabilitiesSchema.optional(),
-    /**
-     * Explicitly confirms a replacement `prompt` only needs the schedule's
-     * existing tools. Mutually exclusive with `capabilities`.
-     */
+    /** Accepted for older callers; keeping the existing tools is the default. */
     keepCapabilities: z.boolean().optional(),
     /**
      * Updates or clears (`{ mode: "never" }`) the schedule's persisted stop
@@ -2285,7 +2282,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     TALKING_VIDEO_COST.broll +
     " credits). Only for a request the owner made in this chat. It takes a few minutes: call wait_for with its jobId and end your turn; get_video tells you where it stands.",
   get_video:
-    "Check a video started with generate_video or generate_talking_video: its status and, once it is ready, a link to it in Content Studio and a copy in the owner's Files (fileId, link). Use that fileId as the video in create_social_post or update_social_post.",
+    "Check a video started with generate_video or generate_talking_video: its status and, once it is ready, a link to it in Content Studio and a copy in the owner's Files (fileId, link). Use that fileId as the video in create_social_post or update_social_post. It takes only the jobId those tools returned; for a YouTube or other web video, web_fetch its link instead.",
   read_file:
     "Read the text Sokosumi extracted from a Drive file, by id from list_files. Says so when the file has no text yet (still being processed, or an image or unsupported type).",
   upload_file:
@@ -2347,7 +2344,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   create_schedule:
     "Create a follow-up that wakes you with a prompt: either once at `runAt` (a one-time reminder, e.g. tomorrow 09:00) or recurring with `cronExpression` (5 fields, in `timezone`). `timezone` is the zone the owner names; when they name none, use `actor.timezone` from the context packet without asking, name that zone in your reply, and say they can ask for another (then update_schedule). Ask only when the packet has no zone. Cron covers monthly patterns: `0 10 * * 1#1` is the first Monday of each month, `0 9 1 * *` the 1st of each month, `0 9 L * *` the last day. Setting both day-of-month and weekday means either one, so it's rejected; use `#` for nth weekdays. Use it whenever the owner wants check-ins, nudges, reminders, or monitoring of delegated work. No approval needed. Pass `capabilities` (subset of your current tools) to declare the exact tools the future run needs — especially when setting up a read-only check from a broader turn. Include task/job ids in the prompt so the future run knows what to check, and pass taskId or jobId when the schedule only watches that work: Core deletes it once the work finishes. When the owner directly asks for a recurring schedule to stop after a date, run count, or settled Task/Job, pass `stopRule` (`ends_on`, `ends_after_runs`, or `when_target_settled`; settable only on a direct owner chat turn). To act when delegated work completes, give create_task, assign_task or hire_agent a followUp instead of a schedule. A run that ends by posting in a chat (post_chat) must not read the web or run bash first: Core refuses posting after that. Have it read its sources through a connected app with read_integration_tool (GitHub for pull requests, for example) and make any graphic as SVG with upload_file. When the job needs something you lack (an app to connect, being added to a room), set it up anyway where you can and tell the owner exactly what to do; never decline the job for it.",
   update_schedule:
-    "Change or pause a follow-up schedule (cron, timezone, prompt, capabilities, enabled, new name, or `stopRule` on a direct owner chat turn). When replacing `prompt`, pass `capabilities` with the tools the updated job needs (bounded by your current tools), or pass `keepCapabilities: true` if it only uses the schedule's existing tools. Address it by scheduleId or scheduleName exactly as list_schedules returned it. A built-in rhythm changes only its time, timezone and on/off, never its name or prompt, and is never deleted: for another job, create a schedule of its own and pause the rhythm if it should stop.",
+    "Change or pause a follow-up schedule (cron, timezone, prompt, capabilities, enabled, new name, or `stopRule` on a direct owner chat turn). Without `capabilities` the schedule keeps its existing tools, also when you replace `prompt`; pass `capabilities` only when the updated job needs different tools (bounded by your current tools). The result lists the tools the schedule keeps. Address it by scheduleId or scheduleName exactly as list_schedules returned it. A built-in rhythm changes only its time, timezone and on/off, never its name or prompt, and is never deleted: for another job, create a schedule of its own and pause the rhythm if it should stop.",
   save_task_schedule:
     "Create or change a Task Schedule (the Schedules page): each run creates a Task with the brief for its assignee, a Coworker (find_coworkers) or a Soko Bot; people cannot be assignees. Recurring work a Coworker does belongs here, not in your own schedule. Without scheduleId: create (name, brief, cron and timezone needed). With it: change only what you pass; state PAUSED, ACTIVE or ENDED pauses, resumes or ends it. Runs with the owner's rights; changing one someone else made needs the owner's yes in their own chat.",
   delete_task_schedule:

@@ -10,7 +10,10 @@ import {
   upsertEnvLines,
   writeEnvFile,
 } from "../apply-env.mjs";
-import { assertAgentFixtureSafety } from "../assert-agent-database.mjs";
+import {
+  assertAgentBranchSafety,
+  assertAgentFixtureSafety,
+} from "../assert-agent-database.mjs";
 import { AUTH_FIXTURES, FIXTURE_PASSWORD } from "../fixtures.mjs";
 import {
   agentBranchName,
@@ -27,6 +30,7 @@ import {
   resolveParentBranch,
   waitForOperations,
 } from "../neon-api.mjs";
+import { provisionAgentBranch, runMigrations } from "../provision.mjs";
 import {
   clearUnwantedOrganizationMemberships,
   resetUnwantedPersonalWorkspace,
@@ -110,17 +114,84 @@ describe("upsertEnvLines", () => {
   });
 });
 
-describe("assertAgentFixtureSafety", () => {
-  const agentBranch = "cloud-agent-bc-bc5212fe-8ee2-4bfa-9e8d-85e27cb47e48";
-  const url = "postgresql://u:p@ep-agent.us-east-1.aws.neon.tech/neondb";
+const AGENT_BRANCH_NAME = "cloud-agent-bc-bc5212fe-8ee2-4bfa-9e8d-85e27cb47e48";
+const AGENT_HOST = "ep-agent.us-east-1.aws.neon.tech";
+const AGENT_URL = `postgresql://u:p@${AGENT_HOST}/neondb`;
+const AGENT_POOLED_URL = AGENT_URL.replace("ep-agent", "ep-agent-pooler");
 
-  it("allows agent branch + database url", () => {
-    assert.doesNotThrow(() => {
-      assertAgentFixtureSafety({
-        branchName: agentBranch,
-        databaseUrl: url,
+it("gives the migration child both verified URLs even when the ambient URLs target another branch", (t) => {
+  t.mock.property(process, "env", {
+    DATABASE_URL: AGENT_POOLED_URL.replace("ep-agent", "ep-other"),
+    DATABASE_URL_UNPOOLED: AGENT_URL.replace("ep-agent", "ep-other"),
+  });
+  const spawn = t.mock.fn(() => ({ status: 0 }));
+  runMigrations(
+    { databaseUrl: AGENT_POOLED_URL, databaseUrlUnpooled: AGENT_URL },
+    spawn,
+  );
+  assert.equal(spawn.mock.callCount(), 1);
+  const [command, args, { env }] = spawn.mock.calls[0].arguments;
+  assert.equal(command, "pnpm");
+  assert.deepEqual(args, ["prisma:migrate:deploy"]);
+  assert.equal(env.DATABASE_URL, AGENT_POOLED_URL);
+  assert.equal(env.DATABASE_URL_UNPOOLED, AGENT_URL);
+});
+
+describe("assertAgentFixtureSafety", () => {
+  it("allows the verified branch's direct and pooled URLs", () => {
+    for (const databaseUrl of [AGENT_URL, AGENT_POOLED_URL]) {
+      assert.doesNotThrow(() => {
+        assertAgentFixtureSafety({
+          branchName: AGENT_BRANCH_NAME,
+          databaseUrl,
+          databaseUrlUnpooledHost: AGENT_HOST,
+        });
       });
-    });
+    }
+  });
+
+  it("blocks a manual seed whose ambient direct URL selects another branch", () => {
+    const { databaseUrl } = seedDatabase(
+      undefined,
+      {
+        DATABASE_URL: AGENT_POOLED_URL,
+        DATABASE_URL_UNPOOLED: AGENT_URL.replace("ep-agent", "ep-other"),
+      },
+      null,
+    );
+    assert.throws(
+      () =>
+        assertAgentFixtureSafety({
+          branchName: AGENT_BRANCH_NAME,
+          databaseUrl,
+          databaseUrlUnpooledHost: AGENT_HOST,
+          force: true,
+        }),
+      /selected database URL does not match the verified agent branch endpoint/,
+    );
+  });
+
+  it("blocks a URL whose host query parameter overrides the verified host", () => {
+    assert.throws(
+      () =>
+        assertAgentFixtureSafety({
+          branchName: AGENT_BRANCH_NAME,
+          databaseUrl: `${AGENT_URL}?host=ep-other.us-east-1.aws.neon.tech`,
+          databaseUrlUnpooledHost: AGENT_HOST,
+        }),
+      /selected database URL must omit host, endpoint, database and role overrides/,
+    );
+  });
+
+  it("blocks a seed from older state without a verified endpoint", () => {
+    assert.throws(
+      () =>
+        assertAgentFixtureSafety({
+          branchName: AGENT_BRANCH_NAME,
+          databaseUrl: AGENT_URL,
+        }),
+      /provision state has no verified endpoint.*pnpm db:up/,
+    );
   });
 
   it("blocks production/main branch names", () => {
@@ -128,7 +199,7 @@ describe("assertAgentFixtureSafety", () => {
       () =>
         assertAgentFixtureSafety({
           branchName: "main",
-          databaseUrl: url,
+          databaseUrl: AGENT_URL,
         }),
       /Auth fixtures blocked: refusing fixtures on non-agent branch "main"/,
     );
@@ -139,7 +210,7 @@ describe("assertAgentFixtureSafety", () => {
       () =>
         assertAgentFixtureSafety({
           branchName: null,
-          databaseUrl: url,
+          databaseUrl: AGENT_URL,
         }),
       /Auth fixtures blocked: missing cloud-agent branch name in provision state/,
     );
@@ -150,7 +221,7 @@ describe("assertAgentFixtureSafety", () => {
       () =>
         assertAgentFixtureSafety({
           branchName: null,
-          databaseUrl: url,
+          databaseUrl: AGENT_URL,
           force: true,
         }),
       /Auth fixtures blocked: CLOUD_AGENT_DB_FORCE fixtures require cloud-agent-\* branch state \(or localhost\)/,
@@ -165,6 +236,17 @@ describe("assertAgentFixtureSafety", () => {
         force: true,
       });
     });
+  });
+
+  it("blocks force on a local URL with a remote host override", () => {
+    assert.throws(
+      () =>
+        assertAgentFixtureSafety({
+          databaseUrl: `postgresql://u:p@localhost:5432/core?host=${AGENT_HOST}`,
+          force: true,
+        }),
+      /fixtures require cloud-agent-\* branch state/,
+    );
   });
 });
 
@@ -458,6 +540,155 @@ const PREVIEW_BRANCH = {
   protected: false,
 };
 const NO_WAIT = { sleep: async () => {} };
+
+const AGENT_PARENT = {
+  id: "br-main",
+  name: "main",
+  default: true,
+  protected: true,
+};
+const AGENT_BRANCH = {
+  id: "br-agent",
+  name: AGENT_BRANCH_NAME,
+  parent_id: AGENT_PARENT.id,
+  default: false,
+  protected: false,
+};
+
+function agentProvisionReplies(branch, reused) {
+  return [
+    [200, { branches: [AGENT_PARENT] }],
+    [200, { branches: reused ? [branch] : [] }],
+    ...(reused ? [] : [[201, { branch }]]),
+    [200, { uri: AGENT_POOLED_URL }],
+    [200, { uri: AGENT_URL }],
+  ];
+}
+
+describe("provisionAgentBranch", () => {
+  for (const reused of [false, true]) {
+    it(`returns verified URLs for a ${reused ? "reused" : "new"} agent branch`, async () => {
+      const { config, calls } = queuedNeon([
+        ...agentProvisionReplies(AGENT_BRANCH, reused),
+        [
+          200,
+          {
+            endpoints: [
+              {
+                branch_id: AGENT_BRANCH.id,
+                type: "read_write",
+                host: AGENT_HOST,
+              },
+            ],
+          },
+        ],
+        ...(reused ? [[200, { branch: AGENT_BRANCH }]] : []),
+      ]);
+
+      assert.deepEqual(await provisionAgentBranch(config, AGENT_BRANCH_NAME), {
+        branchId: AGENT_BRANCH.id,
+        reused,
+        urls: { databaseUrl: AGENT_POOLED_URL, databaseUrlUnpooled: AGENT_URL },
+        databaseUrlUnpooledHost: AGENT_HOST,
+      });
+      assert.deepEqual(
+        calls.slice(reused ? 2 : 3, reused ? 4 : 5).map(({ url }) => {
+          const query = new URL(url).searchParams;
+          return [query.get("branch_id"), query.get("pooled")];
+        }),
+        [
+          [AGENT_BRANCH.id, "true"],
+          [AGENT_BRANCH.id, "false"],
+        ],
+      );
+      assert.match(
+        calls.at(reused ? -2 : -1).url,
+        /\/branches\/br-agent\/endpoints$/,
+      );
+      if (reused) assert.equal(calls.at(-1).method, "PATCH");
+    });
+  }
+
+  for (const [label, branch, reason] of [
+    ["default", { ...AGENT_BRANCH, default: true }, /default or protected/],
+    ["protected", { ...AGENT_BRANCH, protected: true }, /default or protected/],
+    [
+      "wrong parent",
+      { ...AGENT_BRANCH, parent_id: "br-other" },
+      /unexpected parent.*pnpm db:down followed by pnpm db:up/,
+    ],
+  ]) {
+    it(`refuses to reuse a branch with ${label} metadata before returning URLs for migrations`, async () => {
+      const { config, calls } = queuedNeon(agentProvisionReplies(branch, true));
+      await assert.rejects(
+        () => provisionAgentBranch(config, AGENT_BRANCH_NAME),
+        reason,
+      );
+      assert.equal(calls.length, 4);
+      assert.ok(calls.every(({ method }) => method === "GET"));
+    });
+  }
+
+  for (const protectedBranch of [false, true]) {
+    it(`preserves the URI error and ${protectedBranch ? "keeps a protected branch" : "deletes the new orphan"}`, async () => {
+      const uriError = new Error("connection URI unavailable");
+      const branch = { ...AGENT_BRANCH, protected: protectedBranch };
+      const { config, calls } = queuedNeon([
+        ...agentProvisionReplies(branch, false).slice(0, 3),
+        uriError,
+        [200, { uri: AGENT_URL }],
+        [200, {}],
+      ]);
+
+      await assert.rejects(
+        () => provisionAgentBranch(config, AGENT_BRANCH_NAME),
+        (error) => error === uriError,
+      );
+      assert.deepEqual(
+        calls
+          .filter(({ method }) => method === "DELETE")
+          .map(({ url }) => new URL(url).pathname),
+        protectedBranch ? [] : ["/api/v2/projects/proj/branches/br-agent"],
+      );
+    });
+  }
+
+  it("refuses a wrongly named branch during the reuse verification", () => {
+    // findBranchByName already filters by exact name, so exercise this at the guard.
+    assert.throws(
+      () =>
+        assertAgentBranchSafety(
+          { ...AGENT_BRANCH, name: "main" },
+          AGENT_BRANCH_NAME,
+          AGENT_PARENT.id,
+        ),
+      /not the expected cloud-agent branch/,
+    );
+  });
+
+  it("refuses URLs that agree with each other and target another branch", async () => {
+    const { config, calls } = queuedNeon([
+      ...agentProvisionReplies(AGENT_BRANCH, true),
+      [
+        200,
+        {
+          endpoints: [
+            {
+              branch_id: AGENT_BRANCH.id,
+              type: "read_write",
+              host: "ep-other.us-east-1.aws.neon.tech",
+            },
+          ],
+        },
+      ],
+    ]);
+    await assert.rejects(
+      () => provisionAgentBranch(config, AGENT_BRANCH_NAME),
+      /DATABASE_URL_UNPOOLED does not match the read-write endpoint of Neon branch "cloud-agent-/,
+    );
+    assert.ok(calls.every(({ method }) => method === "GET"));
+  });
+});
 
 describe("findBranchByName", () => {
   it("searches by name and returns only the exact match", async () => {
