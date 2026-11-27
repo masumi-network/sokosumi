@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SOKO_BOT_CAPABILITIES } from "../policy.js";
 import {
+  applyE1Skill,
   applyE1SystemPrompt,
   E1_CUSO_CHANGE_SCOPE_SECTION,
   E1_FINISHING_SECTION,
@@ -47,6 +48,23 @@ describe("e1Prompts version flag", () => {
     expect(prompt).toContain(E1_FINISHING_SECTION);
     expect(prompt).toContain(
       "updating existing or upcoming items only within the scope the owner asked for",
+    );
+    expect(prompt).not.toContain("nothing needs approval in the product");
+    expect(prompt).toContain(
+      "never report a pending draft or proposal as scheduled or live",
+    );
+    expect(prompt).not.toContain("pick the likeliest room or person yourself");
+    expect(prompt).toContain(
+      "name the matching options when destination is open",
+    );
+    expect(prompt).toContain(
+      "especially when (date, time, or time zone) or which account, recipient, or audience (target)",
+    );
+    expect(prompt).not.toContain(
+      "When a schedule's purpose is done, `delete_schedule` it",
+    );
+    expect(prompt).toContain(
+      "Delete a recurring schedule only when the owner explicitly asks to stop or remove it",
     );
     expect(prompt).not.toContain(E1_CUSO_CHANGE_SCOPE_SECTION);
     expect(prompt).toContain(
@@ -117,6 +135,27 @@ describe("e1Prompts version flag", () => {
     expect(promptA).toBe(promptB);
     expect(promptA).toContain(E1_FINISHING_SECTION);
     expect(promptA).toContain(E1_CUSO_CHANGE_SCOPE_SECTION);
+    expect(promptA).not.toContain("nothing needs approval in the product");
+    expect(promptA).not.toContain("pick the likeliest room or person yourself");
+    expect(promptA).not.toContain("and the strategy is updated to match.");
+    expect(promptA).toContain(
+      "on the affected post(s); update the stored strategy too only when the owner explicitly asks",
+    );
+    expect(promptA).toContain(
+      "When tool receipts confirm every requested change took effect and the card says it all",
+    );
+    expect(promptA).toContain(
+      "never silently drop a deliverable or constraint the owner explicitly asked for",
+    );
+    expect(promptA).toContain(
+      "if X is already running, watch the existing Task, Job, or Studio job ID with `wait_for` (never create or hire a duplicate)",
+    );
+    expect(promptA).toContain(
+      "only when X is new, authorized work, create or hire it once with `followUp`",
+    );
+    expect(promptA).toContain(
+      "Delete a recurring schedule only when the owner explicitly asks to stop or remove it.",
+    );
     expect(promptA).toContain("Single-post edits stay on that post.");
     expect(promptA).toContain(
       "within any item or date limits the owner stated",
@@ -134,5 +173,64 @@ describe("e1Prompts version flag", () => {
         applyVersionCapabilities(e1, SOKO_BOT_CAPABILITIES),
       ),
     ).toEqual([]);
+  });
+
+  it("removes schedule-scope and Cuso write_strategy contradictions from v40/cmo-v27 skills only when e1Prompts is on", () => {
+    const off = { e1Prompts: undefined } as const;
+    const on = { e1Prompts: true as const };
+
+    const contextOnDemand = {
+      id: "context-on-demand",
+      name: "What you see and what you read",
+      description: "Map",
+      content:
+        "- Schedules: list_schedules; scope workspace adds the workspace's Task Schedules and other bots' schedules, each with who made it and how it last ran.",
+    };
+    expect(applyE1Skill(contextOnDemand, off)).toBe(contextOnDemand);
+    const contextOn = applyE1Skill(contextOnDemand, on);
+    expect(contextOn.content).not.toContain("and other bots' schedules");
+    expect(contextOn.content).toContain(
+      "other members' personal bots are private and not visible",
+    );
+
+    const coreWritesStrategy = {
+      id: "cmo-core-writes-strategy",
+      name: "Core writes the strategy",
+      description: "Strategy",
+      content:
+        "- When the owner asks to change the strategy (a network, how often it posts, a pillar, the offer, the ads, an example post), call write_strategy with change: the owner's request in their own words, plus anything from the chat it needs. Core changes only what the request touches. Its answer says what changed (toOwner); then do the rest of what the owner asked in the same turn.",
+    };
+    expect(applyE1Skill(coreWritesStrategy, off)).toBe(coreWritesStrategy);
+    const strategyOn = applyE1Skill(coreWritesStrategy, on);
+    expect(strategyOn.content).not.toContain("an example post");
+    expect(strategyOn.content).toContain("update any affected upcoming posts");
+    expect(strategyOn.content).toContain(
+      "For edits to specific posts only, use the post tools directly",
+    );
+    // cmo-core-writes-strategy is also carried on Cuso production turns, which
+    // offer update_social_posts but not create_social_post or cancel_social_post.
+    expect(strategyOn.content).not.toContain("create_social_post");
+    expect(strategyOn.content).not.toContain("cancel_social_post");
+    expect(strategyOn.content).toContain("update_social_posts");
+
+    const asksBeforeChange = {
+      id: "cmo-asks-before-strategy-change",
+      name: "Ask before changing the strategy",
+      description: "Ask",
+      content: `# Ask before changing the strategy
+
+Change the strategy only as far as the owner has said what to change.
+- Do every part of the request that is clear in this turn, with write_strategy as usual.
+- A part that leaves the change for you to guess (more, better or different without saying what or how much, or whether something is possible) is a question: answer it, ask one question about that part only, offering your best guess, and leave that part as it is until they reply.`,
+    };
+    expect(applyE1Skill(asksBeforeChange, off)).toBe(asksBeforeChange);
+    const asksOn = applyE1Skill(asksBeforeChange, on);
+    expect(asksOn.content).not.toContain("with write_strategy as usual");
+    expect(asksOn.content).toContain(
+      "edit, create, or cancel specific posts directly",
+    );
+    expect(asksOn.content).toContain(
+      "act without adding extra confirmation questions",
+    );
   });
 });
