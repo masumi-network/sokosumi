@@ -10,7 +10,10 @@ import {
   Prisma,
 } from "@sokosumi/database";
 import type { CreditBucketProjectOption } from "@sokosumi/database/helpers";
-import { creditBucketRepository } from "@sokosumi/database/repositories";
+import {
+  creditBucketRepository,
+  InsufficientBalanceError,
+} from "@sokosumi/database/repositories";
 import {
   type JobWithListSummaryRelations,
   jobListSummaryInclude,
@@ -51,6 +54,8 @@ import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import { registerJobPurchase } from "@/helpers/job-purchase-registration";
 import { requireOwnerSeat } from "@/helpers/owner-seat";
 import { creatorFields, type WorkCreator } from "@/helpers/work-creator";
+import { spend } from "@/lib/credits/spend";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { recordCoreError, recordCoreWarning } from "@/lib/evlog";
@@ -163,24 +168,28 @@ async function createPaidJob(
   tx: Prisma.TransactionClient,
 ): Promise<JobWithListSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
-  // An empty id is no payer: the debit was connected only to a present owner
-  // and Organization, so an empty one is null, for the read and the write.
-  const userId = input.ownerId || null;
-  const organizationId = input.organizationId || null;
-  const consumptions = await creditBucketRepository.prepareConsumption(
-    "mainnet",
-    userId,
-    organizationId,
-    cost.cents,
-    tx,
-    { projectId: resolveCreditProjectId(input) },
-  );
   // The debit first, then the Job that links it, in the same transaction.
-  const transactionId = await creditBucketRepository.recordSpend(
-    "mainnet",
-    { userId, organizationId, cents: cost.cents, consumptions },
+  const spent = await spend({
+    // shortcut: the hire charges Mainnet, as it did; ticket 25 passes the Job's Network.
+    scope: createNetworkScope("mainnet"),
     tx,
-  );
+    payer: {
+      // An empty id is no payer: the debit was connected only to a present
+      // owner and Organization, so an empty one is null, for the read and
+      // the write.
+      userId: input.ownerId || null,
+      organizationId: input.organizationId || null,
+      projectId: resolveCreditProjectId(input),
+    },
+    quotedCents: cost.cents,
+    mode: "in_full",
+  });
+  // The balance read just before covered the price, so only a bucket read
+  // that counts otherwise falls short: it throws as that read always did.
+  if (spent.shortfall) {
+    throw new InsufficientBalanceError(cost.cents, spent.availableCents);
+  }
+  const { transactionId } = spent;
 
   const job = await tx.job.create({
     data: {
