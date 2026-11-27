@@ -1,10 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import {
-  preprodControlOf,
-  readPreprodControl,
-} from "@/helpers/preprod-control";
+import { preprodControlOf } from "@/helpers/preprod-control";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -15,7 +12,7 @@ const route = createRoute({
   path: "/preprod/pause",
   operationId: "getAdminPreprodPause",
   description:
-    "Whether Preprod is paused, its generation number, and the 20 most recent pause changes (admin only).",
+    "Whether Preprod is paused, its generation number, and the 20 most recent pause changes (admin only). A value that cannot be read or is not valid answers 500.",
   tags: ["Admin"],
   responses: {
     200: jsonSuccessResponse(
@@ -29,11 +26,6 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    return ok(
-      c,
-      adminPreprodPauseSchema.parse(
-        await preprodControlOf(prisma, await readPreprodControl()),
-      ),
-    );
+    return ok(c, adminPreprodPauseSchema.parse(await preprodControlOf(prisma)));
   });
 }

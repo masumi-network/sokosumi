@@ -629,12 +629,11 @@ export const setAdminPreprodPauseBodySchema = z
 export const adminPreprodPauseSchema = z
   .object({
     paused: z.boolean().openapi({
-      description:
-        "Whether Preprod is paused. Paused until an admin opens it, and when the read fails.",
+      description: "Whether Preprod is paused. Paused until an admin opens it.",
     }),
-    generation: z.number().int().nullable().openapi({
+    generation: z.number().int().nonnegative().openapi({
       description:
-        "Preprod's generation number, raised by each wipe; 0 before the first. Null when the read failed.",
+        "Preprod's generation number, raised by each wipe; 0 before the first.",
     }),
     changes: z
       .array(

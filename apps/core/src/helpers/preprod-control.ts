@@ -1,4 +1,5 @@
 import { sharedTable } from "@sokosumi/database/sql-tables";
+import { v7 as uuidv7 } from "uuid";
 
 import {
   preprodAccessOf,
@@ -6,7 +7,7 @@ import {
 } from "@/helpers/preprod-access";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma, { type DbClient } from "@/lib/db/prisma";
-import { tryUseLogger } from "@/lib/evlog";
+import { recordCoreError } from "@/lib/evlog";
 
 /**
  * The Preprod pause and generation number: two `sync_metadata` rows on the
@@ -20,53 +21,83 @@ export const PREPROD_GENERATION_KEY = "network-generation:preprod";
 const OPEN = "open";
 const PAUSED = "paused";
 const PAUSE_TARGET = { type: "network", id: "preprod" } as const;
+/** Canonical decimal text of a non-negative integer, as the raise writes it. */
+const GENERATION_TEXT = /^(?:0|[1-9][0-9]*)$/;
 
 /**
- * Open Preprod always comes with its generation; a paused answer from a
- * failed read has none.
+ * Preprod's control in one of three states:
+ * - `open`: Preprod work may run; new work is stamped with `generation`.
+ * - `paused`: an operator paused it, or nobody opened it yet. A cron tick
+ *   skips (ticket 23); `generation` is still known, so work stamped with a
+ *   different one is stale for good (ticket 24).
+ * - `unavailable`: the read failed or a stored value is not valid. A cron
+ *   tick skips; a callback answers with a retry and never drops work, because
+ *   no generation is known to compare with (ticket 24).
+ * Only `open` lets Preprod work run.
  */
 export type PreprodControl =
-  | { paused: false; generation: number }
-  | { paused: true; generation: number | null };
+  | { state: "open"; generation: number }
+  | { state: "paused"; generation: number }
+  | { state: "unavailable" };
 
-/** One statement for both rows. Throws on a failed read. */
-async function readControl(db: DbClient): Promise<PreprodControl> {
+type KnownPreprodControl = Exclude<PreprodControl, { state: "unavailable" }>;
+
+/** One statement for both rows. Throws on a failed read or an invalid value. */
+async function readControl(db: DbClient): Promise<KnownPreprodControl> {
   const rows = await db.syncMetadata.findMany({
     where: { key: { in: [PREPROD_PAUSE_KEY, PREPROD_GENERATION_KEY] } },
     select: { key: true, cursorId: true },
   });
-  const value = (key: string) => rows.find((row) => row.key === key)?.cursorId;
-  const stored = value(PREPROD_GENERATION_KEY);
-  const generation = stored == null ? 0 : Number(stored);
-  if (!Number.isSafeInteger(generation) || generation < 0) {
-    throw new Error(`Preprod generation is not a count: ${stored}`);
+  const row = (key: string) => rows.find((candidate) => candidate.key === key);
+  const stored = row(PREPROD_GENERATION_KEY);
+  // 0 only for a missing row: a row with no or other text is not a count.
+  const generation = stored ? Number(stored.cursorId) : 0;
+  if (
+    stored &&
+    !(
+      GENERATION_TEXT.test(stored.cursorId ?? "") &&
+      Number.isSafeInteger(generation)
+    )
+  ) {
+    throw new Error(
+      `Preprod generation is not a count: ${JSON.stringify(stored.cursorId)}`,
+    );
   }
   // Fail closed: only the word "open" opens Preprod; no row is paused.
-  return value(PREPROD_PAUSE_KEY) === OPEN
-    ? { paused: false, generation }
-    : { paused: true, generation };
+  return row(PREPROD_PAUSE_KEY)?.cursorId === OPEN
+    ? { state: "open", generation }
+    : { state: "paused", generation };
 }
 
-/**
- * Whether Preprod is paused and its generation. A failed read is paused,
- * with no generation.
- */
+/** Preprod's control, read now. A failed read is `unavailable`, and recorded. */
 export async function readPreprodControl(): Promise<PreprodControl> {
   try {
     return await readControl(prisma);
   } catch (error) {
-    tryUseLogger()?.set({
-      preprodControl: { readFailed: true, error: String(error) },
-    });
-    return { paused: true, generation: null };
+    recordCoreError(
+      { operation: "read_preprod_control" },
+      {
+        message: "Could not read the Preprod pause and generation",
+        why: "The database read failed, or a stored value is not valid",
+        fix: `Preprod work waits until the read works. Read error.cause; check the ${PREPROD_PAUSE_KEY} and ${PREPROD_GENERATION_KEY} rows in sync_metadata.`,
+        cause: error,
+      },
+    );
+    return { state: "unavailable" };
   }
 }
 
-/** The pause and generation with the 20 most recent pause changes, newest first. */
-export async function preprodControlOf(db: DbClient, control: PreprodControl) {
-  const { changes } = await preprodAccessOf(db, PAUSE_TARGET, !control.paused);
+/**
+ * The pause and generation with the 20 most recent pause changes, newest
+ * first. Throws when the value cannot be read, so a route answers 500.
+ */
+export async function preprodControlOf(db: DbClient) {
+  const control = await readControl(db);
+  const paused = control.state === "paused";
+  const { changes } = await preprodAccessOf(db, PAUSE_TARGET, !paused);
   return {
-    ...control,
+    paused,
+    generation: control.generation,
     changes: changes.map(({ enabled, ...change }) => ({
       ...change,
       paused: !enabled,
@@ -78,8 +109,9 @@ export async function preprodControlOf(db: DbClient, control: PreprodControl) {
  * Pauses or opens Preprod and records the change in one transaction, and
  * answers from that transaction, as `setPreprodAccess` does. A value the row
  * already holds changes nothing and records nothing; a missing row already
- * reads as paused. The condition is in the update, so two equal requests at
- * once record one change.
+ * reads as paused. The pause row stays locked until the commit, a repeat
+ * included, so two switches at once run one after the other: two equal ones
+ * record one change, and each answer is one moment's state and history.
  */
 export function setPreprodPaused(input: {
   paused: boolean;
@@ -99,6 +131,10 @@ export function setPreprodPaused(input: {
       },
       skipDuplicates: true,
     });
+    await tx.$queryRaw`
+      SELECT 1 FROM ${sharedTable("sync_metadata")}
+      WHERE "key" = ${PREPROD_PAUSE_KEY}
+      FOR UPDATE`;
     const { count } = await tx.syncMetadata.updateMany({
       where: {
         key: PREPROD_PAUSE_KEY,
@@ -113,21 +149,23 @@ export function setPreprodPaused(input: {
         reason,
       });
     }
-    return preprodControlOf(tx, await readControl(tx));
+    return preprodControlOf(tx);
   });
 }
 
 /**
  * Raises the generation by one and returns the new number; the first raise
  * gives 1. One statement under the row's lock, so two raises at once give two
- * numbers. Called by the wipe (ticket 41), by no route.
+ * numbers. A stored value the reader would not accept (not canonical decimal
+ * text, or at the safe-integer limit) is left as it is, and the raise throws.
+ * Called by the wipe (ticket 41), by no route.
  */
 export async function raisePreprodGeneration(): Promise<number> {
-  const table = sharedTable("sync_metadata");
+  // The CASE keeps the cast from running on text that is not a count.
   const [row] = await prisma.$queryRaw<{ generation: string }[]>`
-    INSERT INTO ${table} AS m ("id", "key", "cursorId", "lastSyncedAt", "updatedAt")
+    INSERT INTO ${sharedTable("sync_metadata")} AS m ("id", "key", "cursorId", "lastSyncedAt", "updatedAt")
     VALUES (
-      gen_random_uuid()::text,
+      ${uuidv7()},
       ${PREPROD_GENERATION_KEY},
       '1',
       clock_timestamp() AT TIME ZONE 'UTC',
@@ -137,7 +175,16 @@ export async function raisePreprodGeneration(): Promise<number> {
       "cursorId" = (m."cursorId"::bigint + 1)::text,
       "lastSyncedAt" = EXCLUDED."lastSyncedAt",
       "updatedAt" = EXCLUDED."updatedAt"
+    WHERE CASE
+      WHEN m."cursorId" ~ '^(0|[1-9][0-9]{0,15})$'
+        THEN m."cursorId"::bigint < ${Number.MAX_SAFE_INTEGER}
+      ELSE false
+    END
     RETURNING m."cursorId" AS generation`;
-  if (!row) throw new Error("Raising the Preprod generation returned no row");
+  if (!row) {
+    throw new Error(
+      "The stored Preprod generation is not a count; it was not raised",
+    );
+  }
   return Number(row.generation);
 }
