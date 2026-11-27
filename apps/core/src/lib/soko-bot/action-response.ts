@@ -757,8 +757,21 @@ export async function buildActionResponse(
     narrative?.message === HELD_BACK_REPLY && !(await isOwnerStarted())
       ? null
       : narrative?.message || null;
+  let savedCmoRecord: boolean | undefined;
+  const hasCmoSavedRecord = async () => {
+    savedCmoRecord ??= await cmoSavedRecord(tx, turnId, await isCmo());
+    return savedCmoRecord;
+  };
+  const hadConfirmedWork =
+    calls.length > 0 || reportedByCard || (await hasCmoSavedRecord());
+  // Never append a canned clarification question after work already ran or
+  // after the claim check cut/held the bot's own words.
   const question =
-    !message && narrative?.kind === "CLARIFY" && narrative.question
+    !message &&
+    !narrative?.replyCheck &&
+    !hadConfirmedWork &&
+    narrative?.kind === "CLARIFY" &&
+    narrative.question
       ? QUESTIONS[narrative.question]
       : null;
   // Observations restate reads in fixed wording; the bot's own message says
@@ -828,19 +841,29 @@ export async function buildActionResponse(
           ? // The card says what Cuso did; a line beside it would only repeat
             // it, or call a delivered video "nothing changed".
             "Nothing to add."
-          : actionRequested &&
-              !(await cmoSavedRecord(tx, turnId, await isCmo()))
+          : actionRequested && !(await hasCmoSavedRecord())
             ? (await isCmo()) && Boolean((await turnInfo())?.parentTurnId)
               ? // A follow-up of Cuso's that changed nothing (it fetched a
                 // finished picture) has nothing to tell: CMO's chat already
                 // shows what was made, where he started it.
                 "Nothing to add."
               : "Nothing was changed in this turn."
-            : answerText;
+            : narrative?.replyCheck
+              ? // Never fall through to raw uncut answerText (or raw JSON)
+                // when Core's claim check already cut or held the message.
+                !(await isOwnerStarted())
+                ? "Nothing to add."
+                : narrative.replyCheck === "unchecked"
+                  ? HELD_BACK_REPLY
+                  : REPLY_CHECK_NOTES.cut
+              : answerText;
   // Beside the bot's words, never inside them: an 8,000-character reply has
   // no room left, and the note is Core's, not the bot's.
   const noted =
-    narrative?.replyCheck && text !== "Nothing to add."
+    narrative?.replyCheck &&
+    text !== "Nothing to add." &&
+    text !== HELD_BACK_REPLY &&
+    text !== REPLY_CHECK_NOTES[narrative.replyCheck]
       ? `${text}\n\n${REPLY_CHECK_NOTES[narrative.replyCheck]}`
       : text;
   // A draft Core refused for want of an account: Core asks, with the stored

@@ -1196,6 +1196,9 @@ describe("triggerHints", () => {
     expect(hints.join("\n")).toMatch(
       /Saved to your memory's preferences .*"Do not flag Make scenario errors\."/,
     );
+    expect(hints.join("\n")).toMatch(
+      /Carry out any action or update requested in this message/,
+    );
   });
 
   it("adds nothing for a sure route, or for a turn nobody typed", () => {
