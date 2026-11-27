@@ -823,4 +823,84 @@ describe("evaluateTurnDoneCheck with completionDecider (E3)", () => {
     expect(prompt).toBeNull();
     expect(mocks.appendUnless).not.toHaveBeenCalled();
   });
+
+  it("includes PENDING/UNKNOWN external effects alongside confirmed saves and keeps the turn open for read-back", async () => {
+    mocks.findTurn.mockResolvedValue(baseTurn());
+    mocks.resolveVersion.mockResolvedValue({ completionDecider: true });
+    mocks.findToolCalls.mockResolvedValue([
+      {
+        turnId: "turn-1",
+        capability: "create_task",
+        input: {},
+        status: "COMPLETED",
+        disposition: "APPLIED",
+        targetId: "task-1",
+        result: { title: "Follow up" },
+        errorKind: null,
+        errorDetail: null,
+      },
+      {
+        turnId: "turn-1",
+        capability: "publish_social_post",
+        input: {},
+        status: "PENDING",
+        disposition: "UNKNOWN",
+        targetId: "post-9",
+        result: null,
+        errorKind: null,
+        errorDetail: null,
+      },
+    ]);
+    mocks.evaluateWithJev.mockResolvedValue({
+      answers: new Map([
+        [
+          "decision",
+          {
+            type: "choice",
+            choice: "finish",
+            probabilities: { finish: 1 },
+          },
+        ],
+      ]),
+      costUsd: 0.00004,
+    });
+
+    const prompt = await evaluateTurnDoneCheck({
+      turnId: "turn-1",
+      sessionId: "sess-1",
+      draft: "Created the task and published the post.",
+    });
+
+    expect(mocks.findToolCalls).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            { status: "PENDING", disposition: "UNKNOWN" },
+          ]),
+        }),
+      }),
+    );
+    const jevCall = mocks.evaluateWithJev.mock.calls[0]?.[0] as {
+      questions: { decision: { criteria: Record<string, string> } };
+      state: {
+        coreWriteReceipts: Array<{ capability: string; outcome: string }>;
+      };
+    };
+    expect(jevCall.state.coreWriteReceipts).toEqual([
+      expect.objectContaining({ capability: "create_task", outcome: "done" }),
+      expect.objectContaining({
+        capability: "publish_social_post",
+        outcome: "unconfirmed",
+      }),
+    ]);
+    expect(Object.keys(jevCall.questions.decision.criteria)).toEqual([
+      "continue",
+      "ask_owner",
+      "abstain",
+    ]);
+    expect(prompt).toContain(
+      "publish_social_post (id post-9): Core could not confirm",
+    );
+    expect(prompt).toContain("read back");
+  });
 });

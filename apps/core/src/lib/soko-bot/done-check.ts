@@ -314,6 +314,7 @@ async function receiptOutcome(call: {
   if (call.disposition === "REJECTED") return "not done";
   if (call.disposition === "UNKNOWN") return "unconfirmed";
   if (call.status === "FAILED") return "not done";
+  if (call.status === "PENDING") return "unconfirmed";
   // A save Core is still writing (write_strategy's { writing: true }).
   if (z.object({ writing: z.literal(true) }).safeParse(call.result).success)
     return "started";
@@ -360,14 +361,26 @@ async function savesSincePlan(
   });
   if (!written) return [];
   const calls = await prisma.sokoBotToolCall.findMany({
-    where: {
-      turnId: { in: [...turnIds] },
-      status: includeFailed ? { in: ["COMPLETED", "FAILED"] } : "COMPLETED",
-      capability: {
-        in: [...changeTools()],
-      },
-      createdAt: { gt: written.createdAt },
-    },
+    where: includeFailed
+      ? {
+          turnId: { in: [...turnIds] },
+          capability: {
+            in: [...changeTools()],
+          },
+          createdAt: { gt: written.createdAt },
+          OR: [
+            { status: { in: ["COMPLETED", "FAILED"] } },
+            { status: "PENDING", disposition: "UNKNOWN" },
+          ],
+        }
+      : {
+          turnId: { in: [...turnIds] },
+          status: "COMPLETED",
+          capability: {
+            in: [...changeTools()],
+          },
+          createdAt: { gt: written.createdAt },
+        },
     orderBy: { createdAt: "asc" },
     select: {
       capability: true,
@@ -461,10 +474,14 @@ async function completionEvidence(
     prisma.sokoBotToolCall.findMany({
       where: {
         turnId: { in: [...turnIds] },
-        status: { in: ["COMPLETED", "FAILED"] },
+        OR: [
+          { status: { in: ["COMPLETED", "FAILED"] } },
+          { status: "PENDING", disposition: "UNKNOWN" },
+        ],
       },
-      // Read the complete settled call set for this request so reads never
-      // evict earlier writes and unresolved receipts are never dropped.
+      // Read all settled calls plus in-flight uncertain (PENDING/UNKNOWN)
+      // external effects so reads never evict earlier writes and unresolved
+      // receipts are never dropped.
       orderBy: { createdAt: "asc" },
       select: {
         turnId: true,
@@ -501,7 +518,12 @@ async function completionEvidence(
 
   const readsByCap = new Map<string, CompletionReadSummary>();
   for (const call of calls) {
-    if (isChangeCall(call) || call.capability === "update_plan") continue;
+    if (
+      call.status === "PENDING" ||
+      isChangeCall(call) ||
+      call.capability === "update_plan"
+    )
+      continue;
     const entry = readsByCap.get(call.capability) ?? {
       capability: call.capability,
       completedCount: 0,
@@ -575,11 +597,7 @@ async function completionTurnEligibility(
   ) {
     return { eligible: true, isFollowUpWake: false, rootRequest: null };
   }
-  if (
-    turn.source === "EVENT" &&
-    turn.parentTurnId === null &&
-    requestId !== turn.id
-  ) {
+  if (turn.source === "EVENT" && requestId !== turn.id) {
     const root = await prisma.sokoBotTurn.findUnique({
       where: { id: requestId },
       select: {
