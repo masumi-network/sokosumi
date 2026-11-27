@@ -344,6 +344,11 @@ export interface PreparedTurn {
    */
   planLoop: boolean;
   /**
+   * Jev completion decider (experiment E3): asks Core's done-check before a
+   * foreground turn answers even when no plan was created yet.
+   */
+  completionDecider: boolean;
+  /**
    * The turn starts with a plan from earlier in its request: the runner asks
    * Core about the plan from the start, not only once the turn writes one.
    */
@@ -620,6 +625,7 @@ export async function prepareTurn(
     requiresActionProof,
     meetingPrep,
     planLoop,
+    completionDecider: version.completionDecider === true,
     planInherited: requestPlan !== null,
     requestPlan,
     parts,

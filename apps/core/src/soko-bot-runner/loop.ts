@@ -86,6 +86,11 @@ export interface TurnLoopPlan {
    */
   inherited: boolean;
   /**
+   * Ask doneCheck before a foreground turn answers even when no plan exists
+   * yet (experiment E3 completionDecider). openSteps still waits for a plan.
+   */
+  checkWithoutPlan?: boolean;
+  /**
    * Asked once when a foreground turn is about to answer: a prompt sends it
    * back for one more round, null lets the answer through.
    */
@@ -352,10 +357,12 @@ export async function runTurnLoop(
       !refused &&
       reportAt - now() > minRoundMs;
     if (!keepGoing) {
-      // The done check: a foreground answer with open plan steps goes back
-      // once, only while steps, time and tokens leave room for that round
-      // and a wrap-up after it, checked again once Core has answered.
-      const plan = activePlan;
+      // The done check: a foreground answer with open plan steps (or with
+      // completionDecider active even without a plan) goes back once, only
+      // while steps, time and tokens leave room for that round and a wrap-up
+      // after it, checked again once Core has answered.
+      const plan =
+        activePlan ?? (input.plan?.checkWithoutPlan ? input.plan : undefined);
       if (
         plan &&
         !doneChecked &&

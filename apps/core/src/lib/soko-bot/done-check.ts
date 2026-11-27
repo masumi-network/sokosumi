@@ -1,8 +1,21 @@
 import { SOKO_BOT_TOOL_REFUSED } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
-import { STUDIO_JOB_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
+import {
+  isExternalEffectToolCall,
+  STUDIO_JOB_CAPABILITIES,
+} from "@/lib/soko-bot/action-receipts";
 import { parseActionNarrativeText } from "@/lib/soko-bot/action-response";
+import {
+  buildCompletionBouncePrompt,
+  COMPLETION_DECIDER_EVENT,
+  type CompletionDeciderContext,
+  type CompletionReadSummary,
+  type CompletionReceiptSummary,
+  type CompletionRefusalSummary,
+  decideCompletionWithJev,
+  receiptToRuntimeEventData,
+} from "@/lib/soko-bot/completion-decider";
 import { isOwnerRequest } from "@/lib/soko-bot/owner-request";
 import {
   type ChainPlan,
@@ -293,12 +306,15 @@ const STUDIO_NOT_MADE = new Set(["FAILED", "CANCELED", "ORPHANED"]);
  */
 async function receiptOutcome(call: {
   capability: string;
+  status?: string;
   disposition: string | null;
   targetId: string | null;
   result: unknown;
 }): Promise<ReceiptOutcome> {
   if (call.disposition === "REJECTED") return "not done";
   if (call.disposition === "UNKNOWN") return "unconfirmed";
+  if (call.status === "FAILED") return "not done";
+  if (call.status === "PENDING") return "unconfirmed";
   // A save Core is still writing (write_strategy's { writing: true }).
   if (z.object({ writing: z.literal(true) }).safeParse(call.result).success)
     return "started";
@@ -329,6 +345,7 @@ async function savesSincePlan(
   requestId: string,
   plan: ChainPlan,
   turnIds: readonly string[],
+  includeFailed = false,
 ): Promise<SaveReceipt[]> {
   const written = await prisma.sokoBotToolCall.findFirst({
     where: {
@@ -344,22 +361,35 @@ async function savesSincePlan(
   });
   if (!written) return [];
   const calls = await prisma.sokoBotToolCall.findMany({
-    where: {
-      turnId: { in: [...turnIds] },
-      status: "COMPLETED",
-      capability: {
-        in: [...changeTools()],
-      },
-      createdAt: { gt: written.createdAt },
-    },
+    where: includeFailed
+      ? {
+          turnId: { in: [...turnIds] },
+          capability: {
+            in: [...changeTools()],
+          },
+          createdAt: { gt: written.createdAt },
+          OR: [
+            { status: { in: ["COMPLETED", "FAILED"] } },
+            { status: "PENDING", disposition: "UNKNOWN" },
+          ],
+        }
+      : {
+          turnId: { in: [...turnIds] },
+          status: "COMPLETED",
+          capability: {
+            in: [...changeTools()],
+          },
+          createdAt: { gt: written.createdAt },
+        },
     orderBy: { createdAt: "asc" },
     select: {
       capability: true,
+      status: true,
       disposition: true,
       targetId: true,
       result: true,
     },
-    take: 20,
+    ...(includeFailed ? {} : { take: 20 }),
   });
   return Promise.all(
     calls.map(async (call) => ({
@@ -427,34 +457,207 @@ async function ownerBlocker(turnId: string): Promise<boolean> {
 }
 
 /**
- * The done check (planLoop): a foreground owner turn about to answer while
- * its plan still lists steps to do is sent back once to do them or to mark
- * them blocked or skipped. A turn that waits on the owner is asked to mark
- * what needs their answer blocked and to do the rest, so a question about
- * one step does not leave the others undone. Null lets the answer through:
- * no plan, nothing open, the request waits on others, or it already bounced.
+ * Core write receipts, read summaries, and unresolved refusals across all
+ * turns of a request, for the Jev completion decider (experiment E3).
  */
-export async function evaluateTurnDoneCheck(input: {
+async function completionEvidence(
+  turnId: string,
+  turnIds: readonly string[],
+): Promise<{
+  receipts: CompletionReceiptSummary[];
+  readCalls: CompletionReadSummary[];
+  pendingDecisionCount: number;
+  unresolvedRefusals: CompletionRefusalSummary[];
+}> {
+  const writes = changeTools();
+  const [calls, pendingDecisionCount] = await Promise.all([
+    prisma.sokoBotToolCall.findMany({
+      where: {
+        turnId: { in: [...turnIds] },
+        OR: [
+          { status: { in: ["COMPLETED", "FAILED"] } },
+          { status: "PENDING", disposition: "UNKNOWN" },
+        ],
+      },
+      // Read all settled calls plus in-flight uncertain (PENDING/UNKNOWN)
+      // external effects so reads never evict earlier writes and unresolved
+      // receipts are never dropped.
+      orderBy: { createdAt: "asc" },
+      select: {
+        turnId: true,
+        capability: true,
+        input: true,
+        status: true,
+        disposition: true,
+        targetId: true,
+        result: true,
+        errorKind: true,
+        errorDetail: true,
+      },
+    }),
+    prisma.sokoBotPendingDecision.count({
+      where: { turnId, status: "PENDING" },
+    }),
+  ]);
+
+  const isChangeCall = (call: (typeof calls)[number]) =>
+    writes.has(call.capability) ||
+    call.disposition === "UNKNOWN" ||
+    isExternalEffectToolCall(call.capability, call.input);
+
+  const writeCalls = calls.filter(isChangeCall);
+  const receipts: CompletionReceiptSummary[] = await Promise.all(
+    writeCalls.map(async (call) => ({
+      capability: call.capability,
+      label: receiptLabel(call.targetId, call.result),
+      outcome: await receiptOutcome(call),
+      errorKind: call.errorKind,
+      errorDetail: call.errorDetail,
+    })),
+  );
+
+  const readsByCap = new Map<string, CompletionReadSummary>();
+  for (const call of calls) {
+    if (
+      call.status === "PENDING" ||
+      isChangeCall(call) ||
+      call.capability === "update_plan"
+    )
+      continue;
+    const entry = readsByCap.get(call.capability) ?? {
+      capability: call.capability,
+      completedCount: 0,
+      failedCount: 0,
+    };
+    if (call.status === "COMPLETED") entry.completedCount += 1;
+    else entry.failedCount += 1;
+    readsByCap.set(call.capability, entry);
+  }
+
+  const turnCalls = calls.filter((call) => call.turnId === turnId);
+  const unresolvedRefusals: CompletionRefusalSummary[] = [];
+  for (let index = 0; index < turnCalls.length; index++) {
+    const call = turnCalls[index];
+    if (!call || call.errorKind !== SOKO_BOT_TOOL_REFUSED) continue;
+    const madeGood = turnCalls
+      .slice(index + 1)
+      .some(
+        (later) =>
+          later.capability === call.capability &&
+          later.status === "COMPLETED" &&
+          later.disposition !== "REJECTED" &&
+          later.disposition !== "UNKNOWN",
+      );
+    if (!madeGood) {
+      unresolvedRefusals.push({
+        capability: call.capability,
+        errorDetail: call.errorDetail,
+      });
+    }
+  }
+
+  return {
+    receipts,
+    readCalls: [...readsByCap.values()],
+    pendingDecisionCount,
+    unresolvedRefusals,
+  };
+}
+
+/**
+ * Turns eligible for the Jev completion decider: direct owner chat/schedule
+ * requests, plus owner-originated delegation/watch follow-up wakes. Built-in
+ * rhythms (requestedByUserId === null) and autonomous/teammate turns stay out.
+ */
+async function completionTurnEligibility(
+  turn: {
+    id: string;
+    sokoBotId: string;
+    source: string;
+    chainDepth: number;
+    askedByUserId: string | null;
+    requestedByUserId: string | null;
+    parentTurnId: string | null;
+    parentTurn: {
+      source: string;
+      chainDepth: number;
+      askedByUserId: string | null;
+      requestedByUserId: string | null;
+    } | null;
+  },
+  requestId: string,
+): Promise<{
+  eligible: boolean;
+  isFollowUpWake: boolean;
+  rootRequest: string | null;
+}> {
+  if (
+    turn.requestedByUserId !== null &&
+    isOwnerRequest(turn, { schedules: true })
+  ) {
+    return { eligible: true, isFollowUpWake: false, rootRequest: null };
+  }
+  if (turn.source === "EVENT" && requestId !== turn.id) {
+    const root = await prisma.sokoBotTurn.findUnique({
+      where: { id: requestId },
+      select: {
+        sokoBotId: true,
+        source: true,
+        chainDepth: true,
+        askedByUserId: true,
+        requestedByUserId: true,
+        parentTurnId: true,
+        userMessage: true,
+        parentTurn: {
+          select: {
+            source: true,
+            chainDepth: true,
+            askedByUserId: true,
+            requestedByUserId: true,
+          },
+        },
+      },
+    });
+    if (
+      root &&
+      root.sokoBotId === turn.sokoBotId &&
+      root.requestedByUserId !== null &&
+      isOwnerRequest(root, { schedules: true })
+    ) {
+      return {
+        eligible: true,
+        isFollowUpWake: true,
+        rootRequest: root.userMessage,
+      };
+    }
+  }
+  return { eligible: false, isFollowUpWake: false, rootRequest: null };
+}
+
+async function runPlanLoopDoneCheck(input: {
   turnId: string;
   sessionId: string;
   draft: string;
+  sokoBotId: string;
+  requestId: string;
+  plan: ChainPlan;
+  turnIds: readonly string[];
 }): Promise<string | null> {
-  const found = await turnPlan(input.turnId);
-  if (!found || !(await ownerRequest(input.turnId, found))) return null;
-  if (!openSteps(found.plan).length) return null;
-  const turnIds = await requestTurnIds(
-    found.turn.sokoBotId,
-    found.requestId,
-    input.turnId,
-  );
-  const open = openSteps(found.plan);
+  const open = openSteps(input.plan);
+  if (!open.length) return null;
   const working = open.some((step) => step.status === "in_progress");
-  if (!working && (await waitingOnOthers(input.turnId, turnIds))) return null;
+  if (!working && (await waitingOnOthers(input.turnId, input.turnIds)))
+    return null;
   const onOwner = asksOwner(input.draft) || (await ownerBlocker(input.turnId));
   // Waiting on the owner with one step left: the answer is what that step
   // needs, so the question goes to them now. With more, the rest may not.
   if (onOwner && open.length === 1) return null;
-  const saves = await savesSince(found, turnIds);
+  const saves = await savesSincePlan(
+    input.sokoBotId,
+    input.requestId,
+    input.plan,
+    input.turnIds,
+  );
   const claimed = await new RuntimeEventLog(
     input.turnId,
     input.sessionId,
@@ -465,8 +668,231 @@ export async function evaluateTurnDoneCheck(input: {
     [DONE_CHECK_BOUNCED_EVENT],
   );
   if (!claimed) return null;
-  const known = savedNote(saves, found.plan.revision);
+  const known = savedNote(saves, input.plan.revision);
   if (onOwner)
-    return `You are waiting on the owner, and your plan still lists open steps:\n${stepList(open, saves)}\n${known}Call update_plan (revision ${found.plan.revision}) and mark each step that needs their answer blocked, with blockedOn owner and the question as its reason. Do the steps that do not need it now. Then reply, asking your question again.`;
-  return `Your plan still lists open steps:\n${stepList(open, saves)}\n${known}Do what you can of the rest now. A step that waits on someone: call update_plan (revision ${found.plan.revision}) and mark it blocked, with blockedOn and a reason; one no longer needed: skipped, with a reason. Then reply.`;
+    return `You are waiting on the owner, and your plan still lists open steps:\n${stepList(open, saves)}\n${known}Call update_plan (revision ${input.plan.revision}) and mark each step that needs their answer blocked, with blockedOn owner and the question as its reason. Do the steps that do not need it now. Then reply, asking your question again.`;
+  return `Your plan still lists open steps:\n${stepList(open, saves)}\n${known}Do what you can of the rest now. A step that waits on someone: call update_plan (revision ${input.plan.revision}) and mark it blocked, with blockedOn and a reason; one no longer needed: skipped, with a reason. Then reply.`;
+}
+
+/**
+ * The done check (planLoop + optional E3 Jev completion decider):
+ * - planLoop only (#8340): a foreground owner turn about to answer while its
+ *   plan still lists steps to do is sent back once.
+ * - completionDecider (E3): Jev chooses finish / continue / ask_owner from
+ *   Core receipts, the plan (if any), and the draft, with host pre-filtering,
+ *   stale re-check, structured decision receipts, and fallback to planLoop or
+ *   finish. Works standalone or combined with planLoop.
+ */
+export async function evaluateTurnDoneCheck(input: {
+  turnId: string;
+  sessionId: string;
+  draft: string;
+}): Promise<string | null> {
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: input.turnId },
+    select: {
+      id: true,
+      ...OWNER_TURN,
+      userMessage: true,
+      capabilityNames: true,
+    },
+  });
+  if (!turn) return null;
+  const version = await resolveSokoBotVersion(turn.versionId);
+
+  if (!version.completionDecider) {
+    if (!version.planLoop) return null;
+    const requestId = await resolveRequestId(input.turnId);
+    const plan = await readRequestPlan(turn.sokoBotId, requestId);
+    if (!plan || !(await ownerRequest(input.turnId, { turn, requestId, plan })))
+      return null;
+    if (!openSteps(plan).length) return null;
+    const turnIds = await requestTurnIds(
+      turn.sokoBotId,
+      requestId,
+      input.turnId,
+    );
+    return runPlanLoopDoneCheck({
+      turnId: input.turnId,
+      sessionId: input.sessionId,
+      draft: input.draft,
+      sokoBotId: turn.sokoBotId,
+      requestId,
+      plan,
+      turnIds,
+    });
+  }
+
+  const requestId = await resolveRequestId(input.turnId);
+  const eligibility = await completionTurnEligibility(turn, requestId);
+  if (!eligibility.eligible) return null;
+
+  const hasPlanLoop = version.planLoop === true;
+  const [plan, turnIds, bouncedEvent] = await Promise.all([
+    hasPlanLoop
+      ? readRequestPlan(turn.sokoBotId, requestId)
+      : Promise.resolve(null),
+    requestTurnIds(turn.sokoBotId, requestId, input.turnId),
+    prisma.sokoBotRuntimeEvent.findFirst({
+      where: { turnId: input.turnId, type: DONE_CHECK_BOUNCED_EVENT },
+      select: { id: true },
+    }),
+  ]);
+  const open = plan ? openSteps(plan) : [];
+  const [waiting, evidence] = await Promise.all([
+    waitingOnOthers(input.turnId, turnIds),
+    completionEvidence(input.turnId, turnIds),
+  ]);
+
+  const writes = changeTools();
+  const availableWriteTools = turn.capabilityNames.filter((name) =>
+    writes.has(name),
+  );
+  const availableReadToolCount = turn.capabilityNames.filter(
+    (name) => !writes.has(name) && name !== "update_plan",
+  ).length;
+
+  const ctx: CompletionDeciderContext = {
+    request: turn.userMessage,
+    rootRequest: eligibility.rootRequest,
+    isFollowUpWake: eligibility.isFollowUpWake,
+    turnSource: turn.source,
+    draft: input.draft,
+    plan,
+    openSteps: open,
+    receipts: evidence.receipts,
+    readCalls: evidence.readCalls,
+    pendingDecisionCount: evidence.pendingDecisionCount,
+    unresolvedRefusals: evidence.unresolvedRefusals,
+    waitingOnOthers: waiting,
+    availableWriteTools,
+    availableReadToolCount,
+    alreadyBounced: bouncedEvent !== null,
+    hasPlanLoop,
+  };
+
+  let recheckedPlan: ChainPlan | null = plan;
+  const decision = await decideCompletionWithJev(ctx, {
+    recheckState: async () => {
+      const [freshBounce, freshWaiting, freshPlan] = await Promise.all([
+        prisma.sokoBotRuntimeEvent.findFirst({
+          where: { turnId: input.turnId, type: DONE_CHECK_BOUNCED_EVENT },
+          select: { id: true },
+        }),
+        waitingOnOthers(input.turnId, turnIds),
+        hasPlanLoop
+          ? readRequestPlan(turn.sokoBotId, requestId)
+          : Promise.resolve(null),
+      ]);
+      recheckedPlan = freshPlan;
+      const freshOpen = freshPlan ? openSteps(freshPlan) : null;
+      return {
+        alreadyBounced: freshBounce !== null,
+        waitingOnOthers: freshWaiting,
+        openStepIds: freshOpen ? freshOpen.map((step) => step.id) : null,
+        hasInProgressStep:
+          freshOpen?.some((step) => step.status === "in_progress") ?? false,
+        hasTools: turn.capabilityNames.length > 0,
+      };
+    },
+  });
+
+  const log = new RuntimeEventLog(input.turnId, input.sessionId);
+  const recordReceipt = async (receipt = decision.receipt) => {
+    if (
+      receipt.validation === "skipped_prefilter" &&
+      receipt.validationDetail === "already_bounced"
+    )
+      return;
+    await log
+      .append(
+        runtimeEvent(
+          COMPLETION_DECIDER_EVENT,
+          receiptToRuntimeEventData(receipt),
+        ),
+      )
+      .catch(() => undefined);
+  };
+
+  if (decision.usePlanLoopFallback && hasPlanLoop) {
+    const freshPlan =
+      recheckedPlan ??
+      (await readRequestPlan(turn.sokoBotId, requestId)) ??
+      plan;
+    const prompt = freshPlan
+      ? await runPlanLoopDoneCheck({
+          turnId: input.turnId,
+          sessionId: input.sessionId,
+          draft: input.draft,
+          sokoBotId: turn.sokoBotId,
+          requestId,
+          plan: freshPlan,
+          turnIds,
+        })
+      : null;
+    await recordReceipt({
+      ...decision.receipt,
+      outcome: prompt ? "continue" : "finish",
+      bounced: prompt !== null,
+    });
+    return prompt;
+  }
+
+  if (
+    decision.action === "continue" ||
+    decision.action === "ask_owner_bounce"
+  ) {
+    const effectivePlan = recheckedPlan ?? plan;
+    const effectiveOpen = effectivePlan ? openSteps(effectivePlan) : open;
+    const claimed = await log.appendUnless(
+      runtimeEvent(DONE_CHECK_BOUNCED_EVENT, {
+        openSteps: effectiveOpen.map((step) => step.id),
+        source: "completion_decider",
+        chosenTarget: decision.receipt.chosenTarget,
+      }),
+      [DONE_CHECK_BOUNCED_EVENT],
+    );
+    if (!claimed) {
+      await recordReceipt({
+        ...decision.receipt,
+        validation: "stale",
+        validationDetail: "bounce_claim_race",
+        fallback: true,
+        fallbackPolicy: "finish",
+        outcome: "finish",
+        bounced: false,
+      });
+      return null;
+    }
+    const saves = effectivePlan
+      ? await savesSincePlan(
+          turn.sokoBotId,
+          requestId,
+          effectivePlan,
+          turnIds,
+          true,
+        )
+      : [];
+    const effectiveCtx: CompletionDeciderContext =
+      effectivePlan === plan
+        ? ctx
+        : { ...ctx, plan: effectivePlan, openSteps: effectiveOpen };
+    const prompt = buildCompletionBouncePrompt({
+      ctx: effectiveCtx,
+      decision,
+      openStepsText: effectivePlan ? stepList(effectiveOpen, saves) : "",
+      savedNoteText: effectivePlan
+        ? savedNote(saves, effectivePlan.revision)
+        : "",
+    });
+    await recordReceipt({
+      ...decision.receipt,
+      bounced: prompt !== null,
+      outcome: prompt ? decision.receipt.outcome : "finish",
+    });
+    return prompt;
+  }
+
+  await recordReceipt();
+  return null;
 }

@@ -21,6 +21,15 @@ vi.mock("@/config/env", async (importOriginal) => {
     getBetterAuthPublicBaseUrl: () => null,
   };
 });
+const e3 = vi.hoisted(() => ({ enabled: false, evaluate: vi.fn() }));
+vi.mock("@/lib/soko-bot/jev", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/soko-bot/jev")>();
+  return {
+    ...actual,
+    evaluateWithJev: (...args: Parameters<typeof actual.evaluateWithJev>) =>
+      e3.enabled ? e3.evaluate(...args) : actual.evaluateWithJev(...args),
+  };
+});
 vi.mock("@/services/soko-bot-version.service", async (importOriginal) => {
   const actual =
     await importOriginal<
@@ -30,6 +39,7 @@ vi.mock("@/services/soko-bot-version.service", async (importOriginal) => {
     ...actual,
     resolveSokoBotVersion: async (id: string | null) => ({
       ...(await actual.resolveSokoBotVersion(id)),
+      ...(e3.enabled ? { completionDecider: true as const } : {}),
       planLoop: true,
     }),
     resolveRunnableSokoBotVersion: async (
@@ -509,6 +519,130 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
         sessionId: `session-${turnId}`,
         draft,
       });
+
+    it("includes a PENDING/UNKNOWN publish in completion evidence after a confirmed save and keeps the turn open for read-back", async () => {
+      const id = await turn("CHAT");
+      await prisma.sokoBotToolCall.createMany({
+        data: [
+          {
+            turnId: id,
+            capability: "create_task",
+            toolCallId: "confirmed",
+            inputHash: "1",
+            status: "COMPLETED",
+            disposition: "APPLIED",
+          },
+          {
+            turnId: id,
+            capability: "publish_social_post",
+            toolCallId: "awaiting",
+            inputHash: "2",
+            status: "PENDING",
+            disposition: "UNKNOWN",
+            verification: "NONE",
+          },
+        ],
+      });
+      e3.evaluate.mockReset();
+      e3.evaluate.mockResolvedValue({
+        answers: new Map([
+          [
+            "decision",
+            {
+              type: "choice",
+              choice: "finish",
+              probabilities: { finish: 1 },
+            },
+          ],
+        ]),
+        costUsd: 0,
+      });
+      e3.enabled = true;
+      try {
+        const prompt = await check(
+          id,
+          "Created the task and published the post.",
+        );
+        const call = e3.evaluate.mock.calls[0]?.[0] as {
+          questions: { decision: { criteria: Record<string, string> } };
+          state: { coreWriteReceipts: unknown[] };
+        };
+        expect(call.state.coreWriteReceipts).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              capability: "create_task",
+              outcome: "done",
+            }),
+            expect.objectContaining({
+              capability: "publish_social_post",
+              outcome: "unconfirmed",
+            }),
+          ]),
+        );
+        expect(Object.keys(call.questions.decision.criteria)).toEqual([
+          "continue",
+          "ask_owner",
+          "abstain",
+        ]);
+        expect(prompt).toContain("Core could not confirm");
+        expect(prompt).toContain("read back");
+      } finally {
+        e3.enabled = false;
+      }
+    });
+
+    it("allows finish on a confirmed FAILED/REJECTED publish in PostgreSQL (negative control)", async () => {
+      const id = await turn("CHAT");
+      await prisma.sokoBotToolCall.create({
+        data: {
+          turnId: id,
+          capability: "publish_social_post",
+          toolCallId: "refused",
+          inputHash: "3",
+          status: "FAILED",
+          disposition: "REJECTED",
+          verification: "NONE",
+          errorKind: "refused",
+          errorDetail: "Post awaits owner approval",
+        },
+      });
+      e3.evaluate.mockReset();
+      e3.evaluate.mockResolvedValue({
+        answers: new Map([
+          [
+            "decision",
+            {
+              type: "choice",
+              choice: "finish",
+              probabilities: {
+                finish: 0.95,
+                continue: 0.03,
+                ask_owner: 0.01,
+                abstain: 0.01,
+              },
+            },
+          ],
+        ]),
+        costUsd: 0,
+      });
+      e3.enabled = true;
+      try {
+        const prompt = await check(
+          id,
+          "Core refused to publish because the post still awaits your approval.",
+        );
+        const call = e3.evaluate.mock.calls[0]?.[0] as {
+          questions: { decision: { criteria: Record<string, string> } };
+        };
+        expect(Object.keys(call.questions.decision.criteria)).toContain(
+          "finish",
+        );
+        expect(prompt).toBeNull();
+      } finally {
+        e3.enabled = false;
+      }
+    });
+
     const twoSteps = [
       { step: "Write the posts", status: "done" },
       { step: "Schedule them", status: "pending" },
