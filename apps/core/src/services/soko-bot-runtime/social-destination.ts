@@ -4,9 +4,17 @@ import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { openAccountQuestion } from "@/lib/soko-bot/account-question";
 import {
+  namedSocialDestinations,
+  type SocialDestinationCandidate,
+  socialDestinationLabel,
+  withoutQuotedCopy,
+} from "@/lib/soko-bot/ask-policy-match";
+import {
   type AuthorizedSokoBotRuntime,
   SokoBotRefusedUnsentError,
 } from "../soko-bot-runtime.service";
+
+export { withoutQuotedCopy };
 
 /**
  * An ambiguous destination is asked, not guessed. When the owner asks for a
@@ -23,67 +31,10 @@ import {
 export const ASK_WHICH_ACCOUNT = "Several accounts could take this post";
 const SHOWN = 10;
 
-interface Candidate {
-  id: string;
-  externalHandle: string | null;
-  project: { id: string; name: string };
-}
-
-const handleOf = (candidate: Candidate) =>
-  candidate.externalHandle?.replace(/^@/, "") ?? null;
-
-const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-/** The owner's own words: quoted or fenced text is the post, never where it goes. */
-export function withoutQuotedCopy(message: string): string {
-  return message
-    .replaceAll(/```[\s\S]*?```/g, " ")
-    .replaceAll(/"[^"]*"|“[^”]*”|‘[^’]*’|«[^»]*»|„[^“”]*[“”]/g, " ")
-    .replaceAll(/(^|[\s(:])'[^'\n]+'(?=[\s.,!?;:)]|$)/g, "$1 ")
-    .split("\n")
-    .filter((line) => !line.trimStart().startsWith(">"))
-    .join("\n");
-}
-
-/** The exact name, never part of a longer one. */
-function contains(text: string, name: string): boolean {
-  return new RegExp(
-    `(^|[^\\p{L}\\p{N}_@])${escape(name)}(?![\\p{L}\\p{N}_])`,
-    "iu",
-  ).test(text);
-}
-
-/**
- * The accounts the request names exactly: an @handle or id, or a Project
- * name when that Project holds only one of the fitting accounts.
- */
-function namedIn(
-  message: string,
-  candidates: readonly Candidate[],
-): Candidate[] {
-  const text = withoutQuotedCopy(message);
-  return candidates.filter((candidate) => {
-    const handle = handleOf(candidate);
-    if (handle && contains(text, `@${handle}`)) return true;
-    if (text.includes(candidate.id)) return true;
-    const sameProject = candidates.filter(
-      (other) => other.project.id === candidate.project.id,
-    );
-    return (
-      sameProject.length === 1 &&
-      candidate.project.name.trim().length > 0 &&
-      contains(text, candidate.project.name.trim())
-    );
-  });
-}
-
-function label(candidate: Candidate): string {
-  const handle = handleOf(candidate);
-  return `${handle ? `@${handle}` : "an account"} (Project "${candidate.project.name}", projectId ${candidate.project.id}, socialConnectionId ${candidate.id})`;
-}
+type Candidate = SocialDestinationCandidate;
 
 function labels(candidates: readonly Candidate[]): string {
-  return candidates.map(label).join("; ");
+  return candidates.map(socialDestinationLabel).join("; ");
 }
 
 /** The owner's own chat turn: the only turn that asks the owner anything. */
@@ -252,7 +203,9 @@ export async function requireChosenSocialDestination(
     },
   );
   if (candidates.length < 2) return {};
-  const named = request ? namedIn(request.userMessage, candidates) : [];
+  const named = request
+    ? namedSocialDestinations(request.userMessage, candidates)
+    : [];
   if (named.length > 0) {
     if (named.some((candidate) => candidate.id === params.socialConnectionId))
       return {};
