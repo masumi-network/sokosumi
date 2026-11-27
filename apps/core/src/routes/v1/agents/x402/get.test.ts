@@ -54,15 +54,17 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     agent: { findMany: agentFindManyMock, count: agentCountMock },
     creditCost: { findMany: creditCostFindManyMock },
     syncMetadata: { findUnique: syncMetadataFindUniqueMock },
     userAgentRating: { groupBy: () => Promise.resolve([]) },
     $transaction: prismaTransactionMock,
-  },
-}));
+  };
+  // The list reads its Network's rows through its scope's client.
+  return { default: client, networkPrisma: () => client };
+});
 
 function seedReadiness(pairs: ReadinessPairFixture[]) {
   syncMetadataFindUniqueMock.mockResolvedValue(createReadinessRow(pairs));

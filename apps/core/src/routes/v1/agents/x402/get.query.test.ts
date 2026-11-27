@@ -45,8 +45,8 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     agent: { findMany: agentFindManyMock, count: agentCountMock },
     creditCost: { findMany: creditCostFindManyMock },
     syncMetadata: { findUnique: syncMetadataFindUniqueMock },
@@ -54,8 +54,10 @@ vi.mock("@/lib/db/prisma", () => ({
     // second argument, and a mock that discarded it left the option free to
     // delete with every test still green.
     $transaction: prismaTransactionMock,
-  },
-}));
+  };
+  // The list reads its Network's rows through its scope's client.
+  return { default: client, networkPrisma: () => client };
+});
 
 describe("GET /agents?kind=x402 catalog query", () => {
   beforeEach(() => {
