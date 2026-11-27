@@ -52,7 +52,6 @@ const ON_POSTGRES =
 const TUSDM =
   "16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde0014df10745553444d";
 const SEEDED_UNITS = [TUSDM, "lovelace"];
-const OWN_MAINNET_UNIT = "c3-mainnet-rate";
 
 /** Every statement the pool's connections send: SQL text and bindings. */
 function recordSql() {
@@ -141,16 +140,57 @@ describe.runIf(ON_POSTGRES)("Preprod's seeded rates", () => {
     },
   );
 
+  // The declared defaults, not whatever the table holds (an admin may have
+  // edited a row there): the persisted rows are checked by the missing-row test.
+  it("prices 1 tUSDM and 1 tADA the same with the declared rates, whatever the Agent spells ADA", () => {
+    const at = new Date("2026-01-01T00:00:00Z");
+    const costs = PREPROD_CREDIT_COSTS.map((cost) => ({
+      ...cost,
+      id: cost.unit,
+      createdAt: at,
+      updatedAt: at,
+    }));
+    const cents = (unit: string) =>
+      calculateCentsFromMasumiAmountStrings(
+        [{ unit, amount: "1000000" }],
+        costs,
+      );
+    expect(cents(TUSDM)).toBe(10n ** 12n);
+    for (const ada of ["lovelace", "", "LOVELACE", " lovelace "]) {
+      expect(cents(ada)).toBe(cents(TUSDM));
+    }
+    expect(convertCentsToCredits(cents("lovelace"))).toBe(100);
+  });
+
   describe.runIf(onSplitLayout)("on the split layout", () => {
     const names = testSchemaNames();
-    const mainnetTable = `"${names.DATABASE_SCHEMA_MAINNET}"."CreditCost"`;
-    const audit = `"${names.DATABASE_SCHEMA_SHARED}"."c3_rates_mainnet_writes"`;
+    // Unique per run: nothing here can meet an object it did not create.
+    const run = randomUUID().replaceAll("-", "").slice(0, 12);
+    const ownMainnetUnit = `c3-mainnet-rate-${run}`;
+    const shared = `"${names.DATABASE_SCHEMA_SHARED}"`;
+    const auditTable = `${shared}."c3_rates_${run}_writes"`;
+    const auditFunction = `${shared}."c3_rates_${run}_audit"`;
+    const triggerName = `"c3_rates_${run}_trg"`;
+    const tables = {
+      mainnet: `"${names.DATABASE_SCHEMA_MAINNET}"."CreditCost"`,
+      preprod: `"${names.DATABASE_SCHEMA_PREPROD}"."CreditCost"`,
+    } as const;
     const preprod = () => network.createNetworkScope("preprod").networkDb;
     /** Rows in Preprod's table before this suite: never ours to remove. */
     let baselineIds: string[] = [];
+    /** Mainnet's rows before any write of this suite. */
+    let mainnetBaseline: Awaited<ReturnType<typeof mainnetRows>> = [];
+    let fixtureId: string | undefined;
+    const created = { table: false, function: false, triggers: [] as string[] };
 
-    const mainnetWrites = () =>
-      prisma.$queryRawUnsafe<unknown[]>(`SELECT * FROM ${audit}`);
+    /** What the suite's triggers recorded: `network`, `op`. */
+    const writes = (net: "mainnet" | "preprod") =>
+      prisma.$queryRawUnsafe<{ op: string }[]>(
+        `SELECT op FROM ${auditTable} WHERE network = '${net}'`,
+      );
+    /** Mainnet's rows without the suite's own fixture. */
+    const mainnetWithoutFixture = async () =>
+      (await mainnetRows()).filter(({ id }) => id !== fixtureId);
     const seededRows = () =>
       preprod().creditCost.findMany({
         where: { unit: { in: SEEDED_UNITS } },
@@ -158,40 +198,55 @@ describe.runIf(ON_POSTGRES)("Preprod's seeded rates", () => {
       });
 
     beforeAll(async () => {
+      // Before any write of this suite.
+      mainnetBaseline = await mainnetRows();
       baselineIds = (
         await preprod().creditCost.findMany({ select: { id: true } })
       ).map(({ id }) => id);
-      // A Mainnet rate of its own, so "unchanged" compares something.
-      await mainnet().creditCost.deleteMany({
-        where: { unit: OWN_MAINNET_UNIT },
-      });
-      await mainnet().creditCost.create({
-        data: { unit: OWN_MAINNET_UNIT, centsPerUnit: 7n },
-      });
-      // Every statement that writes Mainnet's table leaves a row here.
       await prisma.$executeRawUnsafe(
-        `CREATE TABLE ${audit} (statement text NOT NULL)`,
+        `CREATE TABLE ${auditTable} (network text NOT NULL, op text NOT NULL)`,
       );
+      created.table = true;
       await prisma.$executeRawUnsafe(`
-        CREATE FUNCTION "${names.DATABASE_SCHEMA_SHARED}"."c3_rates_audit"() RETURNS trigger
-        LANGUAGE plpgsql AS $$ BEGIN INSERT INTO ${audit} VALUES (TG_OP); RETURN NULL; END $$`);
-      await prisma.$executeRawUnsafe(`
-        CREATE TRIGGER c3_rates_audit AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE
-        ON ${mainnetTable} FOR EACH STATEMENT
-        EXECUTE FUNCTION "${names.DATABASE_SCHEMA_SHARED}"."c3_rates_audit"()`);
+        CREATE FUNCTION ${auditFunction}() RETURNS trigger
+        LANGUAGE plpgsql AS $$ BEGIN INSERT INTO ${auditTable} VALUES (TG_ARGV[0], TG_OP); RETURN NULL; END $$`);
+      created.function = true;
+      for (const [net, table] of Object.entries(tables)) {
+        // Mainnet: every write. Preprod: inserts only.
+        const events =
+          net === "mainnet"
+            ? "INSERT OR UPDATE OR DELETE OR TRUNCATE"
+            : "INSERT";
+        await prisma.$executeRawUnsafe(`
+          CREATE TRIGGER ${triggerName} AFTER ${events} ON ${table}
+          FOR EACH STATEMENT EXECUTE FUNCTION ${auditFunction}('${net}')`);
+        created.triggers.push(table);
+      }
+      // A Mainnet rate of its own, so "unchanged" compares something.
+      fixtureId = (
+        await mainnet().creditCost.create({
+          data: { unit: ownMainnetUnit, centsPerUnit: 7n },
+        })
+      ).id;
     }, 60_000);
 
     afterAll(async () => {
-      await prisma.$executeRawUnsafe(
-        `DROP TRIGGER IF EXISTS c3_rates_audit ON ${mainnetTable}`,
-      );
-      await prisma.$executeRawUnsafe(
-        `DROP FUNCTION IF EXISTS "${names.DATABASE_SCHEMA_SHARED}"."c3_rates_audit"()`,
-      );
-      await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS ${audit}`);
-      await mainnet().creditCost.deleteMany({
-        where: { unit: OWN_MAINNET_UNIT },
-      });
+      if (fixtureId) {
+        await mainnet().creditCost.deleteMany({ where: { id: fixtureId } });
+      }
+      for (const table of created.triggers) {
+        await prisma.$executeRawUnsafe(
+          `DROP TRIGGER IF EXISTS ${triggerName} ON ${table}`,
+        );
+      }
+      if (created.function) {
+        await prisma.$executeRawUnsafe(
+          `DROP FUNCTION IF EXISTS ${auditFunction}()`,
+        );
+      }
+      if (created.table) {
+        await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS ${auditTable}`);
+      }
     });
 
     // Removes only rows the seed made here: ids that were not there before.
@@ -199,7 +254,7 @@ describe.runIf(ON_POSTGRES)("Preprod's seeded rates", () => {
       await preprod().creditCost.deleteMany({
         where: { id: { notIn: baselineIds }, unit: { in: SEEDED_UNITS } },
       });
-      await prisma.$executeRawUnsafe(`DELETE FROM ${audit}`);
+      await prisma.$executeRawUnsafe(`DELETE FROM ${auditTable}`);
     });
 
     it("adds exactly the missing rows to what was there, in canonical spelling", async () => {
@@ -232,28 +287,27 @@ describe.runIf(ON_POSTGRES)("Preprod's seeded rates", () => {
       await prisma.$executeRawUnsafe(
         `ALTER SCHEMA "${names.DATABASE_SCHEMA_MAINNET}" RENAME TO "${away}"`,
       );
-      let run: Awaited<ReturnType<typeof recorded>>;
+      let result: Awaited<ReturnType<typeof recorded>>;
       try {
-        run = await recorded(() => seedPreprodCreditCosts());
+        result = await recorded(() => seedPreprodCreditCosts());
       } finally {
         await prisma.$executeRawUnsafe(
           `ALTER SCHEMA "${away}" RENAME TO "${names.DATABASE_SCHEMA_MAINNET}"`,
         );
       }
-      expect(run.error).toBeUndefined();
-      // The seed's own SQL and bindings: reads and writes name Preprod only.
-      expect(run.statements.length).toBeGreaterThan(0);
+      expect(result.error).toBeUndefined();
+      expect(result.statements.length).toBeGreaterThan(0);
       expect(await seededRows()).toHaveLength(2);
     });
 
     it("changes nothing on Mainnet: rows, writes, and a mounted GET's SQL, bindings and answer", async () => {
-      const rowsBefore = await mainnetRows();
       const getBefore = await mainnetGet();
       expect(getBefore.statements.length).toBeGreaterThan(0);
       await seedPreprodCreditCosts();
       await seedPreprodCreditCosts();
-      expect(await mainnetRows()).toEqual(rowsBefore);
-      expect(await mainnetWrites()).toEqual([]);
+      // What was there before this suite wrote anything, and the same GET.
+      expect(await mainnetWithoutFixture()).toEqual(mainnetBaseline);
+      expect(await writes("mainnet")).toEqual([]);
       expect(await mainnetGet()).toEqual(getBefore);
     });
 
@@ -269,16 +323,14 @@ describe.runIf(ON_POSTGRES)("Preprod's seeded rates", () => {
       });
       try {
         const before = await seededRows();
-        const second = await recorded(() => seedPreprodCreditCosts());
-        expect(second.error).toBeUndefined();
+        await prisma.$executeRawUnsafe(`DELETE FROM ${auditTable}`);
+        await seedPreprodCreditCosts();
         expect(await seededRows()).toEqual(before);
         expect(
           before.find(({ unit }) => unit === "lovelace")?.centsPerUnit,
         ).toBe(5n);
-        // Nothing is missing, so the run sends only the read.
-        expect(
-          second.statements.filter(({ text }) => /insert/i.test(text)),
-        ).toEqual([]);
+        // Nothing is missing: PostgreSQL saw no insert statement on the table.
+        expect(await writes("preprod")).toEqual([]);
       } finally {
         // A lovelace row an admin made before this suite gets its value back.
         if (original && baselineIds.includes(original.id)) {
@@ -293,16 +345,66 @@ describe.runIf(ON_POSTGRES)("Preprod's seeded rates", () => {
       }
     });
 
+    it("two seeds at once, on two connections, both finish and leave one row per unit", async (context) => {
+      const have = new Set((await seededRows()).map(({ unit }) => unit));
+      if (SEEDED_UNITS.every((unit) => have.has(unit))) {
+        // Nothing is missing, so nothing can race.
+        context.skip();
+      }
+      // A third connection holds a lock that lets the seeds read and blocks
+      // their inserts, so both have read "missing" before either writes.
+      const holder = new Client({ connectionString: process.env.DATABASE_URL });
+      await holder.connect();
+      let held = false;
+      try {
+        await holder.query("BEGIN");
+        await holder.query(`LOCK TABLE ${tables.preprod} IN SHARE MODE`);
+        held = true;
+        const both = Promise.allSettled([
+          seedPreprodCreditCosts(),
+          seedPreprodCreditCosts(),
+        ]);
+        const waiting = async () =>
+          Number(
+            (
+              await holder.query(
+                `SELECT count(DISTINCT pid)::int AS n FROM pg_locks
+                 WHERE relation = to_regclass($1)
+                   AND mode = 'RowExclusiveLock' AND NOT granted`,
+                [tables.preprod],
+              )
+            ).rows[0].n,
+          );
+        await vi.waitFor(async () => expect(await waiting()).toBe(2), {
+          timeout: 15_000,
+          interval: 50,
+        });
+        await holder.query("COMMIT");
+        held = false;
+        const results = await both;
+        expect(results.map(({ status }) => status)).toEqual([
+          "fulfilled",
+          "fulfilled",
+        ]);
+      } finally {
+        if (held) await holder.query("ROLLBACK");
+        await holder.end();
+      }
+      const rows = await seededRows();
+      expect(rows.map(({ unit }) => unit).sort()).toEqual(
+        [...SEEDED_UNITS].sort(),
+      );
+    }, 60_000);
+
     it("ignores a scope another caller hands it: a Mainnet scope labeled Preprod writes Mainnet nothing", async () => {
-      const rowsBefore = await mainnetRows();
       const mislabeled = {
         ...network.createNetworkScope("mainnet"),
         network: "preprod",
       };
       // @ts-expect-error the seed takes no scope
       await seedPreprodCreditCosts(mislabeled);
-      expect(await mainnetRows()).toEqual(rowsBefore);
-      expect(await mainnetWrites()).toEqual([]);
+      expect(await mainnetWithoutFixture()).toEqual(mainnetBaseline);
+      expect(await writes("mainnet")).toEqual([]);
       expect(await seededRows()).toHaveLength(2);
     });
 
@@ -313,30 +415,14 @@ describe.runIf(ON_POSTGRES)("Preprod's seeded rates", () => {
         .spyOn(env, "getEnv")
         .mockReturnValue({ ...real, NETWORK_PREPROD_ENABLED: false });
       try {
-        const rowsBefore = await mainnetRows();
         const refusal = await recorded(() => seedPreprodCreditCosts());
         expect(String(refusal.error)).toContain("Preprod is off");
         expect(refusal.statements).toEqual([]);
-        expect(await mainnetRows()).toEqual(rowsBefore);
-        expect(await mainnetWrites()).toEqual([]);
+        expect(await mainnetWithoutFixture()).toEqual(mainnetBaseline);
+        expect(await writes("mainnet")).toEqual([]);
       } finally {
         off.mockRestore();
       }
-    });
-
-    it("prices 1 tUSDM and 1 tADA the same, whatever the Agent spells ADA", async () => {
-      await seedPreprodCreditCosts();
-      const costs = await seededRows();
-      const cents = (unit: string) =>
-        calculateCentsFromMasumiAmountStrings(
-          [{ unit, amount: "1000000" }],
-          costs,
-        );
-      expect(cents(TUSDM)).toBe(10n ** 12n);
-      for (const ada of ["lovelace", "", "LOVELACE", " lovelace "]) {
-        expect(cents(ada)).toBe(cents(TUSDM));
-      }
-      expect(convertCentsToCredits(cents("lovelace"))).toBe(100);
     });
   });
 });

@@ -24,7 +24,8 @@ export const PREPROD_CREDIT_COSTS = [
  * Preprod is off (on today's layout Preprod's table is Mainnet's), before any
  * statement. Safe to run again: only rows that are missing are inserted (the
  * conflict handling stays for a concurrent run), so an admin's later edit
- * survives.
+ * survives. The caller must have verified that the configured schema names
+ * map to the physical schemas they are meant for: the factory trusts them.
  */
 export async function seedPreprodCreditCosts(): Promise<void> {
   const scope = createNetworkScope("preprod");
