@@ -86,7 +86,7 @@ export const requestNetworkMiddleware = createMiddleware(async (c, next) => {
  * tool calls send no header; ticket 36), a Coworker key (its payments are
  * ticket 21's third slice) and a Soko Bot key (ticket 30).
  */
-async function hasPreprodAccess(
+export async function hasPreprodAccess(
   authContext: AuthenticationContext | undefined,
 ): Promise<boolean> {
   if (authContext?.actor !== "user") return false;

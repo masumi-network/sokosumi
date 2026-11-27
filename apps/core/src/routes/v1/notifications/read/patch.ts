@@ -12,6 +12,7 @@ import {
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
+import { requestNetwork } from "@/middleware/network-scope";
 
 /**
  * Upper bound on one request. The notification center holds ten rows, so a
@@ -133,9 +134,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // it carries chat rows, and chat is not a kind this variant accepts. A
     // cleared-row event exists for the banner a room message stands for; a
     // task or job row has no such banner.
+    const jobNetwork =
+      body.kind === NotificationKind.JOB ? requestNetwork(c) : undefined;
     const { count } = await markNotificationsRead(userContext.userId, {
       kind: body.kind,
       referenceId: body.referenceId,
+      // The legacy untagged Job rows belong to Mainnet too.
+      ...(jobNetwork === "mainnet" && {
+        AND: [{ OR: [{ network: "mainnet" }, { network: null }] }],
+      }),
+      ...(jobNetwork === "preprod" && { network: jobNetwork }),
     });
 
     return ok(c, responseSchema.parse({ count }));

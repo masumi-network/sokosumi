@@ -277,6 +277,9 @@ describe("PATCH /notifications/read", () => {
           where: {
             kind,
             referenceId,
+            ...(kind === NotificationKind.JOB && {
+              AND: [{ OR: [{ network: "mainnet" }, { network: null }] }],
+            }),
             userId: "user_123",
             isRead: false,
             ...notificationFeedWhere(),
