@@ -45,6 +45,9 @@ describe("e1Prompts version flag", () => {
     };
     const prompt = composeSystemPrompt(e1);
     expect(prompt).toContain(E1_FINISHING_SECTION);
+    expect(prompt).toContain(
+      "updating existing or upcoming items only within the scope the owner asked for",
+    );
     expect(prompt).not.toContain(E1_CUSO_CHANGE_SCOPE_SECTION);
     expect(prompt).toContain(
       "Your owner's mail, calendar, files, memory, pending decisions, and costs are theirs to share",
