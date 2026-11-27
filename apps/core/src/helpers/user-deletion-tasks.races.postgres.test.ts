@@ -271,6 +271,156 @@ describe.runIf(ON_POSTGRES)(
       },
     );
 
+    // A runtime write locks its Turn, then its bot
+    // (`requireMutationAuthority`). The deletion reaches the bot and the
+    // Turn only through the keys, when it deletes their parent; it must
+    // not hold the bot before that, or the two wait on each other.
+    describe.each([
+      "the user's Soko Bot",
+      "the personal Project's Soko Bot",
+    ] as const)("a runtime write of %s that holds its Turn", (owner) => {
+      it("commits, and the deletion after it, when the write reaches the bot while the deletion deletes its parent", async () => {
+        const { requireMutationAuthority } = await import(
+          "@/services/soko-bot-runtime/authorization"
+        );
+        const { userId, workspaceId } = await account();
+        const ofProject = owner === "the personal Project's Soko Bot";
+        const botId = randomUUID();
+        const turnId = randomUUID();
+        const later = new Date(Date.now() + 600_000);
+        // Removed with the user, through the workspace.
+        const project = ofProject
+          ? await prisma.project.create({
+              data: { workspaceId, name: "Personal project" },
+            })
+          : null;
+        await prisma.sokoBot.create({
+          data: {
+            id: botId,
+            workspaceId,
+            status: "RUNNING",
+            ...(project ? { projectId: project.id } : { userId }),
+          },
+        });
+        await prisma.sokoBotTurn.create({
+          data: {
+            id: turnId,
+            sokoBotId: botId,
+            workspaceId,
+            requestedByUserId: userId,
+            status: "RUNNING",
+            source: "CHAT",
+            clientTurnId: turnId,
+            userMessage: "Test turn",
+            deadlineAt: later,
+            leaseExpiresAt: later,
+            capabilityNames: ["update_memory"],
+          },
+        });
+
+        const turnLocked = Promise.withResolvers<number>();
+        const reachForTheBot = Promise.withResolvers<void>();
+        let written = false;
+        const writing = prisma
+          .$transaction(
+            async (tx) => {
+              // The deletion's session must be the one that sees a cycle.
+              await tx.$executeRaw`SET LOCAL deadlock_timeout = '10s'`;
+              const [{ pid }] = await tx.$queryRaw<{ pid: number }[]>`
+                SELECT pg_backend_pid() AS pid`;
+              // The authority's own first lock, taken here to hold the
+              // write between its two locks.
+              await tx.$queryRaw`
+                SELECT "id" FROM ${sharedTable("soko_bot_turn")}
+                WHERE "id" = ${turnId}::uuid FOR UPDATE`;
+              turnLocked.resolve(pid);
+              await reachForTheBot.promise;
+              await requireMutationAuthority(
+                { requireWriteScope: async () => {} },
+                tx,
+                {
+                  turn: {
+                    id: turnId,
+                    sokoBotId: botId,
+                    requestedByUserId: userId,
+                    actingUserId: userId,
+                    workspaceId,
+                  },
+                } as never,
+                false,
+                "update_memory",
+              );
+              await tx.sokoBot.update({
+                where: { id: botId },
+                data: { memoryVersion: 1 },
+              });
+            },
+            { isolationLevel: "Serializable", timeout: 30_000 },
+          )
+          .then(
+            () => {
+              written = true;
+              return "written";
+            },
+            (error: { code?: string; message?: string }) =>
+              `${error.code} ${error.message}`,
+          );
+        const writer = await Promise.race([turnLocked.promise, writing]);
+        if (typeof writer !== "number") throw new Error(writer);
+
+        // Lets the write go on, and waits until it has committed or waits
+        // for a lock, right before the deletion deletes the bot's parent.
+        const releaseTheWrite = async () => {
+          reachForTheBot.resolve();
+          for (let attempt = 0; attempt < 500 && !written; attempt++) {
+            const [{ blocked }] = await prisma.$queryRaw<
+              { blocked: boolean }[]
+            >`SELECT cardinality(pg_blocking_pids(${writer}::int)) > 0 AS blocked`;
+            if (blocked) return;
+            await new Promise((resolve) => setTimeout(resolve, 15));
+          }
+        };
+        const parent = ofProject ? "project" : "user";
+        const deleting = prepareTasksForUserDeletion(userId, {
+          $transaction: (
+            callback: (client: Tx) => Promise<unknown>,
+            options: object,
+          ) =>
+            prisma.$transaction(async (tx) => {
+              await tx.$executeRaw`SET LOCAL deadlock_timeout = '100ms'`;
+              const deleteMany = async (...args: unknown[]) => {
+                await releaseTheWrite();
+                return (
+                  tx[parent].deleteMany as (...args: unknown[]) => unknown
+                )(...args);
+              };
+              return callback(
+                new Proxy(tx, {
+                  get: (target, property, receiver) =>
+                    property === parent
+                      ? { deleteMany }
+                      : Reflect.get(target, property, receiver),
+                }),
+              );
+            }, options),
+        } as never).then(
+          () => "deleted",
+          (error: { body?: { code?: string }; code?: string }) =>
+            error.body?.code ?? error.code,
+        );
+
+        try {
+          expect(await deleting).toBe("deleted");
+          expect(await writing).toBe("written");
+          expect(await prisma.user.count({ where: { id: userId } })).toBe(0);
+          expect(await prisma.sokoBot.count({ where: { id: botId } })).toBe(0);
+        } finally {
+          reachForTheBot.resolve();
+          await writing;
+        }
+      }, 60_000);
+    });
+
     describe("a share of a Job that goes with the account", () => {
       async function accountWithAJob() {
         const created = await account();

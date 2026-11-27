@@ -20,6 +20,11 @@ import { type Network, networksThatAreOn } from "@/lib/network";
  * delete of its Jobs: none of its keys restricts, and the delete itself must
  * decide which Jobs go. No rule is changed here, the ones that look wrong
  * included: each refusal names its follow-up.
+ *
+ * The reads of Tasks and Soko Bots take no row lock of their own. The keys
+ * lock those rows where the parent is deleted, and a lock taken earlier
+ * closes a cycle with a writer that comes the other way: a Soko Bot's runtime
+ * write locks its Turn, then its bot.
  */
 type Tx = Pick<Prisma.TransactionClient, "$queryRaw" | "$executeRaw">;
 
@@ -119,8 +124,6 @@ export async function applyPersonalWorkspaceRules(
     SELECT task."id", task."workspaceId" = ${workspaceId}::uuid AS "inWorkspace"
     FROM ${sharedTable("task")} AS task
     INNER JOIN doomed ON doomed."id" = task."id"
-    ORDER BY task."id" ASC
-    FOR UPDATE OF task
   `;
   // The erasure sweeps the payments on this workspace's own Tasks, after its
   // lock refused the ones it must keep.
@@ -138,8 +141,6 @@ export async function applyPersonalWorkspaceRules(
   const projectIds = projects.map((project) => project.id);
   const sokoBots = await tx.$queryRaw<{ id: string }[]>`
     SELECT "id" FROM ${sharedTable("soko_bot")} WHERE "projectId" = ANY(${projectIds}::uuid[])
-    ORDER BY "id" ASC
-    FOR UPDATE
   `;
   const sokoBotIds = sokoBots.map((sokoBot) => sokoBot.id);
   for (const network of networksThatAreOn()) {
@@ -203,11 +204,7 @@ export async function applyPrivateTaskRules(
       FROM ${sharedTable("task")} AS child
       INNER JOIN doomed ON child."parentTaskId" = doomed."id"
     )
-    SELECT task."id"
-    FROM ${sharedTable("task")} AS task
-    INNER JOIN doomed ON doomed."id" = task."id"
-    ORDER BY task."id" ASC
-    FOR UPDATE OF task
+    SELECT "id" FROM doomed
   `;
   const taskIds = tasks.map((task) => task.id);
   await applyTaskRules(tx, taskIds, taskIds, { userId });
@@ -252,8 +249,6 @@ export async function applyUserRules(tx: Tx, userId: string): Promise<void> {
   const sokoBots = await tx.$queryRaw<{ id: string }[]>`
     SELECT "id" FROM ${sharedTable("soko_bot")}
     WHERE "userId" = ${userId} OR "workspaceId" = ANY(${workspaceIds}::uuid[])
-    ORDER BY "id" ASC
-    FOR UPDATE
   `;
   const sokoBotIds = sokoBots.map((sokoBot) => sokoBot.id);
 
