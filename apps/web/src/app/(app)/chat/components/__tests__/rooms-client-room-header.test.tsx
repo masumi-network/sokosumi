@@ -38,8 +38,15 @@ vi.mock("@/app/chat/signal-actions", async (importOriginal) => ({
 }));
 
 vi.mock("@/app/chat/components/room-search-panel", () => ({
-  RoomSearchPanel: () => (
-    <button type="button" data-testid="room-search-trigger" />
+  RoomSearchPanel: ({
+    mobileTrigger,
+  }: Parameters<
+    typeof import("@/app/chat/components/room-search-panel").RoomSearchPanel
+  >[0]) => (
+    <>
+      <button type="button" data-testid="room-search-trigger" />
+      <div className="md:hidden">{mobileTrigger?.(() => undefined, null)}</div>
+    </>
   ),
 }));
 
@@ -843,7 +850,7 @@ describe("RoomsClient room header chrome", () => {
     });
   });
 
-  it("gathers pinned, decisions, threads and members into one mobile menu", async () => {
+  it("gathers search, pinned, decisions, threads and members into one mobile menu", async () => {
     const user = userEvent.setup();
     renderRoom(channelRoom());
 
@@ -859,6 +866,7 @@ describe("RoomsClient room header chrome", () => {
     expect(
       screen.getAllByRole("menuitem").map((item) => item.textContent),
     ).toEqual([
+      "RoomSearch.open",
       "PinnedMessages.open",
       "Signals.Decisions.open",
       "UnreadThreads.open",
@@ -916,14 +924,14 @@ describe("RoomsClient room header chrome", () => {
     expect(within(panel).queryByText(/Decisions\.note$/)).toBeNull();
   });
 
-  it("offers only threads in a 1:1 Direct's mobile menu", async () => {
+  it("offers search and threads in a 1:1 Direct's mobile menu", async () => {
     const user = userEvent.setup();
     renderRoom(humanDirectRoom());
 
     await user.click(screen.getByTestId("room-header-menu-trigger"));
     expect(
       screen.getAllByRole("menuitem").map((item) => item.textContent),
-    ).toEqual(["UnreadThreads.open"]);
+    ).toEqual(["RoomSearch.open", "UnreadThreads.open"]);
   });
 
   it("shows the roster control on group directs without channel settings", async () => {

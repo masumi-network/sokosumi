@@ -2,7 +2,7 @@
 
 import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { Loader2, Search } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { type ReactNode, type Ref, useId, useRef, useState } from "react";
 import { messageSender } from "@/app/chat/components/room-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,12 +37,17 @@ interface RoomSearchPanelProps {
   roomId: string;
   labels: RoomSearchPanelLabels;
   onJumpToMessage: (hit: ChatRoomMessage) => void;
+  mobileTrigger?: (
+    openSearch: () => void,
+    focusRef: Ref<HTMLButtonElement>,
+  ) => ReactNode;
 }
 
 export function RoomSearchPanel({
   roomId,
   labels,
   onJumpToMessage,
+  mobileTrigger,
 }: RoomSearchPanelProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -323,7 +328,14 @@ export function RoomSearchPanel({
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverAnchor asChild>
-        {isMobile ? (
+        {isMobile && mobileTrigger ? (
+          <div>
+            {mobileTrigger(() => {
+              setOpen(true);
+              focusField();
+            }, triggerRef)}
+          </div>
+        ) : isMobile ? (
           <Button
             ref={triggerRef}
             type="button"
