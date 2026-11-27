@@ -216,6 +216,7 @@ describe.skipIf(!enabled)("a follow-up's images and draft, end to end", () => {
     const id = randomUUID();
     await prisma.sokoBotTurn.create({
       data: {
+        network: "mainnet",
         id,
         sokoBotId,
         workspaceId,
@@ -304,6 +305,7 @@ describe.skipIf(!enabled)("a follow-up's images and draft, end to end", () => {
     // The owner's chat that handed the review out with the plan.
     await prisma.sokoBotTurn.create({
       data: {
+        network: "mainnet",
         id: ownerChatId,
         sokoBotId,
         workspaceId,

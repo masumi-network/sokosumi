@@ -24,9 +24,10 @@ vi.mock("@/lib/network", async (original) => ({
 vi.mock("@/lib/ably/client", async () =>
   (await import("@/test/ably-client")).fakeAblyClientModule(),
 );
-vi.mock("@/helpers/billing-notifications", async (original) => ({
-  ...(await original<typeof import("@/helpers/billing-notifications")>()),
-  notifyLowBalanceAfterCharge: vi.fn(),
+const background = vi.hoisted(() => [] as Promise<unknown>[]);
+vi.mock("@vercel/functions", async (original) => ({
+  ...(await original<typeof import("@vercel/functions")>()),
+  waitUntil: (work: Promise<unknown>) => background.push(work),
 }));
 
 const enabled =
@@ -95,6 +96,15 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
         updatedAt: new Date(),
       },
     });
+    onTestFinished(async () => {
+      await mainnet.networkDb.sokoBotUsage.deleteMany({
+        where: { userId },
+      });
+      await mainnet.networkDb.creditBucket.deleteMany({ where: { userId } });
+      await mainnet.networkDb.transaction.deleteMany({ where: { userId } });
+      await prisma.subscription.deleteMany({ where: { referenceId: userId } });
+      await prisma.user.delete({ where: { id: userId } });
+    });
     const { id: workspaceId } = await createPersonalWorkspace(userId);
     const bot = await prisma.sokoBot.create({
       data: { userId, workspaceId, status: "RUNNING" },
@@ -132,15 +142,6 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
         reconcilerHeartbeatAt: options.staleLease ? new Date(0) : new Date(now),
         costUsdMicros: 100_000n,
       },
-    });
-    onTestFinished(async () => {
-      await mainnet.networkDb.sokoBotUsage.deleteMany({
-        where: { sokoBotId: bot.id },
-      });
-      await mainnet.networkDb.creditBucket.deleteMany({ where: { userId } });
-      await mainnet.networkDb.transaction.deleteMany({ where: { userId } });
-      await prisma.subscription.deleteMany({ where: { referenceId: userId } });
-      await prisma.user.delete({ where: { id: userId } });
     });
     return { bot, sessionId, turn, userId, workspaceId };
   }
@@ -220,7 +221,7 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
 
   it("keeps the Mainnet expiry settlement and charge", async () => {
     await control("open", "8");
-    const { turn, userId } = await seed("mainnet", { expired: true });
+    const { bot, turn, userId } = await seed("mainnet", { expired: true });
     const grant = await mainnet.networkDb.transaction.create({
       data: { userId, amount: 100_000n * 10_000_000_000n },
     });
@@ -236,6 +237,7 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
       } else {
         await expect(settlement).resolves.toBe(true);
       }
+      await Promise.all(background.splice(0));
     } finally {
       recorder.restore();
     }
@@ -249,16 +251,31 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
       where: { userId, amount: { lt: 0 } },
       select: { amount: true },
     });
-    expect(recorder.statements).toHaveLength(onSplitLayout ? 10 : 28);
+    const expectedStatements = onSplitLayout ? 10 : 35;
+    expect(recorder.statements.length).toBe(expectedStatements);
     expect(await loadTurn(turn.id)).toMatchObject(
       onSplitLayout
         ? { status: "RUNNING" }
         : { status: "FAILED", errorKind: "turn_deadline_exceeded" },
     );
+    expect(
+      await prisma.sokoBot.findUnique({ where: { id: bot.id } }),
+    ).toMatchObject({ status: onSplitLayout ? "RUNNING" : "ERROR" });
+    expect(
+      await prisma.sokoBotDelivery.count({ where: { turnId: turn.id } }),
+    ).toBe(onSplitLayout ? 0 : 1);
     expect(usage).toEqual(onSplitLayout ? [] : [{ cents: 100_000_000_000n }]);
     expect(ledger).toEqual(
       onSplitLayout ? [] : [{ amount: -100_000_000_000n }],
     );
+  });
+
+  it("refuses a missing turn Network after the catch-up gate", async () => {
+    const { turn, sessionId } = await seed(null);
+    await expect(
+      runtime.authorize({ turnId: turn.id, sessionId }),
+    ).rejects.toThrow("Unknown Network: null");
+    expect(await loadTurn(turn.id)).toEqual(turn);
   });
 
   it.skipIf(!onSplitLayout)(
@@ -366,6 +383,7 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
     expect(response.status).toBe(state.status);
     expect(await response.json()).toMatchObject({ kind: state.kind });
     const result = await tick(scan.bot.id);
+    await Promise.all(background.splice(0));
     expect(result.claimed).toBe(0);
     for (const { turn, userId } of [callback, scan]) {
       const saved = await loadTurn(turn.id);
@@ -433,6 +451,7 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
       await operator.query("COMMIT");
       resume.resolve();
       await rejected;
+      await Promise.all(background.splice(0));
 
       const winner = await seed("preprod");
       for (const [index, cursorId] of ["open", "7"].entries()) {

@@ -140,6 +140,7 @@ async function turn(
 ) {
   const created = await prisma.sokoBotTurn.create({
     data: {
+      network: "mainnet",
       sokoBotId: lane.sokoBotId,
       workspaceId: lane.workspaceId,
       source: "CHAT",
