@@ -154,15 +154,17 @@ describe.runIf(ON_POSTGRES)("Soko Bot and Project deletion races", () => {
   let db: Client;
   let deleteSokoBot: typeof import("@/services/soko-bot-deletion.service").deleteSokoBot;
   let deleteProject: typeof import("./soko-bot-deletion-crossing-rules").deleteProjectWithNetworkRows;
+  let deleteProjectInTransaction: typeof import("./soko-bot-deletion-crossing-rules").deleteProjectInTransaction;
   const cleanup: SokoBotDeletionWorld[] = [];
 
   beforeAll(async () => {
     vi.stubEnv("NETWORK_PREPROD_ENABLED", onSplitLayout ? "true" : "false");
     ({ default: db } = await import("@/lib/db/prisma"));
     ({ deleteSokoBot } = await import("@/services/soko-bot-deletion.service"));
-    ({ deleteProjectWithNetworkRows: deleteProject } = await import(
-      "./soko-bot-deletion-crossing-rules"
-    ));
+    ({
+      deleteProjectWithNetworkRows: deleteProject,
+      deleteProjectInTransaction,
+    } = await import("./soko-bot-deletion-crossing-rules"));
   }, 60_000);
 
   afterEach(async () => {
@@ -412,6 +414,132 @@ describe.runIf(ON_POSTGRES)("Soko Bot and Project deletion races", () => {
   );
 
   describe("the failed hire's Project", () => {
+    /** Runs `run` once, after the first raw read of head's clean-up. */
+    function afterFirstRead(run: () => Promise<void>): Wrap {
+      let ran = false;
+      return (tx) =>
+        new Proxy(tx, {
+          get(target, property, receiver) {
+            const value = Reflect.get(target, property, receiver);
+            if (property !== "$queryRaw") return value;
+            return async (...args: unknown[]) => {
+              const result = await Reflect.apply(value, target, args);
+              if (!ran) {
+                ran = true;
+                await run();
+              }
+              return result;
+            };
+          },
+        });
+    }
+
+    it.each(modes)(
+      "a bot that moves to another Project and hires there does not refuse the clean-up (%s)",
+      async (mode) => {
+        const created = await world();
+        const { id } = created;
+        const moveThenHire = () =>
+          db.$transaction(async (tx) => {
+            await tx.$executeRaw`
+              UPDATE ${sharedTable("soko_bot")} SET "projectId" = ${id("otherProject")}::uuid
+              WHERE id = ${id("bot.project")}::uuid
+            `;
+            await seedJob(tx, network, {
+              id: id("race.row"),
+              agentId: id("agent"),
+              workspaceId: id("workspace"),
+              projectId: id("otherProject"),
+              creatorSokoBotId: id("bot.project"),
+            });
+          });
+        // Base has one statement: the move and hire commit before it. Head
+        // reads first; they commit between its reads.
+        const wrap =
+          mode === "head"
+            ? afterFirstRead(moveThenHire)
+            : around("project", "delete", "before", moveThenHire);
+        expect(await removeProject(mode, created.projectId, wrap)).toBe(
+          "deleted",
+        );
+        expect(
+          await db.project.findUnique({ where: { id: created.projectId } }),
+        ).toBeNull();
+        expect(
+          await db.sokoBot.findUnique({
+            where: { id: id("bot.project") },
+            select: { projectId: true },
+          }),
+        ).toEqual({ projectId: id("otherProject") });
+        expect(
+          await db.$queryRaw`
+            SELECT id, "creatorSokoBotId"::text AS creator FROM ${netTable(network, "Job")}
+            WHERE id IN (${id("race.row")}, ${id("job.project")}) ORDER BY id = ${id("job.project")}
+          `,
+        ).toEqual([
+          { id: id("race.row"), creator: id("bot.project") },
+          { id: id("job.project"), creator: null },
+        ]);
+        for (const local of networks) {
+          expect(
+            await db.$queryRaw`
+              SELECT
+                EXISTS (SELECT 1 FROM ${netTable(local, "credit_bucket")} WHERE id = ${id("bucket.project")}) AS bucket,
+                (SELECT "projectId"::text FROM ${netTable(local, "Job")} WHERE id = ${id("job.project")}) AS "projectJob"
+            `,
+          ).toEqual([{ bucket: false, projectJob: null }]);
+        }
+      },
+      60_000,
+    );
+
+    it.each(modes)(
+      "waits out a writer that holds the Project past one transaction budget, then deletes it (%s)",
+      async (mode) => {
+        const created = await world();
+        const { id } = created;
+        const held = Promise.withResolvers<void>();
+        const release = Promise.withResolvers<void>();
+        const writer = db.$transaction(
+          async (tx) => {
+            await tx.$executeRaw`
+              UPDATE ${sharedTable("project")} SET name = 'renamed'
+              WHERE id = ${created.projectId}::uuid
+            `;
+            held.resolve();
+            await release.promise;
+          },
+          { timeout: 30_000 },
+        );
+        await held.promise;
+        const cleanup = (
+          mode === "head"
+            ? deleteProjectInTransaction(db, created.projectId)
+            : db.project.delete({ where: { id: created.projectId } })
+        ).then(() => "deleted", outcome);
+        try {
+          await waitForAnyLock();
+          // Longer than Prisma's 5 s interactive transaction budget.
+          await new Promise((resolve) => setTimeout(resolve, 6_200));
+        } finally {
+          release.resolve();
+          await writer;
+        }
+        expect(await cleanup).toBe("deleted");
+        expect(
+          await db.project.findUnique({ where: { id: created.projectId } }),
+        ).toBeNull();
+        for (const local of networks) {
+          expect(
+            await db.$queryRaw`
+              SELECT id FROM ${netTable(local, "credit_bucket")} WHERE id = ${id("bucket.project")}
+            `,
+          ).toEqual([]);
+        }
+      },
+      60_000,
+    );
+
     it.each(modes)(
       "keeps a bot that moved out after the candidate read, with its usage (%s)",
       async (mode) => {

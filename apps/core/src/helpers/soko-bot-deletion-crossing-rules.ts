@@ -1,14 +1,14 @@
 import type { Prisma } from "@sokosumi/database";
-import { netTable } from "@sokosumi/database/sql-tables";
+import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
 import { createError } from "evlog";
 
 import {
   applyRulesAfterDelete,
   type DeletionCandidates,
-  findJobHiredByBots,
   type RuleCounts,
   workspaceBotIds,
 } from "@/helpers/user-deletion-crossing-rules";
+import type prisma from "@/lib/db/prisma";
 import { networksThatAreOn } from "@/lib/network";
 
 /**
@@ -66,9 +66,15 @@ export async function checkProjectDeletion(
   tx: Tx,
   projectId: string,
 ): Promise<DeletionCandidates> {
-  const sokoBotIds = await workspaceBotIds(tx, [projectId], []);
   for (const network of networksThatAreOn()) {
-    const job = await findJobHiredByBots(tx, network, sokoBotIds);
+    // One statement, so the Job and its creator's Project are one snapshot:
+    // a bot that moved to another Project and hired there does not refuse.
+    const [job] = await tx.$queryRaw<{ id: string }[]>`
+      SELECT job."id" FROM ${netTable(network, "Job")} AS job
+      JOIN ${sharedTable("soko_bot")} AS bot ON bot."id" = job."creatorSokoBotId"
+      WHERE bot."projectId" = ${projectId}::uuid
+      LIMIT 1
+    `;
     if (job) {
       // Follow-up (ticket 26, decision D5): the key refused this delete with
       // its raw error; the refusal stays, readable.
@@ -80,6 +86,8 @@ export async function checkProjectDeletion(
       });
     }
   }
+  // For the guarded usage sweep only: a bot that left keeps its rows there.
+  const sokoBotIds = await workspaceBotIds(tx, [projectId], []);
   return { taskIds: [], taskEventIds: [], projectIds: [projectId], sokoBotIds };
 }
 
@@ -94,4 +102,34 @@ export async function deleteProjectWithNetworkRows(
   const candidates = await checkProjectDeletion(tx, projectId);
   await tx.project.delete({ where: { id: projectId } });
   return applyRulesAfterDelete(tx, candidates);
+}
+
+/** Attempts of `deleteProjectInTransaction`, each with Prisma's 5 s budget. */
+export const PROJECT_DELETION_ATTEMPTS = 4;
+
+/**
+ * `deleteProjectWithNetworkRows` in its own transaction. The single delete it
+ * replaced waited on a row lock as long as another writer held it; a
+ * transaction expires after 5 s instead (P2028), rolled back, so it starts
+ * over with a fresh budget. After the last attempt the error is thrown, as
+ * the delete's own error was.
+ */
+export async function deleteProjectInTransaction(
+  client: Pick<typeof prisma, "$transaction">,
+  projectId: string,
+): Promise<RuleCounts> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await client.$transaction((tx) =>
+        deleteProjectWithNetworkRows(tx, projectId),
+      );
+    } catch (error) {
+      const expired =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "P2028";
+      if (!expired || attempt >= PROJECT_DELETION_ATTEMPTS) throw error;
+    }
+  }
 }
