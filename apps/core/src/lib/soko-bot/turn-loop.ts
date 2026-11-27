@@ -37,6 +37,7 @@ import {
   type OwnerAuthorityTurnClient,
   resolveTurnOwnerAuthority,
 } from "@/lib/soko-bot/owner-authority";
+import { isForegroundOwnerChat } from "@/lib/soko-bot/owner-request";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
@@ -679,6 +680,7 @@ export async function prepareTurn(
       version,
       model: turnRunModel(version, authorized.turn.modelId),
       complexity: authorized.complexity,
+      ownerChat: isForegroundOwnerChat(authorized.turn),
     }),
     shortForms,
   };
