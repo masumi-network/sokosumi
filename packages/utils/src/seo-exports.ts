@@ -15,6 +15,7 @@ export {
 } from "./seo-completion-event.js";
 export {
   PAID_DATA_MARKUP_PERCENT,
+  SEO_CRAWL_NEXT_MIN_CREDITS,
   SEO_DEFAULT_FULL_AUDIT_USD,
   SEO_FULL_AUDIT_CREDITS,
   SEO_FULL_AUDIT_MARKUP_PERCENT,
@@ -23,6 +24,7 @@ export {
   SEO_MIN_AUDIT_USD,
   SEO_PAGE_CEILING_CENTS,
   type SeoCreditCeilingInput,
+  seoCrawlNextPrice,
   seoCreditsForCents,
   seoFullAuditAutoPages,
   seoFullAuditPrice,
