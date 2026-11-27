@@ -60,7 +60,7 @@ it("copies a checked opening text draft with its note, and nothing for a held-ba
       },
     }),
   ).toContain(
-    "Current opening:\nWidgets for every room.\n\nSuggested opening:\nExample Corp makes widgets for every room.\n\nThe SEO bot checked",
+    "This draft is only for the mobile page.\n\nCurrent opening:\nWidgets for every room.\n\nSuggested opening:\nExample Corp makes widgets for every room.\n\nThe SEO bot compared",
   );
   expect(
     instructions("<title>Old</title>", "title", {

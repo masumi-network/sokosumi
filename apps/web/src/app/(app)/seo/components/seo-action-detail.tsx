@@ -249,6 +249,14 @@ export function SeoActionDetail({
         ) : null}
         {action.bodyDraft ? (
           <DetailPart title={report("actions.draft")}>
+            {/* A one-device draft: the other device's opening can differ. */}
+            {action.bodyDraft.devices.length === 1 ? (
+              <p lang="en" className="text-muted-foreground mb-3 text-xs">
+                {report("actions.draftDevice", {
+                  device: action.bodyDraft.devices[0],
+                })}
+              </p>
+            ) : null}
             {"after" in action.bodyDraft ? (
               <div className="space-y-3">
                 <ChangeBox label={report("actions.draftBefore")}>
