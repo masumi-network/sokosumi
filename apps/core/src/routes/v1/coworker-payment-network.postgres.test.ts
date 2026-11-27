@@ -867,15 +867,12 @@ describe.runIf(enabled && !onSplitLayout).each(["Mainnet", "Preprod"] as const)(
           const path = `/v1/tasks/${await world.task(owner)}/events`;
           const payment = await masumiPayments(loaded, world);
           const first = payment("first payment");
+          const commentOnly = "a comment, preprod";
           const steps: [string, unknown, Record<string, string>?][] = [
             ["credits, no header", { credits: 1, comment: "charged" }],
             ["credits, mainnet", { credits: 1 }, { [HEADER]: "mainnet" }],
             ["credits, preprod", { credits: 1 }, { [HEADER]: "preprod" }],
-            [
-              "a comment, preprod",
-              { comment: "shared" },
-              { [HEADER]: "preprod" },
-            ],
+            [commentOnly, { comment: "shared" }, { [HEADER]: "preprod" }],
             ["a Masumi payment, no header", { masumiPayment: first }],
             [
               "a Masumi payment that names the deployment's NETWORK",
@@ -916,7 +913,21 @@ describe.runIf(enabled && !onSplitLayout).each(["Mainnet", "Preprod"] as const)(
           for (const [name, body, headers] of steps) {
             answers[name] = await send(loaded, world, path, body, headers);
           }
-          expectAsOnBase(baseKey("Task events"), answers);
+          expectAsOnBase(baseKey("Task events"), answers, (base) => {
+            const expected = base as Record<
+              typeof commentOnly,
+              { statements: number }
+            >;
+            const comment = expected[commentOnly];
+            return {
+              ...expected,
+              [commentOnly]: {
+                ...comment,
+                // A comment without a charge no longer reads Transaction.
+                statements: comment.statements - 1,
+              },
+            };
+          });
         }),
     );
 
