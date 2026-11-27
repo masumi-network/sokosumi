@@ -64,6 +64,13 @@ export interface SokoBotVersion {
    */
   classifierPolicy?: "v3" | "v4";
   /**
+   * E1 prompt & skill improvements (outcome checklist, receipt/scope checks,
+   * durable wakes over sleep polling, social scheduledAt clarity, tighter
+   * chained-work skill index, and Cuso shared-Project TEAMMATE & change scope).
+   * Omitted on all live and control versions.
+   */
+  e1Prompts?: true;
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.

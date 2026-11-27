@@ -3,6 +3,7 @@ import {
   CMO_PRODUCTION_TOOLS,
   cmoCompactProduction,
 } from "./cmo-v26-skills.js";
+import { applyE1Skill } from "./e1-prompts.js";
 import { SKILL_INDEX, type SkillOccasion } from "./skill-index.js";
 import { SOKO_BOT_SKILLS } from "./skills.js";
 import type { SokoBotVersion } from "./types.js";
@@ -74,6 +75,7 @@ function missingTools(
   skills: readonly string[],
   tools: ReadonlySet<string>,
   scanNames: boolean,
+  version: Pick<SokoBotVersion, "e1Prompts">,
   allowed: Readonly<Record<string, string>> = {},
 ): string[] {
   const problems: string[] = [];
@@ -82,7 +84,8 @@ function missingTools(
       if (!tools.has(tool))
         problems.push(`${label}: ${id} requires ${tool}, not offered`);
     if (!scanNames) continue;
-    const content = SOKO_BOT_SKILLS.find((skill) => skill.id === id)?.content;
+    const raw = SOKO_BOT_SKILLS.find((skill) => skill.id === id);
+    const content = raw ? applyE1Skill(raw, version).content : undefined;
     for (const tool of namedTools(content ?? ""))
       if (
         !tools.has(tool) &&
@@ -128,6 +131,7 @@ export function versionIntegrityProblems(
       version.skills,
       new Set(everyTurnTools),
       onDemand,
+      version,
     ),
   );
   const applied = profiles.filter((each) => each.appliesTo(version));
@@ -140,6 +144,7 @@ export function versionIntegrityProblems(
           version.skills,
           new Set(profile.tools),
           false,
+          version,
         ),
       );
     return problems;
@@ -161,6 +166,7 @@ export function versionIntegrityProblems(
         carriedOn(version, profile.occasion),
         new Set(profile.tools),
         true,
+        version,
         profile.namedWithoutOffer,
       ),
     );

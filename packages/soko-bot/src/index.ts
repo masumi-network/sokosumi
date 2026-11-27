@@ -383,6 +383,13 @@ export {
   readsContextOnDemand,
 } from "./versions/context-on-demand-skills.js";
 export {
+  applyE1Skill,
+  applyE1SystemPrompt,
+  E1_CUSO_CHANGE_SCOPE_SECTION,
+  E1_FINISHING_SECTION,
+  E1_SKILL_USE_WHEN_OVERRIDES,
+} from "./versions/e1-prompts.js";
+export {
   applyRouteSteeringPrompt,
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
@@ -391,6 +398,7 @@ export {
   composeSystemPrompt,
   composeTurnPreamble,
   DEFAULT_SOKO_BOT_VERSION_ID,
+  getSokoBotSkillForVersion,
   getSokoBotVersion,
   ROUTE_STEERING_ACT_OR_ASK_SECTION,
   SOKO_BOT_PRODUCT_VERSIONS,

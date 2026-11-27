@@ -298,6 +298,7 @@ export function splitSkillsForTurn(
 export function skillIndexSection(
   skills: readonly { id: string; name: string }[],
   writingSkills: boolean,
+  useWhenOverrides?: Readonly<Record<string, string>>,
 ): string {
   if (!skills.length && !writingSkills) return "";
   return [
@@ -306,7 +307,7 @@ export function skillIndexSection(
     "",
     ...skills.map(
       (skill) =>
-        `- ${skill.id} (${skill.name}): use when ${SKILL_INDEX[skill.id]?.useWhen ?? "its name says so."}`,
+        `- ${skill.id} (${skill.name}): use when ${useWhenOverrides?.[skill.id] ?? SKILL_INDEX[skill.id]?.useWhen ?? "its name says so."}`,
     ),
   ].join("\n");
 }
