@@ -223,13 +223,17 @@ export async function importProjectSeoAudit(
       (input.recoverMarkets && !recoveryStrategy(existing, input).missing) ||
       (input.recoverPageSpeed &&
         reportObject(existing.payload)?.pageSpeed !== undefined))
-  )
-    return serializableTransaction(async (tx) => {
+  ) {
+    const replay = await serializableTransaction(async (tx) => {
       await requireLockedSeoOwner(tx, actor, !analysis);
       await requireSourceFile(actor, input, tx);
       await options.authorize?.(tx);
       return commitSeoMutation(tx, existing, options);
     }, "The report import changed. Please retry.");
+    // A replay runs the recheck again: the first one can have failed after the import committed.
+    await recheckSeoAuditSafely(existing.id);
+    return replay;
+  }
   const body = await readSeoArtifact(fileUrl, options.fetchImpl ?? fetch);
   const artifactHash = sha256(body);
   if (recover && existing?.artifactHash !== artifactHash)
