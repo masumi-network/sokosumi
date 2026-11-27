@@ -90,6 +90,7 @@ async function storeCrawl(
   kind: "audit_full" | "crawl_next",
   crawl: { snapshotId: string; continues?: string; stop: string },
   observedAt: Date,
+  pageIds = [pageId],
 ) {
   const siteCrawl = seoSiteCrawlSchema.parse({
     state: "crawled",
@@ -127,7 +128,7 @@ async function storeCrawl(
       kind,
       source: "seo_coworker",
       sourceKey: randomUUID(),
-      pageIds: [pageId],
+      pageIds,
       artifactHash: randomUUID(),
       payload: JSON.parse(JSON.stringify(payload)),
       observedAt,
@@ -395,6 +396,40 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
       message: expect.stringContaining("older than the history"),
     });
     expect(await prisma.task.count({ where: { workspaceId } })).toBe(0);
+  });
+
+  it("offers no continuation in a view of the start page that other pages' evidence would refuse", async () => {
+    await storeCrawl(
+      "audit_full",
+      { snapshotId: AUDIT_CRAWL, stop: "page cap" },
+      new Date("2026-11-01"),
+    );
+    const related = await addProjectSeoPage(actor, {
+      url: `${SITE}pricing`,
+      relationship: "related",
+    });
+    try {
+      // Newer evidence of another page only: the view of the start page loads none of it, the sale reads all of it.
+      await Promise.all(
+        Array.from({ length: SEO_WORKSPACE_EVIDENCE_LIMIT - 1 }, (_, i) =>
+          storeCrawl(
+            "crawl_next",
+            {
+              snapshotId: i.toString(16).padStart(64, "0"),
+              continues: "f".repeat(64),
+              stop: "page cap",
+            },
+            new Date("2026-11-02"),
+            [related.id],
+          ),
+        ),
+      );
+      const view = await getProjectSeoWorkspace(actor, { pageId });
+      expect(view.availableActions.continueCrawlFrom).toBeNull();
+    } finally {
+      await prisma.projectSeoObservation.deleteMany({ where: { auditId } });
+      await prisma.projectSeoPage.delete({ where: { id: related.id } });
+    }
   });
 
   it("keeps one crawl per paid continuation when its Task holds two Report files", async () => {

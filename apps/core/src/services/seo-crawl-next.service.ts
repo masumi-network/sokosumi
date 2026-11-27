@@ -115,8 +115,12 @@ async function rootInLedger(
 export async function seoDispatchInputs(
   actor: SeoActor,
   executor: Awaited<ReturnType<typeof findSeoAnalysisExecutor>>,
-  /** The pages the view shows. */
-  scope: { pages: readonly { url: string }[]; pageIds: string[] },
+  view: {
+    /** The pages the view shows. */
+    scope: { pages: readonly { url: string }[] };
+    /** Every page of the owner: the sale reads the crawl's ledger over all of them. */
+    pages: readonly { id: string }[];
+  },
 ) {
   const tip =
     executor?.canUsePaidSearchData && isSeoCrawlNextEnabled()
@@ -125,9 +129,16 @@ export async function seoDispatchInputs(
   // The continuation's Task and result link only to its start page: a view without that page could not show them.
   const shown =
     tip &&
-    scope.pages.some((page) => page.url === normalizeSeoUrl(tip.startUrl)) &&
+    view.scope.pages.some(
+      (page) => page.url === normalizeSeoUrl(tip.startUrl),
+    ) &&
     !(await crawlArriving(prisma, actor)) &&
-    (await rootInLedger(prisma, actor, scope.pageIds, tip.rootId));
+    (await rootInLedger(
+      prisma,
+      actor,
+      view.pages.map((page) => page.id),
+      tip.rootId,
+    ));
   return {
     analysisDispatchEnabled: executor !== null,
     canUsePaidSearchData: executor?.canUsePaidSearchData === true,
