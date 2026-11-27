@@ -368,6 +368,9 @@ export const auth = betterAuth({
     // Its link can be neither shown nor cancelled; `auth-pending-email-change`
     // replaces it.
     "/change-email",
+    // Deletes the User row directly: none of Core's payment blockers, sweeps
+    // or Stripe clean-up (`user.deleteUser`) run. Nobody uses it by hand.
+    "/admin/remove-user",
   ],
   rateLimit: {
     storage: "secondary-storage",
