@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import { NotificationKind } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { NETWORKS } from "@/lib/network";
 
 export const notificationKindSchema = z
   .enum([
@@ -64,6 +65,11 @@ export const notificationItemSchema = z
     createdAt: dateTimeSchema.openapi({
       description: "When the notification was created",
       example: "2026-06-16T15:00:00.000Z",
+    }),
+    network: z.enum(NETWORKS).nullable().openapi({
+      description:
+        "Network of the Job the notification points at; null when it points at none",
+      example: null,
     }),
   })
   .openapi("NotificationItem");
