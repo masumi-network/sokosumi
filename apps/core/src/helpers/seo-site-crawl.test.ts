@@ -266,6 +266,8 @@ describe("imported site crawl", () => {
         crawl: botCrawl(),
         couldNotSee: [
           { item: "Site crawl: Some sitemap URLs", reason: "not read" },
+          // A NUL inside the prefix: storage drops it, so the gap is the crawl's.
+          { item: "Site cr\u0000awl: Broken links", reason: "not read" },
           { item: 7 },
           { item: " ", reason: "some link targets could not be read" },
           { item: "Site crawl: ", reason: "some redirects could not be read" },
@@ -277,8 +279,9 @@ describe("imported site crawl", () => {
       }),
     );
     if (crawl?.state !== "crawled") throw new Error("expected a crawl");
-    expect(crawl.gaps.slice(-2)).toEqual([
+    expect(crawl.gaps.slice(-3)).toEqual([
       { item: "Some sitemap URLs", reason: "not read" },
+      { item: "Broken links", reason: "not read" },
       {
         item: "More gaps",
         reason:

@@ -137,12 +137,12 @@ function readGaps(list: unknown, prefix: string) {
   const read = rows.flatMap((row) => {
     const gap = gapEntry.safeParse(row);
     if (!gap.success) return [];
-    const { item } = gap.data;
-    // A gap with no name, also after its module prefix and storage cleanup, cannot be placed under any check.
-    const name = storableText(
-      item.startsWith(prefix) ? item.slice(prefix.length) : item,
-    );
-    return /\S/.test(name) ? [gap.data] : [];
+    // Storage cleanup first: a NUL inside the module prefix would hide the gap from its check.
+    const item = storableText(gap.data.item);
+    const reason = storableText(gap.data.reason);
+    // A gap with no name, also after its module prefix, cannot be placed under any check.
+    const name = item.startsWith(prefix) ? item.slice(prefix.length) : item;
+    return /\S/.test(name) ? [{ item, reason }] : [];
   });
   const unreadable = rows.length - read.length;
   if (!unreadable) return read;
