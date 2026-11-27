@@ -612,3 +612,47 @@ export const adminPreprodAccessSchema = z
       .openapi({ description: "The 20 most recent changes, newest first" }),
   })
   .openapi("AdminPreprodAccess");
+
+export const setAdminPreprodPauseBodySchema = z
+  .object({
+    paused: z.boolean().openapi({
+      description: "Whether Preprod is paused",
+    }),
+    reason: z.string().trim().min(1, "Reason is required").max(500).openapi({
+      description:
+        "Why Preprod is paused or opened: a ticket id, no personal details.",
+      example: "SOK-123",
+    }),
+  })
+  .openapi("SetAdminPreprodPauseBody");
+
+export const adminPreprodPauseSchema = z
+  .object({
+    paused: z.boolean().openapi({
+      description:
+        "Whether Preprod is paused. Paused until an admin opens it, and when the read fails.",
+    }),
+    generation: z.number().int().nullable().openapi({
+      description:
+        "Preprod's generation number, raised by each wipe; 0 before the first. Null when the read failed.",
+    }),
+    changes: z
+      .array(
+        z.object({
+          id: z.string(),
+          createdAt: dateTimeSchema,
+          paused: z.boolean(),
+          reason: z.string(),
+          operator: z.object({
+            id: z.string(),
+            name: z.string().nullable().openapi({
+              description: "Null when the admin's account no longer exists",
+            }),
+          }),
+        }),
+      )
+      .openapi({
+        description: "The 20 most recent pause changes, newest first",
+      }),
+  })
+  .openapi("AdminPreprodPause");
