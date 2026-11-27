@@ -1251,6 +1251,39 @@ describe("stored SEO workspace projections", () => {
       check([rowOf("fired")], [finding("desktop")], "2026-11-01T12:00:00Z", 1),
     ];
     expect(tags()).toEqual([{ id: "1", lastCheckResult: undefined }]);
+    // A check under another rulebook fails a fix, and its time dates the failure. Its pass ends nothing.
+    const newer = (result: "fired" | "pass", at: string) => {
+      const row = check([rowOf(result)], [], at);
+      row.payload = {
+        ...(row.payload as object),
+        rulebookVersion: "newer-rulebook",
+      } as PublicSeoPayload;
+      return row;
+    };
+    input.observations = [
+      newer("fired", "2026-11-05T12:00:00Z"),
+      check([rowOf("fired")], [finding("desktop")], "2026-11-01T12:00:00Z", 1),
+    ];
+    expect(
+      projectSeoProjection(input).actions.map(
+        ({ id, lastCheckResult, lastCheckAt }) => ({
+          id,
+          lastCheckResult,
+          lastCheckAt,
+        }),
+      ),
+    ).toEqual([
+      {
+        id: "1",
+        lastCheckResult: "failing",
+        lastCheckAt: "2026-11-05T12:00:00.000Z",
+      },
+    ]);
+    input.observations = [
+      newer("pass", "2026-11-05T12:00:00Z"),
+      check([rowOf("fired")], [finding("desktop")], "2026-11-01T12:00:00Z", 1),
+    ];
+    expect(tags()).toEqual([{ id: "1", lastCheckResult: undefined }]);
     // A fix for mobile does not fail on a desktop failure.
     input.observations = [
       check([rowOf("fired")], [finding("desktop")], "2026-11-05T12:00:00Z"),
