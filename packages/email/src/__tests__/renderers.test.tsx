@@ -143,26 +143,42 @@ describe("email renderers", () => {
     );
   });
 
-  it("renders job failure notification emails with formatted output", async () => {
-    const rendered = await renderJobFailureNotificationEmail({
-      agentBlockchainIdentifier: "agent-blockchain-id",
-      agentId: "agent-id",
-      agentName: "Planner",
-      agentStatus: "failed",
-      jobBlockchainIdentifier: "job-blockchain-id",
-      jobId: "job-id",
-      locale: "en",
-      network: "mainnet",
-      onChainStatus: "withdrawn",
-      result: JSON.stringify({ error: "failure" }),
-      resultHash: "result-hash",
-    });
+  it.each([
+    ["en", "Sokosumi - Job job-id failed"],
+    ["de", "Sokosumi - Job job-id fehlgeschlagen"],
+    ["es", "Sokosumi - El job job-id ha fallado"],
+  ])(
+    "renders job failure subjects and formatted output in %s",
+    async (locale, subject) => {
+      const job = {
+        agentBlockchainIdentifier: "agent-blockchain-id",
+        agentId: "agent-id",
+        agentName: "Planner",
+        agentStatus: "failed",
+        jobBlockchainIdentifier: "job-blockchain-id",
+        jobId: "job-id",
+        locale,
+        onChainStatus: "withdrawn",
+        result: JSON.stringify({ error: "failure" }),
+        resultHash: "result-hash",
+      };
+      const rendered = await renderJobFailureNotificationEmail({
+        ...job,
+        network: "Mainnet",
+      });
+      const preprod = await renderJobFailureNotificationEmail({
+        ...job,
+        network: "Preprod",
+        isPreprodJob: true,
+      });
 
-    expect(rendered.subject).toBe("Sokosumi - Job job-id failed");
-    expect(rendered.html).toContain("agent-blockchain-id");
-    expect(rendered.html).toContain("&quot;error&quot;: &quot;failure&quot;");
-    expect(rendered.html).toContain("result-hash");
-  });
+      expect(rendered.subject).toBe(subject);
+      expect(preprod.subject).toBe(`[Preprod] ${subject}`);
+      expect(rendered.html).toContain("agent-blockchain-id");
+      expect(rendered.html).toContain("&quot;error&quot;: &quot;failure&quot;");
+      expect(rendered.html).toContain("result-hash");
+    },
+  );
 
   it("renders a low-balance billing email with the remaining credits", async () => {
     const rendered = await renderLowBalanceEmail({
