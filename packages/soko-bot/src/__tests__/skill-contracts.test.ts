@@ -219,7 +219,7 @@ describe("skill and tool contract self-consistency (B4 / R5-B)", () => {
     const findings = checkUniversalRuleContracts([v36, cmoV24], {
       skills: [
         {
-          id: "result-cards",
+          id: "result-cards-messaging",
           content: "Call `preview_result` for every created item.",
         },
         {
@@ -235,7 +235,7 @@ describe("skill and tool contract self-consistency (B4 / R5-B)", () => {
       generateImageSchema: z.object({ prompt: z.string() }),
     });
     expect(findings.map((f) => f.key)).toEqual([
-      "check4:result-cards-no-card-boundary:skill:result-cards",
+      "check4:result-cards-no-card-boundary:skill:result-cards-messaging",
       "check4:result-cards-no-card-boundary:desc:preview_result",
       "check4:cuso-no-preview-card:skill:cmo-launch-video",
       "check4:generate-image-constraints-exposed:schema:generate_image",

@@ -197,7 +197,12 @@ export const SKILL_INDEX: Readonly<Record<string, SkillIndexEntry>> = {
   },
   "result-cards": {
     useWhen:
-      "every turn that creates or changes something: the result card for each Task, schedule, post, image, Job or file.",
+      "every turn that creates or changes a Task, schedule, social post, image/video job, Agent Job or Drive file: attach its result card (other items have no card).",
+    preloadOn: ["always"],
+  },
+  "result-cards-messaging": {
+    useWhen:
+      "every turn that creates or changes a Task, schedule, social post, image/video job, Agent Job or Drive file: attach its result card (other items have no card).",
     preloadOn: ["always"],
   },
   "team-contacts-relationships": {

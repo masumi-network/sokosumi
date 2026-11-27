@@ -371,7 +371,13 @@ export const sokoBotGenerateImageInputSchema = z
     projectId: z.string().min(1),
     prompt: z.string().trim().min(1).max(4_000),
     /** Width:height such as "16:9"; the studio checks it. Defaults to 1:1. */
-    aspectRatio: z.string().max(10).optional(),
+    aspectRatio: z
+      .string()
+      .max(10)
+      .optional()
+      .describe(
+        "Width:height ratio. Allowed values: 1:1 (default), 4:3, 3:4, 16:9, 9:16, 3:2, 2:3, 4:5, 5:4.",
+      ),
     /** Image Files (product photos) the new image must show or match. */
     referenceFileIds: z.array(z.uuid()).max(4).optional(),
     /** Most credits this image may cost; the price is checked first. */
@@ -384,9 +390,22 @@ export const sokoBotGenerateImageInputSchema = z
      * in referenceFileIds set inside it, checks it and places the brand's
      * logo. Core refuses it from any other bot.
      */
-    styleReferenceId: z.uuid().optional(),
+    styleReferenceId: z
+      .uuid()
+      .optional()
+      .describe(
+        "Cuso only: reference library image id from find_style_references. Omit for non-Cuso bots.",
+      ),
     /** Cuso only: the few words lettered into a styled picture, spelled exactly. */
-    headline: z.string().trim().min(1).max(60).optional(),
+    headline: z
+      .string()
+      .trim()
+      .min(1)
+      .max(60)
+      .optional()
+      .describe(
+        "Cuso only: short headline lettered into a styled picture. Requires styleReferenceId; omit headline when styleReferenceId is not passed.",
+      ),
   })
   .strict();
 
@@ -2177,7 +2196,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   read_chat:
     "Read recent messages in one chat room you are a member of, newest first, with who sent each one; `fromYou` marks your own messages. Use it to catch up on a conversation you were added to or mentioned in earlier, or to check what was already said before you answer. You can read rooms you belong to and, on your owner's turns and your own rhythms, your owner's direct messages from `ownerDirects`.",
   preview_result:
-    "Prepare the native result card before confirming a successful create, assignment, update, scheduling, generation, or delivery, and when the owner asks to see an existing item. Call after the final change to that item, using its real reference from context, an authorized read, or a successful tool result. A text link alone is not a result card. When asking the owner which project to use, prepare a project_selection reference with up to 12 real projectIds from context or refresh_context so they can click their choice. Core reads the actual state; this does not post another message or execute an action. Up to six distinct cards attach to your current answer. Say a card is attached only after this call succeeds; on failure, give verified text and the source link. Use post_chat resultReferences for another authorized chat.",
+    "Prepare the native result card before confirming a successful create, assignment, update, scheduling, generation, or delivery, and when the owner asks to see an existing item. Call after the final change to that item, using its real reference from context, an authorized read, or a successful tool result. Only the listed reference kinds have result cards (task, task_schedule, bot_schedule, social_post, studio_job, job, file, decision, project_selection); other items such as newsletter issues, tables, contacts, projects, ad campaigns, and emails have no result card — do not call preview_result for them. A text link alone is not a result card. When asking the owner which project to use, prepare a project_selection reference with up to 12 real projectIds from context or refresh_context so they can click their choice. Core reads the actual state; this does not post another message or execute an action. Up to six distinct cards attach to your current answer. Say a card is attached only after this call succeeds; on failure, give verified text and the source link. Use post_chat resultReferences for another authorized chat.",
   post_chat:
     "Post a message into a chat room you are a member of. Use it to answer people in a room you were added to, or to share something you found. It appears as you, immediately, so say only what you can back up. Your answer to a message is posted for you where it was asked, in its thread when it was asked in one: never post_chat that answer into the same room as well.",
   open_direct_chat:

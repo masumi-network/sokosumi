@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { capabilitiesForClassification } from "../policy.js";
-import { applyVersionCapabilities, getSokoBotVersion } from "./index.js";
+import {
+  applyVersionCapabilities,
+  getSokoBotSkill,
+  getSokoBotVersion,
+  sokoBotToolDescription,
+  versionShowsResultCards,
+} from "./index.js";
 
 const chat = capabilitiesForClassification({
   route: "MANAGE_WORK",
@@ -38,5 +44,30 @@ describe("messaging tools by version", () => {
     expect(v36.strongModel).toBe(getSokoBotVersion("v34").strongModel);
     expect(v36.skills).toContain("conversations-handoffs");
     expect(v36.skills).not.toContain("conversations");
+  });
+
+  it("uses send_message (never post_chat/ask_coworker) in v35+ result-cards skill and tool descriptions", () => {
+    const v34 = getSokoBotVersion("v34");
+    const v36 = getSokoBotVersion("v36");
+    expect(v36.skills).toContain("result-cards-messaging");
+    expect(v36.skills).not.toContain("result-cards");
+    expect(versionShowsResultCards(v36)).toBe(true);
+    const skillText = getSokoBotSkill("result-cards-messaging").content;
+    expect(skillText).toContain("`send_message` with `resultReferences`");
+    expect(skillText).not.toContain("post_chat");
+    expect(skillText).toContain("have no result card");
+
+    for (const cap of [
+      "create_schedule",
+      "preview_result",
+      "wait_for",
+    ] as const) {
+      const descV36 = sokoBotToolDescription(cap, v36);
+      expect(descV36).not.toContain("post_chat");
+      expect(descV36).not.toContain("ask_coworker");
+      expect(descV36).toContain("send_message");
+      // Older non-send_message versions remain unchanged.
+      expect(sokoBotToolDescription(cap, v34)).toContain("post_chat");
+    }
   });
 });

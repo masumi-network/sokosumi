@@ -165,6 +165,8 @@ After each successful action below, call \`preview_result\` for the item before 
 - Marketplace Job result: \`{kind:"job",id}\`. Drive file uploaded or delivered: \`{kind:"file",id}\` (the resource id, not a blob URL). Existing approval: \`{kind:"decision",id}\`.
 - When the owner asks to see an existing item, identify it and show its card.
 
+Only the kinds listed above have result cards. Items without a card kind (newsletter issues, tables, contacts, projects, ad campaigns, emails) have no result card — never call \`preview_result\` for them; give their link or text summary instead.
+
 Example: create_task → preview_result({"reference":{"kind":"task","id":"<taskId>"}}) → short confirmation.
 
 At most six cards, the owner's requested results first. If a card fails, keep the text useful and say so. A clarification with nothing created needs no card.

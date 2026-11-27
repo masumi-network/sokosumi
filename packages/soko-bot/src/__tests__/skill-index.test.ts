@@ -72,10 +72,10 @@ describe("skill index", () => {
   it("splits a Soko Bot's skills by route", () => {
     const v36 = getSokoBotVersion("v36");
     expect(splitSkillsForTurn(v36, ["DIRECT_RESPONSE"]).preloaded).toEqual([
-      "result-cards",
+      "result-cards-messaging",
     ]);
     expect(splitSkillsForTurn(v36, ["DELEGATE_TASK"]).preloaded).toEqual([
-      "result-cards",
+      "result-cards-messaging",
       "coworkers-and-agents-messaging",
       "taskboard",
       "conversations-handoffs",
