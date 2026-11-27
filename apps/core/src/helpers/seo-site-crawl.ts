@@ -125,8 +125,7 @@ const botCrawl = z.object({
 });
 type BotCanonicals = z.infer<typeof botCrawl>["pageChecks"] & {};
 
-// A gap with no name cannot be placed under any check.
-const gapEntry = z.object({ item: z.string().regex(/\S/), reason: z.string() });
+const gapEntry = z.object({ item: z.string(), reason: z.string() });
 
 /**
  * A Report's gaps, read one by one. An entry Sokosumi cannot read may be about any check, so it stands as a gap
@@ -137,7 +136,12 @@ function readGaps(list: unknown, prefix: string) {
   const rows: unknown[] = Array.isArray(list) ? list : [list];
   const read = rows.flatMap((row) => {
     const gap = gapEntry.safeParse(row);
-    return gap.success ? [gap.data] : [];
+    if (!gap.success) return [];
+    const { item } = gap.data;
+    // A gap with no name, also after its module prefix, cannot be placed under any check.
+    return /\S/.test(item.startsWith(prefix) ? item.slice(prefix.length) : item)
+      ? [gap.data]
+      : [];
   });
   const unreadable = rows.length - read.length;
   if (!unreadable) return read;
