@@ -171,6 +171,12 @@ const plan = ["1", "true"].includes(
 // `getEnv()` never caches `"sandbox"` ahead of ordinary local runs.
 process.env.SOKO_BOT_RUNTIME_ADAPTER = "in-process";
 
+// EVAL_LOCAL_BLOB_DIR: eval lanes keep files on disk; every `@vercel/blob`
+// import resolves to the stand-in. Before any Core module loads.
+if (process.env.EVAL_LOCAL_BLOB_DIR) {
+  const { installLocalBlob } = await import("@/lib/evals/install-local-blob");
+  installLocalBlob(process.env.EVAL_LOCAL_BLOB_DIR);
+}
 // EVAL_OUTBOUND_GUARD=record|enforce: before any Core module, so no client
 // keeps the unguarded fetch. Every non-allowed host goes to EVAL_OUTBOUND_LOG.
 const guardMode = process.env.EVAL_OUTBOUND_GUARD;

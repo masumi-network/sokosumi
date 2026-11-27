@@ -1,6 +1,7 @@
 import { appendFileSync } from "node:fs";
 import http from "node:http";
 import https from "node:https";
+import { LOCAL_BLOB_HOST, readLocalBlob } from "./local-blob";
 
 /**
  * Local eval runs talk to the plan, real Jev and the local machine, and to
@@ -40,36 +41,12 @@ export function outboundAttempts(): readonly { host: string; via: string }[] {
 }
 
 /**
- * One storage exception, and only when it is configured: the eval-only
- * Vercel Blob store named by EVAL_BLOB_STORE_ID. Its objects live on
- * `<id>.<access>.blob.vercel-storage.com`; its API (vercel.com/api/blob)
- * is let through only with that store's token. Any other store is refused.
+ * No real storage either: eval lanes keep files in the on-disk Blob
+ * stand-in (EVAL_LOCAL_BLOB_DIR, `local-blob.ts`), so every Vercel Blob host
+ * is refused like any other third party (coordinator, 2026-11-27).
  */
-function evalBlobStoreId(): string | null {
-  return process.env.EVAL_BLOB_STORE_ID?.toLowerCase() || null;
-}
-
-function storeOfToken(authorization: string | null): string | null {
-  const token = authorization?.replace(/^Bearer\s+/i, "") ?? "";
-  // vercel_blob_rw_<storeId>_<secret>
-  return token.split("_")[3]?.toLowerCase() || null;
-}
-
-export function outboundAllowed(
-  host: string,
-  request?: { path: string; authorization: string | null },
-): boolean {
-  const bare = host.replace(/^\[|\]$/g, "");
-  if (ALLOWED_HOSTS.has(bare)) return true;
-  const store = evalBlobStoreId();
-  if (!store) return false;
-  if (bare.startsWith(`${store}.`) && bare.endsWith(".blob.vercel-storage.com"))
-    return true;
-  return (
-    bare === "vercel.com" &&
-    Boolean(request?.path.startsWith("/api/blob")) &&
-    storeOfToken(request?.authorization ?? null) === store
-  );
+export function outboundAllowed(host: string): boolean {
+  return ALLOWED_HOSTS.has(host.replace(/^\[|\]$/g, ""));
 }
 
 function note(logFile: string | undefined, host: string, via: string): void {
@@ -96,15 +73,17 @@ export function installEvalOutboundGuard(
     const url = new URL(
       typeof input === "string" || input instanceof URL ? input : input.url,
     );
-    const headers = new Headers(
-      init?.headers ?? (input instanceof Request ? input.headers : undefined),
-    );
-    if (
-      !outboundAllowed(url.hostname, {
-        path: url.pathname,
-        authorization: headers.get("authorization"),
-      })
-    ) {
+    // A file URL of the on-disk Blob stand-in (a fetch of an upload's
+    // fileUrl) is answered from disk, never from the network.
+    if (url.hostname === LOCAL_BLOB_HOST)
+      return readLocalBlob(url.href).then((found) =>
+        found
+          ? new Response(new Uint8Array(found.bytes), {
+              headers: { "content-type": found.contentType },
+            })
+          : new Response("Not found", { status: 404 }),
+      );
+    if (!outboundAllowed(url.hostname)) {
       note(logFile, url.hostname, "fetch");
       if (mode === "enforce")
         return Promise.reject(new EvalOutboundCallError(url.hostname));

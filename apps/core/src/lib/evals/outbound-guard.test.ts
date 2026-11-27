@@ -3,6 +3,7 @@ import https from "node:https";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { LOCAL_BLOB_HOST, put } from "./local-blob";
 import {
   EvalOutboundCallError,
   installEvalOutboundGuard,
@@ -33,32 +34,14 @@ describe("the eval outbound guard", () => {
       expect(outboundAllowed(host), host).toBe(false);
   });
 
-  it("lets Blob through only for the configured eval store", () => {
-    const api = (token: string) => ({
-      path: "/api/blob/drive/a.pdf",
-      authorization: `Bearer ${token}`,
-    });
-    // No eval store configured: no Blob at all.
-    expect(outboundAllowed("abcd.public.blob.vercel-storage.com")).toBe(false);
-    expect(
-      outboundAllowed("vercel.com", api("vercel_blob_rw_abcd_secret")),
-    ).toBe(false);
-    vi.stubEnv("EVAL_BLOB_STORE_ID", "AbCd");
-    expect(outboundAllowed("abcd.public.blob.vercel-storage.com")).toBe(true);
-    expect(
-      outboundAllowed("vercel.com", api("vercel_blob_rw_abcd_secret")),
-    ).toBe(true);
-    // Another store, another token, or vercel.com outside the Blob API.
-    expect(outboundAllowed("other.public.blob.vercel-storage.com")).toBe(false);
-    expect(
-      outboundAllowed("vercel.com", api("vercel_blob_rw_other_secret")),
-    ).toBe(false);
-    expect(
-      outboundAllowed("vercel.com", {
-        path: "/api/v9/projects",
-        authorization: "Bearer vercel_blob_rw_abcd_secret",
-      }),
-    ).toBe(false);
+  it("refuses every real Vercel Blob store: lanes keep files on disk", () => {
+    for (const host of [
+      "vercel.com",
+      "blob.vercel-storage.com",
+      "abcd.public.blob.vercel-storage.com",
+      "abcd.private.blob.vercel-storage.com",
+    ])
+      expect(outboundAllowed(host), host).toBe(false);
   });
 
   it("refuses, counts and logs a lane's real external call before it leaves", async () => {
@@ -83,5 +66,24 @@ describe("the eval outbound guard", () => {
       "api.exa.ai",
       "rest.ably.io",
     ]);
+  });
+
+  // After the test above installed the guard (it installs once per process).
+  it("answers the on-disk Blob stand-in's URLs from disk, never the network", async () => {
+    const store = await mkdtemp(join(tmpdir(), "guard-blob-"));
+    vi.stubEnv("EVAL_LOCAL_BLOB_DIR", store);
+    const before = sent.length;
+    try {
+      const stored = await put("drive/seed.md", "seeded", {
+        contentType: "text/markdown",
+      });
+      expect(await (await fetch(stored.url)).text()).toBe("seeded");
+      expect(
+        (await fetch(`https://${LOCAL_BLOB_HOST}/drive/missing`)).status,
+      ).toBe(404);
+      expect(sent.length).toBe(before);
+    } finally {
+      await rm(store, { recursive: true, force: true });
+    }
   });
 });
