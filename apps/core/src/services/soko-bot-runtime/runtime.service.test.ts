@@ -15367,7 +15367,29 @@ describe("Content Studio image tools", () => {
         service["resolveSocialMedia"](ownerChat as never, [
           { fileId: "01a0f430-aaaa-7000-8000-000000000009" },
         ]),
-      ).rejects.toThrow("not an image or video");
+      ).rejects.toThrow(
+        /"notes\.md" \(text\/markdown\) is not a file a Social post can carry\. Posts take JPEG, PNG or WebP images, GIF animations, MP4 or MOV videos\.$/,
+      );
+    });
+
+    it("says which formats work and to make a PNG of an SVG", async () => {
+      files.loadLive.mockResolvedValue([
+        {
+          id: "01a0f430-aaaa-7000-8000-000000000009",
+          displayName: "logo.svg",
+          mimeType: "image/svg+xml",
+          sizeBytes: 3,
+          sourceKind: "DRIVE_UPLOAD",
+          sourceId: "drive/organizations/org-1/logo.svg",
+        },
+      ]);
+      await expect(
+        service["resolveSocialMedia"](ownerChat as never, [
+          { fileId: "01a0f430-aaaa-7000-8000-000000000009" },
+        ]),
+      ).rejects.toThrow(
+        /\(image\/svg\+xml\).*Posts take JPEG, PNG or WebP images.*For a network that takes images, make a PNG copy of this image.*For TikTok or YouTube, which take only video, attach a video instead\.$/,
+      );
     });
   });
 
