@@ -1,6 +1,6 @@
 "use client";
 
-import { MemberRole } from "@sokosumi/core-client";
+import { type AdminPreprodAccess, MemberRole } from "@sokosumi/core-client";
 import { Ellipsis } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,6 +11,7 @@ import {
   AsyncSearchCombobox,
   buildComboboxLabels,
 } from "@/components/admin/async-search-combobox";
+import { PreprodAccessSection } from "@/components/admin/preprod-access-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,11 +57,14 @@ import { formatCreditsForDisplay } from "@/lib/utils/credits";
 interface OrganizationDetailPanelProps {
   detail: AdminOrganizationOverviewDetail;
   initialMembersPage: AdminOrganizationMemberOverviewPage;
+  /** Null when Core could not answer the read. */
+  preprodAccess: AdminPreprodAccess | null;
 }
 
 export function OrganizationDetailPanel({
   detail,
   initialMembersPage,
+  preprodAccess,
 }: OrganizationDetailPanelProps) {
   const t = useTranslations("App.Admin.Organizations.OrganizationDetail");
   const formatter = useFormatter();
@@ -210,6 +214,12 @@ export function OrganizationDetailPanel({
           </p>
         </section>
       </div>
+
+      <PreprodAccessSection
+        target={{ type: "organization", slug: detail.organization.slug }}
+        targetName={detail.organization.name}
+        access={preprodAccess}
+      />
 
       <section className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
