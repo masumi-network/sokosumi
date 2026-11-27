@@ -22,6 +22,7 @@ import {
 } from "@/lib/evals/eval-compare";
 import {
   comparableRuns,
+  dailyEvalsEnabled,
   evalCommit,
   evalEnvironment,
   isPlanEnvironment,
@@ -551,7 +552,8 @@ async function completeIfDone(run: {
     data: { status: "COMPLETED", finishedAt: new Date() },
   });
   await pauseEvalLanes(run.repeats);
-  if (run.trigger === "DAILY") {
+  // Only where the daily run is created: a fork can complete a copied one.
+  if (run.trigger === "DAILY" && dailyEvalsEnabled()) {
     // Loaded here: the email reads this module's report.
     const { sendEvalRegressionEmail } = await import("./eval-report-email");
     try {
