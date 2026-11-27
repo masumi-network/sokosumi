@@ -36,6 +36,7 @@
     "soko-bot:router-eval": "tsx --env-file=.env scripts/soko-bot-router-eval.mts",
     "chatgpt-plan": "tsx scripts/chatgpt-plan.mts",
     "evals:local": "tsx --env-file=.env scripts/evals-local.mts",
+    "ownerbench:world-check": "tsx --env-file=.env scripts/ownerbench-world-check.mts",
     "soko-bot:lab": "tsx --env-file=.env scripts/soko-bot-lab.mts",
     "soko-bot:tool-smoke": "tsx --env-file=.env scripts/soko-bot-tool-smoke.mts",
     "soko-bot:trace": "tsx --env-file=.env scripts/soko-bot-trace.mts",

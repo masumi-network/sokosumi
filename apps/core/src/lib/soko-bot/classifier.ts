@@ -13,6 +13,7 @@ import {
   rethrowAiGatewayFailure,
 } from "@/lib/ai-gateway-budget";
 import { databaseNow } from "@/lib/db/database-now";
+import { worldCheckJevAnswers, worldCheckMode } from "@/lib/evals/world-check";
 import { recordCoreWarning } from "@/lib/evlog";
 import { chatGptPlanEffectiveModel } from "@/lib/local-chatgpt-plan";
 import { evaluateOnChatGptPlan } from "@/lib/local-chatgpt-plan-stand-ins";
@@ -328,6 +329,14 @@ const evaluateWithJev: RouteEvaluator = async ({
   hasPendingProposals,
   abortSignal,
 }) => {
+  if (worldCheckMode())
+    return {
+      answers: worldCheckJevAnswers(
+        state.message,
+        routeQuestions(hasPendingProposals),
+      ),
+      usage: {},
+    };
   const mode = planJevMode();
   if (mode === "stand-in")
     return evaluateOnChatGptPlan({
