@@ -4,12 +4,11 @@ import {
   SEO_CRAWL_NEXT_MAX_AUDITS,
   type SeoCrawlDeepAudit,
   type SeoSiteCrawl,
-  seoCrawlUrlSchema,
   seoSnapshotIdSchema,
 } from "@/schemas/seo-site-crawl.schema";
 import type { PublicSeoPayload } from "./project-seo-report";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
-import { readCrawlNext, storableText } from "./seo-site-crawl";
+import { readCrawlNext, storableUrl } from "./seo-site-crawl";
 
 /** The stored findings of one audited page (seo-site-crawl.schema.ts). */
 const MAX_AUDIT_FINDINGS = 50;
@@ -44,8 +43,7 @@ const frozenCrawlNext = z.object({
 });
 
 /** A deep-audit entry Sokosumi cannot store, also after storage cleanup: the crawl keeps its other entries. */
-const storable = (entry: { url: string }) =>
-  seoCrawlUrlSchema.safeParse(storableText(entry.url)).success;
+const storable = (entry: { url: string }) => storableUrl(entry.url);
 
 const cut = (text: string) =>
   text.length > MAX_REASON
