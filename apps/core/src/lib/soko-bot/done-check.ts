@@ -370,15 +370,30 @@ const OUTCOME_WORDS: Record<ReceiptOutcome, string> = {
 export async function summarizeTurnReceipts(
   turnId: string,
 ): Promise<TurnReceiptSummary[]> {
-  // Read all change-tool receipts on the turn so later writes or failures
-  // past receipt #20 are never dropped before verification or Jev selection.
+  // Read all change-tool receipts on the turn — including in-flight
+  // PENDING/UNKNOWN external effects written at Core's dispatch boundary — so
+  // later writes, failures past #20, or timed-out provider calls are never
+  // dropped before verification or Jev selection.
   const calls = await prisma.sokoBotToolCall.findMany({
     where: {
       turnId,
-      status: { in: ["COMPLETED", "FAILED"] },
-      capability: { in: [...changeTools()] },
+      OR: [
+        {
+          capability: { in: [...changeTools()] },
+          status: { in: ["COMPLETED", "FAILED"] },
+        },
+        {
+          status: { in: ["PENDING", "COMPLETED", "FAILED"] },
+          disposition: "UNKNOWN",
+        },
+        {
+          capability: "investor_warm_paths",
+          status: { in: ["COMPLETED", "FAILED"] },
+          disposition: { not: null },
+        },
+      ],
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     select: {
       capability: true,
       status: true,

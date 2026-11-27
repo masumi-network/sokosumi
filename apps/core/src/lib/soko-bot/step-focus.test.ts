@@ -636,6 +636,63 @@ describe("selectStepFocusWithEvaluator", () => {
     expect(note).toContain("never call an unconfirmed action failed or done");
   });
 
+  it("includes PENDING/UNKNOWN external effects as unconfirmed and keeps verify in the menu", async () => {
+    const { summarizeTurnReceipts } = await import("./done-check");
+    toolCallFindManyMock.mockResolvedValueOnce([
+      {
+        status: "COMPLETED",
+        disposition: "APPLIED",
+        capability: "create_task",
+        targetId: "task_1",
+        result: null,
+      },
+      {
+        status: "PENDING",
+        disposition: "UNKNOWN",
+        capability: "publish_social_post",
+        targetId: null,
+        result: null,
+      },
+    ]);
+
+    const receipts = await summarizeTurnReceipts("turn_pending_publish");
+    expect(toolCallFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          turnId: "turn_pending_publish",
+          OR: expect.arrayContaining([
+            {
+              status: { in: ["PENDING", "COMPLETED", "FAILED"] },
+              disposition: "UNKNOWN",
+            },
+          ]),
+        }),
+      }),
+    );
+    expect(receipts).toMatchObject([
+      { capability: "create_task", outcome: "done" },
+      { capability: "publish_social_post", outcome: "unconfirmed" },
+    ]);
+
+    const { candidates } = filterStepFocusCandidates({
+      bundles: buildStepFocusBundles(
+        ["read_file", "create_task"],
+        ["read_file", "create_task"],
+      ),
+      stepIndex: 2,
+      roundIndex: 0,
+      stepsInRound: 2,
+      background: false,
+      hasAttemptedWrite: true,
+      receiptCount: receipts.length,
+      hasUnresolvedReceipt: receipts.some((r) => r.outcome !== "done"),
+      openUnblockedPlanCount: 0,
+      hasPendingBlocker: false,
+      justExpandedShortForm: false,
+    });
+    expect(candidates).toContain("verify");
+  });
+
   it("rechecks the current menu when a fallback or a single option selects act, and fails closed if writes were revoked", async () => {
     const unchanged = buildStepFocusBundles(MIXED_TOOLS, MIXED_TOOLS);
     const readOnly = buildStepFocusBundles(MIXED_TOOLS, READ_ONLY_TOOLS);
