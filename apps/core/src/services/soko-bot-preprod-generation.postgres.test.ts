@@ -621,22 +621,34 @@ describe.skipIf(!enabled)(
         ).resolves.toBe(0);
       });
 
-      it("lets a raise wait for a Preprod row being written", async () => {
-        const fixture = await seed();
-        await writeControl("open", "3");
-        const release = await holdScheduleInserts();
-        const creating = schedule(fixture, "preprod");
-        void creating.catch(() => {});
-        await untilWaiting(1);
-        const raising = control.raisePreprodGeneration();
-        void raising.catch(() => {});
-        await untilWaiting(2);
-        await release();
-        await expect(creating).resolves.toMatchObject({
-          preprodGeneration: 3,
-        });
-        await expect(raising).resolves.toBe(4);
-      });
+      it.each([
+        ["a raise", "3", 3, 4],
+        // No generation row to lock yet: only the pause row orders them.
+        ["the first raise", null, 0, 1],
+      ] as const)(
+        "lets %s wait for a Preprod row being written",
+        async (_raise, stored, read, raised) => {
+          const fixture = await seed();
+          await writeControl("open", stored ?? "0");
+          if (stored === null) {
+            await prisma.syncMetadata.delete({
+              where: { key: control.PREPROD_GENERATION_KEY },
+            });
+          }
+          const release = await holdScheduleInserts();
+          const creating = schedule(fixture, "preprod");
+          void creating.catch(() => {});
+          await untilWaiting(1);
+          const raising = control.raisePreprodGeneration();
+          void raising.catch(() => {});
+          await untilWaiting(2);
+          await release();
+          await expect(creating).resolves.toMatchObject({
+            preprodGeneration: read,
+          });
+          await expect(raising).resolves.toBe(raised);
+        },
+      );
     });
   },
 );
