@@ -362,6 +362,31 @@ describe("imported site crawl", () => {
     });
   });
 
+  it("counts at least the examples a check lists, so a total too low clears no check", () => {
+    const raw = botCrawl();
+    raw.links.brokenTotal = 0;
+    raw.links.chainsTotal = 0;
+    raw.pageChecks.missingTitle.total = 0;
+    raw.pageChecks.duplicateTitles.groupsTotal = 0;
+    const crawl = stored(
+      siteReport({
+        crawl: {
+          ...raw,
+          orphans: { state: "found", urls: [`${SITE}/lost`], total: 0 },
+        },
+      }),
+    );
+    if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+    expect(crawl.links).toMatchObject({ brokenTotal: 1, chainsTotal: 1 });
+    expect(crawl.pageChecks?.missingTitle.total).toBe(
+      raw.pageChecks.missingTitle.pages.length,
+    );
+    expect(crawl.pageChecks?.duplicateTitles.total).toBe(
+      raw.pageChecks.duplicateTitles.groups.length,
+    );
+    expect(crawl.orphans).toMatchObject({ total: 1 });
+  });
+
   it("keeps only text PostgreSQL can store", () => {
     // A cut inside a surrogate pair, and a NUL: jsonb refuses both, and the whole import with them.
     const crawl = stored(

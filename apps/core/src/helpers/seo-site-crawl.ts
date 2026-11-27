@@ -29,9 +29,14 @@ function capGaps<T extends { item: string; reason: string }>(gaps: T[]) {
 }
 
 const count = z.number().int();
+/** A total of the bot, at least its own examples: a lower total would show a found check as clear. */
+const atLeast = (total: number, examples: readonly unknown[]) =>
+  Math.max(total, examples.length);
 const page = z.object({ url: z.string() });
 const pageList = <T extends z.ZodRawShape>(more: T) =>
-  z.object({ pages: z.array(page.extend(more)), total: count });
+  z
+    .object({ pages: z.array(page.extend(more)), total: count })
+    .transform((list) => ({ ...list, total: atLeast(list.total, list.pages) }));
 const canonical = { canonical: z.string() };
 
 /** The fields of the SEO bot's SiteReport crawl section that Sokosumi shows. */
@@ -61,6 +66,11 @@ const botCrawl = z.object({
       chainsTotal: count,
       notJudged: count.optional(),
     })
+    .transform((links) => ({
+      ...links,
+      brokenTotal: atLeast(links.brokenTotal, links.broken),
+      chainsTotal: atLeast(links.chainsTotal, links.chains),
+    }))
     .optional(),
   javascript: z
     .object({
@@ -85,6 +95,11 @@ const botCrawl = z.object({
       }),
       z.object({ state: z.literal("not determined"), reason: z.string() }),
     ])
+    .transform((orphans) =>
+      orphans.state === "found"
+        ? { ...orphans, total: atLeast(orphans.total, orphans.urls) }
+        : orphans,
+    )
     .optional(),
   pageChecks: z
     .object({
@@ -97,12 +112,17 @@ const botCrawl = z.object({
       duplicatesNotDetermined: count.optional(),
       /** Pages whose title or meta description the bot does not compare. */
       duplicatesNotCompared: count.optional(),
-      duplicateTitles: z.object({
-        groups: z.array(
-          z.object({ text: z.string(), size: count, pages: z.array(page) }),
-        ),
-        groupsTotal: count,
-      }),
+      duplicateTitles: z
+        .object({
+          groups: z.array(
+            z.object({ text: z.string(), size: count, pages: z.array(page) }),
+          ),
+          groupsTotal: count,
+        })
+        .transform((titles) => ({
+          ...titles,
+          groupsTotal: atLeast(titles.groupsTotal, titles.groups),
+        })),
       sitemap: z
         .object({
           urls: count,
