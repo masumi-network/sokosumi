@@ -3667,6 +3667,10 @@
           },
           "upload": "Upload",
           "useOrganization": "Copy {organization} brand",
+          "copy": "Copy",
+          "organizationTitle": "{organization} brand",
+          "organizationHint": "Start with your organization's DESIGN.md. The copy is this project's own to edit.",
+          "or": "or",
           "organizationAlreadySet": "This project already has a brand.",
           "organizationCopied": "Copied the {organization} brand",
           "moreActions": "Brand actions"

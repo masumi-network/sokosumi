@@ -3667,6 +3667,10 @@
           },
           "upload": "Subir",
           "useOrganization": "Copiar la marca de {organization}",
+          "copy": "Copiar",
+          "organizationTitle": "Marca de {organization}",
+          "organizationHint": "Empieza con el DESIGN.md de tu organización. La copia es de este proyecto y puedes editarla aquí.",
+          "or": "o",
           "organizationAlreadySet": "Este proyecto ya tiene una marca.",
           "organizationCopied": "Marca de {organization} copiada",
           "moreActions": "Acciones de marca"

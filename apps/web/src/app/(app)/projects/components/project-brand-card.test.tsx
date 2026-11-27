@@ -43,6 +43,11 @@ const MESSAGES: Record<string, string> = {
   "brandCard.remove": "Remove",
   "brandCard.upload": "Upload",
   "brandCard.useOrganization": "Copy {organization} brand",
+  "brandCard.copy": "Copy",
+  "brandCard.organizationTitle": "{organization} brand",
+  "brandCard.organizationHint":
+    "Start with your organization's DESIGN.md. The copy is this project's own to edit.",
+  "brandCard.or": "or",
   "brandCard.organizationAlreadySet": "This project already has a brand.",
   "brandCard.organizationCopied": "Copied the {organization} brand",
   "brandCard.moreActions": "Brand actions",
@@ -1049,7 +1054,11 @@ describe("ProjectBrandCard", () => {
 
     screen.getByRole("button", { name: "Copy Acme brand" }).focus();
     await user.keyboard("{Enter}");
+    // Copy now leads the card, so Tab lands on the website field: still a
+    // move away, like the click on another control below.
     await user.tab();
+    expect(screen.getByRole("textbox")).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Elsewhere" }));
     expect(screen.getByRole("button", { name: "Elsewhere" })).toHaveFocus();
     await act(async () => {
       pending.resolve({
@@ -1074,13 +1083,39 @@ describe("ProjectBrandCard", () => {
       organizationName: longName,
     });
 
-    const button = screen.getByRole("button", {
-      name: `Copy ${longName} brand`,
+    // The name sits in the tile's title, which may break anywhere, so an
+    // unbroken name never grows past the card; the button keeps "Copy".
+    const title = screen.getByText(`${longName} brand`);
+    expect(title.className).toMatch(/wrap-anywhere/);
+    expect(title.parentElement?.className).toMatch(/\bmin-w-0\b/);
+    expect(
+      screen.getByRole("button", { name: `Copy ${longName} brand` }),
+    ).toHaveTextContent(/^Copy$/);
+  });
+
+  it("leads with the organization's brand, then the other ways under or", () => {
+    renderBrandDashboard({
+      designMd: null,
+      websiteUrl: null,
+      organizationName: "Acme",
     });
-    // Button text stays on one line by default; this one may wrap, and an
-    // unbroken name may break anywhere, so it never grows past the card.
-    expect(button.className).toMatch(/\bwhitespace-normal\b/);
-    expect(button.className).toMatch(/wrap-anywhere/);
-    expect(button.className).toMatch(/\bmax-w-full\b/);
+
+    const copy = screen.getByRole("button", { name: "Copy Acme brand" });
+    const generate = screen.getByRole("button", {
+      name: "Generate from website",
+    });
+    // Copy comes first in reading and tab order, and is the filled button.
+    expect(
+      copy.compareDocumentPosition(generate) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(copy.className).toMatch(/\bbg-primary\b/);
+    expect(generate.className).not.toMatch(/\bbg-primary\b/);
+    expect(screen.getByText("or")).toBeInTheDocument();
+  });
+
+  it("shows no or divider without an organization brand", () => {
+    renderBrandDashboard({ designMd: null, websiteUrl: null });
+
+    expect(screen.queryByText("or")).not.toBeInTheDocument();
   });
 });
