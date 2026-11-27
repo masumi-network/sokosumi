@@ -123,7 +123,9 @@ const GAP_CHECKS: {
       item.endsWith(" the robots file blocks") ||
       item.includes(" whose robots.txt the crawl could not read") ||
       // A page that gave no response hides its links, and a sitemap URL that gave none may start a chain.
-      item.endsWith(" that gave no response"),
+      item.endsWith(" that gave no response") ||
+      // An audited URL the crawl did not fetch again has no status of its own, and hides its links.
+      item.endsWith(" of the page audits that the crawl did not fetch again"),
   },
   // Core's last gap when the crawl gave more than it stores: a dropped gap may be about any check.
   { check: [...SEO_CRAWL_CHECKS], item: (item) => item === "More gaps" },

@@ -195,6 +195,7 @@ describe("site crawl ledger", () => {
     "1 URL the robots file blocks",
     "Links and text that JavaScript adds to 1 shell page",
     "1 URL that gave no response",
+    "1 URL of the page audits that the crawl did not fetch again",
   ])(
     "does not pass the link checks of a complete crawl with the gap %s",
     (item) => {
