@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { FileSourceScope } from "@sokosumi/database";
-import { clampDriveFileName } from "@sokosumi/utils";
 
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import {
@@ -27,6 +26,7 @@ import {
 } from "@/lib/hono";
 import {
   combinePdfs,
+  PdfLimitError,
   UnreadablePdfError,
 } from "@/services/drive-pdf-combine.service";
 import { contentDispositionFor } from "@/services/file-content.service";
@@ -61,7 +61,7 @@ const route = withCoworkerContextHeaderParameters(
       "Combine 2–20 PDFs from one Drive into one PDF, pages in the order of `pathnames`, and return it as a download named `filename` (.pdf added when missing).",
       "Nothing is saved: the sources stay as they are and Drive does not change.",
       "Access is the same as downloading each source (`GET /drive/files/content`). A data room's download and watermark settings apply to its share-link viewers, who cannot call this.",
-      `All or nothing: a source that is missing, not a PDF, encrypted or broken fails the whole request. Sources total at most ${COMBINE_PDF_MAX_TOTAL_BYTES} bytes.`,
+      `All or nothing: a source that is missing, not a PDF, encrypted or broken fails the whole request. Sources total at most ${COMBINE_PDF_MAX_TOTAL_BYTES} bytes; pages, decompressed object data and the result are capped too (\`too_complex\`).`,
       "Every source is inside one data room, or all are outside any; a mix is refused (`mixed_data_room`).",
     ].join("\n"),
     tags: ["Drive"],
@@ -82,7 +82,9 @@ const route = withCoworkerContextHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: namedError("Not Found - a source is gone (`fileName`)"),
-      413: jsonErrorResponse("Payload Too Large (`too_large`)"),
+      413: namedError(
+        "Payload Too Large - the sources pass the size cap (`too_large`), or `fileName` passes the page or decompression limit, or the result would be too large (`too_complex`)",
+      ),
       422: namedError(
         "Unprocessable Entity - `fileName` is not a readable PDF (`unreadable_pdf`), or the files cross a data room (`mixed_data_room`)",
       ),
@@ -92,6 +94,31 @@ const route = withCoworkerContextHeaderParameters(
 
 function fileName(pathname: string): string {
   return pathname.split("/").at(-1) ?? pathname;
+}
+
+/**
+ * `filename` ending in .pdf, shortened by code point so that neither form of
+ * `contentDispositionFor` (120 plain characters, 240 encoded bytes) has to
+ * cut it and lose the extension.
+ */
+export function downloadName(filename: string): string {
+  const clean = filename.toWellFormed().normalize("NFC").trim();
+  const match = clean.match(/\.pdf$/i);
+  const extension = match?.[0] ?? ".pdf";
+  const base = match ? clean.slice(0, -extension.length) : clean;
+  let kept = "";
+  let characters = 0;
+  let encoded = 0;
+  for (const character of base) {
+    // An escape of ' ( ) * adds two bytes beyond encodeURIComponent.
+    const bytes =
+      encodeURIComponent(character).length + (/['()*]/.test(character) ? 2 : 0);
+    if (characters + 1 > 120 - 4 || encoded + bytes > 240 - 4) break;
+    kept += character;
+    characters += 1;
+    encoded += bytes;
+  }
+  return `${kept.trim() || "Combined"}${extension}`;
 }
 
 /**
@@ -130,9 +157,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (owners.some((o) => o.scope !== scope || o.ownerId !== ownerId))
       throw unprocessableEntity("Combine files from one Drive");
 
-    const name = clampDriveFileName(
-      /\.pdf$/i.test(body.filename) ? body.filename : `${body.filename}.pdf`,
-    );
+    const name = downloadName(body.filename);
 
     const paths = body.pathnames.map(drivePathOf);
     await requireDriveFileAccess(authContext, scope, ownerId, {
@@ -198,6 +223,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw unprocessableEntity(
           `"${error.fileName}" could not be read as a PDF (it may be broken or password-protected)`,
           { kind: "unreadable_pdf", extensions: { fileName: error.fileName } },
+        );
+      if (error instanceof PdfLimitError)
+        throw payloadTooLarge(
+          error.fileName
+            ? `"${error.fileName}" has too many pages or too much compressed data to combine; combine fewer at once`
+            : "The combined PDF would be too large; combine fewer at once",
+          {
+            kind: "too_complex",
+            extensions: error.fileName ? { fileName: error.fileName } : {},
+          },
         );
       throw error;
     }

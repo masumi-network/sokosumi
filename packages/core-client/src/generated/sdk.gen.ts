@@ -2617,7 +2617,7 @@ export const patchDriveFilesMove = <ThrowOnError extends boolean = false>(option
  * Combine 2–20 PDFs from one Drive into one PDF, pages in the order of `pathnames`, and return it as a download named `filename` (.pdf added when missing).
  * Nothing is saved: the sources stay as they are and Drive does not change.
  * Access is the same as downloading each source (`GET /drive/files/content`). A data room's download and watermark settings apply to its share-link viewers, who cannot call this.
- * All or nothing: a source that is missing, not a PDF, encrypted or broken fails the whole request. Sources total at most 52428800 bytes.
+ * All or nothing: a source that is missing, not a PDF, encrypted or broken fails the whole request. Sources total at most 52428800 bytes; pages, decompressed object data and the result are capped too (`too_complex`).
  * Every source is inside one data room, or all are outside any; a mix is refused (`mixed_data_room`).
  */
 export const postDriveFilesCombinePdf = <ThrowOnError extends boolean = false>(options: Options<PostDriveFilesCombinePdfData, ThrowOnError>): RequestResult<PostDriveFilesCombinePdfResponses, PostDriveFilesCombinePdfErrors, ThrowOnError> => (options.client ?? client).post<PostDriveFilesCombinePdfResponses, PostDriveFilesCombinePdfErrors, ThrowOnError>({

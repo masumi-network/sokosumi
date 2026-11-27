@@ -5,7 +5,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import { forgetDriveRooms } from "@/lib/drive-blob";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
-import mountCombinePdf from "./combine-pdf.js";
+import mountCombinePdf, { downloadName } from "./combine-pdf.js";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -174,6 +174,19 @@ describe("POST /drive/files/combine-pdf", () => {
     );
   });
 
+  it("names the file that passes the page limit", async () => {
+    await addPdf(`${FOLDER}/a.pdf`, new Array(1_500).fill(100));
+    await addPdf(`${FOLDER}/b.pdf`, new Array(600).fill(100));
+
+    const response = await combine([`${FOLDER}/a.pdf`, `${FOLDER}/b.pdf`]);
+
+    expect(response.status).toBe(413);
+    expect(await response.json()).toMatchObject({
+      kind: "too_complex",
+      fileName: "b.pdf",
+    });
+  });
+
   it("names the file and returns nothing when one source cannot be read", async () => {
     await addPdf(`${FOLDER}/a.pdf`);
     state.files.set(`${FOLDER}/broken.pdf`, {
@@ -304,4 +317,41 @@ describe("POST /drive/files/combine-pdf", () => {
 
     expect(response.status).toBe(422);
   });
+});
+
+describe("downloadName", () => {
+  it("adds .pdf, and keeps the case of one already there", () => {
+    expect(downloadName("Pack")).toBe("Pack.pdf");
+    expect(downloadName("a.PDF")).toBe("a.PDF");
+  });
+
+  it("keeps .pdf on a name too long for either header form", () => {
+    const ascii = downloadName("x".repeat(200));
+    expect(ascii.endsWith(".pdf")).toBe(true);
+    expect(ascii.length).toBeLessThanOrEqual(120);
+
+    const wide = downloadName("報".repeat(200));
+    expect(wide.endsWith(".pdf")).toBe(true);
+    expect(encodeURIComponent(wide).length).toBeLessThanOrEqual(240);
+  });
+
+  it("survives a lone surrogate and a name that is only the extension", () => {
+    expect(downloadName("a\uD800b")).toBe("a\uFFFDb.pdf");
+    expect(downloadName(".pdf")).toBe("Combined.pdf");
+  });
+});
+
+it("keeps .pdf in the download header for a long name", async () => {
+  await addPdf(`${FOLDER}/a.pdf`);
+  await addPdf(`${FOLDER}/b.pdf`);
+
+  const response = await combine(
+    [`${FOLDER}/a.pdf`, `${FOLDER}/b.pdf`],
+    "(draft) ".repeat(25),
+  );
+
+  const header = response.headers.get("content-disposition") ?? "";
+  expect(header).toMatch(/filename="[^"]*\.pdf"/);
+  expect(header).toMatch(/filename\*=UTF-8''[^;]*\.pdf$/);
+  expect(header.split("UTF-8''")[1]).not.toMatch(/[()']/);
 });

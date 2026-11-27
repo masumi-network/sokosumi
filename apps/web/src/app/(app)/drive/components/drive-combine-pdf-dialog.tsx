@@ -115,6 +115,8 @@ function CombineForm({
     switch (error.kind) {
       case "too_large":
         return t("tooLarge");
+      case "too_complex":
+        return file ? t("tooComplex", { name: file }) : t("resultTooLarge");
       case "unreadable_pdf":
         return file ? t("unreadable", { name: file }) : t("failed");
       case "mixed_data_room":
@@ -127,6 +129,11 @@ function CombineForm({
   return (
     <DialogContent
       className="max-h-[92dvh] overflow-y-auto overscroll-contain sm:max-w-lg"
+      // A pending download would land after the dialog closed, so it stays
+      // open until the download starts or fails.
+      showCloseButton={!busy}
+      onEscapeKeyDown={(event) => busy && event.preventDefault()}
+      onInteractOutside={(event) => busy && event.preventDefault()}
       onCloseAutoFocus={(event) => {
         event.preventDefault();
         onCloseFocus();

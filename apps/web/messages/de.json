@@ -11317,6 +11317,8 @@
         "download": "Herunterladen",
         "downloaded": "{name} heruntergeladen",
         "tooLarge": "Diese Dateien sind zusammen größer als 50 MB. Führe weniger auf einmal zusammen.",
+        "tooComplex": "{name} hat zu viele Seiten oder zu viele Daten zum Zusammenführen. Führe weniger auf einmal zusammen.",
+        "resultTooLarge": "Das zusammengeführte PDF wäre zu groß. Führe weniger auf einmal zusammen.",
         "unreadable": "{name} konnte nicht als PDF gelesen werden. Die Datei ist vielleicht beschädigt oder passwortgeschützt. Es wurde nichts heruntergeladen.",
         "mixedRoom": "Führe Dateien aus einem Datenraum zusammen oder Dateien außerhalb jedes Datenraums.",
         "failed": "PDFs konnten nicht zusammengeführt werden. Versuche es erneut."

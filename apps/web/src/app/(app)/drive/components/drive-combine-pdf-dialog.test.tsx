@@ -104,6 +104,51 @@ describe("DriveCombinePdfDialog", () => {
     );
   });
 
+  it("cannot be dismissed while the download is being made", async () => {
+    let finish: (pdf: Blob) => void = () => {};
+    api.combineDrivePdfs.mockReturnValue(
+      new Promise<Blob>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const onOpenChange = vi.fn();
+    render(
+      <DriveCombinePdfDialog
+        files={files}
+        onOpenChange={onOpenChange}
+        onCloseFocus={() => {}}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "download" }));
+    await userEvent.keyboard("{Escape}");
+
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
+
+    finish(new Blob(["%PDF"]));
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+  });
+
+  it("explains the limit when the PDFs are too complex", async () => {
+    api.combineDrivePdfs.mockRejectedValue(
+      new DriveCombinePdfError(413, "too_complex", "big.pdf"),
+    );
+    render(
+      <DriveCombinePdfDialog
+        files={files}
+        onOpenChange={() => {}}
+        onCloseFocus={() => {}}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "download" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      'tooComplex {"name":"big.pdf"}',
+    );
+  });
+
   it("hands focus back when the dialog closes", async () => {
     const onCloseFocus = vi.fn();
     const { rerender } = render(

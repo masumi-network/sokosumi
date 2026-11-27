@@ -48092,13 +48092,14 @@ export type PostDriveFilesCombinePdfErrors = {
         };
     };
     /**
-     * Payload Too Large (`too_large`)
+     * Payload Too Large - the sources pass the size cap (`too_large`), or `fileName` passes the page or decompression limit, or the result would be too large (`too_complex`)
      */
     413: {
         error: string;
         message: string;
         kind?: string;
         retryAfterSeconds?: number;
+        fileName?: string;
         meta: {
             timestamp: Date;
             requestId: string;
