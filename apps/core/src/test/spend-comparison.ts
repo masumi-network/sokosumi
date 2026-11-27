@@ -59,6 +59,30 @@ export function observePool(pool: Pool): void {
   });
 }
 
+/**
+ * What a caller sees of an error: its name, message, HTTP status and the
+ * public error kind, which an `HTTPException` of `@/helpers/error` carries in
+ * its `cause` and Core's error handler answers with.
+ */
+export function thrown(error: unknown) {
+  const { name, message, status, cause } = error as {
+    name?: unknown;
+    message?: unknown;
+    status?: unknown;
+    cause?: unknown;
+  };
+  const kind =
+    typeof cause === "object" && cause !== null
+      ? (cause as { kind?: unknown }).kind
+      : undefined;
+  return {
+    name,
+    message,
+    ...(status === undefined ? {} : { status }),
+    ...(kind === undefined ? {} : { kind }),
+  };
+}
+
 /** Runs `call` and returns its outcome with what the pool sent meanwhile. */
 export async function observing<T>(
   call: () => Promise<T>,
@@ -69,17 +93,7 @@ export async function observing<T>(
     return { outcome: await call(), log: sent.log };
   } catch (error) {
     if (!(error instanceof Error)) throw error;
-    const status = (error as { status?: unknown }).status;
-    return {
-      outcome: {
-        threw: {
-          name: error.name,
-          message: error.message,
-          ...(status === undefined ? {} : { status }),
-        },
-      },
-      log: sent.log,
-    };
+    return { outcome: { threw: thrown(error) }, log: sent.log };
   } finally {
     sent.observing = false;
   }
@@ -235,7 +249,9 @@ export function baseFile(path: string, recording: boolean) {
   return {
     /**
      * `rewrite` names a further difference of one case, which the caller
-     * states and checks; it gets the base's transactions as recorded.
+     * states and checks. The base file holds what was observed, whole; the
+     * rewrite applies to the base's and to the observed transactions alike,
+     * only when they are compared.
      */
     expectAsOnBase(
       key: string,
@@ -251,7 +267,14 @@ export function baseFile(path: string, recording: boolean) {
       }
       const base = recorded()[key] as Observed | undefined;
       if (!base) throw new Error(`The base file has no case "${key}"`);
-      expect(observed).toEqual({
+      const now = observed as Observed;
+      expect({
+        ...now,
+        statements: {
+          ...now.statements,
+          transactions: rewrite(now.statements.transactions),
+        },
+      }).toEqual({
         ...base,
         statements: {
           ...base.statements,

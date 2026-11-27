@@ -51,6 +51,7 @@ import {
   plain,
   type Statement,
   statements,
+  thrown,
 } from "@/test/spend-comparison";
 
 const enabled =
@@ -337,15 +338,9 @@ const request = (key: string) => ({
 });
 
 function settled(result: PromiseSettledResult<unknown>) {
-  if (result.status === "fulfilled") return result.value;
-  const error = result.reason as {
-    name?: unknown;
-    message?: unknown;
-    status?: unknown;
-  };
-  return {
-    threw: { name: error.name, message: error.message, status: error.status },
-  };
+  return result.status === "fulfilled"
+    ? result.value
+    : { threw: thrown(result.reason) };
 }
 
 function gate() {
@@ -398,8 +393,8 @@ async function race(name: string, first: 0 | 1) {
     `${name}'s second audit`,
   );
   const actors = [payer.actor, other];
-  const entered = [gate(), gate()];
-  const answer = [gate(), gate()];
+  const entered = [gate(), gate()] as const;
+  const answer = [gate(), gate()] as const;
   let asked = 0;
   const generate = vi.fn(async () => {
     const call = asked;
@@ -423,6 +418,7 @@ async function race(name: string, first: 0 | 1) {
       }
       return consumptions;
     });
+  let outcomes: Promise<unknown> = Promise.resolve();
   try {
     const observed = (await observe(
       payer,
@@ -434,25 +430,33 @@ async function race(name: string, first: 0 | 1) {
           if (index === 1) await entered[0]?.opened;
           return sendSeoChat(actor, request(`${name}-${index}`), { generate });
         });
-        await entered[1]?.opened;
-        answer[first]?.open();
-        await chosen.opened;
-        answer[1 - first]?.open();
-        await untilALockIsAwaited();
+        // Handled from the start: a reply that fails before it reaches the
+        // model, as on the split layout, ends every wait below at once.
+        outcomes = Promise.allSettled(replies);
+        const failedEarly = new Promise<never>((_resolve, reject) => {
+          for (const reply of replies) reply.catch(reject);
+        });
+        failedEarly.catch(() => undefined);
+        const until = (step: Promise<unknown>) =>
+          Promise.race([step, failedEarly]);
+        await until(entered[1].opened);
+        answer[first].open();
+        await until(chosen.opened);
+        answer[first === 0 ? 1 : 0].open();
+        await until(untilALockIsAwaited());
         holdOpen.open();
         return (await Promise.allSettled(replies)).map(settled);
       },
-    )) as { statements: { transactions: Statement[][] } };
-    return {
-      ...observed,
-      statements: {
-        ...observed.statements,
-        transactions: withoutTheLosersCancelPoint(
-          observed.statements.transactions,
-        ),
-      },
-    };
+    )) as { result: unknown };
+    if (!Array.isArray(observed.result))
+      throw new Error(
+        `The race stopped before both replies settled: ${JSON.stringify(observed.result)}`,
+      );
+    return observed;
   } finally {
+    for (const opened of [...entered, ...answer, chosen, holdOpen])
+      opened.open();
+    await outcomes;
     spy.mockRestore();
   }
 }
@@ -468,8 +472,10 @@ const TURN_CLAIM =
  * ("conflict out to pivot, during read"). Measured on both codes with the
  * same statements: on a fresh database the read, on one that earlier runs
  * have filled the write; it follows the database's state, not the code. So this
- * attempt is compared up to its turn update and its ROLLBACK, on both sides;
- * the retry, the answer and every row are compared whole. The transactions
+ * attempt is compared up to its turn update and its ROLLBACK, on both sides,
+ * and a bucket read it reached must equal its retry's; the base file keeps
+ * the attempt as it ran. The retry, the answer and every row are compared
+ * whole. The transactions
  * in order: two reservations, the winner's settlement, the loser's two
  * attempts.
  */
@@ -479,9 +485,13 @@ function withoutTheLosersCancelPoint(
   const [first, second, winner, attempt, retry, ...more] = transactions;
   if (!first || !second || !winner || !attempt || !retry || more.length > 0)
     throw new Error("The race is not two reservations and three settlements");
-  const cancelled = BUCKET_READ.test(attempt.at(-2)?.sql ?? "")
-    ? [...attempt.slice(0, -2), ...attempt.slice(-1)]
-    : attempt;
+  const read = attempt.at(-2);
+  let cancelled = attempt;
+  if (read && BUCKET_READ.test(read.sql)) {
+    // The read it was cancelled at is the one its retry makes, whole.
+    expect(read).toEqual(retry.find(({ sql }) => BUCKET_READ.test(sql)));
+    cancelled = [...attempt.slice(0, -2), ...attempt.slice(-1)];
+  }
   expect([
     TURN_CLAIM.test(cancelled.at(-2)?.sql ?? ""),
     cancelled.at(-1)?.sql,
