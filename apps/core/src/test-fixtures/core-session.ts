@@ -107,8 +107,13 @@ export async function createApiKey(userId: string): Promise<string> {
   return key;
 }
 
-/** An access token of a first-party OAuth client with `sokosumi:api`. */
-export async function createOAuthToken(userId: string): Promise<string> {
+/**
+ * An access token of a new first-party OAuth client with `sokosumi:api`, and
+ * the client's id, which the test deletes.
+ */
+export async function createOAuthToken(
+  userId: string,
+): Promise<{ token: string; clientId: string }> {
   const { hashStoredOAuthToken, OAUTH_ACCESS_TOKEN_PREFIX } = await import(
     "@/lib/auth-oauth-token-prefixes"
   );
@@ -128,11 +133,14 @@ export async function createOAuthToken(userId: string): Promise<string> {
       token: hashStoredOAuthToken(token, OAUTH_ACCESS_TOKEN_PREFIX),
     },
   });
-  return token;
+  return { token, clientId };
 }
 
-/** A key of a new Coworker of a new vendor. */
-export async function createCoworkerKey(): Promise<string> {
+/** A key of a new Coworker of a new vendor, and the vendor's id, which the test deletes. */
+export async function createCoworkerKey(): Promise<{
+  token: string;
+  vendorId: string;
+}> {
   const { generateCoworkerApiKeyToken, hashApiKey } = await import(
     "@/lib/coworker-api-key"
   );
@@ -154,7 +162,7 @@ export async function createCoworkerKey(): Promise<string> {
       keyStart: token.slice(0, 12),
     },
   });
-  return token;
+  return { token, vendorId: vendor.id };
 }
 
 /** A key of the user's personal Soko Bot, which acts as its owner. */

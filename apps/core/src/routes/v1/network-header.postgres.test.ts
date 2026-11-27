@@ -463,8 +463,36 @@ describe.runIf(enabled && onSplitLayout)(
       notOptedInOrganization = await organization(memberOfNotOptedIn.id, false);
     });
 
+    const oauthClientIds: string[] = [];
+    const vendorIds: string[] = [];
+
+    async function oauthToken(userId: string) {
+      const { token, clientId } = await loaded.fixture.createOAuthToken(userId);
+      oauthClientIds.push(clientId);
+      return token;
+    }
+
+    async function coworkerKey() {
+      const { token, vendorId } = await loaded.fixture.createCoworkerKey();
+      vendorIds.push(vendorId);
+      return token;
+    }
+
     afterAll(async () => {
       for (const remove of removals) await remove();
+      // Rows no foreign key ties to the fixture's people.
+      await loaded.prisma.apikey.deleteMany({
+        where: { referenceId: { in: userIds } },
+      });
+      await loaded.prisma.oauthClient.deleteMany({
+        where: { clientId: { in: oauthClientIds } },
+      });
+      await loaded.prisma.coworker.deleteMany({
+        where: { vendorId: { in: vendorIds } },
+      });
+      await loaded.prisma.vendor.deleteMany({
+        where: { id: { in: vendorIds } },
+      });
       await loaded.prisma.organization.deleteMany({
         where: { id: { in: organizationIds } },
       });
@@ -576,14 +604,14 @@ describe.runIf(enabled && onSplitLayout)(
         [
           "an opted-in person's OAuth token",
           {
-            authorization: `Bearer ${await loaded.fixture.createOAuthToken(optedIn.id)}`,
+            authorization: `Bearer ${await oauthToken(optedIn.id)}`,
           },
           refused,
         ],
         [
           "a Coworker key",
           {
-            authorization: `Bearer ${await loaded.fixture.createCoworkerKey()}`,
+            authorization: `Bearer ${await coworkerKey()}`,
           },
           refused,
         ],
