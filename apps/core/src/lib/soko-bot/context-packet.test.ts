@@ -50,7 +50,7 @@ const {
   workspaceFindFirstMock: vi.fn(),
 }));
 
-vi.mock("@/helpers/subscription", () => ({
+vi.mock("@/lib/credits/funding", () => ({
   buildCreditsPayload: billingMock,
 }));
 vi.mock("@/lib/db/prisma", () => ({

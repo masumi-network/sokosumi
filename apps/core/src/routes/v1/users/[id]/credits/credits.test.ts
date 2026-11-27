@@ -23,7 +23,7 @@ const { buildCreditsPayloadMock, workspaceFindUniqueMock } = vi.hoisted(() => ({
   workspaceFindUniqueMock: vi.fn(),
 }));
 
-vi.mock("@/helpers/subscription", () => ({
+vi.mock("@/lib/credits/funding", () => ({
   buildCreditsPayload: buildCreditsPayloadMock,
 }));
 

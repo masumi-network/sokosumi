@@ -468,7 +468,7 @@ async function runX402ChargePhase(
         kind: "sign",
         paymentId: record.id,
         taskOwnerId: task.ownerId,
-        chargedNow: true,
+        chargedScope: scope,
         signStartedAt,
         // Only the verified entry is forwarded — the node must not be handed
         // a menu it gets to choose from. See narrowOrThrow.
@@ -501,13 +501,16 @@ async function runX402ChargePhase(
     throw error;
   });
 
-  if (outcome.kind === "sign" && outcome.chargedNow) {
+  if (outcome.kind === "sign" && outcome.chargedScope) {
     // After the commit: the wallet the charge came out of is the task's.
     waitUntil(
-      notifyLowBalanceAfterCharge({
-        userId: task.ownerId,
-        organizationId: task.organizationId,
-      }),
+      notifyLowBalanceAfterCharge(
+        {
+          userId: task.ownerId,
+          organizationId: task.organizationId,
+        },
+        outcome.chargedScope,
+      ),
     );
   }
 
@@ -570,7 +573,7 @@ export async function payTaskX402(
     };
   }
 
-  if (outcome.chargedNow) {
+  if (outcome.chargedScope) {
     // The charge event is committed; surface it on the task timeline even if
     // the sign below fails.
     schedulePostCommitFanout(taskId, outcome.taskOwnerId);
@@ -600,7 +603,7 @@ export async function payTaskX402(
   // Fresh path only: replay already incremented inside its charge-phase txn.
   // Spend the L3 cap only now so a withheld dispatch never burns the
   // first-attempt auto-refund slot.
-  if (outcome.chargedNow) {
+  if (outcome.chargedScope) {
     await prisma.taskX402Payment.update({
       where: { id: outcome.paymentId },
       data: { signAttemptCount: { increment: 1 } },
@@ -669,7 +672,7 @@ export async function payTaskX402(
       },
     });
 
-    if (!outcome.chargedNow) {
+    if (!outcome.chargedScope) {
       // This refusal proves only that the CURRENT call issued no header. The
       // PENDING row exists because an earlier call ended ambiguously, and that
       // earlier call may have produced an authorization which is still live.

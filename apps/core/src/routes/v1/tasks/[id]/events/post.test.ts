@@ -1194,10 +1194,13 @@ describe("POST /{id}/events", () => {
     expect(waitUntilCapturedPromises).toHaveLength(2);
     await Promise.all(waitUntilCapturedPromises);
     expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledTimes(2);
-    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
-      userId: USER_ID,
-      organizationId: "org-1",
-    });
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith(
+      {
+        userId: USER_ID,
+        organizationId: "org-1",
+      },
+      expect.objectContaining({ network: "mainnet" }),
+    );
   });
 
   it("auto-sets OUT_OF_CREDITS on credit-only when balance is insufficient mid-run", async () => {
@@ -4777,10 +4780,13 @@ describe("POST /{id}/events charges the Owner (ADR 0057)", () => {
           cents: convertCreditsToCents(2),
         }),
       );
-      expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
-        userId: owner,
-        organizationId: ORGANIZATION_ID,
-      });
+      expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith(
+        {
+          userId: owner,
+          organizationId: ORGANIZATION_ID,
+        },
+        expect.objectContaining({ network: "mainnet" }),
+      );
     },
   );
 
@@ -4819,10 +4825,13 @@ describe("POST /{id}/events charges the Owner (ADR 0057)", () => {
         organizationId: ORGANIZATION_ID,
       }),
     );
-    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
-      userId: null,
-      organizationId: ORGANIZATION_ID,
-    });
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith(
+      {
+        userId: null,
+        organizationId: ORGANIZATION_ID,
+      },
+      expect.objectContaining({ network: "mainnet" }),
+    );
   });
 
   it("refuses a Task Schedule Run's charge when its Owner lost their Seat", async () => {

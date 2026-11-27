@@ -4,9 +4,7 @@ import {
   CORE_API_ERROR_KINDS,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
-
 import { waitUntil } from "@vercel/functions";
-
 import { getEnv } from "@/config/env";
 import {
   readWorkspaceOrganizationId,
@@ -47,6 +45,7 @@ import {
   requireTaskWorkerContext,
 } from "@/helpers/task-worker-context";
 import { publishTaskEventData } from "@/lib/ably/publish";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   createCoreLogger,
@@ -57,7 +56,7 @@ import {
   tryUseLiveLogger,
 } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { NETWORK_BY_NAME, type Network } from "@/lib/network";
+import { NETWORK_BY_NAME } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { prepareAuditSettlement } from "@/lib/seo/audit-settlement";
 import { formatUpstreamErrorForLog } from "@/lib/upstream-error-log";
@@ -258,7 +257,7 @@ function mountTaskEventRoute(
       let eventStatus: TaskStatus | null = status ?? null;
       let chargedMasumiPayment = false;
       let pausedForInsufficientBalance = false;
-      let chargedNetwork: Network | undefined;
+      let chargedScope: NetworkScope | undefined;
 
       if (
         isAgent &&
@@ -279,7 +278,7 @@ function mountTaskEventRoute(
         });
         cents = settled.cents;
         transactionId = settled.transactionId;
-        if (transactionId) chargedNetwork = scope.network;
+        if (transactionId) chargedScope = scope;
         chargedMasumiPayment = settled.chargedMasumiPayment;
         if (settled.eventStatus != null) {
           eventStatus = settled.eventStatus;
@@ -302,7 +301,7 @@ function mountTaskEventRoute(
           channel,
           ...(cents !== undefined && { cents }),
           transactionId,
-          ...(chargedNetwork && { network: chargedNetwork }),
+          ...(chargedScope && { network: chargedScope.network }),
           ...actorData,
         },
       });
@@ -414,7 +413,7 @@ function mountTaskEventRoute(
         masumiPayment: payment,
         taskPaymentClaimId,
         pausedForInsufficientBalance,
-        charged: transactionId !== null,
+        chargedScope,
         approvedAuditCompletion,
       };
     };
@@ -449,7 +448,7 @@ function mountTaskEventRoute(
       masumiPayment,
       taskPaymentClaimId,
       pausedForInsufficientBalance,
-      charged,
+      chargedScope,
     } = transactionResult;
 
     // Retry the original page and date selection at settlement if Google was unavailable at start.
@@ -525,10 +524,10 @@ function mountTaskEventRoute(
       );
     }
 
-    if (charged) {
+    if (chargedScope) {
       waitUntil(
         runAsBackgroundWork(() =>
-          notifyLowBalanceAfterCharge({ userId, organizationId }),
+          notifyLowBalanceAfterCharge({ userId, organizationId }, chargedScope),
         ),
       );
     }

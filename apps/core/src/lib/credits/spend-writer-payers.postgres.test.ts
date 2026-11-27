@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { createTaskEventTransaction } from "@/helpers/task-credits";
-import { sumTransactionHistory } from "@/helpers/transaction-history";
+import { sumTransactionHistory } from "@/lib/credits/history";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -124,6 +124,7 @@ async function seen(
   return {
     projectHistory: await sumTransactionHistory(
       {
+        billingScope: createNetworkScope("mainnet"),
         scope: "workspace",
         projectId: payer.projectId,
         // Its charges only: the Project's grants are in its history too.

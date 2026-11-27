@@ -7,7 +7,8 @@ import { waitUntil } from "@vercel/functions";
 import { getWebAppBaseUrl } from "@/config/env";
 import { socialProviderWorkspace } from "@/config/social-providers";
 import { cmoReportForOwner } from "@/helpers/cmo-report-card";
-import { buildCreditsPayload } from "@/helpers/subscription";
+import { buildCreditsPayload } from "@/lib/credits/funding";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning, runAsBackgroundWork } from "@/lib/evlog";
 import type { CmoBrandMedia } from "@/schemas/cmo.schema";
@@ -357,7 +358,7 @@ export async function getCmoOverview(
         organizationId: payer.organizationId,
         referenceId: payer.referenceId,
         projectId: cuso.projectId,
-        tx: prisma,
+        scope: createNetworkScope("mainnet"),
       }),
       mayApproveMarketingStrategy(
         userId,

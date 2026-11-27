@@ -4,7 +4,6 @@ import {
   subscriptionRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
-
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -14,7 +13,8 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
-import { getCredits } from "@/helpers/user";
+import { getCredits } from "@/lib/credits/balance";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
@@ -57,7 +57,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userIds = pageUsers.map((user) => user.id);
 
     const [credits, subscriptions, taskCounts] = await Promise.all([
-      Promise.all(userIds.map((userId) => getCredits(userId, null, prisma))),
+      Promise.all(
+        userIds.map((userId) =>
+          getCredits(createNetworkScope("mainnet"), userId, null, prisma),
+        ),
+      ),
       Promise.all(
         userIds.map((userId) =>
           subscriptionRepository.resolveActiveSubscriptionByReferenceId(

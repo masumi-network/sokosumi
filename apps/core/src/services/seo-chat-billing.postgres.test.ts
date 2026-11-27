@@ -1,10 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import {
-  findTransactionHistoryPage,
-  mapTransactionHistoryRow,
-} from "@/helpers/transaction-history";
+import { mapTransactionHistoryRow } from "@/helpers/transaction-history";
+import { findTransactionHistoryPage } from "@/lib/credits/history";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import { createSeoAudit } from "./seo-audit.service";
@@ -324,6 +323,7 @@ describe.skipIf(!enabled)("SEO chat usage charges on PostgreSQL", () => {
     });
     const history = await findTransactionHistoryPage(
       {
+        billingScope: createNetworkScope("mainnet"),
         scope: "workspace",
         kinds: ["seoChat"],
         projectId,

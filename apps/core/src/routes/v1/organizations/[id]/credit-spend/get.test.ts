@@ -43,6 +43,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 vi.mock("@/lib/db/prisma", () => ({
+  networkPrisma: () => ({ transaction: { groupBy: transactionGroupByMock } }),
   default: {
     organization: { findUnique: organizationFindUniqueMock },
     member: {

@@ -5930,10 +5930,13 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(settled).toBe(true);
     // After the transaction, on the wallet the turn was charged to.
     expect(notifiedInsideTransaction).toBe(false);
-    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
-      userId: "user_1",
-      organizationId: null,
-    });
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith(
+      {
+        userId: "user_1",
+        organizationId: null,
+      },
+      expect.objectContaining({ network: "mainnet" }),
+    );
   });
 
   it("checks the wallet for a charge that committed even when settlement lost its lease", async () => {
@@ -5959,10 +5962,13 @@ describe("SokoBotControlPlane lifecycle", () => {
     const settled = await new SokoBotControlPlane().expireTurn("turn_1");
 
     expect(settled).toBe(false);
-    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
-      userId: "user_1",
-      organizationId: null,
-    });
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith(
+      {
+        userId: "user_1",
+        organizationId: null,
+      },
+      expect.objectContaining({ network: "mainnet" }),
+    );
   });
 
   it("checks the Organization wallet a turn in an Organization workspace drew on", async () => {
@@ -5990,10 +5996,13 @@ describe("SokoBotControlPlane lifecycle", () => {
 
     // Not the member's personal wallet: a new Organization owner has none,
     // and was told "0 left" while the Organization held 249 credits.
-    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
-      userId: "user_1",
-      organizationId: "org_1",
-    });
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith(
+      {
+        userId: "user_1",
+        organizationId: "org_1",
+      },
+      expect.objectContaining({ network: "mainnet" }),
+    );
     expect(notifyCusoLowCreditsAfterChargeMock).not.toHaveBeenCalled();
   });
 
@@ -6031,6 +6040,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       // His own notice instead, on his Project, after the charge committed.
       expect(notifyCusoLowCreditsAfterChargeMock).toHaveBeenCalledWith(
         "01960001-0001-7001-8001-0000000000aa",
+        expect.objectContaining({ network: "mainnet" }),
       );
     },
   );

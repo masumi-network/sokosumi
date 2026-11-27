@@ -158,7 +158,11 @@ export async function keepCmoSeoAudit(
   const vars = runnerVars(cuso.workspaceId, actor.userId, actor.organizationId);
   const monitors = await cmoSeoMonitors(cuso.projectId);
   const live = monitors.find((schedule) => schedule.state !== "ENDED");
-  const paid = await cmoPaidFor(cuso.projectId, now, prisma);
+  const paid = await cmoPaidFor(
+    cuso.projectId,
+    now,
+    createNetworkScope("mainnet"),
+  );
   if (!paid.subscribed && !paid.testerCreditsLeft) {
     if (live?.state === "ACTIVE")
       await changeTaskScheduleState(vars, live.id, "pause");

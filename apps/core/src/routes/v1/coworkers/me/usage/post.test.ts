@@ -382,10 +382,13 @@ describe("POST /me/usage", () => {
     expect(body.data.userId).toBe(TARGET_USER_ID);
     expect(waitUntilCapturedPromises).toHaveLength(1);
     await waitUntilCapturedPromises[0];
-    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
-      userId: TARGET_USER_ID,
-      organizationId: ORGANIZATION_ID,
-    });
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith(
+      {
+        userId: TARGET_USER_ID,
+        organizationId: ORGANIZATION_ID,
+      },
+      expect.objectContaining({ network: "mainnet" }),
+    );
   });
 
   it("checks the balance as background work, so a failure inside it is not put on the request's event", async () => {

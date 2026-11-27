@@ -11,8 +11,9 @@ import {
 import { convertCentsToCredits, hideSeoAuditRequest } from "@sokosumi/utils";
 import { DAY_MS } from "@/config/constants";
 import { taskOwnerLabel } from "@/helpers/soko-bot-owner";
-import { buildCreditsPayload } from "@/helpers/subscription";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
+import { buildCreditsPayload } from "@/lib/credits/funding";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { globalCoworkersFor } from "@/lib/evals/eval-guard";
 import {
@@ -591,7 +592,7 @@ export class ContextPacketBuilder {
       referenceId,
       // The bot's Project (Cuso's): its Project credits count (ADR 0067).
       projectId: input.sharedScope?.projectId,
-      tx: prisma,
+      scope: createNetworkScope("mainnet"),
     });
     // Only routes that can hire carry the marketplace; the count still goes in.
     const hiring = MARKETPLACE_ROUTES.has(input.classification.route);

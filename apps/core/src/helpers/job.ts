@@ -51,6 +51,8 @@ import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import { registerJobPurchase } from "@/helpers/job-purchase-registration";
 import { requireOwnerSeat } from "@/helpers/owner-seat";
 import { creatorFields, type WorkCreator } from "@/helpers/work-creator";
+import { getBalance } from "@/lib/credits/balance";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { recordCoreError, recordCoreWarning } from "@/lib/evlog";
@@ -91,7 +93,8 @@ async function validateCreditBalance(
     return;
   }
 
-  const centsBalance = await creditBucketRepository.getBalance(
+  const centsBalance = await getBalance(
+    createNetworkScope("mainnet"),
     userId,
     organizationId,
     tx,
@@ -987,10 +990,13 @@ export async function createAgentJobForUser(
   // before purchase registration, whose failure must not skip the check for a
   // charge that landed.
   if (cost.cents > 0n) {
-    await notifyLowBalanceAfterCharge({
-      userId: owner.ownerId,
-      organizationId: owner.organizationId,
-    });
+    await notifyLowBalanceAfterCharge(
+      {
+        userId: owner.ownerId,
+        organizationId: owner.organizationId,
+      },
+      createNetworkScope("mainnet"),
+    );
   }
 
   if (

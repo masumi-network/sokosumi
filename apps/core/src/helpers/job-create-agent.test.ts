@@ -129,7 +129,7 @@ vi.mock("@/helpers/organization-assigned-seat", () => ({
 
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
-    getBalance: getBalanceMock,
+    getNetworkBalance: getBalanceMock,
     prepareConsumption: creditBucketPrepareConsumptionMock,
   },
   jobPurchaseRepository: {
@@ -378,10 +378,13 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     await createAgentJobForUser(createInput());
 
     expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledTimes(1);
-    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
-      userId: "user_1",
-      organizationId: "org_1",
-    });
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith(
+      {
+        userId: "user_1",
+        organizationId: "org_1",
+      },
+      expect.objectContaining({ network: "mainnet" }),
+    );
     expect(txJobCreateMock).toHaveBeenCalledOnce();
     expect(notifiedInsideTransaction).toBe(false);
   });
@@ -474,10 +477,13 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       expect(data.transaction.create.user).toEqual({
         connect: { id: "user_1" },
       });
-      expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
-        userId: "user_1",
-        organizationId: "org_1",
-      });
+      expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith(
+        {
+          userId: "user_1",
+          organizationId: "org_1",
+        },
+        expect.objectContaining({ network: "mainnet" }),
+      );
     },
   );
 
@@ -554,7 +560,13 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     // Preflight and the re-check inside the creation transaction.
     expect(getBalanceMock).toHaveBeenCalledTimes(2);
     for (const call of getBalanceMock.mock.calls) {
-      expect(call).toEqual([null, "org_1", expect.anything(), scope]);
+      expect(call).toEqual([
+        "mainnet",
+        null,
+        "org_1",
+        expect.anything(),
+        scope,
+      ]);
     }
     expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
       "mainnet",
@@ -702,6 +714,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       expect(getBalanceMock).toHaveBeenCalledTimes(2);
       for (const call of getBalanceMock.mock.calls) {
         expect(call).toEqual([
+          "mainnet",
           "user_1",
           "org_1",
           expect.anything(),

@@ -4,7 +4,7 @@ import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
-import { buildCreditsPayload } from "@/helpers/subscription";
+import { creditViewForRequest } from "@/lib/credits/view";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -124,11 +124,10 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
         "Coworker cannot act in this organization without a granted workspace access or assigned task relationship",
       );
     }
-    const payload = await buildCreditsPayload({
+    const payload = await creditViewForRequest(c.var.networkScope).funding({
       userId: resolvedUserId,
       organizationId: organization.id,
       referenceId: organization.id,
-      tx: prisma,
     });
 
     return ok(c, creditsResponseSchema.parse(payload));

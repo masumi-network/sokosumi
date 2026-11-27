@@ -83,6 +83,7 @@ import {
   GATEWAY_INTERNAL_SERVER_ERROR,
 } from "@/lib/ai-gateway-budget-error";
 import { databaseNow } from "@/lib/db/database-now";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { evalWorkspaceIds } from "@/lib/evals/eval-guard";
@@ -2075,10 +2076,16 @@ export class SokoBotControlPlane {
         // On the charge alone: a settlement that lost its lease after the
         // usage was recorded still committed that charge.
         if (chargedWallet) {
-          await notifyLowBalanceAfterCharge(chargedWallet);
+          await notifyLowBalanceAfterCharge(
+            chargedWallet,
+            createNetworkScope("mainnet"),
+          );
         }
         if (chargedCusoProjectId) {
-          await notifyCusoLowCreditsAfterCharge(chargedCusoProjectId);
+          await notifyCusoLowCreditsAfterCharge(
+            chargedCusoProjectId,
+            createNetworkScope("mainnet"),
+          );
         }
         if (settled && cmoTurnEnded) {
           const ended: {
