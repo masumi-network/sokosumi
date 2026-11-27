@@ -82,6 +82,8 @@ interface TurnStart {
   preamble?: string;
   /** Core runs update_plan for the whole request; an older Core sends none. */
   planLoop?: boolean;
+  /** CMO `cmoApplyChanges`: activate doneCheck on strategy saves; an older Core sends none. */
+  cmoApplyChanges?: boolean;
   /** The turn starts with a plan from earlier in its request. */
   planInherited?: boolean;
   /** Tools whose completed call Core records as a change (planLoop). */
@@ -544,10 +546,21 @@ async function main(): Promise<void> {
       shortForms: start.shortForms ?? [],
       cacheKey: start.cacheKey,
       fullCacheKey: start.fullCacheKey,
-      ...(start.planLoop
+      ...(start.planLoop || start.cmoApplyChanges
         ? {
             plan: {
-              inherited: start.planInherited === true,
+              inherited:
+                Boolean(start.planLoop) && start.planInherited === true,
+              keepLatestPlan: Boolean(start.planLoop),
+              ...(start.cmoApplyChanges
+                ? {
+                    triggerTools: new Set([
+                      ...(start.planLoop ? ["update_plan"] : []),
+                      "write_strategy",
+                      "save_strategy",
+                    ]),
+                  }
+                : {}),
               doneCheck: async (draft: string) =>
                 (await callCore<{ note: string | null }>("/plan", { draft }))
                   .note,

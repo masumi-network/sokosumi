@@ -2769,6 +2769,9 @@ export class SokoBotControlPlane {
       personAsked,
       extraHints: accountQuestion ? [accountQuestionHint(accountQuestion)] : [],
       capturedPreference,
+      ...(version.cmoApplyChanges && version.profile === "cmo"
+        ? { cmoApplyChanges: true }
+        : {}),
       turnMessage: input.chat?.said ?? input.chat?.classifyMessage ?? message,
       previousReply:
         previousTurn?.status === "COMPLETED" ? previousTurn.finalAnswer : null,

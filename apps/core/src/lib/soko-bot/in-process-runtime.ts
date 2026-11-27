@@ -46,7 +46,11 @@ import {
 } from "@/lib/soko-bot/turn-model-context";
 import { runTurnLoop, type TurnLoopInput } from "@/soko-bot-runner/loop";
 import { runCoreWebTool } from "./core-web-tools";
-import { evaluateTurnDoneCheck, openStepsNote } from "./done-check";
+import {
+  CMO_APPLY_CHANGE_TRIGGER_TOOLS,
+  evaluateTurnDoneCheck,
+  openStepsNote,
+} from "./done-check";
 import {
   evaluationBinding,
   evaluationHistory,
@@ -308,10 +312,19 @@ async function runTurn(
         message: userMessage,
         cacheKey: turn.cacheKey,
         fullCacheKey: turn.fullCacheKey,
-        ...(turn.planLoop
+        ...(turn.planLoop || turn.cmoApplyChanges
           ? {
               plan: {
-                inherited: turn.planInherited,
+                inherited: turn.planLoop && turn.planInherited,
+                keepLatestPlan: turn.planLoop,
+                ...(turn.cmoApplyChanges
+                  ? {
+                      triggerTools: new Set([
+                        ...(turn.planLoop ? ["update_plan"] : []),
+                        ...CMO_APPLY_CHANGE_TRIGGER_TOOLS,
+                      ]),
+                    }
+                  : {}),
                 doneCheck: (draft: string) =>
                   evaluateTurnDoneCheck({
                     turnId: input.turnId,

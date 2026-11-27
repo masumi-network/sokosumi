@@ -344,6 +344,11 @@ export interface PreparedTurn {
    */
   planLoop: boolean;
   /**
+   * CMO `cmoApplyChanges`: activate the done check when a foreground chat turn
+   * calls `write_strategy` or `save_strategy`, even without `update_plan`.
+   */
+  cmoApplyChanges?: boolean;
+  /**
    * The turn starts with a plan from earlier in its request: the runner asks
    * Core about the plan from the start, not only once the turn writes one.
    */
@@ -586,6 +591,8 @@ export async function prepareTurn(
   // The plan is shown only to a turn that can update it.
   const planLoop =
     version.planLoop === true && capabilities.includes("update_plan");
+  const cmoApplyChanges =
+    version.cmoApplyChanges === true && version.profile === "cmo";
   const requestPlan = planLoop
     ? await readRequestPlan(
         authorized.turn.sokoBotId,
@@ -620,6 +627,7 @@ export async function prepareTurn(
     requiresActionProof,
     meetingPrep,
     planLoop,
+    ...(cmoApplyChanges ? { cmoApplyChanges: true } : {}),
     planInherited: requestPlan !== null,
     requestPlan,
     parts,
