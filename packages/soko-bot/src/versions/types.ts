@@ -57,6 +57,13 @@ export interface SokoBotVersion {
    */
   routeSteering?: true;
   /**
+   * Jev routing classifier policy. Omitted or `"v3"` runs the legacy v3
+   * questions, thresholds and revision (`soko-bot-classifier-jev-seo-v3`) so
+   * live and control versions stay unchanged. `"v4"` opts into E1 PR 2's
+   * v4 criteria, thresholds and revision (`soko-bot-classifier-jev-v4`).
+   */
+  classifierPolicy?: "v3" | "v4";
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.
