@@ -44,6 +44,8 @@ export const CORE_API_ERROR_KINDS = {
   INTEGRATION_NOT_CONFIGURED: "integration_not_configured",
   INVOICE_INVALID: "invoice_invalid",
   INVOICE_NOT_FOUND: "invoice_not_found",
+  /** The API key belongs to the other Network than `X-Sokosumi-Network` names. */
+  API_KEY_NETWORK_MISMATCH: "api_key_network_mismatch",
   INSUFFICIENT_BALANCE: "insufficient_balance",
   /** A valid OAuth access token without `sokosumi:api` (RFC 6750 §3.1). */
   INSUFFICIENT_SCOPE: "insufficient_scope",

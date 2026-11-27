@@ -117,7 +117,7 @@ app.openAPIRegistry.registerComponent("parameters", "SokosumiNetwork", {
   name: NETWORK_HEADER,
   in: "header",
   description:
-    "The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace; operations on shared data are never refused because of the Network.",
+    "The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace. While Preprod is switched on, a Preprod API key (`soko_preprod_`) is for Preprod without the header, and an API key whose Network the header contradicts gets 403 with `kind: api_key_network_mismatch` on Network data; while it is off, every API key is for Mainnet, as without a prefix. Operations on shared data are never refused because of the Network.",
   required: false,
   schema: {
     type: "string",

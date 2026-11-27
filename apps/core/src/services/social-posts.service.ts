@@ -22,6 +22,7 @@ import {
   type SocialPostMediaRef,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
+  socialPostAcceptedFormats,
   socialPostFirstCommentLimit,
   socialPostMediaKindForMime,
   socialPostMediaRequirementMessage,
@@ -1041,7 +1042,7 @@ function mediaValidationMessage(
     case "mixed_media":
       return `${label} does not allow a post that mixes images, a GIF, or a video`;
     case "unsupported_type":
-      return `${label} does not accept this file type`;
+      return `${label} does not accept this file type. It takes ${socialPostAcceptedFormats(provider)}`;
     case "too_large":
       return `A file is too large for ${label}`;
   }
@@ -1062,7 +1063,7 @@ function normalizeSocialPostMedia(
     const mimeType = ref.mimeType.trim().toLowerCase();
     if (socialPostMediaKindForMime(mimeType) !== ref.kind) {
       throw badRequest(
-        `Media file "${ref.name}" is not a file type ${socialPostProviderLabel(provider)} accepts`,
+        `Media file "${ref.name}" is not a file type ${socialPostProviderLabel(provider)} accepts. It takes ${socialPostAcceptedFormats(provider)}`,
       );
     }
     return {
