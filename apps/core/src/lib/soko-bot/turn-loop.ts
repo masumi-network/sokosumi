@@ -50,6 +50,7 @@ import {
 } from "./action-response";
 import { claimsAction } from "./answer-claims";
 import { citationsIn, dropUnverifiedLinks } from "./citations";
+import { recordDecisionReceiptOnce } from "./decision-receipts";
 import { evaluationBinding } from "./evaluation-dispatch";
 import { SOKO_BOT_ARCHIVE_GUIDANCE } from "./evaluation-preparation";
 import {
@@ -583,6 +584,11 @@ export async function prepareTurn(
         cacheKey,
       }),
     );
+  if (version.decisionReceipts && context.routeDecisionReceipt)
+    await recordDecisionReceiptOnce(new RuntimeEventLog(turnId, sessionId), {
+      ...context.routeDecisionReceipt,
+      turnId,
+    });
   // The plan is shown only to a turn that can update it.
   const planLoop =
     version.planLoop === true && capabilities.includes("update_plan");

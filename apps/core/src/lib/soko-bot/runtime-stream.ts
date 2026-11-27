@@ -1,4 +1,8 @@
-import type { IndexedRuntimeEvent } from "@sokosumi/soko-bot";
+import {
+  DECISION_OUTCOME_EVENT,
+  DECISION_RECEIPT_EVENT,
+  type IndexedRuntimeEvent,
+} from "@sokosumi/soko-bot";
 
 // Runtime events after which a drain settles the turn.
 export const SETTLEMENT_TRIGGER_EVENT_TYPES = new Set([
@@ -12,6 +16,9 @@ const TRANSIENT_RUNTIME_EVENT_TYPES = new Set([
   "action.partial",
   "message.appended",
   "reasoning.appended",
+  // Persisted on SokoBotRuntimeEvent for replay/evals; kept out of owner SokoBotEvent UI timeline.
+  DECISION_RECEIPT_EVENT,
+  DECISION_OUTCOME_EVENT,
 ]);
 
 export function shouldPersistSokoBotRuntimeEvent(type: string): boolean {

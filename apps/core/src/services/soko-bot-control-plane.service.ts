@@ -118,6 +118,7 @@ import {
   type TurnClassifier,
 } from "@/lib/soko-bot/classifier";
 import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
+import { buildRouteDecisionReceipt } from "@/lib/soko-bot/decision-receipts";
 import {
   assertEvaluationActor,
   evaluationBinding,
@@ -2698,6 +2699,29 @@ export class SokoBotControlPlane {
         // Without a key `search_exa` refuses on every call; offer web_search only.
         (capability !== "search_exa" || Boolean(getEnv().EXA_API_KEY)),
     ) as readonly SokoBotCapability[];
+    if (version.decisionReceipts && !input.presetRoute) {
+      classification.classification = {
+        ...classification.classification,
+        decisionReceipt: buildRouteDecisionReceipt({
+          turnId: clientTurnId,
+          message: input.chat?.classifyMessage ?? message,
+          previousReply:
+            previousTurn?.status === "COMPLETED"
+              ? previousTurn.finalAnswer
+              : null,
+          pendingProposals: pendingIntents.map(
+            (intent) => intent.desiredOutcome,
+          ),
+          classification,
+          version,
+          source,
+          personAsked,
+          cmoOwnerRequest,
+          askedByBot: input.chat?.askedByBot,
+          grantedCapabilities: capabilities,
+        }),
+      };
+    }
     const startNow = (await databaseNow()).getTime();
     const deadlineAt = new Date(
       startNow +
