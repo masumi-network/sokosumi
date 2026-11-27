@@ -1,7 +1,5 @@
 import {
   getSokoBotVersion,
-  isSokoBotNewsletterCapability,
-  type SokoBotCapability,
   sokoBotAskCoworkerInputSchema,
   sokoBotListRecipientsInputSchema,
   sokoBotOpenDirectChatInputSchema,
@@ -10,40 +8,7 @@ import {
   sokoBotReadChatInputSchema,
   sokoBotSendMessageInputSchema,
 } from "@sokosumi/soko-bot";
-import prisma from "@/lib/db/prisma";
-import {
-  type AskPolicyDestinationOperation,
-  validateAskPolicyProjectSelection,
-} from "@/lib/soko-bot/ask-policy-candidates";
-
-const SOCIAL_DESTINATION_CAPABILITIES = new Set<string>([
-  "list_project_social_accounts",
-  "get_posting_instructions",
-  "list_social_posts",
-  "get_social_post",
-  "create_social_post",
-  "update_social_post",
-  "update_social_posts",
-  "schedule_social_post",
-  "cancel_social_post",
-  "publish_social_post",
-]);
-
-function destinationOperationFromCalls(
-  calls: ReadonlyArray<{ capability: string }>,
-): AskPolicyDestinationOperation | null {
-  let hasSocial = false;
-  let hasNewsletter = false;
-  for (const call of calls) {
-    if (SOCIAL_DESTINATION_CAPABILITIES.has(call.capability)) hasSocial = true;
-    if (isSokoBotNewsletterCapability(call.capability as SokoBotCapability)) {
-      hasNewsletter = true;
-    }
-  }
-  if (hasSocial && !hasNewsletter) return "social";
-  if (hasNewsletter && !hasSocial) return "newsletter";
-  return null;
-}
+import { validateAskPolicyProjectSelection } from "@/lib/soko-bot/ask-policy-candidates";
 
 import { resolveChatResultReference } from "@/services/chat-result-preview.service";
 import {
@@ -113,24 +78,10 @@ export async function dispatchChatTools(
         authorized.turn.chainDepth === 0 &&
         getSokoBotVersion(authorized.turn.versionId).askPolicy
       ) {
-        const [turn, turnCalls] = authorized.turn.parentTurnId
-          ? [null, []]
-          : await Promise.all([
-              prisma.sokoBotTurn.findUnique({
-                where: { id: authorized.turn.id },
-                select: { userMessage: true },
-              }),
-              prisma.sokoBotToolCall.findMany({
-                where: { turnId: authorized.turn.id },
-                select: { capability: true },
-              }),
-            ]);
         const refusal = await validateAskPolicyProjectSelection({
           workspaceId: authorized.turn.workspaceId,
           botProjectId: authorized.turn.botProjectId ?? null,
           projectIds: reference.projectIds,
-          userMessage: turn?.userMessage ?? "",
-          destinationOperation: destinationOperationFromCalls(turnCalls),
         });
         if (refusal) {
           throw new SokoBotRuntimeValidationError(refusal);

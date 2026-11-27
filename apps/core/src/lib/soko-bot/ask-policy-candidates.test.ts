@@ -26,7 +26,6 @@ import {
 
 const P1 = { id: "01960001-0001-7001-8001-000000000001", name: "Acme Brand" };
 const P2 = { id: "01960001-0001-7001-8001-000000000002", name: "Founder Desk" };
-const P3 = { id: "01960001-0001-7001-8001-000000000003", name: "Lab Notes" };
 
 const X1 = {
   id: "01960001-0001-7001-8001-0000000000a1",
@@ -39,12 +38,6 @@ const X2 = {
   provider: "x",
   externalHandle: "founder_handle",
   project: P2,
-};
-const X1_ALT = {
-  id: "01960001-0001-7001-8001-0000000000a3",
-  provider: "x",
-  externalHandle: "acme_dev",
-  project: P1,
 };
 
 beforeEach(() => {
@@ -317,20 +310,26 @@ describe("validateAskPolicyProjectSelection", () => {
       workspaceId: "ws-1",
       botProjectId: P1.id,
       projectIds: [P1.id, P2.id],
-      userMessage: "Draft a post",
     });
     expect(refusal).toContain("one project only");
     expect(refusal).toContain(P1.id);
     expect(db.projectFindMany).not.toHaveBeenCalled();
   });
 
-  it("refuses project_selection when only 1 open project exists in workspace or matches projectIds", async () => {
+  it("refuses project_selection when 0 or 1 open projects exist or match projectIds", async () => {
+    db.projectFindMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    const none = await validateAskPolicyProjectSelection({
+      workspaceId: "ws-1",
+      botProjectId: null,
+      projectIds: [P1.id, P2.id],
+    });
+    expect(none).toContain("0 open projects in this workspace");
+
     db.projectFindMany.mockResolvedValueOnce([P1]).mockResolvedValueOnce([P1]);
     const oneOpen = await validateAskPolicyProjectSelection({
       workspaceId: "ws-1",
       botProjectId: null,
       projectIds: [P1.id, "closed-or-other"],
-      userMessage: "Redo those images",
     });
     expect(oneOpen).toContain("only 1 open project in this workspace");
 
@@ -341,153 +340,22 @@ describe("validateAskPolicyProjectSelection", () => {
       workspaceId: "ws-1",
       botProjectId: null,
       projectIds: [P1.id, "other-workspace-project"],
-      userMessage: "Redo those images",
     });
     expect(oneMatched).toContain("requires at least 2 open projects");
     expect(oneMatched).toContain(P1.id);
   });
 
-  it("refuses project_selection when a social-account operation is underway and only 1 project has an active account for the named network", async () => {
-    db.projectFindMany
-      .mockResolvedValueOnce([P1, P2])
-      .mockResolvedValueOnce([P1, P2]);
-    db.connectionFindMany.mockResolvedValue([X1]);
-    const refusal = await validateAskPolicyProjectSelection({
-      workspaceId: "ws-1",
-      botProjectId: null,
-      projectIds: [P1.id, P2.id],
-      userMessage: "Turn this PDF into 3 X posts",
-      destinationOperation: "social",
-    });
-    expect(refusal).toContain("exactly 1 fitting X destination");
-    expect(refusal).toContain("@acme_hq");
-    expect(refusal).toContain(P1.id);
-  });
-
-  it("refuses project_selection when a social-account operation is underway and 1 project holds 2 accounts for the named network", async () => {
-    db.projectFindMany
-      .mockResolvedValueOnce([P1, P2])
-      .mockResolvedValueOnce([P1, P2]);
-    db.connectionFindMany.mockResolvedValue([X1, X1_ALT]);
-    const refusal = await validateAskPolicyProjectSelection({
-      workspaceId: "ws-1",
-      botProjectId: null,
-      projectIds: [P1.id, P2.id],
-      userMessage: "Post this on X",
-      destinationOperation: "social",
-    });
-    expect(refusal).toContain(`Only Project "${P1.name}"`);
-    expect(refusal).toContain("@acme_hq, @acme_dev");
-    expect(refusal).toContain("ask the owner once which X account");
-  });
-
-  it("refuses project_selection when a social-account operation is underway and 0 active accounts exist for the named network", async () => {
-    db.projectFindMany
-      .mockResolvedValueOnce([P1, P2])
-      .mockResolvedValueOnce([P1, P2]);
-    db.connectionFindMany.mockResolvedValue([]);
-    const refusal = await validateAskPolicyProjectSelection({
-      workspaceId: "ws-1",
-      botProjectId: null,
-      projectIds: [P1.id, P2.id],
-      userMessage: "Post this on LinkedIn",
-      destinationOperation: "social",
-    });
-    expect(refusal).toContain("0 active LinkedIn accounts connected");
-  });
-
-  it("refuses mixing non-fitting projects into a social picker during a social operation and allows only fitting ones", async () => {
-    db.projectFindMany
-      .mockResolvedValueOnce([P1, P2])
-      .mockResolvedValueOnce([P1, P2, P3]);
-    db.connectionFindMany.mockResolvedValue([X1, X2]);
-    const mixed = await validateAskPolicyProjectSelection({
-      workspaceId: "ws-1",
-      botProjectId: null,
-      projectIds: [P1.id, P2.id, P3.id],
-      userMessage: "Draft an X post",
-      destinationOperation: "social",
-    });
-    expect(mixed).toContain("Only these projects have an active X account");
-    expect(mixed).toContain(P1.name);
-    expect(mixed).toContain(P2.name);
-    expect(mixed).not.toContain(P3.name);
-
-    db.projectFindMany
-      .mockResolvedValueOnce([P1, P2])
-      .mockResolvedValueOnce([P1, P2]);
-    db.connectionFindMany.mockResolvedValue([X1, X2]);
-    const clean = await validateAskPolicyProjectSelection({
-      workspaceId: "ws-1",
-      botProjectId: null,
-      projectIds: [P1.id, P2.id],
-      userMessage: "Draft an X post",
-      destinationOperation: "social",
-    });
-    expect(clean).toBeNull();
-  });
-
-  it("refuses project_selection when the owner already named one of the projects outside quotes", async () => {
-    db.projectFindMany
-      .mockResolvedValueOnce([P1, P2])
-      .mockResolvedValueOnce([P1, P2]);
-    const refusal = await validateAskPolicyProjectSelection({
-      workspaceId: "ws-1",
-      botProjectId: null,
-      projectIds: [P1.id, P2.id],
-      userMessage: "Generate 3 replacement images for Acme Brand",
-    });
-    expect(refusal).toContain(`already names Project "${P1.name}"`);
-  });
-
-  it("allows genuine 2-project selection when workspace has 2+ unrelated open projects and none is named", async () => {
-    db.projectFindMany
-      .mockResolvedValueOnce([P1, P2])
-      .mockResolvedValueOnce([P1, P2]);
-    const allowed = await validateAskPolicyProjectSelection({
-      workspaceId: "ws-1",
-      botProjectId: null,
-      projectIds: [P1.id, P2.id],
-      userMessage: "Generate 3 replacement hero images",
-    });
-    expect(allowed).toBeNull();
-  });
-
-  it.each([
-    "Draft an internal memo on LinkedIn hiring trends. Let me choose which project gets the memo.",
-    "Create a task to subtitle this YouTube video. Let me choose the project.",
-    "Make a project task to research YouTube captions. Let me pick the project.",
-  ])(
-    "allows a picker for a deliverable that does not use a social account: %s",
-    async (userMessage) => {
-      db.projectFindMany.mockResolvedValue([P1, P2]);
-      db.connectionFindMany.mockResolvedValue([]);
-      expect(
-        await validateAskPolicyProjectSelection({
-          workspaceId: "ws-1",
-          botProjectId: null,
-          projectIds: [P1.id, P2.id],
-          userMessage,
-        }),
-      ).toBeNull();
-    },
-  );
-
-  it("carries a named-project constraint into project_selection without substituting another project", async () => {
+  it("allows project_selection whenever 2+ open projects match without vetoing on social/newsletter heuristics", async () => {
     db.projectFindMany.mockResolvedValue([P1, P2]);
-    db.connectionFindMany.mockResolvedValue([X1]);
-    const refusal = await validateAskPolicyProjectSelection({
-      workspaceId: "ws-1",
-      botProjectId: null,
-      projectIds: [P1.id, P2.id],
-      userMessage: "For Founder Desk, draft an X post",
-      destinationOperation: "social",
-    });
-    expect(refusal).toContain(`Project "${P2.name}"`);
-    expect(refusal).toContain("0 active X accounts connected");
-    expect(refusal).toContain(
-      "Do not show a project selector or substitute another project",
-    );
-    expect(refusal).not.toContain(P1.id);
+    db.connectionFindMany.mockResolvedValue([]);
+    expect(
+      await validateAskPolicyProjectSelection({
+        workspaceId: "ws-1",
+        botProjectId: null,
+        projectIds: [P1.id, P2.id],
+      }),
+    ).toBeNull();
+    expect(db.connectionFindMany).not.toHaveBeenCalled();
+    expect(db.newsletterFindMany).not.toHaveBeenCalled();
   });
 });

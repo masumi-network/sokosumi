@@ -2,11 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getSokoBotVersion: vi.fn(),
-  turnFindUnique: vi.fn(),
-  toolCallFindMany: vi.fn(),
   projectFindMany: vi.fn(),
-  connectionFindMany: vi.fn(),
-  newsletterFindMany: vi.fn(),
   resolveChatResultReference: vi.fn(),
 }));
 
@@ -20,11 +16,7 @@ vi.mock("@sokosumi/soko-bot", async (importOriginal) => {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    sokoBotTurn: { findUnique: mocks.turnFindUnique },
-    sokoBotToolCall: { findMany: mocks.toolCallFindMany },
     project: { findMany: mocks.projectFindMany },
-    projectSocialConnection: { findMany: mocks.connectionFindMany },
-    newsletter: { findMany: mocks.newsletterFindMany },
   },
 }));
 
@@ -41,11 +33,6 @@ import type { RuntimeOperations } from "./operations";
 
 const P1 = { id: "01960001-0001-7001-8001-000000000001", name: "Acme Brand" };
 const P2 = { id: "01960001-0001-7001-8001-000000000002", name: "Founder Desk" };
-const X1 = {
-  id: "01960001-0001-7001-8001-0000000000a1",
-  externalHandle: "acme_hq",
-  project: P1,
-};
 
 function authorized(overrides: Record<string, unknown> = {}) {
   return {
@@ -77,13 +64,7 @@ beforeEach(() => {
     status: "AVAILABLE",
     title: "Choose a project",
   });
-  mocks.turnFindUnique.mockResolvedValue({
-    userMessage: "Turn this PDF into 3 X posts",
-  });
-  mocks.toolCallFindMany.mockResolvedValue([]);
   mocks.projectFindMany.mockResolvedValue([P1, P2]);
-  mocks.connectionFindMany.mockResolvedValue([X1]);
-  mocks.newsletterFindMany.mockResolvedValue([]);
 });
 
 describe("dispatchChatTools preview_result(project_selection) with askPolicy", () => {
@@ -103,16 +84,13 @@ describe("dispatchChatTools preview_result(project_selection) with askPolicy", (
     );
 
     expect(result).toMatchObject({ title: "Choose a project" });
-    expect(mocks.turnFindUnique).not.toHaveBeenCalled();
     expect(mocks.projectFindMany).not.toHaveBeenCalled();
     expect(mocks.resolveChatResultReference).toHaveBeenCalledTimes(1);
   });
 
-  it("refuses project_selection on askPolicy when a social tool ran on this turn and only 1 project has an active X account", async () => {
+  it("refuses redundant project_selection on askPolicy when only 1 open project exists or bot is pinned to 1 project", async () => {
     mocks.getSokoBotVersion.mockReturnValue({ id: "v40-e1", askPolicy: true });
-    mocks.toolCallFindMany.mockResolvedValue([
-      { capability: "list_project_social_accounts" },
-    ]);
+    mocks.projectFindMany.mockResolvedValue([P1]);
 
     await expect(
       dispatchChatTools(
@@ -133,87 +111,50 @@ describe("dispatchChatTools preview_result(project_selection) with askPolicy", (
       ),
     ).rejects.toThrow(SokoBotRuntimeValidationError);
 
+    mocks.projectFindMany.mockResolvedValue([P1, P2]);
+    await expect(
+      dispatchChatTools(
+        runtimeStub,
+        {
+          sessionId: "s-1",
+          turnId: "turn-1",
+          toolCallId: "tc-2",
+          capability: "preview_result",
+          input: {
+            reference: {
+              kind: "project_selection",
+              projectIds: [P1.id, P2.id],
+            },
+          },
+        },
+        authorized({ versionId: "v40-e1", botProjectId: P1.id }),
+      ),
+    ).rejects.toThrow(SokoBotRuntimeValidationError);
+
     expect(mocks.resolveChatResultReference).not.toHaveBeenCalled();
   });
 
-  it("keeps project_selection usable on askPolicy when no social-account operation ran on this turn (text match only)", async () => {
+  it("leaves the owner free to choose among 2+ open projects (including separate tasks after prior reads)", async () => {
     mocks.getSokoBotVersion.mockReturnValue({ id: "v40-e1", askPolicy: true });
-    mocks.turnFindUnique.mockResolvedValue({
-      userMessage:
-        "Draft an internal memo on LinkedIn hiring trends. Let me choose which project gets the memo.",
-    });
-    mocks.toolCallFindMany.mockResolvedValue([]);
-    mocks.connectionFindMany.mockResolvedValue([]);
 
-    const result = await dispatchChatTools(
-      runtimeStub,
-      {
-        sessionId: "s-1",
-        turnId: "turn-1",
-        toolCallId: "tc-1",
-        capability: "preview_result",
-        input: {
-          reference: {
-            kind: "project_selection",
-            projectIds: [P1.id, P2.id],
+    await expect(
+      dispatchChatTools(
+        runtimeStub,
+        {
+          sessionId: "s-1",
+          turnId: "turn-1",
+          toolCallId: "tc-1",
+          capability: "preview_result",
+          input: {
+            reference: {
+              kind: "project_selection",
+              projectIds: [P1.id, P2.id],
+            },
           },
         },
-      },
-      authorized({ versionId: "v40-e1" }),
-    );
-
-    expect(result).toMatchObject({ title: "Choose a project" });
+        authorized({ versionId: "v40-e1" }),
+      ),
+    ).resolves.toMatchObject({ title: "Choose a project" });
     expect(mocks.resolveChatResultReference).toHaveBeenCalledTimes(1);
-  });
-
-  it("allows project_selection on askPolicy when 2 genuinely fitting open projects exist", async () => {
-    mocks.getSokoBotVersion.mockReturnValue({ id: "v40-e1", askPolicy: true });
-    mocks.turnFindUnique.mockResolvedValue({
-      userMessage: "Generate 3 replacement images",
-    });
-
-    const result = await dispatchChatTools(
-      runtimeStub,
-      {
-        sessionId: "s-1",
-        turnId: "turn-1",
-        toolCallId: "tc-1",
-        capability: "preview_result",
-        input: {
-          reference: {
-            kind: "project_selection",
-            projectIds: [P1.id, P2.id],
-          },
-        },
-      },
-      authorized({ versionId: "v40-e1" }),
-    );
-
-    expect(result).toMatchObject({ title: "Choose a project" });
-    expect(mocks.resolveChatResultReference).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not read a child background run's own brief as the owner's words", async () => {
-    mocks.getSokoBotVersion.mockReturnValue({ id: "v40-e1", askPolicy: true });
-
-    const result = await dispatchChatTools(
-      runtimeStub,
-      {
-        sessionId: "s-1",
-        turnId: "turn-1",
-        toolCallId: "tc-1",
-        capability: "preview_result",
-        input: {
-          reference: {
-            kind: "project_selection",
-            projectIds: [P1.id, P2.id],
-          },
-        },
-      },
-      authorized({ versionId: "v40-e1", parentTurnId: "turn-root" }),
-    );
-
-    expect(mocks.turnFindUnique).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ title: "Choose a project" });
   });
 });

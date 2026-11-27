@@ -10,7 +10,6 @@ import {
   namedSocialDestinations,
   type SocialDestinationCandidate,
   socialDestinationLabel,
-  socialHandleOf,
   withoutQuotedCopy,
 } from "./ask-policy-match";
 
@@ -26,21 +25,10 @@ export interface AskPolicyHintsInput {
   hasOpenAccountQuestion?: boolean;
 }
 
-export type AskPolicyDestinationOperation = "social" | "newsletter";
-
 export interface AskPolicyProjectSelectionInput {
   workspaceId: string;
   botProjectId: string | null;
   projectIds: readonly string[];
-  /** Empty for non-owner or child runs whose userMessage is not the owner's words. */
-  userMessage: string;
-  /**
-   * Confirmed destination operation recorded on this turn (e.g. a social
-   * account/post tool or newsletter tool already ran). Social/newsletter
-   * destination vetoes apply only when this is set; text matches alone stay
-   * advisory and leave the project picker usable.
-   */
-  destinationOperation?: AskPolicyDestinationOperation | null;
 }
 
 interface NewsletterCandidate {
@@ -330,11 +318,14 @@ export async function prepareAskPolicyHints(
 }
 
 /**
- * Checkable runtime guard on `preview_result({ kind: "project_selection" })`
- * when `SokoBotVersion.askPolicy` is enabled. Returns a clear refusal reason
- * when Core records already narrow the choice to 0 or 1 fitting candidate (or
- * when non-fitting projects were mixed into a network/newsletter picker), or
- * `null` when asking across those projects is justified.
+ * Checkable structural guard on `preview_result({ kind: "project_selection" })`
+ * when `SokoBotVersion.askPolicy` is enabled. Refuses redundant selectors only
+ * when Core's project records structurally rule out choosing among multiple
+ * projects (single-project shared bot, 0/1 open projects in scope, or 0/1
+ * open projects matched). When 2+ open projects exist and the picker's target
+ * deliverable is not structurally constrained, leaves the picker available;
+ * turn-start candidate hints guide the model and write-time checks enforce
+ * social destinations.
  */
 export async function validateAskPolicyProjectSelection(
   input: AskPolicyProjectSelectionInput,
@@ -345,11 +336,11 @@ export async function validateAskPolicyProjectSelection(
 
   const openProjectWhere = openProjectWhereFor(input.workspaceId, null);
   const uniqueProjectIds = [...new Set(input.projectIds)];
-  const [openProjects, requested] = await Promise.all([
+  const [openSample, requested] = await Promise.all([
     prisma.project.findMany({
       where: openProjectWhere,
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      take: MAX_CANDIDATE_PROJECTS,
+      take: 2,
       select: { id: true, name: true },
     }),
     uniqueProjectIds.length > 0
@@ -361,194 +352,17 @@ export async function validateAskPolicyProjectSelection(
       : Promise.resolve([]),
   ]);
 
-  if (openProjects.length === 0) {
+  if (openSample.length === 0) {
     return "Core records show 0 open projects in this workspace. Do not show a project selector; tell the owner no open project exists.";
   }
-  if (openProjects.length === 1) {
-    return `Core records show only 1 open project in this workspace: Project "${openProjects[0].name}" (projectId ${openProjects[0].id}). Use it directly without showing a project selector, and state which project you used.`;
+  if (openSample.length === 1) {
+    return `Core records show only 1 open project in this workspace: Project "${openSample[0].name}" (projectId ${openSample[0].id}). Use it directly without showing a project selector, and state which project you used.`;
   }
   if (requested.length === 0) {
     return "None of those projectIds match an open project in this workspace. Do not show a project selector; tell the owner what is missing.";
   }
   if (requested.length === 1) {
     return `A project selector requires at least 2 open projects, and only Project "${requested[0].name}" (projectId ${requested[0].id}) matched. Use it directly without asking which project, and state which project you used.`;
-  }
-
-  if (input.userMessage.trim().length > 0) {
-    const knownProjectsById = new Map<string, NamedProjectCandidate>(
-      openProjects.map((project) => [project.id, project]),
-    );
-    for (const project of requested) knownProjectsById.set(project.id, project);
-    const namedProjects = namedProjectsIn(input.userMessage, [
-      ...knownProjectsById.values(),
-    ]);
-    const namedProjectIds = new Set(namedProjects.map((project) => project.id));
-
-    const providers =
-      input.destinationOperation === "social"
-        ? mentionedSocialProviders(input.userMessage)
-        : [];
-    if (providers.length === 1) {
-      const provider = providers[0];
-      const label = socialPostProviderLabel(provider);
-      const connections: SocialDestinationCandidate[] =
-        await prisma.projectSocialConnection.findMany({
-          where: {
-            provider,
-            status: "active",
-            project: openProjectWhere,
-          },
-          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-          select: {
-            id: true,
-            externalHandle: true,
-            project: { select: { id: true, name: true } },
-          },
-        });
-
-      const explicitAccounts = explicitSocialDestinations(
-        input.userMessage,
-        connections,
-      );
-      if (namedProjects.length > 0) {
-        const outsideNamed = explicitAccounts.filter(
-          (account) => !namedProjectIds.has(account.project.id),
-        );
-        if (outsideNamed.length > 0) {
-          return null;
-        }
-        const scopedConnections = connections.filter((connection) =>
-          namedProjectIds.has(connection.project.id),
-        );
-        if (scopedConnections.length === 0) {
-          return `${formatProjects(namedProjects)} has 0 active ${label} accounts connected. Do not show a project selector or substitute another project; tell the owner no ${label} account is connected there and make no changes.`;
-        }
-        if (scopedConnections.length === 1) {
-          return `Core records show exactly 1 fitting ${label} destination on the requested project: ${socialDestinationLabel(scopedConnections[0])}. Use it directly without showing a project selector, and state which one you used.`;
-        }
-        if (namedProjects.length === 1) {
-          const handles = scopedConnections
-            .map((account) => {
-              const handle = socialHandleOf(account);
-              return handle ? `@${handle}` : `account ${account.id}`;
-            })
-            .join(", ");
-          return `The owner already named Project "${namedProjects[0].name}" (projectId ${namedProjects[0].id}), which has ${scopedConnections.length} active ${label} accounts (${handles}). Do not show a project selector; ask the owner once which ${label} account to use and make no changes until they answer.`;
-        }
-      }
-
-      if (connections.length === 0) {
-        return `Core records show 0 active ${label} accounts connected in this workspace. Do not show a project selector; tell the owner no ${label} account is connected and make no changes.`;
-      }
-
-      const namedDestinations = namedSocialDestinations(
-        input.userMessage,
-        connections,
-      );
-      if (namedDestinations.length === 1) {
-        return `The owner's message already identifies ${socialDestinationLabel(namedDestinations[0])}. Use it directly without showing a project selector.`;
-      }
-
-      const byProject = new Map<
-        string,
-        {
-          project: { id: string; name: string };
-          accounts: SocialDestinationCandidate[];
-        }
-      >();
-      for (const connection of connections) {
-        const existing = byProject.get(connection.project.id);
-        if (existing) {
-          existing.accounts.push(connection);
-        } else {
-          byProject.set(connection.project.id, {
-            project: connection.project,
-            accounts: [connection],
-          });
-        }
-      }
-
-      if (byProject.size === 1) {
-        const only = [...byProject.values()][0];
-        if (only.accounts.length === 1) {
-          return `Core records show exactly 1 fitting ${label} destination: ${socialDestinationLabel(only.accounts[0])}. Use it directly without showing a project selector, and state which one you used.`;
-        }
-        const handles = only.accounts
-          .map((account) => {
-            const handle = socialHandleOf(account);
-            return handle ? `@${handle}` : `account ${account.id}`;
-          })
-          .join(", ");
-        return `Only Project "${only.project.name}" (projectId ${only.project.id}) has active ${label} accounts (${handles}). Do not show a project selector; ask the owner once which ${label} account to use and make no changes until they answer.`;
-      }
-
-      const nonFitting = requested.filter(
-        (project) => !byProject.has(project.id),
-      );
-      if (nonFitting.length > 0) {
-        const fittingLabels = formatCapped(
-          [...byProject.values()],
-          (entry) =>
-            `Project "${entry.project.name}" (projectId ${entry.project.id})`,
-        );
-        return `Only these projects have an active ${label} account: ${fittingLabels}. Offer only fitting projects in project_selection (or ask which @handle to use) and make no changes until the owner answers.`;
-      }
-      return null;
-    }
-
-    if (
-      input.destinationOperation === "newsletter" &&
-      mentionsNewsletter(input.userMessage)
-    ) {
-      const newsletters = await prisma.newsletter.findMany({
-        where: {
-          workspaceId: input.workspaceId,
-          project: openProjectWhere,
-        },
-        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-        select: {
-          id: true,
-          name: true,
-          projectId: true,
-          project: { select: { id: true, name: true } },
-        },
-      });
-      if (namedProjects.length > 0) {
-        const scopedNewsletters = newsletters.filter((newsletter) =>
-          namedProjectIds.has(newsletter.project.id),
-        );
-        if (scopedNewsletters.length === 0) {
-          return `${formatProjects(namedProjects)} has 0 newsletters set up. Do not show a project selector or substitute another project; tell the owner no newsletter is set up there and make no changes.`;
-        }
-        if (scopedNewsletters.length === 1) {
-          return `Core records show exactly 1 newsletter on the requested project: "${scopedNewsletters[0].name}" (Project "${scopedNewsletters[0].project.name}", projectId ${scopedNewsletters[0].project.id}). Use it directly without showing a project selector, and state which project you used.`;
-        }
-      }
-      if (newsletters.length === 0) {
-        return "Core records show 0 newsletters set up in this workspace. Do not show a project selector; tell the owner no newsletter is set up and make no changes.";
-      }
-      const named = namedNewslettersIn(input.userMessage, newsletters);
-      if (named.length === 1) {
-        return `The owner's message already identifies newsletter "${named[0].name}" (Project "${named[0].project.name}", projectId ${named[0].project.id}). Use it directly without showing a project selector.`;
-      }
-      if (newsletters.length === 1) {
-        return `Core records show exactly 1 newsletter: "${newsletters[0].name}" (Project "${newsletters[0].project.name}", projectId ${newsletters[0].project.id}). Use it directly without showing a project selector, and state which project you used.`;
-      }
-      const fittingIds = new Set(newsletters.map((n) => n.project.id));
-      if (requested.some((project) => !fittingIds.has(project.id))) {
-        const fittingLabels = formatCapped(
-          newsletters,
-          (n) =>
-            `Project "${n.project.name}" (projectId ${n.project.id}, newsletter "${n.name}")`,
-        );
-        return `Only these projects have a newsletter: ${fittingLabels}. Offer only fitting projects in project_selection and make no changes until the owner answers.`;
-      }
-      return null;
-    }
-
-    if (namedProjects.length === 1) {
-      return `The owner's message already names Project "${namedProjects[0].name}" (projectId ${namedProjects[0].id}). Use it directly without showing a project selector.`;
-    }
   }
 
   return null;
