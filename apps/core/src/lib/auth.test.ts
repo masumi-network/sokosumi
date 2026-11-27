@@ -1311,6 +1311,17 @@ describe("core auth config", () => {
     expect(config.disabledPaths).toContain("/sign-up/email");
   });
 
+  // It deletes the User row without Core's blockers, sweeps or Stripe clean-up.
+  it("closes the admin user removal", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [{ disabledPaths: string[] }]
+    >;
+
+    expect(config.disabledPaths).toContain("/admin/remove-user");
+  });
+
   it("uses the canonical production URL for the OAuth proxy", async () => {
     getBetterAuthProductionUrlMock.mockReturnValue(
       "https://canonical.example.com",
