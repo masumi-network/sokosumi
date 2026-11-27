@@ -34,7 +34,7 @@ const SOCIAL_DRAFT_LINE =
   "Draft by default; include `scheduledAt` only when asked to schedule.";
 
 const SOCIAL_DRAFT_LINE_E1 =
-  "Draft by default; set `scheduledAt` only when the owner specifies an intended publication date or time (it still lands as NEEDS_APPROVAL and becomes scheduled only when approved). Never put a review deadline or suggested date into `scheduledAt` — keep review deadlines and suggested dates in your plan or reply and label them explicitly as unscheduled proposals.";
+  "Draft by default; set `scheduledAt` only when the owner specifies an intended publication date or time, or explicitly asks you to pick a publication slot and schedule it (it still lands as NEEDS_APPROVAL and becomes scheduled only when approved). Never put a review deadline or unrequested suggested date into `scheduledAt` — keep review deadlines and suggested dates in your plan or reply and label them explicitly as unscheduled proposals.";
 
 const SLEEP_POLL_PHRASE =
   "Wait with `bash` `sleep 120` between status checks; answer questions";
