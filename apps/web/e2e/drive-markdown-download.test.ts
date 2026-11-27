@@ -123,11 +123,16 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       const original = page.getByRole("menuitem", { name: "Original file" });
       await original.waitFor();
       assert.equal(await original.getAttribute("download"), "Launch plan.md");
+      // Radix moves focus to the first item a moment after the menu opens.
+      const focused = (name: string) =>
+        page.waitForFunction(
+          (text) => document.activeElement?.textContent === text,
+          name,
+          { timeout: 5_000 },
+        );
+      await focused("Original file");
       await page.keyboard.press("ArrowDown");
-      assert.equal(
-        await page.evaluate(() => document.activeElement?.textContent),
-        "Export as PDF",
-      );
+      await focused("Export as PDF");
       await shot("1-viewer-menu");
       await page.keyboard.press("Escape");
       await original.waitFor({ state: "detached" });
