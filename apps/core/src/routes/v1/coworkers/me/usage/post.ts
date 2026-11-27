@@ -185,28 +185,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
       );
 
-      const transaction = await tx.transaction.create({
-        data: {
-          amount: cents * BigInt(-1),
-          user: { connect: { id: userId } },
-          ...(organizationId
-            ? {
-                organization: { connect: { id: organizationId } },
-              }
-            : {}),
-          creditConsumptions: {
-            createMany: {
-              data: consumptions.map((consumption) => ({
-                bucketId: consumption.bucketId,
-                amount: consumption.amount,
-              })),
-            },
-          },
-        },
-        select: {
-          id: true,
-        },
-      });
+      const transactionId = await creditBucketRepository.recordSpend(
+        scope.network,
+        { userId, organizationId, cents, consumptions },
+        tx,
+      );
 
       const usage = await tx.coworkerUsage.create({
         data: {
@@ -220,7 +203,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 organization: { connect: { id: organizationId } },
               }
             : {}),
-          transaction: { connect: { id: transaction.id } },
+          transaction: { connect: { id: transactionId } },
         },
       });
 

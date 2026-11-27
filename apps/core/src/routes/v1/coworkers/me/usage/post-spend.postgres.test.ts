@@ -164,12 +164,110 @@ interface Observed {
   statements: { transactions: Statement[][] };
 }
 
+/*
+ * The one difference from `origin/main`, statement by statement. There the
+ * debit was Prisma's nested create: a read of each row it connects (the
+ * Organization when there is one, then the user), the insert, the
+ * consumptions, and a read of the debit back.
+ */
+const MAIN_CONNECT_ORGANIZATION =
+  'SELECT "public"."organization"."id" FROM "public"."organization" WHERE ("public"."organization"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3';
+const MAIN_CONNECT_USER =
+  'SELECT "public"."user"."id" FROM "public"."user" WHERE ("public"."user"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3';
+const MAIN_INSERT_PERSONAL_DEBIT =
+  'INSERT INTO "public"."Transaction" ("id","createdAt","updatedAt","amount","userId") VALUES ($1,$2,$3,$4,$5) RETURNING "public"."Transaction"."id"';
+const MAIN_INSERT_ORGANIZATION_DEBIT =
+  'INSERT INTO "public"."Transaction" ("id","createdAt","updatedAt","amount","userId","organizationId") VALUES ($1,$2,$3,$4,$5,$6) RETURNING "public"."Transaction"."id"';
+const mainInsertConsumptions = (count: number) =>
+  `INSERT INTO "public"."credit_consumption" ("id","createdAt","amount","bucketId","transactionId") VALUES ${Array.from(
+    { length: count },
+    (_unused, row) =>
+      `(${[1, 2, 3, 4, 5].map((column) => `$${row * 5 + column}`).join(",")})`,
+  ).join(", ")}`;
+const MAIN_READ_DEBIT_BACK =
+  'SELECT "public"."Transaction"."id" FROM "public"."Transaction" WHERE "public"."Transaction"."id" = $1 LIMIT $2 OFFSET $3';
+/*
+ * Now the credit bucket repository's `recordSpend` writes it, as it writes
+ * the Task charge and the competitor check's: two statements of raw SQL,
+ * which name the Network's schema and write the user and the Organization as
+ * ids.
+ */
+const NOW_INSERT_DEBIT =
+  'INSERT INTO "public"."Transaction" (id, "createdAt", "updatedAt", amount, "userId", "organizationId") VALUES ($1, $2, $3, $4, $5, $6)';
+const NOW_INSERT_CONSUMPTIONS =
+  'INSERT INTO "public"."credit_consumption" (id, "createdAt", amount, "bucketId", "transactionId") SELECT c.id, $1::timestamp(3), c.amount, c."bucketId", $2::text FROM unnest($3::text[], $4::bigint[], $5::text[]) AS c(id, amount, "bucketId")';
+
 /**
- * What the head writes differently from `origin/main`, statement by
- * statement. Empty while the route is `origin/main`'s.
+ * A transaction recorded on `origin/main`, with its debit written as
+ * `recordSpend` writes it: the same values in the same place, every other
+ * statement untouched. It refuses a debit that is not exactly the statements
+ * above. A debit whose insert failed (a lost race) ends at the insert on
+ * both.
  */
 function asWrittenNow(transaction: Statement[]): Statement[] {
-  return transaction;
+  const at = transaction.findIndex(
+    ({ sql }) =>
+      sql === MAIN_INSERT_PERSONAL_DEBIT ||
+      sql === MAIN_INSERT_ORGANIZATION_DEBIT,
+  );
+  if (at === -1) return transaction;
+  const debit = transaction[at];
+  if (!debit) throw new Error("A debit is cut");
+  const [debitId, createdAt, updatedAt, amount, userId] = debit.values;
+  const organizationId = debit.values[5] ?? null;
+  const connects = [
+    ...(organizationId === null
+      ? []
+      : [
+          {
+            sql: MAIN_CONNECT_ORGANIZATION,
+            values: [organizationId, "1", "0"],
+          },
+        ]),
+    { sql: MAIN_CONNECT_USER, values: [userId, "1", "0"] },
+  ];
+  const from = at - connects.length;
+  expect(transaction.slice(from, at)).toEqual(connects);
+  const nowDebit = {
+    sql: NOW_INSERT_DEBIT,
+    values: [debitId, createdAt, updatedAt, amount, userId, organizationId],
+  };
+  if (/^ROLLBACK\b/.test(transaction[at + 1]?.sql ?? "")) {
+    return [
+      ...transaction.slice(0, from),
+      nowDebit,
+      ...transaction.slice(at + 1),
+    ];
+  }
+  const [consumptions, readBack] = transaction.slice(at + 1, at + 3);
+  if (!consumptions || !readBack) throw new Error("A debit is cut");
+  const written = Array.from(
+    { length: consumptions.values.length / 5 },
+    (_unused, row) => consumptions.values.slice(row * 5, row * 5 + 5),
+  );
+  expect([consumptions.sql, readBack]).toEqual([
+    mainInsertConsumptions(written.length),
+    { sql: MAIN_READ_DEBIT_BACK, values: [debitId, "1", "0"] },
+  ]);
+  // One time and one debit for every consumption, as the one statement binds.
+  expect(written.map((row) => [row[1], row[4]])).toEqual(
+    written.map(() => [createdAt, debitId]),
+  );
+  return [
+    ...transaction.slice(0, from),
+    nowDebit,
+    {
+      sql: NOW_INSERT_CONSUMPTIONS,
+      values: [
+        createdAt,
+        debitId,
+        written.map((row) => row[0]),
+        written.map((row) => row[2]),
+        written.map((row) => row[3]),
+      ],
+    },
+    ...transaction.slice(at + 3),
+  ];
 }
 
 /** Compares with what `origin/main` did, or records it while run there. */

@@ -147,8 +147,15 @@ function recorded(): Record<string, unknown> {
     : {};
 }
 
-/** Compares with what `origin/main` answered, or records it while run there. */
-function expectAsOnBase(key: string, observed: unknown) {
+/**
+ * Compares with what `origin/main` answered, or records it while run there,
+ * through `now` where the head is known to send other statements.
+ */
+function expectAsOnBase(
+  key: string,
+  observed: unknown,
+  now: (base: unknown) => unknown = (base) => base,
+) {
   if (recording) {
     writeFileSync(
       BASE_FILE,
@@ -156,7 +163,31 @@ function expectAsOnBase(key: string, observed: unknown) {
     );
     return;
   }
-  expect(observed).toEqual(recorded()[key]);
+  expect(observed).toEqual(now(recorded()[key]));
+}
+
+/**
+ * A personal usage's debit is written by the credits module's `recordSpend`
+ * since the base: two statements where Prisma's nested create sent four (a
+ * read of the user, the insert, the consumptions, a read back). Each statement
+ * is compared in `coworkers/me/usage/post-spend.postgres.test.ts`.
+ */
+const PERSONAL_USAGE_DEBIT_STATEMENTS_SAVED = 2;
+function withUsageDebitAsWrittenNow(base: unknown): unknown {
+  return Object.fromEntries(
+    Object.entries(
+      base as Record<string, { status: number; statements: number }>,
+    ).map(([step, answer]) => [
+      step,
+      answer.status === 201
+        ? {
+            ...answer,
+            statements:
+              answer.statements - PERSONAL_USAGE_DEBIT_STATEMENTS_SAVED,
+          }
+        : answer,
+    ]),
+  );
 }
 
 type NetworkName = "mainnet" | "preprod";
@@ -935,7 +966,7 @@ describe.runIf(enabled && !onSplitLayout).each(["Mainnet", "Preprod"] as const)(
               headers,
             );
           }
-          expectAsOnBase(baseKey("usage"), answers);
+          expectAsOnBase(baseKey("usage"), answers, withUsageDebitAsWrittenNow);
         }),
     );
 

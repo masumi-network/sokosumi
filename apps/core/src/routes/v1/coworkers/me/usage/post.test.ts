@@ -24,11 +24,13 @@ const {
   assertCoworkerUserContextBindingMock,
   prepareConsumptionMock,
   prismaTransactionMock,
+  recordSpendMock,
   requireCoworkerCapabilityMock,
   waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
   assertCoworkerUserContextBindingMock: vi.fn(),
   prepareConsumptionMock: vi.fn(),
+  recordSpendMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   requireCoworkerCapabilityMock: vi.fn(),
   waitUntilCapturedPromises: [] as Promise<unknown>[],
@@ -63,6 +65,7 @@ vi.mock("@vercel/functions", () => ({
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
     prepareConsumption: prepareConsumptionMock,
+    recordSpend: recordSpendMock,
   },
 }));
 
@@ -107,9 +110,6 @@ interface TransactionMock {
   };
   coworkerUsage: {
     findUnique: ReturnType<typeof vi.fn>;
-    create: ReturnType<typeof vi.fn>;
-  };
-  transaction: {
     create: ReturnType<typeof vi.fn>;
   };
 }
@@ -162,6 +162,7 @@ describe("POST /me/usage", () => {
     waitUntilCapturedPromises.length = 0;
     requireCoworkerCapabilityMock.mockResolvedValue(undefined);
     assertCoworkerUserContextBindingMock.mockResolvedValue(undefined);
+    recordSpendMock.mockResolvedValue("txn_123");
     preprod.on = false;
   });
 
@@ -181,7 +182,6 @@ describe("POST /me/usage", () => {
           findUnique: vi.fn().mockResolvedValue(null),
           create: vi.fn().mockResolvedValue(createUsage()),
         },
-        transaction: { create: vi.fn().mockResolvedValue({ id: "txn_123" }) },
         user: { findUnique: access.user ?? vi.fn() },
         organization: { findUnique: access.organization ?? vi.fn() },
       };
@@ -208,7 +208,7 @@ describe("POST /me/usage", () => {
       });
 
     it("is refused while Preprod is off, before any credit is read", async () => {
-      const tx = usageTransaction({});
+      usageTransaction({});
 
       const response = await post(null);
 
@@ -216,7 +216,7 @@ describe("POST /me/usage", () => {
       expect(response.status).toBe(403);
       expect(await response.text()).toBe("Preprod is switched off");
       expect(prepareConsumptionMock).not.toHaveBeenCalled();
-      expect(tx.transaction.create).not.toHaveBeenCalled();
+      expect(recordSpendMock).not.toHaveBeenCalled();
     });
 
     it("is refused to a billed user without Preprod access, before any credit is read", async () => {
@@ -234,7 +234,7 @@ describe("POST /me/usage", () => {
         select: { preprodEnabled: true },
       });
       expect(prepareConsumptionMock).not.toHaveBeenCalled();
-      expect(tx.transaction.create).not.toHaveBeenCalled();
+      expect(recordSpendMock).not.toHaveBeenCalled();
     });
 
     it("spends Preprod's credits when the billed Organization has access, whatever its member's flag", async () => {
@@ -309,9 +309,6 @@ describe("POST /me/usage", () => {
           .fn()
           .mockResolvedValue(createUsage({ userId: TARGET_USER_ID })),
       },
-      transaction: {
-        create: vi.fn().mockResolvedValue({ id: "txn_123" }),
-      },
     };
 
     mockTransaction(tx);
@@ -354,12 +351,15 @@ describe("POST /me/usage", () => {
     expect(prepareConsumptionMock.mock.calls[0]?.[1]).toBe(TARGET_USER_ID);
     expect(prepareConsumptionMock.mock.calls[0]?.[2]).toBe(ORGANIZATION_ID);
     expect(typeof prepareConsumptionMock.mock.calls[0]?.[3]).toBe("bigint");
-    expect(tx.transaction.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          user: { connect: { id: TARGET_USER_ID } },
-        }),
-      }),
+    expect(recordSpendMock).toHaveBeenCalledWith(
+      "mainnet",
+      {
+        userId: TARGET_USER_ID,
+        organizationId: ORGANIZATION_ID,
+        cents: 25000000000n,
+        consumptions: [{ bucketId: "bucket_123", amount: 25000000000n }],
+      },
+      tx,
     );
     expect(tx.coworkerUsage.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -393,9 +393,6 @@ describe("POST /me/usage", () => {
         create: vi
           .fn()
           .mockResolvedValue(createUsage({ userId: TARGET_USER_ID })),
-      },
-      transaction: {
-        create: vi.fn().mockResolvedValue({ id: "txn_123" }),
       },
     });
     prepareConsumptionMock.mockResolvedValue([
@@ -438,9 +435,6 @@ describe("POST /me/usage", () => {
         findUnique: vi.fn().mockResolvedValue(null),
         create: vi.fn(),
       },
-      transaction: {
-        create: vi.fn(),
-      },
     };
     mockTransaction(tx);
 
@@ -460,7 +454,7 @@ describe("POST /me/usage", () => {
 
     expect(response.status).toBe(403);
     expect(prepareConsumptionMock).not.toHaveBeenCalled();
-    expect(tx.transaction.create).not.toHaveBeenCalled();
+    expect(recordSpendMock).not.toHaveBeenCalled();
     expect(tx.coworkerUsage.create).not.toHaveBeenCalled();
     expect(waitUntilCapturedPromises).toHaveLength(0);
   });
@@ -481,9 +475,6 @@ describe("POST /me/usage", () => {
       },
       coworkerUsage: {
         findUnique: vi.fn().mockResolvedValue(null),
-        create: vi.fn(),
-      },
-      transaction: {
         create: vi.fn(),
       },
     };
@@ -547,9 +538,6 @@ describe("POST /me/usage", () => {
           .mockResolvedValue(createUsage({ userId: "user_original" })),
         create: vi.fn(),
       },
-      transaction: {
-        create: vi.fn(),
-      },
     };
 
     mockTransaction(tx);
@@ -570,7 +558,7 @@ describe("POST /me/usage", () => {
     });
 
     expect(response.status).toBe(409);
-    expect(tx.transaction.create).not.toHaveBeenCalled();
+    expect(recordSpendMock).not.toHaveBeenCalled();
     expect(tx.coworkerUsage.create).not.toHaveBeenCalled();
   });
 
@@ -590,9 +578,6 @@ describe("POST /me/usage", () => {
         ),
         create: vi.fn(),
       },
-      transaction: {
-        create: vi.fn(),
-      },
     };
 
     mockTransaction(tx);
@@ -613,7 +598,7 @@ describe("POST /me/usage", () => {
     });
 
     expect(response.status).toBe(409);
-    expect(tx.transaction.create).not.toHaveBeenCalled();
+    expect(recordSpendMock).not.toHaveBeenCalled();
     expect(tx.coworkerUsage.create).not.toHaveBeenCalled();
   });
 
@@ -629,9 +614,6 @@ describe("POST /me/usage", () => {
             organizationId: ORGANIZATION_ID,
           }),
         ),
-        create: vi.fn(),
-      },
-      transaction: {
         create: vi.fn(),
       },
     };
@@ -657,7 +639,7 @@ describe("POST /me/usage", () => {
     expect(tx.coworkerUsage.findUnique).toHaveBeenCalledTimes(1);
     expect(tx.member.findUnique).not.toHaveBeenCalled();
     expect(assertCoworkerUserContextBindingMock).not.toHaveBeenCalled();
-    expect(tx.transaction.create).not.toHaveBeenCalled();
+    expect(recordSpendMock).not.toHaveBeenCalled();
     expect(tx.coworkerUsage.create).not.toHaveBeenCalled();
     expect(prepareConsumptionMock).not.toHaveBeenCalled();
     expect(waitUntilCapturedPromises).toHaveLength(0);
@@ -671,9 +653,6 @@ describe("POST /me/usage", () => {
       },
       coworkerUsage: {
         findUnique: vi.fn(),
-        create: vi.fn(),
-      },
-      transaction: {
         create: vi.fn(),
       },
     };
@@ -704,6 +683,6 @@ describe("POST /me/usage", () => {
     ).toBeLessThan(
       tx.member.findUnique.mock.invocationCallOrder[0] ?? Infinity,
     );
-    expect(tx.transaction.create).not.toHaveBeenCalled();
+    expect(recordSpendMock).not.toHaveBeenCalled();
   });
 });
