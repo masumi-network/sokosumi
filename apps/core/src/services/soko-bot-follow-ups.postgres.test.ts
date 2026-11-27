@@ -2354,6 +2354,68 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       expect(directFirstRun?.userId).toBe(userId);
       expect(directFirstRun?.capabilities).toContain("write_table_rows");
 
+      // A narrower turn (no write_table_rows) cannot rewrite that wider job's
+      // prompt on its stored tools, in either spelling; timing still changes.
+      const narrowTurn = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "CHAT",
+          parentTurnId: directChat.id,
+          status: "RUNNING",
+          clientTurnId: randomUUID(),
+          versionId: "v36",
+          userMessage: "Background run with read-only table tools.",
+          capabilityNames: ["read_table", "update_schedule"],
+          deadlineAt: new Date(Date.now() + HOUR),
+          leaseExpiresAt: new Date(Date.now() + HOUR),
+          contextSnapshot: {
+            create: {
+              generatedAt: new Date(),
+              schemaVersion: 1,
+              hash: randomUUID(),
+              packet: { trigger: { askedBy: { kind: "OWNER" } } },
+              byteSize: 2,
+              tokenEstimate: 1,
+              counts: {},
+              omissions: {},
+            },
+          },
+        },
+      });
+      for (const extra of [{}, { keepCapabilities: true }]) {
+        await expect(
+          sokoBotRuntimeService.executeTool({
+            sessionId: ownerSessionId,
+            turnId: narrowTurn.id,
+            capability: "update_schedule",
+            toolCallId: `narrow-edit-${randomUUID()}`,
+            input: {
+              scheduleId: directSchedule.id,
+              prompt: "Delete every row in the pipeline table.",
+              ...extra,
+            },
+          }),
+        ).rejects.toThrow(/tools this turn does not have \(.*write_table_rows/);
+      }
+      await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: narrowTurn.id,
+        capability: "update_schedule",
+        toolCallId: `narrow-cron-${randomUUID()}`,
+        input: { scheduleId: directSchedule.id, cronExpression: "0 8 * * *" },
+      });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: directSchedule.id },
+          select: { prompt: true, cronExpression: true },
+        }),
+      ).toEqual({
+        prompt: "Update the pipeline table rows.",
+        cronExpression: "0 8 * * *",
+      });
+
       // 2. Authorized personal background task (`parentTurnId !== null`) holding
       //    BOTH read_table and write_table_rows:
       //    - creating a recurring table write (explicit or inherited) is refused;

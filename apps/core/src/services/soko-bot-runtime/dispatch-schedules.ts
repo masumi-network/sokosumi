@@ -197,6 +197,7 @@ export async function dispatchSchedulesTools(
                 ...(capabilityNames !== undefined
                   ? { capabilityNames, explicitCapabilities: true }
                   : {}),
+                editorCapabilities: authorized.grant.capabilities,
                 // Cuso's rhythms are the work he was hired for: what
                 // the owner asks for becomes a schedule of its own.
                 keepBuiltInRhythms:
