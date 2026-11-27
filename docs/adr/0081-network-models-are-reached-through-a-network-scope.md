@@ -15,6 +15,7 @@ Sokosumi is moving Mainnet and Preprod into one deployment: one database with a 
 - **A request gets its scope from one middleware**, on every authenticated router, as the required context variable `networkScope` beside `authContext` (`EnvVariables`). A handler reads `c.var.networkScope`; on a public router that does not compile. A nested authenticated router keeps the scope its parent set.
 - **A cron declares its Network where it is registered**, as `network` in the options of the shared cron handler, which creates the scope after the secret check and before the lock and hands it to the cron's work as `scope`. A cron that declares none is handed no scope. The deferred work may keep the scope, never an open transaction.
 - **Code that touches only shared models keeps the default client**, with no scope. New Core data access is still direct Prisma.
+- A cross-Network delete names every Network returned by `networksThatAreOn()` (Mainnet always, Preprod only while `isPreprodOn()`).
 - **The default client keeps its full type until the last Network caller has moved.** The move goes cluster by cluster.
 - **Built for Prisma only.** No provision for a second ORM: an unused extension point is a seam with one adapter. The scope is where a second client would be handed out later.
 
