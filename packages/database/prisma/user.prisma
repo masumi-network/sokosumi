@@ -43,6 +43,11 @@ model User {
   // terms
   termsAccepted Boolean @default(false)
 
+  /// Preprod access, switched by a platform admin (PreprodAccessChange records
+  /// each change). Not a Better Auth field: never in a session, never writable
+  /// by a client.
+  preprodEnabled Boolean @default(false)
+
   // Notifications
   notificationsOptIn Boolean @default(true) // Whether the user wants to receive notifications
   pushOptIn          Boolean @default(false) // Whether the user wants OS banners while Sokosumi is closed
