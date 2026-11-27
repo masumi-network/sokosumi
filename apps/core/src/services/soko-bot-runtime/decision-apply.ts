@@ -631,6 +631,9 @@ export async function applyDecision(
         },
         data: {
           outcome: "ambiguous",
+          // The text of a database failure is no contract: the hire's debit
+          // write fails as Prisma's P2010 from raw SQL where its nested create
+          // failed as P2039. Either rolls back and keeps the replay fenced.
           error: sellerReservationMarker
             ? serializeSellerReservationMarker(sellerReservationMarker, error)
             : persistedErrorDetail(error),
