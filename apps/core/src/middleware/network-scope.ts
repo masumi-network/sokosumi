@@ -233,6 +233,7 @@ export async function paymentScope(
   return createNetworkScope("preprod");
 }
 
+/** Ticket 31's rule with no role: a payment has no admin shortcut. */
 async function billedPartyHasPreprod(
   { userId, organizationId }: BilledParty,
   db: SharedDb,
@@ -242,14 +243,16 @@ async function billedPartyHasPreprod(
       where: { id: organizationId },
       select: { preprodEnabled: true },
     });
-    return organization?.preprodEnabled === true;
+    return canUsePreprodInWorkspace({}, null, {
+      organization: organization ?? {},
+    });
   }
   if (!userId) return false;
   const user = await db.user.findUnique({
     where: { id: userId },
     select: { preprodEnabled: true },
   });
-  return user?.preprodEnabled === true;
+  return canUsePreprodInWorkspace(user ?? {}, null, { organization: null });
 }
 
 /**
