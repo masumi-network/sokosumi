@@ -1,12 +1,14 @@
-import type {
-  FundraisingPaths,
-  FundraisingPipeline,
-  FundraisingProspect,
-} from "@sokosumi/core-client";
+import type { FundraisingPaths } from "@sokosumi/core-client";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
+import {
+  testFundPath,
+  testPaths,
+  testPipeline,
+  testProspect,
+} from "@/app/fundraising/fundraising-fixtures";
 import en from "@/messages/en.json";
 import { TestQueryProvider } from "@/test/query-provider";
 import { Outreach } from "./outreach";
@@ -22,43 +24,10 @@ vi.mock("@/lib/auth/auth.client", () => ({
   }),
 }));
 
-const prospect = {
-  contact: {
-    id: "investor-1",
-    name: "Ivy Investor",
-    channels: [],
-    lastContactAt: null,
-  },
-  dataRoom: null,
-  lastDraftAt: null,
-} as unknown as FundraisingProspect;
-
-const pipeline = {
-  rooms: [],
+const prospect = testProspect();
+const pipeline = testPipeline({
   mailbox: { provider: "Gmail", botId: "bot-1" },
-} as unknown as FundraisingPipeline;
-
-const paths = {
-  paths: [
-    {
-      kind: "fund",
-      via: { id: "teammate-1", name: "Tess", image: null },
-      linkedIn: false,
-      through: {
-        id: "connector-1",
-        name: "Casey Connector",
-        role: null,
-        organization: "Fund",
-        avatarUrl: null,
-        email: "casey@example.com",
-      },
-      company: { name: "Fund", round: null, date: null },
-      strength: 60,
-      touches: 4,
-      lastTouchAt: null,
-    },
-  ],
-} as unknown as FundraisingPaths;
+});
 
 describe("Outreach", () => {
   it("offers the intro paths that load after the sheet opens", async () => {
@@ -73,7 +42,7 @@ describe("Outreach", () => {
       </TestQueryProvider>,
     );
 
-    await act(async () => loaded.resolve(paths));
+    await act(async () => loaded.resolve(testPaths([testFundPath()])));
     await user.click(screen.getByRole("combobox", { name: "Through whom" }));
 
     expect(

@@ -91,11 +91,11 @@ export function FundraisingBoard({
     ALL,
   );
   const [openId, setOpenId] = useState<string | null>(null);
-  // The sheet has no trigger, so closing it puts focus back on the investor it showed.
-  const lastOpenId = useRef<string | null>(null);
-  const table = useRef<HTMLDivElement>(null);
-  const openSheet = (contactId: string) => {
-    lastOpenId.current = contactId;
+  // The sheet has no Radix trigger, so closing it puts focus back on what opened it.
+  const opener = useRef<HTMLElement | null>(null);
+  const board = useRef<HTMLDivElement>(null);
+  const openSheet = (contactId: string, from: HTMLElement | null) => {
+    opener.current = from;
     setOpenId(contactId);
   };
 
@@ -119,7 +119,7 @@ export function FundraisingBoard({
     );
 
   return (
-    <div className="flex min-w-0 flex-col gap-4 p-4">
+    <div ref={board} className="flex min-w-0 flex-col gap-4 p-4">
       <header className="flex min-w-0 flex-wrap items-end gap-3">
         <div className="min-w-0 flex-1">
           <h2 className="text-lg font-semibold tracking-tight">{t("title")}</h2>
@@ -182,10 +182,7 @@ export function FundraisingBoard({
           </Button>
         </Empty>
       ) : (
-        <div
-          ref={table}
-          className="border-border-tertiary overflow-x-auto rounded-xl border"
-        >
+        <div className="border-border-tertiary overflow-x-auto rounded-xl border">
           <Table className="min-w-[880px] table-fixed">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
@@ -224,7 +221,12 @@ export function FundraisingBoard({
                       "cursor-pointer",
                       openId === contact.id && "bg-quinary",
                     )}
-                    onClick={() => openSheet(contact.id)}
+                    onClick={(event) =>
+                      openSheet(
+                        contact.id,
+                        event.currentTarget.querySelector("[data-investor]"),
+                      )
+                    }
                   >
                     <TableCell className={CELL}>
                       <div className="flex min-w-0 items-center gap-3">
@@ -238,9 +240,12 @@ export function FundraisingBoard({
                         {/* The row's click is mouse-only; this button is the keyboard's way into the sheet. */}
                         <button
                           type="button"
-                          data-investor={contact.id}
-                          className="focus-visible:ring-ring min-w-0 rounded-sm text-start outline-none focus-visible:ring-2"
-                          onClick={() => openSheet(contact.id)}
+                          data-investor
+                          className="focus-visible:ring-ring min-w-0 rounded-sm text-start outline-hidden focus-visible:ring-2"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openSheet(contact.id, event.currentTarget);
+                          }}
                         >
                           <span className="block truncate font-medium">
                             {contact.name}
@@ -284,7 +289,7 @@ export function FundraisingBoard({
                         prospect={prospect}
                         pipeline={pipeline}
                         now={now}
-                        onOpenSheet={() => openSheet(contact.id)}
+                        onOpenSheet={(from) => openSheet(contact.id, from)}
                       />
                     </TableCell>
                     <TableCell className={cn(CELL, "text-sm")}>
@@ -337,11 +342,13 @@ export function FundraisingBoard({
         onClose={() => setOpenId(null)}
         onCloseAutoFocus={(event) => {
           event.preventDefault();
-          table.current
-            ?.querySelector<HTMLElement>(
-              `[data-investor="${CSS.escape(lastOpenId.current ?? "")}"]`,
-            )
-            ?.focus();
+          // A stage change can filter the investor off the board; then the active filter takes focus.
+          const target = opener.current?.isConnected
+            ? opener.current
+            : board.current?.querySelector<HTMLElement>(
+                '[data-slot="toggle-group-item"][data-state="on"]',
+              );
+          target?.focus();
         }}
       />
     </div>
