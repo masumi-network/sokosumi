@@ -49,6 +49,7 @@ vi.mock("@/lib/auth", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: vi.fn((queries: Promise<unknown>[]) => Promise.all(queries)),
     $queryRaw: vi.fn().mockResolvedValue([
       {
         total: 0,
@@ -175,9 +176,17 @@ describe("admin router (real mount, real auth + admin guard)", () => {
         },
       },
     ]);
-    const response = await adminRouter.request("http://localhost/seo-impact");
+    expect(
+      (await adminRouter.request("http://localhost/seo-impact?state=bogus"))
+        .status,
+    ).toBe(422);
+    const response = await adminRouter.request(
+      "http://localhost/seo-impact?state=waiting_crawl&source=cuso_done",
+    );
     expect(response.status).toBe(200);
-    expect((await response.json()).data).toMatchObject({
+    const { data } = await response.json();
+    expect(data.counts).toHaveLength(6);
+    expect(data).toMatchObject({
       total: 1,
       rows: [
         {

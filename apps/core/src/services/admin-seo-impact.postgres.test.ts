@@ -115,8 +115,10 @@ describe.skipIf(!enabled)("admin SEO impact list against PostgreSQL", () => {
       NOW,
     );
     expect(both.total).toBe(3);
-    expect(both.rows.every((row) => row.changeSource === "cuso_done")).toBe(
-      true,
-    );
+    expect(both.rows.map((row) => [row.changeSource, row.state])).toEqual([
+      ["cuso_done", "measured"],
+      ["cuso_done", "measured"],
+      ["cuso_done", "measured"],
+    ]);
   });
 });
