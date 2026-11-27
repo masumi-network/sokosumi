@@ -409,20 +409,34 @@ export interface RecoverableCall {
 }
 
 /**
- * Whether `later` made `earlier`'s effect happen: the same tool, afterwards,
- * on the same target, with input that covers the earlier call's, or a retry
- * of the same message. Another call of the same tool is not enough.
+ * Whether `later` asked for `earlier`'s effect again: the same tool,
+ * afterwards, with input that covers the earlier call's, or a retry of the
+ * same message. The same target alone is not enough: an edit of a post's
+ * thread is not its failed caption edit.
  */
-export function recoveredBy(
+export function sameEffect(
   earlier: RecoverableCall,
   later: RecoverableCall,
 ): boolean {
   return (
     later.capability === earlier.capability &&
     later.createdAt > earlier.createdAt &&
-    ((earlier.targetId !== null && later.targetId === earlier.targetId) ||
-      inputCovers(later.input, earlier.input, earlier.capability) ||
+    (inputCovers(later.input, earlier.input, earlier.capability) ||
       sameMessageRetry(later.input, earlier.input, earlier.capability))
+  );
+}
+
+/** For the answer's receipts: the same effect, or the same tool on the same target. */
+function recoveredBy(
+  earlier: RecoverableCall,
+  later: RecoverableCall,
+): boolean {
+  return (
+    sameEffect(earlier, later) ||
+    (later.capability === earlier.capability &&
+      later.createdAt > earlier.createdAt &&
+      earlier.targetId !== null &&
+      later.targetId === earlier.targetId)
   );
 }
 

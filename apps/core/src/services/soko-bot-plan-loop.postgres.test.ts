@@ -877,10 +877,81 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
         const chat = await finished([]);
         const prompt = await check(chat, "I scheduled both posts for Monday.");
         expect(prompt).toMatch(
-          /^Your plan marks every step done and your reply says something was made or changed, but Core has no record of any change in this request\./,
+          /^Your plan marks every step done and your reply says you made or changed something, but Core has no record of any change in this request\./,
         );
         expect(
           await check(chat, "I scheduled both posts for Monday."),
+        ).toBeNull();
+      });
+
+      it("lets a report of someone else's work through with no write on record", async () => {
+        expect(
+          await check(
+            await finished([]),
+            "The ledger shows that Jamie scheduled the post yesterday.",
+          ),
+        ).toBeNull();
+      });
+
+      it("asks for a read-back, not a redo, of an unconfirmed publish the reply claims", async () => {
+        const prompt = await check(
+          await finished([
+            {
+              capability: "publish_social_post",
+              extra: { disposition: "UNKNOWN", verification: "NONE" },
+            },
+          ]),
+          "I published the post.",
+        );
+        expect(prompt).toContain("never repeat it blind");
+        expect(prompt).not.toContain("Do the work now");
+      });
+
+      /** An edit of one post: which fields it changes, and how it ended. */
+      const editPost = (
+        receipt: { capability: string; extra: object },
+        post: string,
+        fields: object,
+      ) => ({
+        capability: "update_social_post",
+        extra: {
+          ...receipt.extra,
+          targetId: post,
+          input: { postId: post, revision: 2, ...fields },
+        },
+      });
+
+      it("keeps a failed caption edit after a different edit of the same post", async () => {
+        const post = randomUUID();
+        const prompt = await check(
+          await finished([
+            editPost(failedPost, post, { text: "Replacement caption" }),
+            editPost(scheduledPost, post, { threadParts: [] }),
+          ]),
+        );
+        expect(prompt).toContain(
+          `- update_social_post (id ${post}): did not happen`,
+        );
+      });
+
+      it("takes the same caption edit on the post's new revision as the retry", async () => {
+        const post = randomUUID();
+        const retried = editPost(scheduledPost, post, {
+          text: "Replacement caption",
+        });
+        expect(
+          await check(
+            await finished([
+              editPost(failedPost, post, { text: "Replacement caption" }),
+              {
+                ...retried,
+                extra: {
+                  ...retried.extra,
+                  input: { ...retried.extra.input, revision: 3 },
+                },
+              },
+            ]),
+          ),
         ).toBeNull();
       });
 

@@ -5,7 +5,7 @@ import { STUDIO_JOB_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
 import {
   parseActionNarrativeText,
   type RecoverableCall,
-  recoveredBy,
+  sameEffect,
 } from "@/lib/soko-bot/action-response";
 import { isOwnerRequest } from "@/lib/soko-bot/owner-request";
 import {
@@ -147,8 +147,9 @@ function savesSince(
 
 /**
  * Saves of the request that did not end done and that no later done call
- * made good (the same effect: target, covering input or message retry, as
- * the answer's receipts judge it): refused, failed, unconfirmed, or a
+ * made good (the same effect: input covering the failed call's, or a retry
+ * of the same message; the same target alone is not): refused, failed,
+ * unconfirmed, or a
  * Studio job still running with nothing waiting on it. All of them count,
  * however many the request made.
  */
@@ -158,7 +159,7 @@ function unsettled(saves: readonly SaveReceipt[]): SaveReceipt[] {
       save.outcome !== "done" &&
       !saves.some(
         (later) =>
-          later.outcome === "done" && recoveredBy(save.call, later.call),
+          later.outcome === "done" && sameEffect(save.call, later.call),
       ) &&
       (save.outcome !== "started" ||
         STUDIO_JOB_CAPABILITIES.has(save.capability)),
@@ -170,6 +171,16 @@ function unsettled(saves: readonly SaveReceipt[]): SaveReceipt[] {
  * the turn goes back once to recover, or to mark the step blocked and say
  * so, rather than answering that it all worked.
  */
+/**
+ * The reply says the bot itself made a change ("I scheduled", "we've
+ * published"), in the claim check's words; a report of what someone else
+ * did ("Jamie scheduled it") is not one.
+ */
+const OWN_CHANGE_CLAIM = new RegExp(
+  String.raw`\b(?:I|we)(?:'ve| have| just| also| now)*\s+${CHANGE_CLAIM.source}`,
+  "i",
+);
+
 async function receiptsDisagree(
   found: NonNullable<Awaited<ReturnType<typeof turnPlan>>>,
   turnIds: readonly string[],
@@ -177,15 +188,13 @@ async function receiptsDisagree(
 ): Promise<string | null> {
   if (!found.plan.steps.every((step) => step.status === "done")) return null;
   const saves = await savesSince(found, turnIds, 1);
-  // A plan can be all reading and answering; but one whose reply says a
-  // change was made, with no change on record anywhere in the request, is
-  // done only in words.
+  // A plan can be all reading and answering; but one whose reply says the
+  // bot made a change, with no change even tried anywhere in the request,
+  // is done only in words. A change on record, however it ended, is judged
+  // by its receipt below (read back an unconfirmed one, never redo it).
   const words = parseActionNarrativeText(draft)?.message ?? draft;
-  if (
-    !saves.some((save) => save.outcome === "done") &&
-    CHANGE_CLAIM.test(words)
-  )
-    return `Your plan marks every step done and your reply says something was made or changed, but Core has no record of any change in this request. Do the work now with the tools. If a step cannot be done, call update_plan (revision ${found.plan.revision}) and mark it blocked with the reason, or skipped if it is not needed. Then reply, saying plainly what was done and what was not.`;
+  if (!saves.length && OWN_CHANGE_CLAIM.test(words))
+    return `Your plan marks every step done and your reply says you made or changed something, but Core has no record of any change in this request. Do the work now with the tools. If a step cannot be done, call update_plan (revision ${found.plan.revision}) and mark it blocked with the reason, or skipped if it is not needed. Then reply, saying plainly what was done and what was not.`;
   const left = unsettled(saves);
   if (!left.length) return null;
   const lines = receiptLines(left);
