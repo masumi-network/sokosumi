@@ -645,7 +645,7 @@ it("R1: table archive retry preserves pre-poll metadata and intent", async () =>
     ctrlKey: false,
   });
   fireEvent.click(await screen.findByRole("menuitem", { name: "archive" }));
-  fireEvent.click(screen.getByRole("button", { name: "save" }));
+  fireEvent.click(screen.getByRole("button", { name: "archive" }));
   await waitFor(() => expect(f.update).toHaveBeenCalledOnce());
   await waitFor(() =>
     expect(
@@ -1417,4 +1417,28 @@ it("opens Find and replace from the table menu, not on an archived table", async
   expect(
     screen.queryByRole("menuitem", { name: "findReplace.title" }),
   ).not.toBeInTheDocument();
+});
+
+it("archive and restore confirm in their own words, not Save", async () => {
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.pointerDown(screen.getByRole("button", { name: "tableMenu" }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "archive" }));
+  expect(screen.getByRole("button", { name: "archive" })).toBeTruthy();
+  expect(screen.getByText("archiveDescription")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "save" })).toBeNull();
+  cleanup();
+
+  f.tableArchived = new Date();
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.pointerDown(screen.getByRole("button", { name: "tableMenu" }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "restore" }));
+  expect(screen.getByRole("button", { name: "restore" })).toBeTruthy();
+  expect(screen.getByText("restoreDescription")).toBeTruthy();
+  expect(screen.queryByText("archiveDescription")).toBeNull();
 });

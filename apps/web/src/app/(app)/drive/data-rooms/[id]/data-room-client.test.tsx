@@ -160,3 +160,37 @@ describe("DataRoomClient", () => {
     );
   });
 });
+
+describe("DataRoomClient load failure", () => {
+  it("says what may have happened and offers a way back and a retry", async () => {
+    api.fetchDataRoom.mockRejectedValue(new Error("Not found"));
+    render(
+      <Frame search="">
+        <DataRoomClient roomId="room-1" />
+      </Frame>,
+    );
+
+    expect(await screen.findByText("loadFailed")).toBeTruthy();
+    expect(screen.getByText("loadFailedDescription")).toBeTruthy();
+    const back = screen.getByRole("link", { name: "backToFiles" });
+    expect(back.getAttribute("href")).toBe("/drive?view=workspace");
+  });
+
+  it("loads the room again from Try again", async () => {
+    const room = await api.fetchDataRoom();
+    api.fetchDataRoom.mockReset();
+    api.fetchDataRoom
+      .mockRejectedValueOnce(new Error("Network"))
+      .mockResolvedValue(room);
+    render(
+      <Frame search="?tab=activity">
+        <DataRoomClient roomId="room-1" />
+      </Frame>,
+    );
+
+    await userEvent
+      .setup()
+      .click(await screen.findByRole("button", { name: "retry" }));
+    expect(await screen.findByText("activity panel")).toBeTruthy();
+  });
+});

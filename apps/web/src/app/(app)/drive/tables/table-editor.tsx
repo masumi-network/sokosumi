@@ -29,6 +29,7 @@ import {
   ListFilter,
   MoreHorizontal,
   Plus,
+  Table2,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -45,6 +46,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { DRIVE_SURFACE_PANEL_CLASS } from "@/app/drive/components/drive-view-layout";
+import { EmptyState } from "@/components/common/empty-state";
 import { ColumnResizeHandle } from "@/components/data-grid/column-resize-handle";
 import {
   GRID_HEAD_CHROME,
@@ -267,7 +269,12 @@ export function TableEditor({ id }: { id: string }) {
     enabled: !!session,
     queryKey: ["data-table", id, workspaceId],
     queryFn: () => dataTableService.get(id),
-    refetchInterval: 5000,
+    // A missing or forbidden table does not come back by asking again.
+    retry: (failures, error) => !isTableRejection(error) && failures < 3,
+    // Poll only a table that loaded. TanStack puts a query without data back
+    // to pending on every refetch, so polling a failed load kept the error
+    // hidden behind "Loading…" for as long as the page stayed open.
+    refetchInterval: (query) => (query.state.data ? 5000 : false),
   });
   const [viewId, setViewId] = useQueryState("view");
   if (!session || table.isPending)
@@ -278,9 +285,35 @@ export function TableEditor({ id }: { id: string }) {
     );
   if (!table.data)
     return (
-      <div role="alert" className="space-y-3 p-6">
-        <p>{tableError(table.error, t)}</p>
-        <Button onClick={() => void table.refetch()}>{t("retry")}</Button>
+      <div role="alert">
+        <EmptyState
+          icon={Table2}
+          title={t("openFailed")}
+          description={tableError(table.error, t)}
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button
+                asChild
+                variant="outline"
+                className="min-h-11 md:min-h-10"
+              >
+                <Link href="/drive?view=tables">
+                  <ArrowLeft aria-hidden />
+                  {t("backToFiles")}
+                </Link>
+              </Button>
+              {/* Only a failed request is worth repeating. */}
+              {!isTableRejection(table.error) && (
+                <Button
+                  className="min-h-11 md:min-h-10"
+                  onClick={() => void table.refetch()}
+                >
+                  {t("retry")}
+                </Button>
+              )}
+            </div>
+          }
+        />
       </div>
     );
   const view = table.data.views.find((view) => view.id === viewId);
@@ -1550,7 +1583,11 @@ function TableWorkspace({
                 : dialog === "history"
                   ? t("historyDescription")
                   : dialog === "archive"
-                    ? t("archiveDescription")
+                    ? t(
+                        table.archivedAt
+                          ? "restoreDescription"
+                          : "archiveDescription",
+                      )
                     : t("tableSettings")}
             </DialogDescription>
           </DialogHeader>
@@ -2025,7 +2062,11 @@ function TableWorkspace({
                   )
                 }
               >
-                {dialog === "enrich" ? t("createTask") : t("save")}
+                {dialog === "enrich"
+                  ? t("createTask")
+                  : dialog === "archive"
+                    ? t(table.archivedAt ? "restore" : "archive")
+                    : t("save")}
               </Button>
             </DialogFooter>
           )}
