@@ -409,10 +409,10 @@ export function seoSiteCrawlView(
 type Observation = { siteCrawl?: ProjectSeoSiteCrawl };
 
 /**
- * The continuations of an audit's crawl, newest first: the chain that goes on from `audit`'s snapshot. Only a
+ * The continuations of an audit's crawl: the chain that goes on from `audit`'s snapshot, tip first. Only a
  * continuation names the crawl it goes on from. A parent crawl's oldest continuation is the chain's, as in Core
- * (crawlContinuationTip), so the tip comes first. A later continuation of the same parent is a paid result too:
- * it is listed after the chain's crawl of that parent. `rows` come newest first.
+ * (crawlContinuationTip). A later continuation of the same parent, and every crawl that goes on from it, is a
+ * paid result too: they follow the chain, newest first. `rows` come newest first.
  */
 export function seoCrawlContinuations<Row extends Observation>(
   rows: readonly Row[],
@@ -427,17 +427,31 @@ export function seoCrawlContinuations<Row extends Observation>(
     siblings.push(row as Row & { siteCrawl: Crawled });
     children.set(crawl.continues, siblings);
   }
+  const root = audit?.state === "crawled" ? audit.snapshotId : undefined;
   const chain: (Row & { siteCrawl: Crawled })[] = [];
-  let parent = audit?.state === "crawled" ? audit.snapshotId : undefined;
+  let parent = root;
   const seen = new Set<string>();
   while (parent && !seen.has(parent)) {
     seen.add(parent);
     // Newest first: the last one is the oldest, the chain's.
-    const siblings = children.get(parent);
-    const child = siblings?.at(-1);
-    if (!siblings || !child) break;
-    chain.push(...siblings);
+    const child = children.get(parent)?.at(-1);
+    if (!child) break;
+    chain.push(child);
     parent = child.siteCrawl.snapshotId;
   }
-  return chain.reverse();
+  // Every crawl that goes on from the audit's crawl, also through a later continuation.
+  const reached = new Set<Row & { siteCrawl: Crawled }>();
+  const open = root ? [root] : [];
+  const visited = new Set<string>();
+  for (let next = open.pop(); next; next = open.pop()) {
+    if (visited.has(next)) continue;
+    visited.add(next);
+    for (const row of children.get(next) ?? []) {
+      reached.add(row);
+      if (row.siteCrawl.snapshotId) open.push(row.siteCrawl.snapshotId);
+    }
+  }
+  const others = [...reached].filter((row) => !chain.includes(row));
+  others.sort((a, b) => rows.indexOf(a) - rows.indexOf(b));
+  return [...chain.reverse(), ...others];
 }

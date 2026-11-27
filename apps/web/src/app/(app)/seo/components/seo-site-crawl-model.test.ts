@@ -432,6 +432,23 @@ describe("crawl continuations", () => {
     ).toEqual(["first", "later retry"]);
   });
 
+  it("keeps a paid crawl that goes on from a later continuation when an older one arrives late", () => {
+    const [AUDIT, LATE, B, C] = ["a", "1", "2", "3"].map((c) => c.repeat(64));
+    // B arrived and C went on from it. Then A's late Report came in, with a capture date before B's.
+    const rows = [
+      row("crawl_next", crawl(C, B), "after the later one"),
+      row("crawl_next", crawl(B, AUDIT), "later"),
+      row("crawl_next", crawl(LATE, AUDIT), "late, older"),
+      row("audit_full", crawl(AUDIT), "audit"),
+    ];
+    // The oldest continuation stays the chain's tip, as in Core. The other paid crawls still show.
+    expect(seoCrawlContinuations(rows, crawl(AUDIT)).map((r) => r.id)).toEqual([
+      "late, older",
+      "after the later one",
+      "later",
+    ]);
+  });
+
   it("has no continuations when the audit's crawl has no snapshot", () => {
     const rows = [
       row("crawl_next", crawl("1".repeat(64), "a".repeat(64)), "x"),
