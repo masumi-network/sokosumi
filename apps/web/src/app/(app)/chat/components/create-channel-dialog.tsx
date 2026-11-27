@@ -313,7 +313,7 @@ export function CreateChannelDialog({
                       {t.rich("linkHelp", {
                         slug: wizard.slug,
                         link: (chunks) => (
-                          <span className="text-foreground font-medium break-all">
+                          <span className="text-foreground font-medium break-words">
                             {chunks}
                           </span>
                         ),
