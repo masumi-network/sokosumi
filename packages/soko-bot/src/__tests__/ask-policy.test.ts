@@ -14,11 +14,12 @@ import {
 import { SOKO_BOT_CAPABILITIES } from "../policy.js";
 
 describe("askPolicy version flag", () => {
-  it("is omitted on every shipped personal and product version", () => {
+  it("is omitted on every shipped, control, loop-only, and isolated non-askPolicy version", () => {
     for (const version of [
       ...SOKO_BOT_VERSIONS,
       ...SOKO_BOT_PRODUCT_VERSIONS,
     ]) {
+      if (version.id.endsWith("-e1")) continue;
       expect(version.askPolicy).toBeUndefined();
       expect(composeSystemPrompt(version)).not.toContain(ASK_POLICY_SECTION);
     }

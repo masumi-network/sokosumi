@@ -8,7 +8,8 @@ import { v40 } from "./v40.js";
  * each E1 axis can be benchmarked cleanly on one frozen pin:
  * - `*-e1-route`: loop + routeSteering (Option D + keel menu, classifier fixed at v3)
  * - `*-e1-v4`: loop + routeSteering + classifierPolicy "v4"
- * - `*-e1`: full E1 package (loop + routeSteering + classifierPolicy "v4" + e1Prompts)
+ * - `v40-e1`: full E1 package (loop + routeSteering + classifierPolicy "v4" + e1Prompts + askPolicy)
+ * - `cmo-v27-e1`: full E1 + Cuso package (loop + routeSteering + classifierPolicy "v4" + e1Prompts + askPolicy + cmoOwnerAudience + cmoApplyChanges)
  */
 
 export const v40E1Route: SokoBotVersion = {
@@ -35,13 +36,14 @@ export const v40E1V4: SokoBotVersion = {
 export const v40E1: SokoBotVersion = {
   ...v40,
   id: "v40-e1",
-  name: "v40-e1 · v40 with full E1 (route steering, classifier v4, E1 prompts) (test)",
+  name: "v40-e1 · v40 with full E1 (route steering, classifier v4, E1 prompts, ask policy) (test)",
   createdAt: "2026-11-27",
   summary:
-    "v40 with all E1 flags enabled: routeSteering, classifierPolicy v4, and e1Prompts.",
+    "v40 with all personal-bot E1 flags enabled: routeSteering, classifierPolicy v4, e1Prompts, and askPolicy.",
   routeSteering: true,
   classifierPolicy: "v4",
   e1Prompts: true,
+  askPolicy: true,
 };
 
 export const cmoV27E1Route: SokoBotVersion = {
@@ -68,11 +70,14 @@ export const cmoV27E1V4: SokoBotVersion = {
 export const cmoV27E1: SokoBotVersion = {
   ...cmoV27,
   id: "cmo-v27-e1",
-  name: "cmo-v27-e1 · cmo-v27 with full E1 (route steering, classifier v4, E1 prompts) (test)",
+  name: "cmo-v27-e1 · cmo-v27 with full E1 and Cuso flags (test)",
   createdAt: "2026-11-27",
   summary:
-    "cmo-v27 with all E1 flags enabled: routeSteering, classifierPolicy v4, and e1Prompts.",
+    "cmo-v27 with all E1 and Cuso flags enabled: routeSteering, classifierPolicy v4, e1Prompts, askPolicy, cmoOwnerAudience, and cmoApplyChanges.",
   routeSteering: true,
   classifierPolicy: "v4",
   e1Prompts: true,
+  cmoOwnerAudience: true,
+  askPolicy: true,
+  cmoApplyChanges: true,
 };

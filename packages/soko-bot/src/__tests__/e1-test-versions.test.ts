@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ASK_POLICY_SECTION,
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
   composeSystemPrompt,
@@ -19,6 +20,9 @@ function stripVariantMeta(version: SokoBotVersion) {
     routeSteering: _routeSteering,
     classifierPolicy: _classifierPolicy,
     e1Prompts: _e1Prompts,
+    cmoOwnerAudience: _cmoOwnerAudience,
+    askPolicy: _askPolicy,
+    cmoApplyChanges: _cmoApplyChanges,
     ...rest
   } = version;
   return rest;
@@ -33,19 +37,59 @@ describe("E1 opt-in test versions on v40 and cmo-v27", () => {
       expect(version.routeSteering).toBeUndefined();
       expect(version.classifierPolicy).toBeUndefined();
       expect(version.e1Prompts).toBeUndefined();
+      expect(version.cmoOwnerAudience).toBeUndefined();
+      expect(version.askPolicy).toBeUndefined();
+      expect(version.cmoApplyChanges).toBeUndefined();
+      expect(composeSystemPrompt(version)).not.toContain(ASK_POLICY_SECTION);
     }
   });
 
   it.each([
-    ["v40-e1-route", "v40", true, undefined, undefined],
-    ["v40-e1-v4", "v40", true, "v4", undefined],
-    ["v40-e1", "v40", true, "v4", true],
-    ["cmo-v27-e1-route", "cmo-v27", true, undefined, undefined],
-    ["cmo-v27-e1-v4", "cmo-v27", true, "v4", undefined],
-    ["cmo-v27-e1", "cmo-v27", true, "v4", true],
+    [
+      "v40-e1-route",
+      "v40",
+      true,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ],
+    [
+      "v40-e1-v4",
+      "v40",
+      true,
+      "v4",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ],
+    ["v40-e1", "v40", true, "v4", true, undefined, true, undefined],
+    [
+      "cmo-v27-e1-route",
+      "cmo-v27",
+      true,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ],
+    [
+      "cmo-v27-e1-v4",
+      "cmo-v27",
+      true,
+      "v4",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ],
+    ["cmo-v27-e1", "cmo-v27", true, "v4", true, true, true, true],
   ] as const)(
     "%s differs from %s only by its declared E1 flag(s), passes version integrity, and preserves prompt-cache invariance",
-    (id, baseId, routeSteering, classifierPolicy, e1Prompts) => {
+    (id, baseId, routeSteering, classifierPolicy, e1Prompts, cmoOwnerAudience, askPolicy, cmoApplyChanges) => {
       const base = getSokoBotVersion(baseId);
       const variant = getSokoBotVersion(id);
       expect(variant.id).toBe(id);
@@ -53,6 +97,9 @@ describe("E1 opt-in test versions on v40 and cmo-v27", () => {
       expect(variant.routeSteering).toBe(routeSteering);
       expect(variant.classifierPolicy).toBe(classifierPolicy);
       expect(variant.e1Prompts).toBe(e1Prompts);
+      expect(variant.cmoOwnerAudience).toBe(cmoOwnerAudience);
+      expect(variant.askPolicy).toBe(askPolicy);
+      expect(variant.cmoApplyChanges).toBe(cmoApplyChanges);
       expect(stripVariantMeta(variant)).toEqual(stripVariantMeta(base));
 
       expect(
@@ -81,6 +128,11 @@ describe("E1 opt-in test versions on v40 and cmo-v27", () => {
       expect(promptA).toContain(
         "which account, recipient, or audience (target)",
       );
+      if (askPolicy) {
+        expect(promptA).toContain(ASK_POLICY_SECTION);
+      } else {
+        expect(promptA).not.toContain(ASK_POLICY_SECTION);
+      }
       if (e1Prompts) {
         expect(promptA).toContain("# Finishing the request");
         if (variant.profile === "cmo") {

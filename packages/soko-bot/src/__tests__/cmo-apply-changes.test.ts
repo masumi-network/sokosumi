@@ -12,11 +12,12 @@ import {
 import { SOKO_BOT_CAPABILITIES } from "../policy.js";
 
 describe("cmoApplyChanges version flag", () => {
-  it("is omitted on every shipped personal and product version", () => {
+  it("is omitted on every shipped, control, loop-only, and non-CMO-E1 version", () => {
     for (const version of [
       ...SOKO_BOT_VERSIONS,
       ...SOKO_BOT_PRODUCT_VERSIONS,
     ]) {
+      if (version.id === "cmo-v27-e1") continue;
       expect(version.cmoApplyChanges).toBeUndefined();
     }
   });
