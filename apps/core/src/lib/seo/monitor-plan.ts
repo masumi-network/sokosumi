@@ -124,11 +124,11 @@ export function seoMonitorDescription(plan: SeoMonitorPlan): string {
   return `${SEO_MONITOR_MARKER}${JSON.stringify(seoMonitorPacketSchema.parse(plan))}`;
 }
 
-/** A saved card's summary: its 4,000-character cut can end inside a full audit's request line. */
+/** A saved card's summary: its 4,000-character cut can end inside a request line that holds price terms. */
 export function savedScheduleSummaryForUser(
   summary: string | null,
 ): string | null {
-  const at = summary?.search(/^seo_audit:/m) ?? -1;
+  const at = summary?.search(/^seo_(?:audit|crawl_next):/m) ?? -1;
   return seoMonitorDescriptionForUser(
     summary && at >= 0 ? summary.slice(0, at).trimEnd() || null : summary,
   );
