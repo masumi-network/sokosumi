@@ -151,8 +151,8 @@ vi.mock("@/lib/sokosumi-mcp/auth", () => ({
         }
       : { status: "invalid_token" },
 }));
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     user: { findUnique: async () => USER },
     // The hire form's twin reads the agent, then asks it for its input schema.
     // An empty agent list: the agents view test needs a successful agents_list.
@@ -174,8 +174,10 @@ vi.mock("@/lib/db/prisma", () => ({
     // One completed Job: the Job status test needs a successful jobs_get.
     job: { findFirst: async () => JOB },
     taskEventMention: { findMany: async () => [] },
-  },
-}));
+  };
+  // The list reads its Network's rows through its scope's client.
+  return { default: client, networkPrisma: () => client };
+});
 vi.mock("@sokosumi/masumi", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@sokosumi/masumi")>();
   const { ok } = await import("neverthrow");

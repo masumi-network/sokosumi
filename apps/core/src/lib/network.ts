@@ -55,6 +55,10 @@ export function isPreprodOn(): boolean {
   return getEnv().NETWORK_PREPROD_ENABLED;
 }
 
+export function networksThatAreOn(): readonly Network[] {
+  return isPreprodOn() ? NETWORKS : ["mainnet"];
+}
+
 /**
  * Returns `value` as a Network that is on, or throws: Preprod is refused while
  * it is off, because on today's layout its schema is Mainnet's.

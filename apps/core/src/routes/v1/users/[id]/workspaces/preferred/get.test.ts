@@ -54,6 +54,7 @@ const PERSONAL = {
   websiteUrl: null,
   enabledSocialProviders: ["x", "youtube", "linkedin", "instagram", "facebook"],
   preferred: false,
+  canUsePreprod: false,
 } as const;
 
 const ORGANIZATION = {
@@ -68,6 +69,7 @@ const ORGANIZATION = {
   websiteUrl: "https://acme.com",
   enabledSocialProviders: ["x", "youtube", "linkedin", "instagram", "facebook"],
   preferred: true,
+  canUsePreprod: false,
 } as const;
 
 function createApp() {
