@@ -36,6 +36,23 @@ async function coworkerId(name: "Mira" | "CodePat"): Promise<string> {
   return id;
 }
 
+/**
+ * The account question Core opened on the bot's last refused draft: the bot
+ * read its id in that refusal; the script looks it up.
+ */
+async function openQuestion(turnId: string): Promise<string> {
+  const { sokoBotId } = await prisma.sokoBotTurn.findUniqueOrThrow({
+    where: { id: turnId },
+    select: { sokoBotId: true },
+  });
+  const question = await prisma.sokoBotAccountQuestion.findFirstOrThrow({
+    where: { sokoBotId },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+  return question.id;
+}
+
 /** Cuso works on his one Project: the bot's own. */
 async function cusoProject(turnId: string): Promise<string> {
   const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
@@ -173,14 +190,22 @@ export const REFERENCE_SCRIPTS: Record<string, ReferenceScript> = {
       {
         match: "We just crossed 1,000 Soko Bots",
         route: { route: "MANAGE_WORK", writeScope: "SOCIAL" },
+        // Two X accounts fit and the owner named none: the draft Core refuses
+        // opens its account question, and the turn asks it.
         steps: [
-          () =>
-            "Which X account should this go on: @sokosumi (Sokosumi Marketing) or @padierfind (Padierfind)?",
+          async (_results, { turnId }) => [
+            call("create_social_post", {
+              projectId: await projectId(turnId, "Sokosumi Marketing"),
+              text: "We just crossed 1,000 Soko Bots at work.",
+            }),
+          ],
+          () => "Which X account should this go on?",
         ],
       },
       {
         match: "The Sokosumi one.",
         route: { route: "MANAGE_WORK", writeScope: "SOCIAL" },
+        // The owner's answer to Core's question: its id and the picked option.
         steps: [
           async (_results, { turnId }) => [
             call("list_project_social_accounts", {
@@ -191,6 +216,7 @@ export const REFERENCE_SCRIPTS: Record<string, ReferenceScript> = {
             call("create_social_post", {
               projectId: await projectId(turnId, "Sokosumi Marketing"),
               socialConnectionId: xAccount(results),
+              accountQuestionId: await openQuestion(turnId),
               text: "We just crossed 1,000 Soko Bots at work.",
             }),
           ],
